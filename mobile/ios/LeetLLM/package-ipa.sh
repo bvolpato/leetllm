@@ -3,15 +3,36 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+load_env_defaults() {
+  local env_file="$1"
+  [[ -f "$env_file" ]] || return 0
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    local line="${raw_line%$'\r'}"
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" == *"="* ]] || continue
+    local key="${line%%=*}"
+    local val="${line#*=}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    if [[ -z "${!key+x}" ]]; then
+      if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+        val="${val:1:${#val}-2}"
+      elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+        val="${val:1:${#val}-2}"
+      fi
+      export "$key=$val"
+    fi
+  done < "$env_file"
+}
+
+load_env_defaults "$REPO_ROOT/.env"
+load_env_defaults "$REPO_ROOT/secrets/deploy.env"
+
 BUILD_DIR="${IOS_RELEASE_DIR:-$SCRIPT_DIR/build/release}"
 ARCHIVE_PATH="$BUILD_DIR/LeetLLM.xcarchive"
 EXPORT_PATH="$BUILD_DIR/export"
-if [[ -f "$REPO_ROOT/secrets/deploy.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$REPO_ROOT/secrets/deploy.env"
-  set +a
-fi
 
 PROFILE_PATH="${IOS_PROVISIONING_PROFILE_PATH:-$REPO_ROOT/secrets/ios/LeetLLM_App_Store_Distribution.mobileprovision}"
 TEAM_ID="${IOS_TEAM_ID:-}"
@@ -58,6 +79,10 @@ if [[ -f "$PROFILE_PATH" ]]; then
 fi
 
 if [[ "$HAS_DISTRIBUTION_CERT" = true ]]; then
+  if [[ -z "$TEAM_ID" ]]; then
+    echo "error: IOS_TEAM_ID is required for signed builds (set IOS_TEAM_ID, .env, or secrets/deploy.env)" >&2
+    exit 1
+  fi
   echo "Building signed archive with automatic provisioning..."
   xcodebuild archive \
     -project LeetLLM.xcodeproj \

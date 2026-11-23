@@ -3,6 +3,34 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
+# Load optional gitignored local config without overriding explicit env vars.
+load_env_defaults() {
+  local env_file="$1"
+  [[ -f "$env_file" ]] || return 0
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    local line="${raw_line%$'\r'}"
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" == *"="* ]] || continue
+    local key="${line%%=*}"
+    local val="${line#*=}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    if [[ -z "${!key+x}" ]]; then
+      if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+        val="${val:1:${#val}-2}"
+      elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+        val="${val:1:${#val}-2}"
+      fi
+      export "$key=$val"
+    fi
+  done < "$env_file"
+}
+
+load_env_defaults "$REPO_ROOT/.env"
+load_env_defaults "$REPO_ROOT/secrets/deploy.env"
+
 BUILD_DIR="${IOS_RELEASE_DIR:-$SCRIPT_DIR/build/release}"
 SIGNING_DIR="$BUILD_DIR/signing"
 ARCHIVE_PATH="$BUILD_DIR/LeetLLM.xcarchive"
@@ -155,14 +183,6 @@ fi
 if [[ -n "${IOS_PROVISIONING_PROFILE_BASE64:-}" ]]; then
   PROFILE_PATH="$SIGNING_DIR/LeetLLM_App_Store_Distribution.mobileprovision"
   decode_base64_to_file "$IOS_PROVISIONING_PROFILE_BASE64" "$PROFILE_PATH"
-fi
-
-# Source optional local gitignored deploy configuration
-if [[ -f "$REPO_ROOT/secrets/deploy.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$REPO_ROOT/secrets/deploy.env"
-  set +a
 fi
 
 # If no input is given, use files in the gitignored secrets/ios/ (or local signing/) folder.

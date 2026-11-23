@@ -162,6 +162,7 @@ jq '{sourceCommit, bundleId, shortVersion, buildNumber, xcodeVersion, sdkVersion
 Create a gitignored `.env` file in the LeetLLM repository root with the local signing and App Store Connect values. Keep the `.p12` and `.p8` private keys outside Git. Point the profile path at the local `LeetLLM Local App Store 20261111` profile. Set the file permissions before using it:
 
 ```bash
+IOS_TEAM_ID="<apple-team-id>"
 IOS_CERTIFICATE_PATH="/absolute/path/to/local-distribution.p12"
 IOS_P12_PASSWORD="<local-p12-password>"
 IOS_PROFILE_NAME="LeetLLM Local App Store 20261111"
@@ -182,8 +183,6 @@ node scripts/render-storage.mjs admit \
   --output "$NATIVE_DIR" -- env \
   TMPDIR="$NATIVE_DIR/tmp" \
   IOS_APP_STORE_ID=6759850761 IOS_BUNDLE_ID=com.leetllm.ios \
-  IOS_TEAM_ID="$IOS_TEAM_ID" \
-  IOS_PROVISIONING_PROFILE_PATH='/absolute/path/to/LeetLLM.profile.mobileprovision' \
   IOS_ENTITLEMENTS_PATH="$NATIVE_DIR/native-ios-release/signing-entitlements.plist" \
   IOS_RELEASE_DIR="$NATIVE_DIR/signed" \
   uv run --no-project --env-file .env -- "$BRUTV_IOS/release.sh" \
