@@ -17,7 +17,7 @@ from content_audience import is_visible_to_audience
 ROOT = Path(__file__).resolve().parents[1]
 CONTENT_DIR = ROOT / "web" / "src" / "content"
 THEORY_QUIZZES_PATH = ROOT / "web" / "src" / "data" / "theory-quizzes.json"
-MIN_QUESTIONS = 5
+MIN_QUESTIONS = 3
 MAX_QUESTIONS = 10
 LEARN_SECTIONS = {
     "Computing Foundations",

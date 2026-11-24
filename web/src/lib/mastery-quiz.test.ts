@@ -22,9 +22,13 @@ describe("extractMasteryQuiz", () => {
         expect(result.content).toBe("Before quiz.\n\nAfter quiz.")
     })
 
-    test("rejects quizzes with fewer than five questions", () => {
-        expect(() => validateMasteryQuizQuestions(questions.slice(0, 4))).toThrow(
-            "Mastery quiz needs at least 5 questions",
+    test("accepts concise three-question quizzes", () => {
+        expect(validateMasteryQuizQuestions(questions.slice(0, 3))).toEqual(questions.slice(0, 3))
+    })
+
+    test("rejects quizzes with fewer than three questions", () => {
+        expect(() => validateMasteryQuizQuestions(questions.slice(0, 2))).toThrow(
+            "Mastery quiz needs at least 3 questions",
         )
     })
 

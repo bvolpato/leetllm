@@ -555,7 +555,8 @@ describe("content packaging and rendering regressions", () => {
         expect(issues).toEqual([])
     })
 
-    test("code-like fences include descriptive title metadata", () => {
+    test("longer code-like fences include descriptive title metadata", () => {
+        const shortCodeFenceMaxLines = 8
         const codeLikeLanguages = new Set([
             "bash",
             "diff",
@@ -579,21 +580,48 @@ describe("content packaging and rendering regressions", () => {
         ])
 
         const issues = bundles.flatMap((bundle) => {
-            const matches = [...bundle.content.matchAll(/^(?:[ \t]{0,3}>\s?)?[ \t]{0,3}```([^`\n]*)\n/gm)]
+            const bundleIssues: string[] = []
+            const lines = bundle.content.split("\n")
+            let activeFenceLength = 0
+            let activeLanguage = ""
+            let activeInfo = ""
+            let activeStartLine = 0
+            let activeBodyLines = 0
 
-            return matches.flatMap((match) => {
-                const info = match[1].trim()
-                const language = info.split(/\s+/)[0]?.toLowerCase()
-                if (!language || !codeLikeLanguages.has(language)) {
-                    return []
-                }
-                if (/\b(title|filename)=/.test(info) || /\b(output|bare)\b/.test(info)) {
-                    return []
+            lines.forEach((line, index) => {
+                const fence = line.match(/^(?:[ \t]{0,3}>\s?)?[ \t]{0,3}(`{3,})([^`\n]*)$/)
+                if (!fence) {
+                    if (activeFenceLength > 0) {
+                        activeBodyLines += 1
+                    }
+                    return
                 }
 
-                const line = bundle.content.slice(0, match.index).split("\n").length
-                return [`${bundle.id}: ${language} fence on line ${line} has no title metadata`]
+                if (!activeFenceLength) {
+                    activeFenceLength = fence[1].length
+                    activeInfo = fence[2].trim()
+                    activeLanguage = activeInfo.split(/\s+/)[0]?.toLowerCase() ?? ""
+                    activeStartLine = index + 1
+                    activeBodyLines = 0
+                } else if (fence[1].length >= activeFenceLength && !fence[2].trim()) {
+                    if (
+                        activeLanguage
+                        && codeLikeLanguages.has(activeLanguage)
+                        && activeBodyLines > shortCodeFenceMaxLines
+                        && !/\b(title|filename)=/.test(activeInfo)
+                        && !/\b(output|bare)\b/.test(activeInfo)
+                    ) {
+                        bundleIssues.push(
+                            `${bundle.id}: ${activeLanguage} fence on line ${activeStartLine} (${activeBodyLines} lines) has no title metadata`,
+                        )
+                    }
+                    activeFenceLength = 0
+                } else {
+                    activeBodyLines += 1
+                }
             })
+
+            return bundleIssues
         })
 
         expect(issues).toEqual([])

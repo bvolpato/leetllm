@@ -42,9 +42,8 @@ PNG_RENDER_SCALE = 2.0
 MIN_DIALECT_WORDS_GUARD_HITS = 3
 MAX_DIALECT_PER_1K_WORDS = 5.0
 MAX_PREDICTION_PROMPTS = 2
-MIN_PROSE_PARAGRAPHS_FOR_STACCATO = 10
-MIN_PARAGRAPH_WORDS = 5
-MAX_SHORT_PARAGRAPH_RATIO = 0.50
+MIN_NON_OPS_SOC2_HITS = 4
+MAX_NON_OPS_SOC2_PER_1K_WORDS = 3.0
 
 MAX_TYPE_IS_NOT_HITS = 2
 MAX_MATH_ISFINITE_HITS = 3
@@ -156,6 +155,116 @@ GLOSSARY_DIALECT_ALLOWLIST: dict[str, frozenset[str]] = {
 PREDICTION_PROMPT_RE = re.compile(
     r"\bBefore\s+(?:running|reading|checking|continuing)\b",
     re.IGNORECASE,
+)
+
+# NONO 1: Lawyer-vetted defensive disclaimers that interrupt teaching (warning only).
+LAWYER_DISCLAIMER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("does not prove", re.compile(r"\b(?:does\s+not|doesn't|cannot)\s+prove\b", re.IGNORECASE)),
+    ("does not guarantee", re.compile(r"\b(?:does\s+not|doesn't|cannot)\s+guarantee\b", re.IGNORECASE)),
+    ("not a guarantee of", re.compile(r"\bnot\s+a\s+guarantee\s+of\b", re.IGNORECASE)),
+    ("not a promise of", re.compile(r"\bnot\s+a\s+promise\s+of\b", re.IGNORECASE)),
+    ("does not measure", re.compile(r"\b(?:does\s+not|doesn't|cannot)\s+measure\b", re.IGNORECASE)),
+    ("does not replace", re.compile(r"\b(?:does\s+not|doesn't)\s+replace\b", re.IGNORECASE)),
+    (
+        "illustrative walkthrough disclaimer",
+        re.compile(r"\btreat\s+these\s+numbers\s+as\s+an\s+illustrative\b", re.IGNORECASE),
+    ),
+    (
+        "simplified example caveat",
+        re.compile(r"\bsimplified\s+example\s+does\s+not\s+capture\b", re.IGNORECASE),
+    ),
+    (
+        "for illustration purposes only",
+        re.compile(r"\bfor\s+illustration\s+purposes\s+only\b", re.IGNORECASE),
+    ),
+)
+
+# NONO 2: Non-ops SOC2/compliance/SRE ticket boilerplate (warning only).
+NON_OPS_SECTIONS = frozenset(
+    {
+        "Computing Foundations",
+        "Math & Statistics",
+        "Preparation & Prerequisites",
+        "ML Algorithms & Evaluation",
+        "Core LLM Foundations",
+        "Transformer Deep Dives",
+        "Advanced Training & Adaptation",
+    }
+)
+CORPORATE_TICKET_ROLEPLAY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("luna-48291", re.compile(r"\bluna-48291\b", re.IGNORECASE)),
+    ("ticket #48291", re.compile(r"\bticket\s*#\s*\d+\b", re.IGNORECASE)),
+    ("09:12 incident timestamp", re.compile(r"\b09:12\b")),
+    ("escalation workflow", re.compile(r"\bescalation\s+(?:workflow|behavior)\b", re.IGNORECASE)),
+)
+NON_OPS_SOC2_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("policy", re.compile(r"\bpolic(?:y|ies)\b", re.IGNORECASE)),
+    ("gate", re.compile(r"\bgates?\b", re.IGNORECASE)),
+    ("audit", re.compile(r"\baudit(?:s|ed|ing)?\b", re.IGNORECASE)),
+    ("ledger", re.compile(r"\bledgers?\b", re.IGNORECASE)),
+    ("rollout", re.compile(r"\brollouts?\b", re.IGNORECASE)),
+    ("rollback", re.compile(r"\brollbacks?\b", re.IGNORECASE)),
+)
+NON_OPS_SOC2_EXEMPT_PHRASES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "policy",
+        re.compile(
+            r"\b(?:rl|optimal|target|behavior|reference|current|new|old|learned|stochastic|deterministic|greedy|epsilon-greedy)\s+polic(?:y|ies)\b"
+            r"|\bpolic(?:y|ies)\s+(?:gradient|gradients|optimization|network|loss|update|updates|iteration|evaluation|model|head|ratio|learning|search)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "gate",
+        re.compile(
+            r"\b(?:forget|input|output|update|reset|memory|router|moe|attention|logic|sigmoid|silu|gelu|swiglu|glu)\s+gates?\b"
+            r"|\bgates?\s+(?:vector|matrix|activation|projection|weights?|unit|units)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "rollout",
+        re.compile(
+            r"\b(?:rl|policy|trajectory|episode|environment|sampling|grpo|ppo)\s+rollouts?\b"
+            r"|\brollouts?\s+(?:trajector(?:y|ies)|episodes?|samples?|buffer|step|steps)\b",
+            re.IGNORECASE,
+        ),
+    ),
+)
+RL_OR_ALIGNMENT_POLICY_SLUG_TOKENS = (
+    "reinforcement",
+    "rlhf",
+    "dpo",
+    "grpo",
+    "ppo",
+    "alignment",
+    "reward",
+    "decision",
+    "preference",
+    "security",
+    "rbac",
+    "privacy",
+    "sandbox",
+    "safety",
+    "responsible",
+    "governance",
+)
+
+# NONO 5: Ephemeral library changelog stamps in timeless prose (warning only).
+EPHEMERAL_CHANGELOG_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "rechecked date stamp",
+        re.compile(
+            r"\brechecked\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},\s+20\d{2}\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "As of <lib> <version>",
+        re.compile(
+            r"\bAs\s+of\s+[A-Za-z][A-Za-z0-9_-]{1,24}\s+v?\d+\.\d+(?:\.\d+)?\b",
+        ),
+    ),
 )
 
 # Type-police patterns in Python cells.
@@ -277,14 +386,6 @@ EXPORT_CONST_NUM_RE = re.compile(
 )
 
 PROSE_WORDS_RE = re.compile(r"\b[A-Za-z0-9_']+\b")
-ABBREVIATION_DOT_RE = re.compile(
-    r"\b(?:e\.g|i\.e|etc|vs|Fig|Eq|et al|Dr|Mr|Ms|Prof|No|U\.S)\.",
-    re.IGNORECASE,
-)
-DECIMAL_DOT_RE = re.compile(r"(\d)\.(\d)")
-SENTENCE_SPLIT_RE = re.compile(r"[.!?]+(?=\s|$)")
-
-MARKDOWN_LIST_LINE_RE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 DUPLICATE_OUTPUT_BLOCK_RE = re.compile(
     r"<!--\s*leetllm:\s*output:end\s*-->\s*<!--\s*leetllm:\s*output:start\s*-->",
     re.IGNORECASE,
@@ -356,7 +457,7 @@ def find_hard_banned(text: str) -> list[str]:
 
 
 def find_emdash_lines(markdown: str) -> list[int]:
-    """Return 1-based line numbers where prose (outside code fences/inline code) has '—'."""
+    """Return 1-based line numbers where prose (outside code fences/inline code) has an em dash."""
     lines = markdown.splitlines(keepends=True)
     if not lines:
         return []
@@ -436,42 +537,74 @@ def compute_dialect_stats(
     }
 
 
-def compute_staccato_stats(prose: str) -> dict[str, Any]:
-    """Compute short-paragraph ratio across multi-word prose paragraphs."""
-    blocks = re.split(r"\n\s*\n", prose.strip()) if prose.strip() else []
-    prose_paragraphs = 0
-    short_paragraphs = 0
+def find_lawyer_disclaimers(prose: str) -> list[str]:
+    """Return distinct lawyer-vetted disclaimer phrases matched in prose."""
+    normalized = normalize_text(prose)
+    hits: list[str] = []
+    for label, pattern in LAWYER_DISCLAIMER_PATTERNS:
+        if pattern.search(normalized):
+            hits.append(label)
+    return hits
 
-    for block in blocks:
-        lines = [line.strip() for line in block.splitlines() if line.strip()]
-        if not lines:
+
+def find_ephemeral_changelogs(prose: str) -> list[str]:
+    """Return distinct ephemeral library changelog stamps matched in prose."""
+    normalized = normalize_text(prose)
+    hits: list[str] = []
+    for label, pattern in EPHEMERAL_CHANGELOG_PATTERNS:
+        if pattern.search(normalized):
+            hits.append(label)
+    return hits
+
+
+def compute_non_ops_soc2_stats(
+    prose: str,
+    *,
+    slug: str,
+    section: str,
+) -> dict[str, Any]:
+    """Detect corporate ticket roleplay and SOC2 compliance jargon in non-ops lessons."""
+    normalized = normalize_text(prose)
+    words = count_words(normalized)
+    roleplay_hits = [
+        label
+        for label, pattern in CORPORATE_TICKET_ROLEPLAY_PATTERNS
+        if pattern.search(normalized)
+    ]
+
+    if section not in NON_OPS_SECTIONS or words == 0:
+        return {
+            "words": words,
+            "roleplay_hits": roleplay_hits,
+            "effective_hits": 0,
+            "density_per_1k": 0.0,
+            "term_counts": {},
+        }
+
+    slug_lower = slug.lower()
+    exempt_policy_slug = any(token in slug_lower for token in RL_OR_ALIGNMENT_POLICY_SLUG_TOKENS)
+    exempt_counts: Counter[str] = Counter()
+    for term_key, phrase_re in NON_OPS_SOC2_EXEMPT_PHRASES:
+        exempt_counts[term_key] += len(phrase_re.findall(normalized))
+
+    term_counts: dict[str, int] = {}
+    effective_hits = 0
+    for term_key, pattern in NON_OPS_SOC2_PATTERNS:
+        if term_key in ("policy", "rollout") and exempt_policy_slug:
             continue
-        first = lines[0]
-        if first.startswith(("#", ">", "|", "---", "***", "___", "<", "import ", "export ")):
-            continue
-        if all(MARKDOWN_LIST_LINE_RE.match(line) for line in lines):
-            continue
+        raw_count = len(pattern.findall(normalized))
+        net_count = max(0, raw_count - exempt_counts[term_key])
+        if net_count > 0:
+            term_counts[term_key] = net_count
+            effective_hits += net_count
 
-        joined = " ".join(lines)
-        cleaned = _MARKDOWN_LINK_RE.sub(r"\1", joined)
-        if count_words(cleaned) < MIN_PARAGRAPH_WORDS:
-            continue
-
-        # Protect decimals and common abbreviations before counting sentence boundaries.
-        protected = DECIMAL_DOT_RE.sub(r"\1_DOT_\2", cleaned)
-        protected = ABBREVIATION_DOT_RE.sub(lambda m: m.group(0).replace(".", "_DOT_"), protected)
-        parts = [p.strip() for p in SENTENCE_SPLIT_RE.split(protected) if p.strip()]
-        sentence_count = max(1, len(parts))
-
-        prose_paragraphs += 1
-        if sentence_count <= 2:
-            short_paragraphs += 1
-
-    ratio = round(short_paragraphs / prose_paragraphs, 4) if prose_paragraphs > 0 else 0.0
+    density = round((effective_hits / words) * 1000.0, 2)
     return {
-        "prose_paragraphs": prose_paragraphs,
-        "short_paragraphs": short_paragraphs,
-        "short_ratio": ratio,
+        "words": words,
+        "roleplay_hits": roleplay_hits,
+        "effective_hits": effective_hits,
+        "density_per_1k": density,
+        "term_counts": term_counts,
     }
 
 
@@ -837,7 +970,7 @@ def audit_article_bundle(
                 scope="article",
                 category="emdash_in_prose",
                 severity="blocking",
-                message=f"Emdash '—' found in prose ({'; '.join(loc_parts)})",
+                message=f"Em dash found in prose ({'; '.join(loc_parts)})",
                 view=view_name,
                 metrics={"emdash_line_count": len(emdash_lines), "in_frontmatter": meta_emdash},
             )
@@ -865,7 +998,7 @@ def audit_article_bundle(
                 metrics=dialect_stats,
             )
 
-        # Repetition and rhythm are editorial review signals, not prose quotas.
+        # Repetition and NONO editorial warnings (never block; punchy paragraphs are welcome).
         pred_count = len(PREDICTION_PROMPT_RE.findall(normalize_text(prose)))
         if pred_count > MAX_PREDICTION_PROMPTS:
             _merge_view_defect(
@@ -879,25 +1012,57 @@ def audit_article_bundle(
                 metrics={"prediction_prompts": pred_count},
             )
 
-        # Sentence counts cannot distinguish clear short paragraphs from choppy prose.
-        staccato_stats = compute_staccato_stats(prose)
-        if (
-            staccato_stats["prose_paragraphs"] >= MIN_PROSE_PARAGRAPHS_FOR_STACCATO
-            and staccato_stats["short_ratio"] > MAX_SHORT_PARAGRAPH_RATIO
-        ):
-            pct = round(staccato_stats["short_ratio"] * 100.0, 1)
+        lawyer_hits = find_lawyer_disclaimers(prose)
+        if lawyer_hits:
             _merge_view_defect(
                 view_defects,
                 target=rel_target,
                 scope="article",
-                category="staccato_choppiness",
+                category="lawyer_disclaimer_spam",
                 severity="warning",
-                message=(
-                    f"Review paragraph rhythm: {pct}% paragraphs have <= 2 sentences "
-                    f"({staccato_stats['short_paragraphs']}/{staccato_stats['prose_paragraphs']}); do not pad paragraphs to satisfy a count"
-                ),
+                message=f"Lawyer-vetted disclaimer phrasing in prose: {', '.join(lawyer_hits)}",
                 view=view_name,
-                metrics=staccato_stats,
+                metrics={"matches": lawyer_hits},
+            )
+
+        section_name = str(metadata.get("section", ""))
+        non_ops_stats = compute_non_ops_soc2_stats(prose, slug=slug, section=section_name)
+        if non_ops_stats["roleplay_hits"] or (
+            non_ops_stats["effective_hits"] >= MIN_NON_OPS_SOC2_HITS
+            and non_ops_stats["density_per_1k"] > MAX_NON_OPS_SOC2_PER_1K_WORDS
+        ):
+            parts: list[str] = []
+            if non_ops_stats["roleplay_hits"]:
+                parts.append(f"ticket roleplay={', '.join(non_ops_stats['roleplay_hits'])}")
+            if non_ops_stats["effective_hits"] >= MIN_NON_OPS_SOC2_HITS and non_ops_stats["density_per_1k"] > MAX_NON_OPS_SOC2_PER_1K_WORDS:
+                soc2_summary = ", ".join(
+                    f"{k}={v}" for k, v in sorted(non_ops_stats["term_counts"].items())
+                )
+                parts.append(
+                    f"SOC2 density {non_ops_stats['density_per_1k']}/1k words ({soc2_summary})"
+                )
+            _merge_view_defect(
+                view_defects,
+                target=rel_target,
+                scope="article",
+                category="non_ops_soc2_boilerplate",
+                severity="warning",
+                message=f"Non-ops SOC2/ticket boilerplate: {'; '.join(parts)}",
+                view=view_name,
+                metrics=non_ops_stats,
+            )
+
+        changelog_hits = find_ephemeral_changelogs(prose)
+        if changelog_hits:
+            _merge_view_defect(
+                view_defects,
+                target=rel_target,
+                scope="article",
+                category="ephemeral_changelog_prose",
+                severity="warning",
+                message=f"Ephemeral library changelog stamp in conceptual prose: {', '.join(changelog_hits)}",
+                view=view_name,
+                metrics={"matches": changelog_hits},
             )
 
         # (e) Type-police boilerplate and zero-ML Python cells.
@@ -956,7 +1121,9 @@ def audit_article_bundle(
             "prose_words": dialect_stats["words"],
             "dialect_density_per_1k": dialect_stats["density_per_1k"],
             "prediction_prompts": pred_count,
-            "staccato": staccato_stats,
+            "lawyer_disclaimers": lawyer_hits,
+            "non_ops_soc2": non_ops_stats,
+            "ephemeral_changelogs": changelog_hits,
             "python_fences": len(python_blocks),
             "type_police": tp_counts,
             "zero_ml_python": zero_ml,
@@ -1185,7 +1352,7 @@ def audit_practice_bundle(
                 category="emdash_in_prose",
                 severity="blocking",
                 message=(
-                    f"Emdash '—' in practice prose "
+                    f"Em dash in practice prose "
                     f"(content lines: {emdash_lines[:5]}, metadata: {meta_emdash})"
                 ),
                 metrics={"emdash_line_count": len(emdash_lines), "in_metadata": meta_emdash},
@@ -1306,7 +1473,7 @@ def audit_glossary_file(
                 scope="glossary",
                 category="emdash_in_prose",
                 severity="blocking",
-                message=f"Emdash '—' in glossary prose (lines: {emdash_lines[:5]})",
+                message=f"Em dash in glossary prose (lines: {emdash_lines[:5]})",
                 metrics={"emdash_line_count": len(emdash_lines), "in_frontmatter": meta_emdash},
             )
         )

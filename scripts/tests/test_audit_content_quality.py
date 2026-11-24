@@ -162,37 +162,67 @@ class AuditContentQualityTests(unittest.TestCase):
             )
             self.assertNotIn("bureaucratic_dialect", [d["category"] for d in sec_report["defects"]])
 
-    def test_editorial_signals_do_not_block_clear_short_explanations(self) -> None:
+    def test_punchy_short_paragraphs_are_not_penalized_and_nono_warnings_surface(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             short_paras = [
                 f"Step {i} computes a single dot product quickly. Outputs stay compact."
                 for i in range(12)
             ]
-            body = (
+            body = "\n\n".join(short_paras)
+            _write_article(root, "agents/punchy-prose", body)
+            report = MODULE.run_audit(content_root=root, target_path="agents/punchy-prose")
+            cats = {d["category"] for d in report["defects"]}
+            self.assertNotIn("staccato_choppiness", cats)
+            self.assertEqual(report["summary"]["total_defects"], 0)
+
+            # Repeated prediction prompts warn without blocking.
+            prompt_body = (
                 "Before running the loop, inspect initial weights.\n\n"
                 "Before reading the trace, predict the loss.\n\n"
-                "Before checking the plot, guess the gradient.\n\n"
-                + "\n\n".join(short_paras)
+                "Before checking the plot, guess the gradient.\n"
             )
-            _write_article(root, "agents/spam-and-choppy", body)
-            report = MODULE.run_audit(content_root=root, target_path="agents/spam-and-choppy")
-            cats = {d["category"] for d in report["defects"]}
-            self.assertIn("prediction_prompt_spam", cats)
-            self.assertIn("staccato_choppiness", cats)
-            self.assertEqual(report["summary"]["blocking_defects"], 0)
+            _write_article(root, "agents/prompt-spam", prompt_body)
+            prompt_report = MODULE.run_audit(content_root=root, target_path="agents/prompt-spam")
+            self.assertIn("prediction_prompt_spam", {d["category"] for d in prompt_report["defects"]})
+            self.assertEqual(prompt_report["summary"]["blocking_defects"], 0)
             with patch.object(MODULE, "DEFAULT_CONTENT_ROOT", root), contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(MODULE.main(["--path", "agents/spam-and-choppy", "--strict"]), 0)
+                self.assertEqual(MODULE.main(["--path", "agents/prompt-spam", "--strict"]), 0)
 
-            # Within limits: 2 prompts and >= 3 sentences per paragraph (with abbreviations/decimals).
-            rich_body = (
-                "Before running the script, check shapes.\n\n"
-                "Before continuing, inspect outputs.\n\n"
-                + "\n\n".join(_rich_prose_paragraph(i) for i in range(11))
+            # Lawyer disclaimers, non-ops SOC2 boilerplate, and ephemeral changelogs emit warnings (non-blocking).
+            nono_body = (
+                "This tiny example does not prove convergence and is not a guarantee of accuracy.\n\n"
+                "At 09:12 ticket #48291 triggered an escalation workflow with a strict policy gate, "
+                "audit ledger, and staged rollout rollback review. "
+                "The policy gate and audit ledger blocked the rollout again.\n\n"
+                "As of TRL 1.17.1 (rechecked Nov 4, 2026), the trainer defaults changed.\n"
             )
-            _write_article(root, "agents/healthy-rhythm", rich_body)
-            clean_report = MODULE.run_audit(content_root=root, target_path="agents/healthy-rhythm")
-            self.assertEqual(clean_report["summary"]["blocking_defects"], 0)
+            _write_article(
+                root,
+                "foundations/linear-regression-nono",
+                nono_body,
+                section="ML Algorithms & Evaluation",
+            )
+            nono_report = MODULE.run_audit(content_root=root, target_path="foundations/linear-regression-nono")
+            nono_cats = {d["category"] for d in nono_report["defects"]}
+            self.assertIn("lawyer_disclaimer_spam", nono_cats)
+            self.assertIn("non_ops_soc2_boilerplate", nono_cats)
+            self.assertIn("ephemeral_changelog_prose", nono_cats)
+            self.assertEqual(nono_report["summary"]["blocking_defects"], 0)
+
+            # Domain-native ML terms (RL policy gradients, LSTM forget/input/output gates) do not trigger SOC2 warning.
+            ml_native_body = (
+                "An LSTM cell uses an input gate, a forget gate, and an output gate to regulate memory flow. "
+                "In policy gradient methods, the learned policy updates along the policy loss using RL rollouts.\n"
+            ) * 3
+            _write_article(
+                root,
+                "fundamentals/lstm-and-rl",
+                ml_native_body,
+                section="Transformer Deep Dives",
+            )
+            ml_report = MODULE.run_audit(content_root=root, target_path="fundamentals/lstm-and-rl")
+            self.assertNotIn("non_ops_soc2_boilerplate", {d["category"] for d in ml_report["defects"]})
 
     def test_from_scratch_computation_does_not_require_a_library_import(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
