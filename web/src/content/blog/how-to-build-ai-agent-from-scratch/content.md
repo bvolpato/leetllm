@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-02-19",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2027-01-22",
   "excerpt": "Build a Python agent that follows configuration references, then test its tool permissions, history, recovery, and stop conditions before connecting a live model.",
   "tags": ["Agents", "Deep Dive", "Tutorial"],
   "featured": true,

@@ -5,9 +5,9 @@
   "slug": "deepseek-v4-us-ai-labs",
   "author": { "name": "LeetLLM Team" },
   "publishedAt": "2026-04-27",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2026-12-23",
   "excerpt": "Read DeepSeek V4's checkpoints and benchmark conditions, then account for the V4.1 Flash API replacement before comparing deployment costs.",
   "tags": ["DeepSeek", "Open Models", "AI Infrastructure", "Agentic Coding", "Industry"],
   "featured": false,
@@ -20,7 +20,7 @@ Your evaluation log says `deepseek-v4-pro`. The architecture report says 1.6 tri
 
 DeepSeek V4 is a useful case study in reading a model release without turning its strongest number into a deployment recommendation. The checkpoints, long-context architecture, and hosted prices are concrete. Whether they improve your coding assistant depends on what survives a comparison with the same tasks, tools, and budgets.
 
-**Scope and date:** V4 Flash 0731 and Pro 0813 checkpoints, with hosted-service changes checked on November 7, 2026. Since October 17, `deepseek-flash` and the legacy `deepseek-v4-flash` name serve V4.1 Flash 1017. The architecture and benchmark sections below describe the older V4 checkpoints; the billing example uses today's hosted models.[^deepseek2026v4flash0731release]
+**Scope and date:** V4 Flash 0731 and Pro 0813 checkpoints, with hosted-service changes checked on November 23, 2026. Since October 17, `deepseek-flash` and the legacy `deepseek-v4-flash` name serve V4.1 Flash 1017. On November 13, DeepSeek also opened its application APIs (web search, URL reading, file input, safety checks, and standalone Search/Fetch, OCR, ASR, and TTS endpoints). The architecture and benchmark sections below describe the older V4 checkpoints; the billing example uses today's hosted models.[^deepseek2026v4flash0731release]
 
 ## One API name, several releases
 
@@ -33,6 +33,7 @@ V4 Preview arrived on April 24. Flash received new post-training on July 31, whi
 | August 13: Pro 0813 | Pro GA rolled out to app, web, and API | `DeepSeek-V4-Pro-0813` |
 | September 10: V4.1 Flash | V4 Flash and Flash Vision Exp APIs retired; their names temporarily route to V4.1 Flash | `deepseek-flash` is the recommended hosted ID |
 | October 17: V4.1 Flash 1017 | Hosted Flash updated again; calling method and prices unchanged | `DeepSeek-V4.1-Flash-1017` is the documented backend |
+| November 13: Application APIs | Built-in web search, URL reading, file input, and safety checks enabled on `deepseek-flash`; standalone Search/Fetch, OCR, ASR, and TTS endpoints opened | Application tool flags and standalone endpoints |
 
 The current pricing page maps `deepseek-flash` to V4.1 Flash 1017 and `deepseek-v4-pro` to Pro 0813. It accepts `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` as compatibility names for Flash 1017, billed at the Flash rate.[^deepseek2026pricing] Under this mapping, a run with the legacy Flash string measures Flash 1017. Use dated results or response metadata to identify any earlier Flash 0731 run. Record the documented mapping and evaluation date.
 
@@ -46,7 +47,7 @@ The report describes two <span data-glossary="mixture-of-experts">mixture-of-exp
 
 The newer checkpoint packages also include **DSpark**, a <span data-glossary="speculative-decoding">speculative-decoding</span> module. It proposes tokens for the target model to verify. DeepSeek's DSpark card describes an attached draft path, and the dated Flash and Pro cards identify that module in their packages.[^deepseek2026dspark][^deepseek2026v4flash0731][^deepseek2026v4pro0813]
 
-| Model | Published target architecture | Hub package listing, November 7 |
+| Model | Published target architecture | Hub package listing, November 23 |
 |---|---|---|
 | Flash 0731 | 284B total / 13B active | 304B parameters; package includes DSpark |
 | Pro 0813 | 1.6T total / 49B active | 1.7T parameters; package includes DSpark |
@@ -62,7 +63,7 @@ The preview models support a reported one-million-token <span data-glossary="con
 - **Compressed Sparse Attention (CSA):** compress the sequence, then select a subset of compressed entries for each query.
 - **Heavily Compressed Attention (HCA):** compress more aggressively, then attend densely over that smaller representation.
 
-The report uses a fourfold sequence compression rate for CSA and 128-fold for HCA, with an additional sliding-window path for recent local detail. After the first two layers, CSA and HCA layer types alternate through the stack. Flash starts with two pure sliding-window layers; Pro starts with two HCA layers.[^deepseek2026v4paper] These compression rates describe V4. Verify V4.1 separately even when a legacy API name still works.
+The report uses a fourfold sequence compression rate for CSA and 128-fold for HCA, with an additional sliding-window path for recent local detail. After the first two layers, CSA and HCA layer types alternate through the stack. Flash starts with two pure sliding-window layers; Pro starts with two HCA layers.[^deepseek2026v4paper] These compression rates describe V4. V4.1 Flash uses a separate open-weight Causal Encoder-Decoder architecture (CSA2 with FP4 KV caching), so verify V4.1 separately even when a legacy API name still works.[^deepseek2026v41flash]
 
 The diagram separates the two layer types. Each has its own compressed long-range path and a recent-token path; later layers alternate the long-range mechanism.
 
@@ -122,11 +123,11 @@ Under the vendor's reported setup, Pro 0813 scores above Flash 0731 on these fou
 
 ## Turn the rate card into a workload bill
 
-Before you treat a higher score as a reason to pick a lane, price the hosted models those names point to now. As of November 7, `deepseek-flash` (V4.1 Flash 1017) and `deepseek-v4-pro` (Pro 0813) advertise 1M context, maximum output of 384K tokens, thinking and non-thinking modes, tool calls, JSON output, Responses API support, and an Anthropic-compatible interface. Flash supports vision. Pro doesn't.[^deepseek2026pricing]
+Before you treat a higher score as a reason to pick a lane, price the hosted models those names point to now. As of November 23, `deepseek-flash` (V4.1 Flash 1017) and `deepseek-v4-pro` (Pro 0813) advertise 1M context, maximum output of 384K tokens, thinking and non-thinking modes, tool calls, JSON output, Responses API support, and an Anthropic-compatible interface. Flash supports vision and server-side application tools (web search, URL reading, file input, and safety checks). Pro doesn't.[^deepseek2026pricing][^deepseek2026v4flash0731release]
 
 Those limits share one budget. The Chat Completions reference limits input plus generated tokens to the model's context length. Its 393,216-token output ceiling shares that context window. Reserve room for reasoning and the final answer before packing documents. A 1M-token input cannot also request 384K generated tokens.[^deepseek2026chatcompletion]
 
-Peak/off-peak pricing took effect at 16:00 UTC on August 16.[^deepseek2026v4pro0813release] Peak hours are 01:00 to 04:00 and 06:00 to 10:00 UTC, Monday through Friday, excluding Chinese public holidays. Every other hour is off-peak. The rates below are USD per million tokens, checked November 7.[^deepseek2026pricing]
+Peak/off-peak pricing took effect at 16:00 UTC on August 16.[^deepseek2026v4pro0813release] Peak hours are 01:00 to 04:00 and 06:00 to 10:00 UTC, Monday through Friday, excluding Chinese public holidays. Every other hour is off-peak. The rates below are USD per million tokens, checked November 23.[^deepseek2026pricing]
 
 | Model | Billing period | Cache-hit input | Cache-miss input | Output |
 |---|---|---:|---:|---:|
@@ -137,7 +138,7 @@ Peak/off-peak pricing took effect at 16:00 UTC on August 16.[^deepseek2026v4pro0
 
 For a **batch of requests totaling** 2M input tokens and 0.5M output tokens, cold-cache off-peak charges are \$0.60 for V4.1 Flash and \$2.31 for Pro. It assumes every token uses the indicated billing period and excludes tools, retries not already counted, and human review. These prices compare today's hosted lanes; the benchmark table covers two V4 checkpoints.
 
-The calculator uses token counts and avoids guessing a request-level cache-hit rate. A 70% input-token hit share means 1.4M cached input tokens and 0.6M uncached ones. Split a mixed peak/off-peak workload into separate usage buckets before summing. The September 23 example below still matches the November 7 rate card.
+The calculator uses token counts and avoids guessing a request-level cache-hit rate. A 70% input-token hit share means 1.4M cached input tokens and 0.6M uncached ones. Split a mixed peak/off-peak workload into separate usage buckets before summing. The September 23 example below still matches the November 23 rate card.
 
 <!-- leetllm: test, output=show, output_title="Aggregate token charges at the September 23 rate card" -->
 ```python title="calculate_workload_cost.py"

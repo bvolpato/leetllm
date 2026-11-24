@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-03-21",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2027-01-22",
   "excerpt": "Fifty LLM engineering questions that connect model mechanics to serving, retrieval, agents, evaluation, and safety through evidence and failure diagnosis.",
   "tags": [
     "AI Engineering",
@@ -298,9 +298,9 @@ Polling an unfinished job twice can be correct if the runtime enforces a deadlin
 
 ### 27. What does MCP standardize, and what remains application policy?
 
-Model Context Protocol (MCP) defines client-server messages and discovery for prompts, resources, and tools. In the 2025-11-25 specification cited here, these capabilities are negotiated and each server declares which ones it exposes.[^mcp_spec_server_overview2025][^mcp_spec_architecture2025] Tools expose executable functions, resources expose contextual data, and prompts expose user-selectable templates.
+Model Context Protocol (MCP) defines client-server messages and discovery for prompts, resources, and tools. In the 2026-07-28 stateless specification, requests carry per-request protocol and capability metadata, and servers declare supported versions and capabilities through `server/discover` rather than a stateful initialization handshake.[^mcp_server_overview2026][^mcp_architecture2026][^mcp_discover2026] Tools expose executable functions, resources expose contextual data, and prompts expose user-selectable templates.
 
-Now ask what happens when a discovered tool can write to a database. Discovery isn't authorization. The host must enforce its consent and execution policy, and the server must enforce access to its own resources.[^mcp_spec_tools2025] Identity, permissions, timeouts, validation, and audit still need implementation. Even passing schema validation only establishes argument shape, not permission to execute. [MCP Standards](/learn/mcp-tool-protocol-standards) follows those trust boundaries.
+Now ask what happens when a discovered tool can write to a database. Discovery isn't authorization. The host must enforce its consent and execution policy, and the server must enforce access to its own resources.[^mcp_tools2026] Identity, permissions, timeouts, validation, and audit still need implementation. Even passing schema validation only establishes argument shape, not permission to execute. [MCP Standards](/learn/mcp-tool-protocol-standards) follows those trust boundaries.
 
 ### 28. When does a multi-agent design earn its complexity?
 

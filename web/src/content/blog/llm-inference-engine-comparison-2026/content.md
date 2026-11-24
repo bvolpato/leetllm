@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-04-01",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2026-12-23",
   "excerpt": "Compare vLLM, SGLang, TensorRT-LLM, Ollama, and llama.cpp by model support, latency, throughput, and cost. Choose a runtime for local or production use.",
   "tags": [
     "Inference",
@@ -45,17 +45,17 @@ The server-oriented engines expose more cluster scheduling, parallelism, and mod
 
 Their release state changes quickly. Pin a version before comparing behavior.
 
-| Project | Stable release checked on November 7, 2026 | Code license | Main deployment surfaces | Hardware scope to verify |
+| Project | Stable release checked on November 23, 2026 | Code license | Main deployment surfaces | Hardware scope to verify |
 |---|---|---|---|---|
-| vLLM | `v0.32.0`[^vllm2026release0320] | Apache-2.0[^vllm2026license] | Python offline API, OpenAI-compatible server, distributed serving | Native NVIDIA, AMD, Intel GPU, and CPU paths plus hardware plugins such as TPU and Gaudi[^vllm2026rocm][^vllm2026tpu][^vllm2026gaudi] |
+| vLLM | `v0.34.0`[^vllm2024] | Apache-2.0[^vllm2026license] | Python offline API, OpenAI-compatible server, distributed serving | Native NVIDIA, AMD, Intel GPU, and CPU paths plus hardware plugins such as TPU and Gaudi[^vllm2026rocm][^vllm2026tpu][^vllm2026gaudi] |
 | SGLang | `v0.5.23`[^sglang2026release0523] | Apache-2.0[^sglang2026license] | <span data-glossary="sglang">SGLang</span> language frontend, Python engine, OpenAI-compatible server, distributed serving | Official docs list NVIDIA, AMD, Intel Xeon, Google TPU, Ascend NPU, and Moore Threads MUSA; feature parity varies[^sglang2026docs] |
-| TensorRT-LLM | `v1.2.1`[^nvidia2026tensorrtllmrelease121] | Apache-2.0 codebase; bundled components can differ[^nvidia2026tensorrtllm] | Python `LLM`, `trtllm-serve`, benchmarking and distributed NVIDIA serving | NVIDIA GPUs; check model-by-feature and GPU-generation support <span data-glossary="matrix">matrix</span> |
-| Ollama | `v0.40.15`[^ollama2026release04015] | MIT[^ollamagithub2026] | Local daemon, CLI, REST API, OpenAI-compatible endpoints[^ollama2026openai] | macOS, Windows, Linux, NVIDIA/AMD GPUs, and Apple paths; exact backend depends on platform |
-| llama.cpp | `v0.9.0`[^llamacpp2026release090] | MIT[^llamacpp2023] | C/C++ library, CLI, local OpenAI-compatible server | CPU plus Metal, <span data-glossary="cuda">CUDA</span>, HIP, Vulkan, SYCL, and other compiled backends |
+| TensorRT-LLM | `v1.3.0`[^nvidia2026tensorrtllm] | Apache-2.0 codebase; bundled components can differ[^nvidia2026tensorrtllm] | Python `LLM`, `trtllm-serve`, benchmarking and distributed NVIDIA serving | NVIDIA GPUs; check model-by-feature and GPU-generation support <span data-glossary="matrix">matrix</span> |
+| Ollama | `v0.40.17`[^ollamagithub2026] | MIT[^ollamagithub2026] | Local daemon, CLI, REST API, OpenAI-compatible endpoints[^ollama2026openai] | macOS, Windows, Linux, NVIDIA/AMD GPUs, and Apple paths; exact backend depends on platform |
+| llama.cpp | `v1.0.0`[^llamacpp2023] | MIT[^llamacpp2023] | C/C++ library, CLI, local OpenAI-compatible server | CPU plus Metal, <span data-glossary="cuda">CUDA</span>, HIP, Vulkan, SYCL, and other compiled backends |
 
 Runtime licenses cover the engine software. Review checkpoint, tokenizer, dataset, and remote model-code terms separately.
 
-Use these stable tags to inspect the documented behavior. vLLM also publishes `v0.33.0rc3`; its release-candidate suffix keeps it outside this stable comparison. Prereleases, nightlies, and unversioned documentation can describe different behavior. Benchmark the target workload before upgrading, and record the deployed tag and container digest alongside the project name.[^vllm2026release0320]
+Use these stable tags to inspect the documented behavior. Prereleases such as TensorRT-LLM `v1.4.0rc4` and Ollama `v0.40.18-rc0`, along with `llama.cpp` `b`-numbered development builds, stay outside this stable comparison. Prereleases, nightlies, and unversioned documentation can describe different behavior. Benchmark the target workload before upgrading, and record the deployed tag and container digest alongside the project name. In fast-moving releases, defaults can change across minor tags: vLLM `v0.34.0` removed Model Runner V1, enabled extensible KV caching by default, and changed the default block size from 16 to 64, while `llama.cpp` `v1.0.0` formalized SemVer stability and removed deprecated C APIs.[^vllm2024][^llamacpp2023]
 
 Release numbers still don't prove compatibility. Validate the exact checkpoint, <span data-glossary="quantization">quantization</span>, attention backend, tool parser, structured-output path, and parallel layout. "Supports the architecture" can still mean your chosen feature combination is untested.
 
@@ -206,7 +206,7 @@ SGLang also offers broad hardware paths, structured generation, <span data-gloss
 
 TensorRT-LLM is an NVIDIA-focused serving stack with optimized attention, quantization, CUDA graphs (reusable GPU execution plans), parallelism, <span data-glossary="kv-cache">KV-cache</span> reuse, speculative decoding, and disaggregated-serving paths that place prefill and decode on separate workers.[^nvidia2026tensorrtllm][^nvidia2026tensorrtllmifb]
 
-Choose TensorRT-LLM by the exact support-matrix fit for your model and hardware. NVIDIA's current migration guide says the TensorRT engine backend has been removed: the PyTorch backend loads supported Hugging Face checkpoints without the old `trtllm-build` step.[^nvidia2026trtbackendremoval] The rolling guide describes current migration behavior; the table pins stable tag `1.2.1`. Check release notes before applying a legacy compiled-engine recipe to a newer release.
+Choose TensorRT-LLM by the exact support-matrix fit for your model and hardware. Starting with stable `v1.3.0`, NVIDIA removed the TensorRT engine backend (`trtllm-build`) and legacy C++ Executor APIs: PyTorch is now the only backend and loads supported Hugging Face checkpoints directly.[^nvidia2026trtbackendremoval] Check release notes before migrating a legacy compiled-engine recipe from `v1.2.x` to `v1.3.0`.
 
 Pin one line, check its exact model and feature matrix, then benchmark it against vLLM and SGLang on the same NVIDIA system. Benchmark each architecture, quantization, and GPU generation separately.
 

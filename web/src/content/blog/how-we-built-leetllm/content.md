@@ -5,9 +5,9 @@
   "slug": "how-we-built-leetllm",
   "author": { "name": "LeetLLM Team" },
   "publishedAt": "2026-06-21",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-12-07",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2026-12-23",
   "excerpt": "Inside LeetLLM's Git-backed curriculum: reviewable article bundles, generated figures, user-owned state, and the checks between a source edit and a deployed page.",
   "tags": ["LeetLLM", "Content Engineering", "AI Engineering", "Production", "Education"],
   "coverImage": "illustrations/_generated/content_pipeline_dark.png",
@@ -18,7 +18,7 @@
 
 Correct a sentence in a lesson and the work can look finished. But the diagram may still describe the old explanation. Its caption may contradict both versions. A reader may receive an older page from the cache, pointing to an older image.
 
-LeetLLM's architecture has to keep those pieces connected. The canonical curriculum lives in Git, figures are built from source, and deployment packages the pages with their assets. User progress and other account data take a separate path through Supabase. This post describes the implementation checked against the repository on November 7, 2026. Production behavior needs its own live verification.
+LeetLLM's architecture has to keep those pieces connected. The canonical curriculum lives in Git, figures are built from source, and deployment packages the pages with their assets. User progress and other account data take a separate path through Supabase. This post describes the implementation checked against the repository on November 23, 2026. Production behavior needs its own live verification.
 
 The local curriculum loader returns 199 visible lessons across 15 phases. Blog posts, glossary entries, and coding practice are separate collections. The engineering problem is making each lesson easy to correct while keeping its examples, navigation, and rendered output in sync.
 
@@ -67,7 +67,7 @@ Two readers can see the same canonical lesson and have different bookmarks, note
 
 <span data-glossary="row-level-security">Row-level security</span> expresses these database policies. Inspect each policy before describing its access: our comments schema explicitly allows public reads. A service-role client bypasses row-level policies and holds broader permissions than an ordinary signed-in client, so server-side code still needs the appropriate identity and scope.[^supabase_row_level_security]
 
-The app layer is Next.js and React with TypeScript, Tailwind CSS, and shared UI components. The repository currently pins Next.js 16.4.3 and React 19.3.1. Supabase handles authentication and persisted user data. A standalone Next.js container runs on Cloud Run, with Cloudflare in front of the public site. Measure throughput and hosting cost separately from these implementation details.
+The app layer is Next.js and React with TypeScript, Tailwind CSS, and shared UI components. The repository currently pins Next.js 16.4.6 and React 19.3.1. Supabase handles authentication and persisted user data. A standalone Next.js container runs on Cloud Run, with Cloudflare in front of the public site, and untrusted coding practice runs in a separate zero-secret Cloud Run sandbox service. Measure throughput and hosting cost separately from these implementation details.
 
 Search deliberately stays close to the canonical source. `learn-search.ts` builds an in-process index from `getQuestions()`, scoring normalized titles, descriptions, metadata, and body text. It removes fenced code and display math before scoring the body. There is no embedding model or separate search service in that path, and `/api/search/learn` returns `Cache-Control: no-store`.
 
@@ -264,7 +264,7 @@ Other requests carrying Supabase auth cookies still run session handling and rec
 
 Moving Cloud Run traffic and refreshing cached HTML are separate operations. A new origin revision doesn't by itself remove an old edge response. Image versioning helps the new HTML address new pixels, while purge and response checks address which HTML readers receive.
 
-There is also a deliberately weaker release mode. `./deploy.sh --fast` skips pre-deploy content checks, practice validation, Vitest, illustration validation, cover checks, and Mermaid rendering. It still runs the illustration builder, builds the container, verifies the exact image's content manifest, and executes candidate and production checks. It can therefore package stale diagram PNGs that match the checkout. Treat a fast deploy as packaging and runtime evidence; run the full content review separately.
+There is also a faster release mode. `./deploy.sh --fast` skips pre-deploy content checks, practice validation, Vitest, illustration quality validation, and cover checks. It still installs missing dependencies, runs both the hash-cached illustration and Mermaid diagram builders (rendering only changed or missing assets), builds the container, verifies the exact image's content manifest, and executes candidate and production checks. Treat a fast deploy as packaging and runtime evidence; run the full content review separately.
 
 ## What we'd keep even in a smaller site
 

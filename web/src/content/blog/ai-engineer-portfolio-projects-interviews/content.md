@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-05-09",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2027-01-22",
   "excerpt": "Five focused AI engineering projects, with concrete experiments, inspectable artifacts, and failure cases that make the work worth discussing.",
   "tags": ["Career", "Portfolio", "Projects"],
   "featured": false,

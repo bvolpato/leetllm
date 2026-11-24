@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-03-16",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2026-12-23",
   "excerpt": "Follow one security-sensitive code change through four assistants. Compare their handoffs, review evidence, costs, and team controls.",
   "tags": [
     "AI Engineering",
@@ -41,7 +41,7 @@ One product can offer all three. [Code Completion System](/learn/design-code-com
   <figcaption>The columns show when the human intervenes. Context access depends on the product; choose the handoff separately from the execution environment.</figcaption>
 </figure>
 
-As of November 7, 2026, Cursor, Codex, GitHub Copilot, and Claude Code each cover more than one surface.[^cursor2026pricing][^openai2026codexapp][^openai2026codexplans][^github2026copilotplans][^github2026copilotcloudagent][^anthropic2026claudecodeoverview][^anthropic2026claudeplans] Their labels won't tell you where you can steer, what runs remotely, or which evidence returns with the patch. Model menus, usage meters, and plan names change quickly. For this authorization patch, what do you hand off, and what has to come back before anyone merges it?
+As of November 23, 2026, Cursor, Codex, GitHub Copilot, and Claude Code each cover more than one surface.[^cursor2026pricing][^openai2026codexapp][^openai2026codexplans][^github2026copilotplans][^github2026copilotcloudagent][^anthropic2026claudecodeoverview][^anthropic2026claudeplans] Their labels won't tell you where you can steer, what runs remotely, or which evidence returns with the patch. Model menus, usage meters, and plan names change quickly. For this authorization patch, what do you hand off, and what has to come back before anyone merges it?
 
 ## Run one task through the agent loop
 
@@ -179,7 +179,7 @@ The same product can feel different in your editor, a remote agent, and a pull r
 | **GitHub Copilot** | IDE completion, agent mode, CLI, and desktop app | GitHub cloud sessions in a cloud sandbox, GitHub Actions, or a custom remote environment | Local diff or GitHub branch and pull request | Issue-to-PR task with CI and review already in GitHub[^github2026copilotcodesuggestions][^github2026copilotplans][^github2026copilotcloudagent][^github2026copilotsetup] |
 | **Claude Code** | Terminal, IDE, and desktop | Web sessions and cloud scheduled tasks | Diff, command trace, branch, or pull request | Debugging task that crosses code, shell, logs, and tools[^anthropic2026claudecodeoverview] |
 
-Surface details change the result. Since October 28, GitHub's newer Copilot in the cloud experience is available on paid plans, subject to organization rules. Its cloud sandboxes can span repositories in one organization. GitHub Actions sessions remain limited to one repository and 59 minutes. Both environments retain the documented one-branch and one-pull-request-per-task constraints.[^github2026copilotcloudagent] Cursor cloud agents also support multi-repository environments.[^cursor2026cloudagents] If authorization touches separate frontend and backend repositories, check the actual environment and returned branches before delegating.
+Surface details change the result. Since October 28, 2026, GitHub's newer Copilot in the cloud experience is available on paid plans, subject to organization rules. Its cloud sandboxes can span repositories in one organization. GitHub Actions sessions remain limited to one repository and 59 minutes. Both environments retain the documented one-branch and one-pull-request-per-task constraints.[^github2026copilotcloudagent] Cursor cloud agents also support multi-repository environments.[^cursor2026cloudagents] If authorization touches separate frontend and backend repositories, check the actual environment and returned branches before delegating.
 
 Codex worktrees create separate working directories on the computer or remote development environment holding the project.[^openai2026codexapp] A worktree separates edits while sharing operating-system permissions, network access, and secrets with its environment.
 
@@ -194,11 +194,11 @@ A plan might advertise a usage multiplier while another counts credits or API to
 | Product | Individual monthly list prices | Team list prices and cadence | Meter to watch |
 |---|---|---|---|
 | **Cursor** | Free; Plus \$8; Premium \$30; Super \$100; Ultra \$200 | Teams seats at \$30, \$100, or \$200/user/month | Weekly Cursor-model pool shared with Grok; eligible third-party models use prepaid credit from the first request[^cursor2026modelspricing] |
-| **Codex** | ChatGPT Free; Go \$8; Plus \$20; Pro \$100, \$200, or \$500 | Business \$20/user/month billed annually or \$25 monthly; two-user minimum | ChatGPT Work and Codex share plan usage. Model, speed, and plan affect consumption; optional ChatGPT credits or separate API-key billing[^openai2026codexplans] |
+| **Codex** | ChatGPT Free; Go \$8; Plus \$20; Pro \$100, \$200, or \$500 | Business Standard \$20/user/month annually or \$25 monthly; Premium \$100 annually or \$125 monthly | ChatGPT Work and Codex share plan usage. Model, speed, and plan affect consumption; optional ChatGPT credits or separate API-key billing[^openai2026codexplans] |
 | **GitHub Copilot** | Free; Pro \$10; Pro+ \$39; Max \$100 | Business \$19/seat/month; Enterprise \$39/seat/month | GitHub AI Credits; additional usage at \$0.01/credit. Track billable CI separately[^github2026copilotplans][^github2026copilotindividualbilling][^github2026actionsbilling] |
 | **Claude Code** | Pro \$20; Max \$100; Ultra \$200 | Team Standard \$20/user/month annually or \$25 monthly; Premium \$100 annually or \$125 monthly | Shared Claude usage; five-hour and weekly limits depend on plan and account verification; optional usage credits or separate API billing[^anthropic2026claudeplans][^anthropic2026claudecodecosts] |
 
-These are USD list prices checked on November 7, 2026, before tax, negotiated terms, or temporary promotions. The individual column uses monthly billing, without annual discounts. For example, Claude Pro is also sold for \$200 upfront per year, displayed as about \$17/month. Availability and checkout prices can depend on region and organization type.[^anthropic2026claudeplans] Codex Free and Go currently list desktop access at Standard speed, subject to rollout. Check cloud, CLI, and IDE eligibility separately from that desktop listing.[^openai2026codexplans]
+These are USD list prices checked on November 23, 2026, before tax, negotiated terms, or temporary promotions. The individual column uses monthly billing, without annual discounts. For example, Claude Pro is also sold for \$200 upfront per year, displayed as about \$17/month. Availability and checkout prices can depend on region and organization type.[^anthropic2026claudeplans] Codex Free and Go currently list desktop access at Standard speed, subject to rollout. Check cloud, CLI, and IDE eligibility separately from that desktop listing.[^openai2026codexplans]
 
 GitHub's plans page links Business and Enterprise subscription paths. Enterprise requires GitHub Enterprise Cloud. Verify organization eligibility and checkout before budgeting a rollout.[^github2026copilotplans] Existing Pro and Pro+ annual subscribers who remained on legacy billing after June 1, 2026 still use premium requests. Confirm which meter your account uses.[^github2026copilotlegacybilling] Codex API-key access has separate billing and cloud-feature entitlements.[^openai2026codexplans]
 

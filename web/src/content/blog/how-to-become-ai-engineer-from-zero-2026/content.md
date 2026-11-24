@@ -5,9 +5,9 @@
   "slug": "how-to-become-ai-engineer-from-zero-2026",
   "author": { "name": "LeetLLM Team" },
   "publishedAt": "2026-05-09",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2027-01-22",
   "excerpt": "Start with programming, grow one useful project, and choose deeper study from the work you want to do. A practical path without a hiring countdown.",
   "tags": ["Career", "AI Engineering", "Roadmap"],
   "featured": true,
@@ -26,7 +26,7 @@ Start smaller: write a program you understand, give it one useful model-backed f
 
 Read several current job descriptions you could realistically apply to. Look beyond the title at the work, location, experience requirements, and interview process. Highlight recurring tasks: building APIs, analyzing data, training models, running experiments, or operating services. Use those tasks to choose what to practice next.
 
-For example, OpenAI's Research Engineer posting, checked on November 7, 2026, asks for strong programming and experience with large distributed systems.[^openaire2026] A beginner chatbot doesn't demonstrate that background. This posting illustrates one role; employers define other AI jobs differently.
+For example, OpenAI's Research Engineer posting, checked on November 23, 2026, asks for strong programming and experience with large distributed systems.[^openaire2026] A beginner chatbot doesn't demonstrate that background. This posting illustrates one role; employers define other AI jobs differently.
 
 For now, make a provisional choice:
 
@@ -197,6 +197,6 @@ Make the project easy to inspect. Its README should explain the user problem, se
 
 Prepare to demonstrate the difference between your work and the underlying model's contribution. You designed the request path, chose what to evaluate, handled errors, and decided which outputs were safe to use. If you reused a tutorial or generated code, say what you changed and be ready to explain it.
 
-Interview preparation still depends on the employer. OpenAI's interview guide, checked on November 7, 2026, describes team-dependent assessments such as pair coding, take-home projects, and technical tests. It also says rules for AI tools vary by interview.[^openai2026interview] Ask what is permitted; don't assume a portfolio demonstration replaces coding or technical fundamentals.
+Interview preparation still depends on the employer. OpenAI's interview guide, checked on November 23, 2026, describes team-dependent assessments such as pair coding, take-home projects, and technical tests. It also says rules for AI tools vary by interview.[^openai2026interview] Ask what is permitted; don't assume a portfolio demonstration replaces coding or technical fundamentals.
 
 [AI Engineer Portfolio Projects for Interviews](/blog/ai-engineer-portfolio-projects-interviews) offers other project shapes if incident reports don't interest you. Pick a problem you can explain and data you're allowed to use. For today, the first useful milestone is modest: run a program, change its input, and understand why the output changed.

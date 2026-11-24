@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-03-16",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2026-12-23",
   "excerpt": "A salary number can mean wages, base pay, or total compensation. Learn to line up the role, level, location, equity terms, and source date before comparing offers.",
   "tags": [
     "Career",
@@ -61,7 +61,7 @@ A submission shows 180,000 dollars in base, 80,000 in annual stock value, and 40
 | Anthropic | Annual Salary | Not specified | Grant not specified |
 | Levels.fyi | Total compensation | Included in total | Annual value in total |
 
-These employer rows refer to the cited postings checked November 7, 2026. Compare down each column before comparing headline dollars. “Not specified” describes missing information; “excluded” describes a source definition.
+These employer rows refer to the cited postings checked November 23, 2026. Compare down each column before comparing headline dollars. “Not specified” describes missing information; “excluded” describes a source definition.
 
 ## Use occupation data for context
 
@@ -83,7 +83,7 @@ OEWS wages are closer to cash-wage context than to total compensation. They incl
 
 ## Read a posting field by field
 
-These three employer pages were checked on November 7, 2026 and selected to show different disclosed fields. They illustrate research-oriented roles at two frontier labs. Broader, representative data is needed to estimate pay across the applied-AI market. Recheck the pages before using them in an offer conversation.
+These three employer pages were checked on November 23, 2026 and selected to show different disclosed fields. They illustrate research-oriented roles at two frontier labs. Broader, representative data is needed to estimate pay across the applied-AI market. Recheck the pages before using them in an offer conversation.
 
 | Posting | Exact published field | Role and level evidence | Location evidence |
 |---|---:|---|---|
@@ -200,7 +200,7 @@ assert b_cash + offer_b_option_payoff(20_000, 4.0, 13.50) == 1_026_000.0
 assert b_cash + offer_b_option_payoff(20_000, 4.0, 4.0) == 836_000.0
 
 print(f"Offer A Y1-Y4: {[int(v) for v in a_years]} | 4-yr total: ${int(sum(a_years)):,}")
-print(f"Offer A 50% equity case: ${int(a_half_equity):,} (4-yr cash: ${4 * int(175_000 * 1.15):,})")
+print(f"Offer A 50% equity case: ${int(a_half_equity):,} (4-yr cash: ${round(4 * 175_000 * 1.15):,})")
 for label, exit_px in [("100% ($23.00)", 23.0), ("50% ($13.50)", 13.5), ("0% ($4.00)", 4.0)]:
     payoff = offer_b_option_payoff(20_000, 4.0, exit_px)
     print(f"Offer B {label}: ${int(b_cash + payoff):,} (option payoff: ${int(payoff):,})")
@@ -209,7 +209,7 @@ for label, exit_px in [("100% ($23.00)", 23.0), ("50% ($13.50)", 13.5), ("0% ($4
 <!-- leetllm: output:start -->
 ```text title="Four-year offer schedule and downside sensitivity" output compact
 Offer A Y1-Y4: [311250, 311250, 321250, 331250] | 4-yr total: $1,275,000
-Offer A 50% equity case: $1,040,000 (4-yr cash: $804,996)
+Offer A 50% equity case: $1,040,000 (4-yr cash: $805,000)
 Offer B 100% ($23.00): $1,216,000 (option payoff: $380,000)
 Offer B 50% ($13.50): $1,026,000 (option payoff: $190,000)
 Offer B 0% ($4.00): $836,000 (option payoff: $0)
@@ -277,4 +277,4 @@ Ask whether the equity quote is grant-date value, current annualized value, or a
 
 Salary-negotiation laws and tax rules vary by jurisdiction. Don't turn a general script into legal advice. Keep the arithmetic pre-tax, record the assumptions, and bring local counsel or a tax professional into any material equity or relocation decision.
 
-Keep a BLS wage, a posting, and an offer in separate columns, and name which parts of a package are cash this year. Before you use any of these numbers in a real offer call, reopen the source pages. The BLS figures use the May 2025 OEWS release, and the OpenAI and Anthropic postings were checked on November 7, 2026. If the role you want asks for evidence you haven't built yet, the [AI engineer learning route](/blog/how-to-become-ai-engineer-from-zero-2026) can help you choose what to work on next.
+Keep a BLS wage, a posting, and an offer in separate columns, and name which parts of a package are cash this year. Before you use any of these numbers in a real offer call, reopen the source pages. The BLS figures use the May 2025 OEWS release, and the OpenAI and Anthropic postings were checked on November 23, 2026. If the role you want asks for evidence you haven't built yet, the [AI engineer learning route](/blog/how-to-become-ai-engineer-from-zero-2026) can help you choose what to work on next.

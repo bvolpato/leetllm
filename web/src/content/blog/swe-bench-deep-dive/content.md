@@ -7,10 +7,10 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-02-17",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
-  "excerpt": "Read SWE-bench as a repository-repair experiment: trace a patch through grading, compare variants and attempt rules, and check the limits of public scores. Updated for Multimodal v2.",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2026-12-23",
+  "excerpt": "Read SWE-bench as a repository-repair experiment: trace a patch through grading, compare variants and attempt rules, and check the limits of public scores. Updated for Multimodal v2 and Pro V2.",
   "tags": [
     "Benchmarks",
     "Evaluation",
@@ -109,7 +109,7 @@ Use the full declared split as $N$ when reading an official row. Count a missing
 
 The harness can record how many `FAIL_TO_PASS` tests passed; that partial count helps diagnose the patch, while public credit requires every required test to pass. A patch that clears some fix tests and all regressions still scores zero for the task.[^swebench]
 
-**Read the parsed statuses as well as the verdict.** In the cited harness revision, rechecked November 7, 2026, a skipped `FAIL_TO_PASS` test contributes no repair evidence, while a skipped `PASS_TO_PASS` test can count as maintained. The parser's `XFAIL` status also counts as passing. These rules apply to the ordinary pass-and-fail grading mode; some JavaScript suites use a failure-only parser. Before treating a reported resolution as confirmation that regression assertions ran, pin the harness revision and inspect skips, expected failures, and execution logs.[^swebenchgrading2026]
+**Read the parsed statuses as well as the verdict.** In the cited harness revision, rechecked November 23, 2026, a skipped `FAIL_TO_PASS` test contributes no repair evidence, while a skipped `PASS_TO_PASS` test can count as maintained. The parser's `XFAIL` status also counts as passing. These rules apply to the ordinary pass-and-fail grading mode; some JavaScript suites use a failure-only parser. Before treating a reported resolution as confirmation that regression assertions ran, pin the harness revision and inspect skips, expected failures, and execution logs.[^swebenchgrading2026]
 
 For a task with one fix test and one regression test, these parsed results illustrate the distinction:
 
@@ -133,7 +133,7 @@ That all-or-nothing gate rejects plausible-looking partial patches. Grade fairne
 
 ## Choose the benchmark before reading a score
 
-The label "SWE-bench" covers several official test sets plus a separately maintained benchmark. Their percentages aren't interchangeable because each label changes the task population. This snapshot was checked November 7, 2026 against the official leaderboard and primary dataset sources.[^swebench] [^jimenez2024] [^jimenez2024lite] [^openai2024swebenchverified] [^swebenchpro]
+The label "SWE-bench" covers several official test sets plus a separately maintained benchmark. Their percentages aren't interchangeable because each label changes the task population. This snapshot was checked November 23, 2026 against the official leaderboard and primary dataset sources.[^swebench] [^jimenez2024] [^jimenez2024lite] [^openai2024swebenchverified] [^swebenchpro]
 
 | Set | Scored tasks | Source scope | Read as |
 |---|---:|---|---|
@@ -142,7 +142,7 @@ The label "SWE-bench" covers several official test sets plus a separately mainta
 | Verified | 500 | Human-reviewed slice of Full | Public comparison set |
 | Multilingual | 300 | 42 repositories, 9 languages | Cross-language split |
 | Multimodal v2 | 480 | Visual software issues, predominantly JavaScript | Revised image-grounded test split |
-| SWE-Bench Pro | 731 public (1,865 total) | 41 repositories; public, held-out, commercial | Separate successor protocol |
+| SWE-Bench Pro | 642 public in V2 (51 Hard); 731 public in V1 (1,865 total in original paper) | 11 open-source repos in public split (41 total with held-out/commercial) | Separate successor protocol (V2 default since September 2026) |
 
 Lite is cheaper for iteration because its selection removes several expensive or ambiguous shapes. It drops instances with images, external links, commit SHAs, pointers to other issues or PRs, fewer than 40 words of issue text, gold patches that edit more than one file or more than three hunks, file create/delete, and tests that check error-message strings.[^jimenez2024lite] Multi-file and visually grounded repair therefore disappear from this subset.
 
@@ -152,7 +152,7 @@ Verified is a 500-instance subset created after professional developers reviewed
 
 Multilingual changes both language and repository mix. Multimodal adds visual evidence such as screenshots. Its original release scored 517 test issues. **Multimodal v2**, released September 1, 2026, retains 480 tasks after removing known flaky or ungradeable cases, rebuilds Docker environments for dependency and browser drift, and opens the complete test split and evaluation tooling.[^swebenchmultimodal2026] A v1-to-v2 score change can reflect revised tasks and infrastructure as well as agent improvements. Pin both the dataset and harness revision.
 
-SWE-Bench Pro is a separate Scale AI benchmark with its own evaluation setup and leaderboard. Its 1,865 human-verified tasks come from 41 repositories: 731 public, 858 held out, and 276 commercial.[^swebenchpro] The public set uses copyleft-licensed repositories by design. Keep denominators separate across these variants. Inside one of those sets, what else is hiding inside the percentage?
+SWE-Bench Pro is a separate Scale AI benchmark with its own evaluation setup and leaderboard. Its original paper defined 1,865 human-verified tasks across 41 repositories: 731 public, 858 held out, and 276 commercial.[^swebenchpro] On September 22, 2026, Scale released **SWE-bench Pro V2** as the default public configuration, narrowing the public split to 642 tasks across 11 open-source repositories (Go, Python, JavaScript, and TypeScript) plus a 51-task Hard subset while preserving the 731-task set as `v1`. The public set uses copyleft-licensed repositories by design. Keep denominators separate across these variants and between Pro V1 and V2. Inside one of those sets, what else is hiding inside the percentage?
 
 ## What a leaderboard row records
 
@@ -220,7 +220,9 @@ SWE-Bench Pro already existed when OpenAI published the Verified audit. OpenAI r
 - tests too weak to catch incomplete solutions
 - prompts that point toward behavior inconsistent with tests
 
-These audits don't make every public result useless. They narrow the claim. Verified remains useful for historical and reproducible system comparisons, especially when the scaffold is open, but public exposure makes it weak evidence for fine-grained frontier ranking. Pro may still diagnose systems on its surviving tasks; an aggregate score across a disputed public split needs task-level quality analysis. [LLM Benchmarks & Limitations](/learn/llm-evaluation-benchmarks-limitations) carries the broader hygiene lesson: name the split, harness, and failure mode before treating a percentage as capability.
+Scale AI responded with **SWE-bench Pro V2** on September 22, 2026. From the 731 V1 public tasks, Scale dropped 89 invalid or unrepairable tasks, rewrote 529 problem statements so graded assertions trace back to the text, revised 214 test patches and 38 gold patches, and rebuilt all container images from sanitized repository bundles without fixing commits or stray refs. V2 also recommends a network-locked agent phase and re-grades every submitted diff on a pristine container image. Because both the task set and grading protocol changed, compare V2 scores only against other V2 runs under the same protocol.
+
+These audits don't make every public result useless. They narrow the claim. Verified remains useful for historical and reproducible system comparisons, especially when the scaffold is open, but public exposure makes it weak evidence for fine-grained frontier ranking. Pro V2 fixes many documented V1 defects, yet an aggregate score on any public split still needs task-level quality analysis and matched protocols. [LLM Benchmarks & Limitations](/learn/llm-evaluation-benchmarks-limitations) carries the broader hygiene lesson: name the split, harness, and failure mode before treating a percentage as capability.
 
 > **Evidence rule:** Treat a public benchmark score as screening evidence. Use task-level traces and an internal held-out suite before making a product or release decision.
 

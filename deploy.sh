@@ -60,8 +60,8 @@ Options:
   --account=EMAIL   Specify gcloud account for deploy without changing default.
   --project=PROJECT Specify gcloud project for deploy without changing default.
   --config=NAME     Specify gcloud configuration name for deploy.
-  --fast            Skip pre-deploy tests, illustration validation, and diagram/code-fence rendering.
-                    Still renders changed illustrations via cache and verifies deployed routes.
+  --fast            Skip pre-deploy tests and illustration validation.
+                    Still installs missing deps and renders changed/missing illustrations and diagrams via cache.
   --rebuild         Force a clean container build, including base/system dependency refresh.
   --with-sandbox    Also rebuild and deploy the isolated leetllm-sandbox service before web deploy.
   -h, --help        Show this help.
@@ -214,6 +214,11 @@ if ! java -version >/dev/null 2>&1; then
 fi
 
 echo "📦 Using pnpm $(pnpm --version)"
+
+if [ ! -d "$DIR/web/node_modules" ] || [ ! -f "$DIR/web/node_modules/.modules.yaml" ] || [ "$DIR/web/pnpm-lock.yaml" -nt "$DIR/web/node_modules/.modules.yaml" ]; then
+    echo "📦 Installing web dependencies (missing or lockfile updated)..."
+    (cd "$DIR/web" && pnpm install --frozen-lockfile)
+fi
 
 echo ""
 echo "🔐 Scoping GCP credentials..."
@@ -569,16 +574,16 @@ else
     fi
 fi
 
-# ── Step 4: Render diagrams ───────────────────────────────────────────
+# ── Step 4: Render diagrams (hash-cached delta-only) ──────────────────
 echo ""
-if [ "$FAST_DEPLOY" -eq 1 ]; then
-    echo "📊 Step 4/8: Skipping diagram/code-fence rendering (--fast)"
-else
-    echo "📊 Step 4/8: Rendering diagrams..."
-    cd "$DIR/web"
-    pnpm diagrams:build
-    echo "   Diagrams rendered"
+echo "📊 Step 4/8: Rendering diagrams (changed or missing only)..."
+cd "$DIR/web"
+if ! pnpm diagrams:build; then
+    echo ""
+    echo "   ❌ Diagram rendering failed. Fix the issues above before deploying."
+    exit 1
 fi
+echo "   Diagrams up to date"
 
 # ── Step 5: Build and deploy ─────────────────────────────────
 echo ""

@@ -6,9 +6,9 @@
   "aliases": ["run-qwen36-local"],
   "author": {"name": "LeetLLM Team"},
   "publishedAt": "2026-05-13",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2026-12-23",
   "excerpt": "Set up a local Qwen3.6 llama.cpp server with a verified Unsloth GGUF. Check memory requirements and test text generation before adding MTP or vision.",
   "tags": ["Local LLM", "Qwen3.6", "Unsloth", "GGUF", "llama.cpp", "GPU Inference"],
   "featured": false,
@@ -27,7 +27,7 @@ This serves a model. Reading repositories, running tests, and applying patches r
 
 The two checkpoints here are `Qwen3.6-27B` and `Qwen3.6-35B-A3B`, both Apache-2.0 licensed. The 27B model uses dense feed-forward layers. The 35B-A3B model uses a <span data-glossary="mixture-of-experts">mixture of experts (MoE)</span>: its router selects 8 of 256 experts per token, alongside a shared expert. Its name distinguishes 35B total parameters from roughly 3B active per token. Sparse computation doesn't make the inactive weights disappear from storage.[^qwen3627b2026][^qwen3635b2026]
 
-Unsloth publishes these rounded hardware estimates, rechecked November 7, 2026. Its table describes total RAM plus VRAM, or unified memory. Measure GPU residency on the target configuration.[^unslothqwen36guide2026]
+Unsloth publishes these rounded hardware estimates, rechecked November 23, 2026. Its table describes total RAM plus VRAM, or unified memory. Measure GPU residency on the target configuration.[^unslothqwen36guide2026]
 
 | Model | Plain 3-bit | Plain 4-bit | MTP 3-bit | MTP 4-bit |
 |---|---:|---:|---:|---:|
@@ -46,7 +46,7 @@ Q3 is a smaller starting artifact. If it runs comfortably, compare a Q4 file on 
 
 Pin that file and serve it as text only, before MTP or vision enter the comparison. The commands target Linux with an NVIDIA GPU. Install Git, CMake, a C++ compiler, `curl`, `jq`, and the CUDA toolkit and driver required by your system. Allow at least the model's download size in free disk space, plus space for the source and build. The optional MTP download later is another roughly 14.79 GB.
 
-Save this block as `run-qwen36.sh` in a working directory and run it with `bash run-qwen36.sh`. It clones into a new `llama.cpp` directory; choose a working directory without an existing checkout. The script stops if the build, download, or checksum verification fails. The pinned source and artifact metadata were rechecked on November 7, 2026; this review did not load the 27B model or run the CUDA server. Validate GPU compatibility on the target system before relying on the procedure.[^llamacpp2023][^unslothqwen3627bgguf2026]
+Save this block as `run-qwen36.sh` in a working directory and run it with `bash run-qwen36.sh`. It clones into a new `llama.cpp` directory; choose a working directory without an existing checkout. The script stops if the build, download, or checksum verification fails. The script pins an earlier `llama.cpp` commit for flag reproducibility even though `llama.cpp` reached SemVer `v1.0.0` on November 13, 2026; if you switch to a newer tag, recheck server flags and rerun the smoke test. The pinned source and artifact metadata were rechecked on November 23, 2026; this review did not load the 27B model or run the CUDA server. Validate GPU compatibility on the target system before relying on the procedure.[^llamacpp2023][^unslothqwen3627bgguf2026]
 
 ```bash title="run-qwen36.sh"
 #!/usr/bin/env bash
@@ -237,7 +237,7 @@ printf '%s  %s\n' "$MTP_SHA256" "$MTP_DIR/$MTP_FILE" \
   --port 8080
 ```
 
-Apply the same backend or offload changes you made to the plain run. The pinned MTP file is 14,787,986,560 bytes, about 315 MB larger than its plain counterpart; measure runtime memory to account for full MTP overhead. As rechecked November 7, the MTP model card explicitly excludes `-np > 1` and `--mmproj`. Keep this pinned experiment single-slot and text-only even if a newer general guide shows a vision setup.[^unslothqwen3627bmtpgguf2026]
+Apply the same backend or offload changes you made to the plain run. The pinned MTP file is 14,787,986,560 bytes, about 315 MB larger than its plain counterpart; measure runtime memory to account for full MTP overhead. As rechecked November 23, 2026, the MTP model card explicitly excludes `-np > 1` and `--mmproj`. Keep this pinned experiment single-slot and text-only even if a newer general guide shows a vision setup.[^unslothqwen3627bmtpgguf2026]
 
 Rerun the endpoint check, then compare actual coding tasks. For example, ask both runs to implement `parse_ints(text)`: split on commas, allow surrounding whitespace and signed base-10 integers, preserve order and duplicates, and raise `ValueError` for an empty input or any empty field. Require `"3,-1,3"` to return `[3, -1, 3]`, `" 2 , +4 "` to return `[2, 4]`, and both `""` and `"1,,2"` to raise. A patch that silently skips empty fields passes the first case but fails the specification. Fix these expected outcomes before collecting either model's answer.
 

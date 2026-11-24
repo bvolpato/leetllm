@@ -7,9 +7,9 @@
     "name": "LeetLLM Team"
   },
   "publishedAt": "2026-02-19",
-  "updatedAt": "2026-11-07",
-  "verifiedAt": "2026-11-07",
-  "refreshAfter": "2026-11-21",
+  "updatedAt": "2026-11-23",
+  "verifiedAt": "2026-11-23",
+  "refreshAfter": "2027-01-22",
   "excerpt": "Follow a support assistant from a wrong answer to a tested fix. See how applied AI, ML platforms, and research engineering divide the work.",
   "tags": [
     "AI Engineering",
@@ -32,7 +32,7 @@ The title alone won't tell you which part you would own. The U.S. Bureau of Labo
 
 In 2023, swyx used "AI engineer" for software built on foundation models, general-purpose models reused across products, distinct from training those models.[^swyx2023] The distinction remains useful, but teams now use the title for several kinds of ownership.
 
-Three job descriptions checked on **November 7, 2026** illustrate the range of work at frontier labs. This small sample shows those employers' research and product roles; broader postings help characterize the job market, and openings and responsibilities can change.
+Three job descriptions checked on **November 23, 2026** illustrate the range of work at frontier labs. This small sample shows those employers' research and product roles; broader postings help characterize the job market, and openings and responsibilities can change.
 
 OpenAI's Applied AI Engineer, API Platform, Digital Natives role combines customer-facing architecture, hands-on prototypes, evaluations, integrations, and production launch, along with workshops and customer relationships.[^openai2026appliedengineerapiplatform] Anthropic's Research Engineer, RL Engineering role owns reinforcement-learning (RL) training systems across orchestration, environments, training, inference, and evaluation. The posting combines operating those systems with studying training behavior at scale and working with researchers on new methods; profiling and debugging distributed runs support that work.[^anthropicrl2026]
 
