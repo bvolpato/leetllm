@@ -26,7 +26,7 @@
     "External parameters and dynamic leaf modules",
     "CPU and NVMe offload",
     "Checkpoint resume versus model export",
-    "Pinned source and runtime compatibility"
+    "Engine configuration and runtime compatibility"
   ],
   "prerequisites": [
     "deep-dive-nccl",
@@ -43,52 +43,48 @@
 }
 ---
 
-A model can fit its weights on one GPU and still run out of memory at the first optimizer update. A 1.5-billion-parameter model needs 3 GB for two-byte weights alone. In the ZeRO paper's mixed-precision Adam accounting, training state takes 24 GB before activations or temporary buffers. Where did the other 21 GB come from?[^rajbhandari2020]
+A 1.5-billion-parameter model fits its two-byte weights comfortably inside 3 GB of GPU memory, yet the first mixed-precision Adam update demands 24 GB before activations or scratch buffers even enter the picture.[^rajbhandari2020] That 8x gap is the central puzzle of distributed training memory. Where do the extra 21 GB go, and why do standard data-parallel runs duplicate every byte of it on every GPU?
 
-The [Megatron lesson](/learn/deep-dive-megatron) split computation across parallel axes. <span data-glossary="deepspeed">DeepSpeed</span> also asks who must retain each tensor between computations. Its <span data-glossary="zero">Zero Redundancy Optimizer (ZeRO)</span> partitions optimizer state, gradients, and eventually parameters across data-parallel ranks. Each rank still processes its own examples; sharding state doesn't mean sharding the examples' computation as tensor parallelism would.
-
-A saved directory can still look complete and resume a different update. The source tour uses commit `c455031422641a825588c926455458c82b27b6c0` (August 6, 2026, before the 0.19.4 release). On October 10, 2026, the `latest` training documentation identifies itself as 0.19.8 and the `stable` ZeRO documentation as 0.19.7. Treat these as distinct version references; validate each feature combination against the source and documentation you deploy.[^deepspeed2026source][^deepspeedTrainingDocs2026][^deepspeedZeroDocs2026]
-
-The marked examples run on a CPU with Python's standard library and check ownership arithmetic plus an Adam update. Validate the corresponding behavior separately with DeepSpeed kernels, distributed execution, and GPU memory measurements.
+In the [Megatron lesson](/learn/deep-dive-megatron), we split matrix computations across tensor and pipeline axes. <span data-glossary="deepspeed">DeepSpeed</span> attacks the orthogonal bottleneck: **state redundancy**. Its <span data-glossary="zero">Zero Redundancy Optimizer (ZeRO)</span> partitions optimizer states, gradients, and eventually parameters across data-parallel ranks. Each GPU still runs forward and backward passes over its own mini-batch of examples, but no rank stores training state that only another rank needs to update.[^deepspeed2026source][^deepspeedTrainingDocs2026][^deepspeedZeroDocs2026]
 
 ## Count state before choosing a stage
 
-Let $P$ be the parameter count represented by a data-parallel group. If tensor or pipeline parallelism already splits the model, use the relevant local model partition, not the entire model's parameter count.
+Let $P$ be the parameter count owned by a single data-parallel group. When tensor or pipeline parallelism already splits the model, $P$ is the local model partition per rank rather than the full model size.
 
-The paper's 16-byte recipe is:
+In standard mixed-precision Adam training, every parameter carries five persistent arrays totaling 16 bytes:[^rajbhandari2020]
 
 | Tensor | Bytes per parameter | Role |
 |---|---:|---|
-| Low-precision parameter | 2 | Forward and backward computation |
-| Low-precision gradient | 2 | Gradient awaiting the update |
-| FP32 master parameter | 4 | Higher-precision update state |
-| FP32 first moment | 4 | Adam's running gradient average |
-| FP32 second moment | 4 | Running average of squared gradients |
-| Total | 16 | Model state only |
+| Low-precision parameter | 2 | Forward and backward compute weights |
+| Low-precision gradient | 2 | Gradient awaiting the optimizer step |
+| FP32 master parameter | 4 | Full-precision weights for stable updates |
+| FP32 first moment | 4 | Adam's running mean of gradients |
+| FP32 second moment | 4 | Running mean of squared gradients |
+| **Total** | **16** | **Model state only** |
 
-The second moment isn't an estimate of centered variance. Also, BF16 compute doesn't by itself determine the gradient-accumulation dtype or whether a master copy exists. For example, replacing the two-byte gradient with a four-byte accumulation array changes this simplified total to 18 bytes. Inspect the actual optimizer and buffer dtypes. DeepSpeed exposes `data_types.grad_accum_dtype` separately.[^deepspeedConfigJson2026]
+Notice two details that catch engineers off guard. First, Adam's second moment is an uncentered running average of squared gradients, not centered variance. Second, BF16 compute does not dictate gradient-accumulation precision: using an FP32 gradient buffer instead of two-byte gradients raises the recipe from 16 to 18 bytes per parameter. DeepSpeed exposes this explicitly through `data_types.grad_accum_dtype`.[^deepspeedConfigJson2026]
 
-Let $p$, $g$, and $o$ denote bytes per parameter for compute weights, gradients, and optimizer-plus-master state. For $N$ data-parallel ranks, idealized per-rank storage is:
+Writing $p$, $g$, and $o$ for bytes per parameter in compute weights, gradients, and optimizer-plus-master state across $N$ data-parallel ranks gives the persistent per-rank storage for each ZeRO stage:
 
 $$
 \begin{aligned}
-M_{DP} &= P(p+g+o),\\
-M_{Z1} &= P(p+g+o/N),\\
-M_{Z2} &= P(p+(g+o)/N),\\
-M_{Z3} &= P(p+g+o)/N.
+M_{\text{DP}} &= P(p + g + o), \\
+M_{\text{Z1}} &= P(p + g + o/N), \\
+M_{\text{Z2}} &= P(p + (g + o)/N), \\
+M_{\text{Z3}} &= P(p + g + o)/N.
 \end{aligned}
 $$
 
-With $(p,g,o)=(2,2,12)$ and $N=4$, those are $16P$, $7P$, $5.5P$, and $4P$ bytes. The formulas describe balanced persistent state, not peak allocator usage. Padding, persistent small parameters, gathered tensors, activations, communication buffers, workspaces, and fragmentation can add memory.[^rajbhandari2020]
+With $(p, g, o) = (2, 2, 12)$ and $N = 4$, per-rank state drops from $16P$ bytes in replicated DP to $7P$ in ZeRO-1, $5.5P$ in ZeRO-2, and $4P$ in ZeRO-3. Remember that these equations count balanced persistent state; peak GPU memory also includes activations, temporary communication buckets, padding, persistent small parameters, and allocator fragmentation.[^rajbhandari2020]
 
 <figure>
   <img src="illustrations/_generated/deepspeed_zero_state_map_dark.png" alt="Comparison of memory consumption per parameter per rank across standard Data Parallelism, ZeRO-1, ZeRO-2, and ZeRO-3 on four data-parallel ranks. Total bytes fall from 16 bytes per parameter in DP to 7 bytes in ZeRO-1, 5.5 bytes in ZeRO-2, and 4 bytes in ZeRO-3 across compute weights, gradients, and FP32 optimizer states." />
-  <figcaption>ZeRO removes replication in stages. The large first reduction comes from sharding the twelve-byte optimizer-plus-master block; the remaining reductions change gradient and parameter ownership.</figcaption>
+  <figcaption>ZeRO removes replication in stages. Sharding the 12-byte optimizer-plus-master block delivers the largest drop in Stage 1; Stages 2 and 3 then partition gradients and compute weights.</figcaption>
 </figure>
 
-Use exact calculations to compare recipes without confusing decimal gigabytes ($10^9$ bytes) and binary gibibytes ($2^{30}$ bytes). This estimator deliberately excludes padding and live working sets.
+Let us compute exact persistent state for our 1.5B-parameter model on four data-parallel ranks in both decimal gigabytes ($10^9$ bytes) and binary gibibytes ($2^{30}$ bytes):
 
-<!-- leetllm: test, id=zero-ledger, output=show -->
+<!-- leetllm: test, id=zero-memory, output=show -->
 ```python title="zero_memory.py"
 import numpy as np
 
@@ -132,17 +128,17 @@ ZeRO-3  6.00 GB |  5.59 GiB
 ```
 <!-- leetllm: output:end -->
 
-Stage 1 partitions optimizer state and master weights. Stage 2 also partitions reduced gradients. Stage 3 also partitions compute parameters.[^deepspeedZeroDocs2026] Higher stages aren't quality levels. If stage 2 fits, stage 3's additional gathers may or may not pay off. If saved activations dominate, investigate activation checkpointing, microbatch size, or sequence length before expecting parameter sharding to solve the problem.
+> **Key insight:** Higher ZeRO stages are memory-versus-communication tradeoffs, not quality tiers. Stage 1 alone eliminates 56% of persistent model state on four ranks by sharding the 12-byte optimizer block. If ZeRO-2 fits comfortably, ZeRO-3's extra parameter gathers can slow down training for no gain. Conversely, if long-sequence activations dominate memory, reach for activation checkpointing or smaller microbatches before sharding weights.[^deepspeedZeroDocs2026]
 
-Partitioning the bytes does not settle Adam's second moment. That depends on whether each rank updates from its own gradient or from the reduced one.
+Partitioning bytes across GPUs solves capacity, but Adam's second moment is nonlinear. Each rank cannot simply run Adam on its local gradient and average the results later.
 
 ## Reduce first, then update the owned slice
 
-It doesn't if each rank updates from its own gradient. The square of a mean isn't the mean of squares, which is easiest to see with two ranks. Suppose their gradients for one parameter are 1 and 3. The averaged gradient is 2. The owner applies Adam once to that gradient and its local moment state. It mustn't apply Adam separately to each rank's gradient and then average the updated moments: the second moment involves a square, and $(1^2+3^2)/2=5$, while $((1+3)/2)^2=4$.[^kingma2015]
+Because Adam squares the gradient when updating its second moment $v_t$, the order of averaging and squaring changes the trajectory. Suppose two ranks compute gradients $1$ and $3$ for the same weight. Averaging first produces gradient $2$, whose square is $2^2 = 4$. Updating each rank locally and averaging afterward produces $(1^2 + 3^2)/2 = 5$. Even worse, if two ranks produce $+2$ and $-2$, their reduced gradient is $0$, whereas squaring locally injects $+4$ into the second moment and shrinks future step sizes on a zero-signal parameter.[^kingma2015]
 
-In an unsharded run, every rank can hold the reduced gradient and optimizer state. In a sharded run, the owning rank holds the relevant slice. The mathematical update can match, although different reduction orders and low-precision arithmetic can change floating-point results.
+ZeRO preserves exact Adam mathematics by reversing the replication pattern: every rank participates in reducing the full gradient (via reduce-scatter), so the owning rank receives the globally averaged gradient for its parameter slice and runs Adam once on that slice. Floating-point rounding can differ slightly across reduction orders or low-precision dtypes, but the mathematical update matches unsharded training identically.
 
-This implementation runs five updates on eleven parameters, partitioned over four logical owners using NumPy vector operations. The comparison covers every weight and moment, including uneven partitions. The reference uses ordinary Adam without weight decay, not the later AdamW configuration, and doesn't simulate NCCL's execution or DeepSpeed's padding layout.
+To verify this numerically, let us run five Adam steps over eleven parameters partitioned unevenly across four ranks and compare the reconstructed sharded weights against an unsharded reference:
 
 <!-- leetllm: test, id=zero-adam, output=show -->
 ```python title="owned_adam.py"
@@ -222,13 +218,15 @@ print(f"{len(result)} parameters, 4 owners, 5 updates: weights and moments match
 ```
 <!-- leetllm: output:end -->
 
-The example averages equally weighted rank gradients. Variable microbatch sizes or different numbers of unmasked tokens need the appropriate loss weighting; “average each rank's average” isn't automatically the global token-average objective. If one rank averages one token's gradient of 1 and another averages three token gradients of 3, their rank-average is 2. The four-token average is $(1+3+3+3)/4=2.5$. Sharding can preserve the update you specify, but it can't repair a wrongly weighted objective. The arithmetic is settled for one parameter. Which object in the training loop is allowed to apply it?
+Notice one subtle assumption in that loop: every rank received equal weight in `mean_grad`. In sequence training with variable padding or masked labels, averaging each rank's local mean is different from averaging across all valid tokens globally. If rank 0 has 1 valid token with gradient $1$ and rank 1 has 3 valid tokens each with gradient $3$, the rank average is $(1 + 3)/2 = 2$, while the true token-weighted average is $(1 + 3 + 3 + 3)/4 = 2.5$. Weight your loss by valid token counts before calling backward whenever ranks carry uneven token counts.
+
+With the per-parameter math settled, the next question is how DeepSpeed coordinates microbatches, accumulation clocks, and gradient reductions inside a training loop.
 
 ## Let the engine own the microstep
 
-That object is the engine. `deepspeed.initialize(...)` selects and configures a `DeepSpeedEngine`, wrapped optimizer, optional data loader, and scheduler. The engine coordinates backward, accumulation, reduction, precision, stepping, and checkpoint state.[^deepspeed2026source]
+Calling `deepspeed.initialize(...)` wraps your model, optimizer, optional data loader, and learning-rate scheduler into a `DeepSpeedEngine`. That engine owns the microstep clock: it tracks gradient accumulation, triggers reductions, handles mixed-precision loss scaling, steps the optimizer at accumulation boundaries, and coordinates checkpoint saves.[^deepspeed2026source]
 
-Here is an integration sketch, not a standalone program. It assumes a model whose forward returns a scalar mean loss, a prepared batch on the correct device, and a distributed launcher. Under the default managed-accumulation behavior, call `step()` after every microbatch; the engine applies an optimizer update at its accumulation boundary. Don't divide the loss by the accumulation count again when using the default engine scaling.[^deepspeedTrainingDocs2026]
+Under DeepSpeed's default managed accumulation mode, call `engine.backward(loss)` and `engine.step()` on **every** microbatch, without manually dividing `loss` by `gradient_accumulation_steps`:[^deepspeedTrainingDocs2026]
 
 ```python title="engine_integration_sketch.py"
 import deepspeed
@@ -245,11 +243,11 @@ for batch in prepared_batches:
     engine.step()
 ```
 
-With accumulation set to eight, this loop calls `backward()` and `step()` eight times for one optimizer update. Calling `step()` only on every eighth batch under the default managed behavior would advance the engine's microstep counter only once. Dividing each loss by eight as well would instead scale an already-averaged gradient a second time.
+> **Common mistake:** Porting a standard PyTorch accumulation loop directly into DeepSpeed breaks the update cadence in two ways. Calling `engine.step()` only on every eighth microbatch advances the engine's microstep counter once instead of eight times, delaying updates by 8x. Manually dividing `loss` by `gradient_accumulation_steps` divides an already-scaled gradient a second time.
 
-The current API also offers `managed_gradient_accumulation: false`. In that mode, each `step()` completes one update and the caller chooses when to call it. If the actual accumulation count differs from the configured count, use `backward(..., scale_wrt_gas=False)` and supply the intended loss weighting yourself. The pinned August source rejects unmanaged accumulation with optimizer or parameter offload, while the current training documentation supports those paths. Check the installed engine before combining them.[^deepspeed2026source][^deepspeedTrainingDocs2026]
+If your training loop needs dynamic accumulation counts, DeepSpeed also offers `managed_gradient_accumulation: false`. In unmanaged mode, every `engine.step()` executes an optimizer update immediately; pair it with `engine.backward(loss, scale_wrt_gas=False)` and scale losses explicitly. Verify that your installed DeepSpeed version supports combining unmanaged accumulation with optimizer or parameter offload before enabling both.[^deepspeed2026source][^deepspeedTrainingDocs2026]
 
-This four-data-rank configuration uses BF16 model parameters and explicitly requests FP32 gradient accumulation. Validate it on compatible GPUs before adopting it. The optimizer settings belong to your training recipe; ZeRO doesn't determine a suitable learning rate.
+Here is a four-data-rank ZeRO-2 configuration using BF16 compute weights with explicit FP32 gradient accumulation:
 
 ```json title="ds_config.json"
 {
@@ -276,31 +274,34 @@ This four-data-rank configuration uses BF16 model parameters and explicitly requ
 }
 ```
 
-Check two different units. The batch identity is $2\times8\times4=64$ samples per optimizer update. The last factor is the **data-parallel degree**, not necessarily the total number of GPUs when model parallelism is present. Holding all three batch fields fixed while launching eight data ranks is inconsistent, not a harmless scale-out change.[^deepspeedConfigJson2026]
+Two config units trip up distributed launches regularly:
 
-`reduce_bucket_size` is a count of elements, not bytes. Two hundred million elements occupy 400 MB at two bytes each or 800 MB at four bytes each, before other buffers. Communication dtype and accumulation dtype do not need to match. Larger buckets can amortize collective overhead but increase temporary storage and delay the first reduction; inspect the timeline rather than copying a bucket size.[^deepspeedZeroDocs2026]
+1. **Global batch identity:** `train_batch_size = train_micro_batch_size_per_gpu * gradient_accumulation_steps * DP_degree` ($2 \times 8 \times 4 = 64$). The final factor is the **data-parallel degree**, not total GPU count when tensor or pipeline parallelism is active. Scaling from 4 to 8 data ranks without updating one of these fields causes a configuration mismatch.[^deepspeedConfigJson2026]
+2. **Bucket size is elements, not bytes:** `reduce_bucket_size: 200000000` allocates 400 MB for two-byte gradients or 800 MB for FP32 gradients, before other scratch buffers. Larger buckets amortize collective launch overhead at the cost of higher peak memory and later overlap start times.[^deepspeedZeroDocs2026]
 
-For a real launch, record the installed DeepSpeed and PyTorch versions, accelerator and driver, the resolved configuration, and `ds_report` output. The report checks operator/environment compatibility. Run a multi-rank training step and exercise the offload path on the target setup.[^deepspeedInstallDocs2026] Neither the integration sketch nor this GPU configuration was executed for this lesson. A config that fits the persistent estimate still has to gather a full matrix from the shards each rank stores.
+Before launching multi-node jobs, run `ds_report` to confirm compiled CUDA/CPU operator compatibility on the target machine.[^deepspeedInstallDocs2026]
+
+Once a ZeRO-2 run still hits GPU memory limits, moving to ZeRO-3 removes parameter replication altogether. That introduces a new memory quantity: the live working set required to materialize layers on the fly.
 
 ## Stage 3 needs a live working set
 
-A sharded parameter can't directly supply a conventional full-layer matrix multiplication. ZeRO-3 gathers the parameter view needed for a module, executes it, and can release that full view afterward. Backward can require another gather. Prefetch, persistence, reuse, and module grouping affect the actual schedule.[^deepspeedZeroDocs2026]
+A GPU matrix multiply needs a full weight matrix, not a one-fourth shard. ZeRO-3 keeps parameters partitioned at rest, all-gathers a module's full parameters just before forward compute, and releases the full buffers afterward. Backward typically gathers the module's parameters a second time, computes input and weight gradients, and reduce-scatters the weight gradients back to their owning ranks.[^deepspeedZeroDocs2026]
 
 <figure>
   <img src="illustrations/_generated/deepspeed_stage3_lifecycle_dark.png" alt="ZeRO-3 execution lifecycle across forward and backward passes. Forward gathers module weights from peer shards, computes layer activations, and immediately releases the full view. Backward gathers weights again, computes layer gradients, and reduce-scatters them to owner ranks. Local Adam optimizer updates execute at the accumulation boundary on owned shards." />
-  <figcaption>Forward and backward may need separate parameter gathers. The gradient reduction gives each owner its update slice; an optimizer step waits for the accumulation boundary. Persistence can skip some releases and gathers.</figcaption>
+  <figcaption>ZeRO-3 gathers full module weights on demand for forward and backward, reduce-scatters gradients to owners, and runs the local Adam update at the accumulation boundary. Parameter persistence can keep small layers resident to skip repeated gathers.</figcaption>
 </figure>
 
-Don't subtract the local shard from a gathered allocation unless the implementation actually aliases that storage. In the pinned source's sequential gather path, `param.ds_tensor` is the input shard and a separate `torch.empty(...)` tensor receives the full padded gather.[^deepspeed2026source] Logical values and allocated bytes are different counts.
+When budgeting ZeRO-3 memory, count **coexisting allocations**, not logical parameter values. In DeepSpeed's sequential gather path, each rank retains its local shard in `param.ds_tensor` while allocating a separate padded `torch.empty(...)` buffer to receive the all-gathered layer.[^deepspeed2026source] Subtracting the local shard from the gathered buffer undercounts actual GPU memory.
 
-For four tensors of eight parameters on four ranks, one rank retains eight shard elements in total. A separate full eight-element gather brings the parameter-storage count to sixteen, not fourteen. Keeping a second gathered tensor for prefetch raises this example to twenty-four. These counts exclude gradients, optimizer state, activations, and communication-library workspace.
+Consider four layers of 8 parameters each on 4 ranks. At rest, each rank holds $4 \times 2 = 8$ resident shard elements. Gathering layer 0 allocates a separate 8-element full buffer, bringing live parameter storage to $8 + 8 = 16$ elements (not 14). Prefetching layer 1 while layer 0 runs holds two full buffers simultaneously, raising parameter storage to $8 + 16 = 24$ elements before activations, gradients, or NCCL workspaces.
 
 <figure>
   <img src="illustrations/_generated/deepspeed_working_set_dark.png" alt="ZeRO-3 live parameter memory working set on one rank across four layers of eight parameters each on four ranks. Between layers, the rank holds eight resident shard elements. When gathering one layer, eight full-view elements are allocated alongside the resident shards (total sixteen). When prefetching the subsequent layer, an additional eight full-view elements are allocated (total twenty-four)." />
-  <figcaption>Count allocations that coexist, alongside values received from peers. Prefetch trades a larger live working set for a chance to overlap the next gather; use a profiler to measure that overlap.</figcaption>
+  <figcaption>Live allocations stack: resident shards coexist with every active and prefetched full-layer gather buffer. Prefetching trades working-set memory for communication overlap.</figcaption>
 </figure>
 
-This storage model rounds each tensor's shard up to a whole element and allocates a separate padded gather buffer. To estimate peak memory for a run, include its DeepSpeed stage, gather schedule, prefetch policy, gradients, optimizer state, activations, and communication workspace.
+When a tensor's length is not divisible by the data-parallel degree $N$, each shard rounds up to $\lceil \text{size}/N \rceil$ elements, and the gathered buffer holds $N \cdot \lceil \text{size}/N \rceil$ padded elements:
 
 <!-- leetllm: test, id=zero-working-set, output=show -->
 ```python title="gather_storage.py"
@@ -345,37 +346,38 @@ assert parameter_storage(sizes, 4, [0, 1])[2] == 24
 ```
 <!-- leetllm: output:end -->
 
-The largest module's forward/backward working set must still fit. `deepspeed.zero.Init()` can partition parameters during construction so initialization doesn't first materialize the entire model on every GPU, but it doesn't make an oversized live operator fit. Tiling or model parallelism may still be needed.[^deepspeedZeroDocs2026]
+Constructing huge models under `deepspeed.zero.Init()` partitions each parameter as it is created so initialization never materializes the full model on every GPU. Even then, the single largest layer's working set must still fit on one GPU; when one layer exceeds device memory, pair ZeRO-3 with tensor parallelism or operator tiling.[^deepspeedZeroDocs2026]
 
 ### External parameters and dynamic routing are different problems
 
-A tied embedding reused outside its owning module is an **external parameter**. DeepSpeed can discover common cases automatically; otherwise use `deepspeed.zero.register_external_parameter()` to identify the consuming module, or `deepspeed.zero.GatheredParameters` for an explicit access scope. This coordinates access to an existing parameter.[^deepspeedZeroDocs2026]
+ZeRO-3 inserts pre-forward and post-forward hooks on modules to trigger gathers and releases automatically. Two model patterns break naive module hooks in completely different ways:
 
-Dynamic routing is different. Two data ranks may select different existing experts and enter incompatible gather sequences. Marking the enclosing module as a ZeRO leaf gathers its descendants as a unit before executing that module, at the cost of a larger working set. Set the boundary with `deepspeed.utils.set_z3_leaf_modules()` before engine initialization, or the `zero_optimization.leaf_module` configuration. This doesn't register newly created trainable parameters with an already-built optimizer.[^deepspeedTrainingDocs2026]
+- **External parameters** occur when a module reads a weight owned by a different module (such as a tied input/output embedding matrix) after the owning module has already released its full view. Register the consumer with `deepspeed.zero.register_external_parameter()`, or wrap the access in `deepspeed.zero.GatheredParameters(...)`.[^deepspeedZeroDocs2026]
+- **Dynamic routing** (such as Mixture-of-Experts) causes different data-parallel ranks to enter different expert submodules on the same step, deadlocking collective all-gathers. Marking the enclosing router/MoE container as a ZeRO leaf (`deepspeed.utils.set_z3_leaf_modules()` or `zero_optimization.leaf_module`) gathers all descendant parameters together before running the container, trading a larger working set for deadlock-free collectives. Neither mechanism registers newly created parameters with an already-initialized optimizer.[^deepspeedTrainingDocs2026]
+
+Every extra gather adds collective traffic. How much extra bandwidth does ZeRO-3 actually move, and when does that volume show up in wall-clock step time?
 
 ## Communication volume isn't elapsed time
 
-A simplified ring model makes the paper's communication comparison concrete. For $P$ communicated elements per full vector on $N$ ranks, one all-gather or reduce-scatter sends $(N-1)P/N$ elements per rank. Count sends or receives consistently, not their sum on one side of the comparison.
+In a ring collective over $N$ ranks with $P$ equal-width elements, one all-gather or reduce-scatter sends $(N-1)P/N$ elements per rank. Counting per-rank sends consistently yields the classic ZeRO communication comparison:[^rajbhandari2020]
 
-With equal element widths and no extra gathers, the basic schedules are:
-
-| Schedule | Collective work | Sent elements per rank |
+| Schedule | Collectives per update | Sent elements per rank |
 |---|---|---:|
-| Replicated data parallel | Gradient reduce-scatter + all-gather | $2(N-1)P/N$ |
+| Replicated data parallel | Gradient reduce-scatter + gradient all-gather | $2(N-1)P/N$ |
 | ZeRO-2 | Gradient reduce-scatter + updated-parameter all-gather | $2(N-1)P/N$ |
-| ZeRO-3 | Forward parameter gather + backward parameter gather + gradient reduce-scatter | $3(N-1)P/N$ |
+| ZeRO-3 | Forward gather + backward gather + gradient reduce-scatter | $3(N-1)P/N$ |
 
-This explains the paper's approximately $2P$ versus $3P$ communication model for large $N$.[^rajbhandari2020] Step time also depends on gradient/parameter dtypes, repeated gathers during accumulation or recomputation, parameter persistence, bucket sizes, overlap, and collective algorithms. In stage 1, gradient storage stays replicated; inspect the implementation before inferring a particular reduce-scatter path from its ownership formula.
+For large $N$, ZeRO-2 matches standard DDP's $2P$ volume while ZeRO-3 moves roughly $3P$, a $1.5\times$ increase. Yet step time rarely scales linearly with that $1.5\times$ ratio. Mixed dtypes (two-byte weights versus four-byte gradients), activation-checkpointing recomputation gathers, parameter persistence thresholds, bucket sizes, and compute-communication overlap all reshape the timeline.
 
-An accumulation window also changes what “per step” means. By default, ZeRO-2 and ZeRO-3 reduce and partition gradients on each backward call, even though Adam waits for the final microbatch. Keeping only the owned gradient between calls saves memory but can repeat communication. Don't wrap those stages in a DDP-style `engine.no_sync()`: the engine rejects that combination. The current `engine.coalesce_grad_reduction()` API can defer reduction across several backward calls, with a full local gradient copy retained until the scope ends and restrictions on the engine, precision wrapper, and accumulation window. Treat it as a separate schedule to validate, not a free communication reduction.[^deepspeedTrainingDocs2026]
+Gradient accumulation shifts the tradeoff further. By default, ZeRO-2 and ZeRO-3 reduce-scatter gradients on every microbatch backward so each rank discards unowned gradients immediately, saving memory at the expense of repeated communication. DeepSpeed rejects DDP-style `engine.no_sync()` for ZeRO-2 and ZeRO-3. Instead, `engine.coalesce_grad_reduction()` can defer reductions across microbatches by holding a full local gradient buffer until the scope exits, trading extra memory for fewer collectives where supported by the precision wrapper and engine.[^deepspeedTrainingDocs2026]
 
-On NVIDIA GPUs, NCCL commonly executes these collectives. DeepSpeed chooses the groups and schedules their use. A slow gather could be an exposed dependency, a small-message problem, or a network route problem. Read the per-rank timeline and communication counters together. Volume and time still assume the state lives on the GPU. What changes when it doesn't fit there at all?
+When a profiler shows slow gathers on NVIDIA GPUs, NCCL executes the collectives while DeepSpeed controls their schedule and bucketization. Inspect per-rank traces alongside communication counters to distinguish an exposed dependency from small-message launch overhead or network congestion.
+
+What happens when even ZeRO-3's sharded state overflows GPU HBM?
 
 ## Offload exchanges memory pressure for movement
 
-Then the state has to move. ZeRO-Offload moved optimizer-related state and work to CPU memory. ZeRO-Infinity extends the hierarchy to CPU and NVMe storage.[^ren2021][^rajbhandari2021] In current configuration, optimizer offload is available for stages 1 through 3, parameter offload for stage 3. Optimizer computation remains on the CPU even when its state is stored on NVMe.[^deepspeedZeroDocs2026]
-
-This fragment shows a stage-3 choice, not a complete launch configuration. It requires suitable local storage, available space, compatible I/O operators, and host memory for staging.
+ZeRO-Offload moves optimizer states and optimizer computation to host CPU RAM and CPU cores; ZeRO-Infinity extends storage to local NVMe drives.[^ren2021][^rajbhandari2021] Optimizer offload works with ZeRO stages 1 through 3, while parameter offload requires stage 3. Even when optimizer state sits on NVMe, the optimizer update itself executes on the CPU.[^deepspeedZeroDocs2026]
 
 ```json title="offload_fragment.json"
 {
@@ -390,23 +392,13 @@ This fragment shows a stage-3 choice, not a complete launch configuration. It re
 }
 ```
 
-A bandwidth bound is a useful first check. If a step must move 12 GB through a bottleneck sustaining 6 GB/s, that path needs at least two seconds of service time. Perfect overlap with three seconds of independent compute could hide it; a dependency requiring the data before compute can't. Multiple reads/writes and shared-link contention can make the real step slower. Use these parameter values to check the arithmetic, then measure the target NVMe path.
+A quick bandwidth bound tells you whether offloading will hide behind GPU compute or stall the step. Suppose a step must transfer 12 GB across a PCIe or NVMe link sustaining 6 GB/s. Transfer service time is at least $12 / 6 = 2\text{ s}$. If independent GPU compute takes 3 seconds and overlaps perfectly, the step takes $\max(2, 3) = 3\text{ s}$. If the compute cannot start until transfers finish, the step exposes $2 + 3 = 5\text{ s}$ before accounting for host staging and link contention.
 
-Measure GPU memory, host memory, pinned-memory use, CPU optimizer time, transfer volume, and storage queueing. Compare tokens per second at the same effective batch and sequence lengths. A capacity fit still needs throughput and time-to-completion measurements. A JSON key can name the offload device and still hide which function gathers a parameter or refuses a pipeline combination.
+> **Key insight:** Offloading solves capacity, not throughput automatically. Track GPU HBM, host RAM, pinned-memory headroom, CPU optimizer time, and effective tokens per second at fixed batch size and sequence length to see whether the transfer tax is acceptable.
 
 ## Trace how the engine uses each config value
 
-Follow the call, not the key name. The pinned source organizes the mechanisms as follows:[^deepspeed2026source]
-
-| Entry point | What to inspect |
-|---|---|
-| `deepspeed/__init__.py` | Initialization and engine selection |
-| `deepspeed/runtime/engine.py` | Backward, accumulation boundaries, step, save/load |
-| `deepspeed/runtime/zero/stage_1_and_2.py` | Gradient and optimizer ownership |
-| `deepspeed/runtime/zero/stage3.py` | Sharded optimizer and parameter coordination |
-| `deepspeed/runtime/zero/partition_parameters.py` | Partition storage, gathers, and parameter status |
-| `deepspeed/runtime/swap_tensor/` | Offload staging and state movement |
-| `deepspeed/runtime/pipe/engine.py` | Pipeline-specific scheduling and restrictions |
+DeepSpeed splits initialization, step orchestration, parameter partitioning, offload staging, and pipelining across cooperating runtime components:[^deepspeed2026source]
 
 ```mermaid
 flowchart TB
@@ -416,28 +408,38 @@ flowchart TB
  E --> L["save / load<br/>state +<br/>topology"]:::success
 ```
 
-Those branches are cooperating responsibilities, not three sequential phases. When a parameter is unexpectedly resident, follow its gather/release code; when a step occurs too early, follow accumulation bookkeeping.
+These branches act concurrently rather than sequentially. When a parameter stays resident unexpectedly, trace the module gather/release hooks; when an optimizer step fires early, inspect the engine's microstep counter.
 
-Compatibility also belongs to a specific path. The pinned `PipelineEngine` rejects ZeRO-2 and ZeRO-3. Current AutoTP training documentation separately supports stages 0 through 3, with model-specific partition rules and topology-aware checkpoint handling. Validate each wrapper combination against its specific engine and documentation.[^deepspeed2026source][^deepspeedTrainingDocs2026]
+Engine compatibility follows the selected class: `PipelineEngine` supports ZeRO-0 and ZeRO-1 (rejecting ZeRO-2 and ZeRO-3), whereas AutoTP training supports ZeRO stages 0 through 3 with model-specific partition rules and topology-aware checkpoints.[^deepspeed2026source][^deepspeedTrainingDocs2026] Compared with PyTorch FSDP (which keeps sharding inside native PyTorch modules) and Megatron (which specializes in 3D model-parallel schedules), DeepSpeed centralizes orchestration inside the engine and JSON config.
 
-FSDP is another route to sharded training, using PyTorch-native interfaces and a different engine/config boundary. Megatron supplies model-parallel building blocks and schedules. Compare the integration your model requires, then test loss parity and checkpoint portability. Whichever stack you choose, verify that a saved directory resumes the intended trajectory.
+<!-- leetllm: edition:reference:start -->
+When debugging source-level behavior, follow the runtime path rather than guessing from JSON key names:[^deepspeed2026source]
+
+| Entry point | Responsibility |
+|---|---|
+| `deepspeed/__init__.py` | Initialization and engine selection |
+| `deepspeed/runtime/engine.py` | Backward, accumulation boundaries, step, save/load |
+| `deepspeed/runtime/zero/stage_1_and_2.py` | Gradient and optimizer shard ownership |
+| `deepspeed/runtime/zero/stage3.py` | Sharded optimizer and parameter coordination |
+| `deepspeed/runtime/zero/partition_parameters.py` | Partition storage, gathers, and parameter status |
+| `deepspeed/runtime/swap_tensor/` | Offload staging and CPU/NVMe movement |
+| `deepspeed/runtime/pipe/engine.py` | Pipeline scheduling and stage restrictions |
+<!-- leetllm: edition:reference:end -->
 
 ## Resume training and export weights separately
 
-A distributed checkpoint contains more than inference weights. Treat two outcomes separately:
+A distributed training checkpoint serves two distinct purposes that require different saved state and different verification checks:
 
-| Outcome | State needed | Verification |
+| Goal | Required state | How to verify |
 |---|---|---|
-| Resume training | Parameters, optimizer, scheduler, counters, required RNG/data progress | Next update agrees with an uninterrupted reference |
-| Export a model | Consolidated weights plus model/tokenizer configuration | Reference inputs produce matching outputs within tolerance |
+| Resume training | Weights, optimizer moments, scheduler, step counters, RNG state, data-loader position | Next update matches an uninterrupted run |
+| Export for inference | Consolidated model weights plus model and tokenizer config | Forward outputs on fixed inputs match within tolerance |
 
-Every participating process must call `engine.save_checkpoint` with a consistent tag. Calling it only on rank zero can hang. For a ZeRO-3 save/reload test, construct a fresh model and engine before loading; the pinned implementation warns against loading immediately into the same already-partitioned engine.[^deepspeed2026source]
+Every participating rank must call `engine.save_checkpoint(save_dir, tag)` with the **exact same tag**; calling it only on rank 0 hangs collective state collection, while per-rank tags split one checkpoint into incompatible directories. When reloading a ZeRO-3 checkpoint, instantiate a fresh model and engine rather than loading into an already-partitioned live engine.[^deepspeed2026source] Store application-owned state such as data-loader cursors and per-rank RNG seeds inside `client_state`, because restoring the step counter alone will repeat or skip batches.
 
-Use `client_state` for application-owned progress that DeepSpeed doesn't automatically manage. Restore the sampler or data-loader position and any required per-rank RNG state deliberately. A saved step counter alone doesn't ensure the next microbatch is the same.
+To export inference weights from supported dense ZeRO checkpoints, `get_fp32_state_dict_from_zero_checkpoint` consolidates shards into FP32 weights on CPU (budget CPU RAM for the full model; lazy conversion defers tensor materialization rather than shrinking final size).[^deepspeedCheckpointDocs2026] For topology changes (such as resuming on a different rank count) or partition-native AutoEP layouts where `zero_to_fp32.py` does not apply, convert through Universal Checkpointing (`ds_to_universal.py`).[^deepspeedUniversalCheckpointing2026]
 
-For supported dense ZeRO layouts, `get_fp32_state_dict_from_zero_checkpoint` reconstructs FP32 weights. Plan CPU memory for consolidation; lazy conversion changes when tensors are materialized, not the size of the final weights. A weights-only export doesn't contain enough state to reproduce the next Adam update.[^deepspeedCheckpointDocs2026]
-
-Use the Adam state from our ownership lab to isolate the difference. Both restores begin with the identical weight and receive the same next gradient and step counter. Omitting the running first and second moments alters the denominator normalization and step magnitude on the subsequent update.
+Why does a weights-only export fail as a training resume? Let us resume our earlier Adam run at step 6 from full checkpoint state versus weights-only state on the exact same next gradient:
 
 <!-- leetllm: test, output=show, continue=zero-adam -->
 ```python title="weights_are_not_optimizer_state.py"
@@ -471,19 +473,17 @@ next-update gap=0.00076656
 ```
 <!-- leetllm: output:end -->
 
-Identical saved weights can therefore pass an inference check while resuming a divergent training trajectory. This verification script round-trips one parameter's weight, moments, and counter; full production checkpoints additionally preserve distributed rank files, topology conversion metadata, RNG states, and data loader positions.
+> **Common mistake:** Treating a passing inference parity check as proof of training-resume fidelity. Without Adam's running moments ($m_t, v_t$), the first resumed step resets momentum and denominator scaling, pushing the model onto a different optimization trajectory from the very next batch.
 
-Universal Checkpointing adds a conversion/load path for supported topology changes, not arbitrary model conversion. The current tutorial requires compatible parameter names and shapes and documents separate AutoTP/AutoEP layouts. In particular, partition-native AutoEP checkpoints aren't supported by `zero_to_fp32.py`; the documented path uses `ds_to_universal.py` instead.[^deepspeedUniversalCheckpointing2026]
+Before committing to a long multi-day run, save a checkpoint on the target topology, tear down all workers, reload into a fresh engine, and confirm that the next loss, parameter update, scheduler state, and data-loader batch match an uninterrupted run.
 
-Before a long run, save at the intended topology, stop every worker, reload into a fresh run, and compare the next loss, update, scheduler state, and data progress. Test export separately. These distributed recovery operations weren't executed here.
-
+<!-- leetllm: edition:reference:start -->
 ## Project context and contribution path
 
-The original ZeRO authors worked at Microsoft. The project's pinned governance defines technical oversight through a Technical Steering Committee and its relationship with Linux Foundation AI & Data.[^rajbhandari2020][^deepspeed2026governance] The pinned committer roster includes contributors affiliated with Snowflake, Microsoft, Anyscale, AMD, Google, Intel, UIUC, and Argonne National Laboratory. Those affiliations describe the dated roster, not everyone's current employer.[^deepspeed2026committers]
+DeepSpeed originated at Microsoft with the ZeRO paper and now operates under Linux Foundation AI & Data with technical oversight by a Technical Steering Committee.[^rajbhandari2020][^deepspeed2026governance] Committers come from across the ecosystem, including Microsoft, Snowflake, Anyscale, AMD, Google, Intel, UIUC, and Argonne National Laboratory.[^deepspeed2026committers] The codebase is Apache-2.0 licensed, documentation is CC BY 4.0, and contributions require Developer Certificate of Origin (DCO) sign-off.[^deepspeed2026license][^deepspeed2026governance]
 
-The code license is Apache-2.0. The charter specifies Developer Certificate of Origin sign-off for contributions and CC BY 4.0 for project documentation.[^deepspeed2026license][^deepspeed2026governance] Check the current contribution instructions before submitting a change.
-
-For a source-level investigation, reduce the failing run first. Include the version/commit, resolved config, smallest reproducer, topology, and earliest rank error. Report whether the failure is initialization, correctness, performance, or recovery; a peer's collective timeout can be a consequence of an earlier failure elsewhere.
+When investigating or filing a bug report, shrink the failing run to a minimal reproducer and include the installed DeepSpeed and PyTorch versions, resolved config, GPU topology, and the **earliest** rank error (a collective timeout on rank 0 is often a symptom of an earlier crash on another rank).
+<!-- leetllm: edition:reference:end -->
 
 ## Turn a failed run into a specific hypothesis
 
@@ -498,25 +498,27 @@ For a source-level investigation, reduce the failing run first. Include the vers
 | Lower GPU peak but slower steps after offload | Measure exposed transfers and CPU/storage service time |
 | Saved directory exists but resume diverges | Restore optimizer, scheduler, RNG, and data progress in a fresh engine |
 
+<!-- leetllm: edition:reference:start -->
 ### Evaluation rubric
 
-- Derive each stage's storage from tensor ownership and dtype, then explain what the estimate excludes.
-- Trace one parameter and its gradient through gather, compute, reduction, and the accumulation-boundary update.
-- Separate CPU reference checks from GPU measurements, and distinguish a resumable checkpoint from a weights-only export.
+- Derive each ZeRO stage's persistent storage from tensor ownership and actual dtypes, then account for live working sets and activations separately.
+- Trace one parameter and its gradient through gather, compute, reduce-scatter, and the accumulation-boundary Adam update.
+- Distinguish a full resumable training checkpoint (optimizer moments, scheduler, RNG, data cursor) from a consolidated weights-only inference export.
 
 ### Follow-up questions
 
 ```checkpoint
 The state estimate fits, but enabling prefetch causes an OOM. Why isn't that a contradiction?
 ---
-The estimate counts persistent state. Prefetch can keep multiple full gathered tensors live alongside their shards. Add the simultaneous allocations, activations, and workspaces before comparing with available device memory.
+The stage formula counts persistent sharded state only. Prefetching keeps multiple full gathered tensors live alongside their resident shards. Add simultaneous gather buffers, activations, and NCCL workspaces before comparing with GPU memory.
 ```
 
 ```checkpoint
 Two ranks route to different experts. Should you create parameters lazily and register them as external parameters?
 ---
-No. The routing problem concerns compatible gathers for existing submodules. A suitable leaf boundary gathers descendants together, with a memory cost. External-parameter coordination concerns access outside an existing parameter's owning module; it doesn't make post-initialization parameter creation safe for the optimizer.
+No. Dynamic routing requires compatible gather order for existing submodules; marking the enclosing router module as a ZeRO leaf gathers its descendants together at the cost of a larger working set. External-parameter registration coordinates access to an existing parameter outside its owning module and does not register newly created parameters with an initialized optimizer.
 ```
+<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [
@@ -529,7 +531,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "ZeRO-2: 12 GB; ZeRO-3: 6 GB."
     ],
     "answer": "ZeRO-2: 8 GB; ZeRO-3: 4.5 GB.",
-    "explanation": "Full compute weights are 4 GB; sharded gradients plus optimizer arrays are (8+24)/8=4 GB. Stage 2 therefore totals 8 GB. Sharding all 36 GB gives stage 3 a 4.5 GB persistent count. Neither includes gathers or activations."
+    "explanation": "Full compute weights are 4 GB; sharded gradients plus optimizer arrays are (8+24)/8=4 GB. Stage 2 therefore totals 8 GB. Sharding all 36 GB gives stage 3 a 4.5 GB persistent count before gathers or activations."
   },
   {
     "question": "Two equally weighted ranks supply gradients −1 and 5. The old Adam second moment is 0.2 and beta2 is 0.9. What is the next second moment after reducing the gradient first, versus mistakenly averaging the two locally updated second moments?",
@@ -551,7 +553,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "20 then 29 elements."
     ],
     "answer": "20 then 29 elements.",
-    "explanation": "Resident shards contain ceil(7/3)+ceil(10/3)+ceil(3/3)=3+4+1=8 elements. Tensor 1 has a 12-element padded gather, so total 20. Tensor 0 adds a separate 9-element gather, bringing total to 29. Subtracting the resident local copy incorrectly mixes storage and communication."
+    "explanation": "Resident shards contain ceil(7/3)+ceil(10/3)+ceil(3/3)=3+4+1=8 elements. Tensor 1 allocates a 12-element padded gather buffer, totaling 20. Prefetching tensor 0 adds a separate 9-element buffer, bringing live parameter storage to 29."
   },
   {
     "question": "A simple 24-GPU topology uses tensor degree 4 and no other model-parallel axis. Each data rank uses microbatch 2 and accumulation 3. A separate communication bucket holds 75 million FP32 elements. What are global batch and bucket storage, excluding other buffers?",
@@ -562,7 +564,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "36 examples; 75 MB."
     ],
     "answer": "36 examples; 300 MB.",
-    "explanation": "Data degree is 24/4=6, so global batch is 2×3×6=36 examples. The element-count bucket needs 75 million×4=300 million bytes, or 300 decimal MB. Tensor workers do not supply independent data examples."
+    "explanation": "Data-parallel degree is 24/4=6, so global batch is 2×3×6=36 examples. The element-count bucket needs 75 million×4=300 million bytes, or 300 decimal MB. Tensor workers shard layers within an example rather than supplying extra data examples."
   },
   {
     "question": "Two supported loops each perform five backward calls. M uses default managed accumulation of five but calls engine.step only once afterward, starting at microstep zero. U uses unmanaged accumulation, supplies the intended loss weighting and calls step once afterward. How many optimizer updates do these loop fragments complete?",
@@ -573,7 +575,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "M 0; U 1."
     ],
     "answer": "M 0; U 1.",
-    "explanation": "Managed step advances its microstep clock only once, short of the fifth-call update boundary. Under the separately declared unmanaged mode, each step is an update. Five backward calls alone do not advance the managed step counter."
+    "explanation": "Managed step advances its microstep clock only once, short of the fifth-call update boundary. Under unmanaged mode, each step completes one optimizer update. Five backward calls alone do not advance the managed step counter."
   },
   {
     "question": "In case A, an embedding module releases its gathered weight before a separate classifier reads that existing weight outside the module. In case B, data ranks choose different existing experts and enter incompatible gathers. Compare external access coordination with a leaf boundary on A’s embedding module or B’s routing module. Which paired repair addresses the stated availability causes?",
@@ -584,7 +586,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "A: establish an enclosing leaf boundary; B: establish that leaf boundary."
     ],
     "answer": "A: coordinate external access; B: establish a supported enclosing leaf boundary.",
-    "explanation": "External access coordination identifies the consumer of an existing parameter. A leaf boundary coordinates descendants before dynamic execution and can enlarge the working set. It does not require running every expert or register new trainable arrays with an already-built optimizer. A leaf on the embedding module alone does not identify the separate consumer after that module has returned."
+    "explanation": "External access coordination registers the consumer of an existing parameter outside its owning module. A leaf boundary gathers descendants together before dynamic routing executes, avoiding mismatched collective orders across ranks. A leaf on the embedding module alone still releases the weight once that module returns."
   },
   {
     "question": "A simplified ring has 3 ranks and a full communicated vector of 24 million equal-width elements. One collective sends (N−1)P/N elements per rank. A baseline uses two such collectives and a candidate uses three. What follows?",
@@ -595,7 +597,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "Baseline 16 million, candidate 24 million; step-time ratio needs schedule evidence."
     ],
     "answer": "Baseline 32 million, candidate 48 million; step-time ratio needs schedule evidence.",
-    "explanation": "One collective sends (2/3)×24=16 million elements. Two send 32 million and three send 48 million. The 1.5 volume ratio does not determine step time because dependency exposure, overlap, message sizes and bandwidth still matter."
+    "explanation": "One collective sends (2/3)×24=16 million elements. Two send 32 million and three send 48 million. That 1.5x volume ratio does not fix step time because compute overlap, dependency exposure, bucket size, and interconnect bandwidth all shape elapsed time."
   },
   {
     "question": "An offload configuration must move 18 decimal GB at an achieved 6 GB/s. Independent compute lasts 4 seconds. Ignoring setup and contention, what are completion lower bounds with ideal overlap and with a dependency requiring all transfer before compute?",
@@ -606,7 +608,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "Overlap 4 s; dependent 4 s."
     ],
     "answer": "Overlap 4 s; dependent 7 s.",
-    "explanation": "Transfer service takes 18/6=3 seconds. Ideal overlap is max(3,4)=4 seconds. A transfer-before-compute dependency exposes 3+4=7 seconds. Real staging and contention can add time to either."
+    "explanation": "Transfer service takes 18/6=3 seconds. Ideal overlap takes max(3,4)=4 seconds. A transfer-before-compute dependency exposes 3+4=7 seconds before host staging or link contention."
   },
   {
     "question": "A run processes batches in numerical order and saves after batch 37. On restart, the weights, Adam moments, scheduler, counters and random state match the checkpoint. The loader starts with batch 37. On fixed test inputs, a separate weights-only export has a maximum absolute output error of 0.003 against a tolerance of 0.005. Which checks can the team mark as passed?",
@@ -617,7 +619,7 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "Neither training continuation nor inference export."
     ],
     "answer": "Inference export only.",
-    "explanation": "The uninterrupted run would read batch 38. Repeating batch 37 can change the next gradient even with the saved Adam moments. Giving both checks credit overlooks this change of input. Rejecting both overlooks the export's output error of 0.003, below the 0.005 tolerance. Inference needs no optimizer state. Crediting training continuation alone makes both mistakes."
+    "explanation": "The uninterrupted run would read batch 38 next; repeating batch 37 alters the next gradient even with restored Adam moments. Meanwhile, the weights-only export passes inference verification because 0.003 is within the 0.005 tolerance and inference requires no optimizer state."
   },
   {
     "question": "Two ZeRO jobs save checkpoints on shared storage. In job A, every rank calls save after step 62, but their local timestamps give them different tags. In job B, the ranks agree on the tag, but only rank zero calls save. Which changes satisfy the distributed save semantics in both jobs?",
@@ -628,9 +630,9 @@ No. The routing problem concerns compatible gathers for existing submodules. A s
       "A builds each tag from the step number and rank ID. In B, every rank enters a barrier before rank zero alone calls save."
     ],
     "answer": "A broadcasts the tag step-62 for every rank to use. In B, every rank calls save on the shared directory.",
-    "explanation": "The tag identifies the checkpoint that the ranks save together. The shared step number gives it one name. Adding a rank ID gives each shard owner a different checkpoint name. In B, each owner must enter the save call to contribute its state. A barrier brings the ranks to the same point, but rank zero still lacks the other owners' shards. Combining rank-specific tags with a barrier leaves both problems."
+    "explanation": "Every rank must pass one shared checkpoint tag so shards land in a single coherent checkpoint directory. In job B, every shard-owning rank must call save_checkpoint to write its local state; a barrier before a rank-zero-only save still leaves other ranks' shards unsaved."
   }
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - Ray](/learn/deep-dive-ray). Name the rank that owns a parameter, the boundary where Adam may run, and the state a weights-only file leaves out of a resume. Ray schedules tasks, actors, and workflows across a cluster instead of sharding tensors inside one training job.
+> **Next:** Continue to [Deep Dive - Ray](/learn/deep-dive-ray). DeepSpeed partitions tensors inside a single distributed training job; Ray schedules tasks, actors, and multi-stage workflows across an entire cluster.

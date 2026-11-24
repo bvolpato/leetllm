@@ -36,41 +36,28 @@
 }
 ---
 
-The last chapter treated <span data-glossary="sglang">SGLang</span> as a serving runtime: tokenize the request, reuse a radix prefix, pack a step, sample tokens. slime sits on the other side of that HTTP interface during reinforcement-learning (RL) post-training.
+A coding-agent <span data-glossary="rollout">rollout</span> edits a sandbox, passes every unit test, and earns reward `1.0`. Yet after training on that batch, pass rate drops even though GPUs are running hot and every <span data-glossary="sglang">SGLang</span> health check is green. Before blaming the RL loss function, look at the seams between serving and training: did a tool observation leak into the loss mask, did a segmented trajectory get double-weighted, or is SGLang still serving weights from before <span data-glossary="nvidia-megatron">Megatron</span>'s last update?
 
-A coding-agent <span data-glossary="rollout">rollout</span> edits a sandbox, passes tests in a clean grading environment, and earns reward `1.0`. After training on the batch, pass rate falls even though GPUs are busy and every SGLang health check is green. Treat this as a diagnostic scenario: inspect training data, token alignment, and serving-weight versions before assigning a cause.
-
-Don't call that an unstable objective yet. A tool observation may have entered the loss, one trajectory may have been counted twice, or SGLang may still be serving the weights from before Megatron's step.
-
-Follow one trajectory record through that incident. Call it rollout 7. The prompt asks the model to fix a failing test. The model writes a tool call, the sandbox returns an observation, the model writes a patch, and a clean grader returns reward `1.0`. slime has to keep those sampled token IDs, the loss mask, and the group identity intact from SGLang to <span data-glossary="nvidia-megatron">Megatron</span>.[^slime2025repo][^slime2025blog]
-
-Three architectural layers can hide the drop. Ray placement decides which resources may overlap. Timing policy decides how old a sample may be. Weight synchronization decides when a new policy becomes visible. Rollout 7 has to stay identifiable across all three.
-
-Source behavior is pinned to slime commit `681b3adca54105d5ecd3fb822fa0dc58a427e0f9`; the living agent and recovery guides were rechecked October 10, 2026. The recovery section separates the newer retained-serving behavior from this historical source walkthrough. All examples execute CPU-only sample tests with synthetic token IDs, rewards, and weight bytes. They expose correctness conditions while leaving Ray actors, SGLang inference, and Megatron training for a cluster run.[^slime2026sourceSnapshot]
+**slime** (from THUDM and Z.ai) is the post-training RL framework that owns the handoff between SGLang rollouts, Ray placement, and Megatron-LM training.[^slime2025repo][^slime2025blog][^slime2026sourceSnapshot] We will trace one trajectory, **rollout 7**, across all three layers (placement, timing, and weight sync) so its exact token IDs, loss mask, and serving policy version stay visible end to end.
 
 ## Keep Megatron and SGLang, own the handoff
 
-RL post-training is an online loop, not a static dataset pass. A prompt reaches a policy, the policy samples one or more responses, an environment or verifier assigns reward, and a trainer changes the policy. The next prompt should eventually see that new policy, while enough work overlaps to keep <span data-glossary="gpu">GPUs</span> busy. Long responses, tool calls, and failed environments make each iteration irregular.
+Online RL post-training combines two very different workloads: irregular, tool-calling generation loops and large-scale distributed gradient steps. Instead of wrapping Megatron or SGLang behind a leaky unified abstraction, slime leaves both engines close to their native flags and concentrates on the seam between them:[^slime2025blog]
 
-That irregularity is where separate stacks drift. Math, tool use, multi-turn agents, asynchronous sampling, and <span data-glossary="supervised-fine-tuning">supervised fine-tuning</span> can each grow different assumptions about tokens, rewards, and retries. slime keeps the training and serving engines near their upstream interfaces, then puts data-generation and reward logic behind explicit hooks.[^slime2025blog]
-
-The ownership split is deliberate. Megatron owns high-throughput parameter updates. SGLang owns token generation behind a router. Ray owns placement and actor lifecycle. slime owns the handoff, sample schema, timing policy, and checks that keep rollout data aligned with training.
-
-An agent workflow can use a <span data-glossary="sandbox">sandbox</span>, search service, browser, tool server, or another model. Its adapter must still preserve the token-level training schema. slime's hook interface doesn't authorize those tools: credentials, network access, sandbox isolation, and write permissions belong to the application running the rollout.
+- **Megatron-LM** owns distributed actor/critic training (TP, PP, EP, CP, DP) and checkpointing.
+- **SGLang + `sgl-router`** own high-throughput token generation, prefix caching, and per-token logprobs.
+- **Ray** owns GPU placement groups and actor lifecycles.
+- **slime** owns the `Sample` schema, Data Buffer, async timing loop, custom agent hooks, and weight synchronization.
 
 ```checkpoint
-Why does slime expose custom generation instead of defining one agent class?
+Why does slime expose custom generation hooks instead of forcing one built-in agent class?
 ---
-Agent environments have different message formats, tools, state, and stopping rules. A custom generation hook lets each workflow keep its own loop while returning token-level Samples that the shared rollout and training code can validate.
+Coding sandboxes, browsers, and search agents have wildly different loops, message formats, and stopping rules. Custom hooks let each environment run its own loop while returning normalized token-level `Sample` objects to the shared trainer.
 ```
 
 ## A token ledger between two engines
 
-Start with a prediction. If one response contains model tokens, a tool observation, and more model tokens, what tells the trainer which positions deserve credit?
-
-A rollout acts as a ledger entry. Its prompt and sampled response carry the sequence, while log probabilities, loss masks, reward, status, and rollout ID explain how that sequence should affect the next <span data-glossary="gradient">gradient</span> update. Ray decides where the ledger work runs. The Data Buffer keeps entries available until the trainer consumes a complete group.
-
-The policy appears twice, with different jobs. SGLang reads current weights and produces tokens quickly. Megatron reads those tokens and computes losses, gradients, and <span data-glossary="optimizer">optimizer</span> updates. A weight-sync operation is the commit that changes what SGLang will sample next. Delay that commit and data becomes off-policy by design, so timing must be recorded rather than inferred later.
+Every rollout flows through the same loop: SGLang samples tokens and logprobs from the current policy, the **Data Buffer** validates and groups completed `Sample` records, Megatron computes losses and steps the <span data-glossary="optimizer">optimizer</span>, and **weight sync** commits the updated parameters back to SGLang.
 
 ```mermaid
 flowchart TB
@@ -81,79 +68,57 @@ flowchart TB
     sync --> router
 ```
 
-Ray places the rollout and training actors; the arrows here carry data or weight updates, not placement requests. A generated response isn't ready for training until its <span data-glossary="token">token</span> IDs, response length, loss mask, reward, and acceptance status agree. A weight update isn't complete until rollout engines have loaded the intended version and can serve again.
-
-Now ask where that ledger can live. Which GPUs may generate while others train, and which sync path makes that overlap legal? Ray answers the placement question before SGLang or Megatron sees a token.
+A generated response enters training only when its <span data-glossary="token">token</span> IDs, response length, loss mask, reward, and status agree, and a weight sync completes only when serving engines load the new version and resume.
 
 ## Ray placement defines cluster topology
 
-Ray placement groups reserve bundles such as one GPU plus one central processing unit (CPU) slot. slime builds one placement group, labels bundles for actor training or rollout, and sorts them by node and physical GPU so distributed rank order stays stable. This code is infrastructure, but it decides whether a sync path can work.
+slime creates a Ray placement group of GPU+CPU bundles, sorts them by node and physical GPU for deterministic rank ordering, and assigns them to Megatron actors and SGLang engines:
 
-With `--colocate`, actor training and rollout share a GPU allocation. One side must offload before the other can use that memory. Without colocation, actor and rollout receive separate bundles and can overlap more freely, at the cost of extra hardware and a weight-transport boundary. Async training requires the decoupled shape in `train_async.py`; its first assertion rejects colocation.
-
-| Topology | Ray allocation | What it enables | Main pressure |
+| Topology | GPU layout | Upside | Main constraint |
 | --- | --- | --- | --- |
-| Colocated | One shared GPU range | Less hardware, simple local transfer | Memory eviction and blocked overlap |
-| Decoupled | Actor and rollout ranges | Training and generation can overlap | Weight transport and shared storage |
-| External rollout | Actor range plus external SGLang endpoints | Separately operated serving cluster | Compatible management APIs, storage, and versions |
+| Colocated (`--colocate`) | Shared GPU pool | Minimal hardware; fast local IPC sync | Must offload memory between rollout and train; blocks async |
+| Decoupled | Separate actor and rollout pools | Training and generation overlap freely | Requires more GPUs + network/disk weight sync |
+| External rollout | Actor pool + external SGLang cluster | Independent serving fleet | Must keep management APIs and storage aligned |
 
-The same placement group can describe server groups with different sizes. SGLang configuration supports regular, <span data-glossary="prefill">prefill</span>, decode, and placeholder groups. A placeholder reserves GPU slots without creating an engine, while Ray still accounts for every slot. Heterogeneous layout changes where requests run, not what a `Sample` means.
-
-slime passes Megatron arguments directly and prefixes installed SGLang arguments with `--sglang-`. Tensor, pipeline, expert, context, and data parallel settings stay visible to Megatron, while serving flags stay available to SGLang. A run should persist resolved arguments, bundle-to-node mapping, topology, sync mode, and policy version alongside its rollout run log. The launch file explains intent; that resolved record proves what ran.[^slime2026docs]
+Async training (`train_async.py`) asserts that colocation is off so rollout and training can execute simultaneously. Megatron flags pass straight through, while SGLang flags carry the `--sglang-` prefix (for example `--sglang-moe-a2a-backend deepep` for MoE communication).[^slime2026docs]
 
 ```checkpoint
-When should a reader choose decoupled placement for a long-horizon agent?
+When does decoupled placement pay off for a coding agent?
 ---
-Choose it when generation and training need independent memory or when agent rollouts have a heavy latency tail. Keep a versioned transport and recovery plan because every overlap introduces a weight-staleness and visibility gap.
+When long-tail sandbox rollouts would leave training GPUs idle, or when actor and serving engines need independent GPU memory budgets. You pay for the extra overlap with explicit weight transport and policy-lag tracking.
 ```
 
 ## SGLang and sgl-router own rollout
 
-At the rollout interface, ask which representation can be trusted after a tool loop: decoded text or the IDs sampled by the policy?
+slime runs SGLang in server mode behind `sgl-router`, calling `/generate` with `return_logprob=True` so each completion returns exact sampled token IDs and per-token log probabilities. Passing a stable session ID in `X-SMG-Routing-Key` with `router_policy=consistent_hashing` routes multi-turn sessions back to the same worker for <span data-glossary="prefix-cache">radix prefix-cache</span> reuse.
 
-slime launches SGLang in server mode and keeps a router endpoint in front of its workers. A regular sample is tokenized, sent to `/generate` with `return_logprob=True`, and returned with response token IDs, per-token log probabilities, and metadata. Text helps an operator inspect a run; token IDs remain the training source of truth.
-
-The previous chapter's radix prefix cache still matters here. With `router_policy=consistent_hashing`, slime sends `X-SMG-Routing-Key` from the sample session ID, so one multi-turn session can return to the same worker and reuse its <span data-glossary="prefix-cache">prefix cache</span>. That improves locality, not lineage. The trajectory manager still has to prove which tokens came from the model.
-
-The default rollout function creates sample groups, runs generation concurrently, computes rewards, and waits until the requested batch is valid. Dynamic sampling can discard groups whose reward variation is unhelpful. Partial rollout mode can abort requests and keep unfinished samples for a later pass. SGLang's `/abort_request` endpoint supports that early stop when oversampling has already found enough valid responses.[^slime2025blog]
-
-That gives an operator two separate questions: did the request finish with a valid trajectory, and what status did an abort or retry leave? Record both beside the sample so a partial response cannot look complete.
-
-For <span data-glossary="mixture-of-experts">mixture-of-experts (MoE)</span> rollouts, the same pass-through lets you set `--sglang-moe-a2a-backend deepep`. That flag changes how expert-parallel tokens move inside SGLang. It doesn't change what a Sample must contain when it reaches the buffer.
-
-There are two useful debug modes. `--debug-rollout-only` exercises generation without training; use `--save-debug-rollout-data` with a path to retain its samples. `--debug-train-only` isolates the training side, with `--load-debug-rollout-data` providing a saved batch for replay. These modes help place a reward or <span data-glossary="tokenization">tokenization</span> defect before or after the Data Buffer.[^slime2026faulttolerance]
+Dynamic sampling filters out zero-variance reward groups, while partial rollout mode can call SGLang's `/abort_request` once oversampling has collected enough valid completions, saving unfinished trajectories for a later pass.[^slime2025blog] For fast bug isolation, slime provides `--debug-rollout-only` (paired with `--save-debug-rollout-data`) and `--debug-train-only` (paired with `--load-debug-rollout-data`) to test generation and Megatron updates independently.[^slime2026faulttolerance]
 
 ## Data Buffer coordinates the rollout handoff
 
-The logical Data Buffer is the bridge from prompt initialization to generated samples. A data source supplies groups, the rollout function fills them, and the manager converts Samples into tensors and schedules them across <span data-glossary="data-parallelism">data-parallel</span> ranks. The optional `slime_plugins/rollout_buffer` runs a separate HTTP service for agent trajectory generation, but it still returns the same grouped evidence.
+The **Data Buffer** bridges prompt generation and Megatron data-parallel ranks (and can optionally run as a standalone HTTP service via `slime_plugins/rollout_buffer`). Each `Sample` carries three distinct identifiers that must never be conflated:[^slime2026sampleContract]
 
-Each Sample carries more than text. `tokens` contains prompt IDs followed by the response-side sequence, including any tool observations inserted during the trajectory. `response_length` counts the entire response-side suffix, including tool observations. `loss_mask` identifies response positions that contribute to policy loss. A zero mask excludes the observation as a training target; the observation remains in the context used to predict later model tokens.
+- `group_index`: independent attempts sampled for the same prompt (used for GRPO reward centering).
+- `rollout_id`: sibling segments belonging to a single agent trajectory (used for shared loss denominators).
+- `weight_versions`: the serving policy version(s) that generated the tokens.
 
-Keep three identities separate: `group_index` groups independent attempts at one prompt, `rollout_id` groups segments from one agent execution, and `weight_versions` records serving-policy versions. None substitutes for the others. In particular, the manager's numbered rollout *batch* isn't the same thing as every Sample's trajectory ID.[^slime2026sampleContract]
+Take **rollout 7**: prompt IDs `[101, 102]` followed by a six-token response containing a model tool call `[11, 12]`, a sandbox observation `[50, 51]`, and a model answer `[13, 14]`. The prompt sits outside `loss_mask`; within the six response positions, four model tokens get mask `1` and the two observation tokens get mask `0`.
 
-Predict before reading the figure. Rollout 7 has prompt IDs `[101, 102]`, then a six-token response: model tool call `[11, 12]`, tool observation `[50, 51]`, and model answer `[13, 14]`. The prompt is outside the response mask, and only four model positions should train.
-
-| Field | Producer | Training meaning | Failure if missing |
+| Field | Producer | Role in training | Failure if broken |
 | --- | --- | --- | --- |
-| `tokens` | SGLang or custom adapter | Exact sequence for forward pass | Re-tokenization changes target |
-| `rollout_log_probs` | SGLang | Off-policy correction or diagnostics | Mismatch is invisible |
-| `loss_mask` | Custom adapter or converter | Which positions enter target loss | Tool observations get trained |
-| `reward` | Verifier or <span data-glossary="reward-model">reward model</span> | Advantage input | No learning signal |
-| `rollout_id` | Data source or fan-out hook | One trajectory denominator | Segments count as separate rollouts |
-| `status` | Rollout worker | Complete, truncate, abort, or fail | Acceptance policy can't distinguish outcomes |
+| `tokens` | SGLang / adapter | Exact forward-pass sequence | Re-tokenization shifts targets |
+| `rollout_log_probs` | SGLang | Behavior policy logprobs | Off-policy drift goes undetected |
+| `loss_mask` | Adapter / converter | Selects trainable response tokens | Model trains to mimic tool errors |
+| `reward` | Verifier / <span data-glossary="reward-model">reward model</span> | Advantage signal | Flat or inverted learning |
+| `rollout_id` | Data source / fan-out | Shared trajectory denominator | Multi-segment runs get over-weighted |
+| `status` | Rollout worker | `COMPLETED`, `TRUNCATED`, `ABORTED`, `FAILED` | Partial trajectories mix into clean batches |
 
 <figure>
   <img src="illustrations/_generated/slime_sample_ledger_dark.png" alt="Rollout 7 token ledger. Prompt IDs 101 and 102 sit outside the loss mask. Response tokens 11 and 12 are a model tool call (mask 1), 50 and 51 are a tool observation (mask 0), and 13 and 14 are the model answer (mask 1). Four of six response positions are trainable; rollout_id stays 7 and reward is 1.0." />
-  <figcaption>The six response positions align with six mask and log-probability entries. The two observation tokens remain in context but have zero target weight. Their zero log-probability entries are placeholders, not sampled probabilities.</figcaption>
+  <figcaption>The six response positions align one-to-one with `loss_mask` and `rollout_log_probs`. Observation tokens stay in context with mask `0` and placeholder `0.0` logprobs.</figcaption>
 </figure>
 
-The manager can normalize rewards for estimators such as <span data-glossary="grpo">Group Relative Policy Optimization (GRPO)</span>, then prepares training fields and a data-parallel schedule. Custom generation can return several Samples for one compacted trajectory. Those siblings need one `rollout_id`, so the configured loss reduction can use the combined trainable-token count. Don't assume flattening variable-sized branches preserves the intended prompt-level reward groups: inspect reward postprocessing as well as the loss denominator.
-
-Check the handoff before the GPU step. Sum trainable positions, inspect status, and group by rollout ID. If those counts change when an adapter changes its message format, the bug is in the handoff even if reward calculation still returns a number.
-
-An external rollout buffer adds another coordination layer. Its generators write items over HTTP, group them by instance ID, and expose valid groups to the trainer. If the service loses a process or clears temporary data, the trainer may still be healthy while its next batch is empty. Treat buffer availability, group completeness, and metadata freshness as separate health signals.
-
-This local validator deliberately accepts only completed trajectories. Slime itself has additional statuses, including usable truncations and recoverable failures; their acceptance policy is workload-dependent. The validation function below is a standalone verification utility, not the upstream `Sample` class. It checks aligned log probabilities, binary masks, nonempty model output, and finite reward before returning a count:
+This compact NumPy validator checks the exact alignment rules for rollout 7 and rejects malformed candidates before they ever reach Megatron:
 
 <!-- leetllm: test, output=show, deps=numpy -->
 ```python title="sample_trajectory_schema.py"
@@ -178,22 +143,17 @@ def prompt_len(sample: Sample) -> int:
 
 def trainable_positions(sample: Sample) -> int:
     if sample.status != "COMPLETED":
-        raise ValueError("Policy accepts completed trajectories only")
+        raise ValueError("Only completed trajectories accepted")
     if not (0 < sample.response_length < len(sample.tokens)):
-        raise ValueError("Require a prompt and a nonempty response suffix")
-    if len(sample.loss_mask) != sample.response_length:
-        raise ValueError("Mask length differs from response length")
+        raise ValueError("Need nonempty prompt and response suffix")
+    if len(sample.loss_mask) != sample.response_length or len(sample.rollout_log_probs) != sample.response_length:
+        raise ValueError("Mask and logprobs must match response_length")
     if not np.all(np.isin(sample.loss_mask, [0, 1])) or not np.any(sample.loss_mask):
-        raise ValueError("Require binary mask and at least one trainable position")
-    if len(sample.rollout_log_probs) != sample.response_length:
-        raise ValueError("Log probabilities must align with response positions")
-    if not np.isfinite(sample.reward):
-        raise ValueError("Reward must be finite")
-    if not np.all(np.isfinite(sample.rollout_log_probs)) or np.any(sample.rollout_log_probs > 0):
-        raise ValueError("Log probabilities must be finite and nonpositive")
-    masked_zeros = sample.loss_mask == 0
-    if np.any(sample.rollout_log_probs[masked_zeros] != 0.0):
-        raise ValueError("Masked observation tokens must have zero logprob placeholder")
+        raise ValueError("Mask must be binary with at least one trainable token")
+    if not np.isfinite(sample.reward) or not np.all(np.isfinite(sample.rollout_log_probs)):
+        raise ValueError("Reward and logprobs must be finite")
+    if np.any(sample.rollout_log_probs > 0) or np.any(sample.rollout_log_probs[sample.loss_mask == 0] != 0.0):
+        raise ValueError("Action logprobs must be <= 0 and masked placeholders must be 0.0")
     return int(np.sum(sample.loss_mask))
 
 
@@ -206,8 +166,6 @@ sample = Sample(
     status="COMPLETED",
     rollout_log_probs=np.array([-0.2, -0.3, 0.0, 0.0, -0.4, -0.5], dtype=np.float32),
 )
-assert prompt_len(sample) == 2
-assert trainable_positions(sample) == 4
 
 invalid = [
     replace(sample, status="ABORTED"),
@@ -220,15 +178,15 @@ invalid = [
     replace(sample, rollout_log_probs=np.array([-0.2, -0.3, -0.8, 0.0, -0.4, -0.5], dtype=np.float32)),
     replace(sample, reward=float("nan")),
 ]
+rejected = 0
 for candidate in invalid:
     try:
         trainable_positions(candidate)
     except ValueError:
-        pass
-    else:
-        raise AssertionError("Invalid sample accepted")
+        rejected += 1
+
 print(f"prompt={prompt_len(sample)}, response={sample.response_length}, "
-      f"trainable={trainable_positions(sample)}, rejected={len(invalid)}")
+      f"trainable={trainable_positions(sample)}, rejected={rejected}")
 ```
 
 <!-- leetllm: output:start -->
@@ -237,85 +195,57 @@ prompt=2, response=6, trainable=4, rejected=9
 ```
 <!-- leetllm: output:end -->
 
-Four response positions train; the two observation positions remain contextual input. The zeros in their log-probability slots are alignment placeholders; check the adapter's event stream for sampled-token probabilities and mask lineage.
-
 ## Megatron owns the train step
 
-Megatron receives scheduled token tensors from Ray's object store or tensor transport. Its actor workers initialize distributed process groups, create model and <span data-glossary="optimizer-state">optimizer state</span>, compute log probabilities, and run the chosen RL loss. A critic can run alongside the actor. <span data-glossary="grpo">GRPO</span>-style paths can train without one when relative rewards provide the advantage signal.
-
-The actor group exposes `async_train`, `save_model`, and `update_weights`. `async_train` is the Ray dispatch name here. `train.py` waits for those references before saving or updating rollout weights, so inspect the caller to understand execution timing.
-
-Megatron parallelism remains native. Tensor, pipeline, expert, context, and data parallel groups are created by Megatron. slime converts gathered parameters to the format SGLang expects through raw conversion or a Megatron Bridge path. That keeps optimizer and checkpoint behavior close to Megatron, but version drift in either upstream engine can surface at the conversion interface.
-
-Once rollout 7's tensors are on the actor, the remaining question is timing. Does generation wait for this train step, overlap the next batch, or keep a warm worker across iterations? The answer sets how much policy staleness the training log must explain.
+Megatron actor workers pull scheduled batches from Ray, run native tensor/pipeline/expert/context/data parallelism, compute actor logprobs (and optional critic values when not using critic-free <span data-glossary="grpo">GRPO</span>), and step the optimizer. When syncing weights, slime gathers sharded Megatron parameters into Hugging Face tensor layouts (directly or via Megatron Bridge) for SGLang to ingest.
 
 ## Three timing models
 
-All three modes use the same Sample data structure. They differ in when a request may run relative to an optimizer step and when a new policy version becomes visible. Tie each name to the concrete loop in the repository before comparing throughput.
+All three execution schedules consume the exact same `Sample` layout; they differ only in when generation overlaps with training and when updated weights reach SGLang.
 
 ### Synchronous: finish, train, sync
 
-Predict the failure mode first: if one verifier takes ten times longer, what waits? `train.py` asks the RolloutManager for one rollout, waits for its data, trains on it, and then calls `actor_model.update_weights()`. If rollout and training are colocated, it can offload memory between those phases.
-
-After a successful sync, the next generation round can use the updated actor. This minimizes cross-round policy lag. Account for multiple optimizer steps, sampling transforms, precision differences, and carried-over partial trajectories when estimating policy lag.
-
-The cost is idle time. A slow verifier or one long response holds the batch open, and training can't use GPUs while generation is still collecting that batch. Dynamic sampling and partial aborts reduce some waste, but the loop remains round-bound.
+`train.py` requests one batch from `RolloutManager`, waits for every trajectory to finish, runs the Megatron step, and calls `actor_model.update_weights()`. Cross-round lag stays minimal, but the single slowest sandbox stalls every GPU in the batch.
 
 ### Async: start next rollout early
 
-Predict the operational outcome here: a sample can be valid and still come from an older policy. `train_async.py` starts `rollout_manager.generate.remote(next_id)` before training the current rollout. Training and generation occupy separate GPU ranges.
-
-A later `update_weights_interval` controls how often the actor waits for the next rollout future before changing weights. The ordinary async loop drains that future before sync. A completed future marks the awaited rollout operation; a persistent rollout worker needs its own pause/abort state.[^slime2026asyncLoop]
-
-Async reduces idle time, but samples can be generated by an older policy. That staleness is a chosen property, not a hidden bug. Compare rollout and actor weight versions in logs. Increase overlap only after reward and Kullback-Leibler (KL) behavior stay within the experiment's target limits.
+`train_async.py` requires decoupled GPUs and kicks off `rollout_manager.generate.remote(next_id)` while Megatron trains on the current batch, draining that future before syncing every `update_weights_interval` steps.[^slime2026asyncLoop] Idle time drops, and each `Sample` records its sampling weight version so policy lag stays explicit.
 
 ### Fully async: keep a warm worker
 
-The fully-async example uses `train_async.py` plus `slime.rollout.fully_async_rollout.generate_rollout_fully_async`. A process-wide thread owns an asyncio loop, keeps a fixed number of `generate_and_rm_group` tasks in flight, and draws new groups from the global data buffer as soon as slots open. Completed groups wait in an output queue until the next training call needs its target batch.
+`generate_rollout_fully_async` keeps a dedicated background `asyncio` loop continuously refilling `generate_and_rm_group` slots from the global Data Buffer and placing finished groups into an output queue.
 
-This worker decouples in-flight concurrency from one rollout's batch size. It sorts completed groups by sample index for deterministic handoff, requeues a group containing an aborted Sample, and doesn't support evaluation mode. It also doesn't own pause or weight-update signaling. Each in-flight generation short-circuits on those signals and surfaces `ABORTED`. Long-tail agents can continue while a later train step consumes completed work, but policy staleness and queue <span data-glossary="backpressure">backpressure</span> become operational metrics.
+> **Key insight:** The completion queue itself is unbounded so running tasks never deadlock trying to enqueue results; instead, <span data-glossary="backpressure">backpressure</span> closes the **launch gate** once queued groups reach worker concurrency. Already-running tasks still finish and push into the queue, so peak queue length can exceed the launch threshold until Megatron drains it.[^slime2026sourceSnapshot]
 
-The completion queue is unbounded so a full queue can't block its callback and freeze the asyncio loop. Backpressure instead stops launching new groups once the queued-group count reaches the worker concurrency. Already-running groups can still finish, so this threshold isn't a hard queue-size limit. For concurrency four, four queued groups stop new launches, but an older in-flight group can add a fifth. Training must drain those groups or filter stale data; increasing concurrency doesn't solve a slow consumer.[^slime2026sourceSnapshot]
-
-If queue age rises while GPUs look busy, inspect aborted groups and policy versions before raising concurrency. More workers can make the queue look healthy while producing samples too old to use.
-
-| Mode | Generation trigger | Weight update point | Best fit | Main failure surface |
+| Mode | Generation trigger | Weight sync point | Best fit | Watch out for |
 | --- | --- | --- | --- | --- |
-| Sync | Batch must finish before train | Every loop | Debugging and minimal cross-round lag | Longest sample blocks all work |
-| Async | Next batch starts during train | Interval, after future drain | Decoupled throughput | Stale policy or update race |
-| Fully async | Warm worker spans iterations | Caller-defined, with queue | Long-tail agent trajectories | Queue growth, abort requeue, no eval |
+| Sync | After previous sync | Every step | Bring-up & minimal lag | Straggler tail latency |
+| Async | Overlaps current train step | Every `update_weights_interval` after drain | Steady decoupled throughput | Bounded policy staleness |
+| Fully async | Persistent warm worker | Caller-defined with abort requeue | Heavy-tail agent sandboxes | Queue age, abort loops, no eval mode |
 
 ```checkpoint
-What makes fully async different from only calling `ray.remote()` earlier?
+What separates fully async from simply calling `ray.remote()` one step early?
 ---
-The warm worker keeps generation tasks alive across rollout calls and consumes the shared Data Buffer continuously. A single early `remote()` overlaps one known future; fully async manages a persistent queue, concurrency cap, completion queue, ordering, and abort requeue.
+One-step async overlaps a single future per iteration. Fully async runs a persistent background worker managing continuous concurrency slots, completion-queue ordering, backpressure gating, and abort requeueing across steps.
 ```
 
 ## Weight synchronization ensures policy alignment
 
-The optimizer step changes the actor, but rollout workers may live in separate processes or hosts. The actor needs both a transport for parameters and a lifecycle that prevents generation against a partially loaded update. First resolve the actual branch: full, non-disk updates use local tensor transfer for colocation and distributed <span data-glossary="nccl">NCCL</span> otherwise. Full disk and delta disk are separate alternatives.
-
-With colocation, `UpdateWeightFromTensor` uses CUDA interprocess communication (IPC) handles rather than the distributed broadcast path. The `nccl` transport default alone therefore doesn't identify what moved the weights. Delta disk rejects colocation in this snapshot.[^slime2026actorSync]
+Getting new Megatron weights onto SGLang without serving half-updated models follows four distinct transport branches depending on topology and mode. Note one surprising dispatch rule: with `--colocate` and full mode, slime automatically uses **CUDA IPC tensor handles** (`UpdateWeightFromTensor`) even when `--update-weight-transport nccl` is set, while delta disk mode rejects colocation outright.[^slime2026actorSync]
 
 ### Full NCCL
 
-For non-colocated `--update-weight-mode full --update-weight-transport nccl`, NCCL (the NVIDIA Collective Communications Library) carries the update. Training rank 0 pauses generation and flushes SGLang caches. Pipeline-parallel (PP) source ranks gather tensor-parallel (TP) and expert-parallel (EP) shards into Hugging Face (HF)-shaped chunks, then broadcast them to rollout engines. Engines resume after the chunks and any <span data-glossary="quantization">quantization</span> post-processing finish. The rollout-engine lock serializes broadcast operations; it isn't a durable, cross-system transaction log.
-
-Full NCCL avoids writing a checkpoint for each transfer, but its latency depends on gathering, network topology, and synchronization. A restarted engine needs another transfer or a separate checkpoint; the broadcast itself leaves no replay artifact.
+Non-colocated full NCCL pauses SGLang, flushes KV caches, gathers TP/EP shards on pipeline source ranks into HF-shaped chunks, broadcasts them over <span data-glossary="nccl">NCCL</span> to rollout engines, and resumes serving. Fast and disk-free, though a restarted engine needs another broadcast or checkpoint.
 
 ### Full disk
 
-Full disk uses `update-weight-mode=full` and `update-weight-transport=disk`. Each sync writes a canonical Hugging Face checkpoint directory under a version such as `weight_v000003`. The rollout engine pulls that directory, optionally into a host-local checkpoint, and reloads through its ordinary `update_weights_from_disk` endpoint. A post-write hook can publish files to an object-store-backed mount before hosts read them.
-
-A versioned directory makes the update inspectable, but not automatically durable. Full-disk reload normally removes the published directory unless `--update-weight-disk-keep-files` is enabled. Retention and durable storage still need explicit configuration. The file is a weight export, not a complete optimizer-and-data-source recovery checkpoint.
-
-Publication and an optional host-local pull occur **before** generation is paused. Pause, cache flush, and reload form the live-weight transition. Verify that every engine reads the published bytes, then check readiness across the fleet after reload.
+Full disk writes a versioned Hugging Face directory (`weight_v000003`) to shared storage **before** pausing generation, then pauses SGLang briefly to flush caches and call `update_weights_from_disk`. By default, temporary sync directories are deleted after reload unless `--update-weight-disk-keep-files` is set.
 
 ### Delta disk
 
-Delta mode is disk-only and non-colocated. The trainer first captures a CPU baseline seeded from `--hf-checkpoint`, then diffs each gathered HF tensor on later syncs. Changed bytes are compressed with zstd and written as a self-describing version. Each rollout host applies the delta into its local full checkpoint through `/pull_weights`, verifies per-tensor <span data-glossary="checksum">checksums</span>, and reloads through the same disk endpoint used by full sync.
+Non-colocated delta disk keeps a CPU baseline seeded from `--hf-checkpoint`, diffs each gathered tensor against the previous version, compresses changed bytes with `zstd`, and writes a self-describing delta plus per-tensor xxHash <span data-glossary="checksum">checksums</span>. Each rollout host applies the patch to its local NVMe checkpoint via `/pull_weights` before pausing to reload.[^slime2026deltaSync]
 
-Exclusive-or (XOR) encodes byte differences; compression savings depend on how much changes, not on the mode name. A raw XOR patch must be applied once to the intended base. `overwrite` stores changed positions and values, so repeating the same writes doesn't toggle them back, but it still needs the correct base and version ordering. The index records those identities and a new-state checksum. Neither an xxHash checksum nor a version number authenticates an untrusted publisher.[^slime2026deltaSync]
+Watch the **XOR encoding trap**: XOR is its own inverse, so applying the same XOR delta twice silently reverts the weights back to the old model!
 
 <!-- leetllm: test, output=show, deps=numpy -->
 ```python title="xor_delta_once.py"
@@ -331,16 +261,12 @@ def xor_buffers(left: np.ndarray, right: np.ndarray) -> np.ndarray:
 base = np.array([1, 2, 3, 4], dtype=np.uint8)
 new = np.array([1, 2, 8, 4], dtype=np.uint8)
 delta = xor_buffers(new, base)
+
 applied_once = xor_buffers(base, delta)
 applied_twice = xor_buffers(applied_once, delta)
 assert np.array_equal(applied_once, new)
 assert np.array_equal(applied_twice, base)
-try:
-    xor_buffers(base, delta[:-1])
-except ValueError:
-    pass
-else:
-    raise AssertionError("Truncated delta accepted")
+
 print(delta.tolist(), applied_once.tolist(), applied_twice.tolist())
 ```
 
@@ -350,11 +276,7 @@ print(delta.tolist(), applied_once.tolist(), applied_twice.tolist())
 ```
 <!-- leetllm: output:end -->
 
-Byte `8 ^ 3` is `11`. Applying the patch once reaches the new state. Applying it twice restores the base, which is why a repeated XOR is dangerous: it can look successful while serving the old model.
-
-Keep source version, declared base, destination, checksum, reload result, and served version together. Before retrying, determine whether the local base was already patched; if its state is ambiguous, stop new rollouts and repair from a known checkpoint. Don't blindly XOR again. Crash-safe recovery needs atomic persistence of bytes and version state. The four-byte example illustrates comparison only.
-
-These are **argument fragments**, not a runnable shell command. Add them to a compatible non-colocated training launch with model, dataset, actor, and SGLang configuration. The shared directory must be visible to all participating hosts; the local checkpoint path is host-local:
+> **Common mistake:** Blindly retrying a failed XOR delta sync. If a host already applied version `v5 -> v6`, applying the same XOR patch again silently rolls its bytes back to `v5`. Always check the host's current version and checksum before patching, or restore a full checkpoint when state is uncertain.
 
 ```bash title="delta_sync_flags.sh"
 --update-weight-mode delta \
@@ -367,31 +289,23 @@ These are **argument fragments**, not a runnable shell command. Add them to a co
 
 <figure>
   <img src="illustrations/_generated/slime_weight_sync_paths_dark.png" alt="Ordered stages for non-colocated NCCL, full disk, and delta disk updates. NCCL pauses before broadcasting live weight chunks. Disk paths publish and optionally pull or patch a host-local checkpoint before pausing to reload. Amber stages mark the live-engine pause; cell width does not represent duration." />
-  <figcaption>Order matters: disk preparation can happen while old weights remain live. Pause generation for the live reload; file publication can happen earlier. Equal-sized cells show sequence only, so measure each path's latency separately. Colocated IPC is a separate branch.</figcaption>
+  <figcaption>NCCL pauses serving before streaming weight chunks, whereas disk and delta paths prepare and verify files while old weights stay live, pausing only for the local reload.</figcaption>
 </figure>
 
-| Path | Carrier | Engine-side state | Strong guard | What it can't hide |
-| --- | --- | --- | --- | --- |
-| Full colocated | CUDA IPC tensor handles | Shared-device weight transfer | Offload and engine lifecycle | IPC isn't a durable checkpoint |
-| Full NCCL | NCCL broadcasts | Live SGLang weights | Pause and flush around chunks | A lost engine needs another transfer |
-| Full disk | Shared filesystem | Complete HF weight export | Versioned directory and reload | Visibility and retention are separate |
-| Delta disk | Shared filesystem plus local checkpoint | Patched full checkpoint | Base version and per-tensor checksum | A bad baseline poisons every later diff |
+| Path | Transport | Pause window | Key safeguard |
+| --- | --- | --- | --- |
+| Colocated full | CUDA IPC handles | Offload + swap | Synchronized offload lifecycle |
+| Full NCCL | NCCL broadcast | Pause + broadcast + resume | Engine lock & fleet version check |
+| Full disk | Shared FS / object store | Flush + disk reload | Versioned directory + retention flag |
+| Delta disk | Shared FS + local NVMe | Flush + disk reload | Base version check + per-tensor checksum |
 
 ## Agentic customization keeps token lineage
 
-Start agentic work with `--custom-generate-function-path` when one prompt should run a custom loop. The function can call tools, retrieval, a browser, a sandbox, or another service, then return one Sample or a list of sibling Samples. Use `--custom-rm-path` for verifier or environment reward.[^slime2026customization][^slime2026agents]
+Hook custom tools and sandboxes into slime via `--custom-generate-function-path` (and custom verifiers via `--custom-rm-path`), keeping slime's shared batching and validation intact.[^slime2026customization][^slime2026agents] Built-in `OpenAIAdapter` and `AnthropicAdapter` render chat templates, query SGLang with raw `input_ids` and `return_logprob=True`, and pass `session_id` through `X-SMG-Routing-Key`.
 
-Replace the whole rollout function only when scheduling or buffering can't fit the default per-sample loop. Keeping the default orchestration leaves grouping, validation, and handoff behavior visible while the custom hook owns the environment-specific work.
+When a long agent trajectory splits into multiple segments (via context compaction or subagents), assign every sibling segment the **same `rollout_id`** so the loss reducer normalizes by the combined trainable-token count across the entire rollout.[^slime2026customization][^slime2026lossReduction]
 
-Calling a tool is the smaller step. Preserving token lineage around that call is what keeps the training target honest. Model-generated output tokens should have `loss_mask=1`. Tool observations, template fragments, and environment text inserted into the response suffix should normally have `loss_mask=0`; the initial prompt sits outside that mask. The adapter records sampled token IDs and log probabilities directly from SGLang instead of decoding text and tokenizing it again.
-
-When a reward changes, inspect this interface before changing the objective. Compare the sampled IDs, mask, response length, verifier input, and policy version. A readable transcript can hide a different training target.
-
-slime ships protocol adapters for that job. `AnthropicAdapter` and `OpenAIAdapter` render a chat template, call SGLang with `input_ids` and `return_logprob=True`, and export the returned IDs as trainable segments. They also pass a stable `session_id` as `X-SMG-Routing-Key`. The adapters are a convenience layer, not a second agent framework.
-
-One agent execution can fan out into subagent or compaction segments. Return them with the same `rollout_id`. Choose reward normalization from the reward-to-advantage processing and loss reduction; the segment count alone does not determine it. In the pinned per-rollout-mean path, sibling losses already share the rollout's total trainable-token denominator. Scaling their advantages down again would reduce that rollout's contribution.[^slime2026customization][^slime2026lossReduction]
-
-Hold per-token loss terms fixed at `[1, 3, 5, 7]`. Splitting them into two segments must not change their mean from 4 to 8, or halve it to 2. This isolates the reduction arithmetic; it doesn't simulate GRPO reward normalization or gradients:
+Suppose one trajectory has per-token loss terms `[1, 3, 5, 7]` (true mean `4.0`) split across two segments `[1, 3]` and `[5, 7]`. Averaging each segment independently sums to `8.0` (double-counting the rollout!), while halving advantages on top of a shared whole-rollout denominator drops it to `2.0`:
 
 <!-- leetllm: test, output=show, deps=numpy -->
 ```python title="segment_loss_reduction.py"
@@ -399,16 +313,15 @@ import numpy as np
 
 segments = [np.array([1.0, 3.0], dtype=np.float32), np.array([5.0, 7.0], dtype=np.float32)]
 denominator = sum(len(segment) for segment in segments)
-one_rollout = float(sum(np.sum(segment) / denominator for segment in segments))
-wrong_independent = float(sum(np.mean(segment) for segment in segments))
-wrong_extra_halving = float(sum(np.sum(segment) / 2 / denominator for segment in segments))
-assert np.isclose(one_rollout, 4.0)
-assert np.isclose(wrong_independent, 8.0)
-assert np.isclose(wrong_extra_halving, 2.0)
 
-# A different split preserves the same aggregate denominator
+one_rollout = float(sum(np.sum(s) / denominator for s in segments))
+wrong_independent = float(sum(np.mean(s) for s in segments))
+wrong_extra_halving = float(sum(np.sum(s) / 2 / denominator for s in segments))
+
+# Any split keeps the exact same mean when normalized by the whole-rollout denominator
 rebalanced = [np.array([1.0], dtype=np.float32), np.array([3.0, 5.0, 7.0], dtype=np.float32)]
 assert np.isclose(float(sum(np.sum(s) / denominator for s in rebalanced)), one_rollout)
+
 print(f"one rollout={one_rollout:.1f}; independent sum={wrong_independent:.1f}; "
       f"extra halving={wrong_extra_halving:.1f}")
 ```
@@ -419,22 +332,11 @@ one rollout=4.0; independent sum=8.0; extra halving=2.0
 ```
 <!-- leetllm: output:end -->
 
-If segments land in different microbatches, compute the denominator over the whole training step first. A microbatch-local denominator would count one rollout repeatedly. Per-token loss modes or custom objectives have different normalization rules, so check the configured reducer before deciding how to assign segment rewards.
+When sibling segments land in different microbatches, compute the shared denominator across the whole training step before splitting microbatches.
 
-| Workflow | Starting hook | Evidence to preserve | Useful artifact |
-| --- | --- | --- | --- |
-| Search or retrieval-augmented generation (RAG) | `custom_generate` | Query, retrieved context, sampled tokens | Search trace plus reward report |
-| Tool agent | `custom_generate` + `custom_rm` | Tool calls, observations, verifier result | Session trajectory and test log |
-| Coding agent | Adapter or custom generate | Model tokens, sandbox diff, clean tests | Patch, rollout dump, grader output |
-| Multi-agent | `rollout_function` or fan-out generate | Branch IDs and shared rollout ID | Per-branch masks and explicit reward/reduction policy |
-| Long-tail agent | Fully-async rollout function | Queue age, abort status, weight version | Replayable debug dump |
-
-The coding-agent example makes this concrete. An agent edits a fresh sandbox, captures a diff, and a clean grading sandbox runs tests on that diff. The training target is still the model's token stream, not final text copied from a log. This split lets teams change the runner without changing Megatron's loss code.
-
-The integration sketch below copies a trajectory's exact sequence, aligned mask and log probabilities, serving weight versions, and verifier reward into one Sample. `run_agent`, `verify`, and the trajectory type are application-owned and omitted; this isn't a drop-in script or a locally executed agent run.
+Here is the minimal shape of a `custom_generate` hook preserving raw token IDs, masks, logprobs, and serving weight versions:
 
 ```python title="custom_generate_interface.py"
-import torch
 from slime.utils.types import Sample
 
 async def custom_generate(args, sample, sampling_params):
@@ -447,140 +349,102 @@ async def custom_generate(args, sample, sampling_params):
     sample.reward = await verify(trajectory)
     if sample.rollout_id is None:
         sample.rollout_id = sample.index
-    if sample.rollout_id is None:
-        raise ValueError("A trajectory ID is required")
     sample.status = Sample.Status.COMPLETED
     return sample
 ```
 
-Tool permissions are application-owned. Preserve the weight-version metadata from the calls that generated each trajectory; a final engine health check can't reconstruct it. Use the real status enum, and test `is None` when choosing an identity because `rollout_id=0` is valid. Mark completion only after the chosen terminal condition and verifier succeed; failures need an explicit retry/drop policy.
+(Check `is None` rather than truthiness because `rollout_id=0` is valid.)
+
+<!-- leetllm: edition:reference:start -->
 
 ## Applications and ecosystem
 
-The pinned README identifies slime as infrastructure for the GLM family and includes launch examples for other model families. These examples document project-reported adoption. For memory, throughput, or quality comparisons, read the model-specific launch script and report, then reproduce the workload on the target configuration.[^slime2025repo]
+slime powers GLM post-training alongside launch recipes across multiple open model families.[^slime2025repo]
 
-Choose a starting example by the subsystem your workload stresses: verifier quality, multi-turn context, tool latency, or weight transport. Evaluate coding-sandbox permissions and aborted-generation handling separately from a math-verifier run.
-
-| Application pressure | slime surface | Question to measure |
+| Workload pressure | slime knob | Metric to watch |
 | --- | --- | --- |
-| Verifiable answers | Reward model and group filter | Are reward groups informative? |
-| Long context or tools | SGLang router and session key | Are requests pinned without hot spots? |
-| Slow sandboxes | Fully-async worker or partial rollout | Is queue age bounded? |
-| Separate serving cluster | Disk or delta weight sync | Can every host prove its base version? |
-| MoE rollout communication | `--sglang-moe-a2a-backend deepep` | Did expert-parallel tokens take the intended path? |
-| New model family | Native Megatron and SGLang pass-through | Which conversion and parser interfaces changed? |
+| Verifiable math/code | Reward hooks + zero-variance filter | Informative-group ratio |
+| Multi-turn tools | `sgl-router` + `X-SMG-Routing-Key` | Prefix-cache hit rate & skew |
+| Slow sandboxes | Fully-async worker / partial rollout | Queue age & abort rate |
+| Disaggregated fleet | Full-disk or delta-disk weight sync | Per-host version & checksum |
+| Sparse MoE rollouts | `--sglang-moe-a2a-backend deepep` | Dispatch/combine latency |
 
-Treat each application as an experiment with full reproducibility. Save resolved launch arguments, <span data-glossary="model-checkpoint">model checkpoint</span>, data revision, reward code, sync mode, topology, policy versions, rollout dumps, and metrics. Without that documentation, a green reward curve can't tell you whether the policy improved or the verifier changed.
+<!-- leetllm: edition:reference:end -->
 
 ## Strengths, limits, and failure paths
 
-slime's strengths come from narrow ownership interfaces. It doesn't hide Megatron parallelism behind a new trainer abstraction or flatten SGLang's serving flags to a lowest common denominator. Upstream engine work can land without a second trainer API, while RL-specific sample and synchronization rules stay in one place.[^slime2025blog]
-
-| Strength | Why it helps | Cost or limit |
+| Strength | Why it helps | Tradeoff |
 | --- | --- | --- |
-| Native Megatron path | Mature distributed training and checkpoint tools remain available | Megatron version changes can break bridges |
-| SGLang-native rollout | Server, router, caching, and parser features stay visible | SGLang is the chosen rollout backend |
-| Ray placement and actors | One resource vocabulary for train and rollout | Ray scheduling and object-store state need operations |
-| Explicit Sample schema | Token lineage and group identity are inspectable | Custom hooks must honor many fields |
-| Multiple sync modes | Topology can choose NCCL, full disk, or delta disk | Each mode has different recovery and storage risks |
-| Lightweight core | Teams can add environments without a framework fork | Application policy, auth, and governance stay outside |
+| Native Megatron-LM | Full TP/PP/EP/CP/DP & mature checkpoints | Upstream Megatron upgrades can break conversion bridges |
+| Native SGLang + router | RadixAttention, structured outputs, session affinity | Tied to SGLang as the rollout engine |
+| Explicit `Sample` schema | Crisp token lineage, masks, and segment IDs | Custom hooks must populate every aligned field |
+| Four weight-sync modes | Matches colocated IPC, NCCL, full disk, or delta disk | Each path carries distinct recovery rules |
 
-Most production failures cross subsystem seams. A rollout server can stay alive while serving old weights. A reward function can return a number while masking every response token. A fully-async queue can stay busy while repeatedly requeueing aborted groups. Name the subsystem first, then inspect the diagnostic log that crosses it.
+Quick triage map across subsystem seams:
 
-| Symptom | Likely subsystem | Check first | <span data-glossary="guardrail">Guardrail</span> |
-| --- | --- | --- | --- |
-| Reward changes with no code change | Data or verifier | Dataset revision and reward config | Persist input and reward metadata |
-| KL spikes after sync | Weight transport | Engine version, pause/flush logs, checksum | Compare weights before serving |
-| Agent learns tool observations | Token trajectory | `loss_mask` around tool messages | Assert mask length and source |
-| Fully-async throughput falls | Queue or abort path | Queue age, aborted count, worker logs | Requeue intentionally and cap concurrency |
-| Disk sync succeeds on trainer only | Filesystem visibility | Host-local checkpoint and hook output | Publish then pull on every host |
-| Job hangs after rollout crash | Fault handling | Health monitor and restart logs | Enable health checks and save replay dumps |
+| Symptom | Subsystem | First check |
+| --- | --- | --- |
+| KL spikes right after sync | Weight transport | Fleet policy versions, pause/flush logs, checksums |
+| Agent mimics tool errors | Token lineage | `loss_mask` around observation tokens |
+| Fully-async throughput stalls | Warm worker queue | Queue age, `ABORTED` requeue rate |
+| Disk sync stalls on one host | Shared storage | Host-local checkpoint version and mount freshness |
+
+<!-- leetllm: edition:reference:start -->
 
 ## Fault tolerance and reproducibility
 
-In the pinned snapshot, `--use-fault-tolerance` starts heartbeat checks against SGLang servers. If a heartbeat times out, slime stops the unhealthy engine. After the current rollout round finishes, it restarts the engine and applies the correct parameters before future requests. This covers engine recovery between rollout rounds. A failed trainer rank or preempted cluster job needs checkpoint recovery.[^slime2026faulttolerance]
+slime runs heartbeat health checks against managed SGLang engines, restarting unhealthy servers between rollout rounds and reapplying current weights (with a longer initial grace period so first-run kernel compilation isn't mistaken for a hang).[^slime2026faulttolerance]
 
-The current recovery guide, checked October 10, 2026, describes a broader failure scope. Health recovery is enabled by default for serving clusters started by slime; `--use-fault-tolerance` remains a compatibility flag. A named, detached serving actor can survive a failed training attempt while the Ray cluster remains alive. With straw storage or versioned rollout debug dumps, resubmitting training can replay retained batches after the last committed model checkpoint. Ordinary stateful optimization requires optimizer and RNG state as well as model state. Without retained rollout data, keeping serving alive does not reconstruct those batches.[^slime2026faulttolerance]
-
-For example, suppose checkpoint 10 is committed, batches 11 and 12 train, and the trainer fails before checkpoint 12 commits. Recovery must restore checkpoint 10 and retrain the retained batches, including batch 12 even if its earlier optimizer step finished. Skipping directly to batch 13 would combine old checkpoint weights with advanced data progress. Keep the same serving session identity and compatible rollout configuration, resubmit explicitly, and inspect replay logs. Losing the serving actor or Ray cluster still requires fresh serving and checkpoint recovery. Changing parallel layouts can also change updates even when endpoints persist.[^slime2026faulttolerance]
-
-Debug replay narrows the search. Save a rollout with `--save-debug-rollout-data`, load it with `--load-debug-rollout-data`, and use `--debug-train-only` to replay conversion and training without starting SGLang. Pair the dump with checkpoints, trace spans, and a pinned launch command. Load only trusted dumps: the pinned replay path uses PyTorch deserialization with `weights_only=False`, not a safe parser for arbitrary uploads.
-
-Recovery has its own false positives. Health checks can mistake first-run kernel compilation for a dead server, so the docs expose a first-wait setting. Fully-async workers can hide slow samples in a warm queue, so log queue length and completion age. Disk sync can hide stale mounts, so verify every host's local checkpoint and weight version.
-
-The repository's continuous integration (CI) mirrors this split. CPU tests cover Sample behavior, rollout validation, argument schemas, and customization hooks. GPU end-to-end tests cover Megatron, SGLang deployment, async rollout, checkpointing, precision, and replay. Include an environment-specific multi-node smoke run that verifies sync visibility in the release record.
+In detached-serving recovery, SGLang servers can stay alive across a trainer crash while retained rollout dumps let the restarted trainer restore the last committed checkpoint (weights + optimizer + RNG state) and replay every batch after it in order. Skipping a batch between the checkpoint and the crash corrupts momentum and data alignment. Treat debug rollout dumps as trusted local artifacts, since `--load-debug-rollout-data` uses `torch.load(..., weights_only=False)`.
 
 ## Project identity
 
-slime is published through the THUDM organization, whose official profile identifies its THUKEG and Z.ai lineage.[^thudm2026org] The repository citation names Zilin Zhu, Chengxing Xie, Xin Lv, and slime contributors. The introductory blog frames the project around an SGLang-native rollout path, Megatron training, Ray resource management, and custom data generation.[^slime2025repo][^slime2025blog]
-
-| Field | Current project fact |
-| --- | --- |
-| Origin | THUDM and Z.ai built slime for post-training workflows that connect Megatron, SGLang, and Ray.[^slime2025repo][^slime2025blog] |
-| Founding contributors | The repository citation names Zilin Zhu, Chengxing Xie, Xin Lv, and slime contributors.[^slime2025repo] |
-| Stewardship | Z.ai leads the roadmap. Public contribution scope emphasizes bug fixes and general RL optimizations that its CI can verify.[^slime2026contributing] |
-| Source license | slime source is Apache-2.0, with Zhipu AI copyright notices.[^slime2026license] |
-| Commercial scope | The framework is open source, and project policy prioritizes Z.ai's internal development roadmap, so governance remains vendor-led.[^slime2026contributing] |
-| External assets | GLM checkpoints, other model weights, datasets, environments, and reward services retain separate licenses and terms. |
-
-The first release notes describe v0.1.0 as focusing on <span data-glossary="mixture-of-experts">MoE</span> inference, memory offload, faster parameter updates, Megatron parallel strategies, and strict correctness checks. Those notes describe that release; check the current branch before relying on the same performance or feature set.[^slime2025repo]
-
-Use the pinned source for implementation behavior and the LMSYS design post for architectural motivation. Model reports and related systems papers answer different questions. Validate each framework path with its own source inspection and tests.
-
-Contribution policy is intentionally focused. Bug fixes and general RL optimizations that can be verified through CI are welcome. Large refactors, universal agent abstractions, and changes that can't be tested against routine training stay outside core scope. That governance keeps internal and open development aligned while leaving application-specific systems in their own repositories.[^slime2026contributing]
-
-That history explains the project's shape. slime doesn't own every environment, reward model, or serving backend. It concentrates on the handoff between training and rollout, then lets teams compose the rest around stable contracts. Which file owns each side of that handoff?
+slime is published under the THUDM organization (THUKEG and Z.ai lineage), authored by Zilin Zhu, Chengxing Xie, Xin Lv, and contributors under an Apache-2.0 source license (Zhipu AI copyright), with a focused vendor-led roadmap emphasizing CI-verified fixes and core RL optimizations.[^thudm2026org][^slime2025repo][^slime2025blog][^slime2026contributing][^slime2026license]
 
 ## A source and code reading route
 
-Read one vertical path before opening every module. This walkthrough uses the official slime repository at commit `681b3adca54105d5ecd3fb822fa0dc58a427e0f9`.[^slime2026sourceSnapshot] Start with the README architecture section and introductory blog to see why Ray, Megatron, SGLang, and the Data Buffer are separate. Then open `train.py` and `train_async.py` side by side. Mark each `ray.get`, `generate.remote`, and `update_weights` call. That is the timing model in executable form.
+Trace one `Sample` and one weight sync vertically through the repo:
 
-Next inspect `slime/ray/placement_group.py` and `slime/ray/rollout.py`. Follow how bundles become server groups, how routers start, and how `RolloutManager.generate()` converts nested Samples into train data. Read `slime/rollout/sglang_rollout.py` for prompt IDs, session routing, aborts, and reward calls. Compare `slime/rollout/fully_async_rollout.py` with the fully-async example to see queue lifetime and abort requeue.
-
-For weight synchronization, read `slime/ray/actor_group.py`, then the transport modules under `slime/backends/megatron_utils/update_weight/`: `update_weight_from_distributed.py`, `update_weight_from_disk.py`, and `update_weight_from_disk_delta.py`. Start with actor-group lifecycle. The transport modules show gathering, publication, and reload orchestration. For engine-side delta application, follow `pull_weights` in `slime/backends/sglang_utils/sglang_engine.py` through its management endpoint and helpers. Trace `source_version`, `base_version`, and engine state step by step across a single weight-sync cycle.
-
-For agents, read the published customization and agent guides alongside `examples/coding_agent_rl`. Compare their examples with the pinned `Sample` type and `get_sum_of_sample_mean` reducer before adapting a reward rule. For operations, use the fault-tolerance guide to choose a recovery experiment, then inspect the corresponding implementation and verify restored state alongside service health.[^slime2026customization][^slime2026agents][^slime2026faulttolerance]
-
-Carry one question into every repository: which state is canonical at this step? In slime, state ownership sits in token IDs during rollout, grouped Samples in the buffer, Megatron parameters during training, and a versioned sync artifact before SGLang serves again.
-
-Before Megatron steps, line up rollout 7's reward of 1.0 with the mask, the rollout ID, and the served weight version. If they agree, Megatron can take the step.
+1. `train.py` vs. `train_async.py`: compare every `ray.get`, `generate.remote`, and `update_weights` call.
+2. `slime/ray/placement_group.py` and `slime/ray/rollout.py`: GPU bundle sorting and `RolloutManager.generate()`.
+3. `slime/rollout/sglang_rollout.py` and `fully_async_rollout.py`: session routing, `/abort_request`, and the warm-worker completion queue.
+4. `slime/ray/actor_group.py` and `slime/backends/megatron_utils/update_weight/`: IPC, NCCL, full-disk, and delta-disk sync, paired with `pull_weights` in `slime/backends/sglang_utils/sglang_engine.py`.
+5. `examples/coding_agent_rl` and `get_sum_of_sample_mean`: custom agent hooks and shared whole-rollout denominators.[^slime2026customization][^slime2026agents][^slime2026faulttolerance]
 
 ## What to remember
 
-- Ray placement groups make train and rollout topology explicit, including colocation, decoupling, and external engines.
-- SGLang and sgl-router generate token evidence; Megatron consumes that evidence for distributed actor training.
-- The Data Buffer interface is token based. Preserve log probabilities, loss masks, rewards, statuses, and rollout IDs.
-- Synchronous training waits for each round. Async training overlaps one future rollout. Fully async keeps a warm worker and queue across iterations.
-- Colocated full sync uses CUDA IPC. Non-colocated NCCL streams chunks; disk paths publish full weights or checked deltas before live reload.
-- Agent hooks can add tools, sandboxes, search, and branches without changing the training kernel, but token lineage remains the correctness rule.
-- The pinned health monitor restarts rollout engines. Newer retained-serving recovery can replay saved batches after a trainer failure, while cluster loss still needs checkpoint and scheduler recovery.
-- Read code by following one Sample and one weight version from source to engine, then verify claims against first-party docs.
+- Ray placement groups define whether Megatron and SGLang share GPUs (colocated IPC) or run decoupled (async overlap + NCCL/disk sync).
+- Keep raw sampled token IDs, binary response `loss_mask`, behavior logprobs, `group_index`, `rollout_id`, and `weight_versions` aligned inside every `Sample`.
+- Sibling segments of one compacted trajectory share one `rollout_id` and whole-step token denominator.
+- Never blindly reapply an XOR delta patch; verify host version and checksum first.
 
 ## Evaluation rubric
 
-- Trace one trajectory's token IDs, response mask, log probabilities, status, and serving-policy versions through rollout and training.
-- Distinguish independent attempts from segments of one execution, and calculate the correct loss denominator across microbatches.
-- Explain what ordinary async waits for and what a persistent custom rollout worker must coordinate separately.
-- Choose a weight-sync path for a stated topology and identify its base-version, visibility, retention, and recovery checks.
+- Validate aligned `tokens`, `loss_mask`, `rollout_log_probs`, `status`, and `weight_versions` for a multi-turn trajectory.
+- Compute whole-rollout shared loss denominators across microbatches for multi-segment trajectories.
+- Distinguish sync, one-step async, and fully-async queue backpressure.
+- Select the right weight-sync transport for a topology and design safe retry/recovery checks.
 
 ## Follow-up questions
 
 ```checkpoint
-An agent adapter changes from two segments to five without changing its generated tokens. Which checks establish that its training contribution stayed the same?
+An agent adapter changes from two segments to five without changing its generated tokens. What must hold for its training contribution to stay identical?
 ---
-Compare exact token IDs, masks, rollout identity, reward-to-advantage processing, and the denominator across the whole training step. Hold per-token loss terms fixed and confirm that resegmenting preserves their aggregate; matching final reward alone can hide different training weights.
+Exact token IDs, loss masks, shared `rollout_id`, reward normalization, and the whole-step trainable-token denominator must match so re-segmenting leaves the summed loss invariant.
 ```
 
 ```checkpoint
-A delta reload succeeds on seven of eight engines. What evidence would you require before serving new requests?
+A delta reload succeeds on seven of eight engines. Can you resume serving?
 ---
-Check the serving membership and every serving engine's loaded version. Quarantine the failed engine rather than treating seven reloads as fleet success. Establish its local base and patch verification log; if those are ambiguous, restore known complete weights before rejoining. A healthy endpoint or correct trainer checkpoint alone is insufficient.
+No. Quarantine the failed engine, verify its base version and checksum, and restore a full known-good checkpoint before returning it to the router pool.
 ```
+
+<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [
   {
-    "question": "A fresh Sample has 3 prompt IDs and 7 response positions. Its response mask is [1,0,0,1,1,1,0] with aligned log probabilities [−0.2,0,0,−0.4,−0.6,−0.8,0]. Under the completed-only local validation schema, what are response length, selected count and negative mean selected log probability?",
+    "question": "A Sample has 3 prompt IDs and 7 response positions. Its response mask is [1, 0, 0, 1, 1, 1, 0] with aligned log probabilities [−0.2, 0, 0, −0.4, −0.6, −0.8, 0]. What are its response length, trainable token count, and mean negative log probability over trainable tokens?",
     "options": [
       "10; 4; 0.2",
       "7; 7; 2/7",
@@ -588,10 +452,10 @@ Check the serving membership and every serving engine's loaded version. Quaranti
       "4; 4; 0.5"
     ],
     "answer": "7; 4; 0.5",
-    "explanation": "The response suffix includes observations, so its length is 7. Four selected log probabilities sum to −2, giving negative mean 2 / 4 = 0.5. Prompt IDs are outside the response mask; zero placeholders do not add sampled targets."
+    "explanation": "The response suffix (including observations) has length 7. The four mask-1 positions have logprobs summing to −2.0, giving mean NLL 2.0 / 4 = 0.5."
   },
   {
-    "question": "Two different prompts have 2 and 3 independent executions. Their segment counts are [1,4] and [2,1,3], respectively. Which prompt-group, rollout-identity and Sample totals preserve those relationships?",
+    "question": "Two different prompts have 2 and 3 independent executions. Their segment counts are [1, 4] and [2, 1, 3], respectively. How many prompt groups, rollout IDs, and Sample records represent this batch?",
     "options": [
       "2 prompt groups; 5 rollout IDs; 11 Samples",
       "1 prompt group; 5 rollout IDs; 11 Samples",
@@ -599,10 +463,10 @@ Check the serving membership and every serving engine's loaded version. Quaranti
       "5 prompt groups; 2 rollout IDs; 5 Samples"
     ],
     "answer": "2 prompt groups; 5 rollout IDs; 11 Samples",
-    "explanation": "The two prompts need two groups. Their 2 + 3 independent executions need five rollout IDs, shared within each execution’s siblings. Segment counts sum to 1 + 4 + 2 + 1 + 3 = 11 Samples. Neither the number of segments nor policy versions replace those identities."
+    "explanation": "Two prompts form 2 groups; 2 + 3 independent executions need 5 distinct rollout IDs (shared across sibling segments); total segments equal 1 + 4 + 2 + 1 + 3 = 11 Samples."
   },
   {
-    "question": "One execution’s fixed loss terms [2,4,9] are split into a one-token and a two-token segment on different microbatches. Under the taught shared whole-rollout token denominator, what do their contributions sum to?",
+    "question": "One execution’s per-token loss terms [2, 4, 9] split into a 1-token and a 2-token segment on different microbatches. Under slime's shared whole-rollout token denominator, what do their contributions sum to?",
     "options": [
       "8.5",
       "2.5",
@@ -610,21 +474,21 @@ Check the serving membership and every serving engine's loaded version. Quaranti
       "5"
     ],
     "answer": "5",
-    "explanation": "Compute the denominator over the whole execution before splitting: 3. The segments contribute 2/3 and 13/3, summing to 5. Independent segment means sum to 8.5; an extra halving gives 2.5; the raw sum 15 omits normalization."
+    "explanation": "The whole-rollout denominator is 3 tokens. The segments contribute 2/3 and (4 + 9)/3 = 13/3, summing to 15/3 = 5 (matching the true unsplit mean)."
   },
   {
-    "question": "A warm worker’s launch threshold is 3 queued groups. Two groups are queued and two tasks are running. Both tasks finish, each producing one group, before the trainer takes two groups from the queue. No new task starts. How many groups were queued at the peak, and is the launch gate open or closed just after the drain?",
+    "question": "A warm worker’s launch threshold is 3 queued groups. Two groups are queued and two tasks are running. Both tasks finish, each adding one group, before the trainer drains two groups from the queue. What was the peak queue length, and is launching open or closed right after the drain?",
     "options": [
-      "Peak of 4, gate closed",
-      "Peak of 3, gate open",
-      "Peak of 4, gate open",
-      "Peak of 3, gate closed"
+      "Peak of 4, closed",
+      "Peak of 3, open",
+      "Peak of 4, open",
+      "Peak of 3, closed"
     ],
-    "answer": "Peak of 4, gate open",
-    "explanation": "The first completion brings the queue to 3 and closes the launch gate. The other task is already running, so its result joins the queue and brings the peak to 4. A peak of 3 would treat the launch threshold as a limit on completed results. The trainer takes two groups, leaving 2 queued. The gate reopens as soon as the count falls below 3. Keeping it closed until the queue empties would delay new work."
+    "answer": "Peak of 4, open",
+    "explanation": "The first completion brings the queue to 3 (pausing new launches), and the second already-running task pushes peak length to 4. Draining two groups drops the queue to 2 (< 3), reopening launches."
   },
   {
-    "question": "For the inspected source dispatch, request A uses full mode, NCCL transport and colocation. Request B uses delta mode, disk transport and separate rollout GPUs. Which selected carriers match both cases?",
+    "question": "Request A specifies full mode, NCCL transport, and `--colocate`. Request B specifies delta mode, disk transport, and decoupled rollout GPUs. Which weight-sync paths execute?",
     "options": [
       "A tensor/IPC path; B disk-delta path",
       "A distributed NCCL path; B disk-delta path",
@@ -632,10 +496,10 @@ Check the serving membership and every serving engine's loaded version. Quaranti
       "A disk-full path; B tensor/IPC path"
     ],
     "answer": "A tensor/IPC path; B disk-delta path",
-    "explanation": "After the mode/transport checks, colocated full selects the tensor updater despite the NCCL transport flag. Noncolocated delta with disk satisfies the delta branch. These are selected source branches; actual runtime visibility still needs verification."
+    "explanation": "Colocated full sync dispatches to local CUDA IPC tensor transfer even when `--update-weight-transport nccl` is passed; decoupled delta+disk dispatches to the disk-delta path."
   },
   {
-    "question": "Drain check U waits for futures A and B. Check V waits for B and C. A and B have finished, and C is still running. A sampled from policy v13 and B sampled from v14. The actor has since reached v15. Which checks are satisfied, and which policy versions should the trainer record for the samples from A and B, respectively?",
+    "question": "Drain U waits on futures A and B; drain V waits on B and C. A and B finished, while C is still running. A sampled from policy v13 and B from v14; the actor is now at v15. Which drain is satisfied, and which policy versions should A and B retain?",
     "options": [
       "Both U and V, with v13 on A and v14 on B",
       "Only U, with v15 on A and v15 on B",
@@ -643,43 +507,43 @@ Check the serving membership and every serving engine's loaded version. Quaranti
       "Both U and V, with v15 on A and v15 on B"
     ],
     "answer": "Only U, with v13 on A and v14 on B",
-    "explanation": "A and B have both finished, so U is satisfied. Counting V as satisfied on the strength of B alone overlooks its wait for C. Each sample keeps the version that generated its tokens. Recording v15 on both would replace their sampling history with the actor’s later version. These checks cover only the named futures."
+    "explanation": "Only U is ready because V still awaits C. Each sample must retain the policy version that generated it (v13 for A, v14 for B), never the actor's newer v15."
   },
   {
-    "question": "A versioned XOR patch declares base v5, destination v6 and delta bytes [0,5,0], transforming [10,12,4] to [10,9,4]. Host A already has v6 and the target bytes. Host B has v4 and the old bytes. What should the taught guarded retry do?",
+    "question": "An XOR delta patch declares base v5, target v6, and delta [0, 5, 0] (mapping [10, 12, 4] to [10, 9, 4]). Host A already holds v6 ([10, 9, 4]); Host B holds v4. What should a safe sync retry do?",
     "options": [
-      "A XOR again; B apply because the bytes look old",
-      "A no write; B reject wrong base",
-      "A no write; B apply then advance its version",
+      "A XOR again; B apply because its bytes look old",
+      "A skip write; B reject wrong base",
+      "A skip write; B apply and bump version",
       "A XOR again; B reject wrong base"
     ],
-    "answer": "A no write; B reject wrong base",
-    "explanation": "A matches the destination and should not reapply XOR: 9 XOR 5 would restore 12. B has a wrong declared base version even though its bytes resemble the old baseline. Reconcile or restore known complete state before mutating either host."
+    "answer": "A skip write; B reject wrong base",
+    "explanation": "Host A is already at v6 (reapplying XOR would compute 9 ^ 5 = 12 and revert it to v5). Host B is at base v4 instead of declared base v5, so reject the patch and restore a clean checkpoint."
   },
   {
-    "question": "Run R retains a complete committed checkpoint at step 30 with model, optimizer, scheduler and RNG plus compatible retained batches 31 / 32. Its full-disk HF weight export was removed after reload. Run S retains only its HF weight export, with no trainer state or batches. Which prerequisite/export tuple follows?",
+    "question": "Run R keeps a full committed step-30 checkpoint (model, optimizer, scheduler, RNG) plus retained batches 31 and 32, while its temporary full-disk HF sync export was cleaned up. Run S keeps only the HF sync export with no optimizer state or batches. Which recovery assets does each run have?",
     "options": [
-      "R replay prerequisites absent/export absent; S prerequisites present/export present",
-      "R replay prerequisites present/export present; S prerequisites absent/export absent",
-      "R replay prerequisites absent/export present; S prerequisites present/export absent",
-      "R replay prerequisites present/export absent; S prerequisites absent/export present"
+      "R replay state absent / sync export absent; S replay state present / sync export present",
+      "R replay state present / sync export present; S replay state absent / sync export absent",
+      "R replay state absent / sync export present; S replay state present / sync export absent",
+      "R replay state present / sync export absent; S replay state absent / sync export present"
     ],
-    "answer": "R replay prerequisites present/export absent; S prerequisites absent/export present",
-    "explanation": "R has the designated checkpoint and post-checkpoint data needed to attempt replay, while the separate weight-transfer export is absent. S has transfer bytes but lacks full training-recovery state. Neither tuple proves that replay or cluster recovery actually ran."
+    "answer": "R replay state present / sync export absent; S replay state absent / sync export present",
+    "explanation": "Run R has the full training checkpoint and post-checkpoint batches needed for deterministic replay (even without the ephemeral sync export). Run S has only serving weights."
   },
   {
-    "question": "Trusted dump T from the frozen run passes integrity and compatibility checks. File U comes from an unknown uploader with a .pt suffix. The inspected replay path uses weights_only=False and no cluster was exercised. Which acceptance/evidence tuple follows?",
+    "question": "Trusted debug dump T passes integrity and schema checks. File U arrives from an untrusted uploader with a `.pt` extension. Because `--load-debug-rollout-data` uses `weights_only=False`, how should each file be handled?",
     "options": [
-      "T accepted; U accepted; cluster evidence absent",
-      "T held; U accepted; cluster evidence present",
-      "T accepted; U held; cluster evidence absent",
-      "T accepted; U held; cluster evidence present"
+      "Accept T; accept U.",
+      "Reject T; accept U.",
+      "Accept T; reject U.",
+      "Reject T; reject U."
     ],
-    "answer": "T accepted; U held; cluster evidence absent",
-    "explanation": "Validate input safety before the general PyTorch loader; a .pt suffix does not verify safety for U. Preserve exact token logs in T. A local CPU or simulated replay result cannot validate a multi-node Ray, Megatron, or SGLang cluster run."
+    "answer": "Accept T; reject U.",
+    "explanation": "`torch.load(..., weights_only=False)` executes arbitrary pickle payloads, so a `.pt` extension offers zero safety for untrusted file U. Load only trusted, verified dumps like T."
   },
   {
-    "question": "A checkpoint stores weight w = 2 and velocity v = 0.1. Each batch with fixed gradient g updates v ← 0.8v + g, then w ← w − 0.1v. Two batches ran after the checkpoint with gradients 0.4 and −0.2 in that order. Only the second batch was retained. Starting from the checkpoint in each case, what (weight, velocity) do you get from the second batch alone, and what would you get from replaying both batches in order?",
+    "question": "A checkpoint stores weight w = 2 and velocity v = 0.1. Each batch updates v ← 0.8v + g, then w ← w − 0.1v. Two batches ran after the checkpoint with gradients 0.4 and −0.2 in order, but only the second batch was retained. Starting from the checkpoint, what (w, v) result from replaying only batch 2 versus replaying both in order?",
     "options": [
       "Second only (2.012, −0.12), both (1.9336, 0.184)",
       "Second only (2.012, −0.12), both (1.964, −0.12)",
@@ -687,7 +551,7 @@ Check the serving membership and every serving engine's loaded version. Quaranti
       "Second only (2.02, −0.2), both (1.9336, 0.184)"
     ],
     "answer": "Second only (2.012, −0.12), both (1.9336, 0.184)",
-    "explanation": "Applying only the second gradient gives v = 0.8 × 0.1 − 0.2 = −0.12, so the weight rises to 2.012. The pair (2.02, −0.2) starts with zero velocity. In full replay, the first batch brings velocity to 0.48 and weight to 1.952. The second gives v = 0.8 × 0.48 − 0.2 = 0.184 and w = 1.952 − 0.1 × 0.184 = 1.9336. The pair (1.964, −0.12) keeps the updated weight but resets velocity to 0.1 before the second batch. A record that the first batch ran cannot restore its update."
+    "explanation": "Second batch alone: v = 0.8(0.1) − 0.2 = −0.12, w = 2 − 0.1(−0.12) = 2.012. Both in order: after batch 1, v = 0.8(0.1) + 0.4 = 0.48 and w = 1.952; after batch 2, v = 0.8(0.48) − 0.2 = 0.184 and w = 1.952 − 0.0184 = 1.9336."
   }
 ]
 ```

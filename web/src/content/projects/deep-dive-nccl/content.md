@@ -38,116 +38,94 @@
 }
 ---
 
-The last chapter examined one GPU's matmul. Now suppose four GPUs each spend 8 ms computing local <span data-glossary="gradient">gradients</span>. The step then waits 6 ms to combine a 256 MiB (mebibyte) gradient buffer from each GPU. Use these assumed timings to work through the communication cost.
+The previous chapter examined a single GPU's tensor-core matrix multiply. Now scale to four GPUs, each spending 8 ms computing local <span data-glossary="gradient">gradients</span> and 6 ms combining a 256 MiB gradient buffer across ranks.
 
-A standalone communication test may call that transfer fast, while a real training step exposes more or less time depending on whether the move overlaps other work. If one GPU enters a different communication operation, the other three can wait at a call that looks like a network failure.
+An isolated communication benchmark may report brisk link speed while a live training step stalls depending on whether that transfer overlaps compute. Worse, if a single GPU diverges and enters a different collective, the remaining three ranks block indefinitely on what looks at first glance like a network failure.
 
-<span data-glossary="nccl">NCCL</span> (NVIDIA Collective Communications Library, pronounced "nickel") is the library that coordinates that movement on NVIDIA systems. It provides collective operations such as all-reduce, reduce-scatter, all-gather, broadcast, and all-to-all, plus point-to-point send and receive. NCCL isn't a training framework or scheduler. PyTorch, <span data-glossary="deepspeed">DeepSpeed</span>, <span data-glossary="nvidia-megatron">Megatron</span>, and serving runtimes decide *what* to communicate; NCCL decides how to move it across available GPU links.[^nccl2026guide]
+**<span data-glossary="nccl">NCCL</span>** (NVIDIA Collective Communications Library, pronounced "nickel") orchestrates these multi-GPU transfers on NVIDIA hardware. It implements collectives (all-reduce, reduce-scatter, all-gather, broadcast, all-to-all) alongside point-to-point send and receive. Frameworks like PyTorch, <span data-glossary="deepspeed">DeepSpeed</span>, and <span data-glossary="nvidia-megatron">Megatron</span> decide *what* to communicate and when; NCCL decides *how* to move those bytes across NVLink, PCIe, and RDMA fabrics.[^nccl2026guide][^nccl2323Release2026]
 
 <figure>
   <img src="illustrations/_generated/nccl_allreduce_choreography_dark.png" alt="Animated four-rank all-reduce of the first vector slot. Values 1, 10, 100, and 1000 move into a logical sum; four copies of 1111 then sit on ranks 0 through 3." />
-  <figcaption>Follow the first slot of the running example: 1, 10, 100, and 1000 become 1111 on every rank. The center sigma represents the logical sum across ranks. NCCL can implement that reduction through different physical schedules and links, depending on the topology and selected algorithm.</figcaption>
+  <figcaption>Follow the first slot of our running example: 1, 10, 100, and 1000 reduce to 1111 on every rank. NCCL executes that logical reduction over different physical schedules and links depending on topology and message size.</figcaption>
 </figure>
-
-The calls below follow one pinned source map. As of October 10, 2026, the newest public NCCL library release is 2.32.3, published September 17, and the live guide documents that version. Initial Rubin support still lacks a tuned performance model; benchmark the target topology before estimating speed.[^nccl2323Release2026]
 
 ## Collective semantics and invariants
 
-A **rank** is one participant in a communication group. A **communicator** records that group and maps ranks to devices. Each rank calls the same collective in the same order, with compatible counts and data types, the same reduction operation, and the same root when the operation has one. A root is a rank index, not a GPU device number. Breaking that agreement can cause a hang, crash, or corrupted result.[^nccl2026collectives]
+A **rank** is one participant in a communication group, and a **communicator** binds ranks to distinct CUDA devices. Every rank in a communicator must call the same sequence of collectives in the same order, with matching element counts, data types, reduction operator, and root rank (a communicator rank index, not a physical GPU device ID). Violating that collective agreement produces deadlocks, crashes, or silent corruption.[^nccl2026collectives]
 
-For sum all-reduce over $k$ ranks, rank $r$ contributes a <span data-glossary="vector">vector</span> $\mathbf{x}^{(r)}$ with $N$ elements. Every rank receives:
+For sum all-reduce (`ncclSum`) across $k$ ranks, rank $r$ holds an $N$-element <span data-glossary="vector">vector</span> $\mathbf{x}^{(r)}$, and every rank receives:
 
 $$
-\mathbf{y}_i = \sum_{r=0}^{k-1} \mathbf{x}^{(r)}_i,
-\qquad i \in \{0, \ldots, N-1\}.
+\mathbf{y}_i = \sum_{r=0}^{k-1} \mathbf{x}^{(r)}_i, \qquad i \in \{0, \ldots, N-1\}.
 $$
 
-Here, $k$ is rank count, $N$ is elements per input vector, and $i$ selects one element. This example requests `ncclSum`, not an average. NCCL also provides `ncclAvg`. The caller must choose the reduction and scaling needed by its training objective, without dividing twice.[^nccl2026Types]
-
-```checkpoint
-Rank 0 calls all-reduce, while rank 1 calls broadcast on the same communicator. Why can neither operation finish?
----
-Collectives are ordered group agreements. Each rank is waiting for peers to join the same operation with compatible arguments, but the two ranks entered different protocols.
-```
+NCCL also provides `ncclAvg` for averaging; callers must align the reduction operator with their gradient scaling so they never divide by $k$ twice.[^nccl2026Types]
 
 ### Choose the operation from desired ownership
 
-The output placement matters as much as the arithmetic. Use all-reduce when every rank needs the whole result. Reduce-scatter fits one reduced shard per rank. Existing shards become a complete <span data-glossary="tensor">tensor</span> through all-gather.
+Each collective defines a distinct ownership pattern for its output <span data-glossary="tensor">tensor</span>:
 
-| Operation | Input on each rank | Output ownership | Common AI use |
+| Operation | Input on each rank | Output ownership | Typical AI role |
 | --- | --- | --- | --- |
 | All-reduce | Same-shaped tensor | Full reduced tensor on every rank | Replicated <span data-glossary="data-parallelism">data-parallel</span> gradients |
-| Reduce-scatter | Same-shaped tensor | One reduced chunk per rank | Sharded gradients in <span data-glossary="fsdp">FSDP</span> or <span data-glossary="zero">ZeRO</span> |
-| All-gather | One local chunk | Concatenated chunks on every rank | Parameter or activation reconstruction |
-| Broadcast | Full tensor on root | Root tensor copied to all ranks | Seeds, metadata, or initial weights |
-| All-to-all | Destination chunks | One chunk from every source | <span data-glossary="mixture-of-experts">MoE</span> token routing |
+| Reduce-scatter | Same-shaped tensor | One reduced shard per rank | Sharded gradients in <span data-glossary="fsdp">FSDP</span> / <span data-glossary="zero">ZeRO</span> |
+| All-gather | One local shard | Concatenated full tensor on every rank | Parameter or activation reconstruction |
+| Broadcast | Full tensor on root | Root tensor copied to all ranks | Seeds, metadata, initial weights |
+| All-to-all | Equal destination chunks | One chunk from every source rank | <span data-glossary="mixture-of-experts">MoE</span> token routing (equal-chunk) |
 | Send / receive | Point-to-point buffer | Named peer only | Pipeline stage activations |
-
-Broadcast is the simple copy in that table: rank 0 keeps a buffer, and the others receive it. The animations below follow the operations whose ownership is easier to mix up, using the same four-rank numbers you'll compute by hand next.
 
 <figure>
   <img src="illustrations/_generated/nccl_reduce_scatter_dark.png" alt="Animated NCCL reduce-scatter on the four-rank running example. Matching chunk indices reduce to 1111, 2222, 3333, and 4444; rank r keeps only chunk r." />
-  <figcaption>Color marks chunk index. Matching slots reduce to 1111, 2222, 3333, and 4444, then rank r keeps only chunk r. Nobody finishes with a full tensor.</figcaption>
+  <figcaption>Color marks chunk index. Matching slots reduce to 1111, 2222, 3333, and 4444, and rank r retains only chunk r.</figcaption>
 </figure>
 
 <figure>
   <img src="illustrations/_generated/nccl_allgather_dark.png" alt="Animated NCCL all-gather on the four-rank running example. Shards 1111, 2222, 3333, and 4444 leave their owners, concatenate in rank order, and then copies of that full tensor sit on every rank." />
-  <figcaption>All-gather starts where reduce-scatter ends. The four owned shards concatenate in rank order, then every rank holds `[1111, 2222, 3333, 4444]`.</figcaption>
+  <figcaption>All-gather starts where reduce-scatter ends: the four owned shards concatenate in rank order so every rank holds `[1111, 2222, 3333, 4444]`.</figcaption>
 </figure>
 
 <figure>
   <img src="illustrations/_generated/nccl_alltoall_routing_dark.png" alt="Animated NCCL all-to-all. Sixteen labeled payloads move from source-rank rows to destination-rank rows, preserving source identity while ownership changes." />
-  <figcaption>Read color as destination and the label as a source-to-destination address. Rank 2 finishes with one rank-2-bound payload from every source. The exchange moves equal-sized chunks without combining their values.</figcaption>
+  <figcaption>Color marks destination rank and labels mark source-to-destination pairs. Rank 2 finishes with one rank-2-bound payload from each source without reducing values.</figcaption>
 </figure>
 
-NCCL's all-to-all uses equal-sized chunks. MoE routing may produce unequal token counts, so a runtime needs padding, matched point-to-point transfers, or another variable-size dispatch implementation. Don't assume the equal-chunk picture alone implements a complete MoE router. The guide also documents Gather (collect at a root) and Scatter (distribute from a root).[^nccl2026collectives]
+Because NCCL's `AllToAll` moves equal-sized chunks, uneven MoE routing needs padding, grouped point-to-point sends/receives, or a specialized EP library like DeepEP.[^nccl2026collectives]
 
-An all-reduce can be implemented as reduce-scatter followed by all-gather. The first half adds corresponding chunks and leaves one finished chunk on each rank. The second half circulates those finished chunks until every rank has the full result. This describes an operation-level equivalence; NCCL can produce the same result with other algorithms. Floating-point summation order can also change the last bits.[^nccl2026collectives]
+Operationally, **all-reduce equals reduce-scatter followed by all-gather**: reduce-scatter sums matching shards onto their owning ranks, and all-gather broadcasts each completed shard to every rank. NCCL may choose other physical algorithms (such as trees or NVLS), and floating-point summation order can vary in the lowest bits.[^nccl2026collectives]
 
 ## Work one all-reduce by hand
 
-Use four ranks with four-element vectors:
+Take four ranks with four-element vectors:
+- Rank 0: `[1, 2, 3, 4]`
+- Rank 1: `[10, 20, 30, 40]`
+- Rank 2: `[100, 200, 300, 400]`
+- Rank 3: `[1000, 2000, 3000, 4000]`
 
-| Rank | Input vector |
-| ---: | --- |
-| 0 | `[1, 2, 3, 4]` |
-| 1 | `[10, 20, 30, 40]` |
-| 2 | `[100, 200, 300, 400]` |
-| 3 | `[1000, 2000, 3000, 4000]` |
+Elementwise summation yields `[1111, 2222, 3333, 4444]`. Reduce-scatter leaves shard `r` on rank `r`: rank 0 owns `1111`, rank 1 owns `2222`, rank 2 owns `3333`, and rank 3 owns `4444`. All-gather then shares those four shards so every rank holds the complete vector.[^nccl2026collectives]
 
-Elementwise addition gives `[1111, 2222, 3333, 4444]`. NCCL's reduce-scatter specification places that result by rank index: rank 0 keeps `1111`, rank 1 keeps `2222`, rank 2 keeps `3333`, and rank 3 keeps `4444`. All-gather then shares those four owned chunks so every rank reconstructs the same vector.[^nccl2026collectives]
-
-In fully sharded training, such as <span data-glossary="fsdp">FSDP</span> or ZeRO stage 3, each rank can keep a reduced gradient shard, update its <span data-glossary="optimizer">optimizer</span> and parameter shards, then gather parameters for later computation. That later gather is of updated parameters, not necessarily the same gradient buffer. Earlier ZeRO stages have different ownership rules.
-
-```checkpoint
-After reduce-scatter in the four-rank example, rank 2 owns `3333`. What extra operation is needed if rank 2 alone will update only that shard?
----
-None for gradient ownership. All-gather is needed only when later computation requires every rank to reconstruct the full tensor or a full parameter bucket.
-```
-
-The sum is easy on paper. Moving those bytes without a central reducer that would serialize every link is the actual constraint. A ring is the bandwidth-friendly way to do that.
+In <span data-glossary="fsdp">FSDP</span> or ZeRO-3, that split is the whole point: each rank keeps its reduced gradient shard, updates its local <span data-glossary="optimizer">optimizer</span> and parameter shard without ever gathering full gradients, and runs all-gather later on the updated parameters right before forward compute.
 
 ## Why rings work well for large messages
 
-A ring orders ranks so each sends to one neighbor and receives from another. Split a message into $k$ chunks. Reduce-scatter circulates and combines chunks for $k-1$ steps. All-gather circulates the completed chunks for another $k-1$ steps.
+A naive central reducer bottlenecks on one GPU's links. A **ring** eliminates that bottleneck by splitting an $M$-byte buffer into $k$ chunks and letting every rank send to its clockwise neighbor while receiving from its counterclockwise neighbor simultaneously.
 
-Follow only chunk `x2` (the third slot: `3`, `30`, `300`, `3000`) so the hops stay readable. The partial sum starts on rank 3 and walks clockwise until rank 2, which is the owner of index 2:
+Follow chunk `x2` (`3, 30, 300, 3000`) through the three reduce-scatter hops from rank 3 to its owner, rank 2:
 
-| Neighbor hop | Rank that adds | Running sum for `x2` |
+| Hop | Receiving rank | Running sum for `x2` |
 | ---: | ---: | ---: |
-| start | 3 | `3000` |
+| Start | 3 | `3000` |
 | 1 | 0 | `3000 + 3 = 3003` |
 | 2 | 1 | `3003 + 30 = 3033` |
 | 3 | 2 | `3033 + 300 = 3333` |
 
-After those three reduce-scatter hops, rank 2 owns `3333`. Three all-gather hops then copy that finished shard to ranks 3, 0, and 1. Other chunks move on the same ring at the same time, offset by one slot, which is why a large buffer can keep every link busy.
+Three all-gather hops then forward the completed `3333` around the ring from rank 2 to ranks 3, 0, and 1. Meanwhile, chunks `x0`, `x1`, and `x3` travel concurrently on the same ring offset by one hop, saturating every link at once.
 
 <figure>
   <img src="illustrations/_generated/nccl_ring_pipeline_dark.png" alt="Animated ring all-reduce following tensor chunk x2. The partial sum travels R3 to R0 to R1 to R2 during reduce-scatter and finishes as 3333 on rank 2. All-gather then circulates that completed shard from rank 2 around the ring." />
-  <figcaption>The token is chunk `x2` only. Reduce-scatter ends on rank 2 with `3333`, matching NCCL's rank-index ownership rule. All-gather then starts from that owner. The other three chunks are in flight on the same ring, just not drawn.</figcaption>
+  <figcaption>Tracing chunk `x2` alone: reduce-scatter finishes on rank 2 with `3333`, matching NCCL's rank-index ownership rule, and all-gather circulates it from there while the other three chunks travel concurrently.</figcaption>
 </figure>
 
-The next snippet is a CPU, standard-library model of that schedule, not a GPU kernel. It represents each chunk by one integer, so it accepts exactly $k$ values from each of $k$ ranks. It checks ownership and reconstruction without modeling CUDA streams, network progress, or floating-point error.
+Verify the ring schedule and its exact ownership across rank counts:
 
 <!-- leetllm: test, output=show, output_title="Ring all-reduce execution" -->
 ```python title="ring_allreduce.py"
@@ -209,7 +187,6 @@ print(f"send volume factor 2*(k-1)/k = {2 * (k - 1) / k:.2f}")
 assert owned == expected == [1111, 2222, 3333, 4444]
 assert all(row == expected for row in gathered)
 
-# Verify across dynamic rank counts
 for ranks in (1, 2, 3, 5):
     rows = np.array([[10 * r + i for i in range(ranks)] for r in range(ranks)], dtype=np.int64)
     reduced = np.sum(rows, axis=0).tolist()
@@ -232,45 +209,31 @@ rank-count and shape checks passed
 ```
 <!-- leetllm: output:end -->
 
-For message size $M$, each rank in a ring all-reduce sends about
+Each rank sends $k-1$ chunks of size $M/k$ during reduce-scatter and another $k-1$ chunks during all-gather, giving total sent volume per rank:
 
 $$
-V_{send} = 2\frac{k-1}{k}M.
+V_{\text{send}} = 2\,\frac{k - 1}{k}\,M
 $$
 
-Each rank receives the same volume. As $k$ grows, that factor approaches $2$, so the traffic looks like $2M$ per rank, not $kM$. The optimal-bandwidth result is for a point-to-point communication model, as analyzed by Patarasuk and Yuan. It isn't a universal byte lower bound for hardware with in-network reduction or multicast offload.[^patarasuk2009]
-
-The same factor reappears in the `nccl-tests` `busbw` column. For this four-rank toy, the factor is $1.5$; the measurement section turns that traffic factor into a concrete benchmark report and separates it from application time.[^nccltestsPerformance2026]
-
-Rings pay in latency. The algorithm needs $2(k-1)$ neighbor steps, so a tiny message on thousands of ranks spends too much time starting rounds. Pipelining many chunks hides link delay for large buffers, but it can't erase startup cost for small ones.
+Even as $k \to \infty$, sent traffic per rank stays below $2M$ rather than scaling linearly with $k$, achieving bandwidth optimality for point-to-point networks (hardware with NVSwitch in-network reduction or multicast can move even fewer wire bytes).[^patarasuk2009][^nccltestsPerformance2026] The ring's Achilles' heel is latency: $2(k-1)$ sequential hops grow linearly with rank count, dominating small messages at large scale.
 
 ## Why trees help small and medium messages
 
-A binary tree reduces values toward a root and broadcasts the answer back down. Tree depth grows roughly with $\log_2 k$, which cuts round count compared with a ring. One plain tree can overload internal ranks, so NCCL added complementary double binary trees that split data and swap leaf versus internal-node roles.[^jeaugey2019]
+A binary tree reduces values up to a root and broadcasts them back down in $O(\log_2 k)$ hops instead of $2(k-1)$. Because a single tree underutilizes leaf links while saturating internal nodes, NCCL introduced **double binary trees** that split the payload across two complementary trees where every node that is a leaf in one tree acts as an internal node in the other.[^jeaugey2019]
 
-No algorithm wins for every tensor and topology. Rings favor sustained bandwidth. Trees favor fewer rounds. The NCCL 2.32.3 documentation names Ring, Tree, CollnetChain, CollnetDirect, NVLS, NVLSTree, and PAT as selectable algorithm families, plus Simple, LL, and LL128 protocols.[^nccl2026Environment]
+Modern NCCL chooses dynamically among **Ring, Tree, CollnetChain, CollnetDirect, NVLS, NVLSTree, and PAT** algorithms paired with **Simple, LL, and LL128** protocols using an internal topology and cost model.[^nccl2026Environment] Treat `NCCL_ALGO` and `NCCL_PROTO` strictly as diagnostic overrides: forcing `LL128` on an unsupported path can silently corrupt data.
 
-Availability depends on the operation, hardware, network plugins, registration, and runtime tuning. Treat the names as candidates that explain a log, not as a menu that every host can run.
-
-NCCL normally chooses algorithms and protocols from its topology and performance model. Forcing `NCCL_ALGO` or `NCCL_PROTO` can be useful for an experiment, but a fixed override can become wrong after hardware, message shapes, or NCCL versions change. Forcing LL128 on a path that doesn't support it can corrupt data, which is why the docs discourage protocol overrides except for diagnosis.[^nccl2026Environment]
-
-| Workload shape | Likely pressure | What to inspect |
+| Workload shape | Dominant pressure | Primary levers to inspect |
 | --- | --- | --- |
-| Large gradient buckets | Link bandwidth | Ring or fabric-offload path, channel count, bus bandwidth |
-| Tiny <span data-glossary="tensor-parallelism">tensor-parallel</span> reductions | Startup latency | Tree-like path, protocol, launch gaps |
-| MoE all-to-all | Imbalance and network injection | Per-peer bytes, hot experts, NIC rails |
-| Pipeline send/receive | Bubble and ordering | Stage timeline, peer pairing, stream waits |
-| FSDP all-gather | Burst overlap | Bucket timing, parameter prefetch, compute coverage |
-
-Those rows still assume every rank entered the same operation. What makes that agreement real when each process only sees its own call?
+| Large gradient buckets | Link bandwidth | Ring or NVLS/CollNet offload, channel count, `busbw` |
+| Small <span data-glossary="tensor-parallelism">tensor-parallel</span> all-reduces | Startup latency | Tree/LL/LL128 selection, launch gaps |
+| MoE all-to-all | Skew and injection rate | Per-peer byte histogram, hot experts, NIC rails |
+| Pipeline send/receive | Bubble and ordering | Stage timeline, peer pairing, stream dependencies |
+| FSDP parameter all-gather | Burst overlap | Bucket sizing, prefetch timing, compute coverage |
 
 ## A communicator is an ordered program
 
-Nothing in the algorithm name enforces the agreement those rows assume. NCCL doesn't launch processes. A launcher such as MPI, Slurm, or `torchrun` starts them. Application or framework bootstrap code then exchanges a unique communicator ID and agrees on rank-to-device mapping. In a single process, `ncclCommInitAll` can handle this setup for a device list. Each rank within a communicator must use a distinct CUDA device.[^nccl2026Communicators]
-
-Each process then binds a rank to a <span data-glossary="cuda">CUDA</span> device and creates its communicator. Only after that agreement can the ranks enqueue matching work.
-
-After communicator creation, each rank can enqueue this C++ collective with its own buffers and <span data-glossary="cuda-stream">CUDA stream</span>, an ordered GPU work queue. A runnable program also needs valid device buffers, a communicator, a stream, an error-checking `NCCLCHECK` macro, and a CUDA/NCCL system. The CPU examples do not execute this integration fragment.
+NCCL does not launch processes. MPI, Slurm, or `torchrun` starts the workers, exchanges a unique communicator ID, binds each rank to a distinct <span data-glossary="cuda">CUDA</span> device, and initializes the communicator.[^nccl2026Communicators] Each rank then enqueues matching collectives onto a <span data-glossary="cuda-stream">CUDA stream</span>:
 
 ```cpp title="all_reduce_step.cu"
 NCCLCHECK(ncclAllReduce(
@@ -285,49 +248,28 @@ NCCLCHECK(ncclAllReduce(
 
 <figure>
   <img src="illustrations/_generated/nccl_stream_overlap_dark.png" alt="CUDA stream timeline: a produced bucket becomes ready, reduce-scatter overlaps independent later compute, and a shard reader waits for communication completion." />
-  <figcaption>NCCL may start after a bucket-ready event while later backward kernels use independent buffers. The shard reader waits for the reduced-shard event. Updating parameters can require additional dependencies on backward computation that still reads those parameters.</figcaption>
+  <figcaption>NCCL starts after the bucket-ready event while independent backward kernels run concurrently. The shard consumer waits for the reduced-shard completion event before reading.</figcaption>
 </figure>
 
-For a successful call on a default blocking communicator outside a group, host return means work was enqueued, not completed. The producer must make `local_gradient` ready before communication reads it. A later CUDA event, stream dependency, or synchronization establishes when another kernel may consume `global_gradient`. Keep both buffers alive and avoid conflicting writes until the relevant work completes.[^nccl2026streams]
+Keep three distinct timing milestones separate:
+1. **Enqueue return:** On a default blocking communicator outside a group, returning from `ncclAllReduce` means the kernel is queued on `communication_stream`, not finished. Grouped calls defer enqueue until `ncclGroupEnd`, and nonblocking communicators may return `ncclInProgress` until polling completes.[^nccl2026streams][^nccl2026groups]
+2. **Launch completion (`ncclCollConfig_t::launchCompletionEvent`):** Signals when the collective launches (using a caller-owned `cudaEventDisableTiming` event agreed across ranks), *not* when its writes finish.[^nccl2323Header2026]
+3. **Write completion:** A downstream CUDA event or stream wait after the collective on `communication_stream` guarantees that `global_gradient` is safe to read. Also note that mixing multiple streams inside one `ncclGroupStart`/`ncclGroupEnd` joins their dependencies across the collective, which can inadvertently serialize independent work.[^nccl2026streams]
 
-Grouped calls can defer enqueue until `ncclGroupEnd`. A nonblocking communicator can return `ncclInProgress`; follow the documented completion/error polling before treating its stream work as enqueued. These are different boundaries from GPU completion.[^nccl2026groups][^nccl2026Types]
-
-Grouping can also change the overlap you thought you had. When a group mixes streams, NCCL joins their dependencies before its kernel and blocks those streams until the kernel completes. Two stream names inside one group don't provide independent progress. Keep unrelated work outside that synchronization point when its dependencies permit it.[^nccl2026streams]
-
-NCCL 2.32.3 adds `ncclCollConfig_t::launchCompletionEvent`. The event reports the launch boundary. A shard reader must wait for completion of the collective's writes on the communication stream before reading the reduced buffer. Its header requires a caller-owned, rank-local event created with `cudaEventDisableTiming`, consistent NULL/non-NULL participation across ranks, and at most one non-NULL event per communicator in a group. CUDA versions before 12.3 record it *before* launch. Keep the launch event alive through queued waits and captured-graph executions.[^nccl2323Header2026]
-
-```checkpoint
-An all-reduce's launch-completion event is ready. Can another stream immediately read its output?
----
-No. The kernel may still be reducing and transferring data. The consumer needs a dependency that covers completion of those writes. An optimizer that also writes parameters must additionally wait for any backward work still reading them.
-```
-
-When one thread manages several GPUs, group their matching calls with `ncclGroupStart` and `ncclGroupEnd`. A plain loop can block on its first device before the thread reaches the other ranks. Grouping doesn't relax collective order, including the documented order across communicators within a group.[^nccl2026groups]
-
-Ordering stays global even when work is asynchronous. If one rank enters collective A then B while another enters B then A, stream scheduling can't repair the mismatch. Framework process groups and bucket schedulers exist partly to keep this distributed instruction stream identical across ranks.
-
-> **💡 Key insight:** An NCCL hang often begins *before* NCCL. One rank took a different branch, hit an out-of-memory error, loaded data slowly, or skipped a bucket. Peers then wait inside the next collective they all expected to share.
+> **Key insight:** An NCCL hang almost always begins *before* NCCL. One rank took an alternate control-flow branch, hit OOM, or skipped a gradient bucket, leaving every healthy peer parked inside the next collective waiting for a partner that never arrives.
 
 ## Topology turns one API into different routes
 
-Two calls to `ncclAllReduce` can exercise very different hardware. Inside one server, bytes may travel through direct <span data-glossary="gpu">GPU</span> peer access, NVLink, or NVSwitch. Across servers, the path can include PCIe, a network interface card (NIC), InfiniBand or RoCE, switches, and a remote host's reverse path.
+The exact same `ncclAllReduce` call can traverse intranode NVLink/NVSwitch or cross PCIe, NICs, InfiniBand/RoCE switches, and remote hosts.
 
 <figure>
   <img src="illustrations/_generated/nccl_topology_paths_dark.png" alt="NCCL topology map with a short intra-node GPU-to-NVSwitch path and a longer cross-node route through PCIe, network interface cards, and an InfiniBand or RoCE fabric. Labels mark where topology selection and transport bottlenecks appear." />
-  <figcaption>Compare the short local route with the cross-node route. NVLink, PCIe placement, NIC choice, rail balance, and network fabric can each limit a collective. A relay through another GPU is a separate route, not an NVSwitch-to-PCIe bridge.</figcaption>
+  <figcaption>Compare the short intranode NVSwitch route with the cross-node PCIe/NIC/fabric route. NVLink, PCIe placement, NIC affinity, and rail balance each constrain achieved throughput.</figcaption>
 </figure>
 
 ### Read the matrix before changing a setting
 
-On an NVIDIA host with the driver tools installed, start with host evidence before setting NCCL overrides. Run the topology query:
-
-```bash title="topology.sh"
-nvidia-smi topo -m
-```
-
-`nvidia-smi topo -m` prints connections among GPUs and NICs, along with CPU and memory affinities. Its labels classify path relationships. Measure achieved bandwidth with a workload that matches the target traffic.[^nvsmi]
-
-The exact <span data-glossary="matrix">matrix</span> depends on the host. Read the host topology matrix across device pairs as follows:
+Inspect physical connectivity with `nvidia-smi topo -m` before tuning any environment variable:[^nvsmi]
 
 ```text title="nvidia-smi topo -m (4-GPU node excerpt)"
         GPU0 GPU1 GPU2 GPU3 NIC0 NIC1
@@ -339,36 +281,20 @@ NIC0     PIX PIX  SYS SYS   X   SYS
 NIC1     SYS SYS  PIX  PIX  SYS   X
 ```
 
-Read the common cells as path hints:
-
-| Cell | Path class | First hypothesis to test |
+| Label | Physical path | Diagnostic clue |
 | --- | --- | --- |
-| `NV4` | A bonded set of four NVLinks | GPU traffic stays on the NVLink fabric |
-| `PIX` | At most one PCIe switch | GPU and NIC share a short PCIe route |
-| `PXB` | Multiple PCIe switches | Extra PCIe hops may add contention |
-| `PHB` | A PCIe host bridge | The CPU or root complex sits on the route |
-| `NODE` | PCIe host bridges within one NUMA node | Placement may cross a host-bridge boundary |
-| `SYS` | PCIe plus an interconnect between NUMA nodes | Remote NUMA or fabric traffic may dominate |
+| `NV4` | 4 bonded NVLinks | High-speed intranode GPU fabric (label is link count, not measured GB/s) |
+| `PIX` | Single PCIe switch | GPU and NIC share a direct short PCIe hop |
+| `PXB` | Multiple PCIe switches | Extra PCIe switch hops can contend |
+| `PHB` | PCIe host bridge | Traverses CPU root complex |
+| `NODE` | Within one NUMA node | Crosses host bridges inside one socket |
+| `SYS` | Cross-NUMA interconnect | Remote NUMA or cross-socket bottleneck |
 
-`NV4` means four bonded links, not four times a measured rate. The matrix also doesn't draw switch nodes.
-
-Separate the local GPU fabric from NIC access. A GPU may reach another GPU through NVSwitch, while reaching a NIC through PCIe. NVSwitch isn't a PCIe-to-network bridge. NCCL's PXN path can relay through an intermediate GPU with better NIC access; verify that distinct route in platform topology and logs. A host bridge on the route doesn't by itself mean the payload was copied through CPU memory.[^nccl2026Environment]
-
-NCCL turns that topology hypothesis into a schedule. It discovers GPU, CPU, PCIe, NVLink, and network relationships, searches candidate graph layouts, and tunes a plan. GPUDirect <span data-glossary="rdma">remote direct memory access (RDMA)</span> can let a NIC access GPU memory without staging the payload through ordinary CPU copies. Shared-memory and host-staged paths still matter when direct peer access isn't available.
-
-Topology awareness can't create bandwidth that hardware lacks. A GPU behind the wrong PCIe root, a disabled link, a slow network interface, or oversubscribed switches still cap the collective. The library can select a better route only among paths it can discover and use.
-
-```checkpoint
-The same all-reduce is fast within one server but slows sharply across two servers. What changed if tensor size and rank count stayed fixed?
----
-The physical route changed. Cross-node traffic adds PCIe, network interfaces, and fabric links, so placement, rail balance, or network bandwidth can become the limit even though the collective API is unchanged.
-```
+Keep local GPU fabric distinct from NIC access: NVSwitch connects GPUs to GPUs rather than bridging directly to PCIe NICs. NCCL's **PXN** path can relay traffic through an intermediate GPU that has `PIX` affinity to the NIC, and GPUDirect <span data-glossary="rdma">RDMA</span> lets NICs read GPU memory directly without staging copies through CPU RAM.[^nccl2026Environment]
 
 ## Read one call through the source tree
 
-The pinned source snapshot makes the runtime boundary concrete.[^nccl2026source] Start with `src/collectives.cc`, where public functions such as `ncclAllReduce` package operation metadata.
-
-The snapshot is commit `5067397c2676d5aed50042fc39e5c8ee96eb0027`. The diagram is a responsibility map, not a literal stack trace: transport connections can be prepared before a device kernel runs, and not every path needs host proxy progress.
+Trace one collective through `NVIDIA/nccl` by subsystem rather than hunting for one monolithic loop:[^nccl2026source]
 
 ```mermaid
 flowchart TB
@@ -378,64 +304,46 @@ flowchart TB
   Transport["transport/*<br/>connections + progress"]:::accent --> Kernel
 ```
 
-Use this source map instead of searching for one giant all-reduce loop:
-
-| Source area | Responsibility | Question to carry |
-| --- | --- | --- |
-| `src/init.cc`, `bootstrap.cc` | Communicator setup and peer discovery | Which ranks and devices joined? |
-| `src/graph/topo.cc`, `search.cc` | Physical topology and graph search | Which links can form rings or trees? |
-| `src/graph/tuning.cc` | Algorithm, protocol, and channel model | Why did this message get this plan? |
-| `src/enqueue.cc`, `collectives.cc` | Host API validation and work creation | What exactly was enqueued? |
-| `src/device/*.h`, `primitives.h` | Device-side copy and reduction steps | Which rank sends, receives, or reduces next? |
-| `src/transport/*` | P2P, shared memory, sockets, InfiniBand, plugins | Which physical route carries bytes? |
-| `src/proxy.cc` | Host proxy progress for transports that need it | Is progress waiting on host or network work? |
-| `src/debug.cc`, `src/ras/` | Logs and reliability signals | What evidence identifies the failed rank or link? |
-| `src/nccl_device/`, `src/gin/` | Device-initiated collectives and GPU-side networking | Did a host enqueue start this, or did a device kernel? |
-
-The conventional host all-reduce path and the device-initiated interfaces aren't the same entry point. Reading only `ncclAllReduce` shows the API signature, not the chosen schedule. Reading only a CUDA primitive shows local mechanics, not why the runtime picked that path.
+| Source files | Role |
+| --- | --- |
+| `src/init.cc`, `bootstrap.cc` | Communicator bootstrap and peer discovery |
+| `src/graph/topo.cc`, `search.cc`, `tuning.cc` | Topology discovery, ring/tree search, algorithm/protocol selection |
+| `src/collectives.cc`, `src/enqueue.cc` | Public API checks and kernel work queuing |
+| `src/device/*.h`, `primitives.h` | GPU send, receive, and reduction primitives |
+| `src/transport/*`, `src/proxy.cc` | P2P, SHM, sockets, IB/RDMA plugins, and host proxy progress |
+| `src/debug.cc`, `src/ras/` | Logging, reliability telemetry, and stall watchdogs |
+| `src/nccl_device/`, `src/gin/` | Device-initiated collectives and GPU-side networking (Gin) |
 
 ## How higher-level systems use NCCL
 
-NCCL is shared infrastructure across training and inference. Its importance grows as model code partitions more tensors, because each partition boundary creates a communication event.
-
-| System pattern | NCCL traffic | Scaling failure when communication wins |
+| Parallelism pattern | Primary NCCL traffic | Failure mode when comms dominate |
 | --- | --- | --- |
-| Data-parallel training | Gradient all-reduce | More replicas yield diminishing <span data-glossary="token">tokens</span>/sec |
-| Fully sharded FSDP or ZeRO-3 | Reduce-scatter plus parameter all-gather | Memory fits, but layer gathers stall compute |
-| Tensor parallelism | Frequent activation reductions or gathers | Wide TP across slow links hurts every layer |
-| Pipeline parallelism | Send/receive activations and gradients | Stage bubbles or peer waits grow |
-| Expert parallelism | All-to-all token dispatch and combine | Hot experts create uneven peer traffic |
-| Multi-GPU inference | Tensor-parallel reductions, KV or state exchange | <span data-glossary="itl">Inter-token latency</span> rises despite idle FLOPs |
+| Data parallelism | Gradient all-reduce | Diminishing <span data-glossary="token">tokens</span>/sec as replicas scale |
+| FSDP / ZeRO-3 | Reduce-scatter + parameter all-gather | Layer gathers stall forward/backward compute |
+| Tensor parallelism | Small per-layer activation all-reduces | High latency across slow links hurts every layer |
+| Pipeline parallelism | Point-to-point send/receive | Pipeline bubbles and stage waits |
+| Expert parallelism | All-to-all dispatch and combine | Hot experts skew peer traffic |
+| Multi-GPU inference | TP all-reduces and KV/state transfers | <span data-glossary="itl">ITL</span> climbs despite idle FLOPs |
 
-DeepSpeed and Megatron build groups, buckets, overlap schedules, and sharding policies above NCCL. <span data-glossary="pytorch">PyTorch</span> exposes NCCL through `torch.distributed`. Specialized expert-routing libraries can use other communication implementations; don't infer that every GPU collective is an NCCL call. None of those layers remove the need to understand ownership and physical paths.
-
-Choose the optimization target from operation shape. If tensor parallelism emits a small all-reduce in every <span data-glossary="transformer">transformer</span> layer, lowering its launch latency may matter more than peak bandwidth. If data parallelism emits a few huge buckets, saturating network rails and overlapping buckets with backward compute matter more.
+Match optimization to message regime: tiny per-layer TP reductions care about startup rounds and launch latency, whereas giant DP gradient buckets care about link bandwidth and compute overlap.
 
 ## Measure bytes, rounds, and exposed time
 
-Suppose six rounds each add 2 microseconds of startup, while 1 MB traverses a 50 GB/s path. The rough estimate is 12 microseconds of startup plus 20 microseconds of payload time, or 32 microseconds total. This alpha-beta latency decomposition separates per-hop startup cost from linear byte-transfer time.
-
-Writing that calculation generally separates startup latency from payload time:
+An alpha-beta latency model separates per-hop startup cost from transfer bandwidth:
 
 $$
-T_{collective} \approx R\alpha + \frac{V}{B},
+T_{\text{collective}} \approx R\alpha + \frac{V}{B}
 $$
 
-where $R$ is communication rounds, $\alpha$ is per-round startup cost, $V$ is bytes crossing the measured path, and $B$ is achieved bandwidth. Real NCCL schedules add channels, protocol overhead, topology contention, and synchronization, but this equation tells you whether reducing rounds or moving bytes faster is the bigger target.
-
-Small payloads make $R\alpha$ visible. Large payloads make $V/B$ visible. Keep that split in mind when you vary message size, rank count, or topology.
+Here $R$ is rounds, $\alpha$ is per-round latency, $V$ is bytes transferred, and $B$ is achieved bandwidth. Six rounds at $2\ \mu\text{s}$ startup plus $1\ \text{MB}$ at $50\ \text{GB/s}$ takes $12\ \mu\text{s} + 20\ \mu\text{s} = 32\ \mu\text{s}$. Small payloads expose $R\alpha$; large payloads expose $V/B$.
 
 ### Turn one `all_reduce_perf` row into evidence
 
-`nccl-tests` is a separate NVIDIA repository that checks both NCCL correctness and performance. First build it against your installed CUDA and NCCL (`make`, with `CUDA_HOME` and `NCCL_HOME` when needed); multi-process tests also require an MPI-enabled build. On one host with four visible GPUs, pin the scan to one payload size before comparing routes. This hardware-dependent command wasn't run for the lesson's CPU checks:
+`NVIDIA/nccl-tests` validates correctness and benchmarks isolated collectives:[^nccltests2026]
 
 ```bash title="all_reduce_perf"
 ./build/all_reduce_perf -b 256M -e 256M -g 4 -n 20 -w 5 -c 1 -T 60
 ```
-
-Here, `-g 4` uses four GPUs per thread (one thread and process in this launch), `-b` and `-e` select 256 MiB, `-n 20` requests 20 timed iterations, `-w 5` adds five untimed warmups, and `-c 1` requests one correctness-check iteration. `-T 60` sets the test timeout in seconds. Check flags against your checkout: this description follows the public README checked October 10, 2026.[^nccltests2026]
-
-This benchmark report has the shape of current `all_reduce_perf` output. The provided 6.00 ms value lets us check the arithmetic; replace it with a measurement from your GPU, driver, NCCL build, and network:
 
 ```text title="all_reduce_perf (256 MiB row)"
 # 4 ranks · float32 sum · 5 warmups · 20 timed iterations · check=1
@@ -445,17 +353,11 @@ This benchmark report has the shape of current `all_reduce_perf` output. The pro
  268435456   67108864      float sum   -1   6000.0  44.74  67.11    0   6000.0  44.74  67.11    0
 ```
 
-Start with units. `size` is 268,435,456 bytes, and `count` is 67,108,864 float32 elements. Since 6000 microseconds is 0.006 seconds, algorithmic bandwidth is $268{,}435{,}456 / 0.006 = 44.74$ GB/s. It answers, "How quickly did this logical payload complete?"[^nccltestsPerformance2026]
+Two bandwidth numbers appear side by side:[^nccltestsPerformance2026]
+- **Algorithmic bandwidth (`algbw`):** logical payload divided by time: $268{,}435{,}456\ \text{B} / 0.006\ \text{s} = 44.74\ \text{GB/s}$.
+- **Bus bandwidth (`busbw`):** `algbw` scaled by the point-to-point ring volume factor $2(k-1)/k = 1.5$ for $k=4$, giving $44.74 \times 1.5 = 67.11\ \text{GB/s}$. `busbw` normalizes across rank counts for fair comparison; it is a formulaic score, not a hardware link counter.
 
-For a four-rank all-reduce, the test's operation-based correction is $2(k-1)/k = 2(4-1)/4 = 1.5$. Thus `busbw` is $44.74 \times 1.5 = 67.11$ GB/s.[^nccltestsPerformance2026]
-
-Read that as a normalized link-oriented score for comparing the same operation across systems. It estimates traffic under the guide's normalization; inspect hardware counters to measure physical transfers. The performance guide derives this factor for point-to-point collective traffic and lists different factors for reduce-scatter, all-gather, broadcast, reduce, and all-to-all.[^nccltestsPerformance2026]
-
-The two halves of the row also answer a buffer question. Out-of-place uses separate send and receive buffers. In-place aliases them for all-reduce, which NCCL defines as `sendBuff == recvBuff`.[^nccl2026inplace]
-
-That equality doesn't describe in-place reduce-scatter or all-gather. Their local shard sits at the rank's offset inside the full buffer. With a typed `float* data`, rank 2, and one element per shard, reduce-scatter receives at `data + 2`; all-gather sends from `data + 2`. Pointer arithmetic advances by elements, so this is an eight-byte offset for float32. Passing the base address as all-gather's local input would read rank 0's slot instead.[^nccl2026inplace]
-
-The CPU example uses an actual shared-memory view to show that layout. It models the completed reduce-scatter write, then compares the correct and incorrect all-gather input slices. Verify CUDA buffer readiness with the pinned NCCL implementation and an on-device test.
+Notice also how **in-place** addressing differs across collectives.[^nccl2026inplace] In all-reduce, in-place means `sendBuff == recvBuff`. In reduce-scatter and all-gather, each rank's local shard sits at offset `rank * shard_count` inside the shared buffer (`data + rank * count`). Passing the base pointer `data` to all-gather reads rank 0's shard instead of your own:
 
 <!-- leetllm: test, output=show, output_title="The local shard has an offset" -->
 ```python title="inplace_shard.py"
@@ -466,7 +368,7 @@ data = np.array([100.0, 200.0, 300.0, 400.0], dtype=np.float32)
 assert data.itemsize == 4
 start = rank * count
 local = data[start:start + count]
-local[0] = 3333.0  # Model rank 2's completed reduce-scatter output.
+local[0] = 3333.0  # Rank 2's completed reduce-scatter output.
 
 assert data[2] == 3333.0
 correct_input = local.tolist()
@@ -485,107 +387,31 @@ using the base address reads: [100.0]
 ```
 <!-- leetllm: output:end -->
 
-`#wrong` reports elements that failed the requested correctness check. A zero count is necessary evidence for this row, but it doesn't cover a later stream or buffer-lifetime race in the application.[^nccltests2026]
-
 <figure>
   <img src="illustrations/_generated/nccl_bandwidth_scaling_dark.png" alt="Four-rank ring all-reduce: 256 MiB divided by 6 ms gives 44.74 GB/s algorithm bandwidth; the 1.5 correction gives 67.11 GB/s bus bandwidth, not a physical link counter." />
-  <figcaption>The arithmetic connects logical bytes, elapsed time, and a collective-specific normalization. Neither bandwidth number identifies the physical route. Application compute overlap requires a separate kernel-and-stream timeline.</figcaption>
+  <figcaption>Connecting logical bytes, elapsed time, and the ring normalization factor. Application step time still depends on how much of that 6 ms collective overlaps compute.</figcaption>
 </figure>
 
-In checkouts supporting `-I 1`, per-iteration CUDA-event summaries show timing across the measured iterations. Use per-rank traces to attribute a delay. With only 20 samples, nearest-rank p99 can equal the maximum, so collect more iterations for a stable tail estimate. Keep timing separate from correctness checks.[^nccltests2026]
-
-Attach five pieces of evidence to a real performance claim:
-
-| Evidence | Record beside the row |
-| --- | --- |
-| Hardware and software | GPU model and count, host count, topology, CUDA, NCCL, framework, and `nccl-tests` versions |
-| Workload | Payload bytes, element count, rank count, and any aggregation or batch shape |
-| Precision and path | Datatype, reduction op, in-place mode, and any forced algorithm or protocol |
-| Baseline | Exact comparison command and equivalent tuning on the alternate route or build |
-| Correctness | Check mode, tolerance or status, and `#wrong` for each buffer mode |
-
-The benchmark report isolates one collective. In an idealized training schedule, hiding 4 ms of a 6 ms collective leaves 2 ms exposed. Real overlap can slow compute or communication through resource contention, so establish the actual critical path from a trace.
-
-Both schedules can produce the same benchmark report, so compare it with a profiler timeline and the stream event that makes the reduced buffer readable. `algbw` or `busbw` alone isn't a tokens-per-second or step-time result.
-
-Run tests on the same hosts, GPUs, container settings, and network rails as the workload. Use a clean row as an isolated fabric baseline; measure model code, data loading, bucket timing, and stream dependencies in the full workload.
-
-> **🎯 Production tip:** Keep a small performance envelope by message size and rank count. One headline number hides the exact region where tensor-parallel latency or giant gradient buckets fail.
-
-A clean bandwidth report answers whether the fabric can move isolated bytes. It doesn't tell you why a live step exposed time or stopped, so the next question is causal: did ranks disagree, did a process fail, or did the route break?
+> **Key insight:** A fast `busbw` row proves the fabric is healthy in isolation, not that your training step is fast. Hiding 4 ms of a 6 ms collective leaves 2 ms exposed, whereas an unoverlapped 4 ms collective exposes all 4 ms. Always pair `nccl-tests` envelopes with a profiler timeline showing exposed wait time.
 
 ## Diagnose a hang without guessing
 
-First classify whether ranks disagree, a process failed, or the network path is broken. A timeout stack that ends in NCCL doesn't distinguish those causes.
+When a distributed job times out in NCCL, classify the root cause before touching tuning flags:
 
-| Symptom | Likely class | First evidence |
+| Symptom | Root cause class | First check |
 | --- | --- | --- |
-| One rank exited or OOMed | Missing participant | Earliest per-rank error, not peer timeouts |
-| Same step hangs every run | Collective order or shape mismatch | Per-rank operation sequence and tensor metadata |
-| Multi-node only | Interface, firewall, NIC, or RDMA path | Bootstrap and `NET` logs, host connectivity |
-| Slow after scale-out | Topology or straggler | Timeline by rank, link counters, `nccl-tests` |
-| Container init failure | Shared memory or memlock | `/dev/shm`, limits, NCCL warning |
-| Wrong data without hang | Buffer lifetime or stream dependency | CUDA events, producer and consumer streams |
+| One rank exited or OOMed | Missing participant | Earliest non-timeout rank error log |
+| Always hangs at the same step | Collective order or shape mismatch | Per-rank op sequence, count, dtype, root |
+| Multi-node only | NIC, firewall, or RDMA fabric | `NCCL_DEBUG=INFO` with `INIT,NET` |
+| Slow after scale-out | Topology or straggler | Per-rank timeline, link counters, `nccl-tests` |
+| Container init failure | Shared memory or memlock | `/dev/shm` size, `ulimit -l` |
+| Wrong values without hang | Stream dependency or buffer reuse | CUDA events between producer, NCCL, consumer |
 
-Set `NCCL_DEBUG=WARN` for explicit errors. Escalate briefly to `NCCL_DEBUG=INFO` with focused subsystems such as `INIT,NET,GRAPH`, and write one log per host and process when needed. NCCL documentation also covers shared-memory limits, network-interface selection, container configuration, and asynchronous error handling.[^nccl2026troubleshooting]
-
-In 2.32.3, `ATTN` messages expose important nonfatal fallbacks. Don't set `NCCL_DEBUG=ATTN` across a mixed-version deployment: versions before 2.32 don't recognize that level and fall back to no debug logging. Keep `NCCL_DEBUG=WARN` and add `NCCL_DEBUG_LEVELS=ATTN`; newer versions add the notices, while older versions retain their warning baseline.[^nccl2323Logging2026]
-
-RAS adds GPU progress counters and a watchdog DMA mirror to investigate stalled kernels, alongside expanded link and device diagnostics. Use this evidence to distinguish a launched kernel that stopped progressing from ranks that never agreed on the operation.[^nccl2323Release2026]
-
-Then compare all ranks at the *first* divergence. Check world size, rank-to-device mapping, collective name, count, dtype, root, communicator, and sequence number. If those match, test the path outside the application with `nccl-tests` and inspect the topology NCCL discovered.
-
-Finally, restore automatic tuning after the experiment. Variables such as `NCCL_SOCKET_IFNAME` and `NCCL_IB_HCA` can be stable cluster configuration. Algorithm, protocol, and channel overrides are usually diagnostic controls, not permanent cargo cult.
-
-## Strengths and limits
-
-NCCL is a small collective API over many NVIDIA GPU and network topologies. It fuses communication and reduction on device paths, picks algorithms at runtime, works from one process or many, and exposes plugins for network, tuner, profiler, and newer device-side interfaces.
-
-Its limits are equally important:
-
-- NVIDIA GPU focus makes NCCL the wrong backend for CPU-only or non-NVIDIA collectives.
-- Collective correctness is distributed. NCCL can't repair mismatched control flow above it.
-- Topology selection can't fix bad cabling, oversubscription, NUMA placement, or unhealthy links.
-- Communication kernels consume GPU resources and can interfere with compute when overlap is poorly scheduled.
-- Environment overrides can hide one machine issue while hurting another.
-- Fast transport doesn't choose a good model-parallel strategy. A framework still owns groups, tensor layouts, and bucket timing.
-
-Call NCCL when the job is on NVIDIA GPUs and bytes have to move inside a node or across nodes. Stay on the framework's process-group API unless you're building a runtime, fused kernel, or communication library that needs NCCL directly.
-
-The 2.32.3 release lists communicator support for multiple MIG instances. The guide dates its experimental path to 2.31: distinct instances remain distinct CUDA devices, require a CUDA 13.0 or newer driver, and don't support NVLink P2P or NVLS. MNNVL must be disabled. Don't transfer a full-GPU topology's performance expectations to this setup.[^nccl2323Release2026][^nccl2026Communicators]
-
-Optional TLS in 2.32.3 covers NCCL-owned socket traffic when built with OpenSSL 3 and configured through `ncclSetEncryption`. Configure encryption separately for external transports and plugin traffic.[^nccl2323Release2026]
-
-## NVIDIA project, public source
-
-NVIDIA develops NCCL and publishes the source in the `NVIDIA/nccl` repository. The repo accepts signed-off contributions under a Developer Certificate of Origin, asks large changes to begin with an issue and design discussion, and keeps tests in the separate `NVIDIA/nccl-tests` project.[^nccl2026source]
-
-The public contributor history records individual work; it is not a permanent ownership roster or formal support agreement.[^nccl2026contributors]
-
-The pinned snapshot's license file needs a careful reading. Most project source uses Apache License 2.0, some parts retain original BSD terms, and borrowed files can carry their own licenses. "NCCL is BSD" or "every NCCL file is Apache-2.0" both erase that file-level boundary.[^nccl2026license]
-
-## Research roots rather than one NCCL paper
-
-NCCL doesn't have one canonical paper that defines the whole current implementation. Its core ideas come from collective-communication research plus years of topology, kernel, and transport engineering.
-
-Patarasuk and Yuan derived a bandwidth lower bound for all-reduce and described a ring algorithm that reaches it for large messages under their communication model.[^patarasuk2009] The result assumes associative, commutative reduction and omits startup and reduction-compute costs. Analyze latency optimality and floating-point reproducibility separately. NVIDIA's NCCL 2.4 engineering account explains why double binary trees reduce latency growth while retaining high aggregate bandwidth, and why NCCL switches between tree and ring paths.[^jeaugey2019]
-
-Later hardware paths add NVSwitch collectives, in-network reduction, registration, multiple rails, and device-initiated communication. Those features change how an algorithm maps to hardware, but not the basic questions: who owns each chunk, how many rounds run, how many bytes cross each bottleneck, and when the consumer stream may read the result.
+Run production with `NCCL_DEBUG=WARN` (adding `NCCL_DEBUG_LEVELS=ATTN` on NCCL 2.32+ to surface nonfatal fallbacks safely even across mixed versions, rather than setting `NCCL_DEBUG=ATTN` directly).[^nccl2026troubleshooting][^nccl2323Logging2026] Switch temporarily to `NCCL_DEBUG=INFO` with `NCCL_DEBUG_SUBSYS=INIT,NET,GRAPH` to inspect routes, and use NCCL RAS GPU progress counters to separate a genuinely stalled kernel from ranks waiting on an unmatched call.[^nccl2323Release2026]
 
 ## Source-reading exercise
 
-Pick one all-reduce from a PyTorch profiler trace. Record tensor bytes, communicator size, duration, and whether compute overlaps it. Capture `nvidia-smi topo -m` beside the trace, then run `nccl-tests` near that message size on the same ranks.
-
-Use the pinned source map to answer four questions:
-
-1. Which public function packages the operation?
-2. Which algorithm and protocol names appear in logs?
-3. Which graph and transport files correspond to the physical path?
-4. Which rank first diverges in the CPU operation-log example below?
-
-Produce a small evidence table rather than a screenshot of a green benchmark. Connect logical operation, source path, topology labels, payload bytes, `algbw`, `busbw`, overlap time, correctness status, and first failure evidence. If the standalone row looks strong but the application still stalls, the table should make that boundary visible.
-
-Without GPUs, compare planned collective logs instead. Each tuple below is `(operation, count, dtype, reduction, root)` for one communicator; `None` means an argument doesn't apply. This teaching checker compares completed logs. It neither runs NCCL nor detects a live network failure. A missing call is exercised locally, without leaving distributed processes hanging.
+Compare per-rank collective logs to pinpoint the *earliest* divergence across ranks, alongside the `algbw`/`busbw` check for our 256 MiB example:
 
 <!-- leetllm: test, output=show, output_title="Find the first disagreement" -->
 ```python title="collective_log.py"
@@ -638,20 +464,36 @@ bandwidth metrics: algbw=44.74, busbw=67.11 GB/s
 ```
 <!-- leetllm: output:end -->
 
-Verify correctness by comparing the collective with the intended model computation and checking actual stream dependencies and buffer lifetime; all ranks can agree on the same incorrect operation.
+<!-- leetllm: edition:reference:start -->
+
+## Strengths and limits
+
+NCCL provides a tight collective API across NVLink, NVSwitch, PCIe, and InfiniBand/RoCE with runtime topology search, kernel fusion, and plugin interfaces for networks, tuners, profilers, and device-side Gin. Its core limits are structural:
+
+- NVIDIA CUDA-specific (not for CPU-only or non-NVIDIA accelerators).
+- Cannot repair divergent rank control flow, bad cabling, or oversubscribed switches above or below it.
+- Communication kernels share GPU resources with compute, so aggressive overlap can contend on SMs or memory bandwidth.
+- Recent additions like multi-MIG communicators (CUDA 13.0+ driver, no NVLink P2P/NVLS, MNNVL disabled) and optional OpenSSL 3 socket TLS (`ncclSetEncryption`) carry distinct topology and transport constraints.[^nccl2323Release2026][^nccl2026Communicators]
+
+## NVIDIA project, public source
+
+NVIDIA develops and publishes NCCL at `NVIDIA/nccl` (with benchmarks in `NVIDIA/nccl-tests`), accepting DCO-signed contributions.[^nccl2026source][^nccl2026contributors] Check `LICENSE.txt` at file granularity: most source uses Apache-2.0, while portions retain original BSD or third-party licenses.[^nccl2026license]
+
+## Research roots rather than one NCCL paper
+
+NCCL builds on decades of collective-communication research rather than a single canonical paper: Patarasuk and Yuan formalized bandwidth-optimal ring all-reduce for point-to-point networks,[^patarasuk2009] and NVIDIA's NCCL 2.4 engineering write-up introduced complementary double binary trees for logarithmic latency growth at full bandwidth.[^jeaugey2019] Newer hardware paths add NVSwitch in-network reductions, multi-rail fabrics, and device-initiated Gin while preserving the same core questions: ownership, rounds, bytes, and stream readiness.
+
+<!-- leetllm: edition:reference:end -->
 
 ## Takeaways
 
-Follow one slot from four local vectors to the shared sum. Then separate a ring's send volume from the bus-bandwidth score, and a missing rank from a slow route.
-
-- A collective is an ordered agreement across ranks, not a remote function call.
-- All-reduce decomposes into reduce-scatter plus all-gather, which explains sharded-training traffic.
-- Rings achieve efficient point-to-point byte counts; trees cut rounds. Hardware offload and actual topology can change the best choice.
-- `nvidia-smi topo -m` gives path classes and affinities; it doesn't give achieved bandwidth.
-- For point-to-point all-reduce accounting, `nccl-tests` busbw is algbw times $2(k-1)/k$, the same factor as ring send volume.
-- `algbw` describes an isolated logical payload. It isn't a substitute for an application's exposed step time after overlap.
-- CUDA streams make collectives asynchronous, but explicit dependencies still protect buffer correctness.
-- Debug the earliest rank divergence, then validate the fabric separately.
+- A collective is a synchronized, ordered agreement across all ranks in a communicator; mismatched calls or roots hang.
+- All-reduce decomposes into reduce-scatter plus all-gather, directly mirroring FSDP and ZeRO-3 gradient/parameter sharding.
+- Rings minimize point-to-point sent volume ($2\frac{k-1}{k}M$) for large tensors; double binary trees cut hops to $O(\log_2 k)$ for small messages.
+- `nvidia-smi topo -m` reveals physical path classes (`NV4`, `PIX`, `PXB`, `SYS`), while `nccl-tests` measures isolated `algbw` and normalized `busbw`.
+- In-place reduce-scatter and all-gather address each rank's shard at `data + rank * count`, never the base pointer.
+- Host return and `launchCompletionEvent` are enqueue/launch milestones; consumers must wait for stream write completion before reading outputs.
+- Debug hangs by finding the earliest diverging rank or non-timeout failure before tuning network overrides.
 
 ## Mastery quiz
 
@@ -666,7 +508,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "Sum 12; average 12."
     ],
     "answer": "Sum 12; average 4.",
-    "explanation": "Rank 1 owns coordinate 1. Across the three ranks, that coordinate sums to 7 + 3 + 2 = 12. Its average is 12 / 3 = 4. Using only rank 1's entry gives 3 and then 1. Adding its whole row gives 9 and then 3. Reporting 12 for both reductions skips the division for the average."
+    "explanation": "Rank 1 owns coordinate 1: summing 7 + 3 + 2 gives 12, and dividing by 3 ranks gives average 4."
   },
   {
     "question": "Ranks 0, 1, and 2 map to GPUs 5, 7, and 1, respectively. Which broadcast root selects the input on GPU 7? What happens if all callers use root 5 instead?",
@@ -677,7 +519,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "Use root 2. Root 5 is invalid."
     ],
     "answer": "Use root 1. Root 5 is invalid.",
-    "explanation": "The root names a communicator rank. Rank 1 supplies the input on GPU 7. Root 2 would copy GPU 1's input. The only valid roots are 0, 1, and 2. Passing device number 7 or 5 as the root is invalid even though both GPUs participate."
+    "explanation": "Broadcast root is a communicator rank index (0, 1, or 2), not a CUDA device ID. Rank 1 owns GPU 7, and root 5 is out of range."
   },
   {
     "question": "Source ranks 0, 1, and 2 hold token IDs [15, 24, 37], [28, 19, 12], and [21, 33, 26], respectively. Each row lists one token for each destination in rank order. After all-to-all, what is in rank 2's receive buffer, from first element to last?",
@@ -688,7 +530,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "[37, 12, 26]"
     ],
     "answer": "[37, 12, 26]",
-    "explanation": "Each source sends its third token to rank 2. The receive buffer holds 37 from source 0, 12 from source 1, and 26 from source 2, in that order. Sorting by token ID gives [12, 26, 37]. Keeping rank 2's outgoing row gives [21, 33, 26]. Adding each column gives [64, 76, 75]. All-to-all copies each token into its source rank's slot."
+    "explanation": "Rank 2 receives element index 2 from ranks 0, 1, and 2 in source-rank order: [37, 12, 26]."
   },
   {
     "question": "A five-rank evenly partitioned ring all-reduces a 10 kB logical payload per rank. Use decimal kB and count sent bytes, excluding received bytes. Which sent-volume and startup-round pair follows?",
@@ -699,7 +541,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "32 kB sent; 8 neighbor rounds."
     ],
     "answer": "16 kB sent; 8 neighbor rounds.",
-    "explanation": "Each phase sends (5 − 1) × (10 / 5) = 8 kB in 4 rounds. Reduce-scatter plus all-gather sends 16 kB in 8 rounds; received bytes are counted separately."
+    "explanation": "Reduce-scatter sends 4 chunks of 2 kB (8 kB in 4 rounds) and all-gather sends another 8 kB in 4 rounds, totaling 16 kB sent across 8 rounds."
   },
   {
     "question": "Trace A: nonblocking GroupEnd returns in-progress at 2 ms, polling reports successful enqueue at 4 ms, writes complete at 9 ms. Trace B: ordinary host enqueue returns at 3 ms and writes complete at 6 ms. Ignoring other dependencies, what earliest output-reader times follow?",
@@ -710,7 +552,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "A at 9 ms; B at 6 ms."
     ],
     "answer": "A at 9 ms; B at 6 ms.",
-    "explanation": "Output readers require completed writes. The group-success and ordinary host-return times are enqueue boundaries, so the readers wait to 9 ms and 6 ms."
+    "explanation": "Returning from enqueue or polling completion only confirms submission; output readers must wait until device writes complete at 9 ms (A) and 6 ms (B)."
   },
   {
     "question": "For rank 3 with two float32 elements per shard, a full buffer backs an in-place all-gather. Which local slice and byte offset identify its input?",
@@ -721,7 +563,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "Elements [0:2]; offset 0 bytes."
     ],
     "answer": "Elements [6:8]; offset 24 bytes.",
-    "explanation": "The start is rank × shard count = 3 × 2 = 6 elements. Each float32 is four bytes, so the offset is 24 bytes and the two-element view spans [6:8]."
+    "explanation": "Starting element index is rank × shard_count = 3 × 2 = 6, spanning elements [6:8] at byte offset 6 × 4 = 24 bytes."
   },
   {
     "question": "An eight-rank all-reduce completes 512 MiB in 8 ms. Use 2²⁰ bytes per MiB, decimal GB/s, and the point-to-point bus-score factor. Which report follows?",
@@ -732,7 +574,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "Algorithmic 117.44 GB/s; bus score 205.52 GB/s."
     ],
     "answer": "Algorithmic 67.11 GB/s; bus score 117.44 GB/s.",
-    "explanation": "512 × 2²⁰ / .008 / 10⁹ = 67.108864 GB/s. Multiply by 2 × 7 / 8 = 1.75 to obtain 117.440512 GB/s. The score is a normalization, not a physical counter."
+    "explanation": "Algorithmic bandwidth is 512 × 2²⁰ / 0.008 / 10⁹ ≈ 67.11 GB/s. Multiplying by 2 × 7 / 8 = 1.75 gives busbw ≈ 117.44 GB/s."
   },
   {
     "question": "Two ranks run float32 all-reduces on one communicator. Each log lists (reduction, element count) in call order. The first call completes in both runs.\n\nRun A. Rank 0 logs [(sum, 8), (max, 6)] and rank 1 logs [(sum, 8), (max, 6)]. On rank 1, the compute kernel writes an input element at 15 ms. The second all-reduce reads that element at 12 ms.\n\nRun B. Rank 0 logs [(sum, 8), (max, 6)] and rank 1 logs [(sum, 8), (max, 8)]. Both ranks finish writing their inputs at 10 ms and enter the second call at 12 ms.\n\nWhat should you repair first in each run?",
@@ -743,7 +585,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "A transport placement; B collective agreement."
     ],
     "answer": "A producer readiness; B collective agreement.",
-    "explanation": "In A, both calls match across ranks. Rank 1 reads the element 3 ms before the kernel writes it. Make the communication stream wait for the producer's completion event. In B, both inputs are ready, but the second max all-reduce uses six elements on one rank and eight on the other. Make the counts agree. Changing the transport cannot order a buffer read or correct a count."
+    "explanation": "In Run A, both calls match but rank 1's collective reads 3 ms before compute finishes writing, requiring a stream event wait. In Run B, ranks disagree on count (6 vs. 8) for the second call, breaking collective agreement."
   },
   {
     "question": "A topology snapshot shows NV4 for a GPU pair. A cross-node trace separately shows PXN through an intermediate GPU toward a NIC, with no ordinary host staging copy on that selected path. Which interpretation fits these provided observations?",
@@ -754,7 +596,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "NV4 identifies the external NIC bridge; PXN identifies GPU forwarding; the fabric route is established by NV4."
     ],
     "answer": "NV4 labels a path class; PXN identifies GPU forwarding; achieved rates need measurement.",
-    "explanation": "The matrix describes topology classes rather than measured bandwidth. PXN can use an intermediate GPU with better NIC access without implying ordinary CPU staging; actual route and rate evidence remain separate."
+    "explanation": "NV4 identifies four bonded NVLinks rather than a measured rate, and PXN forwards through an intermediate GPU with direct NIC affinity without copying through host RAM."
   },
   {
     "question": "Two ideal schedules each contain 10 ms of compute. A has an isolated 5 ms collective with 4 ms hidden by independent compute; B has a 4 ms collective with 1 ms hidden. No other costs or contention exist. Which total-time comparison follows?",
@@ -765,7 +607,7 @@ Follow one slot from four local vectors to the shared sum. Then separate a ring'
       "A 11 ms; B 13 ms, so A finishes first."
     ],
     "answer": "A 11 ms; B 13 ms, so A finishes first.",
-    "explanation": "Exposed wait is total communication minus hidden communication. A adds 1 ms to compute and B adds 3 ms, giving 11 ms and 13 ms. Faster isolated communication need not give the faster application schedule."
+    "explanation": "Schedule A exposes 5 - 4 = 1 ms (total 11 ms), whereas schedule B exposes 4 - 1 = 3 ms (total 13 ms), so A finishes first despite its slower isolated collective."
   }
 ]
 ```

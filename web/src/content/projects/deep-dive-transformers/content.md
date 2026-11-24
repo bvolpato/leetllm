@@ -22,7 +22,7 @@
     "PreTrainedModel lifecycle and weight tying",
     "Multi-device dispatch and device_map execution hooks",
     "AutoConfig and AutoModel lazy dispatch",
-    "Safetensors loading and remote-code boundaries",
+    "Safetensors loading and remote-code safety",
     "Tokenizer, processor, and multimodal interfaces",
     "Forward passes, GenerationConfig, and KV caches",
     "Pipelines versus production serving engines",
@@ -37,13 +37,9 @@
 }
 ---
 
-After an upgrade, the same model ID might still generate text while starting assistant turns with the wrong control tokens. Did the weights change, or did the tokenizer format the conversation differently? A successful load is only the first check.
+After a routine upgrade, the same model ID loads cleanly and generates fluent text, yet every assistant turn now starts with the wrong control tokens. Did the weights change, or did the tokenizer format the conversation differently? A clean load confirms only that bytes landed in tensors.
 
-Hugging Face Transformers connects a model's saved weights to the code and input processing needed to use them. PyTorch gave you tensors, kernels, and autograd. That still isn't a loadable language model. A Hub name has to resolve to one revision. That revision's `config.json` has to pick a class. The class has to receive tensors with expected names. Text has to become the token IDs that class was trained on. <span data-glossary="hugging-face-transformers">Hugging Face Transformers</span> packages those interfaces.
-
-It isn't one architecture, and it isn't the Hub. It's a model-definition library: a checkpoint, its configuration, preprocessing rules, and forward pass travel together. The same definition can then load in a notebook, a <span data-glossary="pytorch">PyTorch</span> trainer, <span data-glossary="fsdp">FSDP</span>, <span data-glossary="vllm">vLLM</span>, or <span data-glossary="sglang">SGLang</span> without every team rewriting the family from scratch.[^huggingface2026repo][^huggingface2025v5]
-
-Use `tiny-decoder` as an analytical example, not as a Hub repo you'd download. Its fixed dimensions let us check AutoClass lookup, chat rendering, and KV-cache bytes by hand. Later, a smaller randomly initialized Llama runs the real library on CPU without downloading model weights. Those checks establish mechanics, not language quality or serving performance.
+PyTorch gives you tensors, kernels, and autograd, which still leaves a gap before you have a loadable language model. A Hub name has to resolve to one snapshot, `config.json` has to pick a Python class, learned weights have to map onto named modules, and raw text has to become the exact token IDs that checkpoint was trained on. <span data-glossary="hugging-face-transformers">Hugging Face Transformers</span> standardizes those interfaces as a model-definition library where a checkpoint, its configuration, preprocessing rules, and forward pass travel together, so the same model loads in a notebook, a <span data-glossary="pytorch">PyTorch</span> trainer, <span data-glossary="fsdp">FSDP</span>, <span data-glossary="vllm">vLLM</span>, or <span data-glossary="sglang">SGLang</span> without every team rewriting the architecture from scratch.[^huggingface2026repo][^huggingface2025v5] To keep the arithmetic concrete, we will trace one small Llama configuration, `tiny-decoder`, through AutoClass lookup, chat formatting, and KV-cache sizing by hand:
 
 ```json title="tiny-decoder-config.json"
 {
@@ -58,48 +54,34 @@ Use `tiny-decoder` as an analytical example, not as a Hub repo you'd download. I
 }
 ```
 
-`hidden_size / num_attention_heads` is the head dimension: $D = 1024 / 16 = 64$. Grouped-query attention here uses $H_{kv} = 4$ key/value heads, not 16. Carry those values through each later check.
-
-```checkpoint
-What does Transformers standardize when it doesn't standardize one architecture?
----
-It standardizes the execution interface: configuration, model classes, pretrained weight loading, tokenizers or processors, output types, and generation conventions. A Llama, ViT, Whisper, or vision-language model still has its own architecture inside that structure.
-```
+Dividing `hidden_size` by `num_attention_heads` gives a head dimension of $D = 1024 / 16 = 64$, while grouped-query attention stores $H_{kv} = 4$ key/value heads instead of 16. Those dimensions will drive every memory calculation that follows.
 
 ## Four core interfaces around one checkpoint
 
-Loading a model successfully coordinates multiple distinct layers: identity, shape, parameters, and input/output semantics. A model repository is a versioned collection of structured assets rather than an opaque weight blob. For `tiny-decoder` those pieces are:
+Loading a model coordinates four layers: identity, architecture metadata, parameter tensors, and input/output semantics. Keeping them modular lets each evolve independently: a repository can update its <span data-glossary="chat-template">chat template</span> without touching weights, model code can adopt a faster cache path while older checkpoints stay loadable, and prior snapshots remain available if you need to revert.
 
-| Subsystem | Typical files or classes | Job | A failed integration looks like |
+| Subsystem | Files or classes | Job | Failure symptom |
 | --- | --- | --- | --- |
-| Identity | Hub repo ID, revision, commit | Select one immutable snapshot | Code and weights come from different versions |
-| Configuration | `config.json`, `PreTrainedConfig` | Describe architecture, dimensions, <span data-glossary="token">tokens</span>, and options | Wrong head size or layer count |
-| Parameters | `model.safetensors` shards and index | Restore learned <span data-glossary="tensor">tensors</span> into modules | Missing, unsafe, or mismatched tensors |
-| Input/output | tokenizer, processor, `ModelOutput` | Map user data to tensors and outputs | Token IDs, masks, or pixels have the wrong semantics |
+| Identity | Hub repo ID, commit | Pick one immutable snapshot | Code/weight version mismatch |
+| Configuration | `config.json`, `PreTrainedConfig` | Architecture, sizes, <span data-glossary="token">tokens</span> | Wrong head size or layer count |
+| Parameters | `model.safetensors`, index | Load <span data-glossary="tensor">tensors</span> into modules | Missing or mismatched tensors |
+| Input/output | tokenizer, processor, `ModelOutput` | Map inputs/outputs to tensors | Wrong IDs, masks, or pixels |
 
-The library keeps these components modular so each can evolve independently. Tokenizers may add a <span data-glossary="chat-template">chat template</span> without changing weights. Model code can add an optimized cache path while historical checkpoints stay loadable. A Hub revision may point at new configuration while older snapshots remain available for <span data-glossary="rollback">rollback</span>.
+> **Key insight:** Isolate the layer that drifted before touching code. Do not debug attention kernels when the tokenizer injected an extra special token, and do not rewrite a prompt when the loader pulled a different revision.
 
-If output is wrong, inspect the subsystem that produced it. Don't rewrite attention kernels when the tokenizer added an unexpected special token, and don't blame a prompt when the class loaded an unintended revision.
+Each family directory under `src/transformers/models/` holds configuration, modeling, and optional tokenizer or processor files. `PreTrainedConfig` stores hyperparameters without allocating weights, while `PreTrainedModel` subclasses `torch.nn.Module` and drives a five-step lifecycle reused by trainers and serving engines.[^huggingface2026models] Every checkpoint follows this sequence:
 
-A family directory under `src/transformers/models/` holds configuration and modeling code, often with tokenizer or processor files. Shared AutoClass mappings and output types live elsewhere in the package. `PreTrainedConfig` records hyperparameters and options without creating model parameters. `PreTrainedModel` subclasses `torch.nn.Module` and supplies the loading and initialization lifecycle:[^huggingface2026models]
-
-1. **Instantiation (`__init__`):** Builds the neural network module hierarchy using dimensions from the config.
-2. **Weight initialization (`_init_weights`):** Defines parameter initialization formulas (such as normal distributions scaled by `config.initializer_range` and zeroed biases) for fresh training.
-3. **Post-initialization (`post_init`):** Collects model properties and initializes weights, including any configured weight tying. Tying makes input embeddings and output LM head share parameters; it is not enabled for every family or configuration.
-4. **Checkpoint restoration (`from_pretrained`):** Resolves artifact files, instantiates the architecture, parses `.safetensors` weights, casts precisions, validates tensor keys, and sets evaluation mode.
-5. **Persistence (`save_pretrained`):** Saves model configuration and weights, with a shard index when needed and generation configuration for generative models. Save the tokenizer or processor separately; saving the model does not capture preprocessing automatically.
-
-The lifecycle explains what a downstream runtime can reuse. It can replace selected kernels while keeping parameter names and tokenizer behavior, but only when that backend supports the family. A load can still succeed on one machine and fail on another when local caches resolve different snapshot revisions.
+1. **`__init__`:** Builds the module tree from config dimensions.
+2. **`_init_weights`:** Initializes parameters for fresh training (scaled normal weights, zero biases).
+3. **`post_init`:** Registers model properties, runs initialization, and ties input/output embeddings when configured.
+4. **`from_pretrained`:** Resolves files, instantiates modules, loads `.safetensors` shards, casts precision, checks keys, and sets eval mode.
+5. **`save_pretrained`:** Writes `config.json`, shards (plus index if split), and `generation_config.json`; save tokenizers or processors separately.
 
 ## Hub identity and `from_pretrained`
 
-`from_pretrained()` resolves a model source and constructs the class. Given a local directory or Hub ID, it finds configuration and weight files, resolves a revision, downloads missing bytes, and loads tensors into matching parameter names.[^huggingface2026models]
+`from_pretrained()` turns a local directory or Hub repository ID into an initialized model by resolving files, downloading missing shards, and copying tensors into matching parameter names.[^huggingface2026models] The snapshot that actually runs is the commit hash resolved by the cache, not the branch name in your call. A branch such as `main` moves whenever the repository updates, whereas a commit SHA names one immutable tree. On disk, the Hub cache separates mutable `refs/` (branch or tag pointers), content-addressed `blobs/` (deduplicated file bytes), and `snapshots/` directories that symlink the exact files for each commit.[^huggingface2026hub]
 
-The snapshot is the revision the cache resolved, not the branch name in the call. A branch such as `main` is convenient and mutable. A commit hash identifies one snapshot. The Hub cache keeps `refs/` (branch or tag to commit), content-addressed `blobs/`, and `snapshots/` that symlink the exact files for one revision while sharing unchanged blobs across revisions.[^huggingface2026hub]
-
-Choose the model and tokenizer revisions, dtype, tensor format, and remote-code policy before calling the loader. This API sketch deliberately uses a placeholder repo and revision. For a deployment, select a real commit from repository history; for a local executable check, use the self-contained CPU lab below.
-
-```python title="load_pinned_checkpoint.py"
+```python title="load_checkpoint.py"
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -116,23 +98,15 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 ```
 
-`dtype=torch.bfloat16` makes precision explicit in v5; older examples use the legacy `torch_dtype` name. The current loading guide resolves an omitted dtype from configuration, then from the first floating-point checkpoint weight. That can load bf16 or fp16 when older application code assumed fp32. Pin the library version as well as the checkpoint, and inspect the loaded parameter dtype.[^huggingface2026models]
+Passing `dtype=torch.bfloat16` (replacing the older `torch_dtype` keyword) makes precision explicit, because omitting `dtype` inherits the precision from `config.json` or the first floating-point weight tensor and can silently load `bfloat16` or `float16` where downstream code assumes `float32`.[^huggingface2026models] Setting `use_safetensors=True` reads raw tensor buffers without pickle's arbitrary Python execution, though safe file parsing checks only format integrity rather than tensor names or architectural compatibility.[^huggingface2026safetensors] Combining an immutable commit hash with explicit `dtype` and `use_safetensors=True` keeps model loading predictable across upgrades and machines.
 
-`use_safetensors=True` makes the storage choice explicit. Safetensors stores tensors without pickle's arbitrary Python deserialization. It does not make custom model code safe.[^huggingface2026safetensors]
+> **Common mistake:** Enabling `trust_remote_code=True` just to silence an unknown-model error executes arbitrary Python from the repository during import or loading. Leave it `False` by default; if a custom family requires remote code, lock both model and code commit hashes, review the Python modules first, and run in an isolated environment.[^huggingface2026autoclasses]
 
-A safe parse still says nothing about tensor names, shapes, dtype, or architecture. The checkpoint can fail after parsing, or load into a semantically wrong class if those metadata constraints were not checked.
-
-`trust_remote_code` introduces security risks. AutoClass docs default it to false. When a repository needs custom Python classes, inspect the files, pin both model and code revisions, review dependencies, and run in a constrained environment before enabling it. Never turn it on just to silence an unknown-model error.[^huggingface2026autoclasses]
-
-```checkpoint
-Why should a deployment pin a Hub commit instead of loading `main` every time?
----
-`main` can change configuration, tokenizer files, custom code, and weights without an application code change. A commit revision gives one auditable snapshot. Roll forward by selecting another commit and keep the old revision as a rollback target.
-```
+<!-- leetllm: edition:reference:start -->
 
 ### A load failure is evidence about one layer
 
-Use the first error to narrow the failure domain. A loader can fail before reading bytes, during tensor restoration, or only when the first prompt reaches the model:
+Use the first error to narrow the failure layer before touching weights or prompts. Multimodal checkpoints follow the same diagnosis: separate missing media files, processor shape mismatches, model class selection, and decoding settings before suspecting corrupted weights. Checking the earliest failing stage prevents wasted debugging on downstream layers.
 
 | Symptom | Likely layer | First check |
 | --- | --- | --- |
@@ -140,24 +114,20 @@ Use the first error to narrow the failure domain. A loader can fail before readi
 | Unexpected missing keys | Weight index or class names | Shard index, tied weights, conversion notes |
 | Size mismatch | Config or checkpoint variant | Vocabulary, hidden size, <span data-glossary="tensor-parallelism">tensor-parallel</span> export |
 | `safetensors` parse error | Artifact integrity | Download <span data-glossary="checksum">checksum</span>, incomplete snapshot, file format |
-| Code execution prompt | Dynamic module | `trust_remote_code`, code revision, audit result |
+| Code execution prompt | Dynamic module | `trust_remote_code`, code revision, source review |
 | Output has wrong roles | Tokenizer or chat template | Special tokens and `apply_chat_template` |
 | Numerics shifted after an upgrade | Dtype default | Explicit `dtype`, config dtype, first weight dtype |
 
-The same diagnostic logic applies to multimodal checkpoints. Separate missing media files, processor shape errors, model class selection, and generation bugs before modifying weights. Each symptom points to a different failure mechanism.
+<!-- leetllm: edition:reference:end -->
 
 ## Multi-device dispatch and `device_map="auto"`
 
-When a model would exceed one GPU's video memory (VRAM), ordinary construction can exhaust memory before weights even load. Hugging Face integrates with Accelerate to build an empty skeleton, place a model across GPUs, CPU RAM, and disk, and stream weights with `device_map="auto"`. Disk offload does not require NVMe storage, though storage speed affects transfer time.[^huggingface2026acceleratebigmodel]
+When a model exceeds a single GPU's VRAM, standard PyTorch construction can run out of memory before weights even load, because `__init__` allocates full random parameters first. Transformers integrates with Accelerate to build an empty parameter skeleton, plan placement across GPUs, CPU RAM, and disk, and stream weights directly into place via `device_map="auto"`.[^huggingface2026acceleratebigmodel] Placement runs in four stages:
 
-Memory placement follows a four-stage execution sequence: first create shapes without parameter storage, then place shard bytes, then move each layer's inputs and weights to its execution device:
-
-1. **Meta device skeleton (`init_empty_weights`):** Parameter tensors have shapes and dtypes but no tensor-data storage. Python modules and metadata still occupy RAM, and buffer handling depends on the initialization context. This avoids allocating a full randomly initialized parameter copy.
-2. **Device map calculation (`infer_auto_device_map`):** Accelerate inspects the footprint of each submodule, calculates available memory per GPU (`max_memory`), and plans placement across `cuda:0`, `cuda:1`, `cpu`, and `disk`. It respects `_no_split_modules` (such as `["LlamaDecoderLayer"]`) so individual attention blocks are not fractured across devices.
-3. **Checkpoint loading:** The loader places tensors according to the map instead of requiring a complete CPU copy first. Accelerate exposes `load_checkpoint_and_dispatch` for this workflow; Transformers also has its own loading implementation. Peak memory often exceeds final parameter bytes due to temporary buffers.
-4. **Dynamic execution hooks (`AlignDevicesHook`):** When dispatch needs hooks, `dispatch_model` attaches them to the mapped blocks and their relevant children. Hooks align inputs with each block's execution device. In a GPU-backed map, CPU- and disk-offloaded weights execute on the main execution device, then their temporary device storage is released. Storage location and execution location are not always the same. A CPU-only map runs on CPU.[^huggingface2026acceleratedispatch]
-
-The device labels below illustrate placement. Inspect `model.hf_device_map` for the actual map; the CPU/disk node shows weight storage, not a separate worker running alongside the GPUs.
+1. **Meta device skeleton (`init_empty_weights`):** Allocates tensor shapes and dtypes on PyTorch's `meta` device with zero parameter storage.
+2. **Device map calculation (`infer_auto_device_map`):** Measures each submodule's footprint against `max_memory` across `cuda:0`, `cuda:1`, `cpu`, and `disk`, keeping `_no_split_modules` (such as `["LlamaDecoderLayer"]`) intact.
+3. **Streaming checkpoint load:** Streams shard tensors straight to their target devices (`load_checkpoint_and_dispatch`) instead of materializing a full CPU copy first.
+4. **Execution hooks (`AlignDevicesHook`):** `dispatch_model` attaches pre-forward hooks that align inputs with each block's execution device. In a GPU-backed map, CPU- or disk-offloaded layers are fetched onto the main GPU to execute and then freed, so storage location and execution device differ.[^huggingface2026acceleratedispatch]
 
 ```mermaid
 flowchart TD
@@ -170,29 +140,27 @@ flowchart TD
     hooks --> cpu["CPU / disk"]:::muted
 ```
 
-The hooks solve single-instance model placement, not distributed training sharding. Accelerate documents this big-model path for inference. It moves sequential layers between devices while other GPUs wait; placement alone does not create tensor parallelism. Leave room beyond weights for activations, KV cache, and CUDA workspaces. A map that loads successfully can still run out of memory during generation.[^huggingface2026acceleratedesign]
-
-For multi-GPU training, use a supported <span data-glossary="fsdp">FSDP</span> or <span data-glossary="deepspeed">DeepSpeed</span> configuration; the chosen strategy determines which parameters, gradients, and optimizer states are sharded.[^huggingface2026acceleratebigmodel]
+> **Key insight:** `device_map="auto"` solves single-instance inference placement, not parallel compute scaling. Inspect `model.hf_device_map` to verify where each block landed (the CPU/disk node holds offloaded weight storage, not a parallel worker). Layers run sequentially while other GPUs wait, so leave VRAM headroom for activations, KV cache, and CUDA workspaces, and use <span data-glossary="fsdp">FSDP</span> or <span data-glossary="deepspeed">DeepSpeed</span> for distributed multi-GPU training.[^huggingface2026acceleratedesign][^huggingface2026acceleratebigmodel]
 
 ## AutoClass dispatch turns metadata into Python types
 
-If `config.json` says `llama` but the shards came from another family, which stage should catch it? The `Auto*` family hides model-family imports while preserving a deterministic lookup. A causal-language-model load executes four key steps:
+Suppose `config.json` declares `"model_type": "llama"`, while the shard files actually came from another architecture. Which stage catches that error? The `Auto*` API hides family-specific imports behind a deterministic four-step lookup that scales to hundreds of families without importing every modeling file at startup:[^huggingface2026repo][^vonplaten2022transformers][^huggingface2025v5]
 
-1. `AutoConfig.from_pretrained` reads `config.json` and takes `model_type`.
-2. A lazy mapping converts that type into a module name and config class.
-3. `AutoModelForCausalLM` looks up the task head associated with the config class.
-4. `from_pretrained` on that concrete class allocates modules and restores tensors.
-
-At source commit `b3a36037d3feb22e3f0174b3dd4248fcc0f0f722`, `CONFIG_MAPPING_NAMES` lives in `src/transformers/models/auto/auto_mappings.py`. `configuration_auto.py` wraps it in `_LazyConfigMapping` and implements `AutoConfig.from_pretrained`. The built-in path requires `model_type`; missing or unknown types raise `ValueError` at the public loader. Authorized custom-code dispatch is a separate branch. None of these selections infer the architecture by examining tensor bytes. `modeling_auto.py` owns task maps such as `MODEL_FOR_CAUSAL_LM_MAPPING_NAMES`, where `llama` maps to `LlamaForCausalLM`.[^huggingface2026transformersPinnedSource]
-
-The mapping is the public extension story. A new family registers a config and model class, adds family files, writes conversion tests, and exposes a stable `model_type`. A 2022 design note argued for keeping each family readable in one modeling file. Later releases added a modular contributor path: write one modular file, then generate the expanded source the loader imports.[^vonplaten2022transformers][^huggingface2025v5]
+1. `AutoConfig.from_pretrained` reads `config.json` and extracts `model_type`.
+2. A lazy mapping (`CONFIG_MAPPING_NAMES` in `src/transformers/models/auto/auto_mappings.py`, wrapped by `_LazyConfigMapping` in `configuration_auto.py`) resolves `model_type` to a config class, raising `ValueError` for unknown built-in types.
+3. `AutoModelForCausalLM` looks up the task head in `modeling_auto.py` (`MODEL_FOR_CAUSAL_LM_MAPPING_NAMES`), mapping `llama` to `LlamaForCausalLM`.
+4. `from_pretrained` on that concrete class allocates modules and loads the weight shards.
 
 <figure>
   <img src="illustrations/_generated/transformers_auto_pipeline_dark.png" alt="AutoClass architecture resolution pipeline: config.json model_type enters lazy class mapping before tensor weights are loaded. Model type llama resolves to LlamaForCausalLM. Class selection depends on configuration metadata, while tensor shard compatibility is validated during subsequent weight loading." />
-  <figcaption>Follow model_type, not the shards. tiny-decoder's llama key selects LlamaForCausalLM. The same files with model_type gpt2 still resolve to a class, just the wrong family.</figcaption>
+  <figcaption>AutoClass follows model_type before inspecting any tensor shard. Changing tiny-decoder's model_type to gpt2 resolves a valid class, just for the wrong architecture.</figcaption>
 </figure>
 
-This minimal reproduction isolates one decision: config selects a class; weight compatibility comes later. This standard-library lookup mirrors only the mapping, not the complete public loader or its error types. It does not import Transformers.
+Because AutoClass selects a class strictly from metadata, a wrong `model_type` can instantiate a valid class that does not match the shards on disk. Always verify `model_type`, <span data-glossary="tensor-shape">tensor shapes</span>, and reference outputs on a known prompt before serving. Once the right class loads, the next place behavior can silently diverge is tokenization.
+
+<!-- leetllm: edition:reference:start -->
+
+The snippet below isolates that metadata-to-class dispatch step: `model_type` picks the class before any weight tensor is inspected, and an unknown type raises immediately. Notice that changing `model_type` to `gpt2` still returns a valid class name even when the rest of the config came from a Llama checkpoint.
 
 <!-- leetllm: test, output=show, output_title="Selected classes" -->
 ```python title="select_causal_lm.py"
@@ -231,27 +199,13 @@ GPT2LMHeadModel
 ```
 <!-- leetllm: output:end -->
 
-The `gpt2` row is the trap: AutoClass can return a valid class that still isn't the class those shards belong to. Validate `model_type`, <span data-glossary="tensor-shape">tensor shapes</span>, a known input, and a known output before serving. A correct class still needs the text to become the token IDs that class was trained on.
+<!-- leetllm: edition:reference:end -->
 
 ## Tokenizers define more than integer IDs
 
-Tokenization converts text into integer IDs, but generation requires additional tokenization parameters: padding, masks, truncation, special tokens, and formatted conversation prefixes all shape the model input.[^huggingface2026tokenizers]
+Tokenization does far more than split strings into integers. `PreTrainedTokenizerBase` exposes a uniform interface over fast Rust-backed `tokenizers` implementations and family-specific backends, controlling vocabulary merges, special tokens (sequence starts, stops, padding, tool calls, media placeholders), padding side, truncation rules, attention masks, offset mappings, and chat templates.[^huggingface2025v5][^huggingface2026tokenizers] Every one of those knobs changes the tensors entering the model. To see how `apply_chat_template` turns structured role messages into control tokens, build a small local word-level tokenizer with a ChatML-style Jinja template and run Transformers' template renderer directly:
 
-- Vocabulary and merge rules determine which strings map to which IDs.
-- Special tokens mark beginning, end, padding, tool calls, or image placeholders.
-- Padding side affects batched decoder-only generation.
-- Truncation policy decides which context disappears at a limit.
-- Attention masks distinguish real tokens from padding.
-- Offset mappings connect token spans back to source text for extraction tasks.
-- Chat templates turn a list of roles into the exact control-token sequence a checkpoint learned.
-
-`PreTrainedTokenizerBase` defines the standard encoding interface. The v5 migration favors the Rust `tokenizers` backend while retaining alternatives for families that need them. Backend support and legacy class names vary by release; inspect the selected tokenizer rather than assuming every family uses the same implementation.[^huggingface2025v5][^huggingface2026tokenizers]
-
-The model does not know whether a token came from a user prompt or a template. It sees IDs. A chat template is model behavior, not presentation polish.
-
-Compare the rendered string, special-token IDs, and attention mask when two clients produce different answers.
-
-The worked example uses a small ChatML-style template so you can see the control tokens. It is not Llama 3's production template. This local word-level tokenizer has no downloaded files; the rendering and tokenization calls use the real Transformers API. Install `transformers==5.16.1` and `jinja2==3.1.6` for this example. No PyTorch model is needed for tokenization.
+> **Key insight:** The model cannot tell whether a token came from the user prompt or from a chat template. It sees only integer IDs, so a chat template is model behavior rather than UI formatting.
 
 <!-- leetllm: test, deps=transformers==5.16.1,jinja2==3.1.6, output=show, output_title="Rendered prompt" -->
 ```python title="render_chat_template.py"
@@ -300,17 +254,13 @@ What does a revision pin?<|im_end|>
 ```
 <!-- leetllm: output:end -->
 
-When rendering a template to text and tokenizing afterward, use `add_special_tokens=False` if the template already inserted those tokens. Otherwise a second beginning-of-sequence (BOS) or end-of-sequence (EOS) token can alter the prompt. Prefer `apply_chat_template(..., tokenize=True)` when possible.[^huggingface2026chattemplates]
+> **Common mistake:** Rendering a chat template to text and then calling `tokenizer(prompt)` with default settings prepends a second BOS token whenever the template already inserted one. Pass `add_special_tokens=False` on already templated text, or call `apply_chat_template(..., tokenize=True)` in one step.[^huggingface2026chattemplates]
 
-Decoder-only batched generation commonly needs left padding because the decoding loop reads logits at the final input position. An attention mask alone does not move that position.[^huggingface2026generationpadding] Reusing EOS as a pad token can work with an explicit mask, but do not erase genuine EOS training labels by masking every occurrence of that ID.
-
-Suppose the prompts have two and four tokens. Right padding makes the short row `[a, b, PAD, PAD]`; the usual loop reads the last `PAD` position's logits. Left padding gives `[PAD, PAD, a, b]`, so its final position is the real token `b`. The mask keeps padding out of attention, while the padding side decides which position the loop reads. This distinction matters to generation loops that read the final position; training batches can use their chosen padding side when their masks and loss positions account for padding.
+Batched decoder-only generation also depends on padding side. Suppose two prompts have lengths 2 and 4: right padding turns the shorter row into `[a, b, PAD, PAD]`, so a generation loop reading logits at the final column reads from a `PAD` position even when the attention mask hides padding. Left padding produces `[PAD, PAD, a, b]`, placing the real final token `b` at the last column.[^huggingface2026generationpadding] If you reuse EOS as the pad token during training, mask only padding positions in the labels so genuine end-of-sequence targets still contribute to loss.
 
 ## Processors make multimodal inputs explicit
 
-`tiny-decoder` is text-only. The moment the checkpoint incorporates an image or audio tower, a tokenizer alone is insufficient. An image processor resizes and normalizes pixels; an audio feature extractor generates log-mel features. Check the required sample rate explicitly: many extractors expect pre-resampled audio and raise errors on mismatched rates rather than resampling automatically.
-
-A `ProcessorMixin` composes those pieces with a tokenizer and returns a dictionary of named tensors.[^huggingface2026processors]
+`tiny-decoder` is text-only, but checkpoints with vision or audio towers need more than a tokenizer. Image processors resize and normalize pixel tensors, while audio extractors compute log-mel spectrograms from pre-resampled audio. `ProcessorMixin` (`src/transformers/processing_utils.py`) bundles these preprocessors with the tokenizer to emit aligned tensors (`input_ids`, `pixel_values`, `image_sizes`, `input_features`, and placeholder indices) telling the language model where visual or audio <span data-glossary="embedding">embeddings</span> enter the sequence.[^huggingface2026processors][^huggingface2026multimodalchat]
 
 ```mermaid
 flowchart TB
@@ -320,21 +270,12 @@ flowchart TB
     batch --> prefill["prefill\nembeddings"]:::warning
 ```
 
-Inputs extend beyond `input_ids`. They can include `pixel_values`, `image_sizes`, `pixel_attention_mask`, `input_features`, or model-specific placeholder indices.
-
-The language model must know where those features become <span data-glossary="embedding">embeddings</span> and how many positions they occupy. A processor that emits a valid tensor with the wrong normalization or placeholder count can produce confident nonsense.
-
-`src/transformers/processing_utils.py` defines common modality discovery and save/load behavior. Keep processor and model revisions aligned when a checkpoint changes image resolution, audio rate, or special-token layout.[^huggingface2026processors]
-
-A schematic chat-processor call looks like this. It needs an image file, that processor's image dependencies, and a compatible vision-language repository, binding image preprocessing and token insertion into one processor call. Its multimodal chat template coordinates text, image placeholders, and pixel preprocessing; raw prose alone is not a universal image prompt.[^huggingface2026multimodalchat]
+Keep processor and model revisions synchronized, because a change in image resolution, normalization, or placeholder count produces valid shapes that decode into nonsense. A multimodal chat processor handles text templates, placeholder insertion, and pixel preprocessing in one call. If answers diverge after an upgrade, diff processor revisions, rendered templates, normalization, and placeholder indices before inspecting weights:
 
 ```python title="prepare_multimodal_batch.py"
 from transformers import AutoProcessor
 
-processor = AutoProcessor.from_pretrained(
-    "org/vision-language-model",
-    revision="<commit-sha>",
-)
+processor = AutoProcessor.from_pretrained("org/vision-language-model", revision="<commit-sha>")
 messages = [{"role": "user", "content": [
     {"type": "image", "path": "chart.png"},
     {"type": "text", "text": "Describe this chart."},
@@ -345,82 +286,46 @@ inputs = processor.apply_chat_template(
 )
 ```
 
-```checkpoint
-Two clients send the same image and words, but one answer changes after a library upgrade. Which inputs should you diff first?
----
-Diff processor and tokenizer revisions, rendered chat template, image resize and normalization, placeholder positions, tensor dtypes, and attention masks before comparing model logits.
-```
-
 ## `forward` and `generate` are different layers
 
-Before choosing an API, determine whether the application requires a single forward evaluation or an autoregressive decoding loop. Calling a model's `forward` executes one pass through the neural network. For a causal model, it accepts `input_ids`, optional `attention_mask`, `position_ids`, `past_key_values`, and optional `labels`.
+Calling a model directly runs `forward`, executing one pass through the network. For `LlamaForCausalLM`, `forward` takes `input_ids`, optional `attention_mask`, `position_ids`, `past_key_values`, and `labels`, returning a `ModelOutput` (`CausalLMOutputWithPast`) with `[batch, sequence, vocabulary]` <span data-glossary="logits">logits</span>. Read attributes (`outputs.logits`, `outputs.loss`) rather than tuple indices, because `ModelOutput` drops `None` fields and shifts positions whenever optional outputs appear.[^huggingface2026repo] Passing unshifted `labels` triggers internal next-token shifting (logits at $t$ predict label $t+1$) while ignoring `-100` targets, so a PyTorch loop runs `loss = model(**batch).loss; loss.backward()` directly.[^huggingface2026causalloss] Note that `attention_mask` hides tokens from attention, whereas `-100` excludes targets from loss.
 
-With dictionary-style outputs enabled, it returns a `ModelOutput` subclass such as `CausalLMOutputWithPast`. You can use attributes (`outputs.logits`, `outputs.loss`) or indexing over non-`None` fields. Call `to_tuple()` for a tuple; the object is not an ordinary tuple, and integer indices shift when optional fields appear.[^huggingface2026repo]
+`generate` owns the autoregressive decoding loop above `forward`. It merges `generation_config.json` with call-site overrides into a `GenerationConfig`, applies `LogitsProcessorList` and `StoppingCriteriaList`, and updates the KV cache via `GENERATION_MODES_MAPPING` in `src/transformers/generation/utils.py`.[^huggingface2026generation] The model computes logits in `forward`, while `generate` manages cache state and four decoding modes:
 
-For `LlamaForCausalLM`, a full-sequence forward computes <span data-glossary="logits">logits</span> with shape `[batch, sequence, vocabulary]`. Its causal-LM loss pairs position 0's logits with position 1's label, then position 1 with position 2, and so on. Pass unshifted labels; shifting them yourself would shift the target twice. Labels equal to `-100` are excluded from the loss.[^huggingface2026causalloss]
+- **Greedy (`_sample`, `do_sample=False`, `num_beams=1`):** Argmax token at every step.
+- **Sampling (`_sample`, `do_sample=True`, `num_beams=1`):** Temperature, top-k, and top-p sampling.
+- **Beam search (`_beam_search`, `num_beams > 1`, `do_sample=False`):** Fixed-size beam hypotheses with length penalties.
+- **Assisted decoding (`_assisted_decoding`):** Draft-model proposals verified in parallel by the target model.
 
-That lets a PyTorch training loop execute `loss = model(**batch).loss` followed by `loss.backward()`. An attention mask controls attention, not which targets contribute to loss; mask unwanted labels separately. Classification heads and bare base models have different output and loss interfaces. `PreTrainedModel` does not impose causal cross-entropy on all of them.
-
-`generate` owns the autoregressive decoding loop. It consumes a `GenerationConfig` object, loaded from `generation_config.json` or passed as arguments, applies `LogitsProcessorList` transformations, evaluates `StoppingCriteriaList`, and orchestrates KV cache updates across iterative steps.[^huggingface2026generation]
-
-At the pinned revision, `GENERATION_MODES_MAPPING` in `src/transformers/generation/utils.py` routes decoding modes into execution routines. Greedy mode shares `_sample` with sampling, but `do_sample=False` makes its token choice argmax.[^huggingface2026transformersPinnedSource][^huggingface2026generation]
-
-- **Greedy search (`_sample` with sampling disabled):** Selects the argmax token at each step (`do_sample=False`, `num_beams=1`).
-- **Multinomial sampling (`_sample`):** Applies temperature scaling, top-k filtering, and nucleus top-p filtering before sampling from the probability distribution (`do_sample=True`, `num_beams=1`).
-- **Beam search (`_beam_search`):** Keeps a bounded set of hypotheses (`num_beams > 1`, `do_sample=False`). Final ranking includes configured length penalties and constraints; pruning means it does not necessarily find the globally most probable sequence.
-- **Assisted decoding (`_assisted_decoding`):** Employs a smaller draft model or candidate generator for speculative execution, verifying candidate tokens in parallel with the target model.
-
-The neural architecture lives in `forward`; `generate` wraps that pass with state, policy, and stopping decisions.
-
-Once `model` is loaded and `batch` holds tokenizer tensors (`input_ids`, `attention_mask`), an explicit greedy call looks like this:
-
-```python title="make_decoding_policy_explicit.py"
+```python title="explicit_greedy_generate.py"
 outputs = model.generate(
-    **batch,
-    max_new_tokens=96,
-    do_sample=False,
-    num_beams=1,
-    return_dict_in_generate=True,
-    use_cache=True,
+    **batch, max_new_tokens=96, do_sample=False, num_beams=1,
+    return_dict_in_generate=True, use_cache=True,
 )
 new_ids = outputs.sequences[:, batch["input_ids"].shape[1]:]
 text = tokenizer.batch_decode(new_ids, skip_special_tokens=True)
 ```
 
-For a decoder-only model, `outputs.sequences` includes the input prefix. Slice it off when the caller wants only the completion. Explicit `num_beams=1` also matters: `do_sample=False` alone can still select beam search if a saved generation config requests several beams.
-
-`max_new_tokens`, stop tokens, repetition controls, and sampling parameters belong in an explicit generation configuration. A pipeline can supply defaults that hide those choices.
-
-Capture the resolved config when comparing quality or latency across releases.
+> **Common mistake:** Passing `do_sample=False` without `num_beams=1` still runs beam search if `generation_config.json` sets `num_beams > 1`. Slice off `batch["input_ids"].shape[1]` tokens from decoder-only `outputs.sequences` to keep only the completion.
 
 ## KV caches turn repeated prefix work into state
 
-At each autoregressive step, a new token attends to all earlier keys and values. A <span data-glossary="kv-cache">KV cache</span> stores per-layer key and value tensors, so the next forward pass projects only the new token and reads prior state rather than recomputing preceding tokens.[^huggingface2026kvcache]
-
-For one `tiny-decoder` token, a layer stores four key heads and four value heads, each containing 64 bf16 values. That is $2 \times 4 \times 64 \times 2 = 1024$ bytes per layer, or 16,384 bytes across 16 layers. At 512 cached tokens the payload is 8 MiB; at 4096 it is 64 MiB.
-
-A conventional full-attention cache uses tensors shaped like `[batch, kv_heads, sequence, head_dim]`. Grouped-query or <span data-glossary="multi-query-attention">multi-query attention</span> stores fewer key/value heads than query heads. Generalizing the calculation:
+During autoregressive decoding, each new token attends to every previous key and value, so without caching generating token $S$ would re-project all $S-1$ prior tokens on every step. A <span data-glossary="kv-cache">KV cache</span> retains each layer's past key and value tensors so every decode step projects only the single new token.[^huggingface2026kvcache] On `tiny-decoder`, each layer stores $H_{kv} = 4$ key heads and 4 value heads of width $D = 64$ in `bfloat16` (2 bytes), giving $2 \times 4 \times 64 \times 2 = 1{,}024$ bytes per token per layer, or 16 KiB across 16 layers. At 512 tokens that payload is 8 MiB; at 4,096 tokens it reaches 64 MiB. Generalizing to a full-attention cache shaped `[batch, kv_heads, sequence, head_dim]`, grouped-query or <span data-glossary="multi-query-attention">multi-query attention</span> shrinks memory linearly with $H_{kv}$:
 
 $$
 \text{KV bytes} \approx 2 \times L \times B \times S \times H_{kv} \times D \times \text{bytes(dtype)}.
 $$
 
-$L$ is layer count, $B$ is active sequence count, $S$ is cached sequence length, $H_{kv}$ is key/value head count, and $D$ is head dimension. The leading 2 accounts for keys and values. The trailing `bytes(dtype)` is 2 for bfloat16.
-
-This counts K/V tensor payload only, not weights, activations, allocator overhead, or temporary copies. Beam expansion can increase $B$. Sliding-window layers cap their retained length; hybrid models need a per-layer sum rather than one full-context $S$ everywhere.
-
-`src/transformers/cache_utils.py` defines `DynamicCache`, `StaticCache`, `QuantizedCache`, and `EncoderDecoderCache`. Many decoder models use a dynamic cache that grows as tokens arrive. A static cache allocates a maximum sequence length when initialized, often lazily on the first update, so later calls see a stable shape. Unused slots still occupy storage once allocated.
-
-Dynamic and static caches support offloading through their cache options; quantized cache has a different support matrix. Sliding or hybrid layer types, when present in config, shrink the cached length toward a window instead of the full $S$.[^huggingface2026kvcache]
-
-The cache API is an interoperability seam, but it is not a serving engine's paged pool. Transformers' generation loop usually owns one model call and one cache object per batch.
-
-vLLM and SGLang add request scheduling, physical block allocation, prefix sharing, and multi-request batching around model execution.
+Here $L$ is layer count, $B$ is active sequence count (including any beam expansion), $S$ is cached sequence length, $H_{kv}$ is key/value head count, $D$ is head dimension, and the leading 2 accounts for keys and values. In `src/transformers/cache_utils.py`, `DynamicCache` grows step by step, `StaticCache` preallocates a fixed maximum length for stable `torch.compile` shapes (occupying full capacity even when few tokens are live), and `QuantizedCache` compresses stored states.[^huggingface2026kvcache] Sliding-window or hybrid layers cap $S$ on windowed layers, while serving engines like vLLM and SGLang replace per-call cache objects with paged physical block pools shared across concurrent requests.
 
 <figure>
   <img src="illustrations/_generated/transformers_kv_budget_dark.png" alt="Comparative KV cache memory budget: for a 16-layer model with 4 KV heads and head dimension 64 in bfloat16, DynamicCache scales linearly from 8 MiB at 512 tokens to 64 MiB at 4096 tokens. StaticCache preallocates the full 64 MiB buffer upfront at capacity 4096 regardless of live token count." />
-  <figcaption>Dynamic cache for tiny-decoder grows from 8 MiB at S=512 to 64 MiB at S=4096. A StaticCache reserved for 4096 tokens stays at 64 MiB even when only 512 tokens are live.</figcaption>
+  <figcaption>DynamicCache for tiny-decoder grows linearly from 8 MiB at S=512 to 64 MiB at S=4096, whereas StaticCache allocated for 4096 tokens holds 64 MiB upfront even at 512 live tokens.</figcaption>
 </figure>
+
+<!-- leetllm: edition:reference:start -->
+
+This helper verifies the `tiny-decoder` dynamic and static KV-cache MiB figures directly from the formula. Notice how `StaticCache` charges for the full 4,096-token budget immediately while `DynamicCache` grows with live sequence length. Both numbers count only K/V tensor payload before weights, activations, or concurrent batches.
 
 <!-- leetllm: test, output=show, output_title="KV cache MiB" -->
 ```python title="tiny_decoder_kv_bytes.py"
@@ -454,13 +359,11 @@ print(static_max)
 ```
 <!-- leetllm: output:end -->
 
-Those 64 MiB represent a single request's cache footprint without multi-tenant pooling, prefix caching, or block paging.
+<!-- leetllm: edition:reference:end -->
 
 ## Run a real model without a downloaded checkpoint
 
-The analytical example assumes 16 layers. For an executable API check, shrink it to two Llama layers, width 32, four query heads, two KV heads, and a 32-token vocabulary. The architecture is real; the random weights have not learned language. Fixed token IDs keep preprocessing out of this test so a failure points at model behavior rather than a tokenizer.
-
-Save the next two blocks in one script, or run them in order in one notebook. They were checked on CPU with `torch==2.12.0` and `transformers==5.16.1`. The same mechanisms were also rechecked October 10, 2026, with `torch==2.13.0` and `transformers==5.19.0`; the reproducible lab keeps its original pins. Neither run downloads a model. First compare the model's loss with an explicit shifted, masked cross-entropy, run backward, and round-trip the weights through local safetensors.
+To exercise the real Transformers execution path on CPU with zero downloads, shrink the Llama config to 2 layers, `hidden_size=32`, 4 query heads, 2 KV heads, and a 32-token vocabulary, and pass fixed integer IDs directly. Run the next two blocks in sequence. The first checks shifted masked cross-entropy, backpropagation, tied embeddings, and a local safetensors save/reload round trip:
 
 <!-- leetllm: test, id=transformers-cpu, deps=torch==2.12.0,transformers==5.16.1, output=show, output_title="Real model checks" -->
 ```python title="local_model_execution.py"
@@ -512,9 +415,7 @@ shifted masked loss, backward, tied weights, reload: passed
 ```
 <!-- leetllm: output:end -->
 
-The target at input position 3 is ignored, so logits at position 2 do not contribute to loss. That token can still provide attention context for later positions. Also notice that `eval()` did not disable gradients: it controls training-dependent module behavior, while `torch.no_grad()` controls gradient recording.
-
-Now keep the first four tokens in a cache and feed only the fifth. Its logits should agree with the last position of a full five-token forward. In float32, this reduced model stores $2 \times 2 \times 1 \times 5 \times 2 \times 8 \times 4 = 1280$ K/V bytes dynamically. Static capacity 16 needs 4096 bytes after allocation, even though only five positions are live.
+Setting `labels[:, 3] = -100` excludes position 2's prediction from the loss while keeping token 3 visible in attention, and `.eval()` disables training-only modules without disabling autograd (`torch.no_grad()` controls gradient tracking). Next, cache the first four tokens and feed only the fifth so its logits match the full five-token pass. In `float32`, `DynamicCache` stores $2 \times 2 \times 1 \times 5 \times 2 \times 8 \times 4 = 1{,}280$ K/V bytes, while `StaticCache` with capacity 16 reserves $4{,}096$ bytes upfront even with five live tokens:
 
 <!-- leetllm: test, continue=transformers-cpu, output=show, output_title="Cache and decoding checks" -->
 ```python title="cache_and_generate_execution.py"
@@ -574,251 +475,184 @@ causal mask, cache equivalence, stale-prefix rejection, greedy/manual tokens: pa
 ```
 <!-- leetllm: output:end -->
 
-The stale-prefix assertion exposes a different failure: both conversations have five positions, but changing token 1 changes the K/V history needed by token 4. Reusing the old four-token cache computes a plausible next-token vector for the wrong context. The assertion detects the mismatch; application code must reject stale cache state. Cache reuse needs matching prefix IDs, model weights, positional state, and attention semantics. Compare those identities before reuse; rebuild the cache when they change, and copy a valid prefix cache before independent continuations mutate it.[^huggingface2026kvcache]
+Three details stand out. First, changing the final token leaves earlier logits identical because causal attention hides future positions. Second, equal cache length never implies matching prefix history: changing token 1 alters token 4's K/V context, so verify prefix IDs before reusing a cache and copy shared prefix caches before mutating them.[^huggingface2026kvcache] Third, 8 sequence positions leave 7 cached positions because selecting the final token does not forward it until you resume (EOS is `None` here solely to force three steps):[^huggingface2026repo]
 
-The changed final input token leaves earlier logits unchanged because causal attention hides future positions. That checks an architectural rule separately from cache equivalence.
-
-Generation returns eight sequence positions but seven cached positions in this greedy decoding path because selecting a token does not compute that token's keys and values until the subsequent forward pass.[^huggingface2026transformersPinnedSource]
-
-| Forward pass | Tokens processed now | Cached positions afterward | Token selected |
+| Pass | Tokens processed | Cached after | Token selected |
 | --- | --- | --- | --- |
-| Prefill | Five prompt tokens | 5 | First new token (position 5) |
-| Decode 1 | First new token | 6 | Second new token (position 6) |
-| Decode 2 | Second new token | 7 | Third new token (position 7), then stop |
-
-Positions in the last column are zero-based. The final selected token is present in `sequences` but has not been forwarded. If you resume from this cache, supply that token and the correct attention mask and positions rather than skipping it. Assisted decoding and other cache paths can have different bookkeeping, so inspect the path you use.
-
-EOS is disabled only to force exactly three steps in this random-model check. A deployed checkpoint needs its actual stop IDs. Cache internals such as `cache.layers` are version-sensitive; the essential requirement is agreement with the full forward, not that every backend exposes these fields.
-
-These assertions cover loss wiring, gradients, local serialization, causal masking, two cache layouts, and greedy decoding. They do not establish useful language generation, training convergence, GPU performance, multi-device dispatch, or compatibility with a particular Hub checkpoint.
+| Prefill | 5 prompt tokens | 5 | Position 5 |
+| Decode 1 | Position 5 | 6 | Position 6 |
+| Decode 2 | Position 6 | 7 | Position 7 (stop) |
 
 ## Pipelines are high-level entry points, not serving fleets
 
-If the first smoke test passes but concurrent requests collapse, separate pipeline defaults from serving scheduling. `pipeline(task=..., model=...)` is the short path for one task. It selects task-specific preprocessing, loads an appropriate model and tokenizer or processor, batches inputs when possible, calls the model, and postprocesses outputs.
+`pipeline(task=..., model=...)` bundles preprocessing, model loading, local batching, forward execution, and postprocessing into one Python call for smoke tests and offline jobs. Although Transformers includes paged caching, <span data-glossary="continuous-batching">continuous batching</span>, and `transformers serve`, a plain pipeline lacks the request scheduling, fault isolation, autoscaling, and GPU topology controls of dedicated servers like vLLM, SGLang, or <span data-glossary="tensorrt-llm">TensorRT-LLM</span>.[^huggingface2025v5] When a serving engine disagrees with eager Transformers, diff <span data-glossary="tokenization">tokenization</span>, chat template, first-step logits, seed, stop IDs, and cache state before comparing decoded text.
 
-Use pipelines for a first end-to-end check, offline jobs, small evaluation test suites, and demos where transparent defaults are acceptable.
-
-Do not assume the default pipeline path is a production scheduler. Transformers v5 exposes paged caching, continuous batching, and `transformers serve`, but a plain pipeline call does not provide the admission policy, fault isolation, autoscaling, or GPU topology controls of a dedicated serving fleet. For high-concurrency generation, compare the native serving path with vLLM, SGLang, <span data-glossary="tensorrt-llm">TensorRT-LLM</span>, or another runtime, then validate outputs and stopping behavior against the same Transformers model definition.[^huggingface2025v5]
+<!-- leetllm: edition:reference:start -->
 
 | Concern | Transformers pipeline | Production serving engine |
 | --- | --- | --- |
-| Model definition | Broad, model-family aware | Supports a selected compatibility set |
+| Model definition | Broad, model-family aware | Supports a curated compatibility set |
 | Input normalization | Task and modality processors | Often adapter-specific or preprocessed upstream |
-| Batch behavior | Local batching and padding | <span data-glossary="continuous-batching">Continuous batching</span> and admission policy |
-| KV memory | Model cache object | Paged or shared physical allocation |
+| Batch behavior | Local batching and padding | Continuous batching and request scheduling |
+| KV memory | Per-call cache object | Paged or shared physical block pool |
 | API | Python call | Long-lived HTTP or RPC service |
 | Scale | One process or user-managed workers | Parallel replicas, ranks, routing, health checks |
 
-When an optimized server disagrees with an eager Transformers run, compare <span data-glossary="tokenization">tokenization</span>, prompt template, logits at the first generated position, sampling seed, stop conditions, and cache implementation before comparing full text. Those intermediate artifacts tell you whether the drift starts before or after model execution.
-
 ## Training, serving, and the drift they introduce
 
-Once the model definition loads, surrounding systems can specialize without owning every family:
-
-- PyTorch supplies tensor, autograd, compiler, and distributed execution.
-- <span data-glossary="fsdp">FSDP</span> and <span data-glossary="deepspeed">DeepSpeed</span> wrap parameters, gradients, and optimizer state for training.
-- <span data-glossary="parameter-efficient-fine-tuning">Parameter-efficient fine-tuning (PEFT)</span> injects adapters while the base model remains mostly frozen.
-- Quantizers replace or transform weight loading paths.
-- vLLM and SGLang map supported definitions into high-throughput runtimes.
-- Exporters target ONNX, <span data-glossary="tensorrt">TensorRT</span>, TFLite, or other formats where supported.
-
-For training, `Trainer` or a custom PyTorch loop owns batching, optimization, evaluation, and checkpoint cadence. It still hands tokenizer-produced fields to the selected model class; it cannot repair a mismatched config or chat template.
-
-The catalog provides task-specific interfaces rather than a single monolithic design. The same loading ideas cover text, vision, audio, video, and multimodal systems. Hub availability does not mean every backend supports every task.[^huggingface2025v5]
+Once a model family conforms to Transformers' interfaces, surrounding tools can specialize around it without reimplementing every architecture: PyTorch handles autograd and `torch.compile`, <span data-glossary="fsdp">FSDP</span> and <span data-glossary="deepspeed">DeepSpeed</span> shard training state, <span data-glossary="parameter-efficient-fine-tuning">Parameter-efficient fine-tuning (PEFT)</span> attaches adapters, quantizers and ONNX/<span data-glossary="tensorrt">TensorRT</span> transform weights, and vLLM/SGLang map supported families onto high-throughput runtimes. For training, `Trainer` or a custom PyTorch loop orchestrates batching and optimization while still relying on the tokenizer and config to supply valid tensors. Because fused kernels, quantizers, and serving runtimes can interpret masks or <span data-glossary="rope">RoPE</span> scaling slightly differently, keep a small eager reference test on fixed token IDs and check logit agreement after every upgrade; note also that Transformers' Apache-2.0 license covers only library code, while Hub weights, datasets, and remote code keep their own licenses.[^huggingface2026transformerslicense][^huggingface2026hublicenses]
 
 | Application | Typical entry point | What to validate | Common production tradeoff |
 | --- | --- | --- | --- |
-| Text generation | `AutoModelForCausalLM` + tokenizer | Chat template, stop IDs, KV cache, decoding policy | vLLM or SGLang scheduler |
+| Text generation | `AutoModelForCausalLM` + tokenizer | Chat template, stop IDs, KV cache, decoding settings | vLLM or SGLang scheduler |
 | Classification | `AutoModelForSequenceClassification` | Label map, pooling, threshold <span data-glossary="calibration">calibration</span> | Batch service or feature pipeline |
 | Retrieval embeddings | encoder model + pooling | Normalization, truncation, dimension | <span data-glossary="vector">Vector</span> index and embedding version |
 | Vision-language chat | `AutoProcessor` + supported multimodal model class | Image tokens, template, pixel budget | Multimodal serving adapter |
 
-A fused kernel may implement slightly different masking. A quantizer may require a calibration artifact. A serving backend may interpret a cache or <span data-glossary="rope">RoPE</span> scaling option differently.
-
-Keep a small eager reference test with fixed tokens and compare logits within an agreed tolerance after every backend or library change.
-
-Transformers' Apache-2.0 library license does not grant rights to Hub model weights, datasets, or remote-code modules. Inspect each repository card and license before commercial use.[^huggingface2026transformerslicense][^huggingface2026hublicenses]
-
 ## Strengths and limits
+
+Supporting hundreds of model families requires keeping historical checkpoints loadable while adding new modalities and kernels. That breadth makes Transformers the standard reference implementation across the ecosystem, while also meaning no single assumption fits every family. Read the concrete model and processor source files for your checkpoint instead of assuming every architecture behaves like a standard decoder.
 
 | Strength | Why it matters | Cost or limit |
 | --- | --- | --- |
-| Wide model coverage | One API spans text, vision, audio, video, and multimodal families | Coverage can lag a newly released architecture |
-| Shared definition | Training and serving systems can target common classes | Backend support still needs per-model work |
-| Reproducible Hub loading | Revision and snapshot concepts make artifacts inspectable | Loading `main` or unreviewed code defeats that benefit |
-| Typed preprocessing | Tokenizers and processors expose named inputs and masks | Small preprocessing changes can alter model behavior |
-| Rich generation policy | Sampling, beams, assisted decoding, and cache modes are available | Defaults can hide policy and use more memory than a tuned server |
-| Python-first ergonomics | A researcher can inspect and modify a model quickly | Python orchestration alone isn't a high-throughput serving design |
-
-Supporting many families means preserving old checkpoints while adding new shapes, modalities, kernels, and dispatch rules. Read the exact model and processor code for a checkpoint rather than assuming every model follows a decoder-only template.
-
-A report that the model changed is too coarse. Which layer changed?
+| Wide model coverage | One API spans text, vision, audio, video, and multimodal families | Support can lag a brand-new architecture |
+| Shared definition | Training and serving systems target common classes | Backends still require per-model integration |
+| Reproducible Hub loading | Commit revisions and content-addressed snapshots make artifacts inspectable | Loading `main` or unreviewed remote code defeats reproducibility |
+| Typed preprocessing | Tokenizers and processors expose named inputs and masks | Small preprocessing changes can shift model behavior |
+| Rich generation options | Sampling, beams, assisted decoding, and cache modes work out of the box | Saved defaults can hide active settings and inflate memory |
+| Python-first ergonomics | Fast inspection and experimentation in ordinary Python | Single-process Python is not a high-concurrency serving stack |
 
 ## Failure modes worth designing for
 
 ### Revision drift
 
-An application loads a moving branch, while its evaluation artifact records only a model name. A later run changes tokenizer or config without changing application code. Fix it with commit revisions, model cards that name revisions, and a release specification containing model, processor, and code identities.
+Loading a moving branch (`main`) lets tokenizer or config edits silently change behavior between runs. Lock immutable commit hashes for model, tokenizer, processor, and code revisions in every deployment spec. Advance explicitly to a new commit on upgrade, and revert by switching back to the prior hash.
 
 ### Silent template mismatch
 
-Two clients use the same weights but format roles differently. The model sees different control tokens and may answer with an empty turn or tool-call text. Store the rendered template and special-token IDs in a test suite, then compare first-step logits.
+Two clients load identical weights but render roles differently, feeding unexpected control tokens that produce empty turns or malformed tool calls. Snapshot the rendered template, special-token IDs, and first-step logits in regression tests. That makes formatting drift fail fast before traffic sees broken turns.
 
 ### Shape-compatible wrong class
 
-A custom config can select a class that accepts tensors but applies the wrong positional or attention rule. Compare known outputs, inspect `model_type`, and test architecture-specific invariants such as causal masking or image-token count.
+A misconfigured `model_type` can instantiate a class whose tensor shapes happen to align while applying the wrong positional encoding or attention mask. Verify `model_type`, reference logits, and architectural properties such as causal masking or image-token count. Never trust a clean load alone as proof of family match.
 
 ### Weight conversion gaps
 
-Converted checkpoints can contain renamed, tied, sharded, or transposed tensors. A loader can report missing keys that look harmless while a task head stays randomly initialized. Treat nonzero missing or unexpected keys as a review event unless the model card explains them.
+Converted checkpoints can contain renamed, tied, sharded, or transposed tensors, allowing a task head to stay randomly initialized behind a seemingly clean load. Inspect every unexpected missing or extra key in the loader report. Accept non-empty key mismatches only when the model card explicitly accounts for them.
 
 ### Dtype auto-load
 
-Omitting `dtype` follows the checkpoint's saved floating precision. Quality, memory, and kernel choice can move after an upgrade even when the revision didn't. Pin `dtype` in the load call and record it in the deployment manifest.
+Omitting `dtype` inherits the checkpoint's stored floating precision, which can shift numerics, VRAM usage, and kernel selection after an upgrade. Pass `dtype` explicitly in every load call rather than relying on library defaults. Log the loaded parameter dtype during startup checks so silent precision shifts cannot slip through.
 
 ### Cache pressure
 
-Long prompts, large batches, and many generated tokens grow KV memory. Dynamic caches can exhaust a process before compute saturates. Static caches can reserve a large max length for a short request. Track cache bytes and sequence lengths, cap admission, and use a runtime with an allocation policy when traffic is concurrent.
+Long prompts, wide batches, and long generations expand KV memory rapidly. `DynamicCache` can OOM before compute saturates, while `StaticCache` reserves full max-length capacity even for short prompts. Track cache bytes and sequence lengths, cap concurrency, and use a paged allocator under multi-request traffic.
 
 ### Unsafe custom code
 
-Enabling remote code can execute repository Python during import or loading. Pin and audit code, isolate permissions, and prefer an upstream-supported model class. A successful load is not a security review.
+Enabling `trust_remote_code=True` executes repository Python on import or load. Lock the code commit, review the source files, and isolate execution permissions before turning it on. Prefer upstream-supported model classes whenever they exist.
 
 ### Processor drift
 
-An image resize or audio sampling default changes after an upgrade. Output quality falls while text test cases still pass. Keep representative raw inputs, processor configs, and intermediate tensor checks in multimodal evaluation.
+Changes to image resizing, normalization, or audio sampling defaults can degrade multimodal accuracy while text tests keep passing. Include raw media samples, processor configs, and intermediate tensor checks in multimodal test suites. Comparing pixel or spectrogram tensors before forward catches preprocessing drift immediately.
 
 ### Offload latency thrashing
 
-Offloaded layers may need weight transfers at each decoding step. Disk reads and host-to-device transfers can then dominate token latency. Measure the actual device map, interconnect, and workload; fully resident weights avoid those transfers, while runtime and workload still determine latency.
+With CPU or disk offload, decoding steps can stall on host-to-device weight transfers on every token. Inspect `model.hf_device_map` and measure actual token latency on your workload. Keeping active weights resident on GPU avoids per-step transfer overhead altogether.
 
 ## Project identity
 
-Hugging Face is the company behind Transformers. Its official history says it open-sourced a PyTorch implementation of BERT in 2018, before the library expanded across model families and modalities.[^huggingface2022seriesc] Hugging Face engineers maintain the project with a large contributor community, while model authors and infrastructure teams contribute architecture support, conversion code, tests, and documentation.[^huggingface2026repo]
+Hugging Face open-sourced a PyTorch implementation of BERT in 2018 before expanding Transformers into a multi-family, multimodal library maintained by Hugging Face engineers alongside model authors, infrastructure teams, and community contributors.[^huggingface2022seriesc][^huggingface2026repo] Modern releases focus on PyTorch as the primary backend and add structured cache classes, compiler-friendly execution, quantization integrations, paged caching, continuous batching, `transformers serve`, and modular model authoring.[^huggingface2025v5] Library code is Apache-2.0, while hosted Hub services, weights, datasets, and remote code keep their own licenses and terms.[^huggingface2026transformerslicense][^huggingface2026hublicenses]
 
 | Field | Current project fact |
 | --- | --- |
-| Origin | Hugging Face released a PyTorch BERT implementation in 2018. Thomas Wolf, Lysandre Debut, Victor Sanh, and collaborators documented the expanding library in its 2020 EMNLP demonstration paper.[^huggingface2022seriesc][^wolf2020transformers] |
-| Stewardship | Hugging Face engineers maintain the repository with model authors, infrastructure teams, and community contributors.[^huggingface2026repo] |
-| Contributor path | Public model-integration guides, issues, pull requests, tests, and maintainer review define the contribution workflow.[^huggingface2026contributing] |
-| Source license | Transformers library code is Apache-2.0.[^huggingface2026transformerslicense] |
-| Commercial scope | Hugging Face's hosted Hub and enterprise products are company services. They're distinct from the open-source library. |
-| Asset scope | Hub model weights, datasets, spaces, and remote code keep their own licenses and usage conditions.[^huggingface2026hublicenses] |
-
-The 2020 paper describes a common interface for inference and training across many NLP models.[^wolf2020transformers] Transformers implements ideas from model families with their own research histories, including the original Transformer, BERT, GPT-style decoders, encoder-decoder systems, vision transformers, speech encoders, and later multimodal models. The library turns those papers into maintained configuration, model, tokenizer, processor, conversion, and test code.
-
-Current releases add cache classes, compiler-friendly paths, quantization integrations, paged caching, continuous batching, `transformers serve`, and modular contributor workflows. They also dropped TensorFlow and Flax as supported backends in favor of PyTorch. Check the release notes at the revision you deploy; API names and defaults move.[^huggingface2025v5]
+| Origin | Started as a PyTorch BERT release in 2018 and formalized in the 2020 EMNLP demonstration paper by Thomas Wolf, Lysandre Debut, Victor Sanh, and collaborators.[^huggingface2022seriesc][^wolf2020transformers] |
+| Stewardship | Maintained by Hugging Face engineers with model authors, infrastructure teams, and community contributors.[^huggingface2026repo] |
+| Contributor path | Public model-integration guides, issues, pull requests, tests, and maintainer review.[^huggingface2026contributing] |
+| License scope | Library code is Apache-2.0; Hub weights, datasets, and remote code carry separate licenses.[^huggingface2026transformerslicense][^huggingface2026hublicenses] |
 
 ## Follow a request through the source
 
-The source-reading path uses official commit `b3a36037d3feb22e3f0174b3dd4248fcc0f0f722` (August 1, 2026), independently of the CPU lab's installed 5.16.1 release.[^huggingface2026transformersPinnedSource] Open that revision on GitHub or in a local checkout. Follow the same request from config to generated token:
+Open the Transformers repository and trace a causal-LM request from config to generated token. Keep a tiny runnable reference script beside the code (locked revision, saved tokenizer output, first-position logits, and one greedy sequence) so any future change points straight to the layer that moved. Walk these files in order:[^huggingface2026repo]
 
-1. Start with `src/transformers/models/auto/auto_mappings.py` and find `CONFIG_MAPPING_NAMES`.
-2. Open `src/transformers/models/auto/configuration_auto.py` for `_LazyConfigMapping`, `model_type_to_module_name`, and `AutoConfig.from_pretrained`.
-3. Open `src/transformers/models/auto/modeling_auto.py` and find `MODEL_FOR_CAUSAL_LM_MAPPING_NAMES` (`llama` → `LlamaForCausalLM`).
-4. Follow `src/transformers/models/llama/` for `configuration_llama.py` and `modeling_llama.py`.
-5. Read `src/transformers/modeling_utils.py` around `PreTrainedModel` lifecycle (`_init_weights`, `post_init`, `tie_weights`), shard indexes, safetensors, and device or quantizer hooks.
-6. Trace revision and file resolution in `src/transformers/utils/hub.py`.
-7. Read `src/transformers/tokenization_utils_base.py` for padding, truncation, special tokens, and batch encodings.
-8. Read `src/transformers/processing_utils.py` for multimodal processor composition.
-9. Follow `src/transformers/generation/utils.py` and `src/transformers/generation/configuration_utils.py` for `GenerationConfig`, `GENERATION_MODES_MAPPING`, logits processors, stopping criteria, and cache updates.
-10. Inspect `src/transformers/cache_utils.py` for `DynamicCache`, `StaticCache`, `QuantizedCache`, and the `offloading` flag.
-11. Finish at `src/transformers/pipelines/base.py` to see where preprocessing, batching, model invocation, and postprocessing meet.
-
-Maintain a minimal runnable reproduction while reading. Pin one checkpoint revision, record tokenizer output, run one forward pass, save first-position logits, and test one generated sequence. That reference test verifies whether a subsequent change occurred at the identity, input, model, cache, or decoding stage.
+1. `src/transformers/models/auto/auto_mappings.py` (`CONFIG_MAPPING_NAMES`)
+2. `src/transformers/models/auto/configuration_auto.py` (`_LazyConfigMapping`, `model_type_to_module_name`, `AutoConfig.from_pretrained`)
+3. `src/transformers/models/auto/modeling_auto.py` (`MODEL_FOR_CAUSAL_LM_MAPPING_NAMES`, mapping `llama` to `LlamaForCausalLM`)
+4. `src/transformers/models/llama/` (`configuration_llama.py`, `modeling_llama.py`)
+5. `src/transformers/modeling_utils.py` (`PreTrainedModel` lifecycle: `_init_weights`, `post_init`, `tie_weights`, shard loading, and device/quantizer hooks)
+6. `src/transformers/utils/hub.py` (revision and snapshot file resolution)
+7. `src/transformers/tokenization_utils_base.py` (padding, truncation, special tokens, batch encodings)
+8. `src/transformers/processing_utils.py` (multimodal processor composition)
+9. `src/transformers/generation/utils.py` and `src/transformers/generation/configuration_utils.py` (`GenerationConfig`, `GENERATION_MODES_MAPPING`, logits processors, stopping criteria, cache updates)
+10. `src/transformers/cache_utils.py` (`DynamicCache`, `StaticCache`, `QuantizedCache`, offloading)
+11. `src/transformers/pipelines/base.py` (preprocessing, batching, model call, and postprocessing)
 
 ## A release manifest for a Transformers application
 
-Before promoting a model, record reproducible runtime specifications: identity, inputs, model class, runtime, policy, and validation evidence:
+A faster runtime that silently alters the chat template is not an equivalent deployment, and a clean output from a moving branch is not reproducible. Capture the exact runtime specification before promoting a model change so every layer can be diffed independently. Record these items for each release:
 
-- Hub repository and immutable revision for model, tokenizer, and processor.
-- Transformers, PyTorch, tokenizer backend, and CUDA or accelerator versions.
-- Config hash and model class selected by AutoClass.
-- Safetensors shard index and expected parameter count.
-- Prompt or chat-template rendering and special-token IDs.
-- Processor settings, raw input sample, and intermediate tensor shapes for non-text modalities.
-- Dtype, quantization mode, device map, parallelism, and cache implementation.
-- Generation configuration, random seed, stop IDs, and maximum token policy.
-- Reference logits or outputs and tolerance for optimized backends.
-- License, model-card restrictions, and custom-code review decision.
-
-This release manifest separates reproducibility from performance. A faster server that changes the prompt template isn't an equivalent deployment. A correct output from an unpinned revision isn't a reproducible release. Use the release manifest to separate a weight change from a template change, a cache-length mismatch, and a device-map stall.
+- Hub repository and immutable commit hash for model, tokenizer, and processor.
+- Transformers, PyTorch, tokenizer backend, and accelerator runtime versions.
+- `config.json` hash, resolved AutoClass, safetensors shard index, and parameter count.
+- Rendered chat template, special-token IDs, and multimodal processor settings/shapes.
+- Explicit `dtype`, quantization mode, device map, cache class, and `GenerationConfig` (seed, stop IDs, `max_new_tokens`).
+- Reference logits with tolerance for optimized backends, plus model-card license terms and remote-code review status.
 
 ## Test a change before trusting it
 
 ### Follow-up questions
 
-- Double the CPU lab's KV-head count from two to four while keeping query heads fixed. Calculate both cache sizes, then rerun. The payload should double from 1280 to 2560 bytes dynamically and from 4096 to 8192 bytes statically.
-- Change one training label to `-100`. Which logits lose a target, and can that input token still affect later predictions? Check the previous position's loss term; label masking doesn't remove the token from attention.
-- A new backend matches full-forward logits but diverges after the second generated token. What would you compare next? Start with the first divergent token, cache positions and masks, decoding transforms, and stopping rules rather than replacing the weights.
+- Double the CPU lab's KV-head count from 2 to 4 while keeping query heads fixed, compute both cache sizes by hand, and rerun. The payload doubles from 1,280 to 2,560 bytes dynamically and from 4,096 to 8,192 bytes statically.
+- Mask one training label to `-100`. Which logits lose a target, and can that input token still influence later predictions? Check the preceding position's loss term: label masking never removes a token from attention.
+- A new serving backend matches full-forward logits yet diverges after the second generated token. Inspect the first divergent token, cache positions and attention masks, logits processors, and stop IDs rather than blaming the weights.
 
 ### Evaluation rubric
 
-- Traces a pinned checkpoint through configuration, concrete model class, tensor loading, and preprocessing.
-- Distinguishes causal-LM loss shifting, attention masks, label masks, and optional output fields.
-- Reproduces cached/full-logit and manual/greedy agreement with an explicit tolerance and version.
-- Calculates K/V payload using stored KV heads, dtype bytes, live length, and allocated capacity.
-- Separates local CPU evidence from language quality, accelerator performance, and serving compatibility.
+- Traces a specific checkpoint revision through config resolution, concrete model class, safetensors loading, and preprocessing.
+- Distinguishes causal-LM loss shifting, attention masks, `-100` label masks, and `ModelOutput` tuple behavior.
+- Verifies cached vs full-forward logit agreement and greedy vs manual decoding equivalence.
+- Computes KV-cache bytes accurately from stored KV heads, dtype width, live sequence length, and static capacity.
+- Separates single-process API checks from production serving throughput, multi-GPU topology, and task-quality evaluation.
+
+<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [
   {
-    "question": "Two execution logs compare baseline and candidate configurations. In chain A, config, class, weights and dtype agree, but rendered input IDs already differ. In chain B, IDs and full-forward logits agree, but the candidate selects among three beams while the approved run uses one-beam argmax. Which paired first repair isolates the observed change in each chain?",
+    "question": "A GPU-backed device map offloads one layer to CPU RAM. When that layer runs, GPU memory holds 0.8 GiB resident weights, 1.0 GiB fetched layer, 0.6 GiB live KV cache, and 0.2 GiB workspace on a 2.5 GiB GPU. Where does it run and does it fit?",
     "options": [
-      "A: restore weight bytes; B: restore tokenizer vocabulary before comparing selection.",
-      "A: increase cache capacity; B: increase maximum output length before comparing selection.",
-      "A: restore approved input rendering and IDs; B: restore the approved selection configuration.",
-      "A: restore approved selection configuration; B: restore approved input rendering and IDs."
+      "Main GPU; overflows at 2.6 GiB simultaneous live memory.",
+      "CPU; fits because GPU memory holds only 1.6 GiB.",
+      "Main GPU; fits because weights plus KV cache total 2.4 GiB.",
+      "CPU; overflows at 2.6 GiB CPU-only memory."
     ],
-    "answer": "A: restore approved input rendering and IDs; B: restore the approved selection configuration.",
-    "explanation": "Chain A first diverges before forward, so replay the approved preprocessing. Chain B has already matched those boundaries and logits; the changed beam configuration alters selection. Replacing matching weights, changing cache limits or swapping the two repairs does not isolate each observed first change."
+    "answer": "Main GPU; overflows at 2.6 GiB simultaneous live memory.",
+    "explanation": "AlignDevicesHook fetches CPU-offloaded layers onto the main GPU to execute them. Summing resident weights (0.8), fetched layer (1.0), KV cache (0.6), and workspace (0.2) gives 2.6 GiB, exceeding 2.5 GiB."
   },
   {
-    "question": "A GPU-backed inference map stores one layer on CPU. At that layer’s call, separate allocations are 0.8 GiB resident weights, 1.0 GiB fetched layer, 0.6 GiB live KV and 0.2 GiB workspace. The GPU limit is 2.5 GiB. Under the taught offload hooks, which execution/admission pair follows?",
-    "options": [
-      "Main-GPU layer execution; reject the 2.6 GiB simultaneous live set.",
-      "CPU layer execution; accept the 1.6 GiB GPU live set.",
-      "Main-GPU layer execution; accommodate the 2.4 GiB weights-and-KV subtotal.",
-      "CPU layer execution; reject the 2.6 GiB CPU-only subtotal."
-    ],
-    "answer": "Main-GPU layer execution; reject the 2.6 GiB simultaneous live set.",
-    "explanation": "0.8+1.0+0.6+0.2=2.6 GiB. In the stated GPU-backed offload path, the CPU-stored layer is fetched to the main execution device. Omitting workspace or treating storage as CPU execution misstates the actual live GPU requirement."
-  },
-  {
-    "question": "A chat template definition tokenizes as [B,user,Q,E,B,assistant]. A client renders that exact template to text, then a subsequent tokenization step prepends another B at the front. What sequence and repair restore the intended tokenization?",
+    "question": "A chat template tokenizes as [B,user,Q,E,B,assistant]. A client renders it to text and calls the tokenizer with default special-token insertion, prepending another B. What sequence results and how do you fix it?",
     "options": [
       "[B,user,Q,E,B,assistant]; remove the final assistant marker.",
-      "[B,user,Q,E,assistant]; register B as an ordinary vocabulary piece.",
-      "[B,B,user,Q,E,assistant]; add an additional E after Q.",
-      "[B,B,user,Q,E,B,assistant]; disable the second special-token insertion."
+      "[B,user,Q,E,assistant]; register B as a normal token.",
+      "[B,B,user,Q,E,assistant]; add another E after Q.",
+      "[B,B,user,Q,E,B,assistant]; pass add_special_tokens=False or use apply_chat_template(..., tokenize=True)."
     ],
-    "answer": "[B,B,user,Q,E,B,assistant]; disable the second special-token insertion.",
-    "explanation": "The extra tokenizer insertion prefixes one B without deleting the template’s own markers, so the sequence has seven positions. Disable that second insertion or use combined chat-template tokenization. Removing the assistant marker or changing vocabulary registration changes a different interface."
+    "answer": "[B,B,user,Q,E,B,assistant]; pass add_special_tokens=False or use apply_chat_template(..., tokenize=True).",
+    "explanation": "The extra tokenization step prepends a duplicate B without removing template markers, creating seven tokens. Pass add_special_tokens=False or tokenize inside apply_chat_template."
   },
   {
-    "question": "A declared ModelOutput field order is loss, logits, hidden_states, attentions. Record A has values None, L, H, None. Record B has values S, L, None, A. Derive their non-None tuples and choose the access that returns L for both records.",
+    "question": "A causal LM gets six tokens (positions 0 to 5) with unshifted labels and masks labels 2 and 4 to -100. Next-token target probabilities from logits 0 to 4 are [0.8, 0.4, 0.2, 0.9, 0.5]. What is the mean NLL, and are tokens 2 and 4 visible in attention?",
     "options": [
-      "A: (None,L,H,None); B: (S,L,None,A); read output.logits.",
-      "A: (L,H); B: (S,L,A); read output.logits.",
-      "A: (H,L); B: (A,L,S); read output[1].",
-      "A: (L,H); B: (S,L,A); read output[0]."
+      "About 0.5108 from 0.4 and 0.9; both tokens remain visible.",
+      "About 0.8419 from 0.8, 0.2, and 0.5; both tokens are hidden from attention.",
+      "About 0.8419 from 0.8, 0.2, and 0.5; both tokens remain visible.",
+      "About 0.7095 from all five probabilities; both tokens are hidden from attention."
     ],
-    "answer": "A: (L,H); B: (S,L,A); read output.logits.",
-    "explanation": "Omitting None while preserving declared order gives (L,H) and (S,L,A). Named logits access returns L in both. Preserving None contradicts ModelOutput tuple behavior, reversing order is incorrect, and index zero refers to S in the second tuple."
+    "answer": "About 0.8419 from 0.8, 0.2, and 0.5; both tokens remain visible.",
+    "explanation": "Logits at t predict label t+1, so masking labels 2 and 4 drops logits 1 (0.4) and 3 (0.9). The remaining mean NLL is -ln(0.8 * 0.2 * 0.5) / 3 = 0.8419, and label masking never alters attention visibility."
   },
   {
-    "question": "For six input positions 0–5, a causal head receives unshifted labels and ignores labels at positions 2 and 4. The five next-token target probabilities from logits 0–4 are [0.8,0.4,0.2,0.9,0.5]. What active-term mean negative log likelihood follows, and do input tokens 2 and 4 remain context under an unchanged attention mask?",
-    "options": [
-      "About 0.5108 from 0.4 and 0.9; both input tokens remain context.",
-      "About 0.8419 from 0.8,0.2,0.5; both input tokens are removed from context.",
-      "About 0.8419 from 0.8,0.2,0.5; both input tokens remain context.",
-      "About 0.7095 from all five probabilities; both input tokens are removed from context."
-    ],
-    "answer": "About 0.8419 from 0.8,0.2,0.5; both input tokens remain context.",
-    "explanation": "Logit t predicts label t+1, so ignored labels 2 and 4 remove logits 1 and 3. The surviving mean is −ln(0.8×0.2×0.5)/3≈0.8419. Label masking does not alter input IDs or attention visibility. The other values use the removed or all terms, or incorrectly delete context."
-  },
-  {
-    "question": "A full-attention decoder has 8 layers, active batch 2, 3 stored KV heads, head width 32 and two-byte values. Its dynamic live length is 96; its allocated static maximum is 512. Counting K/V tensor payload only, which dynamic/static pair is correct?",
+    "question": "A full-attention decoder has 8 layers, batch 2, 3 KV heads, head dim 32, and 2-byte values, with live length 96 and static capacity 512. Counting K/V payload only, what are the dynamic and static footprints?",
     "options": [
       "0.28125 MiB / 1.5 MiB.",
       "2.25 MiB / 12 MiB.",
@@ -826,51 +660,18 @@ This release manifest separates reproducibility from performance. A faster serve
       "0.5625 MiB / 3 MiB."
     ],
     "answer": "0.5625 MiB / 3 MiB.",
-    "explanation": "2×8×2×96×3×32×2=589824 bytes=0.5625 MiB. Replacing live length 96 with allocated capacity 512 gives 3145728 bytes=3 MiB. The distractors omit V, substitute a four-times larger head count, or charge only live static slots."
+    "explanation": "Dynamic payload is 2 * 8 * 2 * 96 * 3 * 32 * 2 = 589,824 bytes = 0.5625 MiB. StaticCache reserves all 512 slots upfront: 2 * 8 * 2 * 512 * 3 * 32 * 2 = 3,145,728 bytes = 3 MiB."
   },
   {
-    "question": "A saved GenerationConfig has num_beams=3 and do_sample=True. A caller overrides only do_sample=False and asks for five new tokens from a four-token decoder-only prompt. Assuming no earlier stop, which selection mode and returned sequence width follow?",
+    "question": "A greedy run starts with 6 prompt tokens and selects 4 new tokens, returning 10 sequence positions and 9 cached KV positions. Forwarding only that pending 10th token (without selecting another token) yields which sequence/cache lengths?",
     "options": [
-      "Beam search; nine returned positions including the four-token prefix.",
-      "Greedy argmax; five returned positions excluding the prompt.",
-      "Multinomial sampling; nine returned positions including the prefix.",
-      "Beam search; five returned positions excluding the prompt."
+      "11 / 10, because forwarding appends a new token.",
+      "10 / 9, because only newly selected tokens enter the cache.",
+      "10 / 10, because forwarding caches the pending token without selecting a new one.",
+      "11 / 11, because one forward fills the next unselected position."
     ],
-    "answer": "Beam search; nine returned positions including the four-token prefix.",
-    "explanation": "The override disables sampling but leaves three beams, so it requests beam search. Decoder-only sequences include the four prompt positions plus five selections, giving nine. Explicit num_beams=1 is also required to choose the ordinary greedy path."
-  },
-  {
-    "question": "An ordinary greedy request has six prompt tokens and stops after four selections. Its sequence has ten positions and cache has nine. The caller then forwards only the pending final token with compatible masks and positions, and performs no new selection. Which new sequence/cache pair follows?",
-    "options": [
-      "Eleven / ten, because forwarding appends a returned token.",
-      "Ten / nine, because only selected tokens can acquire KV state.",
-      "Ten / ten, because the pending token acquires KV without another selection.",
-      "Eleven / eleven, because one forward also fills the next unselected position."
-    ],
-    "answer": "Ten / ten, because the pending token acquires KV without another selection.",
-    "explanation": "The one pending token is already in the sequence. Its forward adds its own K/V state and returns logits; the caller explicitly does not select another token. Sequence stays 10 and cache reaches 10. Forwarding and token selection are separate operations."
-  },
-  {
-    "question": "Two requests share one mutable cache for prefix [A,B,C]. Request 1 appends X in place, leaving stored IDs [A,B,C,X]. Request 2 should continue the original prefix with Y, whose full-forward reference is [A,B,C,Y]. A separate cache copied before the append still stores [A,B,C]. Which handoff is compatible with request 2, and why?",
-    "options": [
-      "Use the four-position shared cache and forward Y; equal token counts establish prefix identity.",
-      "Use the three-position copy and forward Y; the mutated shared cache would retain an unwanted X in the prefix.",
-      "Use the three-position copy and forward X; copying requires both requests to share the same continuation.",
-      "Use the four-position shared cache and forward Y; the last stored X is overwritten by the next append."
-    ],
-    "answer": "Use the three-position copy and forward Y; the mutated shared cache would retain an unwanted X in the prefix.",
-    "explanation": "The copied cache still represents exactly A,B,C, so forwarding Y matches the required reference. Appending Y to the shared cache produces A,B,C,X,Y rather than replacing X. Equal sequence lengths do not establish identical token histories, and forwarding X corrupts the prompt context for request 2."
-  },
-  {
-    "question": "A candidate passes its declared fixed-input numerical tolerance. Its separate application-quality release floor is 80%, and its held-out result is 78%. No target-workload latency run exists. Under the taught separate release gates, which numerical/quality/performance status tuple follows?",
-    "options": [
-      "Pass / pass / pending.",
-      "Pass / fail / pass.",
-      "Fail / fail / pending.",
-      "Pass / fail / pending."
-    ],
-    "answer": "Pass / fail / pending.",
-    "explanation": "The numerical comparison passed. The independent quality result 78% is below its stipulated 80% floor, so that gate fails. Without a workload timing result, performance remains pending. A numerical pass cannot substitute for either a failed quality gate or an unrun latency test."
+    "answer": "10 / 10, because forwarding caches the pending token without selecting a new one.",
+    "explanation": "The pending 10th token is already in the sequence. Forwarding it adds its K/V state (bringing cache length to 10) while returning logits; without another selection, the sequence stays at 10."
   }
 ]
 ```
