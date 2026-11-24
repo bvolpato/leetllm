@@ -40,9 +40,9 @@
 }
 ---
 
-Imagine handing a coding agent a bug report in a Python HTTP router: `parse_header_line("X-Forward-Host: api.internal:8443")` raises a `ValueError` because `line.split(":")` splits on every colon rather than only the first delimiter. Without structural guardrails, an autonomous model can easily take a wrong turn across adjacent modules. It may rewrite request validation helpers, add a mock substitute in the test suite that strips ports from test strings, and leave `http_parse.py` completely untouched. Even when the edited suite reports green, the production parser still crashes the moment an upstream proxy forwards a host-and-port pair or callback URI.
+A coding agent receives a straightforward bug report for a Python HTTP router: `parse_header_line("X-Forward-Host: api.internal:8443")` raises `ValueError` because `line.split(":")` splits on every colon instead of only the first delimiter. Without a structured harness, an autonomous model can easily wander into adjacent modules, patch the test suite with a mock that strips ports from test strings, and leave `http_parse.py` untouched. The edited tests turn green, yet the production parser still crashes the moment an upstream proxy forwards a host-and-port pair or callback URI.
 
-Reliable coding-agent workflows prevent that silent regression by turning repository editing into an inspectable, feedback-driven engineering loop rather than a single-shot generation pass. Before proposing code edits, the harness localizes the fault using static syntax indexing, reproduces the failure against unmodified source files, isolates trial changes inside an ephemeral working tree, and iterates over real test tracebacks under a strict retry budget. Earlier lessons examined execution sandboxing ([Code Generation & Sandboxing](/learn/code-generation-agents-sandboxing)) and keeping privileged operations outside the model ([Human-in-the-Loop Agent Architecture](/learn/human-in-the-loop-agent-architecture)). Here those pieces come together to support trustworthy repository automation from localization through pull-request review.
+Reliable coding-agent workflows prevent that silent regression by turning repository editing into an inspectable, feedback-driven engineering loop rather than a single-shot generation pass. Before touching source code, the harness localizes the fault with static syntax indexing, reproduces the crash against unmodified files, isolates trial edits inside an ephemeral working tree, and iterates on real test tracebacks under a strict retry budget. Earlier lessons covered execution sandboxing ([Code Generation & Sandboxing](/learn/code-generation-agents-sandboxing)) and keeping privileged actions outside the model ([Human-in-the-Loop Agent Architecture](/learn/human-in-the-loop-agent-architecture)). Here those pieces come together to support trustworthy repository automation from localization through pull-request review.
 
 <figure>
   <img src="illustrations/_generated/coding_agent_workflow_dark.png" alt="Directed workflow diagram of a coding agent engineering loop. An issue and traceback enter an AST repo-map ranker, which extracts a compact symbol slice. The agent writes a fail-first test, applies a scoped patch inside an isolated worktree, and runs tests in a sandbox. Exit zero yields a verified diff for human review, while assertion tracebacks return to patch repair within a finite retry budget." />
@@ -51,18 +51,18 @@ Reliable coding-agent workflows prevent that silent regression by turning reposi
 
 ## Agent-computer interfaces and capability separation
 
-An inline autocomplete model predicts the next few tokens around a cursor, whereas a coding agent couples a language model to repository search tools, file editors, and a shell runner. SWE-agent formalizes this tool layer as an **agent-computer interface (ACI)**, demonstrating that compact file viewers, symbol search commands, and concise linter diagnostics raise issue resolution rates substantially on real GitHub repositories.[^yang2024sweagent] Because the model iteratively selects its own exploration commands, trimming noisy output and rejecting malformed edits early preserves scarce context across multi-step runs. Good tool ergonomics acts as a force multiplier on whatever reasoning capacity the underlying model already possesses.
+An inline autocomplete model predicts the next few tokens around a cursor, whereas a coding agent couples a language model to repository search tools, file editors, and a shell runner. SWE-agent formalizes this tool layer as an **agent-computer interface (ACI)**, showing that compact file viewers, symbol search commands, and concise linter diagnostics raise issue resolution rates substantially on real GitHub repositories.[^yang2024sweagent] Because the model chooses its own exploration commands turn by turn, trimming noisy stdout and catching malformed edits early preserves scarce context across multi-step runs. Clean tool ergonomics multiplies the effectiveness of the underlying model.
 
-Production harnesses such as GitHub Copilot's cloud coding agent and Claude Code read codebases, modify files, and execute test suites inside isolated environments.[^github2026copilotcloudagent][^anthropic2026claudecodeoverview] Across these tools, reliable engineering teams divide the workflow into four distinct operational roles. Keeping generation, sandboxing, grading, and release approval cleanly separated guarantees that giving an agent richer code navigation never silently expands its deployment privileges.
+Production harnesses such as GitHub Copilot's cloud coding agent and Claude Code read codebases, modify files, and run test suites inside isolated environments.[^github2026copilotcloudagent][^anthropic2026claudecodeoverview] Across these tools, reliable teams divide the workflow into four distinct operational roles. Keeping generation, sandboxing, grading, and release approval separate ensures that giving an agent richer code navigation never silently expands its deployment permissions.
 
 | Stage responsibility | System owner | Primary artifact |
 |---|---|---|
 | Localize symbols, edit code, and choose checks | Coding agent | Unified diff and patch summary |
-| Enforce filesystem, process, and network limits | Sandbox runtime | Container or OS policy profile |
+| Enforce filesystem, process, and network limits | Sandbox runtime | Container or OS sandbox profile |
 | Evaluate test reproduction and regression coverage | Test runner and CI | Exit codes and parsed stack tracebacks |
 | Approve remote push or protected branch merge | Human reviewer | Signed review on inspected diff |
 
-Tool-using loops often resemble the interleaved thought, action, and observation trace of ReAct,[^yao2023a] yet human reviewers never need to rely on free-form reasoning text to trust a patch. Instead, the harness records concrete, reproducible artifacts: the files opened during localization, the unified diff produced, the failing unpatched test output, and the full passing regression summary. Inspecting direct filesystem and test evidence catches mocked workarounds that plausible chain-of-thought explanations can otherwise obscure.
+Tool-using loops often follow the interleaved thought, action, and observation structure of ReAct,[^yao2023a] yet human reviewers never need to rely on free-form reasoning text to trust a patch. Instead, the harness records concrete, reproducible artifacts: the files opened during localization, the unified diff, the failing unpatched test output, and the full passing regression summary. Inspecting filesystem and test evidence directly catches mocked workarounds that plausible explanations can otherwise hide.
 
 ```checkpoint
 Why is an inline linter or concise traceback summary part of an effective agent-computer interface?
@@ -72,11 +72,11 @@ Uncapped stdout floods the model context with thousands of irrelevant lines, dro
 
 ## Localizing faults with AST symbol maps
 
-Dumping an entire microservice into the prompt wastes tokens and lowers patch precision because transformer attention dilutes across unrelated modules. Hierarchical workflows such as Agentless show that decoupling repository localization from patch synthesis yields higher repair accuracy at a fraction of the token cost.[^xia2024agentless] Static abstract syntax analysis provides a deterministic, sub-second foundation for that localization stage. When a repository has hundreds of modules, graph-based symbol ranking narrows attention down to the handful of functions that actually sit along the failing call path.
+Dumping an entire microservice into the prompt wastes tokens and lowers patch precision because transformer attention dilutes across unrelated modules. Hierarchical workflows such as Agentless show that decoupling repository localization from patch synthesis yields higher repair accuracy at a fraction of the token cost.[^xia2024agentless] Static abstract syntax analysis gives that localization stage a deterministic, sub-second foundation. When a repository has hundreds of modules, graph-based symbol ranking narrows attention to the handful of functions sitting along the failing call path.
 
-Python's built-in `ast` module parses source files into structured syntax trees without importing modules or executing top-level side effects. Walking each module AST extracts function definitions, local line spans, and static call references across files to assemble a cross-module **repository map**. Running personalized PageRank biased toward symbols named in an issue description or stack trace lifts `split_headers` and `parse_header_line` above peripheral helpers such as `backoff_delay`. In practice, pairing AST call structure with keyword teleportation weights compresses multi-file context down to a focused slice of under thirty lines.
+Python's built-in `ast` module parses source files into syntax trees without importing modules or running top-level side effects. Walking each module AST extracts function definitions, local line spans, and static call references across files to build a cross-module **repository map**. Running personalized PageRank biased toward symbols named in an issue description or stack trace lifts `split_headers` and `parse_header_line` above peripheral helpers such as `backoff_delay`. Pairing AST call structure with keyword teleportation weights compresses multi-file context down to a focused slice of under thirty lines.
 
-Let's build a runnable AST repository localizer that constructs a cross-file symbol graph over four Python modules, biases PageRank random walks toward traceback symbols, and extracts only the highest-ranked implementation for editing.
+The script below builds a cross-file symbol graph over four Python modules, biases PageRank random walks toward traceback symbols, and extracts the highest-ranked implementation for editing.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="ast_repo_map_ranker.py"
@@ -209,30 +209,9 @@ def split_headers(raw_block: str):
 ```
 <!-- leetllm: output:end -->
 
-<details>
-<summary>Expected output: top ranked AST symbols and extracted slice</summary>
+> **Key insight:** Static AST ranking narrows the search space before spending a single generation token. Here `retry.py` sinks to the bottom while `split_headers` (`0.391`) and `parse_header_line` (`0.227`) rise straight to the top with exact line spans.
 
-```text
-Top localized symbols (AST call graph + traceback seed):
-  0.340  http_parse.py:split_headers        lines 6-13
-  0.292  http_parse.py:parse_header_line    lines 2-4
-  0.145  test_http.py:test_colon_header     lines 4-6
-  0.118  router.py:dispatch_request         lines 4-8
-
-Extracted minimal edit context for top symbol:
-def split_headers(raw_block: str):
-    headers = {}
-    for line in raw_block.splitlines():
-        if not line.strip():
-            continue
-        k, v = parse_header_line(line)
-        headers[k] = v
-    return headers
-```
-
-</details>
-
-Notice what the AST localizer achieves without spending a single generation token: peripheral helpers in `retry.py` sink to the bottom, while `split_headers` and `parse_header_line` claim the top two ranks with exact line numbers. Even in dynamically typed codebases, combining static call edges with failure keywords narrows attention directly onto the fault path. Language Server Protocol (LSP) definition lookups and ripgrep symbol queries complement AST graphs well whenever dynamic dispatch hides direct function calls.
+Even in dynamically typed codebases, combining static call edges with failure keywords puts the fault path right in front of the model. Language Server Protocol (LSP) definition lookups and ripgrep symbol queries complement AST graphs whenever dynamic dispatch hides direct function calls.
 
 <figure>
   <img src="illustrations/_generated/ast_repo_map_localization_dark.png" alt="Top diagram shows an AST symbol dependency graph linking test_colon_header in test_http.py and dispatch_request in router.py to split_headers and parse_header_line in http_parse.py, plus backoff_delay in retry.py. Bottom panel displays combined PageRank and traceback relevance scores: parse_header_line leads at 0.54, followed by split_headers at 0.24, test_colon_header at 0.13, dispatch_request at 0.06, and backoff_delay at 0.03." />
@@ -241,22 +220,22 @@ Notice what the AST localizer achieves without spending a single generation toke
 
 ## Fail-first reproduction and worktree isolation
 
-Once candidate functions are in view, the agent should resist jumping straight to source edits based solely on the issue text. Instead, robust workflows begin with **fail-first reproduction**: write or run a minimal test case executing the target code path against the unmodified repository and verify that it reproduces the exact failure (`ValueError: too many values to unpack`). Capturing that initial failing baseline guarantees two critical properties before a patch is synthesized. It confirms that the new test actually exercises the live code path rather than an accidental mock, and it locks down an unambiguous pass condition that subsequent patch edits must turn green.
+Once candidate functions are in view, the agent should resist jumping straight to source edits from the issue text alone. Reliable workflows begin with **fail-first reproduction**: write or run a minimal test case executing the target code path against the unmodified repository and confirm that it triggers the exact crash (`ValueError: too many values to unpack`). Capturing that initial failing baseline achieves two things before any patch is written: it confirms the test exercises live code rather than an accidental mock, and it defines a concrete pass condition that subsequent edits must turn green.
 
-While generating and testing candidate diffs, workspace mutations must also be isolated from parallel runs and from protected repository branches. Git offers two lightweight primitives tailored directly to multi-trajectory coding agents:
+While generating and testing candidate diffs, workspace mutations also need isolation from parallel runs and from protected repository branches. Git provides two lightweight primitives built for multi-trajectory coding agents:
 
-1. **`git worktree`**: Attaches an independent working directory and staging index to a separate branch sharing the same object store, enabling concurrent rollouts or parallel repair tasks to edit files and invoke builds without corrupting neighboring workspaces.[^gitWorktreeDocs2026]
-2. **`git write-tree`**: Captures the staging index directly into an immutable Git tree object without checking out files or switching branches, making per-iteration checkpoints and instant rollbacks practically free.[^gitWriteTreeDocs2026]
+1. **`git worktree`**: Attaches an independent working directory and staging index to a separate branch sharing the same object store, letting parallel repair runs edit files and invoke builds without corrupting neighboring workspaces.[^gitWorktreeDocs2026]
+2. **`git write-tree`**: Captures the staging index directly into an immutable Git tree object without checking out files or switching branches, making per-iteration checkpoints and instant resets practically free.[^gitWriteTreeDocs2026]
 
-Modern coding harnesses such as OpenAI's Codex app provision isolated worktrees automatically for background tasks so agents can edit, compile, and run tests in parallel without interfering with the user's primary tree.[^openai2026codexapp] Equally critical is holding network and credential privileges constant across those sandboxes. Executing tests inside an ephemeral worktree grants zero permission to push remote branches or bypass protected branch rules, keeping final integration strictly under human pull-request review.[^githubProtectedBranches2026][^dockerNetworkOverview2026]
+Modern coding harnesses such as OpenAI's Codex app provision isolated worktrees automatically for background tasks so agents can edit, compile, and test in parallel without touching the user's primary checkout.[^openai2026codexapp] Equally important is holding network and credential permissions constant across those sandboxes. Running tests inside an ephemeral worktree grants zero permission to push remote branches or bypass protected branch rules, keeping final integration under human pull-request review.[^githubProtectedBranches2026][^dockerNetworkOverview2026]
 
 ## Finite-budget generate-test-repair loops
 
-Writing an initial candidate patch seldom completes an engineering task cleanly on the first attempt. A first hypothesis may handle a colon inside a port number while failing on multiple colons in an HTTPS URL or introducing an edge-case crash on empty input. Wrapping code synthesis in a **generate-test-repair loop** routes concrete compiler diagnostics and `pytest` assertion diffs back into subsequent repair turns, constrained by a finite attempt cap such as `t <= 3`. Setting a hard ceiling stops runaway token burn when an agent oscillates between two broken edits and signals clearly when to escalate to a human engineer.
+An initial candidate patch seldom solves an engineering bug cleanly on the first try. A first attempt may handle a colon inside a port number while failing on multiple colons in an HTTPS URL or crashing on empty input. Wrapping code synthesis in a **generate-test-repair loop** feeds concrete compiler diagnostics and `pytest` assertion diffs back into the next repair turn under a fixed attempt cap such as `t <= 3`. That hard ceiling stops runaway token burn when an agent oscillates between two broken edits and signals clearly when to hand the problem off to a human engineer.
 
-Two engineering safeguards separate reliable repair loops from fragile retry wrappers. First, parse the failing `File`, line number, function frame, and final exception string from interpreter stderr rather than forwarding megabytes of test runner boilerplate. Second, separate infrastructure errors cleanly from code defects so network timeouts or missing environment packages halt immediately without wasting patch generation retries:
+Two safeguards separate reliable repair loops from fragile retry wrappers. First, extract only the failing `File`, line number, function frame, and final exception string from interpreter stderr rather than forwarding megabytes of runner noise. Second, separate infrastructure failures from code defects so network timeouts or missing packages halt immediately without spending code-repair slots:
 
-1. **Traceback extraction over raw logs**: Extract only the trailing stack frame and assertion diff (`expected != actual`) so the repair prompt pinpoints the broken invariant in under twenty lines.
+1. **Traceback extraction over raw logs**: Keep only the trailing stack frame and assertion diff (`expected != actual`) so the repair prompt pinpoints the failing assertion in under twenty lines.
 2. **Environment vs code fault classification**: Treat `subprocess.TimeoutExpired`, `ModuleNotFoundError`, or sandbox startup failures as infrastructure halts (`0` repair slots spent) rather than asking the model to rewrite source code or delete timing-sensitive tests.
 
 ```mermaid
@@ -267,7 +246,7 @@ flowchart LR
   run -->|"timeout or env error"| env["Halt: 0 repair slots spent"]:::danger
   run -->|"AssertionError or traceback"| parse["Parse frame and retry budget"]:::warning
   parse -->|"attempts left"| gen
-  parse -->|"budget exhausted"| escalate["Escalate diff + trace to human"]:::danger
+  parse -->|"budget exhausted"| handoff["Hand off diff + trace to human"]:::danger
 ```
 
 <figure>
@@ -275,7 +254,7 @@ flowchart LR
   <figcaption>A repair state machine separates test failures that spend a patch budget slot from timeouts and environment errors that halt immediately without wasting inference retries.</figcaption>
 </figure>
 
-Let's execute a live repair loop using Python's `tempfile` and `subprocess` modules. The harness writes the broken header parser and a fail-first regression suite into an isolated directory, verifies the initial crash, runs candidate one (`rsplit`) to inspect the concrete `AssertionError`, feeds that failure into candidate two (`split(":", 1)`), confirms exit status `0`, and prints the exact unified diff.
+The Python harness below runs a live repair loop using `tempfile` and `subprocess`. It writes the broken header parser and a fail-first regression suite into an isolated directory, verifies the initial crash, runs candidate one (`rsplit`) to inspect the concrete `AssertionError`, feeds that failure into candidate two (`split(":", 1)`), confirms exit status `0`, and prints the exact unified diff.
 
 <!-- leetllm: test, output=show -->
 ```python title="sandboxed_repair_loop.py"
@@ -399,49 +378,29 @@ Verified unified diff:
 ```
 <!-- leetllm: output:end -->
 
-<details>
-<summary>Expected output: baseline failure, slot 1 assertion trace, slot 2 green diff</summary>
+Attempt 1 shows why executing real assertions catches logic errors that pass type checks cleanly: `line.rsplit(":", 1)` returns two valid strings, yet puts `"x-forward-host: api.internal"` into the header name and `"8443"` into the value. Extracting the exact assertion failure guides slot 2 cleanly to `line.split(":", 1)`, solving both host-port and HTTPS URL headers in one localized edit.
 
-```text
-Baseline (unpatched): status=test_failure | http_parse.py:2 (parse_header_line) -> FAILED (errors=2)
-Repair slot 1/3: status=test_failure | test_http.py:7 (test_port_value_preserved) -> FAILED (failures=2)
-Repair slot 2/3: status=passed | OK
-
-Verified unified diff:
---- a/http_parse.py
-+++ b/http_parse.py
-@@ -1,3 +1,5 @@
- def parse_header_line(line: str):
--    key, value = line.split(":")
-+    if ":" not in line:
-+        raise ValueError(f"Malformed header line: {line!r}")
-+    key, value = line.split(":", 1)
-     return key.strip().lower(), value.strip()
-```
-
-</details>
-
-Attempt 1 highlights why executing real assertions catches logic errors that pass type checks cleanly: `line.rsplit(":", 1)` returns two valid strings, yet swaps `"x-forward-host: api.internal"` into the header name and `"8443"` into the value. Extracting the exact assertion failure guides slot 2 cleanly to `line.split(":", 1)`, solving both host-port and HTTPS URL headers in one localized edit. Teams must also audit test-runner configuration carefully because flags such as Vitest's `--passWithNoTests` or mismatched globs can emit exit status `0` when zero tests actually ran.[^vitestPassWithNoTests2026]
+> **Common mistake:** Treating exit code `0` as proof that tests passed. Flags such as Vitest's `--passWithNoTests` or mismatched file globs return exit status `0` even when zero tests ran, so always assert that the executed test count is positive.[^vitestPassWithNoTests2026]
 
 ## Trajectory scaling and unbiased pass@k
 
-Evaluating or operating coding agents on nontrivial repository bugs often relies on generating $n$ independent rollouts and asking what fraction of tasks solve correctly within $k$ attempts. Rather than sampling just $k$ trials per task and suffering steep sampling variance, Chen et al. draw $n \ge k$ trajectories, count the $c$ passing attempts, and evaluate the exact probability that a random $k$-element subset contains at least one passing solution:[^chen2021][^humanEvalEstimator2026]
+Evaluating or operating coding agents on nontrivial repository bugs often involves generating $n$ independent attempts and asking what fraction of tasks solve correctly within $k$ tries. Sampling just $k$ trials per task suffers steep variance, so Chen et al. draw $n \ge k$ trajectories, count the $c$ passing attempts, and compute the exact probability that a random $k$-element subset contains at least one passing solution:[^chen2021][^humanEvalEstimator2026]
 
 $$
 \text{pass}@k = 1 - \frac{\binom{n - c}{k}}{\binom{n}{k}}
 $$
 
-Unlike the naive plug-in approximation $1 - (1 - c/n)^k$, this hypergeometric estimator accounts for sampling without replacement from finite rollouts and remains unbiased even when $c$ is small. Beyond measuring aggregate pass rates, decomposing single-trajectory solve probability reveals where parallel compute budgets actually pay off:
+Unlike the naive plug-in approximation $1 - (1 - c/n)^k$, this hypergeometric estimator accounts for sampling without replacement from finite trajectories and stays unbiased even when $c$ is small. Decomposing single-trajectory solve probability also shows where parallel compute budgets actually pay off:
 
 $$
 p = q_{\text{loc}} \cdot r_{\text{patch}}
 $$
 
-In this factored view, $q_{\text{loc}}$ denotes the probability that AST retrieval surfaced the true fault site, while $r_{\text{patch}}$ measures the repair loop's conditional success rate once given the right code slice. Resampling patches four times on top of one frozen, stale file selection remains capped permanently at $q_{\text{loc}}$, whereas redrawing full trajectories from localization onward escapes that ceiling. Better still, upgrading AST retrieval precision lifts $p$ directly and improves `pass@k` at every rollout budget simultaneously.
+Here $q_{\text{loc}}$ is the probability that AST retrieval surfaced the true fault site, and $r_{\text{patch}}$ is the repair loop's conditional success rate once given the right code slice. Resampling patches four times on top of one frozen file selection remains permanently capped at $q_{\text{loc}}$, whereas redrawing full trajectories from localization onward escapes that ceiling. Better still, improving AST retrieval precision lifts $p$ directly and raises `pass@k` at every budget simultaneously.
 
-Real-world issue benchmarks such as SWE-bench and SWE-bench Pro evaluate multi-file diffs inside Docker containers against hidden repository tests, highlighting the sharp gap between isolated single-function prompts and production repositories.[^swebench2024][^swebenchpro][^deng2025SweBenchPro] Accurate benchmark attribution requires strict isolation from test harness flakes, container startup failures, or commits leaking future history inside the container.[^openai2026swebenchlimits] Without clean grading hygiene, infrastructure outages masquerade as reasoning failures and distort comparisons across agent architectures.
+Real-world issue benchmarks such as SWE-bench and SWE-bench Pro evaluate multi-file diffs inside Docker containers against hidden repository tests, exposing the sharp gap between single-function prompts and full repositories.[^swebench2024][^swebenchpro][^deng2025SweBenchPro] Accurate benchmark attribution depends on isolating test harness flakes, container startup errors, and commits that leak future history into the container.[^openai2026swebenchlimits] Without clean grading hygiene, infrastructure outages masquerade as reasoning failures and distort comparisons across agent architectures.
 
-Let's quantify both unbiased `pass@k` estimation and the `k = 4` localization ceiling across 40,000 simulated trajectories in NumPy.
+The NumPy simulation below compares the unbiased `pass@k` estimator against the plug-in formula and measures the `k = 4` localization ceiling across 40,000 simulated tasks.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="pass_at_k_trajectories.py"
@@ -493,21 +452,7 @@ Simulated k=4 pass rate (40k tasks):
 ```
 <!-- leetllm: output:end -->
 
-<details>
-<summary>Expected output: unbiased pass@k vs plug-in bias and k=4 localization ceiling</summary>
-
-```text
-Base rate p=0.50 (c=10/20): k=1: unbiased=0.500 vs plugin=0.500 | k=4: unbiased=0.964 vs plugin=0.938 | k=8: unbiased=1.000 vs plugin=0.996
-Base rate p=0.30 (c=6/20): k=1: unbiased=0.300 vs plugin=0.300 | k=4: unbiased=0.793 vs plugin=0.760 | k=8: unbiased=0.979 vs plugin=0.942
-Base rate p=0.15 (c=3/20): k=1: unbiased=0.150 vs plugin=0.150 | k=4: unbiased=0.509 vs plugin=0.478 | k=8: unbiased=0.816 vs plugin=0.728
-
-Simulated k=4 pass rate (40k tasks):
-  Stale single localization (q_loc=0.60): 0.562
-  Full trajectory resample (p=0.30 each): 0.761
-  Better AST map first (total p=0.50):    0.937
-```
-
-</details>
+> **Key insight:** At `k = 4`, resampling patches on top of one frozen file selection stalls at `0.557` (capped above by $q_{\text{loc}} = 0.60$). Redrawing the full trajectory jumps to `0.758`, and improving localization first reaches `0.937`.
 
 <figure>
   <img src="illustrations/_generated/pass_at_k_trajectories_dark.png" alt="Top plot graphs unbiased pass@k for n = 20 rollouts across k = 1 to 16: base rate p = 0.50 reaches 0.96 by k = 4, p = 0.30 reaches 0.79, and p = 0.15 reaches 0.51. Bottom panel compares k = 4 solve rates: stale fixed localization caps at 0.56, full end-to-end resampling reaches 0.76, and improved AST mapping to p = 0.50 reaches 0.94." />
@@ -526,7 +471,7 @@ Even inside an isolated container, an agent can submit subtly wrong diffs if hum
 | Repair iteration | Parsed `AssertionError` frame | Timeouts burn limited model retries | Route env errors separately with 0 slots spent |
 | Final integration | Scoped diff + full regression run | Skipped suites or 0-test glob exit 0 | Assert test count > 0; human approves merge |
 
-Make four rapid checks habitual before approving any agent-authored pull request. Confirm that modified paths match the fault surface from AST localization, inspect regression tests to verify they invoke the real implementation rather than mocked return tuples, check CI test totals to catch silently skipped suites, and keep branch push or deployment tokens strictly decoupled from agent sandboxes.
+Make four rapid checks habitual before approving any agent-authored pull request. Confirm that modified paths match the fault surface from AST localization, inspect regression tests to verify they invoke the real implementation rather than mocked return tuples, check CI test totals to catch silently skipped suites, and keep branch push or deployment tokens strictly outside agent sandboxes.
 
 ```mastery-quiz
 [

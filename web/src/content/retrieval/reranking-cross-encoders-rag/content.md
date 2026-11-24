@@ -14,64 +14,58 @@
     "Anthropic",
     "Amazon"
   ],
-  "shortDescription": "Move the right policy into the prompt. Learn how cross-encoders reorder retrieved passages, and where recall, permissions, and text limits still matter.",
+  "shortDescription": "Move the right passage into the prompt. Learn how cross-encoders reorder retrieved candidates, and where recall, permissions, and sequence limits still matter.",
   "keyConceptsTested": [
-    "Retrieve-then-rerank boundary",
+    "Retrieve-then-rerank two-stage funnel",
     "Bi-encoder vector bottleneck vs cross-encoder joint attention",
     "ColBERT late interaction and MaxSim operator",
     "Classification heads, token-based scores, and listwise rerankers",
     "Pointwise scoring, pairwise training, and listwise input dependence",
-    "Silent pair truncation and text checksum invariants",
+    "Silent pair truncation and text checksums",
     "Compute and latency budgeting in the two-stage funnel",
-    "Score calibration and safe admission thresholds",
+    "Score calibration and selection thresholds",
     "Candidate ordering metrics",
-    "Multi-tenant cache fingerprinting and security scopes"
+    "Multi-tenant cache keys and security scopes"
   ],
   "coverImage": "illustrations/_generated/reranking_pipeline_dark.png"
 }
 ---
 <!-- leetllm: edition:reference:start -->
 
-Hybrid retrieval can find the necessary evidence inside a retrieval-augmented generation (RAG) system and still leave it outside the generator's context. Consider an enterprise policy search query:
+Hybrid retrieval can find the exact document a question needs and still lose it before generation. Suppose an engineer asks:
 
 > Today is day 10 after deprecation. Can a service account use the legacy <span data-glossary="token">token</span> endpoint with audit logging enabled?
 
-BM25 matches an operational note (`api-token-troubleshooting-v1`) on exact keyword overlap. The note mentions legacy token errors and explicitly warns that it doesn't authorize access. Dense search matches a password-reset document (`api-password-reset-v1`) by semantic proximity. The governing rule is `api-token-legacy-v2-rule` (Rule AUTH-14). It allows service accounts to use the endpoint within 14 days of deprecation if audit logging is active. Hybrid retrieval still places that rule at rank 3.
+BM25 puts an operational note (`api-token-troubleshooting-v1`) first because it repeats `"legacy token endpoint"`, even though the note explicitly says it grants no temporary access. Dense search puts a password-reset document (`api-password-reset-v1`) second. The actual rule (`api-token-legacy-v2-rule`, Rule AUTH-14) allows legacy endpoint access within 14 days of deprecation when audit logging is enabled, yet hybrid fusion lands it at rank 3.
 
-The generator prompt budget accepts only two passages. The troubleshooting note and the password-reset policy occupy the prompt while Rule AUTH-14 stays outside it. An assistant might then produce an unsupported refusal: "No, legacy token access is strictly forbidden." We haven't run a generator here. That response illustrates the downstream risk.
+With a two-passage prompt budget, the troubleshooting note and password-reset doc fill the prompt while Rule AUTH-14 stays outside it. Candidate recall is 1.0, yet the generator never sees the rule. This is an **ordering failure**, not a recall failure.
 
-For this question's one labeled relevant chunk, candidate recall is 1: the rule is in the candidate set. The four candidates have trusted, current permission decisions in the test corpus. This demonstrates an **ordering failure** at cutoff two; measure corpus-wide retrieval and privacy behavior separately.
-
-The previous [hybrid-search pipeline](/learn/hybrid-search-dense-sparse-retrieval), `policy-answerer-v2`, filters for current, permitted chunks, then fuses sparse and dense ranks. `policy-answerer-v3` adds a <span data-glossary="reranker">reranker</span> to score each query-chunk pair before context selection. The executable labs use a hand-written scorer to test ordering and <span data-glossary="tracing">trace</span> contracts. They don't run a learned model or establish its accuracy.
+Adding a <span data-glossary="reranker">reranker</span> between hybrid retrieval and prompt assembly scores each `(query, candidate)` pair jointly so the right rule rises into the prompt budget.
 
 <figure>
   <img src="illustrations/_generated/reranking_pipeline_dark.png" alt="The same four permitted chunks stay in the candidate set. AUTH-14 starts at hybrid rank 3, receives a synthetic hand-written score of +7, and crosses the +5 gate to fill context slot 1. The other scores are audit export +2, password reset 0, and troubleshooting minus 1; slot 2 stays empty. Admin-only and superseded records are excluded before scoring." />
-  <figcaption>The lab uses synthetic, hand-written scores to illustrate the pipeline. The same four permitted IDs go in and come out. Pair scoring moves `api-token-legacy-v2-rule` from hybrid rank 3 to rank 1. The two-chunk budget is a maximum, so the unused slot stays empty when nothing else clears the +5 gate. Admin-only and superseded records never enter scoring.</figcaption>
+  <figcaption>The four permitted candidates enter pair scoring in hybrid order. `api-token-legacy-v2-rule` moves from rank 3 to rank 1 (+7) and fills slot 1; nothing else clears the +5 threshold, so slot 2 stays empty. Restricted and superseded records are excluded before scoring.</figcaption>
 </figure>
 
-## The boundary: retrieve candidates, then improve their order
+## Retrieve broadly, then reorder carefully
 
-A two-stage retriever separates two problems. Retrieval decides whether evidence gets a chance to compete; reranking decides which admitted evidence reaches the top. Generation should support its claims with selected evidence. Merely restricting the prompt doesn't prevent a model from inventing claims or using its parametric memory.
+A two-stage pipeline separates recall from precision:
 
-| Stage | Question | Optimized signal | Must never change |
+| Stage | Core question | Optimized signal | Must preserve |
 |---|---|---|---|
-| Hybrid retrieval | Is useful evidence in the candidate set? | Recall over current permitted chunks | Authorization and freshness boundary |
-| Reranking | Which retrieved chunks best answer this query? | Precision near the top | Candidate membership |
-| Generation | What answer can be supported? | Grounded response with citations | Claims supported by selected evidence |
+| Hybrid retrieval | Is the needed passage in the candidate pool? | Recall over current permitted chunks | Permissions and freshness filters |
+| Reranking | Which retrieved passages best answer this query? | Top-of-list precision | Exact candidate membership |
+| Generation | What answer follows from the packed context? | Grounded response with citations | Claims entailed by selected context |
 
-The target is in the candidate set but below a two-chunk cutoff. Reranking may change its rank and selected context, not its source identity or access permissions.
-
-The reranker can't restore a missing document. It must stay inside the same <span data-glossary="permission-boundary">permission boundary</span>: never search a restricted or superseded document as a shortcut. Permitted hybrid candidates enter scoring; admin-only and superseded records never do. That skip is the boundary, not a later filter.
-
-This pipeline accepts permitted candidates, scores their query-chunk pairs, selects context, and records the decision. A freshness or permission revocation may remove a candidate between stages; it must never add a forbidden one. The fixed-membership examples assume an unchanged authorized snapshot.
+A reranker can never rescue a document missing from its input pool, and it must never bypass the <span data-glossary="permission-boundary">permission filter</span> to fetch restricted or superseded chunks.
 
 ```checkpoint
-Why does the reranker receive the permitted hybrid candidate list instead of every policy chunk?
+Why does the reranker receive the permitted hybrid candidate list instead of every chunk in the corpus?
 ---
-Reranking is an ordering stage, not an authorization stage. Scoring restricted or stale chunks can leak their content through scores, logs, caches, or final context even if they're filtered later.
+Reranking reorders permitted candidates; it is not an authorization filter. Scoring restricted or stale passages can leak them through scores, traces, caches, or hosted reranker APIs even if they are dropped later.
 ```
 
-Start with the first-stage candidate list, before any model score. The initial candidate set shows `api-token-legacy-v2-rule` at rank 3. Its presence confirms recall; its position predicts a miss at a two-chunk cutoff. The candidate remains outside the prompt until a downstream reranking stage reorders it.
+Start with the first-stage hybrid ranking where `api-token-legacy-v2-rule` sits at rank 3:
 
 <!-- leetllm: test, output=show, id=rerank-lab -->
 ```python title="permitted-hybrid-candidates.py"
@@ -79,13 +73,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import isfinite, log2
-
-
-import numpy as np
-
-
-def finite_number(value: object) -> bool:
-    return bool(np.isfinite(value)) if isinstance(value, (int, float, np.number)) else False
 
 
 def nonnegative_integer(value: int, name: str) -> None:
@@ -172,11 +159,9 @@ Hybrid order: ['api-token-troubleshooting-v1', 'api-password-reset-v1', 'api-tok
 ```
 <!-- leetllm: output:end -->
 
-The candidate record carries `document_id` and `parent_id` from the earlier RAG pipeline. Reranking may move evidence, but citation packing still points to the same source identity. A higher rank doesn't change who may read the chunk. What keeps an admin-only rule out of the scorer?
+## Keep permissions enforced before scoring
 
-## Keep the evidence boundary executable
-
-The source store still holds an admin-only rule and an expired revision. Neither should enter reranking, even if the wording looks useful. Here, `permitted` and `current` are evaluated ground-truth decisions, not fields provided by the question or source text.
+The corpus still stores a restricted admin rule and an expired revision. Verify that only exact records from the authorized first-stage snapshot can enter the reranker:
 
 <!-- leetllm: test, output=show, continue=rerank-lab, id=rerank-boundary -->
 ```python title="reranker-boundary-regression.py"
@@ -210,19 +195,14 @@ FIRST_STAGE_RECORDS = {
 
 def in_snapshot(candidate: Candidate) -> bool:
     return (
-        isinstance(candidate, Candidate)
-        and candidate.permitted is True
+        candidate.permitted is True
         and candidate.current is True
         and FIRST_STAGE_RECORDS.get((candidate.chunk_id, candidate.version)) == candidate
     )
 
 
 def rerankable_candidates(store: list[Candidate]) -> list[Candidate]:
-    return [
-        candidate
-        for candidate in store
-        if in_snapshot(candidate)
-    ]
+    return [candidate for candidate in store if in_snapshot(candidate)]
 
 
 rerankable = rerankable_candidates(SOURCE_STORE)
@@ -244,9 +224,9 @@ Blocked: ['admin-token-legacy', 'api-token-legacy-v1-rule']
 ```
 <!-- leetllm: output:end -->
 
-The snapshot compares complete records, including text and parent identity. Matching an ID and version alone would admit changed content under an obsolete hash. In a service, fetch the recorded revisions and recheck the caller's current permissions before remote scoring and context packing. A changed record needs a fresh retrieval decision. Sending text to a hosted reranker is itself a disclosure: user access doesn't automatically authorize an external processor. Scope caches, logs, and provider use to the same data-handling policy.
+Comparing complete records ensures a scorer cannot mutate text or parent metadata under an existing ID. Remember also that sending passages to a hosted reranker API transmits that text to a third-party processor, so apply the same data-handling review as any external model endpoint.
 
-Now replay context packing without reranking. The generator receives a troubleshooting note that grants no temporary access and a password-reset policy. The legacy-token rule is retrieved but absent from context.
+Without reranking, packing the top 2 hybrid hits misses `api-token-legacy-v2-rule`:
 
 <!-- leetllm: test, output=show, continue=rerank-boundary, id=rerank-before-context -->
 ```python title="context-before-reranking.py"
@@ -275,41 +255,37 @@ Target reaches generation: False
 ```
 <!-- leetllm: output:end -->
 
-The current <span data-glossary="hybrid-search">hybrid search</span> ordering leaves out the right chunk. Reranking is one possible repair; improving first-stage ranking or context selection is another. What additional signal comes from reading the query and chunk together?
+## How cross-encoders and LLM rerankers compute scores
 
-## Understand the scoring mechanism before comparing model families
+Knowing which tensor produces the score and whether a model scores one passage or a whole list determines both latency and cache keys.
 
-Which tensor becomes the score? Does it depend on one passage or the whole list? Those questions explain both serving behavior and cache validity. A decoder backbone doesn't imply that a reranker generates a ranked list or even uses next-token probabilities.
+### Encoder classification heads
 
-### BERT-style encoder classification heads
-
-BERT-style cross-encoders concatenate the query and candidate chunk: `[CLS] Query [SEP] Chunk [SEP]`. Bidirectional self-attention lets the two sides interact before pooling.[^nogueira2019][^devlin2019] This is one architecture, not a description of every checkpoint sold under the BGE or Jina name.
-
-Let $h_{\mathrm{CLS}}(q, d) \in \mathbb{R}^d$ be the final hidden state of the `[CLS]` token. A linear projection head maps this pooled vector to a scalar logit:
+BERT-style cross-encoders concatenate the query and passage as `[CLS] Query [SEP] Chunk [SEP]`, letting bidirectional self-attention compare query and passage tokens directly before pooling.[^nogueira2019][^devlin2019] A linear head maps the final `[CLS]` representation $h_{\mathrm{CLS}}(q, d)$ to a scalar logit:
 
 $$
 z = \mathbf{w}^\top h_{\mathrm{CLS}}(q, d) + b
 $$
 
-Applying a sigmoid function $\sigma(z) = 1 / (1 + e^{-z})$ bounds the logit into $(0, 1)$. During pointwise training, each query-passage example carries a binary relevance label $y \in \{0, 1\}$ and contributes binary cross-entropy:
+With binary relevance labels $y \in \{0, 1\}$, **pointwise** training minimizes binary cross-entropy:
 
 $$
 \ell_{\mathrm{pointwise}}(z, y) = -y \log \sigma(z) - (1 - y) \log \bigl(1 - \sigma(z)\bigr).
 $$
 
-At inference time, there are no gold labels or gradient updates. The model computes $z$ (or $\sigma(z)$) for each candidate and sorts descending. Mathematically, sigmoid is strictly increasing, so it preserves order. Finite-precision saturation can introduce ties near 0 or 1. A sigmoid score isn't automatically a calibrated relevance probability. Sentence Transformers documents checkpoints that return raw logits and an optional sigmoid transformation.[^sentenceTransformers2026CrossEncoderUsage]
-
-Pointwise scoring evaluates each pair in isolation, but training may use a pairwise preference loss. Given a relevant passage $d^+$ with logit $z^+$ and an irrelevant passage $d^-$ with logit $z^-$, the pairwise logistic preference loss penalizes inverted score differences:[^burges2005ranknet]
+**Pairwise** training compares a positive passage $d^+$ against a hard negative $d^-$ with logistic preference loss (RankNet):[^burges2005ranknet]
 
 $$
 \ell_{\mathrm{pairwise}}(z^+, z^-) = \log\bigl(1 + e^{-(z^+ - z^-)}\bigr) = \operatorname{softplus}\bigl(-(z^+ - z^-)\bigr).
 $$
 
-A model trained with pairwise preference losses still scores individual query-passage pairs independently at serving time. It doesn't need to evaluate all $O(k^2)$ passage pairs during inference.
+> **Key insight:** Even when trained with pairwise preference loss, the model still scores each `(query, passage)` pair independently at inference time ($O(k)$ forward passes, not $O(k^2)$). Sigmoid $\sigma(z)$ is strictly increasing so it preserves order, though raw sigmoid values are not calibrated probabilities.[^sentenceTransformers2026CrossEncoderUsage]
 
-### Token-based scoring and decoder classification heads
+### Token-based and listwise scorers
 
-monoT5 is an encoder-decoder model trained to predict `true` or `false`; its published scoring method renormalizes probabilities over those two target tokens.[^nogueira2020monot5] Qwen3-Reranker uses a causal decoder and lowercase `yes`/`no` logits at the final prompt position.[^qwen2026Reranker] A typical yes/no reranker prompt takes the form:
+Generative and decoder-based rerankers extract scores in several ways:
+
+- **Binary target-token log-odds:** `monoT5` (encoder-decoder) scores `true` vs. `false`,[^nogueira2020monot5] and `Qwen3-Reranker` (causal decoder) scores `yes` vs. `no` logits at the final prompt token:[^qwen2026Reranker]
 
 ```text
 Instruction: Decide whether the document satisfies the query conditions.
@@ -318,34 +294,24 @@ Document: Rule AUTH-14. Service accounts may use the legacy token endpoint...
 Relevant (Yes/No):
 ```
 
-Use the checkpoint's actual template and tokenizer, not this sketch. For two single-token labels at the same prediction position, log-odds equal the difference between their logits:
-
 $$
-s(q, d) = \log \frac{P(\text{"Yes"} \mid q, d)}{P(\text{"No"} \mid q, d)} = z_{\text{Yes}} - z_{\text{No}}
-$$
-
-Renormalizing over only these two labels gives:
-
-$$
-p_{\mathrm{binary}}(\text{"Yes"} \mid q, d) = \frac{e^{z_{\text{Yes}}}}{e^{z_{\text{Yes}}} + e^{z_{\text{No}}}} = \sigma(z_{\text{Yes}} - z_{\text{No}}).
+s(q, d) = \log \frac{P(\text{"Yes"} \mid q, d)}{P(\text{"No"} \mid q, d)} = z_{\text{Yes}} - z_{\text{No}},
+\qquad
+p_{\mathrm{binary}}(\text{"Yes"} \mid q, d) = \sigma(z_{\text{Yes}} - z_{\text{No}}).
 $$
 
-This is **not** the full-vocabulary probability $P(\text{"Yes"})$: other possible tokens were removed from the denominator. Binary-label methods need the relevant forward computation, not a long generated explanation. An encoder-decoder also runs its encoder; don't equate its execution path with a causal decoder.
+Note that $p_{\mathrm{binary}}$ renormalizes over only two tokens, which differs from the full-vocabulary probability $P(\text{"Yes"})$.
+- **Single-logit or decoder classification heads:** `BGE-reranker-v2-gemma` reads the single `Yes` logit without subtracting `No`, while `RankLLaMA` attaches a scalar classification head directly to the decoder.[^bge2026GemmaScoring][^rankllama2023ModelCard]
+- **Whole-list (listwise) rerankers:** Models like `Jina Reranker v3.5` process the query alongside the entire candidate list at once,[^jina2026RerankerV35] meaning each passage's score depends on its neighbors. Hosted APIs such as Cohere Rerank also accept a query and candidate list.[^cohere2026rerank]
 
-Other decoder-based scorers have different contracts. BGE-reranker-v2-gemma's example takes the single `Yes` logit, without subtracting `No`. RankLLaMA's published model example loads a sequence-classification model with one scalar output.[^bge2026GemmaScoring][^rankllama2023ModelCard] Neither should be described as the binary formula above.
-
-| Scoring mechanism | Example | Input dependence | Cost drivers to measure |
+| Scoring mechanism | Example | Input dependence | Primary cost drivers |
 |---|---|---|---|
-| Pooled-state classification head | BERT-style cross-encoder | One query-passage pair | Checkpoint size, pair lengths, batch shapes, precision |
-| Target-token binary score | monoT5; Qwen3-Reranker | One templated query-passage pair | Encoder/decoder architecture, template tokens, pair lengths |
-| Decoder classification head | RankLLaMA | One query-passage pair | Backbone, adapters, lengths, serving implementation |
-| Whole-list interaction | Jina Reranker v3.5 | Query and the complete candidate list | Total list length, attention pattern, ordering and batching |
+| Pooled classification head | BERT-style cross-encoder | One query-passage pair | Checkpoint size, pair length, batch shape |
+| Target-token binary score | monoT5; Qwen3-Reranker | One templated pair | Architecture, template tokens, pair length |
+| Decoder classification head | RankLLaMA | One query-passage pair | Backbone width, pair length |
+| Whole-list interaction | Jina Reranker v3.5 | Query + complete list | Total list length, ordering, attention pattern |
 
-As of September 21, 2026, Qwen3-Reranker provides 0.6B, 4B, and 8B checkpoints under Apache 2.0. Its card documents 32K context, while the example wrapper chooses `max_length=8192`; a wrapper can impose a smaller effective limit.[^qwen2026Reranker] Jina Reranker v3.5 is a 0.6B listwise model with causal attention and cosine-based scoring, not the BERT-style head above. Its published weights use CC BY-NC 4.0; check deployment licensing before commercial use.[^jina2026RerankerV35]
-
-Hosted Cohere Rerank accepts a query and candidate list and returns ranked items with relevance scores.[^cohere2026rerank] Test whether each score changes with the other candidates. Benchmark the actual checkpoint or service on your evidence and workload; measure latency, VRAM, and instruction following for the deployed family and settings.
-
-Evaluate the margin and cross-entropy objectives at $z^+=1.2$ and $z^-=0.2$:
+Evaluate pointwise and pairwise losses at $z^+ = 1.2$, $z^- = 0.2$, and see how sharply pairwise loss penalizes an inverted ranking:
 
 <!-- leetllm: test, output=show -->
 ```python title="ranking-losses.py"
@@ -372,24 +338,18 @@ Preference loss after reversing scores: 1.313
 ```
 <!-- leetllm: output:end -->
 
-Training data must represent the ranking task. Hard negatives from the same first-stage retriever expose plausible near matches; random unrelated negatives can make the task too easy. Keep query and document leakage out of held-out evaluation, and check negation, dates, and no-answer questions separately from an overall average.
-
 ### Preserve the text that was actually scored
 
-Joint interaction also introduces a pair-length ceiling. Original BERT uses a maximum sequence length of 512 tokens, including special tokens.[^devlin2019] Other checkpoints expose different limits, so read the tokenizer and model configuration instead of assuming 512.
+Cross-encoders enforce a maximum pair length (512 tokens for original BERT,[^devlin2019] larger for modern backbones, or API caps such as Cohere's `max_tokens_per_doc` default of 4096[^cohere2026rerank]). Silently truncating an overlong pair lets the reranker score only a prefix while the generator receives a different trailing clause.
 
-If a wrapper silently truncates an overlong pair, the model may score only a prefix while the generator later receives the full chunk. An omitted clause could determine relevance or qualify a rule. Log tokenized pair length, define a truncation policy, and reject unexpected truncation so the score's scope is clear.
-
-| Policy | When to use | What to log |
+| Truncation strategy | When to use | What to log |
 |---|---|---|
-| Preserve full query; truncate document tail | Only when a prefix is an acceptable scoring unit | `tokenizer`, `max_length`, `truncated`, `kept_span` |
-| Sliding windows over the chunk | Authorizing clause may sit past the first window | Window offsets, per-window scores, aggregation rule |
-| Refuse overlong pairs | Safety-critical policies where a partial score is unacceptable | Pair token count, refuse reason, fallback (human / no-score) |
-| Score only the packed context text | Generator context is already budgeted | Checksum of scored text vs packed text |
+| Keep full query; truncate chunk tail | Only when the leading prefix captures the decision | `tokenizer`, `max_length`, `truncated`, `kept_span` |
+| Sliding windows over chunk | Qualifying clause may sit past window 1 | Window offsets, per-window scores, aggregation rule |
+| Reject overlong pairs | High-stakes rules where partial scoring is unacceptable | Pair token count and fallback path |
+| Score exact packed text | Context is already sized to budget | Checksum comparing scored vs. packed text |
 
-Truncation isn't only a local-model concern. Check a local wrapper's tokenizer configuration and truncation strategy. Cohere's Rerank API truncates documents to `max_tokens_per_doc`, default 4096.[^cohere2026rerank] Either way, ranked text can disagree with packed text. A sliding-window strategy can retain later clauses, but max-over-window aggregation can favor long documents and omit qualifications from other windows. Record the aggregation policy and keep necessary surrounding context.
-
-The accounting below uses whitespace tokens only. It reserves three BERT boundary tokens (`[CLS]` and two `[SEP]` markers). A real implementation must use the checkpoint's tokenizer and exact special-token count.
+Watch what happens when tail truncation cuts a passage right before the authorizing clause:
 
 <!-- leetllm: test, output=show, continue=rerank-before-context, id=rerank-truncation -->
 ```python title="pair-budget-truncation.py"
@@ -430,7 +390,6 @@ def token_checksum(tokens: list[str]) -> str:
 
 
 query = "May service accounts use the legacy token endpoint on day 10?"
-# The authorizing clause is at the end; retaining the head drops it.
 chunk = (
     "Background: migration tooling and temporary endpoints are under review. "
     "Operational notes discuss log shipping and dashboard ownership. "
@@ -443,7 +402,7 @@ budget = PairBudget(
     chunk_tokens=tokenize(chunk),
 )
 scored_tokens, was_truncated = truncate_document_tail(budget)
-packed_tokens = budget.query_tokens + budget.chunk_tokens  # generator sees full text
+packed_tokens = budget.query_tokens + budget.chunk_tokens
 scored_checksum = token_checksum(scored_tokens)
 packed_checksum = token_checksum(packed_tokens)
 authorizing_clause = "within 14 days of deprecation when audit logging is enabled"
@@ -455,10 +414,9 @@ print("Checksum match (scored == packed):", scored_checksum == packed_checksum)
 assert was_truncated
 assert authorizing_clause not in scored_text
 assert scored_checksum != packed_checksum
-# This evaluation policy refuses any scored/packed mismatch.
 release_ok = scored_checksum == packed_checksum
 assert release_ok is False
-print("Release gate (scored/packed mismatch):", release_ok)
+print("Scored/packed match check:", release_ok)
 ```
 
 <!-- leetllm: output:start -->
@@ -467,13 +425,11 @@ Truncated: True
 Scored pair tokens including specials: 24 / 24
 Authorizing clause in scored text: False
 Checksum match (scored == packed): False
-Release gate (scored/packed mismatch): False
+Scored/packed match check: False
 ```
 <!-- leetllm: output:end -->
 
-That failure is intentional: this lab refuses any scored/packed token mismatch. The checksum compares **normalized toy token lists**, not exact source bytes; lowercasing and whitespace splitting erase some differences. Real rerankers and generators can use different tokenizers, so record the scored source span and exact text separately from each model's token accounting. A parent expansion or explicit window score can be valid if its scope and aggregation are recorded.
-
-With the text boundary explicit, test ranking independently of a model endpoint. The evaluation below uses transparent phrase rules, not a trained <span data-glossary="transformer">transformer</span>. Its integer scores exercise ordering and packing code. They aren't semantic entailment or authorization decisions.
+Now build a transparent phrase-based pair scorer so we can trace the reranking pipeline end to end before swapping in a trained <span data-glossary="transformer">transformer</span> checkpoint:
 
 <!-- leetllm: test, output=show, continue=rerank-truncation, id=rerank-request -->
 ```python title="inspect-query-conditions.py"
@@ -486,10 +442,7 @@ class Request:
 
 
 def validate_request(request: Request) -> None:
-    if any(
-        not isinstance(value, str) or not value.strip()
-        for value in (request.endpoint, request.remedy)
-    ):
+    if not request.endpoint.strip() or not request.remedy.strip():
         raise ValueError("endpoint and remedy must be nonempty strings")
     nonnegative_integer(request.days_since_deprecation, "days since deprecation")
 
@@ -517,8 +470,6 @@ assert REQUEST.audit_enabled
 Query conditions: ['legacy token endpoint', 'temporary access', 'day 10 is within the 14-day window', 'audit logging is enabled']
 ```
 <!-- leetllm: output:end -->
-
-The rule should rank first for this question. The scorer awards phrase-match points and subtracts six for the troubleshooting note's disclaimer. This deliberately narrow heuristic can't distinguish arbitrary paraphrases or resolve conflicting policies. The audit-export chunk gets timing points even though its 14-day window applies to a different action, a useful reminder of the heuristic's limits.
 
 <!-- leetllm: test, output=show, continue=rerank-request, id=rerank-score -->
 ```python title="pointwise-reranker.py"
@@ -570,10 +521,9 @@ def rerank(
     for candidate in candidates:
         result = scorer.score(request, candidate)
         if (
-            not isinstance(result, PairScore)
-            or result.candidate != candidate
+            result.candidate != candidate
             or not in_snapshot(result.candidate)
-            or not finite_number(result.score)
+            or not isfinite(result.score)
         ):
             raise ValueError("invalid score or changed candidate in scorer response")
         scored.append(result)
@@ -601,14 +551,12 @@ api-token-troubleshooting-v1 -1 ('endpoint', 'remedy', 'non-authorizing-note')
 <!-- leetllm: output:end -->
 
 ```checkpoint
-The target policy is retrieved at rank 3 but the prompt accepts two chunks. Is this a recall failure or an ordering failure?
+The target rule is retrieved at rank 3 but the prompt accepts two chunks. Is this a recall failure or an ordering failure?
 ---
-It's an ordering failure. Recall succeeded because the target is in the candidate set. Reranking must move it into the context budget.
+It is an ordering failure. First-stage retrieval succeeded because the target entered the candidate pool; reranking moves it inside the two-chunk prompt budget.
 ```
 
-Context selection now changes for the right reason. The candidate set stays fixed while the supported rule moves to rank 1. A context budget is a maximum, not a <span data-glossary="quota">quota</span>, so low-scoring near matches are not admitted merely to fill space.
-
-Two chunks is only this lab's simplified budget. Production packing counts generator tokens after reserving instructions and output space, limits redundant passages from one parent document, and preserves clauses needed to interpret a rule. If packing expands a scored passage into a larger parent section, record that expansion explicitly rather than claiming every added sentence received the passage's score.
+Now select context using the reranked order and a minimum relevance threshold. Because a context budget is a maximum rather than a <span data-glossary="quota">quota</span>, slot 2 stays empty instead of pulling in distractors:
 
 <!-- leetllm: test, output=show, continue=rerank-score, id=rerank-context -->
 ```python title="context-after-reranking.py"
@@ -633,76 +581,51 @@ Context after: ['api-token-legacy-v2-rule']
 ```
 <!-- leetllm: output:end -->
 
-The threshold of 5 separates this rule from these three distractors. It isn't a permission rule. With audit disabled, the rule still scores 5 and remains relevant because it explains why access isn't allowed. A generator must apply the actual policy conditions, not interpret a high relevance score as an automatic affirmative. Scores that rank a denial highly can be completely correct.
-
-A score of 7 beat these distractors. Would the same cutoff select the right evidence on a query that has no good answer?
+> **Common mistake:** High relevance does not mean "yes." Even on day 15 or with audit logging disabled, Rule AUTH-14 remains the highest-scoring passage because it is the exact rule that explains why access is denied.
 
 ```checkpoint
-A pair scorer assigns a relevant passage logit 0.8 and a less relevant passage logit −0.4. Using the taught logistic preference loss, what is the loss for this ordering, rounded to three decimals?
+A pair scorer assigns a relevant passage logit 0.8 and a less relevant passage logit −0.4. Using the logistic preference loss, what is the loss for this ordering, rounded to three decimals?
 ---
-0.263
-
-The relevant-minus-irrelevant gap is 1.2. The preference loss is log(1 + exp(−1.2)) ≈ 0.263. Reversing the gap gives 1.463; serving can still compute independent pair scores.
+0.263. The logit margin is $0.8 - (-0.4) = 1.2$, so $\log(1 + e^{-1.2}) \approx 0.263$. Reversing the two scores gives $\log(1 + e^{1.2}) \approx 1.463$.
 ```
 
 ```checkpoint
-A scalar head uses weights [2, −0.5] and bias 0.1. Given pair states are A = [0.4, 1.2] and B = [0.8, 0.2]. Which logits and first-ranked identity follow?
+A scalar head uses weights [2, −0.5] and bias 0.1. Given pair states A = [0.4, 1.2] and B = [0.8, 0.2], which logits and top-ranked item follow?
 ---
-A 0.3; B 1.6; B first.
-
-A gives 2×0.4 − 0.5×1.2 + 0.1 = 0.3. B gives 2×0.8 − 0.5×0.2 + 0.1 = 1.6. Descending scalar scores put B first. The pooled states are given, not learned in this question.
+A scores $2(0.4) - 0.5(1.2) + 0.1 = 0.3$ and B scores $2(0.8) - 0.5(0.2) + 0.1 = 1.6$, so B ranks first.
 ```
 
 ```checkpoint
 Passage A has Yes logit 3 and No logit 5; B has Yes logit 2 and No logit 0. Which passage ranks first under a single-Yes-logit formula and under a Yes-minus-No formula?
 ---
-Single Yes: A; Yes-minus-No: B.
-
-Single Yes compares 3 with 2 and chooses A. Differences are −2 for A and +2 for B, choosing B. Neither formula may be silently substituted for the checkpoint’s actual scoring rule.
+Single-Yes compares 3 vs. 2 and chooses A. Yes-minus-No gives $-2$ for A vs. $+2$ for B and chooses B. Always use the checkpoint's documented scoring formula.
 ```
 
-## Score calibration and safe selection thresholds
+## Score calibration and selection thresholds
 
-Learned scores need calibration before interpreting them as probabilities. Define the event a probability represents, then test calibration on held-out labels; raw sigmoid values alone have no 85% answerability or 2:1 relevance interpretation.
+Cross-encoder logits vary by query type and checkpoint, so copying an arbitrary cutoff like `score >= 0.70` either starves nuanced queries of evidence or floods prompts with noise. Three practical selection strategies:
 
-Scores can vary with query type, candidate distribution, and checkpoint. When an unanswerable query's top lexical distractor scores 0.90 while a nuanced answerable query's true evidence scores 0.60, no single global score cutoff separates them cleanly.
-
-An unvalidated static threshold (such as `score >= 0.70`) can produce two failure modes:
-
-1. **Evidence starvation:** Useful evidence below the threshold never reaches generation.
-2. **Noise inclusion:** Irrelevant candidates above the threshold consume context.
-
-Compare these selection strategies on labeled development cases, including no-answer cases:
-
-- **Rank-first with context budget:** Take the highest-ranked items that fit. Strictly increasing score transformations preserve mathematical order. This avoids a fixed score scale but still selects distractors when every candidate is irrelevant; it isn't an abstention rule.
-- **Score margin falloff gating:** Rather than filtering on an absolute score, filter candidates whose score falls significantly below the top candidate's score:
+- **Rank-first within token budget:** Keep top-$k$ passages that fit the prompt. Order-invariant under monotone transforms, though it still returns noise when every candidate is irrelevant.
+- **Score-margin falloff:** Keep chunk $i$ only when it stays close to the top score:
   $$
-  \text{Keep chunk } i \iff s(q, d_i) \ge s(q, d_1) - \Delta_{\text{margin}}
+  s(q, d_i) \ge s(q, d_1) - \Delta_{\text{margin}}
   $$
-  A common additive shift leaves this rule unchanged; changing score scale generally doesn't. Nearby scores don't prove that sources agree or that any is relevant. Tune $\Delta_{\text{margin}}$ for the checkpoint and inspect selected evidence.
-- **Calibrated selection or abstention:** Platt scaling fits $P(y=1\mid z)=1/(1+e^{Az+B})$; isotonic regression fits a monotone mapping.[^sklearnCalibration2026] Define $y$ carefully: passage relevance isn't the same event as having enough evidence for a complete answer. Fit calibration and choose thresholds on development data independent of scorer training, then evaluate reliability and abstention on an untouched test set. Revalidate when the checkpoint, tokenizer, scoring policy, or workload changes.
-
-None of those rules tells you whether AUTH-14 moved into the two-passage budget. How do you measure that move on this request?
+  Invariant to additive score shifts, though sensitive to multiplicative rescaling.
+- **Calibrated probabilities:** Fit Platt scaling ($P(y=1 \mid z) = 1/(1 + e^{Az + B})$) or isotonic regression on held-out development labels before using scores as abstention probabilities.[^sklearnCalibration2026] Recalibrate whenever you change the checkpoint or corpus.
 
 ```checkpoint
-Twenty untouched cases each receive a claimed relevance probability of 0.75, and 8 are labeled relevant. Which observed frequency and direction of this group’s calibration error are correct?
+Twenty held-out cases each receive a predicted relevance probability of 0.75, and 8 are labeled relevant. What is the observed frequency and calibration gap?
 ---
-Observed 0.40; the stated probability is 0.35 higher.
-
-The observed frequency is 8/20 = 0.40; 0.75 − 0.40 = 0.35. This finite group shows an overconfident discrepancy but does not certify calibration elsewhere. Keep passage relevance distinct from complete-answer sufficiency, and preserve untouched evaluation data.
+Observed frequency is $8/20 = 0.40$, so the predicted probability is overconfident by $0.75 - 0.40 = 0.35$.
 ```
 
 ## Measure candidate recall and top-of-list relevance
 
-With pair scoring in place, ask how to prove it improves the stage that owns the failure. Keep evaluation narrow, and let each metric answer a different question:
+Track three complementary metrics so you know immediately whether retrieval or reranking owns a failure:
 
-1. <span data-glossary="recall-at-k">Recall@candidate_k</span> checks whether first-stage retrieval gave the reranker a chance.
-2. <span data-glossary="mrr">Mean reciprocal rank (MRR)</span> averages how early the first relevant chunk appears across a release suite.
-3. <span data-glossary="ndcg">Normalized discounted cumulative gain (NDCG)</span> at the context cutoff checks whether relevant chunks fit near the top of the context budget.[^manning2008ir]
-
-For this one request, **reciprocal rank (RR)** is easy to read: rank 3 gives $1/3$; rank 1 gives $1$. MRR is the mean of those per-request values. <span data-glossary="ndcg">NDCG</span> supports graded relevance.
-
-This lab uses binary relevance, where a relevant chunk has $rel_i = 1$ and an irrelevant chunk has $rel_i = 0$. With binary labels, linear-gain and exponential-gain DCG formulas agree, so the numbers below don't depend on which variant you pick:
+1. <span data-glossary="recall-at-k">Recall@candidate_k</span>: Did first-stage retrieval give the reranker the needed passage?
+2. <span data-glossary="mrr">Mean reciprocal rank (MRR)</span>: How high does the first relevant chunk rank? (Moving from rank 3 to rank 1 raises RR from $1/3$ to $1$.)
+3. <span data-glossary="ndcg">Normalized discounted cumulative gain (NDCG)</span>: Do the highest-relevance chunks land inside the prompt cutoff?[^manning2008ir]
 
 $$
 \operatorname{DCG}_k = \sum_{i=1}^{k} \frac{2^{rel_i}-1}{\log_2(i+1)}
@@ -710,10 +633,8 @@ $$
 \operatorname{NDCG}_k = \frac{\operatorname{DCG}_k}{\operatorname{IDCG}_k}
 $$
 
-Moving the only relevant chunk from rank 3 to rank 1 changes RR from $1/3$ to $1$, and places the chunk inside NDCG@2.
-
 <!-- leetllm: test, output=show, continue=rerank-context, id=rerank-metrics -->
-```python title="ordering-gate.py"
+```python title="ordering-metrics.py"
 RELEVANT_IDS = {TARGET_ID}
 
 
@@ -756,28 +677,18 @@ NDCG@2: 0.00 -> 1.00
 ```
 <!-- leetllm: output:end -->
 
-These numbers check this hand-labeled evaluation split, not model quality or generated-answer correctness. Deduplicate IDs before scoring: repeating a relevant chunk mustn't earn gain twice. This implementation defines NDCG as zero when there are no relevant labels; report that convention and evaluate no-answer behavior separately. Treat unjudged documents carefully rather than assuming every missing label means irrelevance.
-
-For a held-out query suite, compare per-query scores on identical authorized candidates, then aggregate MRR/NDCG with uncertainty and query-type breakdowns. Also score the final packed context. Filtering, deduplication, and token budgets can remove a highly ranked passage after the reranker. Those ordering gains assume the target was on the list the reranker scored. What happens if that list stops at two?
-
 ```checkpoint
-At cutoff 2, a ranking has relevance grades [1, 0, 2]. Use gain 2^grade − 1 and the ideal ordering of these same labels. What is NDCG@2, rounded to three decimals?
+At cutoff 2, a ranking has relevance grades [1, 0, 2]. Using gain $2^{\text{grade}} - 1$ and the ideal ordering of these labels, what is NDCG@2 to three decimals?
 ---
-0.275
-
-The actual top-two gain is 1/log2(2) + 0/log2(3) = 1. The ideal top two have grades 2 and 1, giving 3 + 1/log2(3) ≈ 3.631. The ratio is about 0.275. Gain and denominator must use the same labels and cutoff.
+0.275. Actual top-2 DCG is $1/\log_2(2) + 0/\log_2(3) = 1.0$. Ideal top-2 DCG (grades 2 and 1) is $3/\log_2(2) + 1/\log_2(3) \approx 3.631$, giving $1.0 / 3.631 \approx 0.275$.
 ```
 
 ## Candidate count sets the ceiling and the bill
 
-An ordering metric can't rescue an item that never reaches the reranker. If the reranker receives only the first two candidates, `api-token-legacy-v2-rule` is cut before pair scoring. Use a candidate-recall gate before comparing reranker models.
-
-For relevant-set $R$ and candidate-set $C_k$, candidate recall is $|R\cap C_k|/|R|$. This value bounds the recall of any context selected from $C_k$. With two required passages but only one retrieved, even an oracle reranker can't exceed 50% passage recall. For multi-hop questions, measure whether every required passage is present.
-
-Predict the budget tradeoff: top 2 is too small to score the target; top 3 gives it a chance. The lab keeps every other variable fixed so that ceiling is visible.
+Passing only the top 2 hybrid hits to the reranker drops `api-token-legacy-v2-rule` before pair scoring even runs. Candidate recall $|R \cap C_k| / |R|$ caps the best recall any reranker can ever achieve:
 
 <!-- leetllm: test, output=show, continue=rerank-metrics, id=rerank-candidate-budget -->
-```python title="candidate-count-gate.py"
+```python title="candidate-count-budget.py"
 def target_present(candidates: list[Candidate]) -> bool:
     return TARGET_ID in [candidate.chunk_id for candidate in candidates]
 
@@ -816,21 +727,12 @@ Candidate recall@3: 1.0
 
 ### Compute and latency budgeting in the two-stage funnel
 
-A cross-encoder with independent pair scoring evaluates each query-candidate pair online. Increasing candidate depth increases total work, but wall-clock latency also depends on batch scheduling and hardware. For dense attention with fixed layer count $L$ and hidden width, the attention component scales as $O(LT^2)$ for pair length $T$. Doubling $T$ multiplies that component by roughly four, not necessarily the complete request latency.
+Because a cross-encoder scores every pair online, attention scales as $O(L T^2)$ in pair token length $T$ and linearly in candidate count $k$. Padding short pairs to match the longest sequence in a batch wastes compute unless you bucket by length or enable ragged batching (such as Triton's optional ragged batching configuration[^triton2026RaggedBatching]). Hosted APIs also cap batch sizes (Cohere recommends keeping Rerank requests under 1,000 documents[^cohere2026rerank]).
 
-Choose a retrieval shortlist by measuring the recall/latency frontier. There is no universal GPU millisecond range, CPU depth limit, or safe candidate count. Include actual query and passage lengths, queueing, concurrency, precision, model loading, and endpoint overhead in the measurement.
-
-Batching also requires an explicit specification:
-
-- Padding a batch to its longest sequence can waste work. Length bucketing reduces that waste, while waiting to form batches can add latency.
-- Triton's default dynamic batching requires compatible input shapes. Ragged batching is optional configuration; the backend must handle concatenated inputs and their boundaries.[^triton2026RaggedBatching] Selecting a runtime doesn't automatically remove padding.
-- FlashAttention improves attention memory access; it doesn't remove dense attention's quadratic arithmetic. Whether a particular reranker supports variable-length execution must be checked in its implementation.
-- Compare smaller checkpoints, quantization, and different batching strategies on relevance and serving measurements. Recheck ranking quality after each speed optimization.
-
-This benchmark uses a sequential cost model to make the candidate-depth trade-off visible. It isn't a p95 benchmark: production serving batches pairs, and percentiles must be measured end to end. Cohere recommends against sending more than 1,000 documents in one Rerank request; that's a hosted-API cousin of the same $k$ knob.[^cohere2026rerank]
+Model the trade-off between candidate depth and a 30 ms reranker latency budget:
 
 <!-- leetllm: test, output=show, continue=rerank-candidate-budget, id=rerank-latency -->
-```python title="latency-budget-gate.py"
+```python title="latency-budget-check.py"
 SEQUENTIAL_PAIR_COST_MS = 7.5
 REQUEST_OVERHEAD_MS = 4.0
 LATENCY_BUDGET_MS = 30.0
@@ -838,10 +740,8 @@ LATENCY_BUDGET_MS = 30.0
 
 def estimated_latency_ms(candidate_count: int) -> float:
     nonnegative_integer(candidate_count, "candidate count")
-    if not finite_number(candidate_count):
-        raise ValueError("candidate count is too large for this float cost model")
     latency = REQUEST_OVERHEAD_MS + SEQUENTIAL_PAIR_COST_MS * candidate_count
-    if not finite_number(latency):
+    if not isfinite(latency):
         raise ValueError("latency overflow")
     return latency
 
@@ -867,56 +767,44 @@ top-4 latency: 34.0 ms, pass=False
 ```
 <!-- leetllm: output:end -->
 
-For this benchmark, three candidates recover the rule and fit the synthetic budget. The context cap is two, but only one passage clears the baseline threshold. A real service chooses these limits using held-out relevance labels and measured end-to-end <span data-glossary="p95-latency">p95 latency</span> by candidate count, input length, concurrency, and batch strategy. With dense attention, a pair's attention work grows roughly quadratically in its token length; equal candidate counts can therefore have very different costs. Measure queueing, network, tokenization, model execution, and packing together.
-
-Define failure behavior before serving: on a timeout, either fall back to the original authorized order and mark the trace as degraded, or abstain if policy requires reranking. Never fill the gap with unscored restricted evidence. On equal scores, this lab preserves first-stage rank and then uses chunk ID as a deterministic tie-breaker.
+Measure end-to-end <span data-glossary="p95-latency">p95 latency</span> on your target hardware and batching configuration, and decide timeout fallback behavior up front (either fall back to the authorized first-stage order with a degraded trace flag, or abstain).
 
 ```checkpoint
-Can this sequential benchmark prove deployed p95 latency for a batched cross-encoder endpoint?
+Can this sequential cost formula predict deployed p95 latency for a batched GPU cross-encoder?
 ---
-No. It makes the candidate-count tradeoff visible. Measure end-to-end p95 latency with the real model, input lengths, batching strategy, and hardware before setting a production budget.
+No. It illustrates the candidate-count trade-off. Deployed p95 depends on batching, sequence-length distribution, queueing, and hardware, so measure end-to-end latency under realistic load.
 ```
 
-Depth decides how many chunks get a score. It doesn't decide when the query is allowed to meet the chunk. Can that comparison be stored ahead of the request, or does it have to wait until the query and the passage are read together?
-
 ```checkpoint
-Three dense-attention pairs have sequence lengths 32, 64 and 96. Count the T-squared attention entries only. What are the padded-batch total when all are padded to 96 and the unpadded sum?
+Three dense-attention pairs have lengths 32, 64, and 96. Counting $T^2$ attention entries only, what is the padded-batch total (all padded to 96) versus the unpadded sum?
 ---
-Padded 27,648; unpadded 14,336.
-
-Padded work is 3×96² = 27,648. The unpadded sum is 32² + 64² + 96² = 1,024 + 4,096 + 9,216 = 14,336. This counts one attention component, not measured wall-clock latency or all model arithmetic.
+Padded: $3 \times 96^2 = 27{,}648$. Unpadded: $32^2 + 64^2 + 96^2 = 1{,}024 + 4{,}096 + 9{,}216 = 14{,}336$.
 ```
 
 ## Choose an interaction design deliberately
 
-Anything computed without the query can be indexed. A score that needs this query and this chunk has to wait for request time. Predict that storage tradeoff before comparing the three designs below.
+Anything independent of the query can be precomputed and indexed; anything requiring query-passage token interaction waits until request time:
 
-Three ranking designs make different choices across the interaction spectrum:
-
-| Design | Stored before request | Request-time work | Architectural mechanism |
+| Design | Stored offline | Request-time work | Core mechanism |
 |---|---|---|---|
-| Bi-encoder retrieval | One dense vector $\mathbf{e}_d \in \mathbb{R}^d$ per chunk | Inner product $\langle \mathbf{e}_q, \mathbf{e}_d \rangle$ against query vector | Single vector bottleneck; zero token-level cross interaction |
-| BERT-style cross-encoder | No query-specific pair score | Bidirectional attention over $[CLS] \circ q \circ [SEP] \circ d \circ [SEP]$ | Query and document tokens interact before pooling |
-| ColBERT late interaction | Token vectors $\mathbf{E}_d \in \mathbb{R}^{N_d \times m}$ per chunk | MaxSim across token matrices | Retains token granularity with pre-indexable document vectors |
+| Bi-encoder retrieval | One vector $\mathbf{e}_d \in \mathbb{R}^d$ per chunk | Dot product $\langle \mathbf{e}_q, \mathbf{e}_d \rangle$ | Single-vector compression; fast ANN search |
+| BERT-style cross-encoder | No pair scores | Bidirectional attention over `[CLS] q [SEP] d [SEP]` | Full token-level interaction before pooling |
+| ColBERT late interaction | Token matrix $\mathbf{E}_d \in \mathbb{R}^{N_d \times m}$ per chunk | MaxSim across token matrices | Pre-indexable document vectors with token-level matching |
 
-Bi-encoders compress a passage into one vector before comparing it with the query.[^reimers2019] Encoding every condition into that representation can be challenging, but this doesn't mean a bi-encoder necessarily loses negation or entity roles. Those behaviors need evaluation on the actual checkpoint.
-
-BERT-style cross-encoders let query and document tokens interact before the pooled score is computed. This interaction can capture fine distinctions. Measure the trained model on ambiguous pairs. Its output is still a compressed scalar.
-
-<span data-glossary="colbert">ColBERT</span> bridges the gap through **late interaction**.[^khattab2020] It keeps document representations indexable offline as individual contextual token vectors, while preserving token-level comparison at query time. For each query token vector, the <span data-glossary="maxsim">MaxSim</span> operator finds its maximum dot product across all document token vectors, then sums those per-token maxima:
+Bi-encoders compress each passage into one vector ahead of time.[^reimers2019] <span data-glossary="colbert">ColBERT</span> bridges bi-encoders and cross-encoders via **late interaction**:[^khattab2020] document token embeddings are precomputed offline (L2-normalized), and at query time the <span data-glossary="maxsim">MaxSim</span> operator finds each query token's best matching document token and sums those maxima:
 
 $$
 S(q, d) = \sum_{i=1}^{N_q} \max_{j=1}^{N_d} \operatorname{sim}\bigl(\mathbf{E}_q[i], \mathbf{E}_d[j]\bigr)
 $$
 
-Original ColBERT L2-normalizes token embeddings, making token dot products equal cosine similarities.[^khattab2020] Token dimension $m$ is a configuration choice, not always 128. PLAID is a search engine for ColBERTv2 representations that uses centroid interaction and pruning; its reported speedups depend on the configuration and workload.[^santhanam2022Plaid] Don't infer a universal sub-10-ms result.
+Engines like PLAID prune candidate lists using centroid interaction to accelerate ColBERTv2 search.[^santhanam2022Plaid]
 
 <figure>
   <img src="illustrations/_generated/reranker_interaction_spectrum_dark.png" alt="Three architectures score the same query and chunk. A bi-encoder compares separately pooled query and chunk vectors. A BERT-style cross-encoder joins CLS, query, and chunk tokens so both sides interact before one score; its grid is schematic, not measured attention. ColBERT keeps chunk-token vectors and compares a toy 2-by-3 matrix: query row 1 selects 0.900, row 2 selects 0.800, and MaxSim sums them to 1.700." />
-  <figcaption>The middle grid shows only where a BERT-style input lets query and chunk tokens interact. Its cells are schematic; they are not attention weights from a model. The ColBERT table repeats the lab's toy dot products: row maxima 0.900 and 0.800 sum to 1.700, with the square-root value rounded to three decimals.</figcaption>
+  <figcaption>From left to right: bi-encoder vector dot product, cross-encoder joint self-attention across concatenated tokens, and ColBERT MaxSim summing per-query-token maxima (0.900 + 0.800 = 1.700).</figcaption>
 </figure>
 
-Two query vectors find their best matches independently: $q_1$ matches $d_1$ at $0.9$, $q_2$ matches $d_2$ at $0.8$, and the score is their sum. Each 2-D vector has unit $\ell_2$ norm ($0.9^2 + (\sqrt{0.19})^2 = 1$), so dot products equal cosine similarities directly.
+Compute MaxSim on two unit-norm query tokens against three unit-norm document tokens:
 
 <!-- leetllm: test, output=show, continue=rerank-latency, id=rerank-maxsim -->
 ```python title="colbert-maxsim.py"
@@ -937,10 +825,10 @@ def maxsim(
     if not query or not document:
         raise ValueError("query and document need token vectors")
     for vector in query + document:
-        if len(vector) != 2 or not all(finite_number(value) for value in vector):
-            raise ValueError("this lab requires finite 2-D token vectors")
+        if len(vector) != 2 or not all(isfinite(value) for value in vector):
+            raise ValueError("require finite 2-D token vectors")
         if abs(hypot(*vector) - 1.0) > 1e-9:
-            raise ValueError("this lab requires unit-length token vectors")
+            raise ValueError("require unit-length token vectors")
     return sum(max(dot(query_vec, doc_vec) for doc_vec in document) for query_vec in query)
 
 
@@ -959,24 +847,14 @@ MaxSim: 1.7
 ```checkpoint
 Why can a document embedding be indexed before a request, while a cross-encoder relevance score can't?
 ---
-A document embedding is computed without knowing the query. A cross-encoder score depends on a specific query and a specific chunk processed together, so it exists only at request time.
+A document embedding depends only on the document text. A cross-encoder score attends across a specific query and passage together, so it can only be computed once the query arrives.
 ```
 
-## Cache invalidation and multi-tenant security
+## Cache keys and multi-tenant isolation
 
-Cross-encoder scores are expensive to recompute, which makes a cache attractive. Caching a score only by chunk ID, or only by `(query, chunk_id)`, is a severe correctness and security failure.
+Caching cross-encoder scores by `(query, chunk_id)` alone breaks on document edits, model upgrades, and multi-tenant isolation (leaking scores or timing side channels across tenants). For listwise models like Jina Reranker v3.5, changing any neighbor or its position changes the score.[^jina2026RerankerV35]
 
-Three changes make a key that thin wrong:
-
-1. **Document updates:** If a policy document changes but keeps its chunk ID, an un-invalidated cache entry continues serving scores calculated against the obsolete version.
-2. **Model upgrades:** A checkpoint or scoring-method change can shift score scales and ordering. Mixing incompatible cached scores can corrupt ranking.
-3. **Cross-tenant data leakage:** In multi-tenant environments, Tenant A and Tenant B might issue identical queries. If Tenant A has access to a confidential contract and caches its high relevance score, Tenant B's retrieval pipeline must not see that score, receive that document ID, or learn of its existence through side-channel timing probes.
-
-Fingerprint the **exact scoring input**, immutable model and tokenizer revisions, scoring settings, and trusted tenant/access namespace. Include instructions, templates, truncation or windows, aggregation, adapters, and relevant precision settings. A mutable model name isn't an immutable revision. Avoid normalizing away input distinctions unless the scorer deliberately uses that same normalization.
-
-For an independently scored pair, the input contains one query and passage. For a listwise model such as Jina Reranker v3.5, it contains the complete ordered candidate list: changing a neighbor or its position can change the score.[^jina2026RerankerV35] Pairwise cache entries aren't interchangeable with whole-list results.
-
-Use structured serialization rather than ambiguous string concatenation. This configuration hashes already-rendered model input and explicit configuration. Pinning model, tokenizer, and truncation parameters inside the cache digest invalidates stale entries automatically when any component changes.
+Hash the **exact scoring input** (single pair for pointwise, full ordered list for listwise) alongside immutable model/tokenizer revisions, scoring settings, tenant ID, security scope, and grant revision:
 
 <!-- leetllm: test, output=show, continue=rerank-maxsim, id=rerank-cache -->
 ```python title="score-cache-identity.py"
@@ -990,16 +868,8 @@ def score_cache_key(
     security_scope: tuple[str, ...],
     grant_revision: str,
 ) -> str:
-    strings = (model_input, model_revision, tokenizer_revision, tenant_id, grant_revision)
-    if any(not isinstance(value, str) or not value for value in strings):
+    if not all((model_input, model_revision, tokenizer_revision, tenant_id, grant_revision)):
         raise ValueError("cache input and revisions must be nonempty strings")
-    if (
-        not isinstance(scoring_settings, dict)
-        or not all(isinstance(key, str) for key in scoring_settings)
-        or not isinstance(security_scope, tuple)
-        or not all(isinstance(grant, str) and grant for grant in security_scope)
-    ):
-        raise ValueError("invalid scoring settings or security scope")
     payload = {
         "schema": 1,
         "input_sha256": sha256(model_input.encode("utf-8")).hexdigest(),
@@ -1010,13 +880,10 @@ def score_cache_key(
         "security_scope": sorted(set(security_scope)),
         "grant_revision": grant_revision,
     }
-    try:
-        serialized = json.dumps(
-            payload, sort_keys=True, ensure_ascii=False,
-            separators=(",", ":"), allow_nan=False,
-        )
-    except (TypeError, ValueError, OverflowError) as error:
-        raise ValueError("cache configuration must be finite JSON data") from error
+    serialized = json.dumps(
+        payload, sort_keys=True, ensure_ascii=False,
+        separators=(",", ":"), allow_nan=False,
+    )
     return sha256(serialized.encode("utf-8")).hexdigest()
 
 
@@ -1052,18 +919,14 @@ Changed list order changes key: True
 ```
 <!-- leetllm: output:end -->
 
-The key identifies inputs. Authenticate callers, encrypt sensitive material, and validate source text separately. Derive access fields from trusted authorization, and recheck current access **before exposing cached IDs, scores, or text**, as well as before generation. Test timing side channels alongside cache isolation. Keep source revisions in cached result records for traceability as well.
-
-A correct key still doesn't explain a bad answer. If the selected chunk is right and the reply is wrong, which record do you open?
+Always recheck current permissions before reusing a cached score or passage.
 
 ## Emit the trace that evaluation needs
 
-Open the trace. Without evidence-level records, a bad answer could come from retrieval order, pair scoring, context packing, or source freshness.
-
-Record first-stage IDs, actual reranker input, candidate source identity, policy versions, pair scores, model versions, selected context IDs, and release gates. A document version is part of correctness: a well-ranked stale rule is still unsafe context.
+Record first-stage IDs, exact reranker inputs, source versions, scores, selected context IDs, and model revisions so downstream evaluation can separate retrieval, ordering, and generation errors:
 
 <!-- leetllm: test, output=show, continue=rerank-cache, id=rerank-trace -->
-```python title="reranking-release-trace.py"
+```python title="reranking-trace.py"
 SCORER_VERSION = "phrase-rule-v1"
 selected_context = [
     result.candidate
@@ -1072,7 +935,7 @@ selected_context = [
 ][:CONTEXT_BUDGET]
 release_trace = {
     "query_id": "api-token-legacy-access-001",
-    "system_authority": {
+    "caller_scope": {
         "tenant": "policy-lab",
         "caller": "service-account-reader",
         "grant_revision": "auth-grants-v1",
@@ -1103,7 +966,7 @@ release_trace = {
     ],
     "selected_context_ids": [candidate.chunk_id for candidate in selected_context],
     "selected_versions": [candidate.version for candidate in selected_context],
-    "gates": {
+    "checks": {
         "permitted_and_current": all(
             in_snapshot(candidate) for candidate in release_input
         ),
@@ -1123,10 +986,10 @@ print("Versions:", release_trace["versions"])
 print("Rerank input:", release_trace["rerank_input_ids"])
 print("Selected context:", release_trace["selected_context_ids"])
 print("Trace stores raw policy text:", stores_raw_policy_text)
-print("Gates:", release_trace["gates"])
+print("Checks:", release_trace["checks"])
 assert set(release_trace["reranked_ids"]) == set(release_trace["rerank_input_ids"])
 assert not stores_raw_policy_text
-assert all(release_trace["gates"].values())
+assert all(release_trace["checks"].values())
 ```
 
 <!-- leetllm: output:start -->
@@ -1135,20 +998,16 @@ Versions: {'retriever': 'policy-retriever-v2', 'index': 'policy-index/2026-05-27
 Rerank input: ['api-token-troubleshooting-v1', 'api-password-reset-v1', 'api-token-legacy-v2-rule']
 Selected context: ['api-token-legacy-v2-rule']
 Trace stores raw policy text: False
-Gates: {'permitted_and_current': True, 'target_in_context': True, 'ordering_lift': True, 'latency_budget': True}
+Checks: {'permitted_and_current': True, 'target_in_context': True, 'ordering_lift': True, 'latency_budget': True}
 ```
 <!-- leetllm: output:end -->
 
-The trace records the actual three-candidate input and compares ordering on that subset. Its authorization labels describe a trusted teaching snapshot, not implemented authentication. Gold-target and ordering gates belong to offline evaluation, where labels exist. Live traces record IDs, versions, latency, and selection, but normally don't know the correct answer.
+### Test scorer safety and boundary cases
 
-The substring check only detects complete candidate text. It misses fragments or encoded content and isn't a privacy audit. IDs, scores, and traces still require access controls.
-
-### Test ranking and context invariants
-
-What if a scorer returns a different candidate with a very high score? Or someone edits text while preserving the ID and version? These tests exercise the actual boundary under score manipulation and text substitution. The final case also shows why a relevant rule can support a denial.
+Verify that mutated records, scorers trying to swap in a different candidate, or `NaN` scores are rejected, and observe how Rule AUTH-14 stays highly relevant even when the final verdict flips to denied (day 15 or audit disabled):
 
 <!-- leetllm: test, output=show, continue=rerank-trace, id=rerank-invariants -->
-```python title="challenge-reranker-invariants.py"
+```python title="challenge-reranker-checks.py"
 from dataclasses import replace
 
 
@@ -1184,61 +1043,46 @@ for days, audit in [(0, True), (14, True), (15, True), (10, False)]:
         if result.candidate.chunk_id == TARGET_ID
     )
     permitted_by_rule = 0 <= days <= 14 and audit
-    print(f"day={days}, audit={audit}: score={target_score}, policy_allows={permitted_by_rule}")
+    print(f"day={days}, audit={audit}: score={target_score}, rule_allows={permitted_by_rule}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 Changed record, rebound result, non-finite score/budget: rejected
-day=0, audit=True: score=7, policy_allows=True
-day=14, audit=True: score=7, policy_allows=True
-day=15, audit=True: score=5, policy_allows=False
-day=10, audit=False: score=5, policy_allows=False
+day=0, audit=True: score=7, rule_allows=True
+day=14, audit=True: score=7, rule_allows=True
+day=15, audit=True: score=5, rule_allows=False
+day=10, audit=False: score=5, rule_allows=False
 ```
 <!-- leetllm: output:end -->
 
-The rule treats days 0 through 14 as inclusive and assumes the caller is a service account. At day 15 or with auditing disabled, the chunk remains relevant and clears the +5 selection gate, while access is denied. The score selects evidence; interpreting that evidence is a separate operation.
-
 ```checkpoint
-A trace proves that both required current permitted clauses reached the generator unchanged. The clauses jointly deny the requested action, but the answer grants it and cites those clauses. Which is the first demonstrated failure in this trace?
+A trace shows that all required current permitted clauses reached the generator unchanged. The clauses jointly deny the requested action, yet the answer grants it and cites those clauses. Which stage failed first?
 ---
-Downstream interpretation or grounding; assess the answer against the selected conditions.
-
-The trace establishes required context presence and current authorization. The observed wrong conclusion appears when the generator interprets that context. A relevance score can correctly rank a denial. Further tests may find additional defects, but the evaluated evidence already demonstrates this downstream failure.
+Downstream generation or grounding. Retrieval and reranking succeeded by delivering the governing rule; the model misinterpreted the rule's conditions.
 ```
 
 ```checkpoint
-Two required permitted passages K and M score 4.1 and 3.3; distractor Z scores 2.7. Admission requires score at least 3, capacity is two passages, and available context is 38 tokens. K has 21 tokens, M 17 and Z 9. Which descending-order packing result follows?
+Two required permitted passages K and M score 4.1 and 3.3; distractor Z scores 2.7. Selection requires score at least 3, capacity is two passages, and available context is 38 tokens. K has 21 tokens, M 17, and Z 9. Which passages are packed?
 ---
-K,M; 38 tokens; both required passages fit.
-
-K and M clear the threshold and descend in that order. Their total is 21 + 17 = 38, exactly the available budget; capacity two also passes. Z is below the selection threshold. Complete context still leaves policy interpretation and answer verification to generation.
+K and M (21 + 17 = 38 tokens). Both clear the threshold of 3 and fit within the 38-token budget and 2-passage limit; Z falls below threshold.
 ```
 
-## Release checks for `policy-answerer-v3`
+## Pre-launch checklist for reranking
 
-Use the gates as a diagnosis path. A missing target is a recall failure; a target below the context cutoff is an ordering failure; a score-text mismatch is a truncation failure; correct context with an unsupported answer belongs to the next generation and evaluation stage.
-
-Before this reranker serves another legacy-token question:
-
-| Gate | Evidence to log | Failure response |
+| Check | Evidence to log | Action on failure |
 |---|---|---|
-| Candidate recall | Gold chunk ID in first-stage top `k` | Fix retrieval or raise measured candidate budget |
-| Authorization and freshness | <span data-glossary="acl">ACL</span> decision, chunk version, effective date | Reject request context; never score blocked evidence |
-| Truncation-aware scoring | Pair token length, `truncated` flag, scored vs packed checksum or kept span | Refuse pair, re-chunk, or record explicit window; never rank a silent prefix |
-| Ordering lift | Before/after MRR or NDCG on held-out traces | Retrain, replace, or remove reranker |
-| Serving budget | Candidate count, token length, model version, p95 latency | Batch, cap input, or choose a tested alternative |
-| Downstream grounding | Selected chunk IDs and generated citations | Evaluate in the next pipeline stage |
-
-Caching only by chunk ID is unsafe. Include the exact scoring input's <span data-glossary="checksum">checksum</span>, immutable model/tokenizer revisions, scoring settings, and trusted access scope. For listwise scoring, input identity covers the full ordered list. Recheck access before disclosing a cache hit. Replay labeled cases after source changes. A high score for obsolete policy is still obsolete evidence.
-
-A missing target is a recall miss, and a target below the cutoff is an ordering miss. The scored span has to match the packed text, and a cache key has to include tenant, revision, and list membership. A score of +7 can rank Rule AUTH-14 at top and still leave access denied on day 15. The generated sentence has to follow the selected rule, which the score does not check.
-
+| Candidate recall | Target chunk ID in first-stage top $k$ | Improve retrieval or raise candidate depth |
+| Authorization and freshness | <span data-glossary="acl">ACL</span> decision, chunk version, effective date | Reject request; never score blocked chunks |
+| Truncation safety | Pair token length, `truncated` flag, scored vs. packed checksum | Re-chunk, window, or reject silent prefix scoring |
+| Ordering lift | Before/after MRR or NDCG on held-out queries | Tune, replace, or remove reranker |
+| Serving budget | Candidate count, pair length, model version, p95 latency | Batch, cap depth, or switch to a smaller model |
+| Downstream grounding | Selected chunk IDs and generated citations | Evaluate in the next chapter |
 
 ```mastery-quiz
 [
   {
-    "question": "At one prediction position, a toy three-token vocabulary has yes logit 1, no logit −1 and other logit 3. Which pair gives the binary-renormalized yes score and full-vocabulary yes probability?",
+    "question": "At one prediction position, a three-token vocabulary has yes logit 1, no logit −1, and other logit 3. Which pair gives the binary-renormalized yes score and full-vocabulary yes probability?",
     "options": [
       "Binary ≈ 0.881; full vocabulary ≈ 0.117.",
       "Binary ≈ 0.731; full vocabulary ≈ 0.245.",
@@ -1246,21 +1090,21 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "Binary ≈ 0.500; full vocabulary ≈ 0.117."
     ],
     "answer": "Binary ≈ 0.881; full vocabulary ≈ 0.117.",
-    "explanation": "The binary logit difference is 1 − (−1) = 2, so sigmoid(2) ≈ 0.881. The full probability is exp(1)/(exp(1)+exp(−1)+exp(3)) ≈ 0.117. Removing other changes the denominator and event."
+    "explanation": "The binary logit difference is 1 − (−1) = 2, giving sigmoid(2) ≈ 0.881. Full-vocabulary softmax gives exp(1) / (exp(1) + exp(−1) + exp(3)) ≈ 0.117."
   },
   {
     "question": "A listwise scorer reads the complete ordered list [P, Q, R]. Q is replaced by a new revision while P stays byte-identical. All access checks still pass. Which reuse plan matches that input dependency?",
     "options": [
       "Reuse P and R scores; recompute Q and merge the three independent scores.",
-      "Reuse every score; update only Q’s citation revision in the packed context.",
+      "Reuse every score; update only Q's citation revision in the packed context.",
       "Recompute Q and R; keep P because earlier position protects its prior score.",
       "Recompute the changed full-list input; bind its exact ordered revisions and settings."
     ],
     "answer": "Recompute the changed full-list input; bind its exact ordered revisions and settings.",
-    "explanation": "A listwise result is bound to the complete ordered scoring input. The model architecture permits neighboring text to affect scores, so an unchanged passage is not sufficient evidence that its listwise score is reusable. A verified narrower dependency would require a separate explicit specification."
+    "explanation": "A listwise scorer lets every passage attend to its neighbors, so changing Q can shift P and R's scores too. Recompute the full list and key the cache by the complete ordered input."
   },
   {
-    "question": "A scorer response preserves the candidate chunk ID, text and version but substitutes a different parent identity. Its score is finite and current caller access still passes. Under the complete-record specification, what is the correct next step?",
+    "question": "A scorer response preserves the candidate chunk ID, text, and version, yet substitutes a different parent identity. Its score is finite and caller access still passes. What is the right next step?",
     "options": [
       "Accept unchanged text; replace the citation parent in the selected-context manifest.",
       "Reject the rebound response; revalidate its source-parent binding before context inclusion.",
@@ -1268,10 +1112,10 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "Accept matching ID and version; treat the parent field as display-only metadata."
     ],
     "answer": "Reject the rebound response; revalidate its source-parent binding before context inclusion.",
-    "explanation": "The scorer must return the same complete candidate it received. A changed parent identity breaks that binding even when text, version and permission match. Reject the response before context publication; a changed source relationship needs a fresh trusted decision rather than a silent citation repair."
+    "explanation": "The scorer must return the exact candidate record it received. A mutated parent breaks citation traceability and must be rejected before context assembly."
   },
   {
-    "question": "A question needs three passages at first-stage ranks 2, 6 and 9. The reranker can reorder the first seven candidates. The prompt has three slots, each large enough for any one passage. What is the maximum fraction of required passages that could reach the prompt now? Which adjustment, if any, would let all three reach it?",
+    "question": "A question needs three passages at first-stage ranks 2, 6, and 9. The reranker can reorder the first seven candidates. The prompt has three slots, each large enough for any one passage. What is the maximum fraction of required passages that could reach the prompt now, and what adjustment lets all three reach it?",
     "options": [
       "1/3 now. Send the first nine candidates to the reranker.",
       "3/3 now. Keep the current depth and prompt capacity.",
@@ -1279,10 +1123,10 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "2/3 now. Increase the prompt capacity to four slots."
     ],
     "answer": "2/3 now. Send the first nine candidates to the reranker.",
-    "explanation": "The reranker can put both rank 2 and rank 6 in the prompt, giving a maximum recall of 2/3. Counting only the first three search results gives 1/3 and misses the chance to move rank 6 up. Counting the three slots gives 3/3 and overlooks the missing passage at rank 9. A fourth slot would still leave that passage out of scoring. At depth nine, all three can compete for the three existing slots."
+    "explanation": "At depth 7, the reranker sees ranks 2 and 6 (max 2/3 recall) and never sees rank 9. Sending the top 9 candidates lets all three compete for the existing three prompt slots."
   },
   {
-    "question": "A declared whitespace-token wrapper keeps an 8-token query and reserves 3 special tokens inside a 30-token pair limit. The source document has 25 tokens and its tail may be cut. How many document tokens fit, and how many are omitted?",
+    "question": "A whitespace-token wrapper keeps an 8-token query and reserves 3 special tokens inside a 30-token pair limit. The source document has 25 tokens and its tail may be cut. How many document tokens fit, and how many are omitted?",
     "options": [
       "19 fit; 6 omitted.",
       "22 fit; 3 omitted.",
@@ -1290,7 +1134,7 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "30 fit; 0 omitted."
     ],
     "answer": "19 fit; 6 omitted.",
-    "explanation": "Document capacity is 30 − 8 − 3 = 19, so 25 − 19 = 6 source tokens are omitted. The metadata must identify the kept span and policy rather than treating a scored prefix as the full source. A real checkpoint requires its actual tokenizer."
+    "explanation": "Remaining document capacity is 30 − 8 − 3 = 19 tokens, omitting 25 − 19 = 6 trailing tokens."
   },
   {
     "question": "The only relevant passage moves from rank 5 to rank 2. What are the before-and-after values for full-list reciprocal rank (RR) and binary NDCG@3, rounded to three decimals?",
@@ -1301,10 +1145,10 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "RR 0.000 → 0.500, NDCG@3 0.000 → 0.631."
     ],
     "answer": "RR 0.200 → 0.500, NDCG@3 0.000 → 0.631.",
-    "explanation": "Full-list RR rises from 1/5 to 1/2. For NDCG@3, rank 5 contributes zero. At rank 2 the gain is 1/log2(3), about 0.631, and the ideal gain at rank 1 is 1. A starting RR of zero applies the cutoff to RR. A final NDCG of one treats any hit in the top three as ideal. Pairing those values makes both mistakes."
+    "explanation": "RR moves from 1/5 = 0.200 to 1/2 = 0.500. For NDCG@3, rank 5 scores 0, and rank 2 scores 1 / log2(3) ≈ 0.631."
   },
   {
-    "question": "Scores for A, B and C are [5, 4.4, 2]. An additive margin of 0.7 keeps scores at least top minus margin, inclusively. Which retained sets result originally, after adding 6 to all scores, and after multiplying all original scores by 3 without changing the margin?",
+    "question": "Scores for A, B, and C are [5, 4.4, 2]. An additive margin of 0.7 keeps scores at least top minus margin, inclusively. Which retained sets result originally, after adding 6 to all scores, and after multiplying all original scores by 3 without changing the margin?",
     "options": [
       "Original A,B; shifted A; scaled A,B.",
       "Original A; shifted A; scaled A,B.",
@@ -1312,10 +1156,10 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "Original A,B; shifted A,B; scaled A."
     ],
     "answer": "Original A,B; shifted A,B; scaled A.",
-    "explanation": "The original cutoff is 4.3, retaining A and B. The shifted cutoff is 10.3, again retaining A and B. The scaled cutoff is 14.3, so B at 13.2 falls out. Additive shifts preserve differences; changing scale does not preserve a fixed additive margin."
+    "explanation": "Original cutoff is 4.3 (keeps A, B). Shifted scores [11, 10.4, 8] have cutoff 10.3 (keeps A, B). Scaled scores [15, 13.2, 6] have cutoff 14.3, dropping B."
   },
   {
-    "question": "A synthetic sequential scorer costs 6 ms overhead plus 5 ms per candidate. Its limit is 39 ms, and the required passage is rank 7. Which maximum depth and coverage conclusion follow?",
+    "question": "A sequential scorer costs 6 ms overhead plus 5 ms per candidate. Its limit is 39 ms, and the required passage is at rank 7. Which maximum depth and coverage conclusion follow?",
     "options": [
       "Maximum depth 6; the required passage is absent.",
       "Maximum depth 7; the required passage is present.",
@@ -1323,10 +1167,10 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "Maximum depth 6; the required passage is present."
     ],
     "answer": "Maximum depth 6; the required passage is absent.",
-    "explanation": "At most floor((39 − 6)/5) = 6 candidates fit, costing 36 ms. Depth 7 would cost 41 ms, exceeding the configured limit. The target is absent at depth 6, so this worksheet needs a changed retrieval or serving plan rather than a claim that reranking recovered it."
+    "explanation": "floor((39 − 6) / 5) = 6 candidates (36 ms). Depth 7 costs 41 ms and exceeds the budget, so the rank-7 passage never reaches the reranker."
   },
   {
-    "question": "A query has token vectors (1, 0) and (0, 1). A document has token vectors (0.80, −0.60) and (0.96, 0.28). What is the document’s MaxSim score using dot products?",
+    "question": "A query has token vectors (1, 0) and (0, 1). A document has token vectors (0.80, −0.60) and (0.96, 0.28). What is the document's MaxSim score using dot products?",
     "options": [
       "0.96",
       "1.24",
@@ -1334,10 +1178,10 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "1.08"
     ],
     "answer": "1.24",
-    "explanation": "The first query token compares 0.80 with 0.96. The second compares −0.60 with 0.28. Both choose the second document token, so the score is 0.96 + 0.28 = 1.24. Taking the largest match overall gives 0.96 and skips the second query token. Taking the best match for each document token gives 0.80 + 0.96 = 1.76. Forcing the query tokens to use different document tokens gives at best 0.80 + 0.28 = 1.08."
+    "explanation": "Query token (1, 0) gets max(0.80, 0.96) = 0.96; query token (0, 1) gets max(−0.60, 0.28) = 0.28. Summing gives 0.96 + 0.28 = 1.24."
   },
   {
-    "question": "A pair-score cache stores a score for tenant Oak at grant revision 7. The request logged its latency in milliseconds. Three new requests match the stored scoring input, model and tokenizer revisions, settings and access scope. Each record lists the trusted tenant, grant revision, latency log unit and fresh access decision. A = (Elm, 7, ms, allow). B = (Oak, 8, ms, allow). C = (Oak, 7, µs, allow). Which requests can reuse the stored score?",
+    "question": "A pair-score cache stores a score for tenant Oak at grant revision 7. The request logged its latency in milliseconds. Three new requests match the stored scoring input, model and tokenizer revisions, settings, and access scope. Each record lists (tenant, grant revision, latency log unit, fresh access decision): A = (Elm, 7, ms, allow), B = (Oak, 8, ms, allow), C = (Oak, 7, µs, allow). Which requests can reuse the stored score?",
     "options": [
       "All three requests.",
       "B and C only.",
@@ -1345,12 +1189,12 @@ A missing target is a recall miss, and a target below the cutoff is an ordering 
       "None of the requests."
     ],
     "answer": "C only.",
-    "explanation": "All three requests pass the current access check. Reuse also requires a matching key. Elm is a different tenant, and revision 8 identifies a different grant record. Letting all three requests reuse the score would ignore both differences. Allowing B and C would overlook the grant revision. Refusing all three would treat the latency log unit as a scoring input. C can report time in microseconds and reuse the same pair score."
+    "explanation": "Elm is a different tenant and revision 8 is a different grant state. Latency logging units are not part of the scoring input, so only C matches the cache key."
   }
 ]
 ```
 
-> **Next:** Continue to [RAG Evaluation for Reliable Answers](/learn/rag-evaluation-faithfulness-relevance). Take a permission-safe candidate list, reorder it, and keep a versioned evidence trace. That trace is the input to faithfulness, citation, and failure-attribution gates, so a well-ranked chunk still has to support the generated answer.
+> **Next:** Continue to [RAG Evaluation for Reliable Answers](/learn/rag-evaluation-faithfulness-relevance). With a reranked shortlist and versioned evidence trace in place, next evaluate whether generated claims are faithful, properly cited, and complete.
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -1392,7 +1236,7 @@ A cross-encoder processes the two together. BERT, a widely used transformer enco
 
 Because attention runs across the whole input, tokens in the passage can respond directly to tokens in the question. A scoring head then turns the final representation into one relevance number, called a logit. Nogueira and Cho showed that this approach works well for passage reranking.[^nogueira2019]
 
-For Luna's question, the useful interactions are about who, what, when, and under what condition. "Service account" has to be the actor allowed to use the endpoint. The fourteen days have to count from deprecation, and have nothing to do with how long audit exports are kept. Audit logging has to remain a condition of access. Separate vectors give a model little opportunity to check any of these relationships, and joint processing at least makes it possible.
+For this question, the useful interactions are about who, what, when, and under what condition. "Service account" has to be the actor allowed to use the endpoint. The fourteen days have to count from deprecation, and have nothing to do with how long audit exports are kept. Audit logging has to remain a condition of access. Separate vectors give a model little opportunity to check any of these relationships, and joint processing at least makes it possible.
 
 "Possible" is doing a lot of work in that sentence. The architecture can represent the distinction, but that does not mean a given checkpoint learned it, since a model can pick up shortcuts from its training data. Test yours on swapped actors, changed dates, missing conditions, negation, and look-alike terminology.
 
@@ -1490,7 +1334,7 @@ Now run the same step with a real model. `cross-encoder/ms-marco-MiniLM-L6-v2` i
 pip install sentence-transformers==6.2.0
 ```
 
-Add the next listing to the end of the previous one, since it reuses `candidates`. Before you read the output, predict how far the rule's score falls when Luna asks about day fifteen with logging disabled, a request the rule forbids.
+Add the next listing to the end of the previous one, since it reuses `candidates`. Watch how the rule's score behaves when the caller asks about day fifteen with logging disabled, a request the rule forbids:
 
 <!-- leetllm: test, output=show, id=reader-rerank-real, continue=reader-rerank-auth14, deps=sentence-transformers==6.2.0 -->
 ```python title="reader-rerank-real-model.py"
@@ -1542,7 +1386,7 @@ past the input limit: 3.06 and 3.06
 
 Its scores are raw logits on a scale of their own, so our threshold of five means nothing here, and you would have to pick a new one on your own data. The order is what counts. The rule wins by a wide margin, and everything else lands far below it, which is the move our hand-written scorer imitated. Now look at the second block. Ask about day fifteen with logging disabled, and the rule barely moves, because the passage is still the highest-scoring item in this pool. The right answer flipped, but relevance did not.
 
-So relevance leaves the final decision open. The selected rule permits Luna's day-ten request. At day fifteen, or with logging disabled, the same rule is still the highest-scoring passage among these four candidates, but it now supports a no. A relevant passage can explain why something is forbidden just as well as why it is allowed, so a reranker's job ends at finding it.
+So relevance leaves the final decision open. The selected rule permits the day-ten request. At day fifteen, or with logging disabled, the same rule is still the highest-scoring passage among these four candidates, but it now supports a no. A relevant passage can explain why something is forbidden just as well as why it is allowed, so a reranker's job ends at finding it.
 
 ## Check the text that was actually scored
 
@@ -1645,7 +1489,7 @@ At the other extreme, you can give a chat model the question and the list of pas
 
 A good reranker test starts with a frozen candidate set and changes only the scorer. Check that the governing passage moves within the real cutoff, that no forbidden record appears, that scored and packed spans stay traceable, and that the request meets its deadline.
 
-Then try to fool it. Ask the day-fifteen version of Luna's question. Change "audit logging is active" to "audit logging is disabled." Replace "service account" with an actor the rule never mentions. The governing passage can stay on top through all three, which is correct behavior for the reranker, but it leaves the generated answer to get the conclusion right.
+Then try to fool it. Ask the day-fifteen version of the question. Change "audit logging is active" to "audit logging is disabled." Replace "service account" with an actor the rule never mentions. The governing passage can stay on top through all three, which is correct behavior for the reranker, but it leaves the generated answer to get the conclusion right.
 
 Here is a useful exercise. Explain why these two repairs differ: moving `AUTH-14` from third to first among the same four candidates, and enlarging a two-candidate input pool so that `AUTH-14` reaches the reranker at all. The first repairs order, and the second repairs candidate recall at the scorer's input. They should leave different marks on your traces and your metrics.
 

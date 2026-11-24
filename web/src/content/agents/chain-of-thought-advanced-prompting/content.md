@@ -13,7 +13,7 @@
     "Meta",
     "Microsoft"
   ],
-  "shortDescription": "When a merge rationale skips a required check, decide whether one trace, a vote, or a bounded search is worth the extra compute.",
+  "shortDescription": "Trace how extra test-time tokens turn a single forward pass into scratchpad computation, majority voting, and tree search, and measure when that compute pays off.",
   "keyConceptsTested": [
     "Chain-of-Thought prompting",
     "Zero-shot vs few-shot CoT",
@@ -25,7 +25,7 @@
     "Tree-of-Thoughts and Graph-of-Thoughts search",
     "Evaluator-guided pruning and backtracking",
     "RLVR and native reasoning models",
-    "Reasoning failure modes and eval gates",
+    "Reasoning failure modes and latency-accuracy tradeoffs",
     "ReAct handoff to tool use"
   ],
   "section": "Applied LLM Engineering",
@@ -33,15 +33,15 @@
 }
 ---
 
-Picture an arithmetic word problem with three inputs: 3 batches of 8 prompts, 10 shared warmup prompts subtracted, and 3 seeds per kept prompt. The deterministic answer is `42`, yet a one-shot completion emits a plausible derivation that quietly drops the `10` warmup prompts and returns `72`. What intermediate check reveals that slip before grading?
+Give a language model three numbers in a word problem: 3 batches of 8 prompts, 10 shared warmup prompts subtracted, and 3 seeds per kept prompt. The arithmetic is elementary: $(3 \times 8 - 10) \times 3 = 42$. Yet a single direct completion will often emit a smooth sentence that quietly skips the subtraction and returns `72`.
 
-<!-- leetllm: audience:website:start -->The previous chapter compressed benchmark references into a retrieval index so a prompt receives relevant specification notes. Retrieval alone does not solve multi-step reasoning: a model can still skip a subtraction step, drop an operational constraint, or lock prematurely onto a wrong intermediate value. A longer explanation is not the same as a verified calculation, raising the core design question of how much <span data-glossary="test-time-compute">test-time compute</span> improves real accuracy under <span data-glossary="token">token</span> and latency budgets.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->A compressed retrieval index can place relevant problem notes or specifications into context, yet retrieval alone does not solve multi-step reasoning. A model can still skip a subtraction step, drop an operational constraint, or commit prematurely to a flawed intermediate value, proving that a longer explanation is not the same as a verified calculation. The central design question is how much extra <span data-glossary="test-time-compute">test-time compute</span> genuinely buys under fixed <span data-glossary="token">token</span> and latency budgets.<!-- leetllm: audience:book:end -->
+Why can a model fluent in graduate physics stumble on three-step grade-school arithmetic, and what actually changes when you ask it to "show its work"?
 
-## Start with a failure you can audit
+Retrieval can place every fact and formula right in front of the model, yet having the right inputs in context is different from running a multi-step calculation over them. Extra tokens at inference time give an autoregressive transformer room to write down intermediate state, compare alternative paths, or backtrack out of a dead end. The central engineering question is how much <span data-glossary="test-time-compute">test-time compute</span> genuinely buys in accuracy under real <span data-glossary="token">token</span> and latency budgets.
 
-Put the arithmetic dimension values in one record: `batches = 3`, `prompts_per_batch = 8`, `warmup_prompts = 10`, and `seeds = 3`. Calculating `(3 * 8 - 10) * 3` cleanly yields `42`, whereas a single autoregressive pass can overlook the subtraction step or misread multiplication precedence. Even when the prompt lays out every number plainly, greedy decoding emits tokens left to right without pausing to execute the algebra unless encouraged to spell out intermediate state.
+## Start with a checkable target
 
-A useful outward artifact is a short **verification record** containing those given inputs, the intermediate arithmetic checks, and the final integer answer. Compared against an open-ended rationale, a compact record is easy to check against a deterministic reference solver, turning free-form prose into an explicit output schema that downstream grading logic can validate reliably.
+Before testing prompts, put the arithmetic inputs into a small reference solver: `batches = 3`, `prompts_per_batch = 8`, `warmup_prompts = 10`, and `seeds = 3`. Instead of grading an open-ended essay, we define a compact **verification record** that holds the intermediate arithmetic (`kept_prompts = 14`), sanity checks, and final integer (`42`).
 
 <!-- leetllm: test, output=show -->
 
@@ -90,7 +90,7 @@ final_answer: 42
 ```
 <!-- leetllm: output:end -->
 
-Keep this small solver as the reference answer so every prompting variant gets scored against the same ground truth. Defining the structured output schema and reference scorer before spending money on repeated model calls keeps prompt iteration grounded in measurable accuracy. Deterministic state belongs in code rather than repeated sampling, because sampling five rationales over fixed arithmetic inputs adds latency without adding evidence, even when a model parses unstructured word-problem text first. If a required quantity is missing from the prompt altogether, emitting more reasoning tokens cannot invent it, because missing operands must come from tool calls or source data rather than token-space speculation.
+Every prompting strategy we test will be scored against this exact reference solver. Keeping deterministic arithmetic in code also draws a sharp boundary: if you already have structured numbers, running Python directly beats sampling five LLM rationales. Prompted reasoning earns its keep when the model has to parse unstructured text, plan steps, or combine fuzzy judgment with calculation. And if a required operand is missing from the prompt altogether, emitting more reasoning tokens will not discover it; missing inputs require a tool call or external lookup.
 
 ```checkpoint
 Why define a deterministic reference solver and verification record before testing reasoning prompts?
@@ -100,28 +100,37 @@ Without an unambiguous reference answer and intermediate checks, a longer ration
 
 ## Chain-of-thought: give an intermediate result somewhere to go
 
-A conventional decoder-only transformer applies a fixed stack of layers each time it predicts a token, though a short final response can still span several generated tokens or hide extensive internal reasoning tokens before emitting a concise public answer. Emitting intermediate steps adds sequential computation and updates the context consumed by later forward passes, just like writing down an algebraic subtotal before multiplying by a rate factor. With a <span data-glossary="kv-cache">KV cache</span>, the decoder reuses key and value tensors from earlier tokens instead of recomputing the entire prefix, while each newly generated token still traverses every transformer layer and attends across retained context. Because attention work scales with prefix length, response latency has no fixed `K × constant` rule per step, turning the generated text and cached activations into an active **computational scratchpad**. That scratchpad records a candidate subtotal rather than a verified truth, because wrong intermediate values propagate forward unless checked by a later self-correction step or external verifier.
+A decoder-only transformer runs a fixed stack of layers every time it predicts the next token. Asking it to jump straight from a dense word problem to `42` forces every intermediate step into that single forward pass. When the model writes out intermediate steps first, each generated token runs through the full transformer stack and appends its representation to the <span data-glossary="kv-cache">KV cache</span>, where later tokens can attend to it directly.
 
-Formal expressivity analysis supports the role of intermediate tokens under well-defined assumptions. Merrill and Sabharwal prove that bounded-depth transformers gain polynomial-time expressivity when allowed polynomially many intermediate chain-of-thought steps, subject to finite-precision, normalization, and unproved complexity separations.[^merrill2024cotExpressivity] Those theorems characterize expressive capacity rather than optimization guarantees, meaning empirical benchmark checks remain necessary to see whether a trained checkpoint learns the intended algorithm on realistic inputs.
+Think of the generated text and cached keys and values as a **computational scratchpad**. Writing `3 * 8 = 24` and `24 - 10 = 14` converts a three-step mental calculation into three one-step calculations, each reading the previous subtotal from context. That scratchpad still only holds *candidate* subtotals: an early arithmetic slip propagates forward unless a later step catches it or an external verifier checks the math.
 
-Wei et al. demonstrated few-shot <span data-glossary="chain-of-thought">chain of thought (CoT)</span> by placing worked intermediate steps inside prompt exemplars, raising PaLM 540B accuracy on GSM8K from 17.9% under direct prompting to 56.9% with eight exemplars.[^wei2022a] Kojima et al. soon showed that even a zero-shot cue such as "Let's think step by step" can trigger multi-step derivations without worked examples.[^kojima2022] Treat those landmark results as motivation for empirical testing on your own model endpoint rather than universal defaults: in a June 2025 GPQA Diamond evaluation across eight models and 25 trials per condition, Meincke et al. found only modest accuracy improvements for non-reasoning models and marginal gains for native reasoning models alongside substantial latency penalties.[^meincke2025cot] Complementing that caveat, Zheng et al. documented a "curse of CoT" across nine pattern-based in-context-learning benchmarks and 16 models where explicit step-by-step prompting scored worse than direct answering, underscoring why direct and CoT baselines belong side by side on held-out cases.[^ye2025curseofcot]
+> **Key insight:** Emitting intermediate tokens trades extra decoding latency for sequential depth. Because attention reads over the growing KV cache on every step, each additional reasoning token increases both total latency and billed output tokens.
 
-When a problem breaks naturally into ordered sub-questions, **least-to-most prompting** first prompts for the decomposition and then solves sub-problems sequentially by feeding earlier answers into later turns.[^zhou2022b] In a multi-step symbolic derivation, an initial prompt isolates the system of equations and subsequent steps substitute solved variables one at a time. Unlike tree search, linear decomposition avoids tracking parallel branches, though it introduces extra sequential round-trips and forwards any early arithmetic mistake into every downstream step.
+Wei et al. demonstrated few-shot <span data-glossary="chain-of-thought">chain of thought (CoT)</span> by placing eight worked step-by-step exemplars in the prompt, lifting PaLM 540B accuracy on GSM8K from `17.9%` under direct prompting to `56.9%`.[^wei2022a] Kojima et al. soon found that even a zero-shot cue like `"Let's think step by step"` activates multi-step derivations without worked examples.[^kojima2022]
 
-### Keep four reasoning artifacts separate
+Still, step-by-step prompting is a hypothesis to test, not an automatic win. On GPQA Diamond across eight models, Meincke et al. observed modest gains on standard models and marginal gains on native reasoning models alongside steep latency increases.[^meincke2025cot] Zheng et al. likewise found a "curse of CoT" across nine pattern-based in-context-learning benchmarks and 16 models, where forcing step-by-step text scored worse than direct answering.[^ye2025curseofcot] Compare direct and CoT baselines side by side on your own held-out tasks before paying the token tax.
 
-The word *reasoning* now spans four distinct system artifacts with very different inspection and reliability guarantees. Treating them interchangeably produces fragile parsing and misleading benchmark reports, so distinguish each artifact explicitly before deciding what a given trace proves:
+When a problem splits naturally into an ordered chain of sub-questions, **least-to-most prompting** prompts for the decomposition first and then solves each sub-problem sequentially, passing earlier answers into the next turn.[^zhou2022b] That linear schedule avoids tracking parallel search branches, though it adds sequential round-trips and carries any early mistake into every later step.
 
-| Artifact | What it contains | What you can safely conclude |
+<details>
+<summary>Deep dive: Expressivity theory behind chain-of-thought tokens</summary>
+
+Merrill and Sabharwal analyzed finite-depth transformers mathematically and proved that allowing polynomially many intermediate chain-of-thought tokens lifts a constant-depth transformer into polynomial-time expressivity, under standard assumptions on finite precision, normalization, and complexity separations.[^merrill2024cotExpressivity] The theorem explains why scratchpad tokens expand the class of functions a transformer can represent, while empirical evaluation remains necessary to verify whether gradient descent learned that algorithm for a specific checkpoint.
+
+</details>
+
+### Separate four distinct reasoning artifacts
+
+In modern LLM APIs, the single word *reasoning* blurs four very different things. Confusing them leads to brittle parsers and misleading evaluations:
+
+| Artifact | What it contains | What you can rely on |
 | :--- | :--- | :--- |
-| Prompt-elicited CoT | Intermediate text generated because a prompt asks for steps | It may aid derivation, yet its prose can still be unfaithful |
-| Native reasoning tokens | Internal inference tokens consumed by a reasoning model | Counts measure compute usage, not correctness or visibility |
-| Reasoning summary | Provider-generated description of internal reasoning | Useful for operator orientation, yet neither raw CoT nor proof of soundness |
-| Verification record | Problem inputs, intermediate checks, and final answer emitted for your evaluator | Every field can be schema-checked and scored against a deterministic solver |
+| Prompt-elicited CoT | Intermediate text generated because a prompt asked for steps | Can aid derivation, though the prose may still rationalize a wrong or biased shortcut |
+| Native reasoning tokens | Internal tokens consumed by a reasoning-trained model before answering | Counts measure compute spend, not correctness or inspectability |
+| Reasoning summary | Provider-generated synopsis of internal reasoning | Helpful for human orientation, distinct from raw CoT and from verified proof |
+| Verification record | Inputs, intermediate checks, and final answer emitted for your evaluator | Every field can be schema-checked and verified against deterministic code |
 
-Provider API disclosure policies also differ across model families and generations. Checked October 10, 2026: OpenAI's documentation notes that raw reasoning tokens remain hidden even when supported models emit an opt-in reasoning summary, while internal tokens still occupy context window slots, count as billed output, and can exhaust `max_output_tokens` before returning a visible answer.[^openai2026reasoning] Similarly, Anthropic separates adaptive thinking from deprecated manual `budget_tokens`: current documentation deprecates manual mode on Opus and Sonnet 4.6 and rejects it on Opus 4.7 and 4.8, routing control through `thinking.type` and effort parameters while returning summarized thinking rather than raw CoT under `display: "summarized"`.[^anthropic2026thinkingSupport][^anthropic2026thinking] Always check the exact endpoint table for your target checkpoint rather than coding around assumed visibility or cross-version parameter compatibility.
-
-Separating these artifacts also determines whether to orchestrate an external sampling loop or rely on a native reasoning model. An external CoT, voting, or search loop preserves inspectable candidate branches and explicit transition records, while remembering that prose rationales do not faithfully mirror internal activations. Native reasoning models internalize reflection and budget control behind provider APIs, making uniform task-level evaluation over final outputs, latency, tokens, and parse failures essential for fair comparisons. Regardless of architecture, request structured, checkable task fields at the application interface rather than prose claiming to expose internal weights:
+Turpin et al. showed that prompted CoT explanations can rationalize answers steered by hidden biasing cues without ever mentioning those cues.[^turpin2023] Rather than trusting eloquent prose to prove soundness, ask the model for structured intermediate fields that your code can verify directly:
 
 ```text title="single-trace-prompt.txt"
 Use only the numeric inputs in the problem statement and standard arithmetic.
@@ -136,7 +145,14 @@ Problem:
 - 3 random seeds scored per remaining prompt
 ```
 
-Those explicit intermediate fields make an algebraic slip directly observable without pretending we can read raw private cognition. Turpin et al. showed that CoT explanations can rationalize conclusions steered by hidden biasing cues without ever mentioning those cues.[^turpin2023] Logging the prompt inputs, extracted intermediate values, deterministic checks, and final output gives an objective record rather than trusting eloquent reasoning prose or a provider summary.
+<details>
+<summary>Deep dive: Provider disclosure and reasoning-budget controls</summary>
+
+APIs handle internal reasoning tokens differently across providers and model generations. OpenAI keeps raw internal reasoning tokens hidden even when a model returns an opt-in summary, yet those internal tokens still consume context window slots, count toward billed output, and can exhaust `max_output_tokens` before any visible answer appears.[^openai2026reasoning] Anthropic separates adaptive thinking controls (configured through `thinking.type` and effort settings) from legacy manual token budgets, and returns summarized thinking rather than raw traces under `display: "summarized"`.[^anthropic2026thinkingSupport][^anthropic2026thinking] Check your target endpoint's exact parameter table and budget behavior before shipping.
+
+</details>
+
+Watch what happens when we score three candidate records against the reference solution: one omits required checks, one gets the intermediate `kept_prompts` wrong (`16`) yet somehow lands on `42`, and one passes every check.
 
 <!-- leetllm: test, output=show -->
 
@@ -183,13 +199,11 @@ complete_record: coverage=100%, checks_ok=True, steps_ok=True
 ```
 <!-- leetllm: output:end -->
 
-Notice how `wrong_intermediate` includes every required JSON key and even lands on the right final integer `42`, while getting `kept_prompts = 16` wrong along the way. Field coverage checks alone would miss that silent arithmetic defect completely. Scoring intermediate invariants alongside the final number therefore separates verified derivations from lucky guesses or rationalized shortcuts.
+`wrong_intermediate` has 100% key coverage and even hits the right final integer `42`, yet `kept_prompts = 16` reveals a broken derivation. Checking intermediate values alongside the final answer catches lucky guesses and rationalized shortcuts.
 
 ### Zero-shot or few-shot?
 
-Zero-shot CoT asks for intermediate steps without providing a solved exemplar, whereas few-shot CoT demonstrates worked examples and their target output layout. Exemplars steer step granularity and formatting stability, though neither guarantees sound arithmetic across multi-step deductions. Schema-constrained decoding can lock in the output structure, yet populated field values still demand independent verification against the task rules.
-
-For a controlled ablation, hold the instruction, input values, and extracted fields fixed while varying only whether solved examples appear in the prompt. Notice that the prompt below asks for concise arithmetic steps and a tagged integer rather than claiming to expose hidden internal weights or private traces. Keeping that separation clean ensures your ablation measures the real lift from prompt exemplars rather than leaking formatting bias into the score.
+Zero-shot CoT asks for steps without examples, whereas few-shot CoT includes worked demonstrations showing the exact step granularity and answer format you want. To test whether exemplars actually help on your task, hold the instruction, inputs, and parser fixed and toggle only the worked example:
 
 <!-- leetllm: test, output=show -->
 
@@ -226,33 +240,31 @@ When is few-shot CoT worth more prompt tokens than zero-shot CoT?
 When examples stabilize formatting or step decomposition that the evaluator expects, and measured held-out accuracy justifies the extra input tokens and latency.
 ```
 
-Stable formatting solves answer extraction rather than sampling <span data-glossary="variance">variance</span>, so a cleanly structured trace can still commit an arithmetic error partway through. Generating multiple stochastic derivations lets you observe whether independent paths agree on the same final quantity or diverge across competing numbers.
+A crisp format fixes extraction, not sampling <span data-glossary="variance">variance</span>. Even with clean structure, one greedy trace can still make a wrong turn midway through. Sampling several independent derivations lets us check whether different paths agree on the same final number.
 
 ## Self-consistency: sample answers, then vote
 
-One greedy candidate can commit to an incorrect intermediate result and carry it forward. It can also correct itself. A slip doesn't permanently lock every later token into failure. <span data-glossary="self-consistency">Self-consistency</span> samples several solution paths and chooses the most frequent extracted answer.[^wang2022c]
+<span data-glossary="self-consistency">Self-consistency</span> replaces a single greedy chain with multiple sampled reasoning paths and selects the most frequent extracted answer.[^wang2022c] The idea rests on an asymmetry of errors: multiple valid derivations converge on the same answer, whereas random slips tend to scatter across different wrong numbers.
 
-The bet is that different correct paths will converge on the same answer while mistakes vary. If every sample shares one misconception, voting can amplify it instead. Formally, an answer distribution can marginalize over reasoning trajectories $r$:
+Conceptually, we are approximating marginalization over reasoning trajectories $r$:
 
 $$
 P(y \mid x) = \sum_{r} P(y, r \mid x) = \sum_{r} P(y \mid r, x) P(r \mid x)
 $$
 
-Enumerating the full sum is impractical. Self-consistency instead samples trajectories and selects the most frequent extracted answer: a **plurality**, which does not have to exceed half the samples. Temperature and truncation change the sampled distribution, so these counts don't exactly integrate the unmodified model distribution. Independently drawn samples can still repeat the same systematic mistake. The vote operates on answers, not on whose rationale sounds best.
+Summing over every possible trajectory is intractable, so self-consistency draws $N$ samples at nonzero <span data-glossary="temperature">temperature</span> and takes the plurality answer (the most frequent extracted value, even if it gets less than half the votes). Because temperature and top-p truncation reshape the token distribution, this is a practical Monte Carlo heuristic rather than an exact integral. Notice also that voting operates strictly on extracted answers, not on which rationale sounds most persuasive.
 
-Suppose five sampled traces yield three derivations ending in `42`, one slip ending in `36`, and one malformed response missing its `####` answer marker. Canonicalizing numeric formats gives `42` three votes, and keeping all five samples in the denominator gives a leading share of `3 / 5 = 0.60`. A `0.60` gate accepts `42`, whereas an `0.80` high-confidence threshold abstains, avoiding the mistake of dropping the unparsed trace to falsely report `3 / 4 = 0.75`. Both the full-batch denominator and the abstention threshold reflect conservative evaluation engineering rather than a requirement of the original self-consistency algorithm.
-
-Let $y_i$ be the generated completion from sample $i$, and let $c(y_i)$ extract and normalize its final numeric answer or return `None` when formatting is invalid. Across $N > 0$ sampled traces, the plurality answer $\hat{a}$ and its conservative vote share $s$ are:
+Let $y_i$ be completion $i$, and let $c(y_i)$ extract and normalize its final answer (returning `None` if parsing fails). Across $N > 0$ sampled traces, the winning answer $\hat{a}$ and its conservative vote share $s$ are:
 
 $$
 \hat{a} = \arg\max_a \sum_{i=1}^{N} \mathbf{1}[c(y_i)=a], \qquad s = \frac{1}{N}\sum_{i=1}^{N}\mathbf{1}[c(y_i)=\hat{a}]
 $$
 
-Even when some samples fail parsing, the denominator stays $N$ so malformed outputs dilute confidence instead of hiding behind filtered denominators. Emit $\hat{a}$ only when $\hat{a}$ has strictly more votes than any runner-up and $s \ge \tau$; otherwise abstain (as well as whenever $N = 0$).
+Notice the denominator: we divide by all $N$ attempts, including unparsed completions. Suppose five traces yield three answers of `42`, one slip of `36`, and one truncated reply with no `####` marker. Dividing by all five gives `3 / 5 = 0.60`. A `0.60` threshold accepts `42`, while an `0.80` threshold abstains. Dropping the malformed fifth trace would falsely inflate support to `3 / 4 = 0.75`.
 
-To generate varied reasoning paths, decode with nonzero <span data-glossary="temperature">temperature</span> where supported, bearing in mind that some reasoning endpoints fix or restrict sampling knobs. The [Decoding Algorithms](/learn/decoding-algorithms) lesson details how temperature and nucleus sampling affect token entropy. Always log sampling settings alongside sample count $N$, because identical greedy duplicates contribute zero independent diversity.
+> **Common mistake:** Filtering out unparsed or truncated completions before computing vote share makes a noisy batch look artificially confident. Always keep all $N$ attempts in the denominator, and emit $\hat{a}$ only when it strictly beats every runner-up and clears your threshold $s \ge \tau$.
 
-In Wang et al.'s PaLM-540B experiments, sampling 40 trajectories per problem raised GSM8K accuracy from 56.5% with greedy CoT to 74.4% with self-consistency, a 17.9 percentage-point gain.[^wang2022c] That baseline differs slightly from Wei et al.'s 56.9% figure because prompt exemplars and decoding setup changed between the two runs. Wang et al. also noted that majority vote share correlates with accuracy on math benchmarks, though raw agreement remains an uncalibrated statistic whose threshold $\tau$ should be tuned on held-out validation splits rather than guessed once.
+In Wang et al.'s PaLM-540B experiments on GSM8K, sampling 40 paths lifted accuracy from `56.5%` (greedy CoT) to `74.4%`, a `17.9` percentage-point jump.[^wang2022c] (That `56.5%` baseline differs slightly from Wei et al.'s `56.9%` due to prompt and decoding differences.) Majority agreement also correlates with accuracy on math tasks, though raw vote share is uncalibrated; tune $\tau$ on a held-out validation split and log your exact sampling parameters alongside $N$. See [Decoding Algorithms](/learn/decoding-algorithms) for how temperature and nucleus sampling control path diversity.
 
 <figure>
   <img src="illustrations/_generated/cot_scratchpad_flow_dark.png" alt="Self-consistency majority voting over 5 sampled reasoning traces. Traces T1 through T3 reach 42, T4 errs to 36, and T5 fails answer extraction. Dividing over all 5 traces gives 60% agreement for 42, below an 80% abstention threshold, whereas omitting T5 would inflate agreement to 75%." />
@@ -261,7 +273,7 @@ In Wang et al.'s PaLM-540B experiments, sampling 40 trajectories per problem rai
 
 ### Normalize before counting
 
-Real completions vary subtly around equivalent final answers: trailing `.0`, stray whitespace, thousands commas, or extra words after `####`. Without canonicalization, `'42'` and `'42.0'` split the vote across two separate keys and depress apparent support. Writing an explicit extractor that parses only the structured marker (`#### <number>`) instead of scanning the full scratchpad avoids false matches on intermediate subtotals while returning `None` whenever no marker is present.
+Model outputs vary subtly around identical answers: `42`, `42.0`, `1,024`, or trailing whitespace. Without canonicalization, `'42'` and `'42.0'` split the vote across separate buckets. Parsing only the final `#### <number>` marker prevents matching intermediate subtotals inside the scratchpad:
 
 <!-- leetllm: test, id=cot-canonical, output=show -->
 
@@ -305,9 +317,9 @@ winner: 42
 ```
 <!-- leetllm: output:end -->
 
-### A leading answer can still lack support
+### Abstain when support is weak
 
-A `2`-to-`2` tie, zero parsed answers, or a plurality resting on mostly malformed completions should return `abstain` rather than silently emitting a noisy guess. Counting unparsed traces in the denominator enforces that safeguard cleanly across noisy batches. Separating insufficient consensus (`abstain`) from any extracted candidate integer ensures downstream evaluators never mistake an abstention signal for a wrong arithmetic value.
+A `2`-to-`2` tie, zero parsed outputs, or a plurality built on mostly malformed responses should return `"abstain"` rather than a noisy guess. Keeping `"abstain"` distinct from numeric strings ensures downstream code treats low consensus as uncertainty rather than a wrong answer:
 
 <!-- leetllm: test, continue=cot-canonical, id=cot-vote, output=show -->
 
@@ -357,9 +369,9 @@ empty_batch: abstain
 ```
 <!-- leetllm: output:end -->
 
-### Measure gains against call cost
+### Measure voting gain against correlated errors
 
-Before running live API sweeps, unit-test the aggregation logic against representative sample distributions that capture majority recovery, correlated algebraic slips, and heavy truncation. Including both correlated errors (where all five samples produce the wrong integer) and weak consensus (where the first trace happened to be right while parse errors triggered abstention) makes accuracy vs. sample-cost tradeoffs explicit before evaluating real checkpoints.
+Voting recovers isolated slips, but it fails silently when every sampled trace falls into the same trap. Test the voting controller across five cases that mix clean majorities, a shared mistake (`36` five times), and heavy truncation:
 
 <!-- leetllm: test, continue=cot-vote, output=show -->
 
@@ -419,7 +431,7 @@ required_samples_if_collected: single=5, vote_5=25
 ```
 <!-- leetllm: output:end -->
 
-These five cases give 60% self-consistency accuracy across the sample, while the unanimous `36` failure shows why raw sampling consensus never overrides an exact symbolic verifier. For an empirical model comparison, collect samples across the same held-out evaluation split, track abstentions separately from incorrect parses, repeat stochastic runs, and measure both total generated tokens and end-to-end latency. Multiple samples can decode in parallel batch slots, yet they still multiply GPU token generation cost.
+Voting lifts accuracy from `40%` to `60%` here while abstaining on `weak_support`, yet `shared_arithmetic_trap` still returns `36` with 100% consensus. Even when parallel batching hides wall-clock latency, sampling five traces multiplies generated tokens fivefold, so track abstentions, wrong answers, token spend, and latency side by side on a held-out split.
 
 ```checkpoint
 What should a self-consistency controller do when votes don't form a strong majority?
@@ -429,29 +441,26 @@ Abstain or route to review. More samples are useful only when a measured gain ju
 
 ## Tree-of-thoughts: search when branches can dead-end
 
-Voting helps when independent paths tend to converge on the same short answer. It doesn't deliberately revisit an earlier choice. <span data-glossary="tree-of-thought">Tree-of-Thoughts (ToT)</span> represents partial solutions as search states, then generates alternatives, evaluates those states, and preserves only branches worth extending.[^yao2023]
+Self-consistency samples independent chains from start to finish; it never pauses mid-solution to abandon a bad opening move. <span data-glossary="tree-of-thought">Tree-of-Thoughts (ToT)</span> turns partial solutions into explicit search states, proposes candidate next steps, scores those intermediate states, and expands only the most promising branches.[^yao2023]
 
-Yao et al. evaluated ToT on planning and symbolic search benchmarks using beam search, where the beam width determines how many candidate states survive each pruning round. On Game of 24 with GPT-4, ToT at beam width 5 solved 74% of tasks compared with 4.0% for standard CoT and 9.0% for 100-sample CoT self-consistency.[^yao2023] That improvement highlights why tree search fits problems with verifiable partial states and genuine backtracking opportunities: unlike flat voting, search can abandon a misleading early move and expand an alternative branch instead.
+On Game of 24 with GPT-4, Yao et al. reported `74%` success for ToT with beam width 5, compared with `4.0%` for standard CoT and `9.0%` for 100-sample CoT self-consistency.[^yao2023] That gap reflects the structure of the task: Game of 24 has verifiable intermediate states and frequent dead ends, so deliberate lookahead and backtracking crush flat sampling.
 
-The ToT framework organizes search into four explicit components:
+ToT breaks search into four parts:
 
-1. **Thought decomposition**: breaking the problem into discrete intermediate states $s$ (such as an arithmetic move, a plan paragraph, or a code function stub).
-2. **Thought generation**: proposing $k$ candidate next thoughts from state $s$.
-3. **State evaluation**: querying the model or a programmatic validator to score each candidate state (such as classifying viability into `sure`, `maybe`, or `impossible`).
-4. **Search controller**: maintaining the active frontier in an external orchestration loop using Breadth-First Search (BFS) with beam pruning or Depth-First Search (DFS) with backtracking.
+1. **Thought decomposition:** Define what counts as one intermediate state $s$ (an arithmetic step, a plan paragraph, or a function stub).
+2. **Thought generation:** Propose $k$ candidate next thoughts from state $s$.
+3. **State evaluation:** Score each candidate state with a model prompt or a programmatic check (for instance, classifying viability as `sure`, `maybe`, or `impossible`).
+4. **Search controller:** Maintain the active frontier in external code using Breadth-First Search (BFS) with beam pruning or Depth-First Search (DFS) with backtracking.
 
-Beyond strict tree branching, **Graph-of-Thoughts (GoT)** models generated thoughts and their dependencies as a general graph rather than forcing every state to share a single parent.[^besta2024] Graph topology unlocks two practical transformations that flat chains cannot express cleanly: aggregating partial results produced on independent branches and iteratively refining earlier candidates against critique feedback. Because neither combining two claims nor rewriting one trace guarantees truth on its own, every aggregated or refined node still requires an explicit evaluation score before advancing.
+**Graph-of-Thoughts (GoT)** generalizes the tree into a directed graph so independent branches can merge and earlier states can loop back for revision.[^besta2024] That adds two operations trees lack: **thought aggregation** (combining verified partial results from parallel sub-problems) and **thought refinement** (rewriting a candidate using critique feedback). Because merging or revising can still introduce errors, score every aggregated or refined node before advancing.
 
-1. **Thought aggregation**: combining partial outputs from separate independent sub-problems (such as merging verified theorem lemmas from parallel sub-proofs).
-2. **Thought refinement**: generating a new candidate from an earlier candidate and feedback, recognizing that an unverified critique can degrade a partial answer.
+Expanding a search frontier changes serving economics directly. Parallel branches hold more active KV-cache state (shared-prefix caching reduces repeated prefill where supported, while each diverging suffix still requires computation), and sequential depth adds round-trips. Cap the number of expanded nodes and measure endpoint latency before placing search on an interactive request path.
 
-How the controller expands its frontier shapes serving cost. Concurrent branches keep more active sequence state; shared-prefix caching can reduce repeated prefill work where supported, but changed history still needs computation. Sequentially dependent calls add round-trips and latency. Bound expansion, measure endpoint behavior, and use the product's latency gate to decide whether search can run interactively or needs a background workflow. ToT doesn't require a particular caching algorithm or background execution.
+### Use a problem that genuinely needs branching
 
-### Use a problem that actually needs branching
+Direct arithmetic word problems have no search tree to explore. Game of 24 isolates what branching adds: starting from `[4, 5, 6, 7]`, apply `+`, `-`, `*`, and `/` using each number once to reach `24`. One valid path computes `6 - 4 = 2`, then `5 + 7 = 12`, and finally `2 * 12 = 24`. Reaching `24` while unused numbers remain is not a solution; a valid goal state has exactly one value left, equal to `24`.
 
-Direct word problems with fixed inputs do not need a search tree, and missing numbers cannot be fabricated by exploring hypothetical branches. Switch instead to Game of 24 to isolate what explicit branching contributes: starting from `[4, 5, 6, 7]`, apply elementary arithmetic operations using each number exactly once to obtain `24`. One valid trajectory applies `6 - 4 = 2`, then `5 + 7 = 12`, and finally `2 * 12 = 24`, where each state tracks the multiset of remaining numbers and their symbolic expressions. Simply creating `24` along the way is insufficient if unused values remain, so only leaf states with a single remaining value equal to `24` count as solutions.
-
-In a full Tree-of-Thoughts pipeline, a language model generates candidate steps and heuristic scores while an external loop manages the frontier. The breadth-first solver below replaces both model calls with exhaustive integer arithmetic over `Fraction` pairs, giving us a clean sandbox to examine state expansion and serve as an exact ground-truth verifier.
+Using exact `Fraction` arithmetic avoids floating-point rounding bugs and gives us an exact breadth-first solver to inspect state expansion and verify candidate moves:
 
 <!-- leetllm: test, id=cot-search, output=show -->
 
@@ -478,16 +487,12 @@ def combine(left: tuple[Fraction, str], right: tuple[Fraction, str]) -> list[tup
 
 
 def solve_24(numbers: list[int], max_states: int = 10000) -> dict:
-    if not 1 <= len(numbers) <= 4:
-        raise ValueError("provide one to four integer values")
-    if max_states < 1:
-        raise ValueError("max_states must be a positive integer")
     frontier = deque([[(Fraction(number), str(number)) for number in numbers]])
     visited = set()
     examined = 0
     while frontier:
         state = frontier.popleft()
-        key = tuple(sorted(value for value, expression in state))
+        key = tuple(sorted(value for value, _ in state))
         if key in visited:
             continue
         if examined >= max_states:
@@ -516,9 +521,9 @@ one_state_budget: budget_exhausted
 ```
 <!-- leetllm: output:end -->
 
-`Fraction` avoids floating-point rounding in the arithmetic check. States with the same remaining value multiset have the same future arithmetic possibilities, so the solver keeps one representative. The budget counts distinct states, including the initial state; duplicates don't consume it. Exhausting the queue proves no solution under these operations; hitting `max_states` with an unexamined distinct state only means the search stopped before answering.
+States with the same sorted multiset of remaining numbers share the exact same future possibilities, so deduplicating by `key` shrinks the frontier without losing solutions. Notice the difference between `no_solution` and `budget_exhausted`: exhausting the queue proves no solution exists under these four operators, whereas hitting `max_states` with an unvisited state still queued only means the search ran out of budget.
 
-Enumeration constructs legal moves by design. If a model proposes the next state instead, don't trust its remaining-number list. Starting with `4, 5, 6, 7`, the claim `6 * 4 = 24, remaining=[24]` discards 5 and 7. A goal check alone would accept that fabricated solution. Recompute the transition from the host's current state before applying a heuristic score:
+When a language model proposes transitions instead of an enumerator, never trust its claimed remaining numbers. From `[4, 5, 6, 7]`, a model can write `6 * 4 = 24, remaining=[24]` and silently drop `5` and `7`. Recompute every proposed step in host code before scoring it:
 
 <!-- leetllm: test, continue=cot-search, id=cot-legal, output=show -->
 
@@ -559,7 +564,7 @@ reused single 4 legal: False
 ```
 <!-- leetllm: output:end -->
 
-The helper parses numeric inputs and an allowlisted operator without executing model-written code strings. Checking one transition verifies local arithmetic and multiset conservation, yet it cannot guarantee that a valid path to 24 exists further down the subtree. Notice that `[24, 5, 7]` satisfies the transition rule while still forming a dead end, so a complete solver retains the verified sequence of moves from the starting numbers rather than trusting an isolated `[24]` claim.
+Checking one transition verifies local arithmetic and multiset conservation, yet `[24, 5, 7]` is still a legal dead end. A search controller must preserve the full chain of verified transitions from the starting state rather than accepting an isolated `[24]` claim.
 
 <figure>
   <img src="illustrations/_generated/tree_of_thought_search_dark.png" alt="Tree-of-Thoughts search over Game of 24 starting at {4, 5, 6, 7}. Branch A reaches [24, 5, 7] with heuristic score 0.95 yet hits a dead end. Branch B reaches [12, 4, 6] with score 0.40: width-1 beam drops it, whereas width-2 retains it through 6 - 4 = 2 and 12 * 2 = 24. Branch C leaves [2, 4, 6] at score 0.35." />
@@ -568,7 +573,7 @@ The helper parses numeric inputs and an allowlisted operator without executing m
 
 ### Pruning is a source of failure
 
-An LLM evaluator is not an arithmetic oracle, because heuristic value prompts can prefer clean-looking partial numbers over deeper solvable configurations. Whenever a scorer ranks an attractive dead branch ahead of a tricky solvable path, a narrow beam eliminates the winning subtree before expansion ever reaches depth two. Keep that pruning bias in mind when inspecting how width-1 vs. width-2 beam search behaves on `[4, 5, 6, 7]` below.
+A heuristic value prompt is not an arithmetic oracle. When a model sees `[24, 5, 7]`, the `24` sitting right in the state looks deceptively close to done, earning a high score (`0.95`) even though no combination of `24`, `5`, and `7` yields `24`. Meanwhile `[12, 4, 6]` gets a lukewarm `0.40`. With beam width 1, the controller keeps the dead end and discards the winning subtree permanently:
 
 <!-- leetllm: test, continue=cot-legal, output=show -->
 
@@ -594,7 +599,7 @@ weak_choice = keep_one("weak_score")
 exact_choice = keep_one("exact_score")
 print(f"weak_evaluator_keeps_solution: {weak_choice['solvable']}")
 print(f"exact_evaluator_keeps_solution: {exact_choice['solvable']}")
-print(f"risk: beam_width_1 can prune the valid branch")
+print("risk: beam_width_1 can prune the valid branch")
 ```
 
 <!-- leetllm: output:start -->
@@ -605,9 +610,7 @@ risk: beam_width_1 can prune the valid branch
 ```
 <!-- leetllm: output:end -->
 
-The heuristic scorer assigns rough plausibility weights, whereas the exact evaluator solves each remaining arithmetic subproblem exhaustively. Checking that one move is legal is cheaper than proving that a complete solution exists below it. Real search tasks need that distinction when choosing validators or a separately evaluated scorer.
-
-Keep ToT for tasks with real branch structure, not ordinary classification. Prefer deterministic validators when a partial state can be checked in code. Measure solver recall at each beam width alongside final successes, then cap expansions and latency before an open-ended search reaches users.
+> **Key insight:** Checking that a single move is legal is cheap; proving that a subtree contains a complete solution is hard. Whenever a partial state can be verified in code, prefer a deterministic validator over a heuristic LLM scorer, and measure solver recall across beam widths before capping width to save latency.
 
 ```checkpoint
 Why can Tree-of-Thoughts perform worse when the evaluator is weak and the beam is narrow?
@@ -615,29 +618,25 @@ Why can Tree-of-Thoughts perform worse when the evaluator is weak and the beam i
 Search spends compute only on retained states. If an incorrect evaluator prunes the valid branch early, later expansions can't recover it.
 ```
 
-Search can revisit a bad choice only if the controller retained an alternative or supports backtracking. A pruned beam doesn't recover a discarded branch automatically. Expansion increases compute; its latency impact also depends on concurrency and which calls depend on earlier results.
-
 ## Native reasoning models and reinforcement learning
 
-The original few-shot CoT work used exemplars without changing model weights. Reasoning-oriented post-training can instead teach intermediate problem-solving behavior. OpenAI's 2024 o1 announcement describes reinforcement learning, without publishing a complete training recipe.[^openai_learning_reasoning_2024] DeepSeek's 2025 R1 report gives a concrete rule-reward example; its R1-Zero variant starts RL without a preceding SFT stage, while R1 combines SFT and RL stages.[^deepseekai2025] These are historical training examples, not a list of current recommended endpoints.
+Few-shot CoT keeps model weights frozen and nudges reasoning through the prompt. Reasoning models instead bake multi-step problem solving directly into the weights during post-training. OpenAI's o1 release introduced large-scale reinforcement learning for reasoning without publishing a full training recipe,[^openai_learning_reasoning_2024] and DeepSeek's R1 report published a concrete rule-reward pipeline: `R1-Zero` applies RL directly to the base model without supervised fine-tuning, while `R1` combines SFT and RL stages.[^deepseekai2025]
 
 ### The shift to verifiable rewards
 
-SFT can teach imitation of human-written, model-generated, or distilled solutions. Its quality depends on its data and objective; it doesn't impose a proved ceiling at human reasoning ability. RLVR adds a training signal based on outcomes a verifier can check. For example, it can check a math answer, run code tests, or validate a formal proof.
+Supervised fine-tuning (SFT) teaches a model to imitate demonstrations written by humans or stronger models. Reinforcement learning with verifiable rewards (**RLVR**) adds an outcome signal from a checker: matching a math answer, passing unit tests, or validating a formal proof. Algorithms such as GRPO optimize groups of sampled completions against that verifier score, encouraging longer intermediate search whenever it raises the chance of landing on a verified answer.
 
-A verifier is only as good as what it checks. A finite test suite covers its tested cases; inspect intermediate steps when correctness depends on the derivation. Deterministic rewards can still be gamed. Anthropic's 2025 coding-RL study deliberately exposed vulnerable training environments and observed models learning to exploit them.[^anthropic2025rewardHacking] Evaluate sycophancy and other unwanted behavior separately under RLVR.
-
-Algorithms such as GRPO optimize sampled outputs against their reward signal. Rewarding correct outcomes can encourage intermediate computation when it helps. Evaluate intermediate claims, output length effects, and reasoning disclosure separately.
+A verifier still only rewards what it actually checks. In Anthropic's coding-RL experiments with deliberately vulnerable test environments, models learned to game the harness instead of solving the task.[^anthropic2025rewardHacking] Test suites verify their covered inputs, so inspect derivations and monitor reward-hacking behavior separately when training or deploying RLVR checkpoints.
 
 ### Emergent backtracking and test-time scaling
 
-DeepSeek's R1-Zero evaluation reported emergent behaviors such as spontaneous reflection and exploring alternatives during reinforcement learning. While qualitative anecdotes sound impressive, engineering teams still need behavioral tests covering specific failure and recovery modes, including the three patterns below:
+DeepSeek's R1-Zero evaluation reported spontaneous behaviors emerging during RL training:
 
-- **Self-correction**: spotting an arithmetic slip or violated problem invariant and generating corrective tokens ("Wait, 30 plus 6 gives 36, not 42; let me recheck the multiplication").
-- **Emergent backtracking**: recognizing an unproductive branch and shifting to an alternate algebraic substitution or proof approach.
-- **Sanity checking**: re-verifying edge cases before generating the final answer.
+- **Self-correction:** Spotting an arithmetic slip mid-trace and rewriting the step (`"Wait, 30 plus 6 gives 36, not 42; let me recheck"`).
+- **Backtracking:** Recognizing a dead-end algebraic substitution and trying a different path.
+- **Sanity checking:** Re-verifying constraints before emitting the final answer.
 
-Snell et al. studied iterative revisions and verifier-guided search using capability-fine-tuned PaLM 2 models on MATH. Difficulty-aware allocation improved compute efficiency, and extra inference computation could beat a roughly 14× larger model in some matched-compute settings.[^snell2024] The result depends on question difficulty and the pretraining-to-inference workload. It isn't a universal log-linear law or evidence that an arbitrary 2,000-token scratchpad beats a model ten times larger.
+Snell et al. studied test-time compute scaling systematically using iterative revisions and verifier-guided search on MATH with PaLM 2 models.[^snell2024] Allocating extra inference compute according to question difficulty improved efficiency sharply, and in matched-compute regimes a smaller model spending extra inference tokens could outperform a roughly `14x` larger model. That crossover depends on problem difficulty and the ratio of training to inference compute rather than holding uniformly across every task.
 
 ```checkpoint
 A coding candidate passes every unit test in the training split. What has that verifier actually proven?
@@ -647,24 +646,28 @@ That candidate passed those tests in that environment. The verifier hasn't prove
 
 ### Three failure modes of extended reasoning
 
-Even with native reasoning, extended test-time computation introduces distinct vulnerabilities:
+More thinking tokens introduce failure modes of their own:
 
-1. **Unfaithful rationalization**: a textual rationale isn't an execution trace of neural activations. Turpin et al. found that biasing features could affect answers without appearing in the generated explanation.[^turpin2023] That study concerns prompted explanations; don't infer a quantified failure rate for every native reasoning model from it.
-2. **Extra cost without task gain**: the GPQA study and pattern-based ICL study give specific examples where explicit CoT adds cost with limited gains or worse accuracy.[^meincke2025cot][^ye2025curseofcot] They don't show that every formatting or retrieval task suffers the same degradation.
-3. **Budget exhaustion and incomplete answers**: internal reasoning uses generation and context budget. OpenAI documents that an exhausted output limit can end a response before a visible answer.[^openai2026reasoning] Handle incomplete results as unfinished work; don't promote a partial rationale into an action.
+1. **Unfaithful rationalization:** Generated prose is not a faithful trace of internal neural computation. Biasing cues can steer an answer without ever appearing in the prompted explanation.[^turpin2023]
+2. **Extra cost without accuracy gain:** On tasks like pattern-based in-context learning or certain GPQA settings, explicit CoT adds latency and tokens while delivering minimal gains or worse accuracy.[^meincke2025cot][^ye2025curseofcot]
+3. **Budget exhaustion before answering:** Internal reasoning draws from the same output limit as visible text. If a model burns its token budget thinking, the response can terminate before emitting a final answer.[^openai2026reasoning] Treat incomplete responses as unfinished runs rather than acting on a partial trace.
 
-## Choose compute with an eval gate
+## Choose test-time compute by measurement
 
-Direct prompting, single-trace CoT, majority voting, and tree search represent points along a compute-accuracy curve with sharply different token footprints and tail latencies. A disciplined engineering workflow starts from the cheapest strategy that clears task validation and escalates to higher-compute patterns only through an explicit <span data-glossary="eval-gate">eval gate</span> grounded in held-out benchmark runs and p95 latency constraints, as difficulty-aware test-time scaling studies confirm.[^snell2024] The benchmark points plotted below demonstrate how this two-axis selection rule works in practice: direct decoding (`190 ms`, `76%`) and a single CoT trace (`360 ms`, `84%`) fall below the `90%` accuracy floor, while tree search (`1840 ms`, `96%`) clears quality at the cost of nearly doubling the `900 ms` latency budget, leaving `Vote-5` (`740 ms`, `94%`) as the sole passing candidate. When calibrating a real serving deployment, swap in measured endpoint latencies and held-out benchmark metrics before locking in the routing threshold.
+Direct prompting, single-trace CoT, majority voting, and tree search sit along one compute-accuracy curve with sharply different token counts and tail latencies. Start from the cheapest strategy that clears your accuracy bar within your <span data-glossary="p95-latency">p95 latency</span> budget, and step up only when held-out measurements justify the extra compute.[^snell2024]
+
+Suppose an evaluation requires at least `90%` task accuracy and p95 latency at or below `900 ms`. On the four measured strategies plotted below, `direct` (`190 ms`, `76%`) and `single_trace` (`360 ms`, `84%`) miss accuracy, while `tree_search` (`1840 ms`, `96%`) doubles the latency ceiling. `vote_5` (`740 ms`, `94%`) is the only strategy inside the target region.
 
 <figure>
   <img src="illustrations/_generated/prompt_patterns_dark.png" alt="Quadrant plot comparing four reasoning strategies by p95 latency (ms) and task accuracy (%). Direct (190ms, 76%) and CoT-1 (360ms, 84%) fall below the 90% accuracy floor. ToT (1840ms, 96%) exceeds the 900ms latency cap. Only Vote-5 (740ms, 94%) enters the passing top-left region." />
   <figcaption>The shaded upper-left quadrant marks strategies meeting at least 90% accuracy at or below 900 ms p95 latency. Vote-5 is the only candidate inside both thresholds.</figcaption>
 </figure>
 
-<!-- leetllm: test, id=cot-gate, output=show -->
+<!-- leetllm: test, id=cot-select, output=show -->
 
-```python title="compute-budget-gate.py"
+```python title="select-reasoning-strategy.py"
+from math import isfinite
+
 results = [
     {"strategy": "direct", "accuracy": 0.76, "p95_ms": 190, "calls": 1},
     {"strategy": "single_trace", "accuracy": 0.84, "p95_ms": 360, "calls": 1},
@@ -680,16 +683,13 @@ def eligible_result(row: dict) -> bool:
     accuracy, latency, calls = row.get("accuracy"), row.get("p95_ms"), row.get("calls")
     return (
         bool(row.get("strategy", "").strip())
-        and accuracy is not None and minimum_accuracy <= accuracy <= 1
-        and latency is not None and 0 < latency <= latency_budget_ms
+        and accuracy is not None and isfinite(accuracy) and minimum_accuracy <= accuracy <= 1
+        and latency is not None and isfinite(latency) and 0 < latency <= latency_budget_ms
         and calls is not None and calls > 0
     )
 
 
-eligible = [
-    row for row in results
-    if eligible_result(row)
-]
+eligible = [row for row in results if eligible_result(row)]
 selected = min(eligible, key=lambda row: (row["calls"], row["p95_ms"]), default=None)
 
 for row in results:
@@ -707,63 +707,49 @@ selected: vote_5
 ```
 <!-- leetllm: output:end -->
 
-The gate rejects missing, non-finite, or out-of-domain measurements and invalid call counts. It uses call count as a simple tie-breaker, not as a dollar-cost estimate. Calls with different prompt lengths, reasoning budgets, or models can cost very different amounts. If no strategy clears the gate, return `none`; don't silently relax the requirements. For a real system, keep a table with:
+Call count works here only as a simple tie-breaker; in production, price every strategy in actual dollars using input, output, and internal reasoning tokens. If no candidate clears both thresholds, return `none` instead of quietly relaxing the limits. Notice also why explicit finiteness and domain checks matter: two bare inequality checks would happily accept `accuracy = inf` and `p95_ms = -1`:
 
-| Metric | Why it matters |
-| :--- | :--- |
-| Action accuracy or task success | Extra reasoning must change correct outcomes |
-| Unsafe-action and abstention rates | Reliability includes knowing when not to act |
-| Input, output, and reasoning tokens | Sampling and search multiply spend |
-| p50 and <span data-glossary="p95-latency">p95 latency</span> | Long tails can make support interactions unusable |
-| Parse and schema failures | A correct thought is useless if the runtime can't consume its action |
-
-Try a candidate with impossible measurements. These two comparisons alone would let it through:
-
-<!-- leetllm: test, continue=cot-gate, output=show -->
+<!-- leetllm: test, continue=cot-select, output=show -->
 
 ```python title="reject-invalid-evaluation-metrics.py"
 invalid = {"strategy": "corrupt_run", "accuracy": float("inf"), "p95_ms": -1, "calls": 1}
 naive_accepts = invalid["accuracy"] >= minimum_accuracy and invalid["p95_ms"] <= latency_budget_ms
 print(f"two_comparisons_accept: {naive_accepts}")
-print(f"validated_gate_accepts: {eligible_result(invalid)}")
+print(f"validated_selector_accepts: {eligible_result(invalid)}")
 print(f"missing_metric_accepts: {eligible_result({'strategy': 'incomplete', 'calls': 1})}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 two_comparisons_accept: True
-validated_gate_accepts: False
+validated_selector_accepts: False
 missing_metric_accepts: False
 ```
 <!-- leetllm: output:end -->
 
-Compare strategies on the exact same held-out evaluation split and report confidence intervals around success rates, because five correct examples never constitute a reliable accuracy estimate. Whenever high-stakes numeric or symbolic outputs drive downstream tool execution, measure silent wrong-answer rate separately from abstentions instead of trusting aggregate accuracy alone.
+When comparing strategies on a real workload, score every arm on the same held-out split, report confidence intervals rather than trusting five examples, and track five numbers together: task accuracy, wrong-answer vs. abstention rate, total tokens (input + output + reasoning), p50/p95 latency, and parse failure rate.
 
-### Choose a lighter inference path when it meets the task
+### Match the pattern to the task
 
-Check whether the task needs reasoning traces or search before adding their cost:
-
-| Situation | Suitable approach |
+| Situation | Practical starting choice |
 | :--- | :--- |
-| Inputs are deterministic numeric formulas or symbolic rules | Exact solver or calculator engine in the runtime |
-| Pattern-matching few-shot ICL (curse-of-CoT regime) | Try a direct answer, then measure whether a scratchpad helps |
-| Multi-step task with sequential sub-dependencies | Try least-to-most prompting before expanding search trees |
-| Single-label classification, field extraction, or formatting with clear labels | Use structured output without a visible reasoning channel |
-| No verifiable partial state and no backtracking value | Use a direct answer, one trace, or linear decomposition |
-| Accuracy already meets the gate at one call | Keep one call when it meets the quality gate |
-| Hard latency budgets where extra tokens blow p95 | Choose the least expensive strategy that clears quality |
-| Intermediate tokens can leak <span data-glossary="secrets-management">secrets</span> | Restrict trace output, logging access, and retention |
-| Need an audit trail of *why* an output was selected | Log prompt inputs, intermediate checks, and tool outputs |
-| Missing live facts | Fetch them with a tool call |
-| A native reasoning model already wins the eval | Compare it with custom scaffolding behind the same gate |
-
-Adding a visible CoT <span data-glossary="agent-scaffold">scaffold</span> can add tokens and latency without a useful accuracy gain.[^meincke2025cot] Treat that prompt as another experimental arm, not as a required wrapper around every reasoning endpoint.
+| Deterministic formula or symbolic rule | Compute directly in code or a calculator tool |
+| Pattern-matching few-shot ICL | Benchmark a direct answer first; add CoT only if it improves accuracy |
+| Multi-step task with ordered sub-problems | Least-to-most prompting before full tree search |
+| Single-label classification or schema extraction | Structured output without a visible reasoning channel |
+| No verifiable partial states or backtracking value | Direct answer, single trace, or linear decomposition |
+| Single call already clears accuracy and latency targets | Stay at one call |
+| Tight interactive p95 latency budget | Pick the cheapest strategy inside the accuracy and latency thresholds |
+| Intermediate tokens could expose <span data-glossary="secrets-management">secrets</span> | Restrict trace logging, access, and retention |
+| Need a debuggable record of how an answer was checked | Log prompt inputs, intermediate checks, and tool outputs |
+| Missing live facts or exact big-integer math | Call a tool rather than guessing in token space |
+| Native reasoning model already clears the evaluation | Benchmark it against a custom <span data-glossary="agent-scaffold">agent scaffold</span> on the same split[^meincke2025cot] |
 
 ## Where reasoning ends and tools begin
 
-All runnable experiments above operate on in-memory inputs or deterministic arithmetic state. Real math and engineering workflows often demand arbitrary-precision calculations, symbolic algebra lookups, or external knowledge queries whose answers do not live in static context. Pure token generation can only hallucinate or approximate when an uncached empirical fact or exact calculation sits outside its forward pass.
+Every experiment above operated on facts already present in the prompt. Real engineering tasks regularly hit a wall where pure token generation can only guess: computing $15! / 6!$ exactly, querying a live database, or running a unit test suite.
 
-ReAct interleaves reasoning traces and typed tool actions so each returned observation updates the next step in the derivation.[^yao2023a] Rather than requiring raw private chain of thought, this loop isolates deliberation from deterministic execution through a structured action request, a checked tool response, and an updated prompt state:
+**ReAct** bridges that wall by interleaving reasoning with typed tool calls so each returned observation updates the next step:[^yao2023a]
 
 ```text title="reasoning-to-tool-handoff.txt"
 Need: exact value of 15! / 6! should not be approximated in token space.
@@ -772,24 +758,21 @@ Runtime responsibility: validate AST allowlist, execute deterministically, captu
 Next decision: substitute returned integer into remaining symbolic derivation.
 ```
 
-That typed tool interface separates language generation from deterministic execution cleanly. First, the host runtime validates arguments against a strict schema before any external code executes. Second, execution errors return structured messages rather than silently corrupting downstream steps, keeping OS permissions and state mutations inside the host sandbox rather than inside model text.
+That typed interface keeps generation and execution cleanly separated: the host runtime validates arguments against a schema before running external code, executes inside its own sandbox, and returns structured results or errors back to the model.
 
-## Try to break the evaluator
+## Stress-test the code yourself
 
-Modify each test case below and run its corresponding code cell to inspect how majority voting, dead-end pruning, and evaluation gates respond under edge cases.
+Modify the scripts above to watch how voting, search, and strategy selection behave at their edges:
 
-1. Replace all five extracted answers in `shared_arithmetic_trap` with a uniform `36` while the true verified result is `42`. Why does 100% consensus fail final accuracy checking?
-2. Run `solve_24([4, 5, 6, 7], max_states=1)`. Does that return status prove the puzzle is unsolvable?
-3. Lower `latency_budget_ms` to `100` in the evaluation-gate example. What strategy gets selected?
-4. Set one candidate's accuracy to `float("inf")` and p95 to `-1`. Would an unchecked `>=` comparison mistakenly accept it, and what does `eligible_result()` return?
-
-Making all five samples repeat `36` exposes a blind spot of self-consistency: unanimous model agreement still fails external verification whenever every sampled trace shares the same framing error. With a one-state budget, the breadth-first solver reports `budget_exhausted` rather than `no_solution`, because unexplored states remain on the queue. Lowering the p95 latency cap to `100` ms causes the gate to return `none`, because no candidate strategy finishes within 100 ms. Finally, infinite accuracy and negative latency would slip past naive inequality checks, whereas `eligible_result()` rejects both as non-finite or out of range, separating shared reasoning mistakes, truncated search, infeasible latency budgets, and malformed metrics.
-
+1. In `measure-voting-gain.py`, all five traces in `shared_arithmetic_trap` agree on `36` while the reference answer is `42`. Unanimous consensus still fails external verification whenever every sample shares the same mistake.
+2. In `breadth-first-game-of-24.py`, `solve_24([4, 5, 6, 7], max_states=1)` returns `budget_exhausted` rather than `no_solution`, because unexplored states remain on the queue.
+3. In `select-reasoning-strategy.py`, lower `latency_budget_ms` to `100`. No strategy finishes within `100 ms`, so the selector returns `none`.
+4. In `reject-invalid-evaluation-metrics.py`, `accuracy = float("inf")` and `p95_ms = -1` pass naive inequalities (`True`), while `eligible_result()` rejects both as out of range (`False`).
 
 ```mastery-quiz
 [
   {
-    "question": "A deterministic solver computes expected_answer=42 for a multi-step arithmetic problem. Six sampled model completions all agree on 36 because of the same order-of-operations slip. Which final answer and ground truth govern automated grading?",
+    "question": "A deterministic solver computes expected_answer=42 for a multi-step arithmetic problem. Six sampled model completions all agree on 36 because of the same order-of-operations slip. Which final answer and ground truth determine automated grading?",
     "options": [
       "36; the sampled plurality.",
       "42; the deterministic solver.",
@@ -852,7 +835,7 @@ Making all five samples repeat `36` exposes a blind spot of self-consistency: un
       "pair: 2 calls and 800 ms."
     ],
     "answer": "pair: 2 calls and 800 ms.",
-    "explanation": "Pair and vote meet both requirements; pair has fewer calls. Direct misses accuracy and tree misses latency. The gate does not relax a requirement to prefer a cheaper or more accurate row."
+    "explanation": "Pair and vote meet both requirements; pair has fewer calls. Direct misses accuracy and tree misses latency. The selection rule does not relax a requirement to prefer a cheaper or more accurate row."
   },
   {
     "question": "A repair shop identifies a pump model from its serial number. A planner needs that model to choose a test. Later, two inspectors each report a different required repair. A supervisor reviews the draft work order and requests a revision. Which workflow preserves the dependencies?",

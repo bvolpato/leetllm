@@ -14,7 +14,7 @@
     "Microsoft",
     "Meta"
   ],
-  "shortDescription": "An evaluation log needs a typed run id and status, yet prompting to return JSON can still yield chat. Constrain tokens during decoding, then verify claims against trusted records.",
+  "shortDescription": "An evaluation log needs a typed run ID and status, yet prompting for JSON still produces chat. Mask illegal tokens during decoding, align subwords with grammars, and verify claims against trusted records.",
   "prerequisites": [
     "function-calling-tool-use-llms",
     "decoding-strategies-greedy-beam-nucleus",
@@ -47,24 +47,28 @@
 
 <!-- leetllm: edition:reference:start -->
 
-An evaluation pipeline ingests hundreds of benchmark logs every minute. One trace reports: `"Evaluation eval-17 failed on math-500 after symbolic-verifier timed out."` Downstream dashboards need a typed JSON payload containing the evaluation identifier and an allowed status string. Even a valid record can trigger a lookup or human triage, though it does not by itself justify promoting or halting a checkpoint.
+Ask a language model to extract `eval_id` and `status` from a benchmark log and return JSON. Nine times out of ten, it complies. On the tenth run, right as an overnight evaluation sweep finishes, it replies:
 
-Prompting an unconstrained chat model with "Extract the fields and respond in JSON" often breaks that interface. A reply such as `Sure! Here is the data: { 'eval_id': 'eval-17' }` fails `json.loads` on its leading prose, and single quotes violate JSON syntax. Other replies wrap objects in Markdown fences, invent a status such as `"timed_out_hard"`, or omit `"eval_id"`.
+```text title="unconstrained-reply.txt"
+Sure! Here is the data: { 'eval_id': 'eval-17' }
+```
 
-Autoregressive models predict next <span data-glossary="token">tokens</span> rather than returning typed objects from a function signature. <span data-glossary="structured-output">Structured output generation</span> enforces structure during decoding: before sampling each step, the runtime masks continuations that fall outside a compiled grammar.[^willard2023] Even so, grammar compliance governs shape alone. Host code still decides whether a response completed cleanly, matches source logs, and obeys caller permissions.
+`json.loads` crashes at character zero on `Sure!`, single quotes violate RFC 8259, and `status` is missing altogether. Adding `"Respond ONLY with valid JSON, no preamble"` shifts the odds without changing the mechanism. An autoregressive model predicts next <span data-glossary="token">tokens</span> over its full vocabulary rather than returning a typed object from a function signature, and conversational tokens like `Sure` often outscore `{`.
+
+<span data-glossary="structured-output">Structured output generation</span> fixes this at the sampler itself.[^willard2023] Before drawing each token, the runtime checks a compiled grammar to find every vocabulary token that can legally extend the current prefix, sets all other logits to $-\infty$, and renormalizes softmax over the surviving candidates.
 
 <figure>
   <img src="illustrations/_generated/probability_mask_dark.png" alt="Bar charts comparing token probabilities before and after grammar masking. Before masking, raw logits for Sure (1.4), open brace (0.8), The (0.2), and open bracket (-0.4) convert via softmax into 49.6%, 27.2%, 14.9%, and 8.2%. After masking sets every illegal token logit to negative infinity while keeping only open brace at 0.8, the renormalized softmax probability assigns 100% to open brace and 0% to all others." />
   <figcaption>Before masking, softmax turns the raw logits for <code>Sure</code> (1.4), <code>{</code> (0.8), <code>The</code> (0.2), and <code>[</code> (-0.4) into 49.6%, 27.2%, 14.9%, and 8.2%. Setting every continuation outside the schema's start state to negative infinity leaves <code>{</code> with 100% probability before sampling.</figcaption>
 </figure>
 
-This example isolates one decoding step over a four-token vocabulary where only `{` can begin a valid JSON object. A production tokenizer also contains whitespace tokens and multi-character tokens starting with `{` followed by quotes or field names, so the allowed subset is larger in practice. Logit masking removes conversational prose directly at the sampler rather than hoping a system prompt keeps the model inside JSON syntax.
+In this four-token slice of a vocabulary, only `{` can open a JSON object, so masking hands it 100% of the probability mass before sampling even begins. Real tokenizers also include whitespace variants and merged tokens such as `{"eval_id"`, all of which stay legal whenever they keep the prefix on a valid path. Eliminating syntax crashes immediately raises three deeper engineering questions: how does a character-level grammar stay aligned with multi-character subword tokens, why can a schema-valid object still fail local validation or contradict the source log, and how should production code handle truncation, refusals, and retries? Throughout this lesson, we trace a single evaluation log: `"Evaluation eval-17 failed on math-500 after symbolic-verifier timed out."`
 
-## What constrained decoding adds beyond a JSON instruction
+## Why prompting for JSON fails and what decoding constraints add
 
-Prompting for JSON expresses a preference rather than enforcing a parser rule. Without decoding constraints, an unconstrained chat model regularly wraps output in Markdown fences, opens with conversational greetings, invents keys, or inserts trailing commas that break standard decoders. Notice how a naive prompt leaves all of those failure modes open:
+A natural-language prompt expresses a preference, while an unconstrained decoder remains free to sample any token in its vocabulary. In practice, asking `"Return JSON"` works on routine cases and then fails at unpredictable moments in downstream pipelines:
 
-```python title="why-please-return-json-is-not-enough.py"
+```python title="prompt-only-extraction.py"
 prompt = """
 Extract eval_id and status from this benchmark log:
 "Evaluation eval-17 failed on math-500 after symbolic-verifier timed out."
@@ -72,49 +76,53 @@ Return JSON.
 """
 ```
 
-Human readers understand that prompt immediately, yet unconstrained models break downstream parsers in recurring ways across production workloads, as summarized in the table below. Each failure mode disrupts deterministic automation differently unless syntax is constrained ahead of sampling.
+In production workloads, unconstrained replies break parsers in five recurring ways, and different API tiers close different portions of that gap:
 
 | Failure mode | Example model response | Downstream breakdown |
 |--------------|------------------------|----------------------|
 | Conversational preamble | `Here is the extracted JSON: {"eval_id":"eval-17"}` | `json.loads` hits non-JSON characters at index 0 |
-| Markdown fences | ````json\n{"eval_id":"eval-17"}\n```` | Parser rejects backticks; fence stripping adds brittle glue code |
+| Markdown fences | ````json\n{"eval_id":"eval-17"}\n```` | Parser rejects backticks; regex stripping adds brittle glue code |
 | Schema drift | `{"eval_id":"eval-17","status":null}` | Parses cleanly, yet violates a required enum string check |
-| Hallucinated keys | `{"benchmark_id":"eval-17","outcome":"crashed"}` | Keys diverge from storage columns or API schemas |
+| Hallucinated keys | `{"benchmark_id":"eval-17","outcome":"crashed"}` | Keys diverge from storage columns or API fields |
 | Malformed syntax | `{"eval_id":"eval-17", "status":"failed",}` | Trailing commas violate RFC 8259 and break standard JSON decoders |
 
-A standard parser treats every broken reply identically as an unusable string without distinguishing chat habits from malformed trailing commas or schema drift. Prompt wording alone expresses an instruction without controlling decoder token selection, whereas token masking deletes illegal continuations before any token is sampled. Reliable pipelines distinguish prompting for a format from compiling a structural constraint into generation, because each API tier enforces a different level of syntax:
+Different API tiers close different portions of this gap:
 
 | Interface tier | Structural guarantee | Typical implementation |
 |----------------|----------------------|------------------------|
 | Prompt-based ("respond in JSON") | None (best-effort formatting) | Standard chat endpoints |
-| JSON mode | Targets JSON syntax; still inspect incomplete and refusal states | OpenAI `json_object` mode |
-| Strict function calling | Constrains tool arguments to a supported schema | Provider tool APIs with strict mode enabled |
-| Hosted structured outputs | Constrains response data to a provider-supported schema subset | OpenAI, Claude, Gemini structured outputs |
-| Grammar-guided inference runtime | Enforces the grammar actually compiled by the backend | Outlines, SGLang, vLLM, llama.cpp |
+| JSON mode | Targets JSON syntax; still check incomplete and refusal states | OpenAI `json_object` mode |
+| Strict function calling | Constrains tool arguments to a supported schema subset | Provider tool APIs with strict mode enabled |
+| Hosted structured outputs | Constrains response text to a provider-supported schema subset | OpenAI, Claude, Gemini structured outputs |
+| Grammar-guided inference runtime | Enforces the exact grammar compiled by the backend | Outlines, SGLang, vLLM, llama.cpp |
 
-Prompt instructions describe intent, whereas token masking drops invalid vocabulary entries before softmax. Post-hoc regex scrubbers and retries can fix cosmetic wrappers without proving that the recovered value satisfies your closed object schema. Even JSON mode only guarantees valid JSON syntax: `{"author": "alice"}` passes JSON mode while missing `eval_id` and `status`, and top-level arrays or scalars remain valid JSON unless your parser rejects them.[^openai2024StructuredOutputsLaunch]
+> **Key insight:** Constrained decoding guarantees only the subset of <span data-glossary="json-schema">JSON Schema</span> that the inference backend actually compiled. Always inspect the completion status first, decode JSON strictly, and validate against your local schema.
 
-Constrained decoding moves structural enforcement inside the decoder by masking continuations outside its compiled language.[^willard2023] Even so, inference engines only enforce the subset of <span data-glossary="json-schema">JSON Schema</span> they know how to compile. For example, `llama.cpp`'s schema converter can silently skip unsupported keywords without raising an error, letting grammar-valid output violate your local Pydantic rules.[^llamacpp_grammars_docs2026] Similarly, as of October 2026, Claude provides native JSON outputs via `output_config.format` and strict tool use while documenting edge cases such as refusals, token exhaustion, and capitalization shifts on enums, and Gemini calls for post-generation validation alongside its supported schema subset.[^anthropic2026StructuredOutputs][^geminiStructuredOutput2026] Check provider completion states first, then run both strict JSON parsing and full schema validation locally as shown below:
+Even JSON mode enforces syntax alone: `{"author": "alice"}` is valid JSON while omitting both `eval_id` and `status`, and top-level arrays or scalars pass `json.loads` unless your validator rejects them.[^openai2024StructuredOutputsLaunch] Backends also differ in which schema keywords they compile. For example, `llama.cpp`'s schema converter can silently skip unsupported JSON Schema keywords during compilation.[^llamacpp_grammars_docs2026] Hosted providers likewise document edge cases: Claude's native JSON outputs (`output_config.format`) and strict tool use can still return refusals, hit token limits, or shift enum capitalization, while Gemini recommends pairing its supported schema subset with post-generation validation.[^anthropic2026StructuredOutputs][^geminiStructuredOutput2026] Python's built-in `json.loads` adds two local hazards of its own by silently overwriting duplicate keys (keeping the last value) and accepting non-standard constants such as `NaN` and `Infinity`.[^pythonJson2026] Installing strict parser hooks ahead of a strict <span data-glossary="pydantic">Pydantic</span> model closes all of those gaps in one pass:
 
-<!-- leetllm: test, id=parser, output=show, output_title="Syntax and schema are separate" -->
+<!-- leetllm: test, id=parser, deps=pydantic, output=show, output_title="Syntax and schema are separate" -->
 ```python title="json-syntax-versus-schema.py"
 import json
 import math
+from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-REQUIRED = ("eval_id", "status")
-STATUSES = {"queued", "passed", "failed", "unknown"}
+class TriageRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    eval_id: str = Field(min_length=1)
+    status: Literal["queued", "passed", "failed", "unknown"]
 
-def reject_constant(value):
+def reject_constant(value: str):
     raise ValueError(f"nonfinite JSON number: {value}")
 
-def finite_float(value):
+def finite_float(value: str) -> float:
     result = float(value)
     if not math.isfinite(result):
         raise ValueError("JSON number exceeds finite float range")
     return result
 
-def unique_object(pairs):
-    result = {}
+def unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
     for key, value in pairs:
         if key in result:
             raise ValueError(f"duplicate JSON key: {key}")
@@ -129,32 +137,15 @@ def load_record(raw: str):
         parse_float=finite_float,
     )
 
-def validate_triage(payload: object) -> dict[str, str]:
-    if not isinstance(payload, dict):
-        raise TypeError("root must be an object")
-    extra = sorted(set(payload) - set(REQUIRED))
-    missing = [key for key in REQUIRED if key not in payload]
-    if extra or missing:
-        raise ValueError(f"shape mismatch extra={extra} missing={missing}")
-    record: dict[str, str] = {}
-    for key in REQUIRED:
-        value = payload[key]
-        if not isinstance(value, str) or not value.strip():
-            raise TypeError(f"{key} must be a nonempty string")
-        record[key] = value
-    if record["status"] not in STATUSES:
-        raise ValueError(f"unsupported status enum: {record['status']}")
-    return record
-
 syntax_valid_wrong_shape = load_record('{"foo": "bar"}')
 schema_valid = load_record('{"eval_id": "eval-17", "status": "failed"}')
 
 try:
-    validate_triage(syntax_valid_wrong_shape)
-except ValueError:
+    TriageRecord.model_validate(syntax_valid_wrong_shape)
+except ValidationError:
     print("JSON-only result: rejected by schema")
 
-print("structured record:", validate_triage(schema_valid))
+print("structured record:", TriageRecord.model_validate(schema_valid).model_dump())
 
 for raw in ['{"eval_id":"eval-17","eval_id":"eval-19"}', '{"status":NaN}']:
     try:
@@ -172,17 +163,17 @@ parser rejected: nonfinite JSON number: NaN
 ```
 <!-- leetllm: output:end -->
 
-Python's standard `json.loads` silently overwrites duplicate keys (keeping the last value) and accepts non-standard constants such as `NaN` and `Infinity`.[^pythonJson2026] Accepting silent key overrides or nonfinite floats corrupts downstream records silently, so production decoders should reject both explicitly via custom parser hooks. Adding schema checks right after decoding closes the gap between syntactic JSON and application shape requirements.
+Every line in that output marks a distinct layer of defense. `load_record` catches duplicate keys and `NaN` at parse time before any object reaches application code, while `TriageRecord` catches missing fields, extra keys, and out-of-enum values immediately afterward. Together they draw a crisp line between valid JSON syntax and valid application data.
 
 ```checkpoint
 What can you assume after JSON mode, and what changes with structured outputs?
 ---
-JSON mode targets syntactically valid JSON without guaranteeing your keys or enum values. Structured outputs enforce supported schema constraints during decoding. Check completion and refusal states alongside backend limitations, then validate locally; neither feature proves truthfulness or grants execution permission.
+JSON mode targets syntactically valid JSON without guaranteeing your keys or enum values. Structured outputs enforce supported schema rules during decoding. Check completion and refusal states alongside backend limits, then validate locally; neither feature verifies truthfulness or grants execution permission.
 ```
 
 ## How grammar-guided decoding works
 
-With post-generation parsing alone, your code discovers a schema error only after the model has finished generating tokens. A constrained decoder tracks parser state continuously during decoding and zeroes out tokens that cannot extend a valid prefix. As shown in the loop below, state tracking, masking, sampling, and completion checks stay separated step by step:
+Post-generation parsing catches syntax errors only after the model has spent tokens generating a broken reply. A constrained decoder tracks parser state continuously during generation and zeros out illegal tokens before every sample:
 
 <!-- leetllm: audience:website:start -->
 ```mermaid
@@ -210,35 +201,35 @@ flowchart TB
 ```
 <!-- leetllm: audience:book:end -->
 
-The backend compiles a reusable grammar representation. At each step, it derives a token mask from the current parser state and applies it before sampling. After accepting a token, it advances that state. An accepting state permits termination; it doesn't always force it, because trailing whitespace or further content may still be legal. Token budgets can interrupt generation before a complete value exists.
+At each decoding step, the runtime inspects the current parser state, applies the corresponding token mask before sampling, and advances the parser with the sampled token. Reaching an accepting state permits `<eos>` without necessarily forcing it (trailing whitespace or additional optional content may still be legal), and hitting `max_output_tokens` can interrupt generation before any complete value exists.
 
 ### From schema to logit masking
 
-The mathematical mechanism works by directly modifying the unnormalized logit vector before the <span data-glossary="softmax">softmax</span> operation.
+The core operation modifies the raw logit vector directly before <span data-glossary="softmax">softmax</span>:
 
-1. **State representation**: Let $S_t$ represent the parser's state at decoding step $t$. For regular expressions and flat enums, $S_t$ is a state in a **Deterministic Finite Automaton (DFA)**. For arbitrarily recursive JSON structures, a stack-based parser also tracks unresolved open braces and brackets. Fixed-depth schemas can use finite-state representations instead.
-2. **Legal token subset**: The engine determines the set of legal vocabulary token IDs:
+1. **Parser state:** Let $S_t$ denote the parser state at step $t$. For regular expressions and fixed-depth schemas, $S_t$ is a state in a **Deterministic Finite Automaton (DFA)**. For arbitrarily recursive JSON, a stack-based parser tracks unresolved open braces and brackets alongside the current rule.
+2. **Legal token subset:** From $S_t$, the engine finds the valid vocabulary token IDs:
    $$
    \mathcal{V}_{\text{valid}}(S_t) \subseteq \mathcal{V}
    $$
-   Each ordinary token in this set must leave a prefix that can still reach a valid completion. Special end tokens need their own acceptance rule.
-3. **Logit masking**: Let $z_t \in \mathbb{R}^{|\mathcal{V}|}$ denote the raw output logits from the transformer's language model head. We construct a mask vector $m_t \in \{0, -\infty\}^{|\mathcal{V}|}$:
+   Every ordinary token in this set must leave a prefix that can still reach a valid completion, while `<eos>` is allowed only when $S_t$ is an accepting state.
+3. **Logit masking:** Given raw logits $z_t \in \mathbb{R}^{|\mathcal{V}|}$, construct a mask $m_t \in \{0, -\infty\}^{|\mathcal{V}|}$:
    $$
    m_t(v) = \begin{cases} 0 & \text{if } v \in \mathcal{V}_{\text{valid}}(S_t) \\ -\infty & \text{if } v \notin \mathcal{V}_{\text{valid}}(S_t) \end{cases}
    $$
-4. **Renormalized sampling**: The masked logits $z'_t = z_t + m_t$ pass through softmax:
+4. **Renormalized sampling:** Add the mask and apply softmax ($z'_t = z_t + m_t$):
    $$
    P(y_t = v \mid x_{<t}) = \frac{\exp(z'_t(v))}{\sum_{u \in \mathcal{V}} \exp(z'_t(u))} = \begin{cases} \frac{\exp(z_t(v))}{\sum_{u \in \mathcal{V}_{\text{valid}}(S_t)} \exp(z_t(u))} & \text{if } v \in \mathcal{V}_{\text{valid}}(S_t) \\ 0 & \text{otherwise} \end{cases}
    $$
 
-Under this mask, illegal tokens receive probability zero. The formulation assumes temperature-one sampling and a nonempty legal set with finite logits. If no valid continuation exists in the vocabulary, the decoder should halt with an error rather than dropping the constraint to keep sampling.
+This formula assumes temperature-one sampling and a nonempty legal set with finite logits. If $\mathcal{V}_{\text{valid}}(S_t)$ is ever empty (for instance, due to a tokenizer mismatch or an unsatisfiable rule), the decoder must halt with an error rather than dropping the mask.
 
 <figure>
   <img src="illustrations/_generated/contract_gates_dark.png" alt="Three-step compilation pipeline from Schema or CFG to DFA or stack state S_t and a Bitmask Index M[S_t] in {0, 1}. Below it, four automaton states transition linearly from S0 (expect {) through S1 (expect key) and S2 (enum val) to S3 (allow eos). At the bottom, a binary bitmask matrix maps states S0 through S3 across six vocabulary tokens ({, key:, pass&quot;}, fa, Sure, &lt;eos&gt;): S0 enables only {, S1 enables only key:, S2 enables pass&quot;} and fa, and S3 enables only &lt;eos&gt;." />
   <figcaption>Compiling a schema turns grammar rules into a state machine (<code>S0 -> S1 -> S2 -> S3</code>) and a valid-token bitmask <code>M[S_t, v]</code>. Each decoding step reads the binary row for its current state to mask the vocabulary before softmax.</figcaption>
 </figure>
 
-We can run this vectorized logit masking step directly in NumPy:
+Here is that exact vectorized masking step in NumPy over our opening four-token example:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="from-schema-to-logit-masking.py"
@@ -278,49 +269,51 @@ chosen token: {
 ```
 <!-- leetllm: output:end -->
 
-Even though `"Sure"` started with the largest logit (`1.4`, or `49.6%` probability), `np.where` assigns `-inf` to every illegal token and moves 100% of the renormalized probability mass onto `"{"`. That single masking step eliminates formatting errors during sampling without retraining weights or prompting repeatedly. If a token vocabulary has multiple whitespace or fused-key tokens opening with `{`, every legal prefix retains positive probability in proportion to its original score.
+Although `"Sure"` began at 49.6%, `np.where` drives every disallowed logit to `-inf` and shifts 100% of the surviving probability onto `"{"` without touching model weights. Whenever multiple tokens remain legal at a step, softmax preserves their relative odds intact across the valid subset. That gives us the mathematical rule for one step; the harder problem is computing `legal_mask` quickly across a real subword vocabulary.
 
 ### The tokenizer alignment problem
 
-Implementing constrained decoding efficiently requires reconciling a mismatch between levels of abstraction: grammars match character or byte transitions, whereas language models emit <span data-glossary="subword-tokenization">subword tokens</span>. A single vocabulary token can span multiple JSON delimiters (`","status":"failed"`), or split a UTF-8 codepoint mid-character. Consequently, a decoder cannot look at the opening character of a candidate token alone; it has to verify that walking all bytes of the token through the automaton yields a legal state without overshooting into an error transition.[^willard2023]
+Masking logits is mathematically tiny; computing `legal_mask` fast is the real engineering problem. Grammars match characters or bytes, whereas language models emit <span data-glossary="subword-tokenization">subword tokens</span> that routinely span several JSON delimiters (`","status":"failed"`) or split a UTF-8 codepoint mid-character. Checking only the first character of a candidate token is wrong: the decoder must walk every byte of the token through the automaton from $S_t$ and reject any token that overshoots into an error state.[^willard2023]
 
-Consider an automaton in a state expecting the status enum value `"failed"`.
-- Token `fa` is valid: it advances the state toward `"failed"`.
-- Token `failed"` is valid: it completes the enum, consumes the closing quote, and moves to whatever delimiter the enclosing object permits next.
-- Token `failed"!` is invalid: it completes the enum, but immediately appends an illegal exclamation mark. Even though its prefix is valid, accepting this token would drive the parser into an unrecoverable error state. The engine must mask this token out.
+Suppose the parser has consumed `{"status":"` and expects `"failed"`:
+- `fa` is legal: it advances two characters inside `"failed"`.
+- `iled"}` is legal after `fa`: it finishes the string, closes the quote and brace, and lands on an accepting state.
+- `iled"}!` is illegal: its first six characters match, yet its trailing `!` overshoots the grammar and corrupts the output.
 
-Evaluating tens of thousands of candidate tokens against a parser on every decode step would stall token throughput, so modern backends precompute and partition vocabulary checks ahead of generation:
+Walking 128,000 vocabulary strings through a parser at every decode step would crush throughput, so serving engines precompute and partition vocabulary lookups ahead of generation:
 
-- **Indexed finite-state decoding**: The approach in Willard and Louf's 2023 paper precomputes allowed token IDs for each reachable DFA state. Looking up that index avoids reparsing the whole vocabulary; constructing, storing, and applying masks still has costs.[^willard2023]
-- **llguidance**: Uses an Earley context-free parser, a regex-based lexer, and a tokenizer trie to compute masks.[^llguidance2026]
-- **XGrammar**: Partitions the vocabulary into context-independent tokens (whose validity depends only on the current grammar rule, precomputed as static bitmasks) and context-dependent tokens (which require dynamic stack evaluation). This drastically reduces per-step CPU work.[^xgrammar2024]
+- **Indexed finite-state decoding:** Willard and Louf (2023) precompute the allowed token IDs for each reachable DFA state into a lookup table, turning per-step masking into an indexed read (with upfront index compilation and memory costs).[^willard2023]
+- **llguidance:** Combines an Earley context-free parser, a regex lexer, and a tokenizer trie to compute masks incrementally.[^llguidance2026]
+- **XGrammar:** Partitions the vocabulary into context-independent tokens (validity depends only on the active rule, stored in precomputed bitmasks) and context-dependent tokens (checked dynamically against the parser stack), slashing per-step CPU work.[^xgrammar2024]
 
 ```checkpoint
 Why is tokenizer alignment harder than checking characters?
 ---
-Grammar rules define valid character or byte sequences, but language models generate subword tokens that contain multiple characters. The engine must verify that a candidate token's complete byte sequence represents a valid transition or prefix in the automaton without overshooting into an invalid state.
+Grammar rules define valid character or byte sequences, while language models generate multi-character subword tokens. The decoder must trace a candidate token's complete byte sequence through the automaton without overshooting into an invalid state.
 ```
 
 ### Regular expressions vs. context-free grammars
 
-Selecting the right grammar formalism depends on whether your schema relies on bounded flatness or recursive nesting. Finite-state machines (DFAs) handle regular expressions and fixed enums in constant working memory per decoding step, though the precompiled transition index can still grow large for wide schemas. Context-Free Grammars (CFGs) add a stack so the parser can match opening and closing delimiters across arbitrary nesting depth. Note that **unbounded list length does not require unbounded nesting**: an array of arbitrarily many flat objects like `\[(\{\}(,\{\})*)?\]` remains strictly regular, whereas nested trees of arbitrary depth require a stack-aware CFG.
+Which grammar formalism you need hinges on nesting depth rather than output length. A DFA handles regular expressions, fixed enums, and flat JSON objects in constant per-step working memory, though its precompiled transition table can grow large for wide schemas. A **Context-Free Grammar (CFG)** adds a stack so the parser can balance opening and closing delimiters across arbitrary nesting depth.
+
+> **Common mistake:** Assuming that a variable-length JSON array requires a CFG. An array of arbitrarily many flat objects (`\[(\{\}(,\{\})*)?\]`) is strictly regular and compiles to a DFA. Only arbitrarily deep recursive nesting requires a stack.
 
 ```checkpoint
 When is a regular expression sufficient, and when do you need a CFG?
 ---
-Use a regular expression for a regular language, including an arbitrarily long list of fixed-depth items. Arbitrarily deep recursive nesting requires a stack-aware parser. Length and depth are different dimensions, and a grammar still doesn't check arbitrary semantic relationships.
+Use a regular expression for any regular language, including an arbitrarily long array of fixed-depth objects. Arbitrarily deep recursive nesting requires a stack-aware CFG. Length and depth are separate dimensions, and neither formalism checks domain semantics.
 ```
 
-### Run an incremental DFA constrained decoder
+### Build an incremental DFA token decoder
 
-To see how whole-token validation and sequence termination work together, consider a miniature language accepting only `{"status":"passed"}` and `{"status":"failed"}`. We compile both strings into a character-level Deterministic Finite Automaton (DFA) transition table `DFA[state][char] -> next_state`, then step every candidate vocabulary token completely through `DFA` before allowing it in the bitmask.
+To see whole-token alignment and `<eos>` handling working together, let us compile a tiny language accepting only `{"status":"passed"}` and `{"status":"failed"}` into a character-level DFA and run every candidate token completely through it. Notice in the decision tree below how both accepted strings share the prefix `{"status":"`, how `iled"}` lands cleanly on an accepting state, and how `iled"}!` is rejected as a whole token because of its trailing `!`.
 
 <figure>
   <img src="illustrations/_generated/whole_token_parser_path_dark.png" alt="Decision tree over whole subword tokens starting at {&quot;status&quot;:&quot; where &lt;eos&gt; is blocked. Taking passed followed by &quot;} -> &lt;eos&gt; accepts pass. Taking fa advances to a partial prefix where iled&quot;} -> &lt;eos&gt; accepts fail, while iled&quot;}! is masked out because it overshoots at !." />
   <figcaption>Both accepted strings share <code>{"status":"</code>. From <code>fa</code>, the token <code>iled"}</code> reaches the final brace cleanly, whereas <code>iled"}!</code> overshoots at <code>!</code> and is masked out as a whole token.</figcaption>
 </figure>
 
-Notice how stepping through the DFA rejects `iled"}!` even though its first six characters match, and how `<eos>` stays masked until the parser reaches an accepting state. In contrast to naive prefix checks that stop at character boundaries, full-token traversal guarantees every intermediate transition remains valid:
+The implementation below compiles those transitions and runs greedy decoding over a small score table, blocking `The`, premature `<eos>`, and overshooting `iled"}!` at every step:
 
 <!-- leetllm: test, id=finite-guide, output=show, output_title="Incremental DFA whole-token decoder" -->
 ```python title="finite-language-token-guide.py"
@@ -397,11 +390,11 @@ overshooting token next state: None
 ```
 <!-- leetllm: output:end -->
 
-Every vocabulary token runs character-by-character against `DFA[state]`, so `iled"}!` fails at `!` even though its opening six characters match `'{"status":"failed"}'`, and `<eos>` remains blocked (`None`) at `fa_state` because `fa_state` is not in `ACCEPTING`. Rather than scanning thousands of vocabulary strings against Python regexes at runtime, engines compile this exact state transition table into compact per-state token bitmasks `M[S_t]` once per schema.
+Even though `iled"}!` scores `8.0` versus `1.0` for `iled"}`, `advance_token` rejects it at `!` and returns `None`. Likewise, `<eos>` scores `7.0` yet stays masked at `fa_state` because `fa_state` is not in `ACCEPTING`. Production engines compile this exact state machine into per-state bitmasks `M[S_t]` once per schema so decode steps avoid Python loops altogether.
 
 ### Token boundaries and token healing
 
-A subtler mismatch occurs whenever a prompt ends in the middle of a multi-character JSON token, such as `'{"status":"'`. If a subword tokenizer splits the prompt cleanly up to a token boundary that chops off a natural merge, the model assigns lower probability to fragmented single-character continuations. **Token healing** steps back across the last prompt token boundary and constrains the first decoded token to begin with the trimmed characters, restoring natural subword merges across the token boundary.[^willard2023][^llguidance2026]
+A subtler alignment problem appears whenever a prompt ends right in the middle of a common multi-character token, such as `'{"status":"'`. If the tokenizer splits the prompt cleanly at the quote boundary, it cuts across a merged token like `'":"passed'` that the model strongly prefers. **Token healing** steps back across that last prompt token and restricts the first generated token to start with the trimmed characters, letting the model pick the natural merge again.[^willard2023][^llguidance2026]
 
 <!-- leetllm: test, id=token-healing, output=show, output_title="Token boundary healing" -->
 ```python title="token-healing-boundary.py"
@@ -417,7 +410,6 @@ def greedy_tokenize(text: str, vocab: list[str]) -> list[str]:
 
 prompt = '{"status":"'
 naive_tokens = greedy_tokenize(prompt, VOCAB)
-# Back up past the final prompt token ('":"') so the model can pick a healed merge.
 trimmed_prefix = naive_tokens[:-1]
 required_start = naive_tokens[-1]
 healed_candidates = [tok for tok in VOCAB if tok.startswith(required_start)]
@@ -425,7 +417,7 @@ healed_candidates = [tok for tok in VOCAB if tok.startswith(required_start)]
 print("naive prompt tokens:", naive_tokens)
 print("healed prefix:", trimmed_prefix, "required continuation start:", repr(required_start))
 print("healed candidates:", healed_candidates)
-assert "':\"passed'" != "" and '":"passed' in healed_candidates
+assert '":"passed' in healed_candidates
 ```
 
 <!-- leetllm: output:start -->
@@ -436,15 +428,11 @@ healed candidates: ['":"', '":"passed']
 ```
 <!-- leetllm: output:end -->
 
-Without healing, splitting cleanly before `'passed'` blocks the single merged token `'":"passed'`. Backing up across that last token boundary trims `'":"'` and restricts the next decoding step to tokens starting with `'":"'`, bringing `'":"passed'` back into the legal set without breaking subword merges. Production constrained decoders apply this token-boundary alignment automatically before advancing into the schema grammar.
+Trimming `'":"'` from the prompt and constraining the next token to begin with `'":"'` restores `'":"passed'` to the legal set without altering the underlying prompt text. Without healing, the model is forced onto a lower-probability split across the boundary; with healing, the constrained decoder preserves the tokenizer's natural merges automatically before advancing into the schema grammar.
 
 ## Libraries and serving stacks
 
-Who compiles and applies the token mask depends on where inference runs. Local runtimes such as Outlines, `llama.cpp`, SGLang, and vLLM compile a grammar into state transitions and bitmasks directly inside your inference worker, whereas hosted APIs compile schemas server-side before returning raw text or parsed JSON. Across both deployment models, your host validator must inspect completion metadata and verify the finished payload before changing application state.
-
-### Outlines
-
-Outlines offers model adapters and a reusable `Generator` compiled from a Python schema or regular expression. In its v1 API, the generator returns **raw text**, even when initialized with a <span data-glossary="pydantic">Pydantic</span> class, so application code parses and validates that string explicitly.[^outlinesGenerator2026] Passing the compiled `Generator` across requests avoids recompiling grammars repeatedly on warm inference paths:
+Local runtimes (Outlines, `llama.cpp`, SGLang, and vLLM) compile grammars and apply masks directly inside your inference worker, whereas hosted APIs compile schemas server-side and return text or parsed JSON. In **Outlines**, a compiled `Generator` can be reused across requests so the grammar is not recompiled on every call. In its v1 API, `Generator` returns **raw text** even when initialized with a Pydantic class, so host code parses and validates that string explicitly:[^outlinesGenerator2026]
 
 ```python title="outlines.py"
 from typing import Literal
@@ -475,89 +463,80 @@ raw = eval_generator(
 record = EvalStatusUpdate.model_validate_json(raw)
 ```
 
-Reuse the compiled generator wherever its backend preserves compilation state across requests, and avoid assuming every backend relies exclusively on a static DFA. Outlines supports `outlines_core`, `llguidance`, and XGrammar backends with different model coverage and type support, so cold and warm latency should always be benchmarked separately.[^outlinesBackends2026] (The model-download snippet above illustrates the API shape and is skipped by the CPU test runner.)
+High-concurrency serving engines integrate grammar masking inside continuous batching so one request's mask computation never stalls the batch. SGLang's original design introduced two complementary ideas: **RadixAttention** to reuse the <span data-glossary="kv-cache">KV cache</span> across shared system prompts and schema prefixes (cutting <span data-glossary="ttft">Time To First Token</span>), and compressed FSMs that jump forward across forced constant substrings.[^zheng2023a] Modern serving stacks (both SGLang and vLLM) default to **XGrammar** or **llguidance**, overlapping CPU bitmask generation with GPU forward passes for the already-accepted prefix so sampling waits only for `max(t_gpu, t_cpu)` instead of their sum.[^xgrammar2024][^sglang_structured_outputs_docs2026][^vllmStructuredOutputs2026]
 
-### llama.cpp
+<details>
+<summary>Deep dive: Serving backend APIs and schema-compiler quirks</summary>
 
-In local or edge C++ deployments, `llama.cpp` compiles schemas into GBNF (GGML BNF) grammars to mask logits step by step.[^llamacpp2023][^llamacpp_grammars_docs2026] Unsupported JSON Schema keywords can be skipped quietly during GBNF conversion, so inspect the generated rules and always keep Pydantic validation in your host code. Because `llama.cpp` does not inject the schema into the system prompt for you, prompt text still needs to describe every required field and value format clearly.[^llamacpp_grammars_docs2026]
+- **Outlines backends:** Outlines supports `outlines_core`, `llguidance`, and XGrammar backends with different model coverage and type support. Benchmark cold compilation and warm per-token latency separately on your chosen backend.[^outlinesBackends2026]
+- **llama.cpp (GBNF):** Local C++ deployments convert JSON Schema into GBNF grammars.[^llamacpp2023][^llamacpp_grammars_docs2026] Unsupported keywords can be dropped quietly during conversion, and `llama.cpp` does not inject the schema into your prompt automatically, so describe required fields in the prompt and keep local Pydantic validation in place.[^llamacpp_grammars_docs2026]
+- **SGLang and vLLM configuration:** SGLang exposes XGrammar as its default grammar backend alongside Outlines and `llguidance`, treating early FSM jump-forward as historical background.[^sglang_structured_outputs_docs2026] vLLM configures constrained decoding through a unified `structured_outputs` parameter block backed by XGrammar or Guidance/`llguidance`, replacing legacy per-format flags such as `guided_json` and `guided_regex`.[^vllmStructuredOutputs2026]
 
-### Serving stacks: SGLang, vLLM, and XGrammar
-
-High-concurrency serving engines integrate grammar masking directly inside continuous batch schedulers so multiple requests share prefill memory without blocking batch throughput. SGLang's original design introduced two core ideas:[^zheng2023a]
-1. **RadixAttention**: Reuses the <span data-glossary="kv-cache">KV cache</span> across requests that share system prompts or schema prefixes, reducing <span data-glossary="ttft">Time To First Token (TTFT)</span>.
-2. **Compressed finite state machines**: Merge paths with forced string continuations so the runtime can jump forward over known text, skipping some token-by-token decode steps. Retokenization keeps the appended text aligned with the model's tokenizer. The gain comes from skipping decode steps, with retokenization overhead.
-
-Today's SGLang stack treats that early FSM jump-forward mechanism as historical background and configures XGrammar as its default grammar backend alongside Outlines and `llguidance` alternatives.[^sglang_structured_outputs_docs2026] Meanwhile, vLLM configures structured generation through a unified `structured_outputs` parameter block backed by XGrammar or Guidance/`llguidance`, having **removed** legacy fields such as `guided_json` and `guided_regex` in v0.12.0.[^vllmStructuredOutputs2026] Across both engines, XGrammar precomputes bitmasks for context-independent rules and checks stack transitions live while overlapping CPU mask builds with GPU forward passes for already-accepted prefixes; sampling simply waits until both finish.[^xgrammar2024]
+</details>
 
 ```checkpoint
 What latency work belongs to prefix caching versus grammar state?
 ---
-Prefix caching can reuse prefill computation for a matching token prefix, subject to cache availability. Grammar-state optimizations reduce the cost of finding legal next tokens. Both can improve latency, but they optimize different work and their benefits depend on the serving workload.
+Prefix caching reuses prefill computation for a matching token prefix, reducing Time To First Token when cache entries hit. Grammar-state optimizations cut the per-step cost of finding legal next tokens. They optimize different stages of serving latency.
 ```
 
 ## Function calling vs. structured outputs
 
-The same JSON Schema shape appears in both tool definitions and structured extraction APIs, yet each implies a distinct host responsibility. A function call asks the application to run an action and feed results back to the model, whereas a structured output produces a terminal JSON payload consumed by application logic. In both cases, grammar enforcement guarantees schema syntax rather than authorization:
+Both tool definitions and structured extraction APIs use JSON Schema, yet they represent different host responsibilities:
 
 | Dimension | Function calling (tool use) | Structured outputs |
 |-----------|-----------------------------|--------------------|
 | **Core purpose** | Agent action selection and execution | Structured data extraction and transformation |
-| **Control flow** | Commonly a model/tool loop; the host may also consume a call directly | Often a parser stage; can also occur inside an agent loop |
-| **Return format** | Tool name and JSON argument object | Terminal JSON document conforming to schema |
-| **Side effects** | The host decides whether and how to execute each call | The host decides what to do with the record; it may trigger an action |
+| **Control flow** | Model requests a tool; host runs it and feeds the observation back | Terminal JSON record consumed directly by application code |
+| **Return format** | Tool name plus JSON argument object | JSON document matching the response schema |
+| **Side effects** | Host validates permissions and decides whether to run the tool | Host decides how to store or act on the parsed record |
 
-### When to use function calling
+### Function calling for tool arguments
 
-Function calling fits interactive agents that inspect telemetry, trigger evaluations, or fetch live state before answering. Enabling strict mode forces generated tool arguments to follow your supported schema subset, though the host application remains solely responsible for validating permissions and deciding whether to run each requested call:
+Use function calling when an agent needs to inspect live state, query a database, or run an evaluation before answering. Strict mode enforces the argument schema on the wire, and local Pydantic validation verifies that exact call shape before your host decides whether to execute the tool:
 
-<!-- leetllm: test, output=show -->
-```python title="when-to-use-function-calling.py"
-tools = [
-    {
-        "type": "function",
-        "name": "get_eval_status",
-        "description": "Fetch current benchmark status for an evaluation run.",
-        "strict": True,
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "eval_id": {"type": "string"}
-            },
-            "required": ["eval_id"],
-            "additionalProperties": False
-        }
-    }
-]
+<!-- leetllm: test, deps=pydantic, output=show -->
+```python title="strict-tool-arguments.py"
+from pydantic import BaseModel, ConfigDict, ValidationError
 
-tool_schema = tools[0]
-example_routes = {
-    "What happened in eval-17?": "get_eval_status",
-    "Hi!": "text_response",
+class GetEvalStatusArgs(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    eval_id: str
+
+tool_definition = {
+    "type": "function",
+    "name": "get_eval_status",
+    "description": "Fetch current benchmark status for an evaluation run.",
+    "strict": True,
+    "parameters": GetEvalStatusArgs.model_json_schema(),
 }
-print("tool:", tool_schema["name"])
-print("strict:", tool_schema["strict"])
-print("routes:", example_routes)
+
+valid_call = GetEvalStatusArgs.model_validate_json('{"eval_id": "eval-17"}')
+print("tool:", tool_definition["name"], "strict:", tool_definition["strict"])
+print("validated args:", valid_call.model_dump())
+
+try:
+    GetEvalStatusArgs.model_validate_json('{"eval_id": "eval-17", "force_rerun": true}')
+except ValidationError as error:
+    print("extra arg rejected:", error.errors()[0]["type"])
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-tool: get_eval_status
-strict: True
-routes: {'What happened in eval-17?': 'get_eval_status', 'Hi!': 'text_response'}
+tool: get_eval_status strict: True
+validated args: {'eval_id': 'eval-17'}
+extra arg rejected: extra_forbidden
 ```
 <!-- leetllm: output:end -->
 
-This snippet follows an OpenAI Responses-style tool schema. Enabling strict mode constrains supported argument shapes without granting permission to execute the call, so host code must still verify arguments and caller roles before touching any system. The routing dictionary shown above is a static illustration rather than observed model behavior.
+Even with `strict: True` on the tool definition, the model is only proposing an invocation. Your host code still verifies caller permissions and argument safety before touching any external system.
 
-### When to use structured outputs
+### Structured outputs for typed records
 
-Structured outputs fit data extraction, document classification, and deterministic pipeline stages where application code consumes the parsed record directly. In Pydantic, setting `extra="forbid"` forces the local validator to reject unexpected properties and emits `additionalProperties: false` into its schema, though that schema governs generation only if the inference backend enforces it. Because `failing_task: str | None` declares no default value, the attribute is **required yet nullable**:[^pydanticStrict2026]
+Use structured outputs for extraction, classification, and pipeline stages that consume a typed record directly. In Pydantic, `extra="forbid"` rejects unexpected keys locally and emits `"additionalProperties": false` in the JSON Schema. Declaring `failing_task: str | None` with no default makes the field **required yet nullable**, giving the model an honest way to report missing information without fabricating a task name:[^pydanticStrict2026]
 
-<!-- leetllm: test, continue=parser, id=typed, deps=pydantic==2.12.5, output=show, output_title="A required nullable field" -->
+<!-- leetllm: test, continue=parser, id=typed, output=show, output_title="A required nullable field" -->
 ```python title="typed-eval-record.py"
-from typing import Literal
-from pydantic import BaseModel, ConfigDict, ValidationError
-
 class EvalStatusUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     eval_id: str
@@ -587,12 +566,12 @@ omitted task: rejected
 ```
 <!-- leetllm: output:end -->
 
-In OpenAI's strict mode, all fields in the schema must be marked as required, and `additionalProperties` must be set to `False`.[^openai_structured_outputs] Any logically optional attribute must be declared as required while permitting `null` in its type union. Because downstream validation depends on what the server actually enforced, it is equally important to keep your local Pydantic class as the source of truth: Claude's SDK helpers, for example, can strip unsupported numeric bounds from the wire schema, mention them in field descriptions, and validate the local model after decoding.[^anthropic2026StructuredOutputs] A description encourages compliance without enforcing a grammar constraint, as seen below when the wire schema drops `minimum` and permits `-1` while `RetrySuggestion` rejects `greater_than_equal`:
+OpenAI's strict mode requires every property to appear in `required` and `additionalProperties` to be `false`, so optional fields are always modeled as required unions with `null`.[^openai_structured_outputs] Even when an SDK compiles your schema for you, keep your original Pydantic class as the local validator. Some SDK adapters strip unsupported numeric constraints (such as `minimum` or `maximum`) from the wire schema and append them as prose in `description`.[^anthropic2026StructuredOutputs] A description nudges the model without masking illegal tokens, so `-1` can arrive over the wire and only fail when checked locally:
 
 <!-- leetllm: test, continue=typed, id=wire, output=show, output_title="Wire constraints versus local constraints" -->
-```python title="simplified-wire-schema.py"
+```python title="wire-schema-drift.py"
 from copy import deepcopy
-from pydantic import Field, TypeAdapter
+from pydantic import TypeAdapter
 
 class RetrySuggestion(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
@@ -623,9 +602,9 @@ local rejection: greater_than_equal
 ```
 <!-- leetllm: output:end -->
 
-Always inspect the wire schema generated by your adapter and retain the original local validator, because provider support for keywords can vary by endpoint and model. Calling OpenAI's Structured Outputs API with a Pydantic model illustrates how clean client code looks when `text_format` handles server-side schema compilation:
+When calling a hosted Responses API directly, inspect `response.status`, check for refusals, and confirm `response.output_parsed` exists before touching downstream code (and buffer streaming deltas until completion before validating):
 
-```python title="when-to-use-structured-outputs.py"
+```python title="hosted-structured-client.py"
 import os
 from openai import OpenAI
 
@@ -645,105 +624,96 @@ if update is None:
     raise RuntimeError("no parsed record")
 ```
 
-The SDK may also raise a parsing or validation exception; handle that separately from transport failures. Inspect the completion state, refusals, and parsed payload before running downstream logic, and buffer streaming deltas until completion before validating. The script below runs shape validation separately from suite access filtering and ground-truth comparison against the evaluation store:
+Passing schema validation still tells you only that the JSON has the right shape. Your host application must separately verify caller access and compare claims against trusted records:
 
 <!-- leetllm: test, continue=wire, id=semantics, output=show, output_title="Shape, truth, and access" -->
 ```python title="separate-format-from-semantic-validation.py"
 EVAL_DB = {"eval-17": {"suite": "nlp-eval", "status": "failed", "failing_task": "math-500"}}
 
-def validate_update(payload: object) -> dict[str, str]:
-    return validate_triage(payload)
-
-def decide_update(allowed_suites: set[str], update: dict[str, str]) -> str:
-    trusted = EVAL_DB.get(update["eval_id"])
+def decide_update(allowed_suites: set[str], update: TriageRecord) -> str:
+    trusted = EVAL_DB.get(update.eval_id)
     if trusted is None or trusted["suite"] not in allowed_suites:
-        return "deny"  # Do not leak whether an unauthorized evaluation ID exists
-    if update["status"] != trusted["status"]:
+        return "deny"  # Avoid revealing whether an unauthorized eval_id exists
+    if update.status != trusted["status"]:
         return "review: contradicts eval log"
     return "show"
 
-parsed = validate_update({"eval_id": "eval-17", "status": "failed"})
-print("format gate:", parsed)
+parsed = TriageRecord.model_validate({"eval_id": "eval-17", "status": "failed"})
+print("format check:", parsed.model_dump())
 print("authorized and true:", decide_update({"nlp-eval"}, parsed))
 print("other suite:", decide_update({"vision-eval"}, parsed))
 
-false_claim = validate_update({"eval_id": "eval-17", "status": "passed"})
+false_claim = TriageRecord.model_validate({"eval_id": "eval-17", "status": "passed"})
 print("authorized but false:", decide_update({"nlp-eval"}, false_claim))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Shape, truth, and access" output compact
-format gate: {'eval_id': 'eval-17', 'status': 'failed'}
+format check: {'eval_id': 'eval-17', 'status': 'failed'}
 authorized and true: show
 other suite: deny
 authorized but false: review: contradicts eval log
 ```
 <!-- leetllm: output:end -->
 
-The model can emit a schema-valid JSON object claiming that `eval-17` passed, yet application logic catches the contradiction against the evaluation store. Schema validation checks shape; downstream services must still compare claims with trusted records.
+`false_claim` satisfies `TriageRecord` cleanly, yet `decide_update` catches that `eval-17` actually failed in `EVAL_DB` and routes the contradiction for review. Keeping format checks, access checks, and source comparisons as separate functions makes each failure mode observable and easy to test.
 
-## Systems trade-offs: latency, throughput, and schema design
+## Systems trade-offs: latency, reasoning quality, and schema design
 
-Enforcing grammar constraints introduces real systems overhead. Understanding where this latency occurs lets you design schemas that maintain high serving throughput.
+Grammar constraints add measurable systems work across both compilation and decoding. Knowing which stage pays each cost lets you design schemas that preserve serving throughput and model accuracy without sacrificing validation:
 
-### Where latency originates
-
-Systems costs fall into distinct phases across the request lifecycle:
+### Where latency comes from
 
 | Bottleneck | Underlying cause | Serving impact | Mitigation |
 |------------|------------------|----------------|------------|
-| Schema compilation | Building a backend-specific grammar and tokenizer index | Cold requests can have higher TTFT; no universal millisecond range | Reuse compatible compiled artifacts; measure cold/warm distributions |
-| Per-token grammar work | Advancing parser state, finding legal tokens, applying a mask | May increase TPOT or be hidden by GPU overlap | Measure the selected backend at realistic batch sizes |
-| Input/schema processing | Field descriptions and provider-injected instructions | Can consume tokens and prefill time | Check actual token accounting and eligible prefix-cache hits |
-| Grammar complexity | Nesting, ambiguity, unions, and optional fields interact | Cost and supported limits depend on the backend | Benchmark representative schemas; simplify only when it helps |
+| Schema compilation | Building a backend-specific grammar and tokenizer index | Higher cold-start TTFT | Reuse compiled artifacts; measure cold and warm distributions separately |
+| Per-token grammar work | Advancing parser state, looking up legal tokens, applying the mask | May add to TPOT or hide behind GPU overlap | Benchmark on your backend at realistic batch sizes |
+| Schema prompt overhead | Field descriptions and provider-injected schema instructions | Extra prefill tokens | Measure prompt token counts and prefix-cache hit rates |
+| Grammar complexity | Deep nesting, wide unions, and optional branches | Larger state tables or unsupported keywords | Profile representative schemas; simplify where measurements show gains |
 
-### The quality-compliance trade-off
+### Reasoning accuracy and evidence spans
 
-Tam et al. (2024) observed lower reasoning accuracy under strict formatting templates compared with unconstrained answers on several reasoning benchmarks, while classification accuracy sometimes rose. Because that study measured prompt-based formatting and older JSON mode endpoints, always benchmark current schema-constrained models on your own reasoning tasks before committing a format rule.[^tam2024] Crucially, constraining the visible final output schema does not have to constrain private reasoning steps: hosted reasoning models can spend reasoning tokens unconstrained before emitting tokens under the schema.[^openai2026reasoning] Evaluating whether a leading evidence quote improves decision accuracy requires holding prompts and inputs constant, because key order alone offers no guarantee against unsupported conclusions:
+Tam et al. (2024) found that strict formatting templates lowered reasoning accuracy on several reasoning benchmarks relative to free-form answers, while classification accuracy sometimes improved.[^tam2024] Because that study tested prompt-based templates and earlier JSON modes, benchmark your own reasoning tasks on current models before locking down a schema. For complex tasks, reasoning models decouple thinking from formatting: internal reasoning tokens run unconstrained, and the schema mask activates only for the final answer.[^openai2026reasoning]
+
+A common pattern for non-reasoning models is placing an `evidence_quote` field before the `decision` field so the model copies the relevant log line first. Notice what verifying that quote actually checks:
 
 <!-- leetllm: test, continue=semantics, id=evidence, output=show, output_title="Check the quote against the source" -->
 ```python title="validate-visible-evidence-before-decision.py"
 import re
 
-ALLOWED_DECISIONS = {"rerun_suite", "halt_release", "escalate", "unknown"}
 SOURCE_LOG = "Evaluation eval-17 failed on math-500 after symbolic-verifier timed out."
 
-def validate_decision(payload: object, source: str) -> dict[str, str]:
-    if not isinstance(payload, dict):
-        raise TypeError("root must be an object")
-    required = ("evidence_quote", "eval_id", "decision")
-    extra = sorted(set(payload) - set(required))
-    missing = [key for key in required if key not in payload]
-    if extra or missing:
-        raise ValueError(f"shape mismatch extra={extra} missing={missing}")
-    quote = payload["evidence_quote"]
-    eval_id = payload["eval_id"]
-    decision = payload["decision"]
-    if not isinstance(quote, str) or not isinstance(eval_id, str):
-        raise TypeError("evidence_quote and eval_id must be strings")
-    if not isinstance(decision, str) or decision not in ALLOWED_DECISIONS:
-        raise ValueError("unknown decision")
-    if not quote.strip() or quote not in source:
-        raise ValueError("quote is not an exact span of the source")
-    if not eval_id.strip():
-        raise ValueError("empty eval ID")
-    if not re.search(r"(?<![\w-])" + re.escape(eval_id) + r"(?![\w-])", quote):
-        raise ValueError("eval ID does not appear in evidence")
-    return {"evidence_quote": quote, "eval_id": eval_id, "decision": decision}
+class EvalDecision(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    evidence_quote: str = Field(min_length=1)
+    eval_id: str = Field(min_length=1)
+    decision: Literal["rerun_suite", "halt_release", "needs_review", "unknown"]
 
-decision = validate_decision(
+def verify_evidence_span(payload: dict[str, str], source: str) -> EvalDecision:
+    record = EvalDecision.model_validate(payload)
+    if record.evidence_quote not in source:
+        raise ValueError("quote is not an exact span of the source")
+    pattern = r"(?<![\w-])" + re.escape(record.eval_id) + r"(?![\w-])"
+    if not re.search(pattern, record.evidence_quote):
+        raise ValueError("eval ID does not appear in evidence")
+    return record
+
+decision = verify_evidence_span(
     {
-        "evidence_quote": "Evaluation eval-17 failed on math-500 after symbolic-verifier timed out.",
+        "evidence_quote": SOURCE_LOG,
         "eval_id": "eval-17",
         "decision": "rerun_suite",
     },
     SOURCE_LOG,
 )
-print("decision:", decision["decision"])
-print("quote occurs in source:", decision["evidence_quote"] in SOURCE_LOG)
+print("decision:", decision.decision)
+print("quote occurs in source:", decision.evidence_quote in SOURCE_LOG)
 
 try:
-    validate_decision({**decision, "evidence_quote": "eval-17 needs an immediate release halt."}, SOURCE_LOG)
+    verify_evidence_span(
+        {**decision.model_dump(), "evidence_quote": "eval-17 needs an immediate release halt."},
+        SOURCE_LOG,
+    )
 except ValueError as error:
     print("invented quote:", error)
 ```
@@ -756,14 +726,17 @@ invented quote: quote is not an exact span of the source
 ```
 <!-- leetllm: output:end -->
 
-This validator verifies that the quote matches an exact span of the source string, **not that the evidence justifies the proposed action**. Even keeping the exact same verified quote alongside `decision: "halt_release"` still passes the span check because the regex inspects substring identity rather than task soundness. Notice what happens when `halt_release` replaces `rerun_suite` below:
+Notice the word-boundary regex `(?<![\w-])` around `eval_id`: without it, a quote mentioning `eval-170` would falsely match `eval-17`. Even with exact span verification, checking that a quote appeared verbatim in the log still leaves the *decision* itself unchecked:
 
 <!-- leetllm: test, continue=evidence, id=evidence-gap, output=show, output_title="A true quote can accompany a wrong action" -->
 ```python title="source-membership-is-not-action-justification.py"
-unsupported = validate_decision({**decision, "decision": "halt_release"}, SOURCE_LOG)
-print("quote validator accepted:", unsupported["decision"])
+unsupported = verify_evidence_span(
+    {**decision.model_dump(), "decision": "halt_release"},
+    SOURCE_LOG,
+)
+print("quote validator accepted:", unsupported.decision)
 print("halt justification checked:", False)
-assert unsupported["evidence_quote"] == decision["evidence_quote"]
+assert unsupported.evidence_quote == decision.evidence_quote
 ```
 
 <!-- leetllm: output:start -->
@@ -773,17 +746,17 @@ halt justification checked: False
 ```
 <!-- leetllm: output:end -->
 
-The log records only that `math-500` failed after a verifier timeout. It shows neither a release candidate ready to block nor evidence that halting would help. An action gate requires live system state, task-relevant justification, and verified caller permissions before applying any state change.
+The log says only that `math-500` timed out; deciding whether to halt a release requires release criteria, live state, and caller permissions in host code.
 
 ```checkpoint
 What does an exact evidence quote prove, and what does it leave unchecked?
 ---
-It shows that the quoted text appears verbatim in the source string. You still have to verify whether the source itself is reliable, whether the quote supports the decision, and whether the caller holds permission for that action.
+It confirms that the quoted text appears verbatim in the source string and names the target ID. You still must verify whether the source itself is trustworthy, whether the quote supports the proposed decision, and whether the caller is allowed to trigger that action.
 ```
 
-### Flatten nested structures
+### Flattening recursive structures
 
-Flattening is an option when a backend doesn't support recursion or your measurements show a benefit. A compact recursive grammar doesn't automatically suffer state-space explosion. A flat `parent_id` representation also introduces cross-record constraints that syntax can't enforce:
+When a backend rejects recursive JSON schemas (or profiling shows stack overhead), you can represent a tree as a flat array of nodes with `parent_id` references. A flat array is a regular language that any DFA backend compiles cleanly, though it shifts structural checks (unique IDs, single root, valid parents, and no disconnected cycles) to post-processing:
 
 <!-- leetllm: test, output=show -->
 ```python title="reconstruct-a-flat-tree-after-validation.py"
@@ -801,9 +774,9 @@ nodes = [
     FlatNode(node_id="n2", parent_id="root", label="trace_uri"),
 ]
 
-def validate_tree(nodes: list[FlatNode], max_nodes=100):
+def validate_tree(nodes: list[FlatNode], max_nodes: int = 100):
     if not 1 <= len(nodes) <= max_nodes:
-        raise ValueError("node count outside policy")
+        raise ValueError("node count outside allowed range")
     by_id = {node.node_id: node for node in nodes}
     if len(by_id) != len(nodes) or any(not node.node_id.strip() for node in nodes):
         raise ValueError("node IDs must be unique and nonempty")
@@ -846,23 +819,19 @@ invalid tree: disconnected nodes or cycles present
 ```
 <!-- leetllm: output:end -->
 
-A fixed-depth flat array avoids recursive JSON nesting so a DFA backend can compile the wire format cleanly. In exchange, host code must verify ID uniqueness, valid parent pointers, a single root, and reachability across every node. Flattening trades grammar recursion for post-processing logic rather than turning arbitrary graph connectedness into a regular property.
+Every parent pointer in `cyclic` resolves to an existing ID, yet traversing from `root` visits only 1 of the 3 nodes and immediately exposes the disconnected `a <-> b` cycle.
 
-## Critical failure modes and resilient production cascades
+## Failure modes and production recovery
 
-Even when every token follows the compiled grammar, a response can still stall on harmless syntax, drift off task, or truncate early. Separating generation failures by cause lets production wrappers respond cleanly instead of masking structural bugs.
+Even when every emitted token obeys the compiled grammar, generation can stall on legal whitespace, truncate before closing the JSON object, hit a refusal, or assert a permission flag it has no right to grant. Handling each of those failure modes explicitly turns a brittle wrapper into a predictable service.
 
-### An incomplete prefix can still be legal
+### Legal prefixes that never finish
 
-A grammar restricts what can follow locally without proving that tokens are converging toward a finished answer. Optional indentation rules allow arbitrary repeating spaces (`\n    \n    `), and broad string fields allow verbose repetition until hitting `max_output_tokens`, even though JSON arrays cannot stack endless consecutive commas without values. Crucially, low probabilities on legal continuations never cause a grammatical dead end because softmax still renormalizes positive probability mass over the legal set; true dead ends occur only when an empty mask arises from tokenizer mismatches or backend limits. Monitor incomplete-output telemetry closely and retain strict token and wall-clock caps.
-
-### The "no prompting needed" fallacy
-
-Strict decoding constraints remove invalid syntax without clarifying domain intent or ambiguity handling. The mask filters continuations, while prompts still define field semantics, cite allowed evidence spans, and state when to return `"unknown"` or `null`. Because many APIs inject schema definitions automatically, redundant JSON schemas in prompts are unnecessary, yet task rules and edge-case policies still earn measurable gains when benchmarked cleanly.
+A grammar constrains local syntax without measuring progress toward a complete answer. Optional whitespace rules allow repeated newlines (`\n    \n    `), and wide string fields allow repetitive filler until `max_output_tokens` runs out. Low logits on legal tokens never create a dead end on their own because softmax renormalizes positive mass over whatever legal tokens exist; true dead ends happen only when the legal set is empty. Keep strict token and wall-clock caps on every call and track incomplete-output rates. Equally important, **a grammar never replaces clear task instructions**: the mask removes syntax errors while your prompt still defines field semantics, ambiguity rules, and when to return `"unknown"` or `null` (skip pasting duplicate JSON Schema text into prompts when the API already injects it).
 
 ### Version schemas in application code
 
-Schemas change as services evolve, and mismatched definitions break consumers even when every payload parses as valid JSON. Application code must own and attach `schema_version` directly rather than asking the model to emit it, because a generated version string cannot prove which validator produced it:
+As data structures evolve, attach `schema_version` in your validation layer rather than asking the model to emit it. A generated version field is untrusted text and cannot tell storage consumers which validator actually ran, whereas wrapping the validated object in host code keeps storage migrations explicit and reproducible:
 
 <!-- leetllm: test, continue=evidence-gap, id=versioned, output=show, output_title="Application-owned schema version" -->
 ```python title="route-versioned-records.py"
@@ -884,27 +853,25 @@ failing task: math-500
 ```
 <!-- leetllm: output:end -->
 
-Application code must always own and inject the schema version rather than allowing a model to generate that identifier. A model's claim about which schema it targeted is untrusted input, whereas attaching `schema_version` in your validation layer keeps storage migrations predictable.
+### Route each stop condition to its own recovery path
 
-### The production fallback cascade
-
-Rather than forcing every generation failure down a single retry loop, production wrappers route each outcome to the recovery mechanism that matches its cause, as mapped in the diagram below:
+Treating every failure as "retry with a looser prompt" hides adapter bugs and wastes tokens on refusals. Instead, inspect the stop reason and branch cleanly:
 
 <figure>
   <img src="illustrations/_generated/fallback_cascade_dark.png" alt="Left-to-right recovery diagram starting from API call (120-token cap). Four distinct branches emerge: completed routes to strict parse and schema then host checks pass (scope and source ok); max_tokens routes through budget and SLA check to one Retry once (400); refusal or filter routes to halt retries safely; and bad schema routes to fix adapter in code." />
   <figcaption>Each completion outcome follows its own recovery path. Only a length truncation (<code>max_tokens</code>) that stays within budget and latency limits qualifies for a single retry at 400 tokens; refusals stop retries, bad schemas require an adapter fix, and completed outputs still face schema and host checks.</figcaption>
 </figure>
 
-1. **Completed candidate:** Parse and validate it, then check source facts and caller permissions. Pydantic enforces only the type rules you define; it does not check caller roles or benchmark truth automatically.
-2. **Token limit:** A bounded retry with the same schema and a higher token cap can recover a truncated answer when the budget and latency SLA permit. If the retry hits the cap again, return an explicit error. OpenAI Chat Completions uses `finish_reason: "length"`; Responses uses `status: "incomplete"` with `incomplete_details.reason: "max_output_tokens"`. Handle each API schema cleanly.[^openai_structured_outputs]
-3. **Refusal or content-filter interruption:** Stop automatic retries and follow your safe refusal path. Do not relax validation or safety checks just to extract a payload.
-4. **Unsupported/invalid schema:** Fix the request configuration. Repeating the same invalid schema will not compile it.
-5. **Local validation failure:** Inspect whether the adapter dropped a rule or the prompt misled a value. A single repair turn with a sanitized diagnostic can help for value errors, provided secrets and permission internals are never sent back to the model.
+1. **Completed candidate:** Decode strictly, validate against the local Pydantic model, then verify source facts and caller permissions.
+2. **Token limit:** Retry once with the same schema and a larger token cap when your latency deadline and cost budget allow. If the retry truncates again, return an explicit error. (OpenAI Chat Completions signals `finish_reason: "length"`; Responses signals `status: "incomplete"` with `incomplete_details.reason: "max_output_tokens"`.)[^openai_structured_outputs]
+3. **Refusal or content-filter stop:** Halt automatic retries and route to your safe refusal handler. Never weaken validation or safety checks to force a payload through.
+4. **Unsupported or invalid schema:** Fix the schema or SDK adapter in code; retrying identical input fails identically.
+5. **Local validation failure:** Check whether the wire adapter dropped a rule or the prompt misled a value. A single repair turn with a sanitized error message can fix value errors, provided secrets and internal permission details stay out of the prompt.
 
-For providers lacking constrained generation, treat prompt-only JSON as an untrusted candidate and compare any repaired payload against the raw response before accepting it, because heuristic JSON repairs can silently alter meaning. The simulator below exercises each completion branch locally across concrete output budgets (`120` and `400` tokens):
+For endpoints without constrained decoding, treat prompt-only JSON as untrusted text and compare any heuristically repaired string against the raw output before accepting it. Here is a complete recovery wrapper exercising all four stop branches across 120-token and 400-token budgets:
 
 <!-- leetllm: test, continue=versioned, id=recovery, output=show, output_title="Retry only a length stop" -->
-```python title="bounded-retry-preserves-schema.py"
+```python title="retry-on-truncation.py"
 FORMAT = {"type": "json_schema", "name": "eval_status", "strict": True, "schema": schema}
 
 class StubResponseClient:
@@ -916,14 +883,16 @@ class StubResponseClient:
         self.calls.append(kwargs)
         return next(self.responses)
 
-def generate_with_bounded_retry(client, input_text: str) -> EvalStatusUpdate:
+def extract_with_single_retry(client, input_text: str) -> EvalStatusUpdate:
     for attempt, budget in enumerate((120, 400)):
         response = client.create(input=input_text, text={"format": FORMAT}, max_output_tokens=budget)
         output = response.get("output", [])
-        content = [part for item in output if item.get("type") == "message"
-                   for part in item.get("content", [])]
+        content = [
+            part for item in output if item.get("type") == "message"
+            for part in item.get("content", [])
+        ]
         if any(part.get("type") == "refusal" for part in content):
-            raise RuntimeError("policy refusal: request rejected by safety filter")
+            raise RuntimeError("safety refusal: request blocked by model")
         status = response.get("status")
         if status == "incomplete":
             reason = (response.get("incomplete_details") or {}).get("reason")
@@ -946,7 +915,7 @@ completed = {"status": "completed", "output": [{"type": "message", "status": "co
              "content": [{"type": "output_text", "text": json.dumps(generated_payload)}]}]}
 
 client = StubResponseClient([incomplete, completed])
-update = generate_with_bounded_retry(client, SOURCE_LOG)
+update = extract_with_single_retry(client, SOURCE_LOG)
 
 print("retry preserved schema:", update.model_dump())
 print("budgets:", [call["max_output_tokens"] for call in client.calls])
@@ -957,10 +926,9 @@ refused = {"status": "completed", "output": [{"type": "reasoning", "summary": []
 blocked_client = StubResponseClient([refused])
 
 try:
-    generate_with_bounded_retry(blocked_client, SOURCE_LOG)
+    extract_with_single_retry(blocked_client, SOURCE_LOG)
 except RuntimeError as error:
     print("refusal routed:", error)
-
 assert len(blocked_client.calls) == 1
 
 filtered = {"status": "incomplete", "output": [],
@@ -969,7 +937,7 @@ for label, responses in (("content filter", [filtered]),
                          ("second length stop", [incomplete, incomplete])):
     stopped_client = StubResponseClient(responses)
     try:
-        generate_with_bounded_retry(stopped_client, SOURCE_LOG)
+        extract_with_single_retry(stopped_client, SOURCE_LOG)
     except RuntimeError as error:
         print(f"{label}: {error}; calls={len(stopped_client.calls)}")
     assert len(stopped_client.calls) == len(responses)
@@ -979,17 +947,17 @@ for label, responses in (("content filter", [filtered]),
 ```text title="Retry only a length stop" output compact
 retry preserved schema: {'eval_id': 'eval-17', 'status': 'failed', 'failing_task': 'math-500'}
 budgets: [120, 400]
-refusal routed: policy refusal: request rejected by safety filter
+refusal routed: safety refusal: request blocked by model
 content filter: halted prematurely: content_filter; calls=1
 second length stop: halted prematurely: max_output_tokens; calls=2
 ```
 <!-- leetllm: output:end -->
 
-The retry wrapper re-requests once with 400 tokens only on an initial `max_output_tokens` truncation, keeping the schema fixed across attempts. Refusals, content-filter stops, and a second truncation end immediately without modifying validation rules. Always check remaining deadline and cost budgets before retrying, and never commit streamed partial chunks before validation completes.
+Only the initial `max_output_tokens` cutoff triggers a second request (at 400 tokens, with the exact same `FORMAT`), while refusals, content filters, and a second length stop all terminate immediately. Before retrying in production, also confirm your remaining request deadline and cost budget have room for both the larger generation and downstream validation.
 
-### Enforce authorization using trusted application state
+### Never trust permission booleans emitted by a model
 
-Schema-valid outputs can still emit fields shaped to look like security decisions, such as `{"is_admin": true, "authorized": true, "eval_id": "eval-17"}`. Although the payload satisfies your JSON Schema, trusting any boolean produced by the model as an authorization grant introduces a privilege escalation bug. Host services must ignore model-generated permission flags and derive access decisions strictly from verified session credentials and stored approvals:
+A schema-valid object can carry fields shaped like security decisions, such as `{"is_admin": true, "authorized": true, "eval_id": "eval-17"}`. Reading any model-generated boolean as an authorization grant creates an immediate authorization bypass bug. Derive every access decision from verified session credentials, role tables, and stored approvals in your host system:
 
 <!-- leetllm: test, output=show -->
 ```python title="ignore-self-attested-approval.py"
@@ -999,19 +967,19 @@ from dataclasses import dataclass
 class ModelEvalProposal:
     eval_id: str
     action: str
-    approved: bool  # Never treat model-generated flags as authorization grants
+    approved: bool  # Untrusted model output; never read for authorization
 
-def approval_gate(proposal: ModelEvalProposal, stored_request: tuple[str, str] | None) -> str:
+def check_approval(proposal: ModelEvalProposal, stored_request: tuple[str, str] | None) -> str:
     if proposal.action != "rerun_suite":
-        return "deny: action outside policy"
+        return "deny: unsupported action"
     if stored_request != (proposal.eval_id, proposal.action):
         return "deny: missing approval for this request"
     return "approval matched; continue host checks"
 
 proposal = ModelEvalProposal("eval-17", "rerun_suite", approved=True)
-print(approval_gate(proposal, stored_request=None))
-print(approval_gate(proposal, stored_request=("eval-19", "rerun_suite")))
-print(approval_gate(proposal, stored_request=("eval-17", "rerun_suite")))
+print(check_approval(proposal, stored_request=None))
+print(check_approval(proposal, stored_request=("eval-19", "rerun_suite")))
+print(check_approval(proposal, stored_request=("eval-17", "rerun_suite")))
 print("model approved field was", proposal.approved, "and was ignored")
 ```
 
@@ -1024,28 +992,25 @@ model approved field was True and was ignored
 ```
 <!-- leetllm: output:end -->
 
-Model outputs are proposals rather than permission grants. Access rights must originate from verified session credentials, host role tables, and stored approvals instead of payload booleans. Even when a schema matches perfectly, host authorization checks run independently on authenticated state.
-
 ```checkpoint
-Which verification gate catches self-attested privilege flags?
+Which check catches self-attested privilege flags?
 ---
-Host semantic and authorization gates catch false privilege flags. Schema validation confirms only that the field is a boolean. Host code must ignore model-asserted flags and verify caller identity, roles, and stored approvals against trusted application state.
+Host semantic and authorization checks catch false privilege flags. Schema validation confirms only that the field is a boolean. Host code must ignore model-asserted flags and verify caller identity, roles, and stored approvals against trusted application state.
 ```
 
-## Practice: build a benchmark-digest parser
+## Practice: build a benchmark-digest validator
 
-Apply these principles by implementing a parser for post-training evaluation summaries. Your service ingests a 500-word evaluation summary covering nightly runs across benchmark suites, extracts every mentioned suite, and classifies its operational state as `passed`, `degraded`, `failed`, or `unknown`. Follow these four requirements when wiring extraction and verification together:
+Put these layers together on a nightly evaluation summary. Suppose a service extracts every benchmark suite mentioned in a 500-word report and classifies its current state as `passed`, `degraded`, `failed`, or `unknown`:
 
-### System requirements
-1. Return a `mentions` array with one current-state entry per benchmark suite. Each item contains `suite` (string) and `status` (enum). Reconcile repeated mentions using timestamps and run order in the report rather than JSON array position.
-2. Enforce the schema using structured outputs or grammar-guided decoding.
-3. Represent a report with no suite mentions as an empty list `{"mentions": []}`, not `null` or an omitted key.
-4. Implement a post-parsing verification gate that rejects duplicate suite summaries and cross-references suites against a known registry (`math-500`, `humaneval-plus`, `mmlu-pro`), flagging unrecognized suites for operator review.
-
-### Sample input report
 > "math-500 recovered to target score after prompt tuning. humaneval-plus remains degraded. gpqa-diamond has no recorded run today."
 
-### Target JSON structure
+Design requirements:
+1. Return `{"mentions": [...]}` with one entry per suite (`suite` string and `status` enum). Reconcile repeated mentions using timestamps and run order rather than array position.
+2. Enforce the JSON shape with structured outputs or grammar-guided decoding.
+3. Represent a report with zero suite mentions as `{"mentions": []}`, not `null` or a missing key.
+4. Run post-parse checks that reject duplicate suite entries and flag suites outside the known catalog (`math-500`, `humaneval-plus`, `mmlu-pro`) for review.
+
+Expected extraction shape:
 
 ```json title="expected-output-shape.json"
 {
@@ -1057,60 +1022,35 @@ Apply these principles by implementing a parser for post-training evaluation sum
 }
 ```
 
-### Reference validator
+With Pydantic handling strict schema checks (`extra="forbid"`, `strict=True`), the host validator stays compact and puts all of its code into the domain checks that a grammar cannot express:
 
-This validator verifies extracted JSON payloads locally without calling a live language model. Connect a constrained-generation call ahead of it, then exercise omitted mentions, out-of-enum status strings, uncataloged suites, and empty summaries to confirm every host check holds. Even a schema-valid payload can still miss a suite mention or misread its status in prose.
+<!-- leetllm: test, deps=pydantic, output=show -->
+```python title="benchmark-digest-validator.py"
+from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field
 
-<details>
-<summary>View implementation</summary>
-
-<!-- leetllm: test, output=show -->
-```python title="solution-sketch.py"
-ALLOWED_STATUS = {"passed", "degraded", "failed", "unknown"}
 KNOWN_SUITES = {"math-500", "humaneval-plus", "mmlu-pro"}
 
-def validate_digest(payload: object) -> dict[str, list[dict[str, str]]]:
-    if not isinstance(payload, dict) or set(payload) != {"mentions"}:
-        raise ValueError("root must be an object with only mentions")
-    mentions = payload["mentions"]
-    if not isinstance(mentions, list):
-        raise TypeError("mentions must be a list")
-    checked: list[dict[str, str]] = []
-    for item in mentions:
-        if not isinstance(item, dict):
-            raise TypeError("each mention must be an object")
-        extra = sorted(set(item) - {"suite", "status"})
-        missing = [key for key in ("suite", "status") if key not in item]
-        if extra or missing:
-            raise ValueError(f"mention shape extra={extra} missing={missing}")
-        suite = item["suite"]
-        status = item["status"]
-        if (
-            not isinstance(suite, str)
-            or not suite.strip()
-            or not isinstance(status, str)
-            or status not in ALLOWED_STATUS
-        ):
-            raise TypeError("suite must be a string and status must be a known enum")
-        checked.append({"suite": suite, "status": status})
-    return {"mentions": checked}
+class SuiteMention(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    suite: str = Field(min_length=1)
+    status: Literal["passed", "degraded", "failed", "unknown"]
 
-def unknown_suites(digest: dict[str, list[dict[str, str]]]) -> list[str]:
-    return [
-        mention["suite"]
-        for mention in digest["mentions"]
-        if mention["suite"] not in KNOWN_SUITES
-    ]
+class BenchmarkDigest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    mentions: list[SuiteMention]
 
-def check_suite_identity(digest: dict[str, list[dict[str, str]]]) -> None:
-    seen = set()
-    for mention in digest["mentions"]:
-        suite = mention["suite"]
-        if suite in seen:
-            raise ValueError(f"duplicate suite summary: {suite}")
-        seen.add(suite)
+def unknown_suites(digest: BenchmarkDigest) -> list[str]:
+    return [m.suite for m in digest.mentions if m.suite not in KNOWN_SUITES]
 
-digest = validate_digest(
+def check_unique_suites(digest: BenchmarkDigest) -> None:
+    seen: set[str] = set()
+    for mention in digest.mentions:
+        if mention.suite in seen:
+            raise ValueError(f"duplicate suite summary: {mention.suite}")
+        seen.add(mention.suite)
+
+digest = BenchmarkDigest.model_validate(
     {
         "mentions": [
             {"suite": "math-500", "status": "passed"},
@@ -1119,23 +1059,27 @@ digest = validate_digest(
         ]
     }
 )
-empty = validate_digest({"mentions": []})
-check_suite_identity(digest)
+empty = BenchmarkDigest.model_validate({"mentions": []})
+check_unique_suites(digest)
 
-print("mentions:", len(digest["mentions"]))
+print("mentions:", len(digest.mentions))
 print("unknown suites:", unknown_suites(digest))
-print("empty mentions:", empty["mentions"])
+print("empty mentions:", empty.mentions)
 
-conflicting = validate_digest({"mentions": [
-    {"suite": "math-500", "status": "passed"},
-    {"suite": "math-500", "status": "failed"},
-]})
-last_wins = {item["suite"]: item["status"] for item in conflicting["mentions"]}
+conflicting = BenchmarkDigest.model_validate(
+    {
+        "mentions": [
+            {"suite": "math-500", "status": "passed"},
+            {"suite": "math-500", "status": "failed"},
+        ]
+    }
+)
+last_wins = {m.suite: m.status for m in conflicting.mentions}
 print("tempting dict conversion:", last_wins)
 try:
-    check_suite_identity(conflicting)
+    check_unique_suites(conflicting)
 except ValueError as error:
-    print("identity gate:", error)
+    print("identity check:", error)
 ```
 
 <!-- leetllm: output:start -->
@@ -1144,32 +1088,28 @@ mentions: 3
 unknown suites: ['gpqa-diamond']
 empty mentions: []
 tempting dict conversion: {'math-500': 'failed'}
-identity gate: duplicate suite summary: math-500
+identity check: duplicate suite summary: math-500
 ```
 <!-- leetllm: output:end -->
 
-Both conflicting entries pass shape checks and name a cataloged suite, yet converting them directly into a dictionary silently keeps the final list entry even though array order proves nothing about recency. The identity check rejects that ambiguity until timestamps or run telemetry resolve it. Across the full validator, three design choices govern missing or ambiguous suites:
-- An empty list `{"mentions": []}` distinguishes zero mentions from an errored or missing field.
-- Registry filtering runs after schema parsing, flagging `gpqa-diamond` without failing the parser.
-- Allowing `status: "unknown"` gives the model a safe representation for missing evidence such as "no recorded run today."
-
-</details>
+Three design choices make this pipeline resilient:
+- `{"mentions": []}` distinguishes zero suite mentions from a missing field or failed extraction.
+- Unknown suites like `gpqa-diamond` are flagged after parsing rather than crashing the schema validator, while `status: "unknown"` lets the model record `"no recorded run today"` honestly.
+- `check_unique_suites` catches conflicting entries for `math-500` instead of letting a dictionary comprehension silently keep the last element, since array order carries no timestamp.
 
 ```checkpoint
-Why does the benchmark-digest parser flag `gpqa-diamond` for review?
+Why does the benchmark-digest validator flag `gpqa-diamond` for review?
 ---
-The suite name is absent from the registered benchmark catalog (`math-500`, `humaneval-plus`, `mmlu-pro`). Under this pipeline's conservative policy, unrecorded runs map to `unknown` until operators add the suite or verify telemetry.
+The suite name is absent from the registered catalog (`math-500`, `humaneval-plus`, `mmlu-pro`). Mapping unrecorded runs to `unknown` and flagging unregistered suites lets operators add the suite or verify telemetry without crashing the parser.
 ```
 
-## Where structured outputs fit in production systems
+## Summary: four layers of structured reliability
 
-Structured output generation gives probabilistic models a reliable data interface whose effective guarantees depend on the provider, supported schema subset, compiled grammar, and completion status. Even with strict decoding enabled, every decoded payload remains an untrusted candidate until verified downstream alongside four distinct defensive layers:
-- Grammar-guided decoding enforces **syntax and schema structure** during token selection.
-- Pydantic models enforce **client-side type invariants and field constraints**.
-- Application services enforce **scope isolation, role permissions, and ground-truth comparisons**.
-- Resilient fallback cascades manage **truncation retries, safety refusals, and targeted repair**.
-
-Before acting on any structured record, verify three independent checks: confirm generation completed cleanly under your intended schema, verify claims against trusted evaluation stores, and confirm caller policy permits the requested operation. Notice how each stage answers a failure mode that token masking alone cannot address.
+Structured output generation gives probabilistic models a reliable data interface when four layers work together:
+1. **Grammar-guided decoding** masks illegal tokens before softmax to enforce syntax and supported schema rules.
+2. **Strict JSON parsing and local Pydantic models** catch duplicate keys, nonfinite numbers, and constraints stripped by wire adapters.
+3. **Host verification** compares extracted claims against trusted stores and derives access decisions exclusively from authenticated application state.
+4. **Stop-reason recovery** retries a single token-limit cutoff when budgets allow while halting cleanly on refusals and fixing bad schemas in code.
 
 ```mastery-quiz
 [
@@ -1229,7 +1169,7 @@ Before acting on any structured record, verify three independent checks: confirm
     "explanation": "Completion, shape and suite scope pass. Claiming failed contradicts the trusted passed record, so status agreement fails and review is appropriate. No schema or token-budget change repairs that contradiction."
   },
   {
-    "question": "A flat tree contains R(parent=None), U(parent=V), V(parent=U) and W(parent=R). IDs are unique, parent IDs exist and node count is within policy. Which result follows the taught root traversal check?",
+    "question": "A flat tree contains R(parent=None), U(parent=V), V(parent=U) and W(parent=R). IDs are unique, parent IDs exist and node count is within the allowed limit. Which result follows the taught root traversal check?",
     "options": [
       "Reject because traversal from R visits only R and W.",
       "Reject duplicate IDs after traversal reaches U twice.",
@@ -1262,7 +1202,7 @@ Before acting on any structured record, verify three independent checks: confirm
     "explanation": "The 720-token retry fits the model limit of 800. D would finish validation at 17 seconds and spend 6 units in total. A's call would end at 17 seconds, but validation would finish at 19, past the deadline. Choosing B alone reverses spent and remaining funds. B has 2 units left for a retry that costs 4, while D has 8 left. C has time and money left, but a refusal ends the request."
   },
   {
-    "question": "The trusted retention log reads `eval-73 checkpoints are 34 days old. eval-730 checkpoints are 12 days old.` A record for `eval-73` proposes pruning its checkpoints and quotes `eval-730 checkpoints are 12 days old.` The citation must be an exact span containing the target's complete evaluation ID. Host policy permits pruning checkpoints at least 30 days old. Check two things separately. Does the citation pass for the target evaluation? Do the log and policy support pruning that evaluation's checkpoints?",
+    "question": "The trusted retention log reads `eval-73 checkpoints are 34 days old. eval-730 checkpoints are 12 days old.` A record for `eval-73` proposes pruning its checkpoints and quotes `eval-730 checkpoints are 12 days old.` The citation must be an exact span containing the target's complete evaluation ID. The retention rule permits pruning checkpoints at least 30 days old. Check two things separately. Does the citation pass for the target evaluation? Do the log and rule support pruning that evaluation's checkpoints?",
     "options": [
       "The citation passes. The target checkpoints qualify for pruning.",
       "The citation fails. The target checkpoints qualify for pruning.",
@@ -1292,22 +1232,25 @@ Before acting on any structured record, verify three independent checks: confirm
 
 <!-- leetllm: edition:reader:start -->
 
-An evaluation pipeline ingests hundreds of benchmark logs every minute. A model reads each trace and produces a JSON summary for downstream dashboards. Everything works cleanly on easy examples until an unconstrained chat model answers with leading prose, single quotes, and omitted fields:
+Ask an unconstrained chat model to read a benchmark log and return a JSON summary. Nine times out of ten, it complies. On the tenth run, right when your overnight evaluation sweep finishes, it replies:
 
 ```text title="model-reply.txt"
 Sure! Here is the data: { 'eval_id': 'eval-17' }
 ```
 
-The JSON parser stops at character zero on `Sure!`, single quotes violate RFC 8259, and `status` is absent altogether. A human engineer decodes that message effortlessly, yet automated pipelines break because an autoregressive model samples tokens one step at a time instead of returning a typed object from a function signature. Constrained decoding closes that gap during generation by masking disallowed token continuations before sampling, leaving factual verification and access control to your host checks afterward. Throughout this chapter, we trace a single evaluation record: `eval-17` belongs to suite `nlp-eval`, and the evaluation store records a failure on `math-500`.
+`json.loads` crashes at character zero on `Sure!`, single quotes violate RFC 8259, and `status` vanished altogether. A human engineer reads that line effortlessly, yet automated pipelines break because an autoregressive model samples tokens from a probability distribution over its entire vocabulary instead of returning a typed object from a function signature.
+
+Constrained decoding solves this at the sampler itself: before drawing each token, the runtime masks every continuation that violates a compiled grammar so illegal syntax receives probability zero. That closes the syntax gap cleanly while leaving factual verification and access control to your host code afterward. Throughout this chapter, we follow one evaluation record: `eval-17` belongs to suite `nlp-eval`, and the evaluation store records a failure on `math-500`.
 
 ## Valid, correct, and allowed are three different things
 
-Three independent questions determine whether a structured reply can safely drive downstream code:
+Three separate questions determine whether a structured reply can safely drive downstream code:
+
 1. Can a strict JSON parser decode the text?
 2. Does the parsed object satisfy every rule of your application schema?
 3. Are the reported values true, and is this caller allowed to view or act on that evaluation?
 
-A top-level JSON array parses cleanly while failing when code expects an object. An object like `{"author": "alice"}` is valid JSON while omitting both `eval_id` and `status`. Even a schema-valid payload can still report `"passed"` when the benchmark log recorded `"failed"`, so schema validation alone proves neither truth nor permissions. Different API tiers cover different links in this chain:
+A top-level JSON array parses cleanly while failing code that expects an object. An object like `{"author": "alice"}` is valid JSON while omitting both `eval_id` and `status`. Even a schema-valid payload can still report `"passed"` when the benchmark log recorded `"failed"`, so schema compliance checks shape rather than truth or permissions. Different API tiers enforce different links in this chain:
 
 | What you use | What it actually gives you |
 |---|---|
@@ -1315,20 +1258,26 @@ A top-level JSON array parses cleanly while failing when code expects an object.
 | JSON mode | Targets valid JSON syntax without checking your fields. `{"author": "alice"}` passes.[^openai2024StructuredOutputsLaunch] |
 | Strict tool calling | Constrains tool arguments to a supported schema subset. |
 | Hosted structured outputs | Constrains the response to a provider-supported schema subset. |
-| Grammar-guided decoding on your own server | Enforces the grammar your backend compiled. |
+| Grammar-guided decoding on your own server | Enforces the exact grammar your backend compiled. |
 
-Hosted endpoints compile only the JSON Schema subset they support, and subtle provider exceptions remain important. As of November 2026, Anthropic documents edge cases for Claude including refusals, token exhaustion, and capitalization shifts on string enums.[^anthropic2026StructuredOutputs] Local converters such as `llama.cpp`'s GBNF builder can skip unsupported keywords silently, while SDK wrappers sometimes translate unsupported numeric bounds into field descriptions without enforcing them during decoding.[^llamacpp_grammars_docs2026][^anthropic2026StructuredOutputs] Always inspect the schema actually sent over the wire and run full local validation with Pydantic on the completed reply.
+> **Key insight:** Every backend enforces only the subset of JSON Schema it knows how to compile. Inspect the schema sent over the wire and always run full local validation with Pydantic on the completed reply.
+
+Subtle provider and converter quirks make that local check essential. Anthropic documents edge cases for Claude including refusals, token exhaustion, and capitalization shifts on string enums.[^anthropic2026StructuredOutputs] Local converters such as `llama.cpp`'s GBNF builder can skip unsupported keywords quietly, while SDK wrappers sometimes move unsupported numeric bounds into field descriptions without enforcing them during decoding.[^llamacpp_grammars_docs2026][^anthropic2026StructuredOutputs]
 
 ## Watch a mask change the next token
 
-To see how syntax enforcement happens inside the model, look at one decoding step. At step $t$, the language model scores every token in its vocabulary with a raw logit before softmax normalizes those scores into sampling probabilities. Constrained decoding tracks the parser state, zeroes out invalid tokens by replacing their logits with $-\infty$, and renormalizes softmax exclusively over legal next tokens.[^willard2023]
+To see how syntax enforcement works inside the model, zoom in on a single decoding step. At step $t$, the language model outputs a raw logit $z_t(v)$ for every token $v$ in its vocabulary $\mathcal{V}$. Constrained decoding tracks the parser state $S_t$, finds the subset of legal continuations $\mathcal{V}_{\text{valid}}(S_t)$, sets every illegal token's logit to $-\infty$, and renormalizes softmax over the survivors:[^willard2023]
+
+$$
+P(y_t = v \mid x_{<t}) = \begin{cases} \frac{\exp(z_t(v))}{\sum_{u \in \mathcal{V}_{\text{valid}}(S_t)} \exp(z_t(u))} & \text{if } v \in \mathcal{V}_{\text{valid}}(S_t) \\ 0 & \text{otherwise} \end{cases}
+$$
 
 <figure>
   <img src="illustrations/_generated/probability_mask_dark.png" alt="Before masking, logits for Sure (1.4), open brace (0.8), The (0.2), and open bracket (-0.4) softmax to 49.6%, 27.2%, 14.9%, and 8.2%. After masking sets illegal logits to negative infinity, only open brace survives with 100% probability." />
   <figcaption>Logit masking drops illegal tokens to 0% and concentrates all probability mass on legal continuations like <code>{</code>.</figcaption>
 </figure>
 
-Suppose four candidates `Sure`, `{`, `The`, and `[` start with logits `1.4`, `0.8`, `0.2`, and `-0.4` (`49.6%`, `27.2%`, `14.9%`, `8.2%`). Requiring a JSON object excludes all except `{`, moving 100% of sampling probability onto the opening brace in one vectorized step:
+Suppose four candidates `Sure`, `{`, `The`, and `[` begin with logits `1.4`, `0.8`, `0.2`, and `-0.4` (`49.6%`, `27.2%`, `14.9%`, `8.2%`). Requiring a JSON object excludes every candidate except `{`, handing 100% of the sampling probability to the opening brace in one step:
 
 <!-- leetllm: test, id=reader-logit-mask, output=show -->
 ```python title="logit-mask.py"
@@ -1355,9 +1304,9 @@ After (%): {'Sure': 0.0, '{': 100.0, 'The': 0.0, '[': 0.0}
 ```
 <!-- leetllm: output:end -->
 
-Because every disallowed logit is forced to $-\infty$, conversational tokens such as `Sure` cannot be sampled regardless of how high their base scores climb. Notice the essential safety rule if the legal token set is ever empty: raise an explicit error instead of dropping the mask, because falling back to unconstrained logits silently throws away the structural guarantee. In real vocabularies, whitespace variants and merged tokens such as `{"eval_id"` remain allowed alongside `{` whenever they stay on a legal path.
+Conversational tokens like `Sure` drop to exactly 0% regardless of how high their raw logit climbs. Notice the safety rule encoded by `assert sum(masked) > 0`: if the legal set is ever empty, raise an explicit error instead of dropping the mask, because falling back to unconstrained logits silently abandons the structural constraint. In full tokenizers, whitespace variants and merged tokens such as `{"eval_id"` remain allowed alongside `{` whenever they stay on a legal path.
 
-Serving runtimes accelerate that step by compiling schemas or context-free grammars ahead of time into finite-state automata or stack parsers indexed by a per-state binary bitmask `M[S_t, v]`:
+Serving engines make this lookup fast by compiling schemas or context-free grammars ahead of time into finite-state machines or stack parsers indexed by a per-state binary bitmask `M[S_t, v]`:
 
 <figure>
   <img src="illustrations/_generated/contract_gates_dark.png" alt="Pipeline from Schema or CFG to DFA or stack state S_t and Bitmask Index M[S_t], driving state machine S0 -> S1 -> S2 -> S3 and binary valid-token bitmask table over {, key:, pass&quot;}, fa, Sure, and &lt;eos&gt;." />
@@ -1366,21 +1315,23 @@ Serving runtimes accelerate that step by compiling schemas or context-free gramm
 
 ## A token can cross several parser states
 
-Grammars validate text character by character or byte by byte, whereas neural tokenizers assemble subword tokens that often cross punctuation boundaries (`","status":"failed"`) or split inside a UTF-8 codepoint. Before marking any candidate token legal, the engine must trace every character of that whole token through the grammar state machine from `S_t`.[^willard2023] Consider a miniature language accepting only two standalone JSON records, `{"status":"passed"}` and `{"status":"failed"}`:
+Masking logits is simple; keeping character-level grammars aligned with multi-character subword tokens is the subtle engineering challenge. Neural tokenizers routinely merge punctuation and words into one token (`","status":"failed"`) or split a UTF-8 codepoint mid-character. Before marking any candidate token legal, the engine must trace every character of that whole token through the parser from $S_t$.[^willard2023]
+
+Consider a miniature language accepting only two JSON records:
 
 ```json title="permitted-records.json"
 {"status":"passed"}
 {"status":"failed"}
 ```
 
-After accepting the shared prefix token `{"status":"`, both branches remain valid. Taking `fa` moves inside `"failed"`, where `iled"}` lands cleanly on the closing brace and unlocks `<eos>`. Even though `iled"}!` starts with those exact same six valid characters, its trailing `!` overshoots the language, so the engine masks `iled"}!` completely before sampling.
+After the shared prefix token `{"status":"`, both branches remain open. Choosing `fa` advances into `"failed"`, where `iled"}` lands cleanly on the closing brace and unlocks `<eos>`. Even though `iled"}!` begins with those exact same six valid characters, its trailing `!` overshoots the language, so the decoder masks `iled"}!` completely before sampling.
 
 <figure>
-<img src="illustrations/_generated/whole_token_parser_path_dark.png" alt="Decision tree from {&quot;status&quot;:&quot; branching into passed then &quot;} -> &lt;eos&gt; and fa then either iled&quot;} -> &lt;eos&gt; or masked iled&quot;}!." />
-<figcaption>From <code>fa</code>, the token <code>iled"}</code> finishes the JSON object cleanly, whereas <code>iled"}!</code> overshoots at <code>!</code> and is masked completely.</figcaption>
+  <img src="illustrations/_generated/whole_token_parser_path_dark.png" alt="Decision tree from {&quot;status&quot;:&quot; branching into passed then &quot;} -> &lt;eos&gt; and fa then either iled&quot;} -> &lt;eos&gt; or masked iled&quot;}!." />
+  <figcaption>From <code>fa</code>, the token <code>iled"}</code> finishes the JSON object cleanly, whereas <code>iled"}!</code> overshoots at <code>!</code> and is masked completely.</figcaption>
 </figure>
 
-The miniature decoder below exercises this rule directly, gating `<eos>` until the prefix equals a complete sentence and unmasking only legal whole tokens even when illegal tokens score highest:
+The miniature decoder below exercises this rule directly, blocking `<eos>` until the prefix equals a complete record and unmasking only legal whole tokens even when illegal tokens score highest:
 
 <!-- leetllm: test, id=reader-whole-token-decoder, output=show -->
 ```python title="whole-token-decoder.py"
@@ -1432,15 +1383,27 @@ Stopped: no legal candidate
 ```
 <!-- leetllm: output:end -->
 
-Three behaviors stand out cleanly in that output. High-scoring invalid tokens (`Hello`, early `<eos>`, and `iled"}!`) never enter the sequence, truncation before `<eos>` raises an error despite legal prefix tokens, and an empty candidate subset stops immediately. Note that plain regular expressions compile flat lists of objects cleanly into a DFA, whereas recursive nesting of arbitrary depth requires a context-free grammar with an open-delimiter stack. Engines such as Outlines precompute DFA bitmasks, while XGrammar splits static rule checks from stack-dependent brackets to stay fast at scale.[^willard2023][^xgrammar2024]
+Three behaviors stand out in that trace. High-scoring invalid tokens (`Hello`, early `<eos>`, and `iled"}!`) never enter the output, truncation before `<eos>` raises an error even though every generated prefix was valid, and an empty legal set halts immediately.
+
+Two practical details complete the alignment picture:
+- **DFA vs. CFG:** Flat schemas and arbitrarily long lists of fixed-depth objects compile cleanly into a **Deterministic Finite Automaton (DFA)**, whereas arbitrarily deep recursive nesting requires a **Context-Free Grammar (CFG)** with a stack. Engines such as Outlines precompute DFA bitmasks, while XGrammar splits static rule checks from stack-dependent brackets to stay fast at scale.[^willard2023][^xgrammar2024]
+- **Token healing:** When a prompt ends right at a punctuation split like `'{"status":"'`, naive tokenization cuts across a natural merged token such as `'":"passed'`. Token healing steps back across that last prompt token and restricts the first generated token to start with `'":"'`, restoring natural subword merges without changing the prompt text.[^willard2023]
 
 ## Check what actually arrived
 
-Grammar constraints only guide sampling while tokens are generated; your application must still inspect completion metadata before parsing JSON. Keep refusals as refusals and token-limit cutoffs as incomplete states rather than running heuristic string repairs over truncated output. When parsing completed JSON in Python, install strict hooks on `json.loads` to reject duplicate keys (which default parsing silently overwrites) and nonfinite constants such as `NaN`.[^pythonJson2026] After parsing, compare every field against caller permissions and trusted records:
+Grammar constraints guide sampling while tokens are generated, yet your application still has to inspect completion metadata before parsing JSON. Keep refusals as refusals and token-limit cutoffs as incomplete states rather than running heuristic string repairs over truncated text. When decoding completed JSON in Python, install strict hooks on `json.loads` to reject duplicate keys (which default parsing silently overwrites) and nonfinite constants such as `NaN`.[^pythonJson2026] Then validate the parsed object with a strict Pydantic model before comparing claims against caller permissions and trusted records:
 
-<!-- leetllm: test, id=reader-eval-checks, output=show -->
+<!-- leetllm: test, id=reader-eval-checks, deps=pydantic, output=show -->
 ```python title="eval-host-checks.py"
 import json
+from typing import Literal
+from pydantic import BaseModel, ConfigDict
+
+class EvalRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    suite: str
+    eval_id: str
+    status: Literal["passed", "failed"]
 
 def unique_object(pairs):
     result = {}
@@ -1453,24 +1416,19 @@ def unique_object(pairs):
 def reject_constant(value):
     raise ValueError("non-standard JSON constant: " + value)
 
-FIELDS = {"suite", "eval_id", "status"}
-
 def inspect_record(text, *, completed, allowed_suite, eval_store):
     if completed is not True:
         return "incomplete"
-    record = json.loads(text, object_pairs_hook=unique_object,
-                        parse_constant=reject_constant)
-    if not isinstance(record, dict) or set(record) != FIELDS:
-        raise ValueError("unexpected record shape")
-    if not all(isinstance(value, str) for value in record.values()):
-        raise ValueError("fields must be strings")
-    if record["status"] not in {"passed", "failed"}:
-        raise ValueError("unknown status")
-    if record["suite"] != allowed_suite:
+    raw = json.loads(
+        text,
+        object_pairs_hook=unique_object,
+        parse_constant=reject_constant,
+    )
+    record = EvalRecord.model_validate(raw)
+    if record.suite != allowed_suite:
         return "deny"
-    expected = eval_store.get((record["suite"], record["eval_id"]))
-    matches = expected == record["status"]
-    return "show snapshot" if matches else "review"
+    expected = eval_store.get((record.suite, record.eval_id))
+    return "show snapshot" if expected == record.status else "review"
 
 eval_store = {("nlp-eval", "eval-17"): "failed"}
 scope = {"allowed_suite": "nlp-eval", "eval_store": eval_store}
@@ -1490,11 +1448,11 @@ show snapshot
 ```
 <!-- leetllm: output:end -->
 
-Every completed candidate passes the exact schema checks above, yet each hits a distinct gate. The first names an unauthorized suite (`vision-eval`) and stops before reading stored results, the second claims `passed` when logs record `failed` and routes to review, and only the third verifies end to end. Meanwhile, an incomplete payload stops before JSON decoding even starts.
+Every completed candidate above passes strict JSON decoding and `EvalRecord` validation, yet each triggers a different host decision. The first names an unauthorized suite (`vision-eval`) and stops before reading stored results, the second claims `passed` when logs record `failed` and routes to review, and only the third verifies end to end. An incomplete reply stops before JSON decoding even starts.
 
 ## Design a schema that lets the model say "I don't know"
 
-When an evaluation trace omits which task broke, requiring `failing_task` to be a nonempty string leaves a schema-constrained model no honest way to abstain. Leaving an explicit path for uncertainty via a nullable field and an `"unknown"` enum avoids forcing fabricated task names:
+Suppose a benchmark log reports that `eval-17` failed without naming which task broke. If your schema requires `failing_task` to be a nonempty string, the grammar leaves a constrained model no honest way to abstain and nudges it to invent a task name. Giving uncertainty an explicit representation via a nullable field and an `"unknown"` enum prevents forced fabrication:
 
 ```json title="eval-record.schema.json"
 {
@@ -1512,46 +1470,49 @@ When an evaluation trace omits which task broke, requiring `failing_task` to be 
 }
 ```
 
-When the source omits a task name, the model can close the object cleanly with `null` rather than guessing `"math-500"`. Wrap this schema under `text.format` with `"strict": true` (all properties marked required and `additionalProperties: false`) in OpenAI's Responses API, or under `output_config.format` in Claude's Messages API as of November 2026.[^openai_structured_outputs][^anthropic2026StructuredOutputs] Follow four habits as schemas grow:
+When the source omits a task name, the model can close the object cleanly with `null` instead of guessing `"math-500"`. Wrap this schema under `text.format` with `"strict": true` (every property listed in `required` and `additionalProperties: false`) in OpenAI's Responses API, or under `output_config.format` in Claude's Messages API.[^openai_structured_outputs][^anthropic2026StructuredOutputs]
 
-- **Separate required from nullable:** Required means the key must appear; `["string", "null"]` allows a missing value explicitly.
-- **Keep identifiers and free-text notes separate:** Putting prose in a field does not verify that a cited run matches the log target.
-- **Version schemas in host code:** Consumers must never trust a schema version tag generated by the model.
-- **Never map unknowns silently:** Coercing unrecognized strings into an enum value hides bugs downstream.
+Four habits keep schemas clean as applications grow:
+- **Separate required from nullable:** `required` means the key must appear; `["string", "null"]` represents missing evidence explicitly.
+- **Keep identifiers and free-text notes separate:** Verifying that a quoted log line appears verbatim in the source still requires checking that the quote mentions the exact target ID (without matching `eval-17` inside `eval-170`) and supports the proposed action.
+- **Version schemas in host code:** Attach `schema_version` in your validation layer rather than trusting a version tag generated by the model.
+- **Never coerce unknowns silently:** Mapping unrecognized strings into a default enum hides extraction bugs downstream.
 
 ## A boolean can't grant permission
 
-Schema-valid objects can still include fields shaped to look like security decisions:
+Schema-valid payloads can carry fields shaped like security decisions:
 
 ```json title="self-granted.json"
 {"eval_id": "eval-17", "is_admin": true, "authorized": true}
 ```
 
-Trusting `authorized: true` from model output hands permission decisions to untrusted text. Authorization must originate from verified session state, role records, and stored approvals in your host system. That same rule governs both *function calling* (tool arguments requesting actions) and *structured outputs* (records parsed by code): strict mode shapes JSON syntax and authorizes nothing.
+> **Common mistake:** Reading `authorized: true` from model output as a permission grant. Strict mode ensures the value is a JSON boolean, nothing more. Authorization must come exclusively from verified session state, role records, and stored approvals in your host system.
+
+That same rule applies to both **function calling** (tool arguments proposing an action) and **structured outputs** (records consumed by application code): grammar enforcement shapes syntax and authorizes nothing.
 
 ## Legal isn't the same as finished
 
-Grammar constraints verify that each next token fits valid syntax without checking whether generation is making task progress. Permissive whitespace rules or broad regex strings can legally spin until exhausting `max_output_tokens`, so prompts must still state task rules clearly while application wrappers classify stop reasons separately rather than blindly retrying every error:
+Grammar constraints verify that each next token fits valid syntax without checking whether generation is converging on a finished answer. Permissive whitespace rules or broad string fields can legally spin until exhausting `max_output_tokens`, so prompts must still state task rules clearly while application wrappers route each stop reason to its matching recovery path:
 
 <figure>
-<img src="illustrations/_generated/fallback_cascade_dark.png" alt="Left-to-right failure recovery flow from API call (120-token cap) to completed parsing and host checks, max_tokens single retry at 400 tokens within budget/SLA, halt safely on refusal/filter, and code fix on bad schema." />
-<figcaption>Route each stop condition separately: only an initial <code>max_tokens</code> cutoff with spare budget and SLA time earns a larger retry.</figcaption>
+  <img src="illustrations/_generated/fallback_cascade_dark.png" alt="Left-to-right failure recovery flow from API call (120-token cap) to completed parsing and host checks, max_tokens single retry at 400 tokens within budget/SLA, halt safely on refusal/filter, and code fix on bad schema." />
+  <figcaption>Route each stop condition separately: only an initial <code>max_tokens</code> cutoff with spare budget and SLA time earns a larger retry.</figcaption>
 </figure>
 
 | What happened | What to do |
 |---|---|
-| Response hit the token limit | Retry once with a higher token cap if latency and cost budgets allow |
-| Backend rejected the schema | Repair the schema or SDK adapter in code; retrying identical input fails again |
+| Response hit the token limit | Retry once with the same schema and a higher token cap if latency and cost budgets allow |
+| Backend rejected the schema | Fix the schema or SDK adapter in code; retrying identical input fails again |
 | Model refused | Stop automatic retries and route to your safe refusal handler |
-| Claim contradicts logs or policy | Block the action; schema formatting cannot repair missing permissions or false claims |
+| Claim contradicts logs or permissions | Block the action; schema formatting cannot repair missing permissions or false claims |
 
 ## Measure the costs at the right stage
 
-Per-token masking overhead is small once a grammar is compiled: XGrammar reports under 40 microseconds per token on CPU while overlapping mask construction with GPU forward passes.[^xgrammar2024] First-request compilation adds cold-start latency, so cache compiled grammars and benchmark cold and warm calls separately instead of hiding startup spikes inside averages.[^openai_structured_outputs][^anthropic2026StructuredOutputs] Measure downstream accuracy alongside JSON validity as well, because tight formatting templates can hurt reasoning accuracy on complex tasks unless internal thinking stays unconstrained before formatting the final answer.[^tam2024][^openai2026reasoning]
+Once a grammar is compiled, per-token masking overhead is tiny: XGrammar reports under 40 microseconds per token on CPU while overlapping mask construction with GPU forward passes.[^xgrammar2024] First-request compilation adds cold-start latency, so cache compiled grammars and benchmark cold and warm calls separately instead of burying startup spikes inside an average.[^openai_structured_outputs][^anthropic2026StructuredOutputs] Measure task accuracy alongside JSON validity as well, because tight formatting templates can hurt reasoning accuracy on multi-step problems unless internal thinking stays unconstrained before the schema masks the final answer.[^tam2024][^openai2026reasoning]
 
 ## What you can build now
 
-You can now trace every link of structured output reliability, from raw logit masking and compiled DFA bitmasks through whole-token traversal, completion inspection, local Pydantic verification, and host-side factual and scope checks. When something breaks in production, that chain tells you immediately whether to adjust token budgets, adapters, or semantic gates. Continue to [Agentic Architectures: ReAct & Plan-and-Execute](/learn/agentic-architectures-react-plan-execute) to compose validated tool calls and structured states inside bounded agent loops.
+You can now trace every link of structured output reliability, from raw logit masking and compiled DFA bitmasks through whole-token traversal, token healing, strict JSON decoding, local Pydantic validation, and host-side factual and permission checks. When a structured pipeline breaks in production, that chain tells you immediately whether to adjust token budgets, fix an adapter, or tighten a semantic check. Continue to [Agentic Architectures: ReAct & Plan-and-Execute](/learn/agentic-architectures-react-plan-execute) to compose validated tool calls and structured states inside step-limited agent loops.
 
 > **Next:** Continue to [Agentic Architectures: ReAct & Plan-and-Execute](/learn/agentic-architectures-react-plan-execute).
 

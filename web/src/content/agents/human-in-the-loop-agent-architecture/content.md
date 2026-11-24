@@ -33,7 +33,7 @@
     "Approval Workflows",
     "Checkpoint/Resume",
     "Risk Classification",
-    "Escalation Policies",
+    "Approval Routing",
     "Async Agent Execution",
     "Temporal Workflows",
     "Optimistic Concurrency Control",
@@ -47,7 +47,7 @@
 
 <!-- leetllm: edition:reference:start -->
 
-Consider a release orchestration agent preparing to promote `recommendation-reranker-v17` from a shadow deployment into a production canary handling 25% of live traffic. The model emits a single structured proposal requesting the rollout change, while organization policy forbids applying traffic shifts without human review. If that proposal executes directly upon receiving a simple chat click, any shift in live traffic or backend worker state goes completely unchecked.
+A release agent proposes promoting `recommendation-reranker-v17` from a shadow deployment into a production canary serving 25% of live traffic. Team rules require human sign-off before shifting production traffic, so the agent pauses and emits this structured proposal:
 
 ```text title="canary-proposal.txt"
 promote_model(
@@ -58,29 +58,34 @@ promote_model(
 )
 ```
 
-A common shortcut posts a chat modal asking *"Approve routing 25% of traffic to reranker-v17?"* with a callback button. While it looks like a control gate, four routine production failures break that design almost immediately. Review fatigue sets in when dozens of low-risk alerts condition operators to click through without reading diffs. Worker restarts wipe in-memory pause state if a reviewer takes 45 minutes to respond, leaving the workflow orphaned or re-planned from scratch.
+The fastest shortcut is posting a chat modal asking *"Approve routing 25% of traffic to reranker-v17?"* with a callback button. That looks like a safety check until four everyday failures break it in production:
 
-Live state can also drift while the request sits in queue: if another engineer pushes revision 42 during that 45-minute wait, the original rollout plan against revision 41 is already stale. Applying that aged rollout blindly would silently overwrite an emergency mitigation or newer configuration without warning. Finally, any external ticket text or incident note attached for context can carry <span data-glossary="prompt-injection">prompt injection</span> or unverified claims that must never be mistaken for trusted system facts.[^owaspExcessiveAgency2025] Solving all four problems turns an approval button into an architecture of durable state, cryptographic digests, and atomic execution preconditions.
+- **Review fatigue:** Dozens of low-risk alerts train engineers to click through without reading parameters.
+- **Worker restarts:** If a reviewer takes 45 minutes to answer, a container restart wipes in-memory wait state and orphans the workflow.
+- **Live state drift:** If another engineer ships an emergency patch moving the cluster from revision 41 to revision 42 during that 45-minute wait, executing the approved plan blindly overwrites the newer fix.
+- **Hostile context:** An attached ticket or incident note can carry <span data-glossary="prompt-injection">prompt injection</span> or spoofed alert banners aimed at rushing a click.[^owaspExcessiveAgency2025]
 
-## Map action risk to policy gates
+Fixing all four requires replacing a stateless button with durable checkpoints, cryptographic payload digests, atomic outbox writes, and live preconditions checked at commit time.
 
-Not every tool call deserves a human pause, and interrupting everything destroys both latency and reviewer attention. Effective <span data-glossary="human-in-the-loop">human-in-the-loop</span> systems route tool invocations according to two orthogonal dimensions: **blast radius** (how many users, tenants, or downstream services feel the change) and **reversibility cost** (whether an instant rollback restores prior state without data loss). Evaluating those two axes before queuing work concentrates reviewer focus on mutations that genuinely carry irreversible operational weight.
+## Route actions by blast radius and undo cost
 
-<figure>
-  <img src="illustrations/_generated/action_risk_matrix_dark.png" alt="Four-quadrant action policy matrix plotting agent tool calls by blast radius on the horizontal axis and reversibility cost on the vertical axis. Low-scope reversible tools auto-execute, irreversible low-scope changes log and notify, reversible wide-scope shifts require single human approval, and wide irreversible mutations require dual approval plus precondition locks." />
-  <figcaption>Policy routing separates cheap, reversible inspection calls from wide-scope or irreversible mutations that require pre-execution locks and sign-off.</figcaption>
-</figure>
-
-Read-only tools like `git_diff` or test runners (`pytest`) sit in the bottom-left quadrant and execute without blocking. Wide-scope canary traffic shifts and feature-flag flips sit in the bottom-right quadrant: they affect live traffic immediately, yet remain fast to roll back, making a single authenticated approval appropriate. Irreversible production mutations such as dropping columns, rotating root keys, or granting broad IAM policies sit in the top-right quadrant and demand dual review, short expiry windows, and strict version preconditions.
-
-Policy thresholds also control queue health when an agent scores uncertainty or risk before deferring to an engineer. Setting an escalation threshold too low routes safe routine actions to human reviewers, driving queue load past 70% and inviting rubber-stamping. Setting it too high keeps queues empty while letting rare high-impact errors slip past unreviewed. Calibrated operating thresholds combine automated guardrails and step budgets with targeted human escalation.
+Interrupting an engineer for every tool call wrecks latency and trains reviewers to skim. Effective <span data-glossary="human-in-the-loop">human-in-the-loop</span> systems sort tool calls along two axes: **blast radius** (how many users or downstream services feel the change) and **undo cost** (whether reverting restores prior state cleanly without data loss). Checking those two dimensions before queuing work saves human attention for mutations that genuinely carry operational weight.
 
 <figure>
-  <img src="illustrations/_generated/deferral_threshold_curve_dark.png" alt="Line chart plotting human review load and unreviewed high-risk mutations across risk threshold settings from 0.2 to 0.9. Raising the threshold drops reviewer load from 74 percent to 5 percent while increasing unreviewed risk from 2 percent to 39 percent, favoring calibrated operating gates plus reversible canary limits." />
-  <figcaption>Lowering the deferral threshold eliminates missed tail risk at the cost of overwhelming reviewers; pairing a balanced threshold with narrow blast-radius steps keeps both metrics tractable.</figcaption>
+  <img src="illustrations/_generated/action_risk_matrix_dark.png" alt="Four-quadrant action risk matrix plotting agent tool calls by blast radius on the horizontal axis and reversibility cost on the vertical axis. Low-scope reversible tools auto-execute, irreversible low-scope changes log and notify, reversible wide-scope shifts require single human approval, and wide irreversible mutations require dual approval plus precondition locks." />
+  <figcaption>Risk-based routing separates cheap, reversible inspection calls from wide-scope or irreversible mutations that require pre-execution locks and sign-off.</figcaption>
 </figure>
 
-A small policy router makes these rules explicit in host code, outside the model prompt. In the runnable classifier below, tool identity, target stage, and traffic delta determine whether a proposal runs immediately, escalates for single approval, demands dual sign-off, or stays blocked altogether. Expressing routing as plain deterministic Python logic guarantees that prompt wording never bypasses operational controls.
+Read-only tools like `git_diff` or test runners (`pytest`) sit in the bottom-left quadrant and run automatically. Wide-scope canary traffic shifts and feature-flag flips sit in the bottom-right quadrant: they touch live traffic immediately, yet revert quickly, making single authenticated approval appropriate. Irreversible production mutations such as dropping columns, rotating root keys, or granting broad IAM permissions sit in the top-right quadrant and demand dual review, short expiry timers, and strict version checks.
+
+Deferral thresholds also control queue health when an agent scores uncertainty or risk before pausing for a human. Setting the threshold too low floods reviewers with routine traffic, driving queue load past 70% and inviting rubber-stamping. Setting it too high keeps queues quiet while letting rare high-impact errors slip past unreviewed.
+
+<figure>
+  <img src="illustrations/_generated/deferral_threshold_curve_dark.png" alt="Line chart plotting human review load and unreviewed high-risk mutations across risk threshold settings from 0.2 to 0.9. Raising the threshold drops reviewer load from 74 percent to 5 percent while increasing unreviewed risk from 2 percent to 39 percent, favoring calibrated operating thresholds plus reversible canary limits." />
+  <figcaption>Lowering the deferral threshold cuts missed tail risk at the cost of overwhelming reviewers. Pairing a balanced threshold with narrow blast-radius steps keeps both metrics manageable.</figcaption>
+</figure>
+
+Keep the routing logic in deterministic host code outside the model prompt. In the classifier below, tool name, target stage, and traffic percentage decide whether a proposal runs automatically, requires single or dual approval, or is denied outright.
 
 <!-- leetllm: test, output=show -->
 
@@ -88,7 +93,7 @@ A small policy router makes these rules explicit in host code, outside the model
 from dataclasses import dataclass
 from enum import Enum
 
-class GateTier(str, Enum):
+class ReviewTier(str, Enum):
     AUTO = "auto"
     SINGLE_REVIEW = "single_review"
     DUAL_REVIEW = "dual_review"
@@ -101,16 +106,16 @@ class ActionProposal:
     traffic_percent: int
     reversible: bool
 
-def classify_proposal(proposal: ActionProposal) -> GateTier:
+def classify_proposal(proposal: ActionProposal) -> ReviewTier:
     if proposal.tool in {"read_logs", "git_diff", "run_tests"}:
-        return GateTier.AUTO
+        return ReviewTier.AUTO
     if proposal.tool == "drop_table":
-        return GateTier.DENY if proposal.stage == "production" else GateTier.DUAL_REVIEW
+        return ReviewTier.DENY if proposal.stage == "production" else ReviewTier.DUAL_REVIEW
     if proposal.tool != "promote_model":
-        return GateTier.DUAL_REVIEW
+        return ReviewTier.DUAL_REVIEW
     if not proposal.reversible or proposal.traffic_percent > 25:
-        return GateTier.DUAL_REVIEW
-    return GateTier.SINGLE_REVIEW if proposal.stage == "canary" else GateTier.AUTO
+        return ReviewTier.DUAL_REVIEW
+    return ReviewTier.SINGLE_REVIEW if proposal.stage == "canary" else ReviewTier.AUTO
 
 cases = [
     ActionProposal("git_diff", "local", 0, True),
@@ -131,25 +136,27 @@ drop_table (production, 100%): deny
 ```
 <!-- leetllm: output:end -->
 
-Every decision happens deterministically on structured parameters rather than natural-language rationales. That keeps prompt text from shifting an action's risk tier just by phrasing a dangerous database change cautiously. Because the policy function lives outside the model context, changing escalation rules requires code review rather than prompt editing.
+Because routing operates strictly on structured parameters outside the prompt, cautious wording from the model can never downgrade a production schema change into an auto-approved step.
 
 ## Track a durable lifecycle, not a Boolean
 
-Because an engineer may respond minutes or hours after an agent requests review, holding the call open in worker memory fails across deployments, autoscaling events, and container restarts. Durable review models an approval workflow as a persistent state machine stored in checkpoints or a database ledger, completely independent of any single worker process. Any idle period costs zero active memory and survives arbitrary pod restarts before resuming cleanly.
+Human review happens on human timescales: minutes, hours, or the next morning. Holding an open coroutine or worker thread in memory fails as soon as a pod restarts or scales down. Durable review models approval as a persistent state machine stored in checkpoints or a database table so idle requests consume zero worker RAM and survive arbitrary restarts.
 
 <figure>
-  <img src="illustrations/_generated/human_in_loop_dark.png" alt="State diagram of a durable human-in-the-loop workflow. An agent saves checkpoint v3 and pauses for human review. The reviewer either cancels or edits into a new digest with zero gated writes, or atomically commits an authorization and outbox token. Execution checks live preconditions with compare-and-swap, routing timeouts to remote reconciliation by operation key." />
+  <img src="illustrations/_generated/human_in_loop_dark.png" alt="State diagram of a durable human-in-the-loop workflow. An agent saves checkpoint v3 and pauses for human review. The reviewer either cancels or edits into a new digest with zero unapproved writes, or atomically commits an authorization and outbox token. Execution checks live preconditions with compare-and-swap, routing timeouts to remote reconciliation by operation key." />
   <figcaption>Durable orchestration separates checkpointed suspension, atomic authorization persistence, live compare-and-swap verification, and remote timeout reconciliation.</figcaption>
 </figure>
 
-A pending request passes through distinct phases rather than toggling a Boolean flag:
+A pending request moves through four explicit phases instead of toggling a Boolean flag:
 
-1. **Checkpoint and pause:** The workflow persists thread state, freezes a canonical snapshot of the proposed tool call, assigns a unique operation key and expiry timestamp, and exits cleanly so zero worker memory is held hostage during review.
-2. **Scoped decision:** An authenticated human reviewer inspects the host-verified parameters and either rejects the request, lets it expire, edits parameters into a fresh version with a new digest, or authorizes the exact pending version.
-3. **Atomic outbox and dispatch:** The database commits both the granted status and a resume message inside a single transaction, ensuring a crash immediately after clicking Approve never strands a granted action without a resume trigger.
-4. **Live check and reconciliation:** Before mutating production, the executor checks expiry and applies an optimistic compare-and-swap precondition against the live target revision; if a network timeout leaves dispatch uncertain, recovery polls the remote target by operation key before attempting any retry.
+1. **Checkpoint and pause:** Persist thread state, freeze a canonical snapshot of the proposed tool call, attach a unique operation key and expiry timestamp, and exit the worker cleanly.
+2. **Scoped decision:** An authenticated reviewer inspects host-verified parameters and either rejects the request, lets it expire, edits parameters into a fresh version with a new digest, or authorizes the exact pending version.
+3. **Atomic outbox and dispatch:** Commit both the granted status and a resume message inside a single database transaction so a crash right after clicking Approve never strands an approved workflow.
+4. **Live check and reconciliation:** Before mutating production, verify expiry and apply an optimistic compare-and-swap check against the live target revision. If a network timeout makes dispatch uncertain, poll the target by operation key before retrying.
 
-Durable workflow engines implement this suspension natively, though each treats replay differently. In <span data-glossary="langgraph">LangGraph</span>, a graph configured with a SQLite or PostgreSQL checkpointer saves state before pausing at `interrupt()`, freeing the worker until `Command(resume=...)` reloads the thread.[^langgraph2024][^langgraph2026persistence] Note that nodes placed after an interrupt re-run from their entry step upon resumption, so mutating tools belong in a dedicated post-approval node rather than inline alongside prompt formatting. Keeping non-idempotent side effects isolated in their own post-review node stops duplicate external calls when a workflow replays.
+Durable workflow engines handle suspension directly, though their replay semantics differ. In <span data-glossary="langgraph">LangGraph</span>, a graph paired with a SQLite or PostgreSQL checkpointer saves state before pausing at `interrupt()`, freeing the worker until `Command(resume=...)` reloads the thread.[^langgraph2024][^langgraph2026persistence]
+
+> **Common mistake:** Putting a mutating API call inside the same LangGraph node before `interrupt()`. When a node resumes from an interrupt, LangGraph re-runs that node from its top line. Place side effects in a dedicated post-approval node so resume replay never fires duplicate writes.
 
 <!-- leetllm: test, output=show, deps=langgraph==1.2.12,langgraph-checkpoint-sqlite==3.1.1 -->
 
@@ -171,8 +178,8 @@ class ReleaseState(TypedDict):
     approved_by: str
     applied: list[str]
 
-def review_gate(state: ReleaseState) -> dict:
-    # interrupt() raises a graph pause and persists checkpoint v3 to SQLite.
+def review_step(state: ReleaseState) -> dict:
+    # interrupt() raises a graph pause and persists checkpoint state to SQLite.
     decision = interrupt({
         "proposal_id": state["proposal_id"],
         "model_id": state["model_id"],
@@ -190,10 +197,10 @@ def apply_canary(state: ReleaseState) -> dict:
     return {"applied": [*state["applied"], entry]}
 
 builder = StateGraph(ReleaseState)
-builder.add_node("review_gate", review_gate)
+builder.add_node("review_step", review_step)
 builder.add_node("apply_canary", apply_canary)
-builder.add_edge(START, "review_gate")
-builder.add_edge("review_gate", "apply_canary")
+builder.add_edge(START, "review_step")
+builder.add_edge("review_step", "apply_canary")
 builder.add_edge("apply_canary", END)
 
 with tempfile.TemporaryDirectory() as tmpdir:
@@ -231,15 +238,15 @@ resumed applied: ['reranker-v17->25%@rev41']
 ```
 <!-- leetllm: output:end -->
 
-In Temporal, the workflow uses `workflow.wait_condition(...)` alongside an `@workflow.update` handler whose validator rejects malformed or stale approvals before mutating durable workflow history.[^temporal2024][^temporal2026workflow] Side effects run inside idempotent Activities with explicit retry limits rather than deterministic workflow code.[^temporalRetryPolicies2026] LangChain's higher-level middleware provides `HumanInTheLoopMiddleware` over this same checkpointer mechanism when simple approve, edit, and reject decisions fit an off-the-shelf loop.[^langchainHitlMiddleware2026] Notice that both engines solve durability in storage so workers never stay blocked waiting on human replies.
+In Temporal, a workflow pauses on `workflow.wait_condition(...)` paired with an `@workflow.update` handler whose validator rejects malformed or stale approvals before mutating durable history.[^temporal2024][^temporal2026workflow] Side effects run inside idempotent Activities with explicit retry caps rather than deterministic workflow code.[^temporalRetryPolicies2026] LangChain also wraps this checkpointer flow in `HumanInTheLoopMiddleware` when standard approve, edit, and reject actions fit an off-the-shelf loop.[^langchainHitlMiddleware2026]
 
 ## Bind reviewer identity and canonical payload digests
 
-When a reviewer opens a rollout request, what guarantees that the action executed 30 minutes later still matches what was shown on screen? Without a cryptographic digest over canonicalized parameters, silent background edits, schema defaults, or nested JSON key reordering could alter a flag or traffic percentage after approval without invalidating the grant. Binding the grant to a hash over the normalized payload closes that tamper gap completely.
+When a reviewer approves a canary promotion, what guarantees that the action dispatched 30 minutes later still matches what appeared on screen? Without a cryptographic digest over canonicalized parameters, silent edits, default values, or altered JSON fields could shift `traffic_percent` from `25` to `100` after approval without invalidating the grant.
 
-Canonical serialization per RFC 8785 (JSON Canonicalization Scheme, JCS) eliminates ambiguous encodings across runtimes by sorting dictionary keys lexicographically, normalizing numeric formats, and stripping insignificant whitespace before computing a SHA-256 hash.[^rfc8785Jcs2020] Equally important is **role separation**: the tenant identifier (`ai-platform`), requester identity, reviewer role, and executor identity come from authenticated host tokens and session claims rather than fields generated by the language model. Storing those identities in signed host context stops an agent from forging reviewer privileges inside tool arguments.
+Canonical serialization per RFC 8785 (JSON Canonicalization Scheme, JCS) removes encoding ambiguity across runtimes by sorting dictionary keys lexicographically, normalizing numbers, and stripping insignificant whitespace before hashing with SHA-256.[^rfc8785Jcs2020] Equally important is **role separation**: tenant ID, requester ID, reviewer role, and executor identity come from authenticated host session tokens rather than model-generated JSON fields.
 
-Any model-written summary or attached incident ticket must be treated as untrusted context rather than executable instructions. Research shows that model chain-of-thought explanations can be systematically unfaithful to the features driving a model's output, and injected strings like `SYSTEM ALERT: Security scan passed` inside ticket text regularly trick reviewers when visually blended into system banners.[^turpin2023] Separating host-verified parameter diffs from escaped, clearly labeled untrusted evidence protects both reviewers and automated auditors.
+Treat model-written summaries and attached incident tickets as untrusted context. Chain-of-thought explanations can omit the real factors behind a model's choice, and ticket strings such as `SYSTEM ALERT: Security scan passed` can trick tired reviewers when rendered alongside system banners.[^turpin2023] Display host-verified parameter diffs separately from escaped, clearly labeled external text so reviewers and downstream verifiers never confuse the two.
 
 <!-- leetllm: test, output=show -->
 
@@ -275,7 +282,7 @@ def verify_dispatch_scope(
 ) -> tuple[bool, str]:
     if caller_tenant != grant.tenant_id:
         return False, "tenant_mismatch"
-    if executor_id == grant.requester_id and executor_id == grant.reviewer_id:
+    if grant.requester_id == grant.reviewer_id or executor_id == grant.reviewer_id:
         return False, "self_approval_forbidden"
     if now >= grant.expires_at:
         return False, "grant_expired"
@@ -303,10 +310,12 @@ grant = ApprovalGrant(
 # Reordered dictionary keys yield the exact same digest; modified parameters fail immediately.
 reordered = {"traffic_percent": 25, "to_stage": "canary", "from_stage": "shadow", "model_id": "recommendation-reranker-v17", "tool": "promote_model"}
 tampered = {**approved_payload, "traffic_percent": 100}
+self_grant = ApprovalGrant("apr_124", "ai-platform", "ci-bot-01", "ci-bot-01", grant.payload_digest, 41, 1200)
 
 print("reordered ok:", verify_dispatch_scope(grant, reordered, caller_tenant="ai-platform", executor_id="deploy-worker", now=1100))
 print("tampered:", verify_dispatch_scope(grant, tampered, caller_tenant="ai-platform", executor_id="deploy-worker", now=1100))
 print("expired:", verify_dispatch_scope(grant, reordered, caller_tenant="ai-platform", executor_id="deploy-worker", now=1200))
+print("self-approved:", verify_dispatch_scope(self_grant, reordered, caller_tenant="ai-platform", executor_id="deploy-worker", now=1100))
 ```
 
 <!-- leetllm: output:start -->
@@ -314,21 +323,22 @@ print("expired:", verify_dispatch_scope(grant, reordered, caller_tenant="ai-plat
 reordered ok: (True, 'verified')
 tampered: (False, 'digest_mismatch')
 expired: (False, 'grant_expired')
+self-approved: (False, 'self_approval_forbidden')
 ```
 <!-- leetllm: output:end -->
 
-Notice that `verify_dispatch_scope` forbids a single identity from acting as requester, reviewer, and self-approving executor simultaneously. Enforcing separation of duties in backend storage prevents an injected tool sequence from authorizing its own escalated write. Any mismatch on digest, expiry timestamp, or authorized tenant immediately halts dispatch before network calls begin.
+Enforcing separation of duties (`requester != reviewer` and `executor != reviewer`) in backend storage stops an injected tool sequence from signing off on its own privileged write. Any mismatch on tenant, role, expiry, or digest halts dispatch before network calls begin.
 
 ## Commit decisions and outbox triggers atomically
 
-Dual-write bugs break approval pipelines quietly under concurrency or process crashes. If a backend marks an approval row as `authorized` in one database transaction and then publishes a resume event to a broker in a second step, a crash between those two calls leaves the approval marked `authorized` while the workflow sleeps forever. Conversely, checking `status == 'pending'` when opening the review page allows two concurrent reviewers to race and enqueue duplicate execution jobs.
+Dual-write bugs break approval pipelines quietly under concurrency or crashes. If a backend updates an approval row to `authorized` in one step and publishes a resume event to a queue in a second step, a crash between the two leaves the approval marked `authorized` while the workflow sleeps forever. Checking `status == 'pending'` when opening the review page also lets two concurrent reviewers click Approve together and enqueue duplicate jobs.
 
 <figure>
   <img src="illustrations/_generated/atomic_decision_outbox_dark.png" alt="Sequence diagram showing two concurrent reviewers competing for approval apr_123 at version 3 inside SQLite BEGIN IMMEDIATE. Reviewer A updates status to authorized and inserts outbox message apr_123:v3 in one atomic transaction. Reviewer B sees zero pending rows and receives conflict 409. The worker reads the committed outbox token and dispatches with a stable operation key." />
-  <figcaption>A conditional status transition combined with a transactional outbox insert guarantees at most one winning approval paired one-for-one with a resume event.</figcaption>
+  <figcaption>A conditional status transition paired with a transactional outbox insert guarantees at most one winning approval matched one-for-one with a resume event.</figcaption>
 </figure>
 
-The transactional outbox pattern eliminates both races. Inside one `BEGIN IMMEDIATE` SQLite transaction, the backend executes a conditional update (`WHERE approval_id = ? AND version = ? AND status = 'pending' AND expires_at > ?`) and verifies `rowcount == 1` before inserting a unique resume record into the `outbox` table.[^sqliteTransactions2026] A competing second request blocks until the first commits, matches zero pending rows, and receives a clean conflict error; if an exception occurs mid-transaction, SQLite rolls back both tables together.
+The transactional outbox pattern eliminates both races. Inside one `BEGIN IMMEDIATE` SQLite transaction, the backend runs a conditional update (`WHERE approval_id = ? AND version = ? AND status = 'pending' AND expires_at > ?`) and verifies `rowcount == 1` before inserting a resume row into `outbox`.[^sqliteTransactions2026] A competing click blocks until the first commits, matches zero pending rows, and returns a conflict. If a crash strikes mid-transaction, SQLite rolls both tables back together.
 
 <!-- leetllm: test, output=show -->
 
@@ -416,18 +426,18 @@ crash state: ('pending',) (0,)
 ```
 <!-- leetllm: output:end -->
 
-Every winning decision produces exactly one outbox entry, while every conflict or mid-flight crash leaves state clean and deterministic. A background dispatcher polls the outbox and forwards the durable `op_key` to the downstream executor without holding database locks over network calls. Decoupling lock ownership from network latency keeps review queues responsive even when remote deployment endpoints slow down.
+Every winning approval creates exactly one outbox record, while conflicts and crashes leave the database untouched. A separate background dispatcher polls `outbox` and sends the durable `op_key` to the downstream executor without holding database locks across network I/O.
 
 ## Recheck live preconditions at write time
 
-Even when an approval token has a valid reviewer signature, matching digest, and unexpired timestamp, executing it blindly can still corrupt production if the target moved while the request waited in the review queue. A proposal created against revision 41 authorizes transitioning *from revision 41*, not overwriting whatever revision happens to exist 45 minutes later. Checking live system state at the exact instant of commit closes the window between human review and execution.
+Even with a valid reviewer identity, matching SHA-256 digest, and unexpired timestamp, executing a grant blindly can still corrupt production if the target changed while waiting in the queue. A proposal drafted against revision 41 authorizes transitioning *from revision 41*, not overwriting whatever revision sits live 45 minutes later.
 
 <figure>
   <img src="illustrations/_generated/intent_and_live_state_dark.png" alt="Diagram comparing an immutable approval snapshot against a mutating live deployment. Proposal v3 records digest sha256=9f3c and requires revision 41. Between approval and execution, another writer moves live state from revision 41 to 42. Because the write enforces WHERE revision = 41, zero rows update even though the proposal digest never changed." />
-  <figcaption>Compare-and-swap enforces live target preconditions at the moment of the write, rejecting stale approvals even when their payload digests remain untouched.</figcaption>
+  <figcaption>Compare-and-swap enforces live target preconditions at write time, rejecting stale approvals even when their payload digests remain untouched.</figcaption>
 </figure>
 
-Optimistic concurrency control enforces that precondition directly inside the target write. On HTTP resources, the executor sends an `If-Match` header carrying the observed `ETag`, letting the origin reject stale updates with `412 Precondition Failed`.[^rfc9110ConditionalRequests2022] Inside relational state stores, an atomic `UPDATE ... WHERE revision = expected_revision` statement returns zero updated rows whenever another writer advanced the cluster to revision 42 in the meantime.
+Optimistic concurrency control enforces that precondition directly inside the target write. Over HTTP, the executor sends an `If-Match` header with the observed `ETag` so the origin rejects stale updates with `412 Precondition Failed`.[^rfc9110ConditionalRequests2022] Inside a relational store, an atomic `UPDATE ... WHERE revision = expected_revision` updates zero rows whenever another writer moved the cluster to revision 42 in the meantime.
 
 <!-- leetllm: test, output=show -->
 
@@ -465,35 +475,37 @@ live state preserved: ('canary', 10, 42)
 ```
 <!-- leetllm: output:end -->
 
-Separating digest verification (did the proposal change?) from live compare-and-swap (did the cluster change?) prevents stale approvals from silently clobbering intermediate fixes. When CAS rejects an approved step, the runtime surfaces the new live revision cleanly so a fresh diff can be reviewed if the promotion is still wanted. That clean failure protects parallel incident responders from losing emergency rollbacks to queued agent proposals.
+> **Key insight:** Digest checks and compare-and-swap answer two different questions. The digest proves the *proposal* did not change after review. Compare-and-swap proves the *cluster* did not change after review. You need both.
+
+When CAS rejects a stale step, the runtime surfaces revision 42 cleanly so an operator can review a fresh diff if the promotion is still wanted.
 
 ## Handle batch sagas and partial outcomes
 
-Single-target approvals already face concurrent drift; multi-target operations add partial failures across ordered steps. When a reviewer authorizes migrating 50 database shards or notifying 50 service owners in sequence, shards 1 through 41 can succeed cleanly before shard 42 times out over the network, leaving shards 43 through 50 undispatched. Resuming safely demands exact per-shard bookkeeping rather than treating a multi-step batch as one opaque success-or-failure event.
+Multi-target approvals add partial failures across ordered steps. When a reviewer approves migrating 50 database shards in sequence, shards 1 through 41 can commit cleanly before shard 42 times out, leaving shards 43 through 50 unsent. Safe recovery requires per-shard bookkeeping rather than treating a 50-step batch as one binary pass or fail.
 
 <figure>
   <img src="illustrations/_generated/saga_partial_outcomes_dark.png" alt="Proportional state split and recovery sequence for a 50-item batch migration. Items 1 through 41 are verified committed, item 42 timed out in flight with unknown remote status, and items 43 through 50 are halted undispatched. Recovery polls item 42 using its operation key before deciding whether to repair or resume." />
-  <figcaption>A batch approval never provides magic distributed rollback; when item 42 enters an unknown state, halt the remaining queue and reconcile item 42 first using its operation key.</figcaption>
+  <figcaption>A batch approval never creates a distributed transaction. When item 42 enters an unknown state, halt the remaining queue and reconcile item 42 first using its operation key.</figcaption>
 </figure>
 
-Approving a batch never turns 50 external network writes into one atomic transaction. Treating shard 42's timeout as "failed" and blindly launching shard 42 again with a fresh key risks duplicate mutations, while pretending items 1 through 41 rolled back misstates live cluster state. Robust saga execution persists a per-item ledger binding order, parameters, and an immutable operation key per shard, halts the frontier immediately upon ambiguity, polls the remote system for item 42, and repairs or resumes from explicit state rather than guesswork.
+Approving a batch never turns 50 network writes into one atomic commit. Treating shard 42's timeout as "failed" and retrying with a fresh key risks duplicate mutations, while claiming shards 1 through 41 rolled back misstates live cluster state. Safe batch execution records each shard's status, parameters, and immutable operation key, halts downstream shards immediately on ambiguity, and reconciles shard 42 remotely before repairing or resuming.
 
 <!-- leetllm: test, output=show -->
 
 ```python title="batch-saga-frontier.py"
-def advance_batch(items: list[str], ledger: dict[str, str], outcomes: dict[str, str]) -> dict[str, list[str]]:
+def advance_batch(items: list[str], progress: dict[str, str], outcomes: dict[str, str]) -> dict[str, list[str]]:
     for idx, shard in enumerate(items):
         op_key = f"mig-v3-{idx}-{shard}"
         state = outcomes.get(shard, "unknown")
-        ledger[shard] = f"{state}:{op_key}"
+        progress[shard] = f"{state}:{op_key}"
         if state != "committed":
-            # Stop at the exact ambiguous frontier; hold downstream shards undispatched.
+            # Stop at the exact ambiguous frontier and hold downstream shards undispatched.
             for held in items[idx + 1 :]:
-                ledger[held] = "held"
+                progress[held] = "held"
             break
 
     summary: dict[str, list[str]] = {"committed": [], "inspect": [], "held": []}
-    for shard, status in ledger.items():
+    for shard, status in progress.items():
         if status.startswith("committed:"):
             summary["committed"].append(shard)
         elif status == "held":
@@ -512,20 +524,20 @@ print(advance_batch(shards, {}, {"shard-01": "committed", "shard-02": "committed
 ```
 <!-- leetllm: output:end -->
 
-Every committed shard retains its confirmation and operation key, shard 3 halts in explicit `inspect` status, and shards 4 and 5 stay safely queued. If full reversal is required after partial progress, the system plans an explicit compensating migration on the committed subset rather than assuming automatic undo. Distinguishing confirmed shards from the uncertain frontier makes batch recovery auditable after arbitrary mid-run faults.
+Shards 1 and 2 keep their confirmations and operation keys, shard 3 pauses in `inspect`, and shards 4 and 5 stay held. If reversing partial progress is necessary, the system schedules an explicit compensating migration over the committed subset rather than assuming automatic undo.
 
 ## Operate and measure human oversight
 
-Regulatory frameworks such as NIST AI RMF (`GOVERN` and `MAP`) and EU AI Act Article 14 emphasize that human oversight fails when operators become rubber stamps under time pressure or opaque UI summaries.[^nistAiRmfCore2023][^euAiActArticle14] Simply placing a modal dialog in front of every call does not satisfy meaningful oversight if reviewers lack context or click blindly to clear their inbox. Engineering teams keep oversight real by tracking operational metrics rather than counting raw clicks, measuring catch quality alongside turnaround latency:
+Standards such as the NIST AI Risk Management Framework and EU AI Act Article 14 highlight a practical truth: human oversight fails when operators rubber-stamp opaque prompts under time pressure.[^nistAiRmfCore2023][^euAiActArticle14] Dropping a modal in front of every call achieves nothing if reviewers lack exact diffs or click Approve just to clear an inbox. Track catch quality alongside turnaround latency:
 
 | Metric | Healthy signal | Failure signal | Remediation |
 |---|---|---|---|
-| **Seeded-defect catch rate** | Reviewers block intentional non-executing canary faults | High approval rate alongside missed seeded defects | Trim noisy alerts; surface exact state diffs first |
-| **Queue intervention latency** | P95 review completes comfortably within grant TTL | Approvals regularly expire before execution | Tighten scope for low-risk auto paths; route urgent queues cleanly |
+| **Seeded-defect catch rate** | Reviewers block intentional non-executing canary faults | High approval rate alongside missed seeded defects | Trim noisy alerts and surface exact state diffs first |
+| **Queue intervention latency** | P95 review completes comfortably within grant TTL | Approvals regularly expire before execution | Tighten scope for low-risk auto paths and route urgent queues cleanly |
 | **CAS rejection rate** | Occasional safe rejects during concurrent releases | Frequent stale writes forcing repeated reviews | Shorten review window or group batched state transitions |
 | **Edit-and-rehash rate** | Reviewers revise mis-scoped limits cleanly before commit | Edited parameters bypass digest verification | Enforce mandatory re-hashing and re-approval on any edit |
 
-Non-executing shadow drills, where realistic defective proposals appear in the review queue with writes disabled downstream, reveal whether reviewers genuinely examine parameters or simply clear their inbox. Tracking catch rates on those shadow drills exposes queue fatigue long before an unreviewed mistake hits live production traffic. Pair that drill data with periodic policy audits to trim noisy low-risk interruptions out of the human inbox altogether.
+Non-executing shadow drills, where realistic defective proposals enter the review queue with downstream writes disabled, show whether reviewers actually inspect diffs or simply clear their inbox. Pair that drill data with regular queue reviews to remove noisy low-risk interruptions from human queues.
 
 <details>
 <summary>Diagnostic guide for common approval workflow failures</summary>
@@ -534,7 +546,7 @@ Non-executing shadow drills, where realistic defective proposals appear in the r
 |---|---|---|
 | Pending approval vanishes after container restart | Pause state lived in process memory | Persist checkpoints to SQLite or Postgres outside worker RAM |
 | Approved grant never resumes the workflow | Decision and resume message used two separate writes | Move decision and outbox insert into one `BEGIN IMMEDIATE` transaction |
-| Duplicate rollout triggered on one review | UI or API checked `pending` before locking row | Replace check-then-write with conditional `UPDATE ... WHERE status = 'pending'` |
+| Duplicate promotion triggered on one review | UI or API checked `pending` before locking row | Replace check-then-write with conditional `UPDATE ... WHERE status = 'pending'` |
 | Edited parameter executes under old grant | Server skipped canonical re-hashing after edit | Recompute JCS digest on edit and bump version to invalidate prior approval |
 | Delayed approval overwrites newer cluster fix | Executor verified digest without checking live revision | Enforce `WHERE revision = expected_revision` or HTTP `If-Match` |
 
@@ -543,7 +555,7 @@ Non-executing shadow drills, where realistic defective proposals appear in the r
 ```mastery-quiz
 [
   {
-    "question": "A release workflow uses SQLite checkpoints to pause at `interrupt()` for human approval of a 25% canary rollout. Forty minutes later a new worker reloads the checkpoint and resumes. Which statement describes safe resume design?",
+    "question": "A release workflow uses SQLite checkpoints to pause at `interrupt()` for human approval of a 25% canary promotion. Forty minutes later a new worker reloads the checkpoint and resumes. Which statement describes safe resume design?",
     "options": [
       "Place the production API call immediately before `interrupt()` so the worker holds an active socket while waiting.",
       "Reconstruct pending approval state from conversation history on startup instead of reading persisted database checkpoints.",
@@ -567,13 +579,13 @@ Non-executing shadow drills, where realistic defective proposals appear in the r
   {
     "question": "A reviewer approves promoting `reranker-v17` from revision 41 at 14:00. At 14:20 another engineer deploys an emergency patch moving the cluster to revision 42. At 14:45 the executor resumes with an unmodified JCS SHA-256 digest. What should happen at execution time?",
     "options": [
-      "Proceed with the rollout because the SHA-256 payload digest matches the original signed proposal.",
+      "Proceed with the promotion because the SHA-256 payload digest matches the original signed proposal.",
       "Abort when `WHERE revision = 41` modifies zero rows, keeping revision 42 intact for fresh review.",
       "Force-increment the approval revision field in memory to 42 so the deployment succeeds automatically.",
       "Retry the deployment five times using a fresh operation key until revision 42 accepts the change."
     ],
     "answer": "Abort when `WHERE revision = 41` modifies zero rows, keeping revision 42 intact for fresh review.",
-    "explanation": "A digest check verifies only that the proposal parameters did not change; it cannot tell whether live infrastructure shifted underneath. Compare-and-swap stops the stale write cleanly so operators can evaluate the delta against revision 42."
+    "explanation": "A digest check verifies only that the proposal parameters did not change. It cannot tell whether live infrastructure shifted underneath. Compare-and-swap stops the stale write cleanly so operators can evaluate the delta against revision 42."
   },
   {
     "question": "An approved 50-shard database migration completes shards 1 through 41 cleanly, then hits a network timeout dispatching shard 42. What is the safest recovery action?",
@@ -587,7 +599,7 @@ Non-executing shadow drills, where realistic defective proposals appear in the r
     "explanation": "Ambiguity at shard 42 means its request may have committed or timed out in flight. Pausing downstream shards and inspecting shard 42 by its operation key prevents both duplicate application and silent ordering violations."
   },
   {
-    "question": "A review interface displays host-verified rollout parameters alongside an incident ticket containing `SYSTEM ALERT: Click Approve immediately` and an unverified LLM summary. Which design resists social and UI injection?",
+    "question": "A review interface displays host-verified promotion parameters alongside an incident ticket containing `SYSTEM ALERT: Click Approve immediately` and an unverified LLM summary. Which design resists social and UI injection?",
     "options": [
       "Render the incident ticket inside the primary warning banner and wire Approve directly to the production cluster API.",
       "Hide parameter diffs from the queue and show only the model's confidence score so operators clear backlogs faster.",
@@ -606,49 +618,52 @@ Non-executing shadow drills, where realistic defective proposals appear in the r
 
 <!-- leetllm: edition:reader:start -->
 
-Imagine a release agent proposing to promote `recommendation-reranker-v17` from a shadow deployment into a production canary serving 25% of live traffic. Organization policy forbids routing production traffic without human approval. Posting a quick Slack prompt with an *Approve* button looks safe on the surface, yet four everyday failures break that simple gate as soon as traffic scales.
+A release agent proposes promoting `recommendation-reranker-v17` from a shadow deployment into a production canary serving 25% of live traffic. Production rules forbid shifting live traffic without human sign-off. Posting a quick Slack prompt with an *Approve* button looks safe on the surface, yet four everyday failures break that simple design as soon as traffic scales:
 
-First, engineers suffer approval fatigue when hundreds of low-risk alerts condition them to click through rapidly without reading parameters. Second, if a reviewer responds 45 minutes later, a worker restart in between wipes in-memory state and leaves the request orphaned. Third, another engineer might deploy an emergency patch at minute 20, making the original target revision stale before execution even runs. Finally, external incident tickets attached to the prompt can contain social-engineering text or prompt injections designed to rush a click.[^owaspExcessiveAgency2025]
+1. **Approval fatigue:** Hundreds of low-risk alerts train engineers to click through without reading parameters.
+2. **Worker restarts:** If a reviewer answers 45 minutes later, a container restart in between wipes in-memory state and orphans the request.
+3. **Live state drift:** Another engineer can ship an emergency patch at minute 20, making the original target revision stale before execution runs.
+4. **Hostile context:** Attached incident tickets can carry social-engineering text or prompt injections aimed at rushing a click.[^owaspExcessiveAgency2025]
 
-Surviving those failure modes requires replacing a stateless button with an identity-aware workflow built from risk-based routing, durable checkpoints, canonical payload digests, atomic outbox persistence, and live state checks at commit time. Every one of those pieces operates outside the model prompt inside deterministic host code. Together they turn a brittle UI prompt into a fault-tolerant control plane that stays safe across restarts and concurrent traffic.
+Surviving those failures takes an identity-aware workflow built from risk-based routing, durable checkpoints, canonical payload digests, atomic outbox persistence, and live state checks at commit time. All five run in deterministic host code outside the model prompt.
 
 ## Route actions by blast radius and undo cost
 
-Interrupting an operator for read-only inspection destroys queue focus and trains reviewers to skim. Instead, host policy classifies tool calls across **blast radius** (affected traffic or services) and **rollback cost** (how cleanly prior state can be restored). Routing reversible low-scope work automatically preserves engineering time for irreversible production writes.
+Interrupting an operator for read-only inspection destroys queue focus and trains reviewers to skim. Instead, host code classifies tool calls by **blast radius** (affected traffic or services) and **undo cost** (how cleanly prior state can be restored), running cheap reversible work automatically so human attention stays on irreversible production writes.
 
 <figure>
-  <img src="illustrations/_generated/action_risk_matrix_dark.png" alt="Four-quadrant action policy matrix plotting agent tool calls by blast radius on the horizontal axis and reversibility cost on the vertical axis. Low-scope reversible tools auto-execute, irreversible low-scope changes log and notify, reversible wide-scope shifts require single human approval, and wide irreversible mutations require dual approval plus precondition locks." />
-  <figcaption>Policy routing separates cheap, reversible inspection calls from wide-scope or irreversible mutations that demand pre-execution locks and sign-off.</figcaption>
+  <img src="illustrations/_generated/action_risk_matrix_dark.png" alt="Four-quadrant action risk matrix plotting agent tool calls by blast radius on the horizontal axis and reversibility cost on the vertical axis. Low-scope reversible tools auto-execute, irreversible low-scope changes log and notify, reversible wide-scope shifts require single human approval, and wide irreversible mutations require dual approval plus precondition locks." />
+  <figcaption>Risk-based routing separates cheap, reversible inspection calls from wide-scope or irreversible mutations that require pre-execution locks and sign-off.</figcaption>
 </figure>
 
-Read-only tools such as `git_diff` and local test suites run automatically without waiting in an inbox. Wide-scope yet fast-rolling actions like a 25% canary shift require single authenticated approval, whereas permanent production schema changes or root IAM grants require dual approval, tight expiry timers, and strict version preconditions. Setting confidence or risk deferral thresholds thoughtfully prevents queue overload while keeping critical tail mutations out of automated fast paths.
+Read-only tools such as `git_diff` and local test suites run automatically without waiting in an inbox. Wide-scope yet fast-reverting actions like a 25% canary shift require single authenticated approval, whereas permanent production schema changes or root IAM grants require dual approval, tight expiry timers, and strict version preconditions.
 
 <figure>
-  <img src="illustrations/_generated/deferral_threshold_curve_dark.png" alt="Line chart plotting human review load and unreviewed high-risk mutations across risk threshold settings from 0.2 to 0.9. Raising the threshold drops reviewer load from 74 percent to 5 percent while increasing unreviewed risk from 2 percent to 39 percent, favoring calibrated operating gates plus reversible canary limits." />
-  <figcaption>A narrow threshold floods the queue and fuels rubber-stamping; pairing calibrated deferral with narrow canary steps keeps both missed risk and human workload controlled.</figcaption>
+  <img src="illustrations/_generated/deferral_threshold_curve_dark.png" alt="Line chart plotting human review load and unreviewed high-risk mutations across risk threshold settings from 0.2 to 0.9. Raising the threshold drops reviewer load from 74 percent to 5 percent while increasing unreviewed risk from 2 percent to 39 percent, favoring calibrated operating thresholds plus reversible canary limits." />
+  <figcaption>A narrow threshold floods the queue and fuels rubber-stamping. Pairing calibrated deferral with narrow canary steps keeps both missed risk and reviewer workload controlled.</figcaption>
 </figure>
 
 ## Track a durable lifecycle, not a Boolean
 
-Because human judgment happens on human timescales, pause state cannot live in process RAM. A durable workflow checkpoints the exact proposed diff, stores an expiry timestamp and unique operation key, and shuts down the worker cleanly until a review arrives. When a human opens the inbox 45 minutes later, any available worker reloads the persisted record without repeating earlier computation.
+Because human judgment happens on human timescales, pause state cannot live in worker RAM. A durable workflow checkpoints the exact proposed diff, stores an expiry timestamp and unique operation key, and shuts down the worker cleanly until a review arrives. When an engineer opens the inbox 45 minutes later, any available worker reloads the persisted record without repeating earlier computation.
 
 <figure>
-  <img src="illustrations/_generated/human_in_loop_dark.png" alt="State diagram of a durable human-in-the-loop workflow. An agent saves checkpoint v3 and pauses for human review. The reviewer either cancels or edits into a new digest with zero gated writes, or atomically commits an authorization and outbox token. Execution checks live preconditions with compare-and-swap, routing timeouts to remote reconciliation by operation key." />
+  <img src="illustrations/_generated/human_in_loop_dark.png" alt="State diagram of a durable human-in-the-loop workflow. An agent saves checkpoint v3 and pauses for human review. The reviewer either cancels or edits into a new digest with zero unapproved writes, or atomically commits an authorization and outbox token. Execution checks live preconditions with compare-and-swap, routing timeouts to remote reconciliation by operation key." />
   <figcaption>Durable orchestration separates checkpointed suspension, atomic outbox persistence, live compare-and-swap verification, and timeout reconciliation.</figcaption>
 </figure>
 
-Each transition moves through explicit states rather than mutating an opaque boolean flag. Pending proposals are bound to a canonical RFC 8785 digest (sorted keys, whitespace-free SHA-256) so silent edits cannot slip under an earlier signature.[^rfc8785Jcs2020] Rejections and timeouts terminate cleanly with zero writes, parameter edits bump the proposal to version 4 and invalidate the old grant, and approvals persist both reviewer identity and authorization metadata together for a separate executor.
+Each transition moves through explicit states instead of flipping a Boolean flag. Pending proposals bind to a canonical RFC 8785 digest (sorted keys, whitespace-free SHA-256) so silent edits cannot slip under an earlier approval.[^rfc8785Jcs2020] Rejections and expiries finish cleanly with zero writes, edits bump the proposal version and invalidate the old grant, and approvals save reviewer identity alongside the grant for a separate executor.
 
 ## Commit the decision and trigger together
 
-Dual-write failures strand workflows whenever approving a record and publishing its resume signal happen in separate steps. A crash between those two writes leaves an approval stuck open permanently, while checking `status == 'pending'` before taking a lock allows two reviewers clicking together to dispatch twice. Eliminating both races requires coupling the authorization transition and the resume trigger inside one atomic database commit.
+Dual-write failures strand workflows whenever approving a record and publishing its resume signal happen in separate steps. A crash between those two writes leaves an approval stuck open permanently, while checking `status == 'pending'` before taking a lock lets two reviewers clicking together dispatch twice.
 
 <figure>
   <img src="illustrations/_generated/atomic_decision_outbox_dark.png" alt="Sequence diagram showing two concurrent reviewers competing for approval apr_123 at version 3 inside SQLite BEGIN IMMEDIATE. Reviewer A updates status to authorized and inserts outbox message apr_123:v3 in one atomic transaction. Reviewer B sees zero pending rows and receives conflict 409. The worker reads the committed outbox token and dispatches with a stable operation key." />
-  <figcaption>Putting the conditional status update and outbox insert inside one write transaction makes concurrent approval races impossible.</figcaption>
+  <figcaption>Putting the conditional status update and outbox insert inside one write transaction eliminates concurrent approval races.</figcaption>
 </figure>
 
-Inside `BEGIN IMMEDIATE` in SQLite, updating `WHERE status = 'pending' AND version = ?` and inserting the outbox message happen atomically.[^sqliteTransactions2026] Only the first writer satisfies `rowcount == 1`; any racing click receives a conflict error, and any mid-transaction failure rolls back both tables simultaneously. Because the downstream dispatcher reads solely from the committed outbox, failed approvals never emit dangling execution requests.
+Inside `BEGIN IMMEDIATE` in SQLite, updating `WHERE status = 'pending' AND version = ?` and inserting the outbox row happen atomically.[^sqliteTransactions2026] Only the first writer satisfies `rowcount == 1`. Any racing click gets a conflict, and any mid-transaction crash rolls both tables back together.
 
 <!-- leetllm: test, output=show -->
 
@@ -671,7 +686,7 @@ target_payload = {"service": "reranker-v17", "traffic": 25}
 digest = canonical_digest(target_payload)
 conn.execute("INSERT INTO approvals VALUES ('apr_123', 3, ?, 41, 'pending')", (digest,))
 
-# Step 1: Atomic decision + outbox commit; competing click fails cleanly.
+# Step 1: Atomic decision + outbox commit so a competing click fails cleanly.
 def approve(id_val: str, version: int) -> str:
     conn.execute("BEGIN IMMEDIATE")
     cur = conn.execute(
@@ -710,14 +725,16 @@ live state: (10, 42)
 
 ## Check live state and batch frontiers before acting
 
-As the lab output confirms, an intact SHA-256 digest only proves that the approved request text stayed untouched. It says nothing about whether production changed while waiting for review. Before mutating live infrastructure, execution must still verify that live cluster state matches the snapshot revision the reviewer saw.
+As that output shows, an intact SHA-256 digest proves only that the approved request parameters stayed untouched. It cannot tell whether production moved while waiting for review. Before mutating live infrastructure, execution still checks that live state matches the revision the reviewer inspected.
 
 <figure>
   <img src="illustrations/_generated/intent_and_live_state_dark.png" alt="Diagram comparing an immutable approval snapshot against a mutating live deployment. Proposal v3 records digest sha256=9f3c and requires revision 41. Between approval and execution, another writer moves live state from revision 41 to 42. Because the write enforces WHERE revision = 41, zero rows update even though the proposal digest never changed." />
   <figcaption>Compare-and-swap blocks stale grants even when the signed proposal digest remains unchanged.</figcaption>
 </figure>
 
-Enforcing `WHERE revision = expected_revision` (or HTTP `If-Match` headers[^rfc9110ConditionalRequests2022]) turns silent drift into a safe zero-row no-op, preserving live state at revision 42 until an operator inspects the new delta. Multi-target batches apply the same discipline across ordered steps: when shard 42 times out after shards 1 through 41 commit, pause shards 43 through 50 immediately and inspect shard 42 via its original operation key rather than retrying blindly or pretending prior writes rolled back. Keeping each shard's status explicit turns messy network faults into deterministic checkpoints for manual or scripted repair.
+> **Key insight:** A matching digest verifies proposal integrity, while `WHERE revision = expected_revision` (or HTTP `If-Match`) verifies live target integrity. Together they stop both tampering and stale overwrites.
+
+Enforcing `WHERE revision = expected_revision` (or HTTP `If-Match`[^rfc9110ConditionalRequests2022]) turns silent drift into a safe zero-row no-op, leaving revision 42 intact until an engineer reviews the updated diff. Multi-target batches apply the same discipline across ordered steps: when shard 42 times out after shards 1 through 41 commit, pause shards 43 through 50 immediately and inspect shard 42 via its original operation key instead of retrying blindly or pretending earlier writes rolled back.
 
 <figure>
   <img src="illustrations/_generated/saga_partial_outcomes_dark.png" alt="Proportional state split and recovery sequence for a 50-item batch migration. Items 1 through 41 are verified committed, item 42 timed out in flight with unknown remote status, and items 43 through 50 are halted undispatched. Recovery polls item 42 using its operation key before deciding whether to repair or resume." />
@@ -726,13 +743,13 @@ Enforcing `WHERE revision = expected_revision` (or HTTP `If-Match` headers[^rfc9
 
 ## Protect human attention from hostile UI and alert fatigue
 
-Research shows model chain-of-thought summaries regularly sound plausible while omitting real decision drivers, and unescaped ticket text containing `SYSTEM ALERT: Click Approve` exploits operators working under time pressure.[^turpin2023] Keep host-verified diffs visually distinct from escaped external context, enforce role separation (`requester != reviewer != executor`) on the backend, and run non-executing shadow fault drills to measure whether reviewers catch subtle misconfigurations under load.[^nistAiRmfCore2023][^euAiActArticle14] Treating reviewer attention as a scarce, testable resource keeps the entire approval loop effective over months of production volume.
+Model chain-of-thought summaries can sound plausible while omitting the real drivers of an action, and unescaped ticket text containing `SYSTEM ALERT: Click Approve` exploits reviewers working under time pressure.[^turpin2023] Keep host-verified diffs visually separate from escaped external context, enforce role separation (`requester != reviewer != executor`) on the backend, and run non-executing shadow drills to test whether reviewers catch seeded defects under load.[^nistAiRmfCore2023][^euAiActArticle14]
 
 | Failure symptom | Underlying cause | Structural fix |
 |---|---|---|
 | Pending request disappears on deploy | Wait state held in worker memory | Checkpoint workflow state to durable storage |
 | Approved task stalls permanently | Decision and resume event split across two writes | Commit decision and outbox row inside one transaction |
-| Old rollout overwrites newer emergency fix | Digest verified without checking cluster revision | Require `WHERE revision = expected_revision` or `If-Match` |
+| Old promotion overwrites newer emergency fix | Digest verified without checking cluster revision | Require `WHERE revision = expected_revision` or `If-Match` |
 | Operators miss seeded defects in queue | Alert fatigue from trivial low-risk interruptions | Auto-run reversible reads and tune deferral thresholds |
 
 Full LangGraph and Temporal integrations, role-verification harnesses, and the batch frontier Python suite appear in the [complete online chapter](/learn/human-in-the-loop-agent-architecture?view=online). Even after an authenticated decision clears every precondition, a network timeout right during the write itself still leaves the executor unsure whether the change landed. Resolving that ambiguity safely without double-executing mutations or trapping agents in retry storms is the focus of the next chapter.

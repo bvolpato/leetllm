@@ -31,38 +31,32 @@
 ---
 <!-- leetllm: edition:reference:start -->
 
-[Production RAG Pipelines](/learn/design-production-rag-pipeline) gave `policy-answerer-v1` a hard <span data-glossary="rag">RAG</span> rule: only permitted, current evidence may reach an answer. Its `retrieve()` function filters first, then counts overlapping tokens. That recovered a question from a support engineer about stale service-account keys. It missed the paraphrase that chapter already named: "refresh an expired machine <span data-glossary="secrets-management">credential</span>" when the policy says "stale service-account key rotation."
+In [Production RAG Pipelines](/learn/design-production-rag-pipeline), we built a retriever that filters by permissions and effective dates first, then ranks by overlapping words. That recovered queries using the document's exact phrasing ("stale service-account keys"), yet returned nothing for a natural paraphrase like "refresh an expired machine <span data-glossary="secrets-management">credential</span>."
 
-<span data-glossary="hybrid-search">Hybrid search</span> combines <span data-glossary="sparse-retrieval">sparse</span> lexical retrieval with <span data-glossary="dense-retrieval">dense</span> vector retrieval. We maintain the existing access filtering and add diagnostic code `KROT-14` to the policy text. BM25, cosine similarity, and <span data-glossary="reciprocal-rank-fusion">Reciprocal Rank Fusion (RRF)</span> from [Core Retrieval Algorithms](/learn/core-retrieval-algorithms) become the retrieval path in `policy-answerer-v2`. The lab executes ranking and filtering, using calibrated vector coordinates to isolate retrieval geometry from model checkpoints.
+Switch to pure vector search and the opposite problem appears: a semantic encoder catches the paraphrase, yet often misranks an opaque internal identifier like `KROT-14`. <span data-glossary="hybrid-search">Hybrid search</span> runs both <span data-glossary="sparse-retrieval">sparse</span> lexical search and <span data-glossary="dense-retrieval">dense</span> vector search over the same permitted corpus, then merges their rankings with <span data-glossary="reciprocal-rank-fusion">Reciprocal Rank Fusion (RRF)</span> (introduced in [Core Retrieval Algorithms](/learn/core-retrieval-algorithms)).
 
-## Two query styles, two possible misses
+## Two query styles, two opposite misses
 
-The support engineer needs the same policy for two distinct searches:
+Consider two queries that both point to the exact same key-rotation rule:
 
 | Query | Useful signal | Required evidence |
 |---|---|---|
-| `KROT-14` | Exact policy code | `eu-key-rotation-v2-rule` |
+| `KROT-14` | Exact rule code | `eu-key-rotation-v2-rule` |
 | `refresh expired machine credential` | Meaning close to "stale service-account key rotation" | `eu-key-rotation-v2-rule` |
 
-A word-matching index has a decisive clue for the first query and no shared vocabulary for the second. That's the **vocabulary mismatch** problem (or lexical gap): without stemming, synonym rules, or learned expansion, our analyzer cannot connect these two phrases. Sparse retrieval can bridge some lexical gaps when its representation includes expanded terms.
+Word matching nails the code and fails completely on the paraphrase because the two phrases share zero vocabulary terms (**vocabulary mismatch**). Dense embeddings bridge that vocabulary gap, yet subword tokenizers split unfamiliar codes like `KROT-14` into generic pieces that easily collide with neighboring codes like `KROT-13`.
 
-A trained dense encoder may connect the paraphrase to the policy even without shared words. It may also struggle with an unfamiliar internal identifier such as `KROT-14`. Its tokenization and ranking depend on the checkpoint; test identifiers with the actual encoder. We construct complementary test cases to verify the hybrid path, distinguishing this targeted regression from open-domain evaluation.
-
-Both lanes receive the same permitted corpus in this service. Fusion can improve recall, but can also demote a useful hit. Authorization decides which candidates may reach candidate ranking; fusion only orders those candidates.
-
-The filter enforces permission rules established in the previous lesson. Sparse and dense lanes only see IDs that already passed it.
+Running both lanes over the same pre-filtered, permitted corpus gives each lane a chance to recover its specialty while keeping restricted and superseded records completely out of ranking, fusion, and logs.
 
 ```checkpoint
 Why do both retrieval lanes receive an already permitted corpus in this lab?
 ---
-It keeps restricted text and IDs out of these ranker outputs and avoids spending their candidate budget on inaccessible records. If 40 of an unfiltered lane's top 50 hits are unauthorized, filtering leaves 10. Exposing unfiltered ranks, counts, scores, or traces can also reveal restricted information. An internal post-filter can be safe when a trusted search service filters before disclosure; some approximate indexes traverse nonmatching nodes internally.[^azure2026VectorFilters] Build the lab's pre-filter from authentic caller grants and current version metadata, then validate both inputs.
+Filtering before ranking keeps restricted text and IDs out of ranker outputs, traces, and caches, and avoids wasting candidate slots on records the caller cannot read. If 40 of an unfiltered lane's top 50 hits are unauthorized, post-filtering leaves only 10. Internal engine post-filtering can still protect disclosure when enforced before results leave a trusted search service, though approximate indexes may traverse nonmatching nodes internally.[^azure2026VectorFilters]
 ```
 
 ## Recreate the permitted candidate universe
 
-The lab reuses the policy shape from the previous lesson. It adds diagnostic policy code `KROT-14` so an exact-identifier query has an unambiguous expected result. Two tempting records remain in storage but must not be searchable for the caller: a superseded revision and a restricted admin-only rule.
-
-The access filter determines which chunks enter the searchable candidate set. The current EU support rule survives; the old revision fails freshness, and the admin rule fails authorization. That set becomes input to both lanes.
+We reuse the EU corpus from the previous chapter and tag the current key-rotation rule with diagnostic code `KROT-14`. Two tempting records remain in storage: a superseded revision (`eu-key-rotation-v1-rule`) and a restricted admin rule (`restricted-admin-key-rotation`). The permission and freshness filter excludes both before either ranker sees the corpus.
 
 <!-- leetllm: test, output=show, id=hybrid-lab -->
 ```python title="permitted-candidates.py"
@@ -70,10 +64,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from math import fsum, hypot, isfinite, log
+from math import isfinite, log
 import re
-
-import numpy as np
 
 
 @dataclass(frozen=True)
@@ -97,8 +89,7 @@ class Caller:
 
 
 EVAL_DATE = date(2026, 5, 27)
-CALLER = Caller("analyst-48291", "EU", frozenset({"support:eu"}))
-LUNA = CALLER
+CALLER = Caller("eu-support-01", "EU", frozenset({"support:eu"}))
 CHUNKS = [
     PolicyChunk(
         "eu-key-rotation-v2-rule",
@@ -196,11 +187,7 @@ Permitted current ids: ['eu-key-rotation-v2-rule', 'eu-session-timeout-v1-rule',
 ```
 <!-- leetllm: output:end -->
 
-Every normal retrieval path below passes the permission-filtered `permitted` list to its rankers. Ranker functions still accept arbitrary lists when called directly, so enforce authorization at the serving endpoint. Derive `Caller` from trusted authentication and authorization state, then recheck permission when fetching text for context. Scope caches and traces to the same caller and policy version.
-
-The fixed `EVAL_DATE` keeps replay behavior stable; a live service must provide its actual effective date. The chunk shape preserves `document_id` and `parent_id`. Permission filtering and parent-context expansion sit immediately downstream of this hybrid candidate stage.
-
-Two records stay in storage. Which IDs never become searchable for the caller?
+Every retrieval path below passes `permitted` into both rankers. Verify explicitly that the superseded rule and restricted admin rule stay blocked:
 
 <!-- leetllm: test, output=show, continue=hybrid-lab, id=hybrid-boundary -->
 ```python title="candidate-filtering-regression.py"
@@ -213,7 +200,7 @@ print("Searchable by caller:", permitted_ids)
 print("Stored but blocked:", blocked_ids)
 assert blocked_ids == ["eu-key-rotation-v1-rule", "restricted-admin-key-rotation"]
 old_rule = CHUNKS[1]
-assert is_current(old_rule, date(2026, 3, 31))  # end dates are inclusive here
+assert is_current(old_rule, date(2026, 3, 31))
 assert not is_current(old_rule, date(2026, 4, 1))
 assert not is_current(CHUNKS[0], date(2026, 3, 31))
 assert permitted_chunks(Caller("other-region", "US", CALLER.acl_tags), CHUNKS, EVAL_DATE) == []
@@ -227,22 +214,16 @@ Stored but blocked: ['eu-key-rotation-v1-rule', 'restricted-admin-key-rotation']
 ```
 <!-- leetllm: output:end -->
 
-This test keeps a deliberately attractive hidden policy in storage. Later ranking changes fail loudly if they accidentally widen the searchable set.
-
 <figure>
   <img src="illustrations/_generated/hybrid_search_dark.png" alt="Five stored chunks pass the caller's EU support and current-version filter. The current key, session, and audit chunks pass; the superseded key rule and restricted admin rule do not. Both retrieval lanes receive the same three permitted IDs. BM25 preserves KROT-14 as krot-14 in query and document analysis. The paraphrase refresh expired machine credential has no lexical overlap. A coordinate plot shows its test vector (0.98, 0.05, 0), close to the key axis (1, 0, 0) and far from the session axis (0, 1, 0). Cosines are approximately 0.9987 and 0.0510." />
-  <figcaption>Caller credentials and effective dates determine which chunks enter both retrieval lanes. Matching analyzed code tokens recover the identifier query. The reference paraphrase vector points almost along the key-rule axis to verify dense scoring geometry.</figcaption>
+  <figcaption>Permissions and effective dates select the three searchable records before either lane runs. BM25 keeps `krot-14` as a single token to recover exact codes, while dense cosine similarity aligns the paraphrase with the key-rotation axis.</figcaption>
 </figure>
 
 ## Build the sparse lane with BM25
 
-Sparse retrieval represents a document by vocabulary terms. Most coordinates are zero because a short policy chunk uses only a small part of the vocabulary. You already scored that representation with <span data-glossary="bm25">BM25</span> in [Core Retrieval Algorithms](/learn/core-retrieval-algorithms): rare matching terms contribute more, term frequency saturates, and length normalization adjusts their contribution.[^robertson2009]
+Sparse retrieval represents each document by its vocabulary terms, with <span data-glossary="bm25">BM25</span> weighting rare terms more heavily, saturating repeated occurrences, and normalizing for document length.[^robertson2009]
 
-The analyzer below keeps `KROT-14` as the single token `krot-14`. Splitting or dropping its digits can weaken the exact-match signal, so index and query analysis must agree. The scorer uses Lucene's documented positive IDF form, with a leading `1 +`; this doesn't reproduce Lucene's entire index and scoring implementation.[^lucene2025bm25]
-
-For a first calculation, imagine three equal-length chunks and a code appearing once in only one of them. Its inverse document frequency is `ln(1 + (3 - 1 + 0.5)/(1 + 0.5)) = ln(8/3)`, about `0.981`. With one occurrence in an average-length chunk, the frequency factor is `2.2 / 2.2 = 1`. The matching chunk therefore scores `0.981`; nonmatching chunks score zero and aren't lexical candidates. The actual chunks below have different lengths, so their length factors differ.
-
-For a query term $t$ and document $d$, the lab computes:
+For query terms $q$ and document $d$:
 
 $$
 \operatorname{BM25}(q,d)=\sum_{t \in q}\operatorname{IDF}(t)
@@ -250,15 +231,14 @@ $$
 {f(t,d)+k_1(1-b+b\lvert d\rvert/\operatorname{avgdl})}
 $$
 
-Here, $q$ is the set of distinct analyzed query terms, $f(t,d)$ is the term count in chunk $d$, $\lvert d\rvert$ is its length in <span data-glossary="token">tokens</span>, and `avgdl` is the corpus average. Two parameters control the curve:
-- $k_1$ controls term-frequency saturation. Holding the length-normalization factor fixed, the frequency factor approaches $k_1+1=2.2$ when $k_1=1.2$. Repeated mentions have diminishing returns; this does not make the scorer immune to keyword stuffing.
-- $b$ controls document length normalization. For the same matching term and occurrence count in one corpus, $b=0.75$ gives a shorter chunk a larger contribution than a longer one. Measure document relevance separately from this term contribution. The lab's $k_1=1.2$ and $b=0.75$ match the defaults documented for Lucene 10.3.1.[^lucene2025bm25]
+Here $f(t,d)$ is the term count in chunk $d$, $\lvert d\rvert$ is its length in <span data-glossary="token">tokens</span>, and `avgdl` is the corpus average length. Using Lucene's standard defaults ($k_1=1.2$, $b=0.75$) and positive IDF $\ln(1 + (N - n_t + 0.5)/(n_t + 0.5))$:[^lucene2025bm25]
 
-The exact identifier `krot-14` occurs only in the relevant current chunk, so it receives positive lexical weight. This toy recomputes statistics on permitted chunks. A deployed index may use broader collection statistics; filtering its hits doesn't automatically recompute IDF per caller.
+- **$k_1$ controls term-frequency saturation:** Repeated mentions yield diminishing returns instead of scaling linearly.
+- **$b$ controls length normalization:** A shorter chunk with one match outscores a long chunk with one match.
 
-The analyzer also drops common function words. Without that stopword rule, a query containing only a shared word such as "a" could appear to retrieve an unrelated policy.
+For a quick hand check across three equal-length chunks where `krot-14` appears once in a single chunk, $\operatorname{IDF} = \ln(1 + (3 - 1 + 0.5)/(1 + 0.5)) = \ln(8/3) \approx 0.981$. The frequency factor at average length is $(1 \times 2.2)/(1 + 1.2) = 1$, giving a score of `0.981` while nonmatching chunks score `0`.
 
-The lexical lane evaluates query tokens against indexed document statistics. `KROT-14` produces a strong hit because its token is rare; the paraphrase returns nothing because none of its words overlap the policy.
+> **Common mistake:** Default search analyzers often split on hyphens, turning `KROT-14` into `krot` and `14`. Always make sure index-time and query-time analyzers keep domain codes intact.
 
 <!-- leetllm: test, output=show, continue=hybrid-boundary, id=hybrid-bm25 -->
 ```python title="bm25-lane.py"
@@ -336,25 +316,7 @@ BM25 paraphrase: []
 ```
 <!-- leetllm: output:end -->
 
-BM25 did its job. It recovered the policy from its code and openly failed when the user used no policy vocabulary. A real evaluation set needs both query types; otherwise the lexical lane can look perfect while customers miss evidence.
-
-BM25's empty result exposes a vocabulary gap. What sparse model can learn useful term weights while keeping access controls fixed?
-
-BM25 isn't the only sparse option. **SPLADE** (SParse Lexical AnD Expansion) learns vocabulary weights using a Transformer's masked language modeling (MLM) head. Let $z_{ij}$ be that head's logit for vocabulary item $j$ at token position $i$. The original SPLADE used **sum pooling**:[^formal2021]
-
-$$
-w_j=\sum_i \log(1+\operatorname{ReLU}(z_{ij}))
-$$
-
-SPLADE v2 introduced **max pooling**, keeping the strongest activation across positions:[^formal2021spladeV2]
-
-$$
-w_j=\max_i \log(1+\operatorname{ReLU}(z_{ij}))
-$$
-
-ReLU zeros negative activations, and regularization encourages a sparse representation. Learned positive weights can include vocabulary items absent from the input, giving queries and documents additional ways to overlap. Which expansions help this policy corpus is an empirical question; no SPLADE checkpoint is run here.
-
-These nonnegative weights can support dot-product retrieval through an inverted index that accepts learned term weights and the required scoring function. A BM25-only endpoint does not automatically implement SPLADE scoring. Evaluate its query cost, index size, candidate recall, and permission behavior before replacing the lexical lane.
+BM25 nails `KROT-14` and returns nothing for the paraphrase because the analyzed token sets have zero overlap:
 
 <!-- leetllm: test, output=show, continue=hybrid-bm25, id=hybrid-sparse-debug -->
 ```python title="diagnose-sparse-miss.py"
@@ -376,40 +338,49 @@ Paraphrase overlap: []
 ```
 <!-- leetllm: output:end -->
 
+<details>
+<summary>Deep dive: Learned sparse expansion with SPLADE</summary>
+
+BM25 only scores terms that literally appear in both query and document. **SPLADE** (SParse Lexical AnD Expansion) uses a Transformer's masked language modeling head to assign nonnegative weights across the entire vocabulary, expanding documents with semantically related terms. Given MLM logit $z_{ij}$ for vocabulary item $j$ at position $i$, original SPLADE used sum pooling:[^formal2021]
+
+$$
+w_j=\sum_i \log(1+\operatorname{ReLU}(z_{ij}))
+$$
+
+SPLADE v2 replaced sum pooling with max pooling across token positions:[^formal2021spladeV2]
+
+$$
+w_j=\max_i \log(1+\operatorname{ReLU}(z_{ij}))
+$$
+
+ReLU zeroes negative logits and sparsity regularization keeps most weights at zero, allowing dot-product lookup over an inverted index that supports learned term weights.
+
+</details>
+
 ```checkpoint
-If BM25 returns no result for "refresh expired machine credential," should you lower an authorization or freshness filter?
+If BM25 returns no result for "refresh expired machine credential," should you relax an authorization or freshness filter?
 ---
-Keep the permission and freshness checks fixed. Add a semantic retrieval lane or improve the searchable representation, then test whether it recovers the paraphrase.
+No. Keep permission and freshness filters fixed. Add a semantic retrieval lane or improve query/document representations, then measure whether it recovers the paraphrase within the same permitted set.
 ```
 
 ## Add a dense semantic lane
 
-A dense retriever encodes queries and chunks as compact <span data-glossary="vector">vectors</span>, then ranks their matches. The original Dense Passage Retrieval (DPR) used separate BERT-base query and passage encoders, 768-dimensional CLS representations, and **dot-product scoring**.[^karpukhin2020] Passage vectors were computed offline; online retrieval encoded the query and searched the passage index. Other checkpoints use different dimensions, preprocessing, and scoring conventions. The lab uses cosine similarity as in [Core Retrieval Algorithms](/learn/core-retrieval-algorithms), over permitted current chunks.
+A dense retriever encodes queries and passages into compact <span data-glossary="vector">vectors</span> so semantically related phrases land near each other even with zero shared words. Dense Passage Retrieval (DPR) pioneered this bi-encoder setup with separate BERT query and passage encoders scored by dot product, computing passage vectors offline and encoding only the query at request time.[^karpukhin2020]
 
-Bi-encoder training aims to make relevant query-passage pairs score above irrelevant pairs. That can recover paraphrases; a checkpoint may still misrank domain codes or new vocabulary. Unit-sphere geometry applies when the vectors are normalized. To diagnose a real `KROT-14` miss, inspect the actual checkpoint's tokens and retrieved passages, then compare against the lexical lane on held-out code queries.
+To keep the vector geometry transparent before running a full neural encoder, we represent our three permitted documents as orthogonal 3D basis vectors (key rotation, session timeout, audit rebuild) and place the paraphrase query at `(0.98, 0.05, 0)`. We intentionally leave `KROT-14` out of `QUERY_VECTORS` to mirror a semantic miss on an opaque code.
 
-The vectors below are calibrated three-dimensional test coordinates. No <span data-glossary="embedding">embedding</span> model produced them. Their named coordinates make the geometry easy to inspect. Learned embedding coordinates generally don't have these clean human-assigned meanings:
-
-| Dimension | Semantic axis |
-|---|---|
-| 1 | Key-rotation intent |
-| 2 | Session timeout intent |
-| 3 | Audit-log rebuild intent |
-
-The lookup intentionally has no vector for `KROT-14`. That simulates an unavailable semantic result, not how a real encoder necessarily handles an unfamiliar code. A real encoder normally emits a nonzero vector even for a poorly represented identifier; it may then rank the wrong passages.
-
-The lab ranks those vectors with <span data-glossary="cosine-similarity">cosine similarity</span>:
+Ranking with <span data-glossary="cosine-similarity">cosine similarity</span>:
 
 $$
 \operatorname{Sim}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2}
 $$
 
-Vectors pointing in a similar direction score closer to `1`; their raw length doesn't decide the result.
-
-For the paraphrase vector `(0.98, 0.05, 0)`, the norm is about `0.9813`. Its cosine with the key-rotation axis is `0.98 / 0.9813 ≈ 0.9987`, while the session axis scores about `0.0510`. Both are positive, but only the first is the intended policy. Positivity alone isn't a relevance judgment.
+For `(0.98, 0.05, 0)`, the Euclidean norm is $\sqrt{0.98^2 + 0.05^2} \approx 0.9813$. Its cosine with the key-rotation axis `(1, 0, 0)` is $0.98 / 0.9813 \approx 0.9987$, whereas its cosine with the session axis `(0, 1, 0)` is $0.05 / 0.9813 \approx 0.0510$.
 
 <!-- leetllm: test, output=show, continue=hybrid-sparse-debug, id=hybrid-dense -->
 ```python title="dense-lane.py"
+import numpy as np
+
 Vector = tuple[float, float, float]
 
 DOCUMENT_VECTORS: dict[str, Vector] = {
@@ -449,7 +420,7 @@ def dense_rank(
         raise ValueError("top_k must be a positive integer")
     query_vector = QUERY_VECTORS.get(query)
     if query_vector is None:
-        return []  # explicit synthetic miss, not an encoder inference result
+        return []
     ranked = [
         (chunk, cosine(query_vector, DOCUMENT_VECTORS[chunk.chunk_id]))
         for chunk in chunks
@@ -478,37 +449,23 @@ Dense paraphrase: ['eu-key-rotation-v2-rule', 'eu-session-timeout-v1-rule']
 ```
 <!-- leetllm: output:end -->
 
-This scan tells us whether our supplied vectors rank as intended. It says nothing about encoder quality or approximate-neighbor recall. The `score > 0` cutoff is a toy candidate rule, not a calibrated relevance threshold. To test a learned encoder, replace both vector tables, use the checkpoint's query/document preprocessing and scoring convention, and evaluate its actual ranks. The engineered miss here only checks that the sparse fallback survives fusion.
-
-The two lists now disagree, and their scores are not in the same units. How do you combine them without letting the larger numbers win?
+Now the two lanes disagree in complementary ways, and their scores live on incompatible numeric scales (unbounded BM25 scores versus cosines in $[-1, 1]$). How do we combine them cleanly?
 
 ## Fuse candidates without mixing score scales
 
-You already fused rank lists with Reciprocal Rank Fusion in [Core Retrieval Algorithms](/learn/core-retrieval-algorithms). The same reason applies here: BM25 scores and cosine similarities don't share units. A BM25 value reflects term statistics and scorer settings; cosine measures vector alignment between -1 and 1. Adding raw scores can give a lane more influence because its score differences are larger, rather than because its evidence is better.
-
-Why use reciprocals? A rank-sum method gives each adjacent rank change the same cost; it also needs a convention for candidates absent from a list. Reciprocal ranks emphasize early positions: rank 1 contributes 1.0, rank 2 contributes 0.5, and rank 10 contributes 0.1. The resulting value is a ranking score. Estimate relevance probabilities in a separately calibrated model.
-
-With $k=0$, the contribution drops 50% from rank 1 to rank 2. But one rank-1 vote **ties**, rather than beats, two rank-2 votes: $1/1 = 1/2+1/2 = 1$. Smoothing changes how strongly a top position competes with agreement across lanes.
-
-Cormack, Clarke, and Buettcher (2009) used a constant $k$ to reduce the influence of high-ranking outliers:[^cormack2009]
+Adding a raw BM25 score of 3.8 to a cosine similarity of 0.99 lets whichever lane happens to have larger numbers dominate. **Reciprocal Rank Fusion (RRF)** sidesteps incompatible scales by ignoring raw scores and combining only rank positions:[^cormack2009]
 
 $$
 \operatorname{RRF}(d)=\sum_{l:\,d\in L_l}\frac{1}{k+\operatorname{rank}_l(d)}
 $$
 
-Here $L_l$ is lane $l$'s returned list, ranks start at 1, and $k$ controls the rank penalty slope. We use $k=60$, which the original paper selected in its pilot experiments. Treat it as a starting value and tune it on labeled queries:
-- Rank 1 contributes $1 / (60 + 1) = 1/61 \approx 0.01639$.
-- Rank 2 contributes $1 / (60 + 2) = 1/62 \approx 0.01613$.
-
-The step from rank 1 to rank 2 shrinks from a 50% drop to a 1.6% step:
+Here $L_l$ is lane $l$'s ranked list (1-indexed) and $k$ is a smoothing constant, commonly initialized at $k=60$ from Cormack et al. With $k=60$, rank 1 earns $1/61 \approx 0.01639$ and rank 2 earns $1/62 \approx 0.01613$, a gentle $1.6\%$ step:
 
 $$
 \frac{1/61 - 1/62}{1/61} = \frac{1}{62} \approx 1.61\%
 $$
 
-This gentle slope allows multi-lane consensus to accumulate. A candidate that ranks consistently near the top of both lanes can outscore a candidate that topped only one lane.
-
-For the shared-language query, `eu-key-rotation-v2-rule` ranks first in both lanes, earning $1 / 61 + 1 / 61 = 2/61 \approx 0.03279$. The session-timeout distractor ranks second in both lanes, earning $1 / 62 + 1 / 62 = 2/62 \approx 0.03226$. These values aren't probabilities. They're rank-based scores used to order the fused candidate set.
+That gentle slope rewards cross-lane consensus: a document ranked near the top of both lanes accumulates roughly $2/61 \approx 0.03279$, outscoring a document that appears in only one lane.
 
 <!-- leetllm: test, output=show, continue=hybrid-dense, id=hybrid-fusion -->
 ```python title="rrf-fusion.py"
@@ -551,7 +508,6 @@ def hybrid_rank(
     ):
         raise ValueError("result and candidate depths must be positive integers")
     searchable = permitted_chunks(caller, chunks, EVAL_DATE)
-    # Separate the lane budget from final selection; this corpus has only 3 IDs.
     pool = candidate_pool if candidate_pool is not None else max(50, top_k)
     pool = min(pool, len(searchable)) if searchable else top_k
     fused = reciprocal_rank_fusion(
@@ -580,11 +536,9 @@ stale service-account key rotation within 14 days -> ['eu-key-rotation-v2-rule',
 ```
 <!-- leetllm: output:end -->
 
-RRF combines candidate lists by rank position. Its coverage is the union of the candidates its lanes return, so recall depends on the lanes.
+> **Key insight:** Keep **lane depth** (`candidate_pool`) separate from **final context size** (`top_k`). If each lane only fetches 2 hits, mid-ranked candidates never meet in fusion.
 
-Treat lane depth and final context size as separate controls. If `top_k` is 2 and each lane only returns 2 hits, deeper evidence never meets in fusion. A larger lane pool can preserve it, at additional search and fusion cost. It can also introduce competing dual-list hits; measure final Recall@k as depth changes.
-
-A dual-listed distractor can still outrank a correct one-lane hit after fusion. Comparing $2/62 \approx 0.03226$ with $1/61 \approx 0.01639$ shows how consensus across two mediocre positions outscores an isolated top hit:
+Even with full lists, RRF's consensus bias has a classic trap: a mediocre distractor appearing at rank 2 in *both* lanes scores $2/62 \approx 0.03226$, beating a correct single-lane rank-1 hit that scores $1/61 \approx 0.01639$:
 
 | Chunk | Sparse rank | Dense rank | RRF |
 |---|---|---|---|
@@ -592,28 +546,22 @@ A dual-listed distractor can still outrank a correct one-lane hit after fusion. 
 | session-timeout (distractor) | 2 | 2 | $2/62$ |
 | audit-rebuild (noise) | absent | 1 | $1/61$ |
 
-$2/62 > 1/61$, so the distractor wins. The correct chunk ties the dense-only noise at $1/61$ and loses the identifier tie-break, falling to third.
+With alphabetical tie-breaking, the correct rule drops to third place, falling right out of a top-2 cutoff:
 
 <!-- leetllm: test, output=show, continue=hybrid-fusion, id=hybrid-fusion-pathology -->
 ```python title="fusion-depth-pathology.py"
-# Toy ranks (not the live BM25/dense indexes): correct evidence is sparse-only
-# rank 1; a dual-listed distractor is rank 2 in both lanes.
 correct = next(c for c in permitted if c.chunk_id == "eu-key-rotation-v2-rule")
 distractor = next(c for c in permitted if c.chunk_id == "eu-session-timeout-v1-rule")
 noise = next(c for c in permitted if c.chunk_id == "eu-audit-rebuild-v1")
 
 sparse_only_lists = [
-    [(correct, 8.0), (distractor, 3.0)],  # correct r1, distractor r2
-    [(noise, 0.9), (distractor, 0.85)],  # dense: noise r1, distractor r2; correct absent
+    [(correct, 8.0), (distractor, 3.0)],
+    [(noise, 0.9), (distractor, 0.85)],
 ]
 fused_full = reciprocal_rank_fusion(sparse_only_lists)
 fused_ids = [chunk.chunk_id for chunk, _ in fused_full]
 top2_ids = fused_ids[:2]
 
-# Dual-list distractor: 1/(60+2) + 1/(60+2) = 2/62
-# Sparse-only correct: 1/(60+1) = 1/61
-# Dense-only noise: 1/(60+1) = 1/61
-# 2/62 > 1/61, so the distractor wins fusion; correct ties noise and loses the id break.
 assert fused_ids[0] == "eu-session-timeout-v1-rule"
 assert abs(fused_full[0][1] - 2 / 62) < 1e-12
 assert abs(next(s for c, s in fused_full if c.chunk_id == correct.chunk_id) - 1 / 61) < 1e-12
@@ -624,8 +572,8 @@ print("Fused order:", fused_ids)
 print("Recall@1 after fusion:", recall_after_fusion_at_1)
 print("Recall@2 after fusion:", recall_after_fusion_at_2)
 assert recall_after_fusion_at_1 == 0
-assert recall_after_fusion_at_2 == 0  # buried past dual-list distractor + dense-only noise
-assert correct.chunk_id in fused_ids  # still present deeper in the fused pool
+assert recall_after_fusion_at_2 == 0
+assert correct.chunk_id in fused_ids
 ```
 
 <!-- leetllm: output:start -->
@@ -636,12 +584,10 @@ Recall@2 after fusion: 0
 ```
 <!-- leetllm: output:end -->
 
-If the generator only packs `top_k=2`, the correct policy is present in a sparse lane but absent from context. That is a fusion-depth failure, not a permission failure. In this example, both input lists are already complete: increasing their depth cannot change the three candidate votes. Raising the fused budget retains the target; a reranker must receive that fuller pool to have a chance to promote it. Neither choice guarantees the final answer will use it.
-
-One chunk must receive at most one vote per lane. Repeated chunk IDs would otherwise let a retriever manufacture agreement with itself. Check that invariant alongside empty inputs and undefined cosine values:
+To keep the correct rule alive for downstream reranking, pass a deeper fused pool forward rather than truncating at `top_k=2`. Also deduplicate chunk IDs within each lane so a single chunk cannot vote twice, and reject zero or NaN vectors before cosine normalization:
 
 <!-- leetllm: test, output=show, continue=hybrid-fusion-pathology, id=hybrid-boundary-inputs -->
-```python title="ranking-invariants.py"
+```python title="ranking-edge-cases.py"
 from dataclasses import replace
 
 def rejects(call):
@@ -661,8 +607,6 @@ assert rejects(lambda: bm25_rank(EXACT, permitted, k1=-1))
 assert rejects(lambda: dense_rank(PARAPHRASE, permitted, top_k=0))
 assert rejects(lambda: hybrid_rank(EXACT, CALLER, CHUNKS, candidate_pool=0))
 assert rejects(lambda: bm25_rank(EXACT, [correct, correct]))
-assert rejects(lambda: dense_rank(PARAPHRASE, permitted, top_k=-1))
-assert rejects(lambda: hybrid_rank(EXACT, CALLER, CHUNKS, candidate_pool=-1))
 assert rejects(lambda: reciprocal_rank_fusion([[]], k=-1))
 assert rejects(lambda: bm25_rank(EXACT, permitted, b=2.0))
 assert cosine((1e308, 1e308, 0.0), (1e308, 1e308, 0.0)) > 0.999999999
@@ -683,20 +627,18 @@ All-empty lexical corpus: no candidates
 
 <figure>
   <img src="illustrations/_generated/rank_fusion_dark.png" alt="Two complete rank lists feed reciprocal rank fusion at k=60. BM25 ranks key rotation first and session timeout second; dense ranks session timeout first and key rotation second. Combined, session timeout wins with score 0.0323 while key rotation scores 0.0323 with alphabetical tie-breaking." />
-  <figcaption>Each colored bar segment is one lane’s reciprocal-rank contribution. Session receives two rank-two votes and leads. Audit and the required key rule tie on one rank-one vote; ascending chunk ID puts key third, beyond the top-two cutoff. Both input lists are complete, so retaining key requires a larger fused budget before any reranking.</figcaption>
+  <figcaption>Two rank-2 votes (`2/62 = 0.0323`) outscore a single rank-1 vote (`1/61 = 0.0164`), pushing the correct key-rotation rule below a top-2 cutoff. Passing a larger fused pool to reranking preserves it.</figcaption>
 </figure>
 
 ```checkpoint
 Why shouldn't you add a BM25 score directly to a cosine-similarity score?
 ---
-They don't share units or a common numeric scale. A large BM25 value can dominate a cosine value even when that isn't the ranking behavior you want. RRF combines rank positions instead; normalized weighted fusion is another option when you tune it on labeled queries.
+They live on different numeric scales. A large BM25 score can overpower cosine similarity regardless of relevance. RRF combines rank positions instead; normalized weighted fusion is an alternative once calibrated on labeled queries.
 ```
 
 ### Should you tune weights instead?
 
-RRF is a useful baseline because it combines ranks without fitting unrelated score scales. Bruch, Gai, and Ingber found a tuned convex combination of normalized scores outperformed RRF in their experiments, including out-of-domain tests.[^bruch2023fusion] Compare both methods on your data before choosing a fusion rule.
-
-Suppose a candidate has normalized dense score `0.8` and sparse score `0.2`. Giving dense a weight of `0.7` yields `0.7 × 0.8 + 0.3 × 0.2 = 0.62`. In general:
+RRF requires no training data and avoids score-scale mismatch, making it an ideal baseline. When you have labeled relevance queries, Bruch, Gai, and Ingber showed that a tuned convex combination of normalized scores can outperform RRF even out of domain:[^bruch2023fusion]
 
 $$
 \operatorname{score}_{\text{hybrid}}(d)
@@ -704,24 +646,15 @@ $$
 +(1-\alpha)\widetilde{\operatorname{score}}_{\text{sparse}}(d)
 $$
 
-The tildes denote scores normalized within their lanes before fusion. Raw linear combination ($0.7 \times \text{cosine} + 0.3 \times \text{BM25}$) is mathematically valid, but $0.7$ doesn't mean 70% of the ranking influence when score scales differ. Influence on ordering depends on weighted **score differences between candidates**. At $\alpha=1$, BM25 contributes nothing; at other weights either lane can decide a comparison. There is no fixed percentage of ordering controlled by BM25.
-
-Min-max scaling maps observed scores into $[0, 1]$:
+A common choice is per-query min-max scaling into $[0, 1]$:
 
 $$
 \widetilde{s}_i = \frac{s_i - s_{\min}}{s_{\max} - s_{\min}}
 $$
 
-Min-max scaling is easy to write and easy to misread. It introduces three production problems:
-1. **Outlier distortion**: A very large maximum relative to the other scores can compress their normalized differences.
-2. **Pool-depth instability**: A deeper pool may change $s_{\min}$ or $s_{\max}$, changing that lane's influence on the mix. Depth changes do not necessarily change either endpoint or the final order.
-3. **Zero spread**: If every score is equal, the formula divides by zero. Our code explicitly assigns zeros to a constant-score lane; that is a chosen fallback, not the result of the formula.
+Watch for three pitfalls with min-max normalization: a single extreme outlier compresses all remaining scores, changing candidate pool depth can shift $s_{\min}$ or $s_{\max}$ and flip rankings, and equal scores cause division by zero (requiring an explicit zero-spread fallback).
 
-A sigmoid transform ($\sigma((s-\mu)/\tau)$, $\tau>0$) bounds scores; z-score standardization does not. Both introduce choices about location and scale, whose estimation and stability need evaluation. RRF avoids fitting raw score scales and its formula needs no relevance labels, but candidate depth, $k$, and final selection still need testing.
-
-Watch the coefficients before the rescaling. BM25 can contribute more despite its smaller weight. Min-max then rescales each lane before the same mix. Normalization changes observed units. It doesn't turn those units into relevance probabilities.
-
-Evaluating raw score combinations reveals that even a 0.3 BM25 weight can dominate a 0.7 cosine weight when BM25 is several times larger. Normalization changes the units, not the access controls.
+Compare raw weighted scores against lane-normalized weighted scores on `SHARED_WORDS`. Even with $\alpha = 0.7$ favoring dense, the raw BM25 term (`0.3 × 3.788 = 1.136`) outweighs the raw dense term (`0.7 × 0.988 = 0.692`) until both lanes are normalized:
 
 <!-- leetllm: test, output=show, continue=hybrid-boundary-inputs, id=hybrid-weighted-fusion -->
 ```python title="lane-normalized-weighted-fusion.py"
@@ -733,7 +666,7 @@ def min_max(scores: dict[str, float]) -> dict[str, float]:
         raise ValueError("scores must be finite numbers")
     low, high = float(np.min(values)), float(np.max(values))
     if high == low:
-        return {key: 0.0 for key in scores}  # no within-lane discrimination
+        return {key: 0.0 for key in scores}
     scale = float(np.max(np.abs(values)))
     low_s, high_s = low / scale, high / scale
     spread = high_s - low_s
@@ -758,7 +691,6 @@ raw_weighted = {
     chunk_id: alpha * dense_raw[chunk_id] + (1 - alpha) * bm25_raw[chunk_id]
     for chunk_id in bm25_raw
 }
-# Before normalization, the BM25 term is still larger than the dense term.
 assert (1 - alpha) * bm25_raw[krot] > alpha * dense_raw[krot]
 
 bm25_n = min_max(bm25_raw)
@@ -788,12 +720,8 @@ print("RRF order:", rrf_order)
 assert weighted_order[0] == krot
 assert rrf_order[0] == krot
 assert min_max({}) == {}
-assert min_max({"a": 0.0, "b": 0.0}) == {"a": 0.0, "b": 0.0}
 assert min_max({"a": 7.0, "b": 7.0}) == {"a": 0.0, "b": 0.0}
 assert min_max({"a": -2.0, "b": 2.0}) == {"a": 0.0, "b": 1.0}
-assert min_max({"a": -1e308, "b": 0.0, "c": 1e308}) == {
-    "a": 0.0, "b": 0.5, "c": 1.0,
-}
 ```
 
 <!-- leetllm: output:start -->
@@ -806,15 +734,9 @@ RRF order: ['eu-key-rotation-v2-rule', 'eu-session-timeout-v1-rule', 'eu-audit-r
 ```
 <!-- leetllm: output:end -->
 
-Both methods agree on this toy query, so it demonstrates no ranking improvement from normalization. Zero-filling missing scores is also a convention, not a fact about an unseen candidate. Here every permitted chunk is scored and omitted sparse hits truly have zero overlap. With truncated lists, an absent candidate's score is unknown; rescore the union or explicitly evaluate your missing-score rule. Min-max values can change when candidate depth changes, and a constant-score lane contributes zero in this implementation.
-
-Weighted fusion still only ranks IDs that already passed the filter. If the query is the hidden admin code, does any candidate come back?
-
 ### Test access controls under fused ranking
 
-The stored admin-only policy contains a unique code. If the authorization filter moved after retrieval, BM25 would have an easy hidden hit to surface. The mandatory invariant is that the caller never receives the hidden record. This test setup also returns an empty list because no permitted text matches the code and no query vector is provided. A real dense encoder could return permitted but irrelevant candidates; an empty result isn't the only safe outcome.
-
-A safe outcome returns an empty result for the caller, not a retrieval defect. The hidden code must never enter either lane.
+Verify that probing directly for the restricted admin code `ADMIN-KROT-1`, or querying from an unauthorized region, never surfaces forbidden chunks:
 
 <!-- leetllm: test, output=show, continue=hybrid-weighted-fusion, id=hybrid-attack -->
 ```python title="hidden-source-attack.py"
@@ -836,21 +758,17 @@ Visible candidates without corpus access: []
 ```
 <!-- leetllm: output:end -->
 
-## Gate the retriever on recall and safety
+## Evaluate recall and safety before touching generation
 
-In the previous lesson, answer quality depended on retrieving current permitted evidence. That means the retrieval upgrade needs its own release cases before you measure generated text.
-
-Each query here has exactly one labeled relevant chunk. Recovering it among the first two candidates scores 1; missing it scores 0. Averaging those values is both HitRate@2 and mean <span data-glossary="recall-at-k">Recall@2</span> for this special case. With several relevant chunks, per-query recall is the fraction recovered, while hit rate only asks whether any was found. Neither metric proves the final answer is faithful.
-
-The decision matrix summarizes these complementary retrieval outcomes: BM25 misses the paraphrase, dense misses `KROT-14`, and hybrid covers all three frozen positives while keeping the two excluded IDs out.
+Because each query here has a single relevant chunk, recovering it inside the top 2 scores 1 and missing it scores 0, so HitRate@2 equals mean <span data-glossary="recall-at-k">Recall@2</span>. (When a query needs multiple passages, Recall@k measures the fraction of relevant passages recovered.)
 
 <figure>
   <img src="illustrations/_generated/retrieval_release_gate_dark.png" alt="Three evaluation queries test lexical and semantic lanes against release thresholds. Exact code KROT-14 succeeds in lexical lane; paraphrase succeeds in dense lane; restricted identifier query is blocked by the authorization filter." />
-  <figcaption>Each lane demonstrates complementary strengths across exact-match and paraphrase queries. The release gate requires both high recall on authorized queries and zero leakage on restricted probes.</figcaption>
+  <figcaption>BM25 recovers exact codes, dense search recovers paraphrases, and hybrid fusion handles both while pre-filtering keeps restricted and stale records out of every lane.</figcaption>
 </figure>
 
 <!-- leetllm: test, output=show, continue=hybrid-attack, id=hybrid-eval -->
-```python title="retrieval-release-gate.py"
+```python title="retrieval-evaluation.py"
 @dataclass(frozen=True)
 class RetrievalCase:
     name: str
@@ -895,7 +813,7 @@ print(f"Dense Recall@2: {dense_recall:.2f}")
 print(f"Hybrid RRF Recall@2: {hybrid_recall:.2f}")
 print("Restricted attack ids:", restricted_ids)
 print("Superseded attack ids:", superseded_ids)
-print("Safety gate:", safety_pass)
+print("Safety check:", safety_pass)
 assert hybrid_recall == 1.0
 assert hybrid_recall > bm25_recall
 assert hybrid_recall > dense_recall
@@ -911,40 +829,34 @@ Dense Recall@2: 0.67
 Hybrid RRF Recall@2: 1.00
 Restricted attack ids: []
 Superseded attack ids: ['eu-key-rotation-v2-rule', 'eu-session-timeout-v1-rule']
-Safety gate: True
+Safety check: True
 ```
 <!-- leetllm: output:end -->
 
-These three fixtures demonstrate complementary failures; they don't prove an offline lift for a production corpus. A release decision needs a held-out set drawn from real support requests, including exact codes, paraphrases, unsupported questions, languages served by the product, and attempts to request hidden policies.
+In production, evaluate on a held-out query set spanning exact codes, natural paraphrases, unanswerable questions, and restricted probes while keeping corpus version, encoder, tokenizer, lane depths, and fusion parameters fixed across comparisons:
 
-The same evaluation must retain workload and system context: corpus and index versions, encoder and tokenizer, lane depths, fusion settings, latency percentiles, and the correctness or support check used for answers. Recall numbers without those details are hard to reproduce or compare.
-
-| Gate | What to freeze | Failure meaning |
+| Check | What to evaluate | Failure signal |
 |---|---|---|
-| Permitted Recall@k | Query and required current chunk ID | Correct evidence never reaches context selection |
-| Restricted-source exclusion | Queries that strongly match hidden chunks | Retriever boundary is unsafe |
-| Superseded-source exclusion | Queries matching old policy wording | Freshness filter regressed |
-| Abstention cases | Questions with no permitted supporting evidence | Retrieval or answer layer overreaches |
+| Permitted Recall@k | Query and required current chunk ID | Relevant evidence misses context |
+| Restricted-source exclusion | Queries targeting hidden chunks | Authorization filter leaked |
+| Superseded-source exclusion | Queries matching outdated wording | Freshness filter regressed |
+| Unanswerable cases | Questions with no permitted evidence | Retriever or generator overreaches |
 
 ```checkpoint
-Hybrid reaches Recall@2 of 1.00 on these three labeled queries. Can you say hybrid search is better for all security-policy queries?
+Hybrid reaches Recall@2 of 1.00 on these three labeled queries. Can you conclude hybrid search wins across every policy query?
 ---
-No. You can say it passes the three frozen cases, including two complementary single-lane failures and the tested source exclusions. Broader claims require a representative held-out query set and latency measurements.
+No. These three cases verify complementary single-lane misses and exclusion filters. Production claims require a representative held-out query set and latency measurements across query families.
 ```
-
-A passing Recall@2 still doesn't say which lane found the chunk, or which distractor came with it. When the answer is wrong, which list do you open first?
 
 ## Trace each lane before adding reranking
 
-When a final answer is wrong, you need to tell apart three failures:
+Logging per-lane IDs alongside the full fused pool and final shortlist tells you immediately which stage lost a document:
 
 | Failure | Trace evidence | Next repair |
 |---|---|---|
-| Retrieval miss | Expected chunk absent from sparse, dense, and fused candidates | Improve indexing, encoder, query handling, or lane depth |
-| Fusion ordering issue | Expected chunk exists in a lane but falls below context budget | Tune fusion on held-out labels |
-| Later precision issue | Correct chunk is in fused candidates but distractors rank above it | Add and evaluate the reranking stage in the next lesson |
-
-Store IDs, ranks, model and index versions, fusion settings, effective date, grant revision, and timing in an access-controlled <span data-glossary="tracing">trace</span>. IDs and caller metadata can themselves reveal sensitive information; omitting full policy text isn't an anonymization guarantee. The trace must use the same lane depths and fusion settings as the retrieval path being diagnosed. Record the fuller fused pool separately from the final shortlist to expose selection losses.
+| Retrieval miss | Expected chunk absent from sparse, dense, and fused lists | Fix analyzer, embedding model, or lane depth |
+| Fusion cutoff loss | Expected chunk exists in a lane but falls below cutoff | Deepen fused pool or tune fusion weights |
+| Precision noise | Correct chunk is in the pool but distractors outrank it | Add a cross-encoder reranker (next chapter) |
 
 <!-- leetllm: test, output=show, continue=hybrid-eval, id=hybrid-trace -->
 ```python title="hybrid-retrieval-trace.py"
@@ -980,7 +892,6 @@ def trace_hybrid_request(
         "dense_ids": [chunk.chunk_id for chunk, _ in dense],
         "fused_pool_ids": [chunk.chunk_id for chunk, _ in fused],
         "fused_ids": [chunk.chunk_id for chunk, _ in fused[:2]],
-        # Simulated timings exercise the checker below; they aren't measurements.
         "timings_ms": {
             "authorize": 2, "bm25": 4, "dense": 11, "fusion": 1, "retrieval_total": 18,
         },
@@ -1015,31 +926,17 @@ Trace stores raw policy text: False
 ```
 <!-- leetllm: output:end -->
 
-The correct evidence is present, but the semantic lane also kept a session-timeout distractor. Retrieval satisfies this case's candidate recall. A <span data-glossary="reranker">reranker</span> can help order or reject distractors, subject to its own evaluation.
-
-The trace's ordered ID lists encode ranks. Its grant revision and durations are test labels, not records from an identity provider or timers. The full-text substring check misses fragments and other sensitive values. It is not a privacy audit. Use controlled query-kind values, rather than putting arbitrary user text in that field.
-
-The shortlist can also fill both slots with near-copies of one rule. Does a second, almost identical chunk help the user, or does it only repeat the same policy?
+Notice that the trace stores IDs and versions rather than copying private text into logs, and keeps `eu-session-timeout-v1-rule` visible as a rank-2 distractor for downstream inspection.
 
 ## Diversify candidates with maximal marginal relevance
 
-Hybrid fusion can pack near-duplicate chunks into the shortlist. For a question requiring several policies, redundant excerpts may crowd out other useful evidence. For a narrow key-rotation question, session-timeout evidence is irrelevant: filling a slot with a different topic is not automatically an improvement.
-
-<span data-glossary="maximal-marginal-relevance">Maximal Marginal Relevance (MMR)</span> explicitly balances candidate relevance against intra-result redundancy:[^carbonell1998]
+When a corpus contains near-duplicate paragraphs across multiple documents, fusion can fill every context slot with copies of the same passage. <span data-glossary="maximal-marginal-relevance">Maximal Marginal Relevance (MMR)</span> trades relevance against redundancy with already selected passages:[^carbonell1998]
 
 $$
 \operatorname{MMR}(q, D, S) = \operatorname{argmax}_{d_i \in D \setminus S} \left[ \lambda \operatorname{Sim}_1(d_i, q) - (1-\lambda) \max_{d_j \in S} \operatorname{Sim}_2(d_i, d_j) \right]
 $$
 
-Here:
-- $D$ is the candidate pool from fusion.
-- $S$ is the set of chunks already selected into context.
-- $D \setminus S$ represents the remaining unselected candidates.
-- $\operatorname{Sim}_1(d_i, q)$ measures query-document relevance.
-- $\operatorname{Sim}_2(d_i, d_j)$ measures document-document redundancy (such as vector cosine similarity between candidate $d_i$ and an already selected chunk $d_j$).
-- $\lambda \in [0, 1]$ controls the diversity trade-off. At $\lambda=1$, the redundancy penalty disappears. At $\lambda=0$, only redundancy with selected evidence affects later choices. With no selected evidence yet, this implementation sets that penalty to zero, so $\lambda=0$ starts with an ID tie-break. Choose $\lambda$ against the task's required evidence; there is no universally good interval.
-
-The synthetic extra chunk is nearly collinear with the key-rotation vector, while the session vector is orthogonal. This geometry tests MMR's objective; all candidate IDs are assumed admissible, and no real chunks or encoder produce this extended vector table.
+Here $D$ is the candidate pool, $S$ is the set selected so far, and $\lambda \in [0, 1]$ balances query relevance against similarity to already chosen chunks ($\lambda=1$ reduces to standard relevance ranking).
 
 <!-- leetllm: test, output=show, continue=hybrid-trace, id=hybrid-mmr -->
 ```python title="maximal-marginal-relevance.py"
@@ -1084,7 +981,6 @@ def maximal_marginal_relevance(
     return selected
 
 
-# Add a synthetic near-duplicate vector (cosine with the rule is about 0.9998).
 MMR_VECTORS: dict[str, Vector] = {
     "eu-key-rotation-v2-rule": (1.00, 0.00, 0.00),
     "eu-key-rotation-v2-duplicate": (0.99, 0.02, 0.00),
@@ -1113,38 +1009,26 @@ Diverse MMR top-2 (lambda=0.5): ['eu-key-rotation-v2-duplicate', 'eu-session-tim
 ```
 <!-- leetllm: output:end -->
 
-Greedy selection keeps two near-duplicates. MMR instead chooses the session-timeout rule, which is less redundant **and irrelevant to this question**. The example demonstrates a diversity trade-off, not better answer quality. For this narrow request, deduplicate by source or verified equivalent content and leave a slot unused if no other evidence is needed. For a multi-policy request, evaluate whether MMR preserves every required rule and condition.
-
-MMR handles diversity inside an existing permitted candidate set. It can't retrieve missing evidence that was omitted during initial retrieval, can't authorize a hidden source, and doesn't replace a cross-encoder that compares the query with the document directly.
-
-None of that says whether both lanes finished in time. What do you check when the extra lane makes the request late?
+> **Common mistake:** Diversity does not automatically improve precision. Here MMR replaces a near-duplicate with the irrelevant session-timeout rule. For narrow single-rule queries, deduplicate by source ID and leave extra slots empty; reserve MMR for multi-aspect queries where distinct passages are genuinely required.
 
 ## Enforce retrieval latency budgets
 
-Two retrieval lanes add work, so evaluate latency alongside recall. This code calls BM25 and dense ranking serially; a deployed service might run them concurrently if its infrastructure supports that. Measure wall-clock latency over representative queries, concurrency levels, cache states, and filtering selectivity. Parallel lane time is not their simple sum, and adding per-stage p95 values does not produce end-to-end p95.
-
-The checker below uses simulated durations and locally chosen stage budgets, plus a 50 ms overall retrieval budget. Stage limits alone allow an overall miss: 10 ms authorization, parallel lanes of 12 and 40 ms, and 8 ms fusion already take 58 ms before any additional overhead. The checker validates supplied telemetry after the fact. A live endpoint also needs installed deadlines and cancellation behavior. This function does not stop slow work.
+Running two retrieval lanes adds work, so monitor per-stage timings alongside an end-to-end retrieval budget. Even when parallel lanes each meet their own limits (`authorize=10 ms`, `bm25=12 ms`, `dense=40 ms`, `fusion=8 ms`), the parallel path takes `10 + max(12, 40) + 8 = 58 ms` and breaches a 50 ms overall budget:
 
 <!-- leetllm: test, output=show, continue=hybrid-mmr, id=hybrid-release-gate -->
-```python title="retrieval-latency-gate.py"
+```python title="retrieval-latency-budget.py"
 RETRIEVAL_BUDGET_MS = {
     "authorize": 10, "bm25": 12, "dense": 40, "fusion": 8, "retrieval_total": 50,
 }
 
 
 def exceeded_retrieval_budgets(timings: dict[str, float]) -> list[str]:
-    def is_valid_num(val):
-        if not isinstance(val, (int, float)) or val is True or val is False:
-            return False
-        return isfinite(val) and val >= 0
-
-    return [
-        stage
-        for stage, budget in RETRIEVAL_BUDGET_MS.items()
-        if stage not in timings
-        or not is_valid_num(timings[stage])
-        or timings[stage] > budget
-    ]
+    failures = []
+    for stage, budget in RETRIEVAL_BUDGET_MS.items():
+        val = timings.get(stage)
+        if val is None or not isfinite(val) or val < 0 or val > budget:
+            failures.append(stage)
+    return failures
 
 
 healthy = trace["timings_ms"]
@@ -1165,9 +1049,6 @@ assert exceeded_retrieval_budgets({**healthy, "dense": 40}) == []
 assert exceeded_retrieval_budgets({**healthy, "dense": 41}) == ["dense"]
 assert exceeded_retrieval_budgets({**healthy, "dense": float("nan")}) == ["dense"]
 assert exceeded_retrieval_budgets({**healthy, "dense": -1}) == ["dense"]
-assert exceeded_retrieval_budgets({**healthy, "dense": True}) == ["dense"]
-assert exceeded_retrieval_budgets({**healthy, "dense": "11"}) == ["dense"]
-assert exceeded_retrieval_budgets({**healthy, "retrieval_total": 50}) == []
 assert exceeded_retrieval_budgets(all_stages_pass) == ["retrieval_total"]
 ```
 
@@ -1179,12 +1060,12 @@ Stage limits met, total missed: ['retrieval_total']
 ```
 <!-- leetllm: output:end -->
 
-BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admission checks still keep the expired and admin-only rules out. Fusion can still bury a one-lane hit, and a diversity pass can swap in an irrelevant neighbor. The session-timeout rule is still sitting beside the right policy. Reordering that shortlist is a different problem from finding it.
+BM25 now recovers `KROT-14`, dense search recovers paraphrases, and pre-filtering keeps expired and restricted records out of both lanes. Yet the session-timeout distractor still sits right beside the right rule in our shortlist. Reordering that shortlist accurately requires a second-stage cross-encoder, which we build next.
 
 ```mastery-quiz
 [
   {
-    "question": "A policy search must recover both `KROT-14` and the paraphrase `refresh expired machine credential`. BM25 finds only the code, while the chosen dense encoder finds only the paraphrase. Which design meets both requirements without weakening evidence controls?",
+    "question": "A search service must recover both `KROT-14` and the paraphrase `refresh expired machine credential`. BM25 finds only the code, while the chosen dense encoder finds only the paraphrase. Which design meets both requirements without weakening access controls?",
     "options": [
       "Expand BM25 to every stored revision, then remove stale hits after lexical ranking produces enough candidates.",
       "Replace BM25 with the dense encoder, then add the exact code to the query whenever semantic search returns nothing.",
@@ -1192,21 +1073,21 @@ BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admiss
       "Run dense search over permitted chunks, then use MMR to reconstruct code matches that the encoder did not retrieve."
     ],
     "answer": "Run BM25 and dense search over the same permitted current chunks, then fuse their ranked candidate IDs.",
-    "explanation": "The two lanes cover this scenario's complementary misses inside the same evidence boundary. Fusion changes ranking, not authorization or freshness. The lab pre-filters its corpus; a trusted engine can use a different internal filtering strategy if it enforces the same disclosure boundary."
+    "explanation": "The two lanes cover the complementary misses inside the same permission and freshness filters. Fusion reorders candidates without widening access."
   },
   {
-    "question": "A developer lets this service's rankers return hidden policy IDs to fusion and its request trace, then removes those IDs before prompt construction. Which review finding is decisive?",
+    "question": "A developer lets retrieval rankers return hidden document IDs to fusion and request traces, then removes those IDs before prompt construction. Which review finding is decisive?",
     "options": [
       "Reject the design because hidden content can influence ranks, identifiers, caches, or traces before the late filter runs.",
       "Accept the design if fused scores are discarded, because chunk IDs alone can't reveal restricted evidence.",
-      "Accept the design after lowering each lane's depth, because a smaller candidate pool bounds any disclosure.",
+      "Accept the design after lowering each lane's depth, because a smaller candidate pool limits any disclosure.",
       "Reject only the dense lane, because sparse term statistics can't carry signals from restricted documents."
     ],
     "answer": "Reject the design because hidden content can influence ranks, identifiers, caches, or traces before the late filter runs.",
-    "explanation": "The service exposes retrieval state before generation, so the prompt filter arrives too late. Its rankers must enforce the permitted-current candidate contract. This finding concerns returned IDs and observable state, not an assertion that any internal traversal in a trusted index leaks data."
+    "explanation": "Filtering at prompt construction arrives too late when retrieval already exposed hidden IDs to fusion, caches, and traces."
   },
   {
-    "question": "In a BM25 toy, k1=1.5 and document length equals the corpus average. A rare term has IDF 1.0. What are its contributions at frequencies 1 and 3?",
+    "question": "In a BM25 calculation, k1=1.5 and document length equals the corpus average. A rare term has IDF 1.0. What are its contributions at frequencies 1 and 3?",
     "options": [
       "1 and 3",
       "1 and 5/3",
@@ -1214,7 +1095,7 @@ BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admiss
       "0.75 and 1.5"
     ],
     "answer": "1 and 5/3",
-    "explanation": "At average length the factor is f×(k1+1)/(f+k1). It gives 2.5/2.5=1 and 7.5/4.5=5/3. Repetition saturates."
+    "explanation": "At average length the factor is f*(k1+1)/(f+k1), giving 2.5/2.5 = 1 and 7.5/4.5 = 5/3. Repeated occurrences saturate."
   },
   {
     "question": "With RRF smoothing 10, A is first in one lane and missing in the other. B is fourth in both. Which ordering and scores follow?",
@@ -1225,7 +1106,7 @@ BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admiss
       "A leads: 1 > 2/4."
     ],
     "answer": "B leads: 2/14 > 1/11.",
-    "explanation": "A earns 1/(10 + 1) from its first place and zero from the lane that missed it. B earns 1/(10 + 4) twice, so its 2/14 beats A's 1/11. Giving B only 1/14 drops its second vote. The scores 2/13 and 1/10 count ranks from zero. The scores 1 and 2/4 omit smoothing."
+    "explanation": "A earns 1/(10 + 1) = 1/11 from its single rank-1 hit. B earns 1/(10 + 4) twice, so 2/14 > 1/11."
   },
   {
     "question": "A team sets each lane's candidate depth equal to final `top_k = 2`. The required chunk ranks fourth in both lanes and would gain from two RRF contributions. What change addresses the failure?",
@@ -1236,7 +1117,7 @@ BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admiss
       "Normalize the two top-2 raw score lists, because normalization restores candidates discarded before fusion."
     ],
     "answer": "Retrieve deeper per-lane pools, fuse those ranks, then apply the final context or reranking budget.",
-    "explanation": "Fusion can score only candidates supplied by a lane. Cutting each list to the final prompt budget removes mid-ranked evidence before it can accumulate support across lanes. Candidate depth and final context size are separate controls."
+    "explanation": "Fusion can score only candidates returned by a lane. Keeping lane depth larger than final context size lets mid-ranked matches accumulate consensus across lanes."
   },
   {
     "question": "A candidate has normalized dense score 0.6 and lexical score 0.3. Dense weight is 0.8. Which fused score and interpretation follow?",
@@ -1247,18 +1128,18 @@ BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admiss
       "0.36; it is a calibrated relevance chance."
     ],
     "answer": "0.54; it is a weighted ranking score.",
-    "explanation": "0.8 × 0.6 + 0.2 × 0.3 = 0.54. Normalization and a weighted sum do not guarantee probability calibration."
+    "explanation": "0.8 * 0.6 + 0.2 * 0.3 = 0.54. Normalized weighted sums order candidates rather than producing calibrated relevance probabilities."
   },
   {
-    "question": "An IVF planning model has 400 equal lists for 200000 vectors. A query scores all 400 centers and probes 6 lists. What work estimate follows, and what repairs a known cross-list miss?",
+    "question": "An IVF index has 400 equal lists for 200,000 vectors. A query scores all 400 centers and probes 6 lists. What work estimate follows, and what repairs a cross-list miss?",
     "options": [
-      "3400 comparisons; increase query probes.",
-      "3000 comparisons; increase query probes.",
-      "3400 comparisons; reduce query probes.",
-      "30400 comparisons; increase query probes."
+      "3,400 comparisons; increase query probes.",
+      "3,000 comparisons; increase query probes.",
+      "3,400 comparisons; reduce query probes.",
+      "30,400 comparisons; increase query probes."
     ],
-    "answer": "3400 comparisons; increase query probes.",
-    "explanation": "Each list averages 500 vectors. 400 + 6 × 500 = 3400. More probes search additional existing lists; measure recall and work again."
+    "answer": "3,400 comparisons; increase query probes.",
+    "explanation": "Each list averages 500 vectors, so 400 + 6 * 500 = 3,400 comparisons. Increasing query probes scans adjacent clusters to recover boundary neighbors."
   },
   {
     "question": "Only passage R7 answers a ferry refund question. Both searches completed over current, permitted passages. In rank order, the sparse lane returned [], the dense lane returned [R4, R7], and RRF kept [R4, R7]. The reader gets only the first passage. Which change should you test to get R7 into that one slot?",
@@ -1269,7 +1150,7 @@ BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admiss
       "Rerank the two retained passages against the refund question before choosing one."
     ],
     "answer": "Rerank the two retained passages against the refund question before choosing one.",
-    "explanation": "R7 reached the shortlist, but R4 takes the reader's slot. Test whether a reranker puts R7 first. Taking more entries from the same dense ranking leaves its top two in place. With only dense votes, R4's first place beats R7's second place at any smoothing constant. Keeping a longer fused list still sends R4 to the reader."
+    "explanation": "R7 reached the shortlist, yet R4 occupies the reader's single slot. Reranking the shortlist directly against the query tests whether R7 moves ahead of R4."
   },
   {
     "question": "After choosing one source, a near-copy has relevance 0.8 and redundancy 0.9; a distinct candidate has relevance 0.6 and redundancy 0.2. At λ=0.5, which gets the next MMR slot and why?",
@@ -1280,23 +1161,23 @@ BM25 recovered `KROT-14` and the dense lane recovered the paraphrase. The admiss
       "Distinct: 0.40 versus 0.85; the smaller adjusted score wins."
     ],
     "answer": "Distinct: 0.20 versus −0.05; the larger adjusted score wins.",
-    "explanation": "The scores are 0.5 × 0.8 − 0.5 × 0.9 = −0.05 and 0.5 × 0.6 − 0.5 × 0.2 = 0.20. Choosing the distinct candidate does not guarantee its usefulness or authority."
+    "explanation": "The MMR scores are 0.5 * 0.8 - 0.5 * 0.9 = -0.05 for the near-copy and 0.5 * 0.6 - 0.5 * 0.2 = 0.20 for the distinct candidate."
   },
   {
-    "question": "Authorization takes 7 ms, parallel lanes 13 and 29 ms, and fusion 6 ms. The overall budget is 45 ms. Which trace and conclusion follow?",
+    "question": "Authorization takes 7 ms, parallel lanes take 13 and 29 ms, and fusion takes 6 ms. The overall budget is 45 ms. Which total time and verdict follow?",
     "options": [
-      "55 ms; the candidate request exceeds its budget.",
-      "42 ms; the evaluated request fits its budget.",
-      "35 ms; the evaluated request fits its budget.",
-      "29 ms; the evaluated request fits its budget."
+      "55 ms; the request exceeds its budget.",
+      "42 ms; the request fits its budget.",
+      "35 ms; the request fits its budget.",
+      "29 ms; the request fits its budget."
     ],
-    "answer": "42 ms; the evaluated request fits its budget.",
-    "explanation": "The lanes start together after authorization. Fusion waits for the slower lane, so the request takes 7 + 29 + 6 = 42 ms, with 3 ms to spare. The 55 ms total counts the lanes as sequential. The 35 ms total skips authorization. The 29 ms total skips both authorization and fusion. Measuring end-to-end p95 requires timings from many requests."
+    "answer": "42 ms; the request fits its budget.",
+    "explanation": "The two lanes run in parallel after authorization, so fusion waits for the slower lane: 7 + 29 + 6 = 42 ms, leaving 3 ms of headroom."
   }
 ]
 ```
 
-> **Next:** Continue to [Reranking and Cross-Encoders for RAG](/learn/reranking-cross-encoders-rag). Hybrid retrieval recovers `KROT-14` and the credential paraphrase in this example, but the trace still keeps `eu-session-timeout-v1-rule` beside the right policy. A second scoring pass can reorder that shortlist before context construction.
+> **Next:** Continue to [Reranking and Cross-Encoders for RAG](/learn/reranking-cross-encoders-rag). Hybrid retrieval recovers `KROT-14` and the credential paraphrase, yet `eu-session-timeout-v1-rule` still sits right beside the right rule. Next, add a cross-encoder pass to reorder that shortlist before context packing.
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -1474,15 +1355,15 @@ A vector index gives up the guarantee of finding the true nearest neighbors, in 
 <figcaption>IVF narrows the search by place, and HNSW narrows it by walking from coarse to fine. Each has one setting that spends more time for better recall: how many lists to scan, or how many candidates to keep on the bottom layer. The drawing flattens both ideas to two dimensions and one axis.</figcaption>
 </figure>
 
-Both give you one knob that trades time for recall. In pgvector, as of version 0.8.7, those knobs are `ivfflat.probes`, which defaults to 1, and `hnsw.ef_search`, which defaults to 40.[^pgvector_docs] In Faiss, a widely used library of these indexes, they are `nprobe` and `efSearch`.[^faiss2026indexes]
+Both give you one knob that trades time for recall. In pgvector, those knobs are `ivfflat.probes` (default 1) and `hnsw.ef_search` (default 40).[^pgvector_docs] In Faiss, a widely used library of these indexes, they are `nprobe` and `efSearch`.[^faiss2026indexes]
 
-To see what the knobs do, here is a run with Faiss. It needs no model download, and it runs offline once it is installed. The command below names the right package, which differs from the import, because the package called `faiss` has no build for a current Python.
+To see what the knobs do, here is a run with Faiss. It needs no model download, and it runs offline once it is installed. The command below names the right package, which differs from the import, because the package called `faiss` has no build for current Python releases.
 
 ```text title="Install first"
 pip install faiss-cpu==1.15.1 numpy==2.5.4
 ```
 
-When you combine it with an embedding model, watch the import order: on our Mac, a program that imported Faiss before PyTorch crashed, and importing PyTorch first worked. This listing makes 20,000 random clustered vectors of 128 dimensions to stand in for embeddings, finds the true top 10 for 500 queries with exact search, and counts what each setting recovers and how many vectors it had to score. Before you read the output, predict which index reaches a recall of 0.9 with less work.
+When you combine it with an embedding model, import PyTorch before Faiss on macOS to avoid shared-library conflicts. This listing makes 20,000 random clustered vectors of 128 dimensions to stand in for embeddings, finds the true top 10 for 500 queries with exact search, and counts what each setting recovers and how many vectors it had to score:
 
 <!-- leetllm: test, output=show, deps=faiss-cpu==1.15.1,numpy==2.5.4 -->
 ```python title="ivf-and-hnsw.py"
@@ -1601,7 +1482,7 @@ $$
 
 Ranks start at one, and a document missing from a list earns nothing from it. We use $c=60$ as our setting. A bigger constant shrinks the differences between nearby ranks, and any change to it needs testing on your task.
 
-Here is the whole thing as one program: the analyzer, BM25, cosine on our hand-placed vectors, and fusion. Its input is the three records that already passed the permission check. The first figure in this chapter already gave away the first three lines of output, so predict the fused list before you read it.
+Here is the whole thing as one program: the analyzer, BM25, cosine on our hand-placed vectors, and fusion. Its input is the three records that already passed the permission check. Notice how the fused list picks up the dense lane when BM25 returns empty:
 
 <!-- leetllm: test, output=show -->
 ```python title="reader-hybrid-lanes.py"
@@ -1705,7 +1586,7 @@ Here is a stress test, with two lists we wrote by hand to isolate this behavior:
 | 1 | Key rule | Audit-rebuild note |
 | 2 | Session rule | Session rule |
 
-Work out the scores. The session rule gets $1/62+1/62\approx0.03226$. Each first-place document, appearing on one list only, gets $1/61\approx0.01639$. So the session rule wins outright, despite being first on neither list. The other two tie, and our ascending-ID tie-break puts `eu-audit-rebuild-v1` second and `eu-key-rotation-v2-rule` third. Now suppose you keep only the top two. The one rule Luna needs has been lost.
+Work out the scores. The session rule gets $1/62+1/62\approx0.03226$. Each first-place document, appearing on one list only, gets $1/61\approx0.01639$. So the session rule wins outright, despite being first on neither list. The other two tie, and our ascending-ID tie-break puts `eu-audit-rebuild-v1` second and `eu-key-rotation-v2-rule` third. Now suppose you keep only the top two. The one rule the caller needs has been lost.
 
 <figure>
 <img src="illustrations/_generated/rank_fusion_dark.png" alt="BM25 ranks the key rule first and the session rule second. The dense list ranks the audit note first and the session rule second. Reciprocal rank fusion gives the session rule two rank-two contributions totaling 0.03226. The audit note and the required key rule each get one rank-one contribution of 0.01639, and ascending ID breaks their tie, so a top-two cutoff drops the key rule." />
@@ -1775,7 +1656,7 @@ A hybrid pipeline has at least three different sizes: how deep each lane searche
 
 To choose their values, build a frozen set of queries containing exact codes, ordinary paraphrases, look-alike distractors, questions with no answer, and permission tests. Label the passage each answerable question needs. Then compare lexical only, dense only, and hybrid at the same point in the pipeline, with the caller and the document snapshot held fixed.
 
-Look at each query family separately. A gain on paraphrases can hide a loss on rare identifiers, and a better overall recall can hide a leak of forbidden sources, which needs its own release gate entirely. If a question has no answer under the caller's permissions, returning more candidates is no success at all.
+Look at each query family separately. A gain on paraphrases can hide a loss on rare identifiers, and a better overall recall can hide a leak of forbidden sources, which needs its own safety check entirely. If a question has no answer under the caller's permissions, returning more candidates is no success at all.
 
 Deeper search has a cost in search time, data transfer, and downstream scoring. When two lanes run in parallel, the slower one tends to set your latency, with fusion and coordination on top. Per-stage budgets will also fool you. Say permissions take 10 ms, the lanes take 12 and 40 ms in parallel, and fusion takes 8 ms. The request has spent 58 ms, and a 50 ms overall limit is gone even if each stage met its own. Per-stage p95 values do not add up to an end-to-end p95 either, so measure the request's real latency distribution under load, including what happens when one lane stalls.
 

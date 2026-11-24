@@ -92,10 +92,10 @@ flowchart LR
     I["Intake Commit SHA"]:::primary --> D["diff_agent"]:::secondary
     I --> T["test_agent"]:::secondary
     I --> S["scan_agent"]:::secondary
-    D --> M["merge_gate (join & digest check)"]:::accent
+    D --> M["merge_checks (join & digest check)"]:::accent
     T --> M
     S --> M
-    M --> R["review_gate (interrupt pause)"]:::warning
+    M --> R["review_step (interrupt pause)"]:::warning
     R --> W["open_pr_writer (idempotent)"]:::success
 ```
 
@@ -160,7 +160,7 @@ def run_worker(name: str, state: WorkflowState) -> dict[str, list[CheckResult]]:
     }
 
 
-def merge_gate(state: WorkflowState) -> dict[str, str]:
+def merge_checks(state: WorkflowState) -> dict[str, str]:
     checks = state["checks"]
     workers = [c["worker"] for c in checks]
     if len(checks) != 3 or set(workers) != {"diff", "test", "scan"}:
@@ -177,7 +177,7 @@ builder = StateGraph(WorkflowState)
 for name in ("diff", "test", "scan"):
     builder.add_node(name, lambda s, w=name: run_worker(w, s))
     builder.add_edge(START, name)
-builder.add_node("merge", merge_gate)
+builder.add_node("merge", merge_checks)
 builder.add_edge(["diff", "test", "scan"], "merge")
 builder.add_edge("merge", END)
 
@@ -199,7 +199,9 @@ Shallow proxy still shares nested list: ['line-84', 'mutated-in-place']
 ```
 <!-- leetllm: output:end -->
 
-Every safeguard in `merge_gate` exists for concrete concurrent failure modes. Counting unique worker names catches duplicate deliveries when a branch retries upstream, checking `commit_sha` against the live repository head blocks evidence captured before a developer pushed a new commit, and binding all branch digests into one `proposal_digest` ensures downstream review evaluates an immutable bundle. Notice also that `merge_gate` returns a deterministic dictionary update rather than trusting a summary LLM to reconcile conflicting branch booleans in prose. Separating typed state aggregation from natural-language synthesis stops an optimistic model from waving through a failing test result.
+Every safeguard in `merge_checks` addresses a concrete concurrent failure mode. Counting unique worker names catches duplicate deliveries when a branch retries upstream, checking `commit_sha` against the live repository head blocks evidence captured before a developer pushed a new commit, and binding all branch digests into one `proposal_digest` ensures downstream review evaluates an immutable bundle. Notice also that `merge_checks` returns a deterministic dictionary update rather than trusting a summary LLM to reconcile conflicting branch booleans in prose. Separating typed state aggregation from natural-language synthesis stops an optimistic model from waving through a failing test result.
+
+> **Key insight:** Merge concurrent branch results with deterministic code, not an LLM summary call. A deterministic reducer cannot misread `passed=False` as a minor warning.
 
 ## Handle unequal branch depths cleanly
 
@@ -274,7 +276,9 @@ Look closely at the three schedules in that trace. Separate `add_edge` statement
 
 In long-running pipelines, pausing before irreversible actions such as opening or merging a pull request requires durable state backed by a checkpointer [^langgraph2026checkpointers] [^langgraph2026persistence]. LangGraph's `interrupt()` primitive suspends execution at a node, persists the checkpoint under a caller-chosen `thread_id`, and resumes later via `Command(resume=...)` [^langgraph2024]. Because execution can pause for minutes or hours while a human engineer inspects the proposed patch, durability ensures that an unrelated worker restart does not lose earlier analysis or force a costly rerun from scratch.
 
-Crucially, resuming from `interrupt()` restarts the interrupted node from its top line rather than mid-function. Any side effects placed before `interrupt()` would execute twice (once before pausing and again on resume), so side effects belong cleanly in a dedicated downstream writer node protected by an **idempotency key** and an **optimistic head-version check**. Isolating the pause gate from the mutation node also makes replay logs easy to audit because every approved action maps to a single commit attempt after human confirmation.
+Crucially, resuming from `interrupt()` restarts the interrupted node from its top line rather than mid-function. Any side effects placed before `interrupt()` would execute twice (once before pausing and again on resume), so side effects belong cleanly in a dedicated downstream writer node protected by an **idempotency key** and an **optimistic head-version check**. Isolating the review pause from the mutation node also makes replay logs easy to trace because every approved action maps to a single commit attempt after human confirmation.
+
+> **Common mistake:** Putting an external API call right above `interrupt()` in the same node. When the human approves and `Command(resume=...)` fires, LangGraph replays the node from line 1 and executes that side effect twice.
 
 <figure>
   <img src="illustrations/_generated/interrupt_resume_entries_dark.png" alt="LangGraph interrupt() pauses execution before the review response arrives, saving checkpoint state. Resuming with Command(resume=...) restarts the interrupted node from its first line before routing to apply_pr or cancel." />
@@ -302,11 +306,11 @@ class ReviewState(TypedDict):
 
 
 entries: list[str] = []
-COMMIT_LEDGER: dict[str, str] = {}
+COMMIT_LOG: dict[str, str] = {}
 LIVE_BRANCH_VERSION = {"version": 3}
 
 
-def review_gate(state: ReviewState) -> Command:
+def review_step(state: ReviewState) -> Command:
     entries.append(state["digest"])
     decision = interrupt({"prompt": "Approve patch bundle?", "digest": state["digest"]})
     approved = decision.get("approved") is True and decision.get("digest") == state["digest"]
@@ -315,20 +319,20 @@ def review_gate(state: ReviewState) -> Command:
 
 def open_pr_writer(state: ReviewState) -> dict[str, str]:
     key = state["idempotency_key"]
-    if key in COMMIT_LEDGER:
-        return {"outcome": f"replayed cached {COMMIT_LEDGER[key]}"}
+    if key in COMMIT_LOG:
+        return {"outcome": f"replayed cached {COMMIT_LOG[key]}"}
     if LIVE_BRANCH_VERSION["version"] != state["expected_version"]:
         return {"outcome": f"aborted: branch moved to v{LIVE_BRANCH_VERSION['version']}"}
     LIVE_BRANCH_VERSION["version"] += 1
-    COMMIT_LEDGER[key] = f"PR-104@{state['digest']}"
-    return {"outcome": f"created {COMMIT_LEDGER[key]}"}
+    COMMIT_LOG[key] = f"PR-104@{state['digest']}"
+    return {"outcome": f"created {COMMIT_LOG[key]}"}
 
 
 builder = StateGraph(ReviewState)
-builder.add_node("review_gate", review_gate)
+builder.add_node("review_step", review_step)
 builder.add_node("open_pr_writer", open_pr_writer)
 builder.add_node("cancelled", lambda s: {"outcome": "cancelled"})
-builder.add_edge(START, "review_gate")
+builder.add_edge(START, "review_step")
 builder.add_edge("open_pr_writer", END)
 builder.add_edge("cancelled", END)
 graph = builder.compile(checkpointer=InMemorySaver())
@@ -355,7 +359,7 @@ New key with stale expected_version=3: aborted: branch moved to v4
 ```
 <!-- leetllm: output:end -->
 
-Every part of this flow closes a separate reliability gap. Binding approval to `patch_digest` ensures a reviewer never signs off on an outdated bundle after files change, persisting checkpoints in production backends such as Postgres (rather than in-memory `InMemorySaver`) enables survival across worker restarts, and gating `open_pr_writer` on both `idempotency_key` and `expected_version` guarantees at-most-once mutation. In practice, separating human confirmation (`approval_gate`) from side effects (`open_pr_writer`) also simplifies testing because you can verify the pause-and-resume cycle without mocking external GitHub writes inside the gate node.
+Every part of this flow closes a separate reliability gap. Binding approval to `digest` ensures a reviewer never signs off on an outdated bundle after files change, persisting checkpoints in production backends such as Postgres (rather than in-memory `InMemorySaver`) enables survival across worker restarts, and protecting `open_pr_writer` with both `idempotency_key` and `expected_version` guarantees at-most-once mutation. In practice, separating human confirmation (`review_step`) from side effects (`open_pr_writer`) also simplifies testing because you can verify the pause-and-resume cycle without mocking external GitHub writes inside the review node.
 
 ## Choose topology and wire protocols
 
@@ -366,14 +370,14 @@ Not every coordination problem needs an explicit static graph. Choosing between 
 | **Control ownership** | Orchestration graph edges | Central manager LLM loop | Transfers turn control to target agent |
 | **Parallelism** | Native superstep fan-out | Tool-call concurrency inside loop | Sequential unless paired with DAG |
 | **Context isolation** | Typed state channels + copies | Structured task arguments + results | Filtered conversation history (`input_filter`) |
-| **Tool privileges** | Bound per node by host | Bound per sub-tool by host | Rebuilt from target policy (never transcript) |
+| **Tool privileges** | Bound per node by host | Bound per sub-tool by host | Rebuilt from target permissions (never transcript) |
 
 <figure>
   <img src="illustrations/_generated/comm_patterns_dark.png" alt="Graph workflows schedule static fan-out/fan-in edges, supervisor models invoke specialists as tools while keeping control, and handoffs transfer turn ownership while the runtime rebuilds tool permissions." />
   <figcaption>Static DAG edges fix concurrency up front, tool-calling supervisors retain turn ownership, and explicit handoffs transfer control while rebuilding tool scopes.</figcaption>
 </figure>
 
-Framework patterns have also converged around typed state and explicit control transfer. Microsoft placed **AutoGen** in maintenance mode and introduced **Microsoft Agent Framework Workflows**, replacing AutoGen's conversational broadcast and experimental `GraphFlow` prototypes with strongly typed event routing and executor nodes [^wu2023] [^autogen_maintenance2026] [^autogen_graphflow2026] [^microsoft_agentframework_migration2026]. Similarly, OpenAI deprecated its educational Swarm demo in favor of the **OpenAI Agents SDK**, where handoffs transfer control cleanly alongside `input_filter` context shaping and `on_handoff` argument validation (whereas `is_enabled` only gates tool visibility before parsed arguments exist) [^openai2024a] [^openai_agents_sdk] [^openai_agents_handoffs2026].
+Framework patterns have also converged around typed state and explicit control transfer. Microsoft placed **AutoGen** in maintenance mode and introduced **Microsoft Agent Framework Workflows**, replacing AutoGen's conversational broadcast and experimental `GraphFlow` prototypes with strongly typed event routing and executor nodes [^wu2023] [^autogen_maintenance2026] [^autogen_graphflow2026] [^microsoft_agentframework_migration2026]. Similarly, OpenAI deprecated its educational Swarm demo in favor of the **OpenAI Agents SDK**, where handoffs transfer control cleanly alongside `input_filter` context shaping and `on_handoff` argument validation (whereas `is_enabled` only controls tool visibility before parsed arguments exist) [^openai2024a] [^openai_agents_sdk] [^openai_agents_handoffs2026].
 
 Finally, keep **orchestration topology** distinct from **wire protocols**. **Model Context Protocol (MCP)** connects an agent host to external tool and resource servers, including an optional **Tasks** extension for tracking long-running server jobs [^mcp_anthropic2024] [^mcp_rc_2026]. **Google Agent2Agent (A2A)** handles agent-to-agent delegation across independent runtimes, advertising capabilities via Agent Cards and exposing remote `Message` exchanges or tracked `Task` state machines (`submitted`, `working`, `input-required`, terminal) [^google_a2a_2025]. Use MCP when your agent host invokes a capability server directly; use A2A when delegating a stateful sub-investigation to an external agent service.
 
@@ -383,7 +387,7 @@ Finally, keep **orchestration topology** distinct from **wire protocols**. **Mod
 - Keep parallel branches pure with typed state schemas, append reducers (`operator.add`), and deep-copied inputs so concurrent nodes never silently overwrite or mutate shared structures.
 - Choose list-form joins (`add_edge([a, b], c)`) when all branches run deterministically, and use `defer=True` when conditional routing may skip optional paths.
 - Never place external mutations before `interrupt()`, since resuming restarts the paused node from the top; route approved digests into a dedicated idempotent single writer.
-- Rebuild tool permissions from host policy on every peer handoff or remote A2A delegation rather than inheriting privilege from transferred chat text.
+- Rebuild tool permissions from host permission rules on every peer handoff or remote A2A delegation rather than inheriting privilege from transferred chat text.
 
 ```mastery-quiz
 [
@@ -418,7 +422,7 @@ Finally, keep **orchestration topology** distinct from **wire protocols**. **Mod
       "The checkpointer replays line 2 from an internal HTTP response cache without invoking `create_pr_draft()` a second time."
     ],
     "answer": "Execution restarts the review node from line 1, invoking `create_pr_draft()` a second time prior to reading the resume payload.",
-    "explanation": "Resuming from `interrupt()` re-executes the interrupted node from its beginning; external side effects must live in a downstream single-writer node gated by an idempotency key."
+    "explanation": "Resuming from `interrupt()` re-executes the interrupted node from its beginning; external side effects must live in a downstream single-writer node protected by an idempotency key."
   },
   {
     "question": "A supervisor agent calls a test-runner specialist via OpenAI Agents SDK, and later hands off a live migration investigation to a database specialist whose `is_enabled` hook returned True. An adversarial user embedded `drop_table=True` in the handoff message. Where can the runtime validate parsed handoff arguments?",
@@ -429,7 +433,7 @@ Finally, keep **orchestration topology** distinct from **wire protocols**. **Mod
       "Inside an MCP `Message` prompt suffix injected before the receiving specialist begins decoding its first response token."
     ],
     "answer": "Inside `on_handoff`, because `is_enabled` executes before structured arguments exist and tool input guardrails skip handoffs.",
-    "explanation": "OpenAI Agents SDK exposes `is_enabled` prior to argument generation; parsed handoff parameters are checked inside `on_handoff`, while target tool capabilities remain bounded by host policy."
+    "explanation": "OpenAI Agents SDK exposes `is_enabled` prior to argument generation; parsed handoff parameters are checked inside `on_handoff`, while target tool capabilities remain limited by host permission rules."
   },
   {
     "question": "Your coding host connects to an internal compiler and test-runner server, and also delegates a multi-hour dependency upgrade investigation to a separate vendor agent exposing Agent Cards and tracked tasks. Which protocol assignment fits?",
@@ -456,4 +460,4 @@ Finally, keep **orchestration topology** distinct from **wire protocols**. **Mod
 ]
 ```
 
-> **Next:** Continue to [Capstone: Production Agent](/learn/capstone-production-llm-agent). You can now fan out independent workers across typed DAG edges, handle unequal join topologies cleanly, pause for digest-bound human approval, and protect writes behind a single idempotent writer. The capstone integrates those orchestration patterns into a complete production agent system with admission gates, evidence grounding, and trajectory evaluations.
+> **Next:** Continue to [Capstone: Production Agent](/learn/capstone-production-llm-agent). You can now fan out independent workers across typed DAG edges, handle unequal join topologies cleanly, pause for digest-bound human approval, and protect writes behind a single idempotent writer. The capstone integrates those orchestration patterns into a complete production agent system with permission checks, evidence grounding, and trajectory evaluations.
