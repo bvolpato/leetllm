@@ -69,7 +69,7 @@ $$
 \text{bytes} = 2(MK + KN + MN)
 $$
 
-Dividing work by traffic gives **<span data-glossary="arithmetic-intensity">arithmetic intensity</span>**, measured in floating-point operations per byte. Try predicting which phase gets more work from each byte before you read the output. Use this shape calculation to compare work per byte, then measure kernels on the target hardware.
+Dividing work by traffic gives **<span data-glossary="arithmetic-intensity">arithmetic intensity</span>**, measured in floating-point operations per byte. Run the shape calculation below to compare how much work prefill and decode extract from each byte moved:
 
 <!-- leetllm: test, output=show -->
 ```python title="projection-phase-intensity.py"
@@ -102,10 +102,12 @@ decode : M=     8, ideal intensity=    8.0 FLOP/byte
 
 <figure>
   <img src="illustrations/_generated/phase_reuse_gap_dark.png" alt="Two schematic matrix-product lanes use the same 86 MiB BF16 weight matrix W. Both mark the fourth of four output-channel partitions in W and Y; that W tile is reused across four aggregated row bands containing eight decode rows or 32,768 prefill rows. The shapes give 8.0 versus 2,736.0 ideal FLOP per byte under the one-read traffic model; row bands are aggregates, and the figure reports no hardware utilization." />
-  <figcaption>Both matrices mark the same fourth of four N partitions. Each selected W output-column tile feeds all four aggregated row bands in Y. The groups contain two decode rows each or 8,192 prefill rows each. Applying I = 2MKN / 2(MK + KN + MN) gives arithmetic intensity of 8.0 versus 2,736.0 FLOP/byte, about 343 times the decode intensity using unrounded values. The matrix bands are schematic and do not set a hardware tile size. This cold-input calculation assumes one read of each input and one output write; it measures no hardware utilization.</figcaption>
+  <figcaption>The same 86 MiB weight tile feeds 8 decode rows or 32,768 prefill rows, shifting arithmetic intensity from 8.0 to 2,736.0 FLOP/byte (a 343x gap) under a cold one-read traffic model.</figcaption>
 </figure>
 
-Real kernels reread some tiles, reuse caches, fuse away intermediate writes, and may use <span data-glossary="quantization">quantized</span> weights. This count describes the unfused traffic model; measure HBM traffic for the fused kernel. It does give us a useful first clue: in this model, prefill offers much more arithmetic per byte than low-concurrency decode. To see which resource may limit each phase, we need one more number: the machine's compute-to-bandwidth ratio.
+> **Key insight:** Prefill and decode execute the exact same weight matrix, yet prefill reuses each loaded weight across thousands of token rows while low-concurrency decode streams 86 MiB of weights for only 8 tokens.
+
+Real kernels may also fuse intermediate writes, hit caches, or load <span data-glossary="quantization">quantized</span> weights, so measure HBM traffic on target hardware. Even from this first-order count, the contrast is stark. To see which resource limits each phase, add one more number: the machine's compute-to-bandwidth ratio.
 
 ### Compare work and traffic before predicting time
 
@@ -153,7 +155,7 @@ decode: compute=0.004 ms, memory=0.090 ms, floor=0.090 ms (memory)
   <figcaption>Independent linear axes compare compute time F/P with traffic time Q/B under 200 or 400 TFLOP/s compute ceilings and a 1 TB/s bandwidth ceiling. Doubling compute halves F/P time, reducing prefill's floor from 14.775 to 7.387 ms while leaving decode's floor at 0.090 ms because Q/B dominates.</figcaption>
 </figure>
 
-In this model, doubling only the compute ceiling halves the prefill floor and leaves the decode floor unchanged. That prediction follows from the chosen inputs; compare target-kernel timings to measure the actual speedup. A real kernel can sit far below either ceiling. A full decode step also reads KV cache, runs other layers, and may exchange collective messages. Long context, higher concurrency, speculative decoding, and cache residency can all shift the bottleneck.
+Doubling the compute ceiling halves the prefill floor (`14.775 ms` to `7.387 ms`) while leaving the decode floor untouched at `0.090 ms`, because memory traffic dominates decode. In a full serving step, KV-cache reads, other layers, collective exchanges, and higher batch concurrency can shift that balance, so always confirm against target-kernel timings.
 
 ```checkpoint
 Why can the same projection be compute-heavy during prefill and memory-heavy during decode?
@@ -179,7 +181,7 @@ The tuning guide's older HBM summary says up to 3 TB/s; the current product tabl
 
 ### How much offload is enough to hurt?
 
-For a deliberately simple traffic exercise, stream 16 decimal GB of dense BF16 weights once per decode batch. Assume `3.35 TB/s` for resident reads and a rounded `64 GB/s` host path. Treat `64 GB/s` as an optimistic PCIe payload assumption; measure the actual rate on the target system. Count the two portions sequentially, without overlap, and ignore computation, KV reads, and launch overhead.
+Suppose a decode step streams 16 GB of dense BF16 weights sequentially across resident HBM at `3.35 TB/s` and a PCIe host link at `64 GB/s` (without overlap or compute):
 
 <!-- leetllm: test, output=show -->
 ```python title="partial-offload-traffic.py"
@@ -208,12 +210,12 @@ host weights=100%: traffic= 250.0 ms, ratio=52.3x, host share=100.0%
 
 <figure>
   <img src="illustrations/_generated/offload_transfer_cliff_dark.png" alt="One weight stream is split between resident and host reads on separate time scales." />
-  <figcaption>These stacked bars use sequential transfer time for a 16 decimal GB weight stream. The first axis magnifies the 0%, 1%, and 10% host-byte cases; the separate full axis keeps the 100% host case visible. At 1% host bytes, the host route contributes 34.6% of modeled transfer time. Compute, KV traffic, and overlap are excluded.</figcaption>
+  <figcaption>Sequential transfer time for a 16 GB weight stream split between HBM (3.35 TB/s) and PCIe (64 GB/s). Moving just 1% of weights to host RAM slows total transfer 1.5x and accounts for 34.6% of transfer time.</figcaption>
 </figure>
 
-The rate ratio is 52.3. In this sequential model, the printed host share is the fraction of modeled transfer time attributed to host reads. Measure GPU stalls on the target workload to see how offloading affects utilization. Prefetch, caching, compression, compute overlap, and a larger batch can change the outcome. Dense layers ordinarily reuse weights across a batch of rows, amortizing reads across those rows. MoE traffic depends on which experts the batch selects.
+> **Common mistake:** Assuming that offloading "just 10%" of a model to host RAM adds only 10% latency. Because HBM is roughly 52x faster than a 64 GB/s host link, a 10% host slice stretches sequential transfer time by 6.1x (85.3% of the step is spent waiting on the host link).
 
-Residency can avoid repeated host transfers. Offload can still be a useful capacity tradeoff when the resulting latency meets the application's target. Include recurrent state and any designed KV offload in the memory and latency budget. Once the bytes are resident, capacity is one of several questions. How does the chip turn that tile into arithmetic?
+Prefetching, compression, compute overlap, and larger batches can soften this cliff, so profile GPU stalls whenever offload is part of your capacity plan. Once bytes are resident, the next question is how the chip turns tiles into arithmetic.
 
 ## Thread execution and matrix dataflow
 
@@ -233,13 +235,13 @@ The SM or CU also supports scalar, vector, and reduction work used by normalizat
 
 ### Systolic arrays
 
-Google's TPU matrix units and Trainium's tensor engines use systolic matrix dataflow. Neighboring processing elements pass operands or partial sums through the array, avoiding a trip to large memory for each multiply.[^google2017tpuDataflow][^awsneuroncorev32026] The following conceptual weight-stationary layout explains systolic dataflow; v6e's internal tile geometry is vendor-specific.
+Google's TPU matrix units and Trainium's tensor engines use systolic matrix dataflow. Neighboring processing elements pass operands or partial sums directly from cell to cell, avoiding a trip to large memory for every multiply.[^google2017tpuDataflow][^awsneuroncorev32026]
 
-Here's one way to picture a weight-stationary array. We preload weights from matrix $B$ into the processing-element (PE) registers and keep them there during the computation. Activations from matrix $A$ enter at the left, with rows staggered by one clock cycle so the products line up. Each PE multiplies its activation by a weight, adds the partial sum arriving from above, then passes the updated sum down.
+In a weight-stationary systolic array, we preload weights from matrix $B$ into processing-element (PE) registers and keep them stationary during the sweep. Activations from matrix $A$ stream in from the left, staggered by one clock cycle so products align. Each PE multiplies its activation by its stored weight, adds the partial sum arriving from above, and forwards the updated sum downward.
 
 <figure>
   <img src="illustrations/_generated/systolic_matrix_dataflow_dark.png" alt="Four ordered states hold the 2 by 2 B weights in place as A activations move right and partial sums move down, producing 19, 22, 43, and 50." />
-  <figcaption>In this conceptual schedule, each PE keeps its B weight while activation values advance across columns and partial sums advance down reduction rows. The first completed output is 19 = 1×5 + 2×7. The diagram explains dataflow without specifying TPU or Trainium array geometry.</figcaption>
+  <figcaption>In a weight-stationary systolic array, each PE holds its B weight while activations advance across columns and partial sums accumulate downward, producing 19 = 1×5 + 2×7 first.</figcaption>
 </figure>
 
 Local operand reuse can make dense matrix products efficient. Array dimensions, fill and drain time, padding, and reduction length still affect useful work. If a kernel pads eight active rows to a 128-row hardware tile, only $8/128 = 6.25\%$ of that tile's rows carry useful values. Chip-wide utilization also depends on mapping, batching, concurrent work, and other execution engines. TPU and Trainium have vector and scalar resources for non-matrix work. The unit names change on the next platform; the questions that locate the wait stay the same.
@@ -270,11 +272,11 @@ For a tiled projection, large memory supplies input and weight tiles, on-chip st
 
 When you move this model graph to another platform, keep the prompt distribution and output checks fixed so measured changes reflect the execution path under comparison.
 
-> **Documentation boundary, checked October 10, 2026:** The examples cover selected targets: NVIDIA H100 (Hopper) and B200-class Blackwell, AMD MI300/CDNA 3 and MI350/CDNA 4 using pinned ROCm 7.14 docs, Google TPU v6e, AWS Trainium2 using Neuron 2.32 memory docs, and Apple silicon through <span data-glossary="pytorch">PyTorch</span> MPS. Check exact hardware, OS, driver, and library compatibility before choosing a deployment image.[^nvidiahoppertuning2026][^nvidiablackwelltuning2026][^amdrocm7142026][^googletpuv6e2026][^awsnkimemory2026][^appleMetalPytorch2026]
+> **Hardware targets covered:** Examples below compare NVIDIA Hopper (H100) and Blackwell (B200-class), AMD CDNA 3 (MI300) and CDNA 4 (MI350) on ROCm, Google TPU v6e on JAX/Pallas, AWS Trainium2 on Neuron/NKI, and Apple silicon via <span data-glossary="pytorch">PyTorch</span> MPS.[^nvidiahoppertuning2026][^nvidiablackwelltuning2026][^amdrocm7142026][^googletpuv6e2026][^awsnkimemory2026][^appleMetalPytorch2026]
 
-The local-memory vocabulary is different, but the job is recognizable:
+The local-memory vocabulary changes from chip to chip, yet the ownership map stays recognizable:
 
-| Stack and dated target | Execution unit to reason about | Fast software-visible storage | Large-memory movement | Multi-device boundary | First porting question |
+| Stack and target | Execution unit to reason about | Fast software-visible storage | Large-memory movement | Multi-device boundary | First porting question |
 |---|---|---|---|---|---|
 | NVIDIA CUDA, Hopper H100 / Blackwell | 32-thread warp inside a thread block on an SM | registers, shared memory, and Hopper-era distributed shared memory | explicit loads, libraries, compiler scheduling, and TMA for suitable multidimensional copies | NVLink/NVSwitch or PCIe under topology-aware collectives such as <span data-glossary="nccl">NCCL</span> | Does the binary target the device, and does the tile overlap loads without exhausting registers or shared memory? |
 | AMD ROCm/HIP, CDNA 3 / CDNA 4 | 64-thread wavefront inside a work-group on a compute unit | vector registers and Local Data Share (LDS) | HIP kernels, libraries, and explicit or compiler-managed copies | Infinity Fabric or PCIe under RCCL | Did <span data-glossary="cuda">CUDA</span> code assume a 32-lane warp, and is the exact `gfx` target supported by the pinned ROCm image? |
@@ -323,7 +325,7 @@ Before you change the API calls, check that the algorithm agrees with the target
 - remeasure vector-register and LDS pressure, because both limit resident waves;
 - compile for the exact LLVM `gfx` target in the pinned environment.
 
-Make the missing-lane failure visible before compiling a port. In this CPU model, each physical wave owns up to 64 inputs and emits one sum. The faulty helper consumes only its first 32 lanes. This isolates an ownership error; validate HIP shuffle semantics and GPU timing on the target. Predict whether 65 inputs repair the missing half of the first wave.
+Make the missing-lane failure visible before compiling a port. In this model, each physical wave owns up to 64 inputs and emits one sum, while a faulty helper ported directly from CUDA consumes only its first 32 lanes:
 
 <!-- leetllm: test, output=show -->
 ```python title="wave-width-ownership.py"
@@ -358,7 +360,7 @@ n=65: reference=2145, assumes 32=593, uses 64=2145
 
 The 65th value starts a new wave and contributes 65, but values 33 through 64 remain missing. Real reduction code must agree on lane grouping, participation, shuffle width, and which lanes publish partial sums. Two explicit 32-lane subgroups can be valid on a 64-lane wave if both sums reach the final reduction. Hardcoding 32 becomes a bug when the rest of the algorithm assumes one complete result per physical wave.[^amdhipmodel2026]
 
-As of the snapshot date, ROCm 7.14 documentation lists MI300-series accelerators as CDNA 3 with `gfx942` and MI350-series accelerators as CDNA 4 with `gfx950`.[^amdrocm7142026] Record those identifiers, ROCm version, and library versions in build and benchmark records so another run can reproduce the result.
+AMD's ROCm documentation maps MI300-series accelerators to CDNA 3 (`gfx942`) and MI350-series accelerators to CDNA 4 (`gfx950`).[^amdrocm7142026] Record those identifiers, ROCm version, and library versions in build and benchmark records so another run can reproduce the result.
 
 The ROCm Communication Collectives Library (RCCL) provides operations such as all-reduce across GPUs. Its MI300X guidance describes eight-GPU systems where every accelerator pair has dedicated Infinity Fabric links. Using only part of that topology changes available collective routes, so a <span data-glossary="tensor-parallelism">tensor-parallel</span> result needs the selected ranks, not only `TP=4`.[^amdrccl2026]
 
@@ -386,13 +388,11 @@ Map the running projection this way:
 4. Accumulate matrix work on MXUs and keep <span data-glossary="softmax">softmax</span>, normalization, or element-wise work on suitable vector paths.
 5. For $M = 8$ decode, test padded or batched shapes against real TPOT. Measure MXU utilization for the skinny matrix on the target TPU.
 
-Pallas block shapes have backend constraints, including divisibility requirements on the trailing dimensions for TPU paths.[^googlepallastpu2026] A compile-time shape rejection reports a tile-contract mismatch. Pad with correctness masking, choose a legal block, or keep the operation in compiled JAX when a custom kernel's gains do not justify its maintenance cost.
+Pallas block shapes have backend constraints, including divisibility requirements on trailing dimensions for TPU paths.[^googlepallastpu2026] A compile-time shape rejection flags a tile-shape mismatch: pad with correctness masking, choose a legal block, or stay in compiled JAX when a custom kernel does not repay its maintenance cost.
 
 ### Which operand does grid order reuse?
 
-For one fixed reduction tile, write an output tile as $Y_{i,j} = X_i W_j$. Visiting `(0,0), (0,1), (1,0), (1,1)` keeps `X[0]` for the first two programs, then `X[1]`. Visiting `(0,0), (1,0), (0,1), (1,1)` instead keeps each weight tile for two programs. Neither order saves both operands automatically.
-
-Count loads under a deliberately small model: one currently resident tile per operand, no reuse after eviction. Each activation tile is 1 KiB and each weight tile is 4 KiB. These sizes illustrate the trade-off; check legal Pallas configurations and benchmark TPU performance separately.
+For one fixed reduction tile, write an output tile as $Y_{i,j} = X_i W_j$. Visiting `(0,0), (0,1), (1,0), (1,1)` keeps `X[0]` for the first two programs, then `X[1]`. Visiting `(0,0), (1,0), (0,1), (1,1)` instead keeps each weight tile for two programs. Suppose VMEM holds one resident tile per operand, with 1 KiB activation tiles and 4 KiB weight tiles:
 
 <!-- leetllm: test, output=show -->
 ```python title="tile-order-traffic.py"
@@ -421,7 +421,7 @@ rows first: X loads=4, W loads=2, input=12 KiB
 
 <figure>
   <img src="illustrations/_generated/pallas_grid_reuse_dark.png" alt="Two grid orders visit the same four Y tiles but retain different one-tile X and W slots, yielding 18 KiB or 12 KiB of input traffic." />
-  <figcaption>The visit numbers map each program to the same four output coordinates. A repeated slot tile is a hit; replacing it evicts the old tile. Because W tiles are four times larger than X tiles in this model, rows-first moves 12 KiB instead of 18 KiB. Block legality and target performance still require separate checks.</figcaption>
+  <figcaption>Both grid orders compute the same four output tiles, but because W tiles are four times larger than X tiles, rows-first reuses W and drops input traffic from 18 KiB to 12 KiB.</figcaption>
 </figure>
 
 Columns-first saves activation loads, but rows-first moves fewer bytes in this worked example because weights are larger. If both tiles have equal size, the byte totals tie. For a real matrix multiplication with multiple reduction tiles, also preserve Pallas's requirement that updates to the same output slice be consecutive; the reduction axis normally varies last. Inspect the complete grid and transfer trace, including reuse across tiles.[^googlepallastpu2026]
@@ -450,7 +450,7 @@ Split the fusion or shrink tiles until the live set stays on chip. “More fusio
 
 <figure>
   <img src="illustrations/_generated/nki_live_set_and_spills_dark.png" alt="A schematic split schedule ends an intermediate lifetime, while fusion extends the live set beyond SBUF and spills through HBM; PSUM pressure spills first to SBUF." />
-  <figcaption>The SBUF budget and tile units are schematic because the article gives no physical capacity. Fusion extends overlapping live ranges and can add a spill write and refill through HBM despite removing a launch. PSUM overflow first adds pressure to SBUF; it reaches HBM only if SBUF then spills.</figcaption>
+  <figcaption>Fusion extends overlapping live ranges and can trigger an SBUF spill through HBM despite removing a kernel launch. PSUM overflow spills into SBUF first and reaches HBM only if SBUF then overflows.</figcaption>
 </figure>
 
 ```checkpoint
@@ -465,7 +465,7 @@ If you're testing a local model on a Mac, Apple silicon changes the memory bound
 
 Apple silicon uses a unified physical memory pool. The CPU and GPU don't have the discrete host-RAM-to-VRAM boundary used by a typical data-center GPU. PyTorch still treats `cpu` and `mps` as different device targets, and unified memory is still finite.[^mlx2026][^pytorchMpsBackend2026]
 
-For the 8B BF16 model, weights alone need about 16 GB in decimal units. The machine also needs <span data-glossary="kv-cache">KV cache</span>, temporary activations, allocator headroom, macOS, and other applications. A Mac advertised with enough total memory can still enter pressure or fail allocation once the full serving ledger is counted.
+For the 8B BF16 model, weights alone need about 16 GB in decimal units. The machine also needs <span data-glossary="kv-cache">KV cache</span>, temporary activations, allocator headroom, macOS, and other applications. A Mac advertised with enough total memory can still hit memory pressure or fail allocation once the full serving budget is counted.
 
 For this comparison, use MPS as the single-Mac path: validate graph behavior, test product logic, and measure an on-device latency envelope. Keep three questions separate:
 
@@ -477,7 +477,7 @@ When `PYTORCH_ENABLE_MPS_FALLBACK=1` is enabled, some unsupported MPS operations
 
 <figure>
   <img src="illustrations/_generated/mps_shared_capacity_dark.png" alt="MPS Graph and CPU fallback use separate execution owners that draw from one finite unified physical memory pool." />
-  <figcaption>The 16 decimal GB weight block shares a finite pool with KV cache, temporary activations, allocator headroom, macOS, and other apps; the other amounts are not specified. MPS Graph targets the GPU, and an enabled CPU fallback can add a synchronization gap. This figure shows no automatic Neural Engine route.</figcaption>
+  <figcaption>The 16 GB weight block shares one finite unified pool with KV cache, activations, allocator headroom, macOS, and other apps. MPS Graph targets the GPU, while CPU fallback adds synchronization gaps.</figcaption>
 </figure>
 
 ## Interconnect topologies: count exchanges, then measure the route
@@ -522,7 +522,7 @@ Start at the model graph and move down only when measurements give you a reason.
 | Model graph | PyTorch, JAX, framework backend | shapes, batching, precision, graph breaks | vendor libraries, compiler lowering, memory planning | trace shows one material unsupported or poorly lowered operation |
 | Compiler and library configuration | `torch.compile`, XLA, cuBLAS, hipBLASLt, MPS Graph, Neuron compiler | fusion boundaries, layouts, autotuning, capture, static shapes | tested kernels and many architecture details | existing kernels miss a stable workload shape or move avoidable bytes |
 | Portable kernel DSL | <span data-glossary="triton-language">Triton</span> or Pallas where supported | program grid, blocks, local tiles, pipelining | backend code generation and some scheduling | one hotspot has enough volume to repay backend testing |
-| Hardware-specific kernel | CUDA C++, HIP, NKI, Metal | engine, memory, synchronization, and launch choices | compiler and runtime support, but backend-specific contracts | a measured hotspot needs hardware-specific behavior the higher layer can't express |
+| Hardware-specific kernel | CUDA C++, HIP, NKI, Metal | engine, memory, synchronization, and launch choices | compiler and runtime support, with backend-specific rules | a measured hotspot needs hardware-specific behavior the higher layer can't express |
 
 Validate portability across a platform test matrix. A Triton kernel may support NVIDIA and AMD while using different legal tile sizes. A Pallas kernel may share `BlockSpec` vocabulary across GPU and TPU while requiring backend-specific memory and shape rules. NKI exposes Trainium's memory hierarchy directly. MPS Graph may compile a complete graph with a different custom-kernel surface from CUDA.
 
@@ -547,9 +547,7 @@ Change one of precision, batching, kernel code, or topology per experiment. Keep
 
 ## The four-gate hardware evaluation funnel
 
-Suppose the assistant needs p95 <span data-glossary="ttft">TTFT</span> below 450 ms and p95 TPOT below 45 ms for eight 4,096-token prompts. These exercise thresholds illustrate candidate comparison; they are not sourced accelerator results.
-
-For this exercise, check correctness, memory fit, and latency before comparing cost. That order catches a failed candidate before you spend time ranking its throughput. In a real investigation, you may revisit earlier checks as a configuration changes. Apply these thresholds to this application; other workloads need their own SLOs.
+Suppose our code assistant targets p95 <span data-glossary="ttft">TTFT</span> below 450 ms and p95 TPOT below 45 ms across eight 4,096-token prompts. Checking correctness, memory fit, and latency in order eliminates broken or slow candidates before you spend time comparing cost per token.
 
 <figure>
   <img src="illustrations/_generated/gate_decision_path_dark.png" alt="Four acceptance gates run in order. Gate 1 checks correctness and task quality against declared tolerances and task criteria; failing quality routes to Revise config. Gate 2 checks per-device memory allocations plus measured reserve; OOM or tight headroom routes to Disqualified. Gate 3 requires p95 TTFT below 450 ms and p95 TPOT below 45 ms; tail latency failure routes to Disqualified. Passing all three gates sends the candidate to Gate 4, which ranks useful output by SLO-compliant tokens per dollar." />
@@ -560,40 +558,40 @@ For this exercise, check correctness, memory fit, and latency before comparing c
 
 Evaluate whether the candidate runs the model accurately across supported precisions:
 
-- **Dtype mechanics:** Establish a BF16 or other suitable reference. Evaluate reduced formats only where the exact device, kernel, and model configuration support them. FP8 variants and block-scaled formats such as MXFP4 and NVFP4 have different encoding and scaling contracts.
-- **Tolerance verification:** Check layer outputs using predefined absolute and relative tolerances. Inspect nonfinite values and numerical extremes, then measure the application's tasks with enough examples to assess variation. Use task results across representative cases to assess quality.
-- **Decision:** Accept the configuration only if it meets the declared numerical and task-quality criteria. Rounding differences and bounded quantization error are expected; set tolerances to the application's numeric contract. Investigate NaN/Inf values in outputs expected to be finite.
+- **Dtype mechanics:** Establish a BF16 or other suitable reference. Evaluate reduced formats only where the exact device, kernel, and model configuration support them. FP8 variants and block-scaled formats such as MXFP4 and NVFP4 follow distinct encoding and scaling rules.
+- **Tolerance verification:** Check layer outputs against predefined absolute and relative tolerances, inspect nonfinite values, and evaluate representative task cases.
+- **Decision:** Accept the configuration only if it meets the declared numerical and task-quality criteria; investigate any NaN/Inf values in outputs expected to be finite.
 
 ### Gate 2: Memory fit and residency
 
-Calculate the full memory ledger before launching serving benchmarks:
+Calculate the full per-device memory budget before launching serving benchmarks:
 
 $$
 \text{Memory required} = \text{Weights} + \text{KV cache}(B, L) + \text{Activation buffers} + \text{Runtime workspace}
 $$
 
-- For an 8B BF16 model, raw weights consume about 16 decimal GB. KV size also needs the actual layers, KV heads, head dimensions, dtypes, and context allocation. Hybrid attention and recurrent-state layouts need their own terms.
-- Build the ledger per device. Include graph captures, padding, communication buffers, runtime workspace, and any preallocated KV pool. Live histories occupy that pool; count them once in the physical allocation total.
-- Measure peak allocations over expected shapes and bursts, choose a reserve from that evidence, and test admission limits; fixed 10% or 15% margins may still leave workloads exposed to OOM. On Apple silicon, include the operating system and other processes sharing memory.
-- **Decision:** The target concurrency must fit under the measured allocation and admission policy. If offload or preemption is part of the design, include its effects in the latency test.
+- For an 8B BF16 model, raw weights consume about 16 GB. Size KV cache from the actual layers, KV heads, head dimensions, dtypes, and context allocation (adding separate terms for hybrid attention or recurrent state).
+- Build the budget per device, counting graph captures, padding, communication buffers, workspace, and any preallocated KV pool once.
+- Measure peak allocations over expected bursts and choose an explicit headroom reserve from that measurement; on Apple silicon, include macOS and other processes sharing unified memory.
+- **Decision:** Target concurrency must fit within measured capacity and admission limits. If offload or preemption is part of the design, keep it active during latency testing.
 
 ### Gate 3: Latency SLOs under production concurrency
 
 Measure response times under the target prompt arrival distribution:
 
 - **TTFT (Time to First Token):** Includes queueing, prefill, first-token production, and transport within the chosen boundary.
-- **TPOT (Time per Output Token):** Reflects subsequent generation, batching, communication, and delivery. Also inspect individual inter-token gaps; a request average can hide a pause.
+- **TPOT (Time per Output Token):** Reflects subsequent generation, batching, communication, and delivery. Also inspect individual inter-token gaps, since a request average can hide a long stall.
 - **Decision:** Disqualify any candidate that fails either p95 TTFT (<450 ms) or p95 TPOT (<45 ms), regardless of its peak batch throughput.
 
 ### Gate 4: Goodput and cost-efficiency
 
-Only configurations that clear Gates 1, 2, and 3 compete on efficiency:
+Only configurations that clear the first three stages compete on efficiency:
 
-- **Goodput:** Define the eligible work. One useful metric counts output tokens from successful requests that meet both per-request latency limits, divided by the full observation interval. Report failed requests separately, including retries and cancellations.
-- **Cost calculation:** Divide eligible tokens by cost over the same interval. Use cloud charges for rented machines or an amortized owned-hardware model with energy and operating costs. Include idle capacity and relevant CPU, network, and storage costs.
-- **Decision:** Rank configurations that pass this application's criteria by useful tokens per dollar, with uncertainty and workload conditions attached.
+- **Goodput:** Count output tokens from successful requests that meet both per-request latency limits, divided by the full observation interval. Report failed, retried, and canceled requests separately.
+- **Cost calculation:** Divide eligible tokens by total cost over the same interval (cloud rates or amortized hardware plus power, network, and idle capacity).
+- **Decision:** Rank passing configurations by useful tokens per dollar under the same workload conditions.
 
-Two separate p95 checks don't tell you whether the same requests passed both limits. Let's inspect a twenty-request trace with one slow-first-token request and a different slow-generation request. The rates and limits are exercise values. The code uses nearest-rank percentiles so we can see exactly how the result is calculated.
+Two separate p95 checks do not tell you whether the same requests passed both limits. Here is a 20-request trace with one slow-first-token request and a different slow-generation request (using nearest-rank percentiles):
 
 <!-- leetllm: test, output=show -->
 ```python title="separate-tails-and-joint-success.py"
@@ -631,12 +629,12 @@ eligible output over 10 s: 180 token/s
   <figcaption>The overlapping filters show the 18 requests that meet both limits; r0 misses TTFT and r1 misses TPOT. The nearest-rank p95 values still pass individually, while a 95% joint-compliance requirement fails at 90%. Joint-goodput counts only the 18 successful requests.</figcaption>
 </figure>
 
-This small trace separates the metrics; estimate production tails from a representative sample. Each p95 passes on its own, while only 90% of requests pass both limits. If the product requires 95% joint compliance, this candidate fails that additional gate.
+> **Key insight:** Separate p95 checks can both pass at 95% while joint compliance drops to 90% when different requests miss TTFT and TPOT. Always count joint SLO success for goodput.
 
 ```checkpoint
 Two accelerators pass numerical checks. Candidate A has higher total tokens per second but misses the p95 TPOT limit. Candidate B meets TTFT and TPOT with lower total throughput. Which candidate is eligible?
 ---
-Candidate B. Correctness, fit, and latency SLOs are non-negotiable gates. Throughput ranks only the candidates that pass all prior gates.
+Candidate B. Correctness, memory fit, and latency targets must pass first; throughput ranks only the candidates that satisfy all three.
 ```
 
 This projection is compute-heavy in prefill and memory-heavy in decode. When a port is wrong, or only slower, ask who owns that step.

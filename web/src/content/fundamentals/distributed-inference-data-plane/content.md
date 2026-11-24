@@ -59,21 +59,21 @@ Our request uses prefill group `P7` and decode group `D3`, each with two <span d
 
 <figure>
   <img src="illustrations/_generated/request_plane_contract_dark.png" alt="A connected topology has prefill ranks P7:0 and P7:1 on the left and decode ranks D3:0 and D3:1 on the right. Vertical two-way collective links stay inside each group. Horizontal arrows carry one 1.25 GiB KV shard per corresponding rank. The first shard owns heads 0 through 3 and the second owns heads 4 through 7. Both span all 8,192 token positions, totaling 2.50 GiB under ideal KV-head sharding. A separate control lane reserves D3 for attempt 4 and assigns one stream owner." />
-  <figcaption>The two horizontal transfers preserve different head shards over the same 8,192 token positions. Together they move 2.50 GiB. Vertical collectives stay inside each model group. Head cells and the token strip are schematic; this assumes ideal KV-head sharding without replication or layout conversion.</figcaption>
+  <figcaption>The two horizontal transfers carry disjoint head shards over the same 8,192 token positions (2.50 GiB total under even KV-head sharding), while vertical collectives stay inside each model group.</figcaption>
 </figure>
 
-Splitwise and DistServe study separating prefill and decode so their resources and latency objectives can be managed independently.[^patel2023][^zhong2024] A split adds transfer, coordination, and separately provisioned pools. Compare those costs with a tuned mixed pool using chunked prefill against the same objectives. vLLM still labels its disaggregated-prefill feature experimental.[^vllm2026disaggregatedprefill]
+Splitwise and DistServe study separating prefill and decode so their resources and latency targets can be tuned independently.[^patel2023][^zhong2024] Disaggregation adds KV transfer, coordination, and separate worker pools, so benchmark it against a tuned mixed pool with chunked prefill before splitting your fleet.[^vllm2026disaggregatedprefill]
 
 ## Collectives inside a replica must agree
 
-Suppose one layer produces partial activation vectors `[1,2]` on rank 0 and `[10,20]` on rank 1. A sum **<span data-glossary="all-reduce">all-reduce</span>** gives `[11,22]` to both ranks. An **<span data-glossary="all-gather">all-gather</span>** instead concatenates contributions in rank order. **<span data-glossary="reduce-scatter">Reduce-scatter</span>** sums corresponding elements and gives each rank only its assigned output chunk.[^nccl2026collectives]
+Suppose one layer produces partial activation vectors `[1,2]` on rank 0 and `[10,20]` on rank 1. A sum **<span data-glossary="all-reduce">all-reduce</span>** gives `[11,22]` to both ranks. An **<span data-glossary="all-gather">all-gather</span>** concatenates contributions in rank order. **<span data-glossary="reduce-scatter">Reduce-scatter</span>** sums corresponding elements and gives each rank only its assigned output chunk.[^nccl2026collectives]
 
 <figure>
   <img src="illustrations/_generated/collective_contracts_dark.png" alt="Two aligned index cells hold rank 0 values 1 and 2 and rank 1 values 10 and 20. Corresponding elements sum to 11 and 22. All-reduce copies the ordered vector 11,22 to both ranks. Reduce-scatter gives index 0, value 11, to rank 0 and index 1, value 22, to rank 1. All-gather then reconstructs the ordered vector 11,22 on both ranks." />
   <figcaption>Corresponding index cells keep the same meaning through the sum. All-reduce returns the whole [11,22] vector to both ranks. Reduce-scatter gives one summed chunk to each rank, and all-gather reconstructs the vector in rank order.</figcaption>
 </figure>
 
-The CPU example distinguishes these collective patterns. The sequence labels are application-level diagnostics, not fields <span data-glossary="nccl">NVIDIA Collective Communications Library (NCCL)</span> checks for you.
+The example below contrasts these three collective patterns and checks that every rank submits the same schedule. Keep in mind that <span data-glossary="nccl">NVIDIA Collective Communications Library (NCCL)</span> itself does not check application-level sequence labels for you.
 
 <!-- leetllm: test, deps=numpy, output=show, id=collective-contracts -->
 ```python title="collective-contracts.py"
@@ -123,10 +123,12 @@ Grouped calls add another synchronization stage: an individual call can return b
 
 <figure>
   <img src="illustrations/_generated/collective_order_and_completion_dark.png" alt="Aligned rank timelines compare matching application calls a at layer 3 followed by b at layer 4, against rank 1 issuing b then a. Equal element counts and dtypes still join the wrong layers when order differs. A separate completion path passes host enqueue and GroupEnd, nonblocking issuing success, a CUDA completion event, and the consumer. ncclInProgress remains before issuing success. A final trace shows one rank skipping a call while its peer waits." />
-  <figcaption>Application labels a and b identify layers 3 and 4. Swapping same-shaped calls can join different layers. Missing calls, count 3 versus 2, and FP16 versus FP32 are further mismatches. These labels are application diagnostics, not sequence IDs enforced by NCCL. Host return, issuing success, and GPU completion remain distinct milestones; one rank skipping a call can leave peers waiting.</figcaption>
+  <figcaption>Swapping two same-shaped reductions (a and b) silently combines different layers, while a skipped call hangs peer ranks. Host return, issuing success, and GPU completion remain separate milestones.</figcaption>
 </figure>
 
-The script checks arithmetic and an abstract schedule. Validate NCCL launches, distributed hang detection, and CUDA stream synchronization on the real backend. Inside one replica, the ranks still have to agree on each collective. The prefill-to-decode handoff moves a different object, the prompt's KV state. How many bytes is that for our 8,192-token prompt?
+> **Common mistake:** Treating a successful `ncclAllReduce` return on the CPU as a completed result on the GPU. Host enqueue, nonblocking issue completion, and CUDA stream completion are three separate points in time.
+
+Inside one replica, the ranks have to agree on every collective. The prefill-to-decode handoff moves a different object: the prompt's KV state. How many bytes is that for our 8,192-token prompt?
 
 ## How much state crosses the handoff?
 
@@ -146,7 +148,7 @@ At 16 tokens per logical block, the $8{,}192$-token prompt occupies $8{,}192/16 
   <figcaption>The common byte scale separates 2,560 MiB of real prompt payload from 2,600 MiB of reserved capacity. The magnified block edge shows 16 positions per 5 MiB block. Reserving 128 future output positions adds 40 MiB. It does not transfer future KV. One extra real prompt token adds 320 KiB of payload but raises rounded capacity by 5 MiB, to 521 blocks and 2,605 MiB.</figcaption>
 </figure>
 
-Keep those two quantities separate as you work through the exercise. Its effective bandwidths are **assumptions**; measure the target link for a deployment estimate. GB/s uses decimal bytes; GiB uses powers of 1,024.
+Keep payload size and rounded block reservation separate as you run the budget below (GB/s uses decimal bytes; GiB uses powers of 1,024):
 
 <!-- leetllm: test, output=show, id=kv-budget -->
 ```python title="kv-budget.py"
@@ -190,8 +192,10 @@ For serial transfer with aggregate effective payload rate $R$, the transfer term
 
 <figure>
   <img src="illustrations/_generated/shared_path_capacity_dark.png" alt="Two identical 1.25 GiB shards converge on one shared 25 GB/s path or travel on two independent 25 GB/s paths. On the same 0 to 120 millisecond scale, the shared path completes at 107.3741824 milliseconds, while both independent paths complete at 53.6870912 milliseconds. The link rates are assumptions. Forty requests per second demand 107.3741824 GB/s, above the shared path maximum of about 9.31 transfers per second." />
-  <figcaption>Both cases carry the same two 1.25 GiB shards. One assumed aggregate 25 GB/s bottleneck takes 107.3741824 ms. Two independent paths each at that rate take 53.6870912 ms before overhead. These are byte-budget assumptions, not measured network speeds. Forty such requests per second demand 107.3741824 GB/s, while the shared path supports at most 9.313225746 transfers per second before overhead.</figcaption>
+  <figcaption>Both cases carry the same two 1.25 GiB shards. One shared 25 GB/s bottleneck takes 107.4 ms, whereas two independent 25 GB/s paths finish in 53.7 ms before overhead. Forty such requests per second demand 107.4 GB/s, far above the shared path's 9.31 transfers/s ceiling.</figcaption>
 </figure>
+
+> **Key insight:** Tensor parallelism splits each prompt's KV cache across ranks, not across total wire bytes. If both shards cross one shared NIC, TP=2 does not halve transfer time.
 
 ## Reserve capacity before creating expensive state
 
@@ -228,9 +232,9 @@ The destination first compares the sender's manifest against a trusted reservati
 | Shard coverage | Ranks 0 and 1, logical blocks 0 through 511 | Require every needed layer, head shard, and token range |
 | Destination reservation | `slot_decode_r3` | Bind the transfer to reserved VRAM capacity and local expiry |
 
-The short digests here are labels, not cryptographic examples. Use canonical token IDs from one owner rather than independently rendering chat templates at both workers. vLLM documents experimental reuse of prefill token IDs through `kv_transfer_params` for this purpose. Its documentation, rechecked October 10, 2026, scopes this path to `/v1/chat/completions`: `messages` remains required, and non-text content or `echo` causes the provided IDs to be ignored. A proxy therefore can't assume those IDs bypass preprocessing for every request.[^vllm2026disaggregatedprefill] Sampling state, the last token or hidden state needed to start decode, and first-token ownership also belong in the engine-specific handoff. KV tensors alone aren't necessarily enough to resume generation.
+Use canonical token IDs from one owner rather than independently rendering chat templates at both workers. vLLM supports experimental reuse of prefill token IDs through `kv_transfer_params` on `/v1/chat/completions`, though `messages` stays required and non-text content or `echo` causes those IDs to be ignored, so a proxy cannot assume they always bypass preprocessing.[^vllm2026disaggregatedprefill] Sampling state, the last token or hidden state needed to start decode, and first-token ownership also belong in the engine handoff because KV tensors alone are not enough to resume generation.
 
-Logical block 31 can live at physical block 904 in prefill rank 7 and block 118 in decode rank 3. Local physical indices do not need to match, so long as logical token positions map to the right destination shard. A connector may explicitly support repartitioning or layout conversion; budget and validate that conversion rather than silently reinterpreting bytes. A correct manifest still doesn't say who may write the buffer, or when those bytes are safe to reuse.
+Logical block 31 can live at physical block 904 in prefill rank 7 and block 118 in decode rank 3. Local physical indices do not need to match, so long as logical token positions map to the right destination shard. A connector may explicitly support repartitioning or layout conversion; budget and validate that conversion rather than silently reinterpreting bytes. A correct manifest still does not say who may write the buffer, or when those bytes are safe to reuse.
 
 <figure>
   <img src="illustrations/_generated/manifest_and_stream_ownership_dark.png" alt="Disaggregated KV transfer flows from Router Control assigning attempt 4 and checking Decode Quota against free HBM backpressure, through Prefill Pool TP2 holding 2.50 GiB shards over an RDMA or NVLink TX queue at 68% capacity to Decode Pool TP2 verifying layout match and 1,024 unique blocks before granting one decode stream." />
@@ -239,35 +243,36 @@ Logical block 31 can live at physical block 904 in prefill rank 7 and block 118 
 
 ## A transfer engine doesn't own the request
 
-Request ownership changes through protocol transitions; copying bytes alone leaves the reservation and buffer-lifetime state unchanged. NIXL separates memory registration, connection-metadata exchange, buffer descriptors, and asynchronous transfer operations. An external conductor coordinates the workload and metadata path.[^nixl2026architecture] Serialize that small metadata, not gigabytes of tensors into JSON. Keep the payload in registered GPU or host memory supported by the connector.
+Request ownership changes through protocol transitions; copying bytes alone leaves the reservation and buffer-lifetime state unchanged. NIXL separates memory registration, connection-metadata exchange, buffer descriptors, and asynchronous transfer operations while an external conductor coordinates the workload and metadata path.[^nixl2026architecture] Serialize only that small metadata into JSON, keeping gigabytes of tensors in registered GPU or host memory.
 
-The surrounding service still owns authorization, placement, retry policy, and output ownership. Protect the metadata channel, restrict descriptor exposure, and isolate registered regions. Keep remote keys and descriptors out of application logs. RDMA transports bytes; use separate controls for encryption, tenant isolation, integrity, and authenticated workload identity, alongside model and layout checks.
+The surrounding service still owns authorization, placement, retry rules, and output ownership. Protect the metadata channel, keep remote keys and descriptors out of logs, and layer encryption, tenant isolation, and authenticated workload identity on top of RDMA.
 
-Dynamo's development documentation describes backend-specific handoff metadata from prefill used to coordinate decode and NIXL movement.[^nvidia2026dynamodisaggregated] Its experimental topology-aware routing can require the same transfer domain or prefer it through a cost bias. Inspect final rack and zone placement in the target deployment.[^nvidia2026dynamoKvTransferTopology] A lightly loaded decoder across a congested path can finish later than a busier nearby one. Evaluate the whole path, including GPU-to-NIC placement, staging, registration, conversion, and shared link contention.
+<details>
+<summary>Deep dive: Engine-specific connector details (Dynamo and NIXL/UCX)</summary>
 
-That documentation scopes automatic prefill-router activation to the integrated `dynamo.frontend` path. Standalone Python routers need explicitly connected stages and handoff handling. Once a request has been dispatched to prefill, a prefill or handoff failure is returned to the request; it doesn't silently fall back through an aggregated decode-only path.[^nvidia2026dynamoroutertopology]
+- **Dynamo routing and handoff:** Dynamo passes backend-specific handoff metadata from prefill to coordinate decode and NIXL movement.[^nvidia2026dynamodisaggregated] Its topology-aware routing can require or prefer the same transfer domain, because a lightly loaded decoder across a congested path can finish later than a busier nearby one.[^nvidia2026dynamoKvTransferTopology] Automatic prefill-router activation applies to the integrated `dynamo.frontend` path; standalone Python routers wire stages explicitly, and a failed handoff returns an error rather than silently falling back to decode-only execution.[^nvidia2026dynamoroutertopology]
+- **NIXL ordering and cancellation:** Distinct transfer requests are not automatically ordered, so the application must prevent concurrent transfers from overlapping the same region. Releasing a transfer can involve asynchronous cancellation, keeping "cancel requested," "operation stopped," and "buffer reusable" as separate milestones.[^nixl2026backendGuide]
+- **UCX error reporting:** The UCX plugin defaults `ucx_error_handling_mode` to `peer`. Switching to `none` can unlock extra transport lanes but drops peer-failure reporting guarantees, meaning a timeout or absent disconnect error is never proof that a remote writer stopped.[^nixl2026backendGuide]
 
-Two NIXL backend limits matter directly to buffer safety: distinct transfer requests aren't automatically ordered, and the application must prevent simultaneous transfers from corrupting the same region. Releasing a transfer can involve asynchronous cancellation that hasn't yet succeeded.[^nixl2026backendGuide] Keep “cancel requested,” “operation stopped,” and “buffer reusable” as separate events.
-
-Backend configuration also changes failure evidence. The current UCX plugin defaults `ucx_error_handling_mode` to `peer`. Selecting `none` can make additional transport lanes eligible, but removes peer-failure reporting guarantees; pending operations may remain incomplete and unreported. A timeout or missing disconnect error is therefore no proof that a writer stopped.[^nixl2026backendGuide]
+</details>
 
 ## Timeout revokes ownership, not physical access
 
-Suppose 70% of attempt 4's KV has arrived when its lease expires. The destination must reject commit. But returning those blocks to the allocator immediately could let an old remote write overwrite attempt 5's cache.
+Suppose 70% of attempt 4's KV has arrived when its lease expires. The destination must reject commit. Returning those blocks to the allocator immediately, however, could let an in-flight remote write overwrite attempt 5's cache.
 
 <figure>
   <img src="illustrations/_generated/transfer_retirement_dark.png" alt="Ordered steps down the left describe buffer B4 holding 2,600 MiB: RDMA writes start for attempt 4, lease expiry fences commit, in-flight RDMA writes continue landing while B4 stays quarantined and reuse stays blocked, abort acknowledgement and idle GPU readers complete quiescence, and 2,600 MiB is reclaimed free." />
-  <figcaption>Expiry fences commit while late writes can still reach B4. Its full 2,600 MiB charge stays held until RDMA writes abort and all GPU readers finish, then reclamation frees the buffer. In this trace, no GPU reader started before expiry, so abort acknowledgement satisfies the remaining quiescence requirement.</figcaption>
+  <figcaption>Expiry fences commit while late writes can still reach B4. Its full 2,600 MiB charge stays held until RDMA writes abort and all GPU readers finish, then reclamation frees the buffer.</figcaption>
 </figure>
 
-For a conservative whole-prompt protocol, keep these four stages distinct:
+For a clean whole-prompt protocol, keep four stages distinct:
 
 1. **Reserve:** charge capacity and record the expected manifest under a server-issued attempt.
 2. **Transfer:** keep incoming blocks unavailable to attention, even if some are complete.
-3. **Commit:** after compatibility, complete unique coverage, integrity, and connector-required visibility checks, grant one decoder ownership.
-4. **Retire and reclaim:** stop queueing and streaming, then wait for successful cancellation or completion and GPU-reader quiescence before reusing memory.
+3. **Commit:** after compatibility, complete unique coverage, integrity, and visibility checks pass, grant one decoder ownership.
+4. **Retire and reclaim:** stop queueing and streaming, then wait for confirmed cancellation or completion and GPU-reader quiescence before reusing memory.
 
-Advanced connectors can overlap layer-wise transfer and compute. That requires dependency tracking for each consumed region; it doesn't permit attention to read a missing region. The whole-prompt gate here is intentionally simpler.
+Advanced connectors can overlap layer-wise transfer and compute, which requires per-region dependency tracking so attention never reads an unfinished layer. This whole-prompt commit rule is simpler to reason about.
 
 A duplicate arrival mustn't count as a new block. Counting 1,024 notifications isn't equivalent to receiving 512 distinct blocks on each of two ranks. Likewise, a completed byte count doesn't validate layer coverage or a manifest's interpretation.
 
@@ -327,17 +332,19 @@ invalid leases, clock ticks, manifests and block identities: rejected
 ```
 <!-- leetllm: output:end -->
 
-These checks validate the model's transitions. Validate distributed atomicity, authentication, memory visibility, and cancellation semantics in the chosen NIXL, vLLM, Dynamo, CUDA, or RDMA backend. A deployed coordinator needs authoritative attempt ownership, serialization or compare-and-swap at commit, durable recovery rules, and a frontend that fences stale streams. Attempt numbers need enforcement by the authoritative writer and stream owner.
+> **Key insight:** A timed-out reservation still consumes physical VRAM until every in-flight RDMA write aborts and every GPU reader finishes. Reclaiming credit on expiry alone invites silent buffer corruption.
+
+In production, wire those state transitions to authoritative attempt ownership (for example via compare-and-swap at commit), durable recovery state, and a frontend that fences stale streams, then verify cancellation and visibility on your real NIXL, vLLM, Dynamo, or RDMA stack.
 
 ## Failure modes and retry limits
 
-Before output is visible, the service may retry if it can fence the old owner, preserve request semantics, and stay within its deadline and retry budget. This still costs compute and network traffic. Current vLLM configuration exposes `fail` and `recompute` policies for KV-load failure; those are local engine behaviors, not a complete resumable-stream protocol.[^vllm2026kvtransferconfig]
+Before output is visible, the service may retry if it can fence the old owner, preserve request semantics, and stay within its deadline and retry budget. vLLM exposes `fail` and `recompute` modes for KV-load failure; those are local engine behaviors, not a complete resumable-stream protocol.[^vllm2026kvtransferconfig]
 
 After output may have reached the client, don't transparently restart at token 1. A lost acknowledgement can make delivery uncertain. Exact continuation requires an agreed cursor, token or frame deduplication, sampling state, and authoritative ownership. Without that protocol, return an explicit interrupted-stream error.
 
 | Failure | Safe recovery point |
 |---|---|
-| Prefill fails | Fence that attempt; recompute on a healthy group if retry policy permits |
+| Prefill fails | Fence that attempt; recompute on a healthy group if retry limits allow |
 | Partial transfer times out | Retire it; reclaim only after its accesses stop; retransmit retained source KV or recompute |
 | One decode rank fails | Stop scheduling the affected model group; recover its collective state before reuse |
 | Commit acknowledgement is lost | Query the authoritative state; don't infer “not committed” from timeout |
@@ -385,7 +392,7 @@ with 25 ms queue: TTFT 400.4 ms; active-span union 375.4 ms
 
 <figure>
   <img src="illustrations/_generated/handoff_overlap_dark.png" alt="Three timelines share the same 0 to 500 millisecond scale. Serial prefill runs 0 to 310, transfer 310 to 417.3741824, and commit plus first token ends at 445.3741824. Starting transfer at 240 leaves prefill unchanged and moves first token to 375.3741824, saving 70 milliseconds. Shifting that same overlapped work after a 25 millisecond queue produces 400.3741824 milliseconds of TTFT while its active-span union remains 375.3741824. Dependency arrows join both prefill and transfer completion before commit." />
-  <figcaption>All three schedules share one 0 to 500 ms scale. Commit plus the first token waits for both prefill and transfer, so starting the 25 GB/s transfer at 240 ms saves 70 ms. Shifting that work behind a 25 ms queue raises TTFT to 400.3741824 ms while the active-span union stays 375.3741824 ms, which is why endpoint timing must anchor the measurement. Layer-wise streaming only helps when each region's decode reader waits on that region's own completion signal.</figcaption>
+  <figcaption>All three schedules share one 0 to 500 ms scale. Commit plus the first token waits for both prefill and transfer, so overlapping transfer at 240 ms saves 70 ms (375.4 ms vs. 445.4 ms). Adding a 25 ms queue raises TTFT to 400.4 ms while the active-span union stays 375.4 ms, showing why endpoint timing must anchor TTFT.</figcaption>
 </figure>
 
 Phase p99 values don't generally add to end-to-end p99. The slowest prefill and slowest transfer may belong to different requests. Compute end-to-end quantiles from joined request traces, and keep request IDs in traces rather than unbounded metric labels.
@@ -469,7 +476,7 @@ The total grows from $8{,}320$ positions, exactly $520$ blocks, to $8{,}321$ pos
       "About 1000 ms"
     ],
     "answer": "About 105 ms",
-    "explanation": "1000 MiB is1,048,576,000 bytes. Dividing by10 billion bytes/second gives104.8576 milliseconds. Each stream cannot independently claim the full shared rate."
+    "explanation": "1000 MiB is 1,048,576,000 bytes. Dividing by 10 billion bytes/second gives 104.86 milliseconds. Each stream cannot independently claim the full shared rate."
   },
   {
     "question": "A destination has 100 free KV blocks. A request needs 90 prompt blocks and a reservation of 16 future output blocks. Which scheduling decision follows?",
@@ -502,7 +509,7 @@ The total grows from $8{,}320$ positions, exactly $520$ blocks, to $8{,}321$ pos
       "No; all four ranks must use the same physical addresses."
     ],
     "answer": "No; complete unique rank-and-block coverage is still required.",
-    "explanation": "The expected set has384 unique pairs. A duplicate can hide a missing pair even when notification counts agree. Physical addresses need not match across workers."
+    "explanation": "The expected set has 384 unique pairs. A duplicate can hide a missing pair even when notification counts agree. Physical addresses need not match across workers."
   },
   {
     "question": "The router sends attempt 6 to decoder North and times out waiting for its commit reply. The sender reports a complete KV copy, and the client has seen no token. Which rule should guide the router's decision about stream ownership?",
@@ -535,7 +542,7 @@ The total grows from $8{,}320$ positions, exactly $520$ blocks, to $8{,}321$ pos
       "TTFT 115 ms; add the waiting gap to the first-token timestamp."
     ],
     "answer": "TTFT 95 ms; retain request endpoints and the 20 ms wait.",
-    "explanation": "End-to-end elapsed time is95-0=95 milliseconds. The active-span duration75 omits queueing. Compute end-to-end quantiles from joined request endpoints rather than adding phase quantiles."
+    "explanation": "End-to-end elapsed time is 95 - 0 = 95 milliseconds. The active-span duration (75 ms) omits queueing. Compute end-to-end quantiles from joined request endpoints rather than adding phase quantiles."
   }
 ]
 ```

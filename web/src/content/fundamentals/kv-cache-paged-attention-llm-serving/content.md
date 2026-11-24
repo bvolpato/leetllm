@@ -103,7 +103,7 @@ Here 4K means 4,096 tokens and 32K means 32,768. These are full-retention payloa
 
 <figure>
   <img src="illustrations/_generated/memory_footprint_dark.png" alt="Three equal-width bars partition the same 40 GiB payload-only KV pool. Llama 3 8B fits 80 half-GiB requests, Llama 3 70B fits 32 1.25-GiB requests, and the extrapolated GPT-3 175B shape fits two 18-GiB requests with 4 GiB free. Segment sizes use one common 0-to-40-GiB scale." />
-  <figcaption>Raw full-retention payload ceilings inside a chosen 40 GiB KV budget: 80, 32, and 2 concurrent 4,096-token requests. These counts exclude runtime overhead and do not measure throughput. GPT-3's shape is extrapolated beyond its original context limit.</figcaption>
+  <figcaption>Raw full-retention payload ceilings inside a chosen 40 GiB KV budget: 80, 32, and 2 concurrent 4,096-token requests (excluding runtime overhead; GPT-3's shape is extrapolated beyond its original 2,048-token context).</figcaption>
 </figure>
 
 For Llama 3 70B, one 4K-context request already consumes **1.25 GiB** of KV cache. A batch of 128 such requests would need **160 GiB** of <span data-glossary="hbm">High Bandwidth Memory (HBM)</span>, before weights and runtime buffers.
@@ -170,7 +170,7 @@ Suppose Request A currently has 600 cached tokens. What can Request B use from A
 
 <figure>
   <img src="illustrations/_generated/paged_attention_dark.png" alt="Two snapshots of the same ten physical KV blocks. With maximum reservations, A and B each hold five blocks while using three, so C cannot obtain its two blocks. With dynamic allocation, A uses three, B three, and C two, leaving blocks 8 and 9 free." />
-  <figcaption>The same pool makes reservation timing visible: capacity becomes available to C only when blocks are assigned as sequences grow. Acceptance differs; the figure says nothing about decode speed.</figcaption>
+  <figcaption>Dynamic block assignment lets C enter the same 10-block pool while A and B are still growing, whereas upfront maximum reservations lock C out.</figcaption>
 </figure>
 
 ### Types of memory waste
@@ -234,7 +234,7 @@ Physical blocks don't need to sit next to each other in VRAM. The engine assigns
 | Scope | What uniform paging changes | What remains |
 |--------|----------------------|----------------|
 | **Free blocks within one pool** | Any free block can satisfy a same-size allocation | Other pool classes and non-KV allocations have their own constraints |
-| **Maximum-length reservation** | Current token-block occupancy can determine allocation | Lookahead or scheduling policies may reserve extra capacity |
+| **Maximum-length reservation** | Current token-block occupancy can determine allocation | Lookahead or scheduler reservations may hold extra capacity |
 | **Final partial block** | In the basic append-only layout, unused slots are fewer than $B$ | Short requests can have a large percentage of unused slots |
 | **Serving performance** | Better packing can permit larger batches | Kernel cost, scheduling, request lengths, and latency targets still matter |
 
@@ -242,7 +242,7 @@ Within a uniform pool, a free block doesn't need a neighboring free block to ser
 
 For basic full-attention storage with no extra reservations, a request wastes at most $B-1$ slots in its last block. With $B=16$, one live token uses sixteen slots: **93.75%** of those slots are unused. At 120 tokens, eight blocks reserve 128 slots: **6.25%** are unused. Long aligned requests can have no tail waste. Count occupied slots and state the denominator before quoting a percentage.
 
-The 2023 paper reported **2–4× throughput** for particular models, A100 deployments, workloads, and reimplemented Orca reservation policies. Measure concurrency gains on the target engine and request mix. Paging preserves the intended attention operation, while changing a GPU kernel can still change floating-point rounding.[^kwon2023]
+The 2023 paper reported **2–4× throughput** for particular models, A100 deployments, workloads, and reimplemented Orca reservation schemes. Measure concurrency gains on the target engine and request mix. Paging preserves the intended attention operation, while changing a GPU kernel can still change floating-point rounding.[^kwon2023]
 
 Block size involves a clear trade-off:
 - **Smaller blocks (such as 8 or 16 tokens):** Minimize tail waste and allow finer-grained memory sharing, but require larger block tables and slightly less regular memory access.
@@ -272,6 +272,8 @@ The original vLLM microbenchmark measured **20-26% higher attention-kernel laten
 vAttention is a counter-design. It reserves a contiguous virtual-address range for each KV cache and backs virtual pages with physical GPU memory on demand through CUDA virtual-memory APIs.[^prabhu2024vattention] The kernel still sees contiguous virtual addresses, so existing contiguous attention kernels can run without a paged-KV interface. Complexity moves into virtual-memory mapping, page commitment, and platform support.
 
 Neither layout wins by definition. PagedAttention has broad serving-engine adoption and explicit block-sharing. A contiguous-virtual design may reuse more existing kernels but depends on the runtime, driver, page granularity, and workload. Compare end-to-end throughput, latency, memory utilization, and implementation constraints on the target stack.
+
+> **Key insight:** PagedAttention trades a modest per-kernel indirection cost (block-table lookups) for large HBM capacity savings and fine-grained block sharing. End-to-end throughput rises whenever the recovered memory unlocks larger concurrent batches.
 
 <!-- leetllm: test, output=show -->
 ```python title="bound-paged-tail-waste.py"
@@ -582,9 +584,9 @@ PagedAttention pairs especially well with **<span data-glossary="continuous-batc
 A needs 20 decode iterations while B needs 200. In traditional <span data-glossary="static-batching">static batching</span>, the system waits for $N$ requests, bundles them, and processes that batch until *all* requests finish. A completes early, but its slot remains tied to B's long tail, so the shorter request contributes no useful work for the remaining iterations.
 
 ### The continuous batching approach
-Continuous batching, made explicit in systems like Orca, schedules at iteration granularity.[^yu2022] After A emits an End-of-Sequence (EOS) token or reaches another stopping condition, the scheduler can retire it and start waiting work at a later scheduling step. Unshared blocks become reusable after pending GPU accesses finish; a prefix policy may retain their contents.
+Continuous batching, made explicit in systems like Orca, schedules at iteration granularity.[^yu2022] After A emits an End-of-Sequence (EOS) token or reaches another stopping condition, the scheduler can retire it and start waiting work at a later scheduling step. Unshared blocks become reusable after pending GPU accesses finish; a prefix cache may retain their contents.
 
-That replacement can keep a batch slot productive instead of waiting for B. Continuous batching creates opportunities to change the live batch; paged allocation makes freed capacity easy to reuse. Neither guarantees that the next request meets its deadline.
+That replacement keeps a batch slot productive instead of waiting for B. Continuous batching changes the live batch every step, while paged allocation makes freed capacity easy to reuse; tail latency still depends on load and prefill scheduling.
 
 | Strategy | Idle Time on skewed generations | When are requests added? | Throughput posture |
 |----------|-----------|--------------------------|------------|
@@ -593,7 +595,7 @@ That replacement can keep a batch slot productive instead of waiting for B. Cont
 
 Orca's historical GPT-3 175B evaluation reported up to **36.9×** throughput over FasterTransformer at the same latency level. Its system combined iteration-level scheduling with selective batching of model operations. The comparison doesn't isolate one feature's speedup or determine modern serving performance.[^yu2022]
 
-A dynamic batch needs an effective memory-management policy. Paging is one approach; vAttention's virtual-memory design shows that iteration-level scheduling doesn't require PagedAttention specifically.[^prabhu2024vattention]
+A dynamic batch needs an effective memory allocator. Paging is one approach; vAttention's virtual-memory design shows that iteration-level scheduling doesn't require PagedAttention specifically.[^prabhu2024vattention]
 
 <!-- leetllm: test, output=show -->
 ```python title="recycle-blocks-between-iterations.py"
@@ -626,7 +628,7 @@ blocks after retire A and start C: 3
 
 ---
 
-Iteration-level scheduling creates and frees live sequences constantly. Block tables also make a different trick possible: sharing physical blocks. That sharing has two very different policies.
+Iteration-level scheduling creates and frees live sequences constantly. Block tables also make a different trick possible: sharing physical blocks. That sharing works in two distinct ways.
 
 ## How serving engines build on PagedAttention
 
@@ -644,7 +646,7 @@ Reference-counted **Copy-on-Write (CoW)** permits safe branch sharing:[^vllm2023
 1. **Fork:** Each branch's table can reference the same valid prompt blocks. Reference counts track their owners.
 2. **Read:** Shared contents do not need to be duplicated for attention. Readers still compete for bandwidth and kernel resources; safe sharing isn't zero hardware contention.
 3. **Append:** After a full shared block, allocate a new block. To append inside a shared *partial* block, first copy its valid contents into private storage and update ownership. This is necessary even if two branches happen to produce identical next tokens.
-4. **Retire:** Release the branch's references. A block can become reusable only after other owners and pending GPU accesses no longer require it. A prefix-cache policy can retain unreferenced contents for future hits.
+4. **Retire:** Release the branch's references. A block can become reusable only after other owners and pending GPU accesses no longer require it. A prefix cache can retain unreferenced contents for future hits.
 
 Try the dangerous case: A and B share three valid slots in a four-slot block. Both branches will write their fourth position. A write into the shared empty slot doesn't change B's three-token prefix, but B's later write would overwrite A's fourth K/V pair. A reference count protects ownership only if the append path obeys it.[^kwon2023]
 
@@ -697,11 +699,13 @@ with copy-on-write: {'A': [10, 20, 30, 90], 'B': [10, 20, 30, 80]}
   <figcaption>This small trace makes the aliasing bug visible: shared writes target one slot, while copying the three valid entries gives the branches independent tails. A full shared block gets a new tail instead; GPU stream ordering remains outside this CPU check.</figcaption>
 </figure>
 
-Only A copies the three valid entries; B can write the original block after its reference count falls to one. A full shared block would instead stay shared while each branch allocates its next block. In a GPU implementation, order the copy before the destination write and preserve the source until all readers finish. The example checks branch isolation, not CUDA stream synchronization.[^nvidia2021streamAllocator]
+Only A copies the three valid entries; B can write the original block after its reference count falls to one. A full shared block would instead stay shared while each branch allocates its next block. In a GPU implementation, order the copy before the destination write and preserve the source until all readers finish.[^nvidia2021streamAllocator]
+
+> **Common mistake:** Appending into a shared *partial* KV block without checking its reference count lets sibling beams overwrite each other's latest token in place. Trigger copy-on-write whenever `ref_count > 1`, even if the target slot is currently empty.
 
 ### Prefix caching across independent requests
 
-Copy-on-write safely shares blocks across branches forked within the *same* request. Reusing state across *separate, independently arriving* requests requires an additional **<span data-glossary="prefix-cache">prefix cache</span>** policy: retain completed prefix blocks in memory after a request finishes, match incoming prompts against cached token sequences, verify security isolation keys, and only then map the new request's block table to the existing physical blocks. vLLM documents this feature as Automatic Prefix Caching (APC).[^vllm2026prefix]
+Copy-on-write safely shares blocks across branches forked within the *same* request. Reusing state across *separate, independently arriving* requests requires an additional **<span data-glossary="prefix-cache">prefix cache</span>** layer: retain completed prefix blocks in memory after a request finishes, match incoming prompts against cached token sequences, verify security isolation keys, and only then map the new request's block table to the existing physical blocks. vLLM documents this feature as Automatic Prefix Caching (APC).[^vllm2026prefix]
 
 Suppose 100 independent requests share a compatible 1,000-token prompt, a warm available cache, and 16-token blocks. vLLM's prefix cache reuses complete blocks. In this full-attention snapshot, 992 tokens form 62 reused blocks and the remaining 8 occupy a private partial block per request:[^vllm2026prefix]
 
@@ -710,7 +714,7 @@ Suppose 100 independent requests share a compatible 1,000-token prompt, a warm a
 
 That's a **97.4% reduction** in occupied prefix blocks for this snapshot. It frees capacity for other work, not necessarily CUDA allocations back to the driver. Evicted prefixes, a cold cache, different model state, or different isolation keys change the result.
 
-Now make the prompt exactly **1,008 tokens**, filling 63 blocks. Can current vLLM skip the entire prompt? No: it recomputes the last token to obtain next-token logits. Its block-aligned hit limit can therefore require recomputing the whole last block. This behavior is present in v0.28.0 and the current source checked October 10, 2026.[^vllm2026kvmanager0280] Its V1 append-only block tables can also retain duplicate full blocks until a request is freed; full blocks aren't automatically deduplicated during every step.[^vllm2026prefix]
+Now make the prompt exactly **1,008 tokens**, filling 63 blocks. Can current vLLM skip the entire prompt? No: it recomputes the last token to obtain next-token logits, so its block-aligned matcher recomputes the entire final block.[^vllm2026kvmanager0280] Its V1 append-only block tables can also retain duplicate full blocks until a request is freed rather than deduplicating on every step.[^vllm2026prefix]
 
 <!-- leetllm: test, output=show -->
 ```python title="estimate-prefix-block-reuse.py"
@@ -745,7 +749,7 @@ saved occupied prefix slots: 97.4%
 </figure>
 
 ### RadixAttention (SGLang)
-<span data-glossary="sglang">SGLang</span>'s **RadixAttention** organizes reusable token prefixes in a radix tree, a tree whose edges can store sequences rather than one token each. Its original design evicts unused leaf prefixes under an LRU policy when space is needed.[^zheng2024sglang] A hit skips computation for the compatible cached prefix; the unmatched suffix still needs prefill. A full miss recomputes the prompt. It doesn't promise to retain every request forever.
+<span data-glossary="sglang">SGLang</span>'s **RadixAttention** organizes reusable token prefixes in a radix tree, a tree whose edges can store sequences rather than one token each. Its original design evicts unused leaf prefixes in least-recently-used (LRU) order when space is needed.[^zheng2024sglang] A hit skips computation for the compatible cached prefix; the unmatched suffix still needs prefill. A full miss recomputes the prompt. It doesn't promise to retain every request forever.
 
 That makes it particularly effective for multi-turn chat and agentic workloads where long prompt prefixes repeat across calls.[^zheng2024sglang]
 
@@ -755,7 +759,7 @@ FlashInfer provides attention kernels and APIs for serving workloads, including 
 ### PagedAttention vs. FlashAttention
 These names are easy to mix up, but they solve different problems.[^kwon2023][^dao2022]
 
--   PagedAttention: A KV-cache layout and allocation strategy. It places cached K/V tensors in blocks and supports block sharing; a prefix-cache policy decides cross-request reuse.
+-   PagedAttention: A KV-cache layout and allocation strategy. It places cached K/V tensors in blocks and supports block sharing; a prefix cache handles cross-request reuse.
 -   FlashAttention: An IO-aware attention kernel. It tiles attention so the GPU does less wasteful movement between HBM and on-chip memory, especially during full attention computation.[^dao2022]
 
 Modern serving stacks often use both or close variants together.[^ye2025] PagedAttention makes the cache fit and stay shareable. <span data-glossary="flashattention">FlashAttention</span>-style kernels make attention itself faster once those tensors are in place.
@@ -784,7 +788,7 @@ GQA reduces the *size* of the problem, while PagedAttention solves the *allocati
 
 ## Practical considerations
 
-Start capacity planning with two separate ledgers: model weights and request state. A typical GPU-resident deployment shares fixed weights across requests while its occupied KV state grows with the live workload. Weight offloading and prefix sharing change the accounting. Sizing only for weights can still leave too little space for long conversations.
+Start capacity planning with two separate memory budgets: model weights and request state. A typical GPU-resident deployment shares fixed weights across requests while its occupied KV state grows with the live workload. Weight offloading and prefix sharing change the accounting. Sizing only for weights can still leave too little space for long conversations.
 
 ### 1. The prefill vs. decode bottleneck
 LLM inference still has two useful workload categories:[^kwon2023][^zhong2024]
@@ -847,7 +851,7 @@ In <span data-glossary="tensor-parallelism">tensor parallelism</span> (TP), a ru
 
 Each rank stores its own slice of the blocks, and logical block growth has to stay aligned across ranks so token positions 0-15, 16-31, and so on map to the correct local KV blocks on every worker.
 
-In the original vLLM design, workers share one manager and one logical-to-physical mapping, so every GPU uses the same physical block IDs and stores only the slice for its own attention heads.[^kwon2023] Consistent logical bookkeeping is the invariant: each rank must know which local block corresponds to each logical block for its shard of the cache.
+In the original vLLM design, workers share one manager and one logical-to-physical mapping, so every GPU uses the same physical block IDs and stores only the slice for its own attention heads.[^kwon2023] Consistent logical bookkeeping is the core requirement: each rank must know which local block corresponds to each logical block for its shard of the cache.
 
 Exact coordination is runtime-specific. Capacity planning needs a safer rule: profile each rank's local KV allocation after sharding or replication instead of assuming the global tensor-payload bytes divide perfectly by TP degree.
 
@@ -957,7 +961,7 @@ for prompt_tokens in [1000, 1008, 1009]:
 
 These occupied-block snapshots exclude unreferenced cached blocks, continuation tokens, hybrid cache groups, and other reservations. Calculate prefix capacity from the implementation's block references and reservations; the aligned example's 97.4% saving depends on those accounting choices.
 
-On a GPU system, follow these correctness checks with a real serving benchmark: compare outputs, actual allocated bytes, preemption counts, TTFT, and inter-token latency under the same model and request trace. The CPU examples check address and arithmetic invariants only. They don't measure CUDA-kernel speed, concurrency, numerical behavior in reduced precision, or production capacity limits.
+On a GPU system, pair these address and arithmetic checks with a real serving benchmark: compare outputs, actual allocated bytes, preemption counts, TTFT, and inter-token latency under the same model and request trace.
 
 A raw KV payload has a size, a block table has a walk, and packing waste is a different problem from prefix reuse or a scheduler stall. The open question is which prefixes are safe to share, and what a hit changes in prefill.
 
@@ -1016,7 +1020,7 @@ A raw KV payload has a size, a block table has a walk, and packing waste is a di
       "Reserve a contiguous physical buffer at the maximum size per request and release it when the request ends."
     ],
     "answer": "Reserve contiguous virtual addresses and back pages with physical memory on demand.",
-    "explanation": "The vAttention design reserves a contiguous virtual range for the maximum length. As the cache grows into a page, the runtime backs that whole page with physical GPU memory. Unused slots in the last mapped page still take memory. Later pages can stay unbacked. Passing a block table requires a kernel that can read it. Sorting free blocks cannot guarantee the address order the existing kernel needs. Reserving the maximum physical buffer commits memory for every page when the request starts."
+    "explanation": "The vAttention design reserves a contiguous virtual range for the maximum length. As the cache grows into a page, the runtime backs that whole page with physical GPU memory. Unused slots in the last mapped page still take memory. Later pages can stay unbacked. Passing a block table requires a kernel that can read it. Sorting free blocks cannot preserve contiguous addresses across mixed allocations and frees. Reserving the maximum physical buffer commits memory for every page when the request starts."
   },
   {
     "question": "Three beam-search branches are the only owners of a single 8-slot KV block. The engine uses copy-on-write, and each branch appends a different token. How many physical blocks hold the branches' tokens after all three appends if the block starts with 7 tokens? How many if it starts with 8?",
@@ -1175,7 +1179,7 @@ Now return to that impossible outage. Picture a pool of ten equal blocks. Reques
   <figcaption>The same ten blocks, the same live state, two different answers. Reserving for the future locks C out. Allocating on demand lets C in and still leaves two blocks free.</figcaption>
 </figure>
 
-Under maximum reservations, every block has an owner and C gets rejected. Allocate on demand instead, and A and B hold six blocks between them, C gets its two, and two stay free. The live data never changed. Only the policy did.
+Under maximum reservations, every block has an owner and C gets rejected. Allocate on demand instead, and A and B hold six blocks between them, C gets its two, and two stay free. The live data never changed. Only the allocation strategy did.
 
 The vLLM team, who introduced this design, identified three distinct kinds of waste:[^kwon2023]
 
@@ -1205,6 +1209,8 @@ Say the block size is four, the table is $[19,7]$, and the request has five vali
 </figure>
 
 Look at those last three slots of block 7. The request owns them, but they contain no valid data, and reading them produces a wrong answer rather than an error. So the allocator and the attention kernel have to agree exactly about tables, lengths, head layout, and element type.
+
+> **Common mistake:** Passing the block table to an attention kernel without enforcing `valid_length` silently mixes uninitialized trailing slots from the last block into the softmax weights. Always test paged attention against a contiguous reference on lengths that are not multiples of the block size.
 
 Paging also changes what fragmentation means. Any free block can satisfy any one-block allocation, so scattered holes stop being a problem within that pool. Waste moves to the tail: $T$ positions take $\lceil T/b\rceil$ blocks, leaving
 
@@ -1298,9 +1304,9 @@ Take the smallest possible case: two physical blocks of four positions each. A o
 
 When B finishes, its block goes back to the pool. Make sure that happens once. If cleanup runs twice and a block appears in the free list twice, two later requests will both believe they own it, and you'll spend a very bad week tracking down answers that mix two conversations.
 
-Often nothing finishes in time, and the scheduler has to pause a running request. So who gets paused? The original vLLM design pauses the newest arrival first, so a request that has been running a long time, and may be one token from done, usually keeps going while the latest one waits.[^kwon2023] That's a policy, so check what your engine does.
+Often nothing finishes in time, and the scheduler has to pause a running request. So who gets paused? The original vLLM design pauses the newest arrival first, so a request that has been running a long time, and may be one token from done, usually keeps going while the latest one waits.[^kwon2023] That victim rule is configurable, so check what your engine uses.
 
-Getting a paused request running again costs something either way. **Recomputation** releases the blocks and rebuilds the missing cache from the accepted tokens, spending compute. **Swapping** moves blocks to CPU memory and back, spending PCIe bandwidth, and needs a compatible restore. As of November 2026, vLLM defaults to recomputation, and its optimization guide warns that preemption can hurt end-to-end latency.[^vllm2026optimization] The original paper evaluated both.[^kwon2023] Whichever you use, a request that gets preempted repeatedly pays over and over, so treat frequent preemption as a sign you're short of capacity.
+Getting a paused request running again costs something either way. **Recomputation** releases the blocks and rebuilds the missing cache from the accepted tokens, spending compute. **Swapping** moves blocks to CPU memory and back, spending PCIe bandwidth, and needs a compatible restore. vLLM V1 defaults to recomputation, and its optimization guide warns that preemption can hurt end-to-end latency.[^vllm2026optimization] The original paper evaluated both.[^kwon2023] Whichever you use, a request that gets preempted repeatedly pays over and over, so treat frequent preemption as a sign you're short of capacity.
 
 Tie cleanup to every way a request can end: completion, cancellation, timeout, and failure. A client that disconnects should release what it owns. Reusable prefix blocks can stay behind as evictable entries, but that's a different lifetime from a live request's, and you should track them separately.
 
@@ -1345,7 +1351,7 @@ It helps to keep straight what each lever actually changes:[^liu2024kivi][^liu20
 
 Compare them one at a time, with the same model, hardware, precision, length distribution, concurrency, and quality target, before you change a capacity or latency promise.
 
-Before you accept anyone's capacity claim, including your own, ask whether it names the architecture, the cache precision, the sequence-length distribution, the per-rank layout, the pool size, and the ownership policy. Then ask whether reads were checked against a reference, and whether cancellation and exhaustion keep state correct.
+Before you accept anyone's capacity claim, including your own, ask whether it names the architecture, the cache precision, the sequence-length distribution, the per-rank layout, the pool size, and the sharing and eviction rules. Then ask whether reads were checked against a reference, and whether cancellation and exhaustion keep state correct.
 
 The cache now has an address model and a lifetime. That sets up an obvious question: if two requests begin with the same 6,000 tokens, why compute them twice? [Prefix caching](/learn/prefix-caching-prompt-caching) reuses that work across requests, and the savings can be large, provided you define "the same" carefully.
 

@@ -62,7 +62,7 @@ The harness caps `N` at 4096 and populates the input with consecutive integers f
 
 <figure>
   <img src="illustrations/_generated/bit_exact_poisoned_check_dark.png" alt="Three 3x3 matrices show input A, expected transpose B, and actual B when the store for A[1,2]=5 is skipped, leaving poisoned NaN (0xffffffff) at B[2,1] while signed zeros +0 (0x00000000) and -0 (0x80000000) differ bitwise. A four-stage row shows fresh-poison preflight, five warmups, event-timed iterations, and separate validation." />
-  <figcaption>One skipped store leaves a poisoned NaN (0xffffffff) at B[2,1], while signed zeros show why bitwise comparison catches bit-level differences missed by absolute error. Fresh-poison preflight and post-timing validation bracket five warmups and the event-timed batch, whose individual outputs remain unchecked.</figcaption>
+  <figcaption>One skipped store leaves a poisoned NaN (0xffffffff) at B[2,1], while signed zeros show why bitwise comparison catches bit-level bugs missed by absolute error. Poisoned preflight and post-timing checks bracket warmup and timed launches.</figcaption>
 </figure>
 
 The included harness packages five kernel variants inside one executable so every run shares the same allocation layout, timer, and host verification pass. Using a single harness ensures that differences between runs come from the kernel implementation rather than mismatched matrix setup. The variants isolate each stage of the optimization path:
@@ -188,23 +188,23 @@ Consider a single 32-lane warp where `threadIdx.y` stays fixed and `threadIdx.x`
 2. **Output store:** `output_index = x * n + (y + offset)`. Consecutive lanes differ by $N$ floats. At $N=4096$, that is 16,384 bytes, or **16 KiB**, so each lane reaches a different sector.
 3. **Sector coverage:** This store instruction has 128 bytes of useful payload spread across 32 sectors. Its payload-to-sector-volume ratio is $128/(32 \times 32)=12.5\%$, compared with 100% for the aligned four-sector model.
 
-That stride calculation predicts low payload utilization at the L1/TEX access stage, yet address arithmetic alone cannot tell you the full hardware cost. Cache hit rates, store merging in L1/L2, write-allocation policies, and ECC overhead all shape downstream device-memory traffic. Always inspect profiler counters to isolate which memory stage actually throttles the kernel before declaring a DRAM bandwidth bottleneck. Because a matrix transpose performs zero floating-point math, its logical data volume per launch reduces purely to one float32 read and one float32 write per matrix element, giving $2N^2 \cdot \operatorname{sizeof}(\text{float})$ bytes:
+That stride calculation predicts low payload utilization at the L1/TEX access stage, while cache hit rates, L1/L2 store merging, write-allocation behavior, and ECC overhead shape downstream device-memory traffic. Always inspect profiler counters to confirm which memory stage actually throttles the kernel before declaring a DRAM bandwidth bottleneck. Because a matrix transpose performs zero floating-point math, its logical data volume per launch is one float32 read and one float32 write per element, giving $2N^2 \cdot \operatorname{sizeof}(\text{float})$ bytes:
 
 $$
 \text{logical bytes} = 2N^2 \cdot \operatorname{sizeof}(\text{float})
 $$
 
-At $N=4096$, each launch transfers $134{,}217{,}728$ logical bytes, or 128 MiB of matrix data across the read and write passes combined. Dividing that logical byte count by the average kernel interval yields the `effective GB/s` figure reported by the harness. Note that this metric uses decimal gigabytes ($10^9$ bytes/s) so rates stay comparable across standard memory-bandwidth tables:
+At $N=4096$, each launch transfers $134{,}217{,}728$ logical bytes (128 MiB across read and write). Dividing by average kernel time yields `effective GB/s` (in decimal $10^9$ bytes/s to match hardware memory specs):
 
 $$
 \text{effective GB/s} =
 \frac{2N^2 \cdot 4}{\text{average time in seconds} \cdot 10^9}
 $$
 
-Effective bandwidth isn't physical DRAM traffic. Cache hits, excess transactions, error-correction traffic, and architecture-specific paths make hardware traffic differ. Use it as a workload-normalized rate for comparing the same operation on the same setup, then verify physical traffic with store-sector and DRAM counters to confirm whether scattered writes account for elapsed time.
+> **Key insight:** `effective GB/s` is a workload-normalized speed metric, not physical DRAM traffic. Pair it with Nsight store-sector and DRAM counters to separate genuine coalescing gains from L2 cache hits.
 
 ```checkpoint
-A $4096 \times 4096$ transpose averages $0.250$ ms. What effective rate should the ledger record, and what hardware claim remains unsupported?
+A $4096 \times 4096$ transpose averages $0.250$ ms. What effective rate should you record, and what hardware claim remains unsupported?
 ---
 The logical volume is $2 \times 4096^2 \times 4 = 134{,}217{,}728$ bytes. Dividing by $0.000250$ seconds and then by $10^9$ gives about $536.9$ GB/s. That is a workload-normalized effective rate. Use profiler counters and matching hardware conditions to report physical DRAM traffic or percentage of peak bandwidth.
 ```
@@ -298,7 +298,7 @@ Keep `__syncthreads()` outside both bounds checks so every thread in the block e
 
 ### Check the edge-tile mapping without a GPU
 
-For `N=33`, most threads in the last tile fall out of bounds, raising an immediate correctness question: does every active output thread read a shared slot written by an active input thread? Its shared read coordinate `(threadIdx.x, threadIdx.y + offset)` reads the slot written at input coordinates `(blockIdx.y * 32 + threadIdx.x, blockIdx.x * 32 + threadIdx.y + offset)`, which is the exact transpose of the active output position `(output_x, output_y + offset)`. Because both bounds checks compare those transposed row and column indices against `n`, every valid output element has a matching in-bounds producer before the barrier. This CPU model enumerates every block and thread coordinate across seven matrix sizes, verifies that every shared read has a written producer and every output slot is written once, and checks bank distribution counts without executing CUDA or modeling warp scheduling or memory timing.
+For `N=33`, most threads in the last tile fall out of bounds, raising an immediate correctness question: does every active output thread read a shared slot written by an active input thread? Its shared read coordinate `(threadIdx.x, threadIdx.y + offset)` reads the slot written at input coordinates `(blockIdx.y * 32 + threadIdx.x, blockIdx.x * 32 + threadIdx.y + offset)`, which is the exact transpose of the active output position `(output_x, output_y + offset)`. Because both bounds checks compare those transposed row and column indices against `n`, every valid output element has a matching in-bounds producer before the barrier. The Python script below checks that index coverage across seven matrix sizes and verifies bank-stride counts:
 
 <figure>
   <img src="illustrations/_generated/edge_tile_producer_consumer_dark.png" alt="Diagram of edge block (1,0) for N=33. Three matrices connected by arrows trace input column A[r,32] (tx=0 active) into shared column tile[r,0] and out to output row B[32,r] (32 lanes at ty=0). Below, a 4x8 grid shows shared rows r=0 through 31 with r=1 highlighted, paired with producer (tx=0, ty=1, Warp 1), the 256-thread barrier, and consumer (tx=1, ty=0, Warp 0)." />
@@ -443,8 +443,10 @@ No. A 34-word row gives $\operatorname{bank}(i) = (34i + c) \bmod 32 = (2i + c) 
 
 <figure>
   <img src="illustrations/_generated/shared_bank_stride_dark.png" alt="Comparison of shared-memory strides 32, 33, and 34 for scalar 32-bit reads on column 0. A bank map and padded tile diagram show stride 32 collapsing onto Bank 0, stride 33 visiting all 32 banks once, and stride 34 hitting 16 even banks twice. A bar chart plots 32, 1, and 2 predicted conflict-free service groups alongside 4,096, 4,224, and 4,352 bytes per tile." />
-  <figcaption>For scalar 32-bit column reads, stride 32 sends all 32 distinct words to Bank 0, stride 33 cycles once through banks 0 through 31, and stride 34 visits 16 even banks twice. Padding increases shared storage per tile while keeping the logical 32×32 matrix and global traffic unchanged. Because the plotted group counts describe the hardware bank mapping rather than runtime, measure latency directly on the target GPU.</figcaption>
+  <figcaption>For scalar 32-bit column reads, stride 32 sends all 32 words to Bank 0, stride 33 spreads them cleanly across all 32 banks (+128 B/tile), and stride 34 leaves a 2-way conflict across 16 even banks.</figcaption>
 </figure>
+
+> **Key insight:** Padding `tile[32][32]` to `tile[32][33]` works because $\gcd(33, 32) = 1$, so consecutive rows step by +1 bank modulo 32. Adding 128 bytes per block eliminates a 32-way bank conflict without changing a single global address.
 
 Validate correctness on the padded variant prior to collecting timed benchmarks or interpreting performance counters. Capturing both the timing CSV and the Nsight Compute report from the exact same executable and kernel filter keeps the launch configuration consistent with the tiled baseline. Inspect the mismatch count first, then compare bank-conflict counters at launch index 6:
 
@@ -462,7 +464,7 @@ ncu --set full \
   ./transpose_lab padded 4096 1
 ```
 
-Holding the matrix size, launch count, and correctness gate fixed lets you isolate the effect of the padded tile layout. Each row below pairs an expected observation in `tiled` against what should change in `padded` when bank conflicts were the active bottleneck:
+Holding the matrix size, launch count, and correctness check fixed isolates the effect of the padded tile layout. Each row below pairs an expected observation in `tiled` against what should change in `padded` when bank conflicts were the active bottleneck:
 
 | Evidence | `tiled` expectation | `padded` expectation | Decision use |
 |---|---|---|---|
@@ -473,12 +475,12 @@ Holding the matrix size, launch count, and correctness gate fixed lets you isola
 | static shared memory | 4096 bytes | 4224 bytes | feeds resource-limit check |
 | event time | measured distribution | measured distribution | keep change only if repeat evidence improves |
 
-Don't write that padding is faster without citing your hardware, software, shape, precision, timing method, baseline, and correctness record. Architecture and toolchain determine how much bank-conflict elimination helps relative to the extra shared storage per block. Without those qualifying measurements, a universal speedup claim would be unfounded.
+Always attach hardware, toolkit, matrix shape, precision, timing method, and correctness results to any padding speedup claim, since architecture and compiler choices govern how much bank-conflict removal outweighs the extra 128 bytes per block.
 
 ```checkpoint
-A candidate is 6% faster, but its edit both pads the tile and changes the block from `32 x 8` to `32 x 16`. What can the evidence ledger conclude, and how should the experiment recover?
+A candidate is 6% faster, but its edit both pads the tile and changes the block from `32 x 8` to `32 x 16`. What can your benchmark record conclude, and how should the experiment recover?
 ---
-The run shows that the combined candidate differs, but it can't attribute the change to padding or launch geometry. Restore `32 x 8` and measure padding alone against the fixed baseline. Then hold tile width fixed and test `32 x 16` separately. Each branch still needs the same exact-output, profiler, sanitizer, and repeated-timing gates.
+The run shows that the combined candidate differs, but it can't attribute the change to padding or launch geometry. Restore `32 x 8` and measure padding alone against the fixed baseline. Then hold tile width fixed and test `32 x 16` separately. Each branch still needs the same exact-output, profiler, sanitizer, and repeated-timing checks.
 ```
 
 ## Loop unrolling and instruction-level parallelism
@@ -587,7 +589,9 @@ done
   | tee artifacts/run-01/recovered-benchmark.csv
 ```
 
-When a synchronization bug surfaces during optimization, document the fault and its post-repair verification before resuming timing comparisons. Separating detection, repair, and re-benchmarking prevents an unverified speedup from entering the ledger. Record every link between the symptom and the restored ordering rule:
+> **Common mistake:** Treating a passing `memcheck` run or matching sample outputs as proof of race-free shared memory. Warp schedules can accidentally serialize producer before consumer on one run and corrupt outputs on another; always run `racecheck`.
+
+When a synchronization bug surfaces during optimization, document the fault and its post-repair verification before resuming timing comparisons so an unverified speedup never enters the benchmark log. Record every link between the symptom and the restored ordering rule:
 
 | Field | Minimum content |
 |---|---|
@@ -598,7 +602,7 @@ When a synchronization bug surfaces during optimization, document the fault and 
 | performance | same event-timed shape and iteration count after repair |
 | build context | GPU, toolkit, source hash, compiler resource output, report paths |
 
-Fill `recovery-template.md` and keep it with the raw reports. A reviewer should be able to trace the failure, repair, tested shapes, and post-recovery cost. Clean dynamic checks cover those executions, not every possible input or schedule.
+Fill `recovery-template.md` and keep it with the raw reports so another engineer can trace the failure, repair, tested shapes, and post-recovery cost.
 
 ## Decide between transpose, reduction, and scan
 
@@ -629,7 +633,7 @@ Tiling can appear inside all three implementations, but the data-dependency grap
 
 ## Report the result you measured
 
-Compare kernel variants only after every candidate runs the exact same matrix shape, launch count, timing loop, and correctness gate. Adding speculative hypotheses without shared validity requirements turns benchmarks into unrelated measurements. Use the ledger below to organize the four core runs and populate the benchmark cells from your target GPU:
+Compare kernel variants only after every candidate runs the exact same matrix shape, launch count, timing loop, and correctness check. Use the table below to organize the four core runs and populate the benchmark cells from your target GPU:
 
 | Run | Hypothesis | One code change | Correctness | Profiler evidence | Event timing | Verdict |
 |---|---|---|---|---|---|---|
@@ -638,7 +642,7 @@ Compare kernel variants only after every candidate runs the exact same matrix sh
 | padded | extra column changes bank mapping | tile width 32 to 33 | exact plus sanitizer | bank conflict falls; resource use recorded | five-run distribution | keep only with repeat benefit |
 | broken | barrier is required for cross-warp tile reuse | remove barrier | unreliable | racecheck hazard | timing invalid | reject and recover |
 
-Summary tables only carry weight when backed by raw logs that can be audited independently. Save the raw timing CSV, `.ncu-rep` profiles, Compute Sanitizer transcripts, compiler `-Xptxas=-v` output, source hash, environment snapshot, and filled recovery template alongside each row. Never mark correctness complete just because a quick printout looked reasonable.
+Summary tables only carry weight when backed by raw logs that another engineer can verify independently. Save the raw timing CSV, `.ncu-rep` profiles, Compute Sanitizer transcripts, compiler `-Xptxas=-v` output, source hash, environment snapshot, and filled recovery template alongside each row. Never mark correctness complete just because a quick printout looked reasonable.
 
 Your performance engineering lab report is complete once every finding rests on controlled artifacts rather than intuition. Before keeping any optimization, verify that you can defend all six claims:
 

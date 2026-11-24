@@ -194,6 +194,8 @@ In this simple dense-BF16/HBM roofline:
 | **Decode ($B=1$)** | 1 token row | No reuse across rows | Ideal weight-only $\approx 1$ | Often bandwidth; overhead can dominate |
 | **Decode ($B=64$)** | 64 token rows | Across batch rows | Ideal weight-only $\approx 64$ | KV traffic and kernels change the result |
 
+> **Key insight:** Reaching only 0.34% of dense peak FLOPs at $I = 1$ does not mean the GPU is 99.66% idle. It means HBM bandwidth is saturated moving weights for a single token row, leaving Tensor Cores starved until batching or prefill raises arithmetic intensity.
+
 Before trusting a specification, check its precision, sparsity footnote, and units. This CPU calculation catches the factor-of-two error:
 
 <!-- leetllm: test, deps=numpy, output=show -->
@@ -275,7 +277,7 @@ $$
 \text{TTFT} = t_{\text{first\_token}} - t_{\text{arrival}}
 $$
 
-Define **client TTFT** and **server TTFT** separately. A UI clock from Send to first rendered token can include serialization, transport, proxy buffering, and rendering. A server clock begins at its instrumented arrival point; whether tokenization and front-end queues are included depends on that point. Checked October 10, 2026: vLLM's metrics documentation starts front-end `arrival_time` when tokenization begins.[^vllm2026metrics] Do not compare clocks with different start or end points as if they measured the same interval.
+Define **client TTFT** and **server TTFT** separately. A UI clock from Send to first rendered token can include serialization, transport, proxy buffering, and rendering. A server clock begins at its instrumented arrival point; whether tokenization and front-end queues are included depends on that point. For example, vLLM's metrics documentation starts front-end `arrival_time` when tokenization begins.[^vllm2026metrics] Do not compare clocks with different start or end points as if they measured the same interval.
 
 In real-world applications, user-visible TTFT can also include streaming buffering and hidden reasoning chains (such as "thinking" tokens before visible answer text). Ensure your instrumentation tracks whether "first token" means the first generated token, the first reasoning token, or the first visible token rendered in the UI.
 
@@ -318,7 +320,7 @@ $$
 
 In our example, TPOT is $108 / 3 = 36$ ms/token, so decode TPS is $1{,}000 / 36$. They are inverses **for the same request**, with consistent units. Requests with zero or one output token have no measured post-first-token interval; state how your metrics handle them. In particular, the inverse of mean request TPOT is not mean request TPS.
 
-Checked October 10, 2026: vLLM records a zero in its Prometheus request-TPOT histogram for responses with at most one token, while `vllm bench serve` excludes those responses from TPOT statistics.[^vllm2026metrics] A traffic shift toward one-token replies can therefore lower the histogram mean without improving decode. Compare the same eligible request population, output lengths, and event granularity before attributing a mean change to a faster kernel.
+vLLM records a zero in its Prometheus request-TPOT histogram for responses with at most one token, while `vllm bench serve` excludes those responses from TPOT statistics.[^vllm2026metrics] A traffic shift toward one-token replies can therefore lower the histogram mean without improving decode. Compare the same eligible request population, output lengths, and event granularity before attributing a mean change to a faster kernel.
 
 To make that non-linearity concrete, compare two request streams with 10 ms and 100 ms inter-token gaps alongside a four-token batched delivery event:
 
@@ -574,7 +576,7 @@ MHA / GQA: 6
   <figcaption>For this GQA layout, raw KV payload scales linearly with cached length. The displayed 4K tensor factors are $2 \times 16 \times 4 \times 256 \times 4{,}096 \times 2$ bytes. The 24-head MHA comparison isolates head-sharing storage savings; changing head counts on an existing checkpoint requires uptraining or distillation.</figcaption>
 </figure>
 
-> **Production note:** Qwen3.6-27B's BF16 language weights are about 54 GB, so they fit on one H100-80GB on paper. A scheduling policy must reserve the remaining HBM for KV cache, DeltaNet state, runtime buffers, <span data-glossary="prefix-cache">prefix cache</span>, optional vision-encoder weights, and allocator overhead. Use its 262,144-token native window only when policy reserves enough memory for active prompt-plus-output tokens.[^qwen3627b2026]
+> **Production note:** Qwen3.6-27B's BF16 language weights are about 54 GB, so they fit on one H100-80GB on paper. Your serving budget must still reserve the remaining HBM for KV cache, DeltaNet state, runtime buffers, <span data-glossary="prefix-cache">prefix cache</span>, optional vision-encoder weights, and allocator overhead. Expose its 262,144-token native window only when that budget leaves enough memory for active prompt-plus-output tokens.[^qwen3627b2026]
 
 > **Try it yourself:** A colleague says a 7B model (32 layers, 8 KV heads, 128 head dimension, FP16) can serve 200 concurrent users on one 80 GB GPU. The weights take about 14 GB. Use the formula, then leave a runtime reserve, to test that claim.
 
@@ -767,12 +769,12 @@ decode active streams
   <figcaption>The 235 ms gap belongs to an assumed exclusive-prefill schedule. The lower rail shows logical chunk/decode turn order only; it assigns no duration to a chunk.</figcaption>
 </figure>
 
-This trace gives logical turns without kernel timings. A 2,048-row prefill chunk and 32 one-row decode requests have different work and reuse, but token counts alone cannot compare their durations. Decode context lengths and model architecture also matter. Profile the chosen workload rather than treating a token cap as a millisecond guarantee.
+This trace gives logical turns without kernel timings. A 2,048-row prefill chunk and 32 one-row decode requests have different work and reuse, so token counts alone cannot compare their durations. Decode context lengths and model architecture also matter; profile the chosen workload rather than treating a token cap as a fixed step duration.
 
 ```checkpoint
 Why does chunked prefill improve tail latency for existing decode streams?
 ---
-If a monolithic prefill delays decode on a shared worker, smaller prompt chunks give the scheduler opportunities to run decode sooner. Mixed batches can also combine chunks and decode rows. This can improve tail ITL, but measured latency depends on chunk cost, history lengths, engine policy, and offered load.
+If a monolithic prefill delays decode on a shared worker, smaller prompt chunks give the scheduler opportunities to run decode sooner. Mixed batches can also combine chunks and decode rows. This can improve tail ITL, with actual latency depending on chunk cost, history lengths, engine scheduling, and offered load.
 ```
 
 ### Prefill-decode disaggregation (Splitwise & DistServe)
@@ -837,7 +839,7 @@ for prompt_tokens in (4096, 65_536):
 ```checkpoint
 When is prefill-decode disaggregation worth its extra KV-transfer cost?
 ---
-It's a candidate when prefill bursts hurt streaming latency or prompt and decode demand scale differently. Compare both layouts under the same offered workload: new-request TTFT, active-stream ITL, SLO-compliant goodput, quality, and total hardware cost. A transfer-time estimate alone cannot prove that separation is better.
+It's a candidate when prefill bursts hurt streaming latency or prompt and decode demand scale differently. Compare both layouts under the same offered workload: new-request TTFT, active-stream ITL, SLO-compliant goodput, quality, and total hardware cost. A transfer-time estimate is only a lower bound; the full load sweep decides whether separation wins.
 ```
 
 ### KV cache quantization
@@ -882,7 +884,7 @@ FP8 users from remaining KV budget: 107
 
 The 53-versus-107 result follows from cache-payload arithmetic. Before enabling FP8 for Qwen, verify the exact engine, attention backend, layer types, scale calibration, and GPU support. Compare task quality and long-context behavior against the original precision, then benchmark latency because cache storage and kernel speed depend on different mechanisms.[^vllm2026kvquant]
 
-Now test a short-context case where hybrid state dominates. Qwen3.6-27B has 48 DeltaNet layers with 48 value heads and 128-dimensional keys and values.[^qwen3627b2026] The Transformers v5.17.0 fallback keeps one FP32 recurrent matrix of shape `[batch, value_heads, key_dim, value_dim]` per DeltaNet layer.[^transformers2026Qwen35State] For one sequence, those matrices alone occupy $48\times48\times128\times128\times4=144$ MiB. Their size doesn't depend on the number of consumed tokens. Convolution state and other allocations add more bytes.
+Now test a short-context case where hybrid state dominates. Qwen3.6-27B has 48 DeltaNet layers with 48 value heads and 128-dimensional keys and values.[^qwen3627b2026] Transformers' fallback implementation keeps one FP32 recurrent matrix of shape `[batch, value_heads, key_dim, value_dim]` per DeltaNet layer.[^transformers2026Qwen35State] For one sequence, those matrices alone occupy $48\times48\times128\times128\times4=144$ MiB. Their size doesn't depend on the number of consumed tokens. Convolution state and other allocations add more bytes.
 
 Halving only the growing K/V cache at 128 cached positions saves surprisingly little capacity when the 144 MiB recurrent matrix stays constant inside an 8 GiB per-request state pool:
 
@@ -932,9 +934,9 @@ Weight quantization shrinks the static model footprint. KV-cache quantization sh
 
 For a real serving budget, record hardware and engine, model and precision, prompt/output distribution, arrival process, concurrency, correctness result, and measured HBM/compute counters. Then report weight memory, KV bytes per token, TTFT and ITL p50/p99, raw throughput, and goodput under the product SLO. The first release constraint should be visible as compute, bandwidth, capacity, or an unmodeled overhead.
 
-Run a load sweep with a fixed prompt/output mix and explicit arrival rate, including bursts and overload. Report completed, failed, cancelled, and rejected requests alongside latency and output-token throughput. Define goodput as qualifying requests per second under the chosen correctness and latency requirements, divided by the full measurement duration. Report the fraction of offered requests that qualify too; don't omit failures from that fraction. Compare client and server clocks, check cache occupancy and queue growth, then vary one scheduling or memory policy at a time.
+Run a load sweep with a fixed prompt/output mix and explicit arrival rate, including bursts and overload. Report completed, failed, cancelled, and rejected requests alongside latency and output-token throughput. Define goodput as qualifying requests per second under the chosen correctness and latency requirements, divided by the full measurement duration. Report the fraction of offered requests that qualify too; don't omit failures from that fraction. Compare client and server clocks, check cache occupancy and queue growth, then vary one scheduling or memory setting at a time.
 
-The code here verifies CPU arithmetic and scheduling logic. It doesn't run Qwen, measure GPU bandwidth, verify an FP8 quality result, or prove a safe production concurrency. Those are measurements the serving experiment must capture.
+Pair the CPU capacity and scheduling calculations above with a real GPU serving run to confirm sustained bandwidth, FP8 accuracy, and safe concurrency under live traffic.
 
 The blank first wait is a different interval from the later token gaps. Long prefill and low-batch decode sit on different roofs, and a KV formula can become a concurrency limit. The head count in that formula is still an input. Why a model stores fewer KV heads than query heads changes both the memory bill and the bytes each new token reads.
 
@@ -1112,7 +1114,7 @@ Two measurement traps are easy to miss, so deal with them before you trust a das
 
 The first is where the clock starts. A client measures TTFT from when the user pressed Send, so its number includes serialization, the network, proxy buffering, and rendering. A server measures from some internal event, and whether that event comes before or after tokenization and queueing depends on the code. vLLM's metrics documentation, for example, starts its front-end arrival time when tokenization begins.[^vllm2026metrics] It's easy to burn days comparing a client number with a server number, arguing over a difference that was only ever the network.
 
-The second is what one event contains. If your server streams chunks, a chunk holding four tokens gives you one arrival time, not four. Dividing that gap by four and calling the result inter-token latency invents timings you never saw. Report chunk gaps as chunk gaps. And watch for one-token replies, which have no later gap at all, so their TPOT is undefined. vLLM's Prometheus histogram records them as zero while its benchmark tool skips them (as of November 2026), so a shift toward one-token replies can lower your mean with no change in decode speed.[^vllm2026metrics]
+The second is what one event contains. If your server streams chunks, a chunk holding four tokens gives you one arrival time, not four. Dividing that gap by four and calling the result inter-token latency invents timings you never saw. Report chunk gaps as chunk gaps. And watch for one-token replies, which have no later gap at all, so their TPOT is undefined. vLLM's Prometheus histogram records them as zero while its benchmark tool skips them, so a shift toward one-token replies can lower your mean with no change in decode speed.[^vllm2026metrics]
 
 ## Prefill reads the whole prompt
 
@@ -1189,6 +1191,8 @@ Now place the two phases on that roof. For an idealized BF16 projection, each we
 
 That 0.34% is easy to misread, so be careful with it. It compares arithmetic rates. It does not mean the GPU is 99.66% idle, and a utilization dashboard won't show it. This is how a busy GPU and a slow user coexist: the chip is working flat out to move weights around, with very little arithmetic to show for each byte.
 
+> **Key insight:** Single-stream decode is slow because memory bandwidth, not Tensor Core math, is full. That is why reducing bytes moved (quantization) or amortizing weight reads across rows (batching) speeds up decode far more than adding raw FLOPs.
+
 It also gives you a quick estimate worth keeping in your head. Suppose every weight gets read once per generated token. Then the most tokens you could produce per second is memory bandwidth divided by model size. Take Qwen3.6-27B, whose language weights come to about 54 GB in BF16.[^qwen3627b2026] On one H100, that's 3,350 GB/s divided by 54 GB, or about 62 tokens per second.
 
 That's a ceiling for one stream, and an optimistic one. Peak bandwidth isn't sustained bandwidth, KV reads add traffic as the history grows, and the real set of active tensors differs from "every weight once." Still, in thirty seconds you've learned that, unless [speculative decoding](/learn/decoding-strategies-greedy-beam-nucleus) gets several tokens out of one pass over the weights, no amount of tuning will get this setup to 500 tokens per second on one stream. You've also learned why smaller weights can help decode directly. [Quantization](/learn/model-quantization-gptq-awq-gguf) comes back to this.
@@ -1223,6 +1227,8 @@ Why only 16 layers, when the model has 64? The other 48 are Gated DeltaNet layer
 </figure>
 
 Here's the classic capacity-planning bug. This model has 24 query heads but only four KV heads, because grouped-query attention lets several query heads share one set of keys and values.[^ainslie2023] Plug in 24 and your estimate is six times too high. You'd buy hardware you don't need, or reject traffic you could have served. Using all 64 layers instead of the 16 attention layers makes it worse. Read `num_key_value_heads` and the layer layout from the model's configuration, and don't derive either from the hidden width. Head sharing is also part of what the model learned, so you can't change it by editing a spreadsheet. Changing it means transforming the model and evaluating it again.
+
+> **Common mistake:** Plugging `num_attention_heads` (query heads) or total layer count (including linear-attention layers) into the KV formula inflates your capacity estimate by several times. Always read `num_key_value_heads` and the exact full-attention layer count from the model config.
 
 <!-- leetllm: test, output=show, id=reader-inference-memory -->
 ```python title="budget-retained-attention-state.py"

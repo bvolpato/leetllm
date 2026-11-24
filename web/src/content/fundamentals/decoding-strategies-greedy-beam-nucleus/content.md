@@ -38,7 +38,7 @@
 
 Suppose an autoregressive language model receives the prefix `The autumn light is` and must choose how to continue the sentence. At each step, the <span data-glossary="transformer">transformer</span> outputs raw scores over its entire vocabulary, not a finished sentence, leaving the decoder to pick one <span data-glossary="token">token</span> at a time from those scores and feed it back into the context for the next step. Because each chosen token alters the conditioning prefix seen at every subsequent step, the decoding rule quietly determines whether a model repeats itself, stays concise, explores diverse phrasing, or drifts into nonsense.
 
-The four-token probability row in the table above makes these trade-offs concrete before writing a single line of code. Each word occupies a single token slot, and the eight remaining tokens each contribute one percent so that cumulative probability sums cleanly to one. Watching how greedy argmax and stochastic sampling diverge on this single step illustrates why decoding policy controls fluency and diversity independently of model weights.
+The four-token probability row in the table below makes these trade-offs concrete before writing a single line of code. Each word occupies a single token slot, and the eight remaining tokens each contribute one percent so that cumulative probability sums cleanly to one. Watching how greedy argmax and stochastic sampling diverge on this single step illustrates why the decoding rule controls fluency and diversity independently of model weights.
 
 | Token | Probability | Plausible continuation |
 |-------|-------------|------------------------|
@@ -48,11 +48,11 @@ The four-token probability row in the table above makes these trade-offs concret
 | `pale` | 0.02 | rare adjective |
 | tail | 0.08 | eight rare tokens at 0.01 each |
 
-Under greedy decoding, the decoder immediately commits to `bright` because 0.45 wins step one. Under stochastic sampling, the decoder could instead draw `fading` and follow it into `fading fast`, or draw `soft` and reach `soft gold`. Even though the prompt, tokenizer, and neural weights remain identical, the decoding policy reshapes the generated text because it governs how much probability mass stays eligible at each branch. For example, <span data-glossary="top-p">top-p sampling</span> at `p = 0.90` retains tokens until their sorted probabilities reach 0.90 (`0.45 + 0.30 + 0.15 = 0.90`), renormalizing `bright`, `fading`, and `soft` to `0.50`, `0.333...`, and `0.166...` while cutting `pale` and the entire eight-token tail. Whether an engine uses `>=` or `>` when checking the cutoff changes both the surviving candidate pool and the final sampling weights whenever a sum hits the threshold cleanly.
+Under greedy decoding, the decoder immediately commits to `bright` because 0.45 wins step one. Under stochastic sampling, the decoder could instead draw `fading` and follow it into `fading fast`, or draw `soft` and reach `soft gold`. Even though the prompt, tokenizer, and neural weights remain identical, the decoding rule reshapes the generated text because it governs how much probability mass stays eligible at each branch. For example, <span data-glossary="top-p">top-p sampling</span> at `p = 0.90` retains tokens until their sorted probabilities reach 0.90 (`0.45 + 0.30 + 0.15 = 0.90`), renormalizing `bright`, `fading`, and `soft` to `0.50`, `0.333...`, and `0.166...` while cutting `pale` and the entire eight-token tail. Whether an engine uses `>=` or `>` when checking the cutoff changes both the surviving candidate pool and the final sampling weights whenever a sum hits the threshold cleanly.
 
 <!-- leetllm: audience:website:start -->The earlier [decoding algorithms](/learn/decoding-algorithms) lesson built numerically stable <span data-glossary="softmax">softmax</span> probabilities from raw next-token scores (<span data-glossary="logits">logits</span>). This lesson tracks how greedy decoding, beam search, temperature, truncation filters, and repetition penalties transform that same vector of probabilities and interact inside modern inference engines.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->The online companion's [Decoding Algorithms](/learn/decoding-algorithms) lesson derives numerically stable <span data-glossary="softmax">softmax</span> probabilities from raw next-token scores (<span data-glossary="logits">logits</span>). This chapter tracks how greedy decoding, beam search, temperature, truncation filters, and repetition penalties transform that vector of probabilities and interact inside modern inference engines.<!-- leetllm: audience:book:end -->
 
-When serving latency matters, <span data-glossary="speculative-decoding">speculative decoding</span> pairs a fast draft model with parallel verification by the target model. An exact rejection-sampling verifier preserves the target model's full sampling distribution after all active logit processors and filters run, though it does not guarantee matching the exact pseudo-random token stream produced without speculation. Approximate verification drops that exact distributional equivalence in exchange for higher acceptance speed.[^leviathan2023]
+When serving latency matters, <span data-glossary="speculative-decoding">speculative decoding</span> pairs a fast draft model with parallel verification by the target model. An exact rejection-sampling verifier preserves the target model's full sampling distribution after all active logit processors and filters run, though its random draws still follow a different path than running the target model alone. Approximate verification trades exact distributional equivalence for higher acceptance speed.[^leviathan2023]
 
 <figure>
   <img src="illustrations/_generated/decoding_strategies_dark.png" alt="Horizontal probability comparison for two-token continuations after The autumn light is. First-step probabilities are bright 0.45, fading 0.30, soft 0.15, and nine tail tokens totaling 0.10. Width-2 beam search retains bright and fading while pruning soft and the tail. Greedy commits to bright followed by period at 0.180, whereas beam search rescues fading followed by fast at 0.270." />
@@ -64,7 +64,7 @@ When serving latency matters, <span data-glossary="speculative-decoding">specula
 ```checkpoint
 Why can greedy decoding miss the highest-probability sequence even though it picks the top token at every step?
 ---
-Greedy decoding optimizes only one conditional factor at a time without lookahead. A slightly lower-scoring first token can unlock a near-certain continuation whose joint product exceeds the path starting from the step-one mode. Neither local nor sequence likelihood proves factual correctness, which requires grounding outside the sampler.
+Greedy decoding optimizes only one conditional factor at a time without lookahead. A slightly lower-scoring first token can unlock a near-certain continuation whose joint product exceeds the path starting from the step-one mode. Neither local nor sequence probability measures factual truth, which depends on grounding outside the sampler.
 ```
 
 To see why local optimality diverges from global sequence likelihood, compare two-token continuations after `The autumn light is`. Suppose `bright` (0.45) branches evenly across `.` (0.40), `today` (0.35), and `now` (0.25), while `fading` (0.30) concentrates sharply on `fast` (0.90) versus `slowly` (0.10). Checking each branch's conditional next-step probabilities makes the joint comparison immediate.
@@ -151,13 +151,13 @@ $$
 
 Maximizing an individual factor $P(w_t \mid w_{<t})$ ignores how sharply later steps concentrate their mass. In our example, picking the second-best token at step one unlocks a high-confidence continuation (`0.30 * 0.90 = 0.27`) that beats every continuation available after `bright` (`0.45 * 0.40 = 0.18`). For single-label classification or deterministic key extraction, low variance makes greedy decoding a clean baseline, provided structured decoding constraints validate required schemas separately.
 
-For open-ended generation, maximizing likelihood often turns text bland or repetitive. Holtzman et al. showed in GPT-2 experiments that likelihood-maximizing decoding easily falls into repetitive loops once a recurring phrase becomes the local mode.[^holtzman2020] That observation does not trace every repetition loop to a single universal attention failure, nor does it guarantee that sampling never loops, since aggressive truncation or narrow prompts can also trap a stochastic sampler. Similarly, the DeepSeek-R1 report noted higher repetition and stronger checkpoint-to-checkpoint variance when decoding long chain-of-thought rollouts greedily, leading them to estimate pass@1 from repeated samples at $T = 0.6$ and $p = 0.95$.[^deepseekr1_2025]
+For open-ended generation, maximizing likelihood often turns text bland or repetitive. Holtzman et al. showed in GPT-2 experiments that likelihood-maximizing decoding easily falls into repetitive loops once a recurring phrase becomes the local mode.[^holtzman2020] Sampling breaks most argmax loops, though aggressive truncation or narrow prompts can still cause a stochastic sampler to repeat itself. Similarly, the DeepSeek-R1 report noted higher repetition and stronger checkpoint-to-checkpoint variance when decoding long chain-of-thought rollouts greedily, leading them to estimate pass@1 from repeated samples at $T = 0.6$ and $p = 0.95$.[^deepseekr1_2025]
 
 ## Beam search
 
 Whereas greedy decoding tracks a single hypothesis, beam search keeps $B$ active prefixes at every step, expands each survivor across its top candidates, and retains only the best $B$ extended prefixes. Carrying multiple hypotheses lets a weaker initial token stay alive long enough to reveal a decisive second or third step. Running width $B = 2$ on `The autumn light is` shows explicitly which first-step tokens survive pruning and which two-token path takes the lead.
 
-Because pruned prefixes can never re-enter the candidate pool later, beam search remains an approximate search algorithm rather than exact optimization. Exact global search would track up to $|V|^T$ branches across length $T$, growing exponentially out of reach even for tiny vocabularies. When ranking same-length prefixes strictly by cumulative log-probability with deterministic tie-breaking, expanding only the top $B$ children per parent already recovers the global top $B$ extensions among active beams, because a parent's $(B+1)$-th child is strictly dominated by its first $B$ siblings. Finished-hypothesis quotas and diversity penalties alter that invariant and require keeping extra beams.
+Because pruned prefixes can never re-enter the candidate pool later, beam search remains an approximate search algorithm rather than exact optimization. Exact global search would track up to $|V|^T$ branches across length $T$, growing exponentially out of reach even for tiny vocabularies. When ranking same-length prefixes strictly by cumulative log-probability with deterministic tie-breaking, expanding only the top $B$ children per parent already recovers the global top $B$ extensions among active beams, because a parent's $(B+1)$-th child is strictly dominated by its first $B$ siblings. Finished-hypothesis quotas and diversity penalties break that pruning shortcut and require keeping extra beams.
 
 The NumPy walkthrough below verifies each surviving hypothesis and joint sequence probability explicitly:
 
@@ -328,6 +328,8 @@ zero temperature: temperature must be positive; route T=0 to greedy argmax
   <img src="illustrations/_generated/sampling_distribution_dark.png" alt="Line chart comparing a twelve-token next-word distribution after The autumn light is across temperatures 0.3, 1.0, and 1.5. Original probabilities are bright 45 percent, fading 30, soft 15, pale 2, and eight 1-percent tail tokens totaling 8 percent. Rescaling all twelve tokens before summing the tail shifts bright from 77.8 percent at T=0.3 to 33.3 percent at T=1.5 while the grouped tail rises from under 0.01 percent to 21.1 percent, with Shannon entropy increasing from 0.86 to 2.09 to 2.75 bits." />
   <figcaption>Each curve rescales all twelve logits before summing the eight rare tail tokens. Raising temperature from 0.3 to 1.5 flattens the mode and lifts combined tail mass above 21%.</figcaption>
 </figure>
+
+> **Common mistake:** Lowering temperature makes a model more consistent, not more truthful. Positive temperature preserves the exact ordering of the logits, so if an unsupported token is already ranked first, cooling the sampler simply makes the wrong answer more repeatable.
 
 Lower temperature tightens sampling around top logits, while higher temperature flattens the curve and preserves long-tail options. Because temperature affects every step uniformly without consulting retrieved context or factual truth, match candidate sweeps carefully to each task slice rather than using one global value everywhere. Evaluating accuracy, validity, and repetition side by side exposes where extra entropy helps versus where it injects errors.
 
@@ -614,7 +616,7 @@ penalized logits: [2.0, -0.6, 0.7]
 Token `0` dropped from `2.4` to `2.0`, negative token `1` dropped further negative from `-0.5` to `-0.6`, and unseen token `2` stayed untouched at `0.7`. Had the implementation naively divided `-0.5` by `1.2`, token `1` would have moved upward to `-0.417` and become *more* likely. Note also that the penalty applies once per distinct token ID in the tracked history (not once per occurrence), and unlike softmax, it is *not* invariant to shifting logits by a constant. Subtracting $\max(z)$ for softmax stability before applying repetition penalty flips the signs of logits and can reverse which token stays on top:
 
 <!-- leetllm: test, output=show, deps=torch -->
-```python title="centering-before-a-penalty-changes-the-policy.py"
+```python title="centering-before-a-penalty.py"
 import torch
 
 
@@ -676,7 +678,7 @@ Inference stacks such as vLLM, SGLang, and TensorRT-LLM execute decoding as an o
    - Sample an output token ID using the active pseudo-random generator state.
 5. **Termination checks:** Inspect end-of-sequence token IDs, configured stop strings (handling multi-token stop sequences such as Transformers' `StopStringCriteria`), and maximum token budgets so callers can distinguish complete stops from truncation.[^huggingface2026logits]
 
-When checked on October 10, 2026, Hugging Face Transformers' generation pipeline applies temperature before top-$k$, top-$p$, and min-$p$ warpers when enabled, whereas engine integrations and feature flags continue to evolve.[^huggingface2026logits] On the same check date, vLLM's sampling validation explicitly rejected combining min-$p$ or logit bias with speculative decoding, illustrating that mathematical compatibility does not ensure every runtime supports every control pair.[^vllmSamplingParams2026]
+Hugging Face Transformers' generation pipeline applies temperature before top-$k$, top-$p$, and min-$p$ warpers when enabled, though engine integrations and feature flags continue to evolve.[^huggingface2026logits] Likewise, vLLM's sampling validation rejects combining min-$p$ or logit bias with speculative decoding, illustrating that mathematical compatibility does not mean every runtime supports every control pair.[^vllmSamplingParams2026]
 
 Watch how two different order flips alter the surviving candidate set in different ways. Moving temperature before vs after top-$p$ preserves token ranks yet changes cumulative mass and therefore nucleus membership, whereas swapping top-$k$ and top-$p$ changes both distribution normalization and cutoff membership:
 
@@ -728,7 +730,7 @@ Check the exact ordering of penalties, grammar masks, temperature scaling, top-k
 
 ### Reproducibility is a property of the serving stack
 
-Setting `temperature = 0` eliminates the random draw, while passing a PRNG `seed` fixes the pseudo-random stream on a single local process. Neither setting guarantees identical outputs across different GPUs, batch sizes, or server versions, because changes in parallel reduction order, tensor core kernels, or floating-point precision flip near-tied logits and compound down every subsequent token. As checked on October 10, 2026, vLLM documents deterministic scheduling and a `VLLM_BATCH_INVARIANT=1` batch-invariance mode scoped to specific hardware and model architectures, often with throughput overhead.[^vllmSamplingParams2026] When exact replay matters, log the model revision, tokenizer/chat template, engine version, numeric dtype, hardware, sampler pipeline, stopping rules, and seed, then test repeat prompts both in isolation and under realistic concurrent load.
+Setting `temperature = 0` eliminates the random draw, while passing a PRNG `seed` fixes the pseudo-random stream on a single local process. Neither setting produces identical outputs across different GPUs, batch sizes, or server versions, because changes in parallel reduction order, tensor core kernels, or floating-point precision flip near-tied logits and compound down every subsequent token. vLLM documents deterministic scheduling and a `VLLM_BATCH_INVARIANT=1` batch-invariance mode scoped to specific hardware and model architectures, often with throughput overhead.[^vllmSamplingParams2026] When exact replay matters, log the model revision, tokenizer/chat template, engine version, numeric dtype, hardware, sampler pipeline, stopping rules, and seed, then test repeat prompts both in isolation and under realistic concurrent load.
 
 Tracing our four-token logit example (`bright: 2.4, clear: 2.1, warm: 1.2, pale: 0.3`) through the full pipeline connects every transform visually. Because `bright` already appeared in the context, a `1.2` repetition penalty drops its logit from `2.4` to `2.0`, placing `clear` (`2.1`) first under greedy decoding. Applying softmax produces `clear: 0.404, bright: 0.365, warm: 0.164, pale: 0.067`, and accumulating down that sorted row reaches `0.933` at `warm` to cross `top-p = 0.90` and eliminate `pale`:
 
@@ -846,6 +848,8 @@ grammar allows nothing, T=1.0: need at least one finite unmasked logit
 
 Both errors raise the same exception, yet point to distinct engineering fixes: recompute truncation strictly over grammar-legal tokens for the first failure, and inspect the schema grammar or tokenizer boundary for the second rather than silently dropping constraints.
 
+> **Key insight:** Logit processors do not commute. Always apply hard grammar masks before probability truncation (`top-k`, `top-p`, `min-p`), so truncation renormalizes over legal tokens rather than discarding the only valid continuation.
+
 ### Evaluation configurations
 
 | Evaluation slice | Temperature candidates | Sampler candidates | Repetition-penalty candidates | Goal |
@@ -860,7 +864,7 @@ Treat the top four rows as starting experimental sweeps rather than universal de
 
 ## Choosing a policy by task
 
-Select decoding policies from task requirements rather than habit. First decide how much output <span data-glossary="variance">variance</span> an endpoint tolerates, because extraction and code synthesis fail under unconstrained randomness while creative prose stagnates under argmax. Next, benchmark candidate settings side by side on representative prompts and evaluate quality, schema adherence, repetition, and latency together.
+Select decoding rules from task requirements rather than habit. First decide how much output <span data-glossary="variance">variance</span> an endpoint tolerates, because extraction and code synthesis fail under unconstrained randomness while creative prose stagnates under argmax. Next, benchmark candidate settings side by side on representative prompts and evaluate quality, schema adherence, repetition, and latency together.
 
 | Strategy | Selection | Candidate-count rule | Candidate evaluation fit |
 |----------|-----------|----------------------|--------------------------|
@@ -878,7 +882,7 @@ Verify each decoding mechanism directly through worked calculations rather than 
 
 | Decision | Verification bar |
 |----------|------------------|
-| **Greedy vs sampling** | Compute the 0.18 versus 0.27 two-token path scores and explain why sequence likelihood alone never guarantees factual truth. |
+| **Greedy vs sampling** | Compute the 0.18 versus 0.27 two-token path scores and explain why sequence likelihood alone never measures factual truth. |
 | **Beam search** | Explain why wider beams can lift translation metrics yet produce generic dialogue, and when GNMT length normalization flips rankings. |
 | **Temperature** | Trace how rescaling every token shifts Shannon entropy before grouping tail buckets into summary bars. |
 | **Top-k vs top-p vs min-p** | Compute exact survivor counts and renormalized weights on both peaked and flat probability vectors. |
@@ -898,7 +902,7 @@ Cooling a sampler from $T = 1.0$ to $T = 0.1$ improves consistency across repeat
 
 ### High temperature plus top-p pulled in nonsense tail tokens
 
-Warm creative settings can emit erratic fragments because temperature flattening distributes enough combined mass across thousands of weak tail tokens for top-$p$ to admit them. On self-hosted runtimes, reduce temperature, tighten `top-p`, or benchmark `min-p`. On hosted reasoning APIs, note that sampling knobs may be rejected or silently ignored: as checked in November 2026, OpenAI removes `temperature` and `top_p` whenever reasoning effort is not `none`, Anthropic's `2026-10-21` API rejects them with HTTP 400, and Google's Gemini 3.6 Flash ignores them silently.[^openai2026LatestModel][^anthropic2026ApiMigration][^geminiWhatsNew362026]
+Warm creative settings can emit erratic fragments because temperature flattening distributes enough combined mass across thousands of weak tail tokens for top-$p$ to admit them. On self-hosted runtimes, reduce temperature, tighten `top-p`, or benchmark `min-p`. On hosted reasoning APIs, sampling knobs may be rejected or silently ignored: for example, OpenAI removes `temperature` and `top_p` whenever reasoning effort is not `none`, Anthropic's reasoning API rejects them with HTTP 400, and Google's Gemini 3.6 Flash ignores them silently.[^openai2026LatestModel][^anthropic2026ApiMigration][^geminiWhatsNew362026]
 
 ### Fixed top-k clipped valid options
 
@@ -914,7 +918,7 @@ Passing zero directly into $z_i / T$ causes division by zero or `NaN` propagatio
 
 ### Truncated probabilities failed to sum to one
 
-Zeroing filtered probabilities without renormalizing leaves diagnostic distributions summing below 1.0, distorting downstream weighted checks and perplexity audits. Any weighted sample drawn over unnormalized scores still requires renormalization or explicit scaling inside the sampler call. Either mask excluded logits to $-\infty$ before softmax or divide remaining probabilities explicitly by their surviving mass.
+Zeroing filtered probabilities without renormalizing leaves diagnostic distributions summing below 1.0, distorting downstream weighted checks and perplexity calculations. Any weighted sample drawn over unnormalized scores still requires renormalization or explicit scaling inside the sampler call. Either mask excluded logits to $-\infty$ before softmax or divide remaining probabilities explicitly by their surviving mass.
 
 ## Practice drill
 
@@ -1067,7 +1071,7 @@ Keep one distinction firmly in mind before tuning any sampler parameter. Next-to
 
 The simplest decoding algorithm picks the single highest-probability token at every step. This is **greedy decoding**, which outputs `bright` immediately after `The autumn light is`. Greedy selection requires no random sampling, adds negligible latency overhead beyond the model forward pass, and provides a steady baseline when an application needs a single extracted field or classification label.
 
-Its fundamental blind spot is a complete lack of lookahead across future tokens. An autoregressive language model scores an entire completion $y_{1:L}$ given prompt $x$ by multiplying step-by-step conditional probabilities: $P(y_{1:L}\mid x)=\prod_{t=1}^{L}P(y_t\mid x,y_{<t})$. Maximizing the first factor in a product does not guarantee the largest final product. Suppose that after `bright`, the most likely next token is simply a period at `0.40`, whereas after `fading`, the model turns decisively confident and puts `0.90` on `fast`, producing the step-by-step comparison charted below.
+Its fundamental blind spot is a complete lack of lookahead across future tokens. An autoregressive language model scores an entire completion $y_{1:L}$ given prompt $x$ by multiplying step-by-step conditional probabilities: $P(y_{1:L}\mid x)=\prod_{t=1}^{L}P(y_t\mid x,y_{<t})$. Maximizing the first factor in a product can still miss the largest final product. Suppose that after `bright`, the most likely next token is simply a period at `0.40`, whereas after `fading`, the model turns decisively confident and puts `0.90` on `fast`, producing the step-by-step comparison charted below.
 
 <figure>
   <img src="illustrations/_generated/decoding_strategies_dark.png" alt="Horizontal probability comparison for two-token continuations after The autumn light is. First-step probabilities are bright 0.45, fading 0.30, soft 0.15, and nine tail tokens totaling 0.10. Width-2 beam search retains bright and fading while pruning soft and the tail. Greedy commits to bright followed by period at 0.180, whereas beam search rescues fading followed by fast at 0.270." />
@@ -1164,6 +1168,8 @@ Notice how the eight rare tail tokens grow from `8%` at `T = 1.0` to over `21%` 
 - **Zero requires explicit branching.** Dividing by $T = 0$ is undefined mathematically; local engines treat `temperature = 0` as a dedicated greedy branch while hosted reasoning models often reject or ignore sampling controls outright.[^vllmSamplingParams2026][^huggingface2026logits][^openai2026LatestModel][^anthropic2026ApiMigration]
 - **Hard constraints override high temperature.** Tokens masked to $-\infty$ by a grammar remain at probability zero at any finite positive temperature.
 - **Temperature never adds factual knowledge.** Cooling a model sharpens consistency around its highest logits, which simply amplifies repeatable mistakes whenever the underlying context lacks grounding.
+
+> **Common mistake:** Treating low temperature as a hallucination fix. Scaling logits by $T > 0$ never changes which token ranks first, so grounding still comes from context and verification.
 
 ## Trim the tail, but know which rule you are using
 
@@ -1326,13 +1332,15 @@ constraint then filter: ['green']
 
 Truncating before applying the grammar empties the pool even though a valid token existed. Similarly, moving temperature across `top-p` changes surviving candidates because cumulative probability shifts, while Transformers runs temperature before truncation warpers and vLLM forbids mixing `min-p` or logit bias with speculative decoding.[^vllmSamplingParams2026] Treat processor ordering as part of your tested serving configuration, never silently dropping grammar constraints when an intersection empties.
 
+> **Key insight:** Apply hard grammar masks before probability truncation (`top-k`, `top-p`, `min-p`) so truncation operates on legal tokens rather than discarding the only valid continuation.
+
 ## Endings, budgets, and seeds
 
 Clean termination requires checking checkpoint-specific end-of-turn token IDs alongside a maximum output budget, distinguishing true EOS completion from token-cap truncation so callers never mistake a cut-off reply for a complete answer. Rely on token IDs whenever APIs support them rather than naive substring scans that can break inside multi-token matches. Remember too that a random `seed` only fixes PRNG draws after logits arrive: floating-point reduction differences across batch sizes, hardware, or server builds can still flip close logits unless deterministic modes such as vLLM's `VLLM_BATCH_INVARIANT=1` are enabled, and hosted providers treat `seed` as best-effort rather than deterministic.[^openai2026ChatReference]
 
 ## What a hosted API lets you set
 
-Self-hosted weights expose the entire logit pipeline, whereas modern hosted APIs increasingly lock down or ignore low-level sampling parameters. Some reasoning endpoints reject `temperature` and `top_p` with HTTP 400 errors, while other thinking modes ignore those settings silently without warning. Check exact provider capabilities in the comparison table below, as documented in guides checked in November 2026:[^openai2026LatestModel][^openai2026ChatReference][^openai_structured_outputs][^anthropic2026ApiMigration][^anthropic2026MessagesReference][^anthropic2026Effort][^anthropic2026StructuredOutputs]
+Self-hosted weights expose the entire logit pipeline, whereas modern hosted APIs increasingly lock down or ignore low-level sampling parameters. Some reasoning endpoints reject `temperature` and `top_p` with HTTP 400 errors, while other thinking modes ignore those settings silently without warning. Check exact provider capabilities in the comparison table below before sweeping sampling settings:[^openai2026LatestModel][^openai2026ChatReference][^openai_structured_outputs][^anthropic2026ApiMigration][^anthropic2026MessagesReference][^anthropic2026Effort][^anthropic2026StructuredOutputs]
 
 | Setting | Weights you run | OpenAI, GPT-6 models | Anthropic, API version `2026-10-21` |
 |---|---|---|---|

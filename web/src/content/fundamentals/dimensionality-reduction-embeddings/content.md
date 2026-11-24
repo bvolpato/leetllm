@@ -256,7 +256,9 @@ Full-space recall@3: 1.000
 ```
 <!-- leetllm: output:end -->
 
-Notice how `Recall@3` reaches `1.000` at eight dimensions when explained variance sits at just `0.715`. Try inspecting `target_dim = 6` (`recall@3 = 0.983`), and then raise document noise from `0.11` to `0.20`: under higher noise, six dimensions drop to `recall@3 = 0.867` while even the full 24-dimensional space falls to `0.983`. Separating development sweeps from held-out evaluation queries ensures $k$ never overfits a small benchmark sample, keeping in mind that cumulative variance grows monotonically with $k$ while top-$K$ recall need not behave strictly monotonically on small sets.
+> **Key insight:** `Recall@3` hits `1.000` at 8 dimensions even though explained variance is only `0.715`. Explained variance measures corpus-wide spread, not search relevance; always pick target dimension $k$ from held-out retrieval recall.
+
+Try inspecting `target_dim = 6` (`recall@3 = 0.983`), and then raise document noise from `0.11` to `0.20`: under higher noise, six dimensions drop to `recall@3 = 0.867` while even the full 24-dimensional space falls to `0.983`. Separating development sweeps from held-out evaluation queries keeps $k$ from overfitting a small benchmark sample.
 
 ```checkpoint
 A PCA model retains 95 percent of explained variance across a corpus, yet drops a required technical passage outside the top five results for critical benchmark queries. Should it ship?
@@ -270,7 +272,7 @@ Retrieval compression optimizes accuracy, memory, and query speed. Two-dimension
 
 - Do sparse-attention queries scatter across unrelated clusters or land close to dense FlashAttention passages?
 - Does a new encoder checkpoint segregate recent chunks into a separate island away from older documentation?
-- Which boundary documents sit close enough to the wrong topic cluster to audit directly in the original matrix?
+- Which boundary documents sit close enough to the wrong topic cluster to inspect directly in the original matrix?
 
 Tidy visual islands never turn a 2D plot into a viable search index. Collapsing hundreds of orthogonal dimensions onto two axes creates unavoidable crowding and distortion, erasing fine boundaries that still matter in full space. Treat every low-dimensional plot purely as an exploration map whose patterns you confirm back in the original high-dimensional vectors.
 
@@ -489,7 +491,7 @@ $$
 x_q = \operatorname{round}\!\left(127 \cdot \frac{x}{\max |x|}\right), \qquad b_i = \begin{cases} 1 & \text{if } x_i > 0 \\ 0 & \text{if } x_i \le 0 \end{cases}
 $$
 
-SQ8 cuts raw coordinate RAM fourfold minus minor scale metadata and leverages integer SIMD instructions on modern CPUs, though actual speedup varies by hardware instruction set and must be measured end to end. Binary quantization packs eight sign bits per byte (32 bytes total at 256 dimensions) and scores pairs via fast XOR plus `popcount` Hamming distance, discarding all coordinate magnitude information. In vector engines such as <span data-glossary="qdrant">Qdrant</span>, configuring `rescore: true` with an oversampling ratio (for instance, `oversampling: 2.4` at `limit: 100` selects 240 compressed candidates before exact full-vector rescoring) preserves high precision; as of October 2026, Qdrant enables rescoring by default for binary and lower-bit modes while requiring explicit activation for SQ8 and PQ, and rotation schemes like **TurboQuant** apply orthogonal rotations prior to coding to curb extreme coordinates and support 4-bit asymmetric scoring at half SQ8 footprint.[^qdrant2024][^zandieh2025TurboQuant]
+SQ8 cuts raw coordinate RAM fourfold minus minor scale metadata and leverages integer SIMD instructions on modern CPUs, though actual speedup varies by hardware instruction set and should be measured end to end. Binary quantization packs eight sign bits per byte (32 bytes total at 256 dimensions) and scores pairs via fast XOR plus `popcount` Hamming distance, discarding all coordinate magnitude information. In vector engines such as <span data-glossary="qdrant">Qdrant</span>, configuring `rescore: true` with an oversampling ratio (for instance, `oversampling: 2.4` at `limit: 100` selects 240 compressed candidates before exact full-vector rescoring) preserves high precision across binary, SQ8, and PQ modes (verify whether rescoring is enabled by default for your chosen quantizer). Rotation schemes like **TurboQuant** apply orthogonal rotations prior to coding to curb extreme coordinates and support 4-bit asymmetric scoring at half SQ8 footprint.[^qdrant2024][^zandieh2025TurboQuant]
 
 Fitting one shared symmetric SQ8 scale and packing binary sign bits across four eight-dimensional embedding rows exposes both the exact byte ratios and resulting quantization errors.
 
@@ -673,7 +675,7 @@ prefix=64d  ordered_recall@4=0.983  naive_slice_recall@4=0.983
 ```
 <!-- leetllm: output:end -->
 
-With ordered signal, `prefix=16d` holds `0.950` `Recall@4` whereas slicing an unordered embedding collapses to `0.562`. When Stage 1 compresses down to `8d` (`0.700`), expanding candidate generation from `4` to `16` items recovers `0.929` `Recall@4` after full-vector rescoring, and expanding to `48` hits the full `0.983` ceiling at the expense of higher Stage 2 I/O. With hosted embedding APIs, check for a supported `dimensions` parameter rather than slicing arbitrarily: OpenAI's `text-embedding-3` models (checked October 2026) output `1,536` (`small`) and `3,072` (`large`) coordinates natively and support shorter prefixes via `dimensions`, where 256d `text-embedding-3-large` outperformed full-length `text-embedding-ada-002` at launch in 2024.[^openai2024_embeddings]
+With ordered signal, `prefix=16d` holds `0.950` `Recall@4` whereas slicing an unordered embedding collapses to `0.562`. When Stage 1 compresses down to `8d` (`0.700`), expanding candidate generation from `4` to `16` items recovers `0.938` `Recall@4` after full-vector rescoring, and expanding to `48` reaches `0.967` at the expense of higher Stage 2 I/O. With hosted embedding APIs, use a supported `dimensions` parameter rather than slicing arbitrarily: OpenAI's `text-embedding-3` models output `1,536` (`small`) and `3,072` (`large`) coordinates natively and support shorter prefixes via `dimensions`, where 256d `text-embedding-3-large` outperformed full-length `text-embedding-ada-002` at launch.[^openai2024_embeddings]
 
 ```json title="embedding-request.json"
 {
@@ -735,7 +737,7 @@ Smallest passing configuration: mrl-256-sq8
 ```
 <!-- leetllm: output:end -->
 
-Keeping explicit recall gates alongside RAM budgets catches silent retrieval regressions early. Compression changes byte footprints on disk immediately, whereas semantic errors emerge only when real queries miss evidence at rank $K$. Measuring Recall@K at every reduction and quantization step ensures lower serving cost never drops decisive passages like FlashAttention tiling explanations out of the context window.
+Keeping explicit recall thresholds alongside RAM budgets catches silent retrieval regressions early. Compression changes byte footprints on disk immediately, whereas semantic errors emerge only when real queries miss evidence at rank $K$. Measuring Recall@K at every reduction and quantization step ensures lower serving cost never drops decisive passages like FlashAttention tiling explanations out of the context window.
 
 ```checkpoint
 An engineer proposes deploying a visually clean 2D UMAP projection as the production vector index to cut RAM. What experiment should you run instead?
@@ -762,7 +764,7 @@ Recall@K divides retrieved relevant items within rank K by total judged relevant
 ```checkpoint
 A centered embedding matrix has nonzero singular values 5, 2, and 1. Keeping the top two principal components gives which explained-variance ratio, and is that metric alone enough to ship?
 ---
-29/30; no, still gate release on held-out retrieval quality.
+29/30; no, still verify held-out retrieval quality before shipping.
 
 Explained variance sums squared singular values: (25 + 4) / (25 + 4 + 1) = 29/30 ≈ 0.967. Because high variance can reflect corpus formatting or broad topics rather than task relevance, retrieval metrics remain mandatory.
 ```
@@ -866,7 +868,7 @@ The Johnson-Lindenstrauss bound permits the closer pair to expand up to 1.20 whi
     "explanation": "Only the 8 relevant documents present in the shortlist can ever reach the final output, capping recall at 8/12 = 2/3 regardless of how accurately Stage 2 reorders them."
   },
   {
-    "question": "An engineering gate requires vector payload ≤ 700 bytes per item and Recall@10 ≥ 0.96. Candidate A uses 1,280 bytes at 0.99 recall, B uses 640 bytes at 0.965 recall, C uses 128 bytes at 0.95 recall, and D uses 640 bytes with NaN recall. Which candidate passes?",
+    "question": "A deployment target requires vector payload ≤ 700 bytes per item and Recall@10 ≥ 0.96. Candidate A uses 1,280 bytes at 0.99 recall, B uses 640 bytes at 0.965 recall, C uses 128 bytes at 0.95 recall, and D uses 640 bytes with NaN recall. Which candidate passes?",
     "options": [
       "Candidate A",
       "Candidate B",

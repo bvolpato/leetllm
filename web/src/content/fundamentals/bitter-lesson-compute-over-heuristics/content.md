@@ -30,9 +30,11 @@
 }
 ---
 
-Across seventy years of artificial intelligence research, teams repeatedly faced the same choice: encode subtle human domain knowledge directly into software, or build general algorithms that discover strategy and representation by burning compute. In March 2019, Rich Sutton summarized that history in *The Bitter Lesson*: whenever hardware capacity grows by orders of magnitude, approaches built around **learning** and **search** reliably overtake systems built on hand-crafted human heuristics.[^sutton2019] The lesson earned its name because hand-engineering often wins first. Careful feature detectors, positional chess weights, or hand-written phoneme rules yield immediate gains on scarce hardware, yet that very scaffolding tends to lock a system into human assumptions that become harder to maintain and improve as data and compute scale.[^sutton2019]
+For decades, computer chess teams hand-crafted positional weights with grandmasters: rook-on-seventh bonuses, king-safety tables, pawn-structure heuristics. Then Deep Blue crushed Garry Kasparov with massively parallel alpha-beta tree search, and two decades later AlphaZero threw out human board heuristics altogether, learning from self-play and Monte Carlo tree search.[^silver2017] The same upset repeated in speech recognition, computer vision (where convolutional networks swept aside hand-designed SIFT and HOG descriptors once GPUs accelerated backpropagation), and modern language modeling.[^krizhevsky2012]
 
-Deep Blue defeated Garry Kasparov using massively parallel alpha-beta tree search rather than replicating grandmaster intuition, AlphaGo and AlphaZero replaced board heuristics with Monte Carlo tree search guided by self-play neural networks, and convolutional networks swept aside hand-designed SIFT and HOG vision descriptors once GPUs made backpropagation fast over millions of labeled images.[^silver2017][^krizhevsky2012] Read Sutton's essay as a mechanistic statement about where the next unit of compute goes rather than a blanket dismissal of architecture. Convolutional weight sharing encodes spatial translation equivariance, and Transformer attention encodes token-to-token routing.[^krizhevsky2012] What breaks down with scaling is hard-coding task answers instead of giving a general learner or search procedure an objective and enough compute to explore the space itself.[^sutton2019][^mnih2015]
+In 2019, Rich Sutton distilled this recurring pattern into *The Bitter Lesson*: whenever hardware grows by orders of magnitude, general methods built on **learning** and **search** overtake systems built on hand-crafted human knowledge.[^sutton2019] The lesson feels bitter because hand-engineering usually wins on day one. Careful domain rules give quick gains on scarce hardware, yet they bake human assumptions into the system that become rigid ceilings once data and compute scale.[^sutton2019]
+
+This is not an argument against thoughtful architecture. Convolutional weight sharing encodes spatial translation equivariance, and Transformer attention encodes token-to-token routing.[^krizhevsky2012] What breaks with scale is hard-coding task answers instead of giving a general learner or search procedure a clean objective and enough compute to explore the space itself.[^sutton2019][^mnih2015]
 
 ## Search scaling versus domain heuristics
 
@@ -181,7 +183,9 @@ depth=6 score=0.750 avg_nodes=14015
 ```
 <!-- leetllm: output:end -->
 
-Every ply of lookahead compounds search coverage without rewriting the evaluator. A human engineer tuning edge weights for 2-in-a-row versus 3-in-a-row threats must foresee every tactical motif upfront, whereas alpha-beta search turns extra CPU evaluations directly into longer-horizon calculation. Notice too why this crossover matters outside board games: whenever evaluation speed rises tenfold, a fixed tactical formula runs slightly faster while a depth-bounded search shifts to a fundamentally higher quality curve.
+Every ply of lookahead compounds search coverage without rewriting the evaluator. A human tuning weights for two-in-a-row versus three-in-a-row threats must anticipate every tactical motif upfront, whereas alpha-beta search turns extra evaluations directly into deeper forced calculation.
+
+> **Key insight:** When hardware speeds up tenfold, a fixed heuristic merely finishes slightly faster, while a depth-bounded search climbs to a fundamentally higher quality curve.
 
 ## Representation learning versus fixed features
 
@@ -336,7 +340,11 @@ Q=500B 7B_total=12.88ZF 3B_total=10.20ZF
 ```
 <!-- leetllm: output:end -->
 
-Note that equal FLOPs do not guarantee identical answer quality, latency, or KV-cache footprint on every prompt. Engineers first match quality on held-out evaluations across parameter-token pairs and then minimize lifetime serving cost subject to service latency limits.[^dubey2024] Once inference budgets become an explicit design knob, the same compute-allocation lens also explains why spending extra compute *per query* at test time can rival training a much larger model.
+Equal FLOPs alone do not ensure identical quality, latency, or KV-cache footprint on every prompt. Teams first match target quality on held-out evaluations across parameter-token pairs, then minimize lifetime serving cost within their latency budget.[^dubey2024]
+
+> **Key insight:** Overtraining a smaller model pays extra FLOPs once on the training cluster to shrink the `2N` per-token cost permanently across every serving GPU downstream.
+
+Once inference budgets become an explicit design knob, the same compute-allocation lens also explains why spending extra compute *per query* at test time can rival training a much larger model.
 
 ## Test-time compute, search, and verifiable objectives
 
@@ -344,7 +352,7 @@ Over the past few years, the Bitter Lesson's search axis returned to center stag
 
 <figure>
   <img src="illustrations/_generated/bitter_lesson_decision_matrix_light.png" alt="Best-of-N test-time compute scaling under an exact verifier versus a flawed proxy reward model across 2,000 simulated tasks: an exact verifier climbs from 0.226 at k=1 to 0.653 at k=4, 0.985 at k=16, and 1.000 at k=64 and k=256, whereas maximizing a proxy reward peaks at 0.453 at k=16 before degrading to 0.419 at k=256 due to Goodhart overoptimization." />
-  <figcaption>Best-of-N pass rate across 2,000 simulated tasks as test-time rollout budget k expands. Exact verification scales monotonically to 1.000, whereas maximizing a flawed proxy reward peaks at k=16 (0.453) and falls to 0.419 at k=256.</figcaption>
+  <figcaption>Best-of-N pass rate across 2,000 simulated tasks as test-time sample budget k expands. Exact verification scales monotonically to 1.000, whereas maximizing a flawed proxy reward peaks at k=16 (0.453) and falls to 0.419 at k=256.</figcaption>
 </figure>
 
 Let us run that exact simulation in NumPy to measure how fast an uncalibrated proxy breaks down when extreme tail draws exploit loopholes in the reward function.[^lightman2023][^openai2026reasoning] By tracking both oracle verification and flawed proxy maximization across the same pool of `2,000` simulated tasks as $k$ sweeps from `1` to `256`, the code exposes the exact divergence between true capability and Goodhart overoptimization. Notice how the proxy curve actually tracks the true solver until $k=16$, making proxy failures notoriously easy to miss in small evaluations.
@@ -377,17 +385,19 @@ k=256 oracle=1.000 proxy=0.419
 ```
 <!-- leetllm: output:end -->
 
-When an engineer adds test-time compute, the reliability of the verifier puts an upper bound on how much search remains constructive. Exact unit tests, deterministic compilers, and process-supervised step verifiers sustain much deeper inference-time search than vague scalar preference proxies.[^cobbe2021][^lightman2023][^deepseekai2024] Building trustworthy verification signals is therefore where engineering effort still multiplies compute returns instead of fighting them.
+> **Common mistake:** Scaling Best-of-N sampling against a learned preference proxy without an executable check. The proxy often tracks true accuracy at small `k` (here up to `k=16`) before collapsing as extreme samples exploit reward loopholes.
+
+When you add test-time compute, verifier reliability sets the ceiling on how much search stays constructive. Exact unit tests, deterministic compilers, and process-supervised step verifiers sustain far deeper search than vague scalar preference proxies.[^cobbe2021][^lightman2023][^deepseekai2024] Building trustworthy verification signals is therefore where engineering effort multiplies compute returns instead of fighting them.
 
 ## Where inductive bias and explicit structure still win
 
-Misreading *The Bitter Lesson* to mean "never design anything" produces real engineering bugs. Explicit structure and human-designed mechanisms remain indispensable in three clear regimes, even in Sutton's own later writing on continually learning agents.[^sutton2025] Identifying those structural boundaries prevents teams from throwing compute at constraints that call for exact guarantees:
+Misreading *The Bitter Lesson* to mean "never design anything" causes real engineering mistakes. Explicit structure remains indispensable in three regimes, even in Sutton's own later writing on continually learning agents:[^sutton2025]
 
-1. **Architectural inductive bias:** Self-attention, causal masking, rotary positional embeddings, and grouped-query KV sharing govern how information routes across hardware at reasonable memory bandwidth; none of them encode fragile task answers, yet all make general gradient scaling dramatically cheaper.
-2. **Low-data and latency-constrained domains:** When only dozens of examples exist or inference must stay under strict edge-device budgets, strong parametric priors or analytical solvers beat under-constrained networks on accuracy per FLOP.
-3. **Hard invariants and safety bounds:** Cryptographic signatures, arithmetic rules, SQL schema validators, and permission checks enforce discrete binary invariants where approximate probability is the wrong tool regardless of model scale.
+1. **Architectural inductive bias:** Self-attention, causal masking, rotary positional embeddings, and grouped-query KV sharing govern how information routes across hardware at reasonable memory bandwidth; none hard-code task answers, yet all make general gradient scaling dramatically cheaper.
+2. **Low-data and latency-constrained domains:** When only dozens of examples exist or inference must fit tight edge-device budgets, strong parametric priors or analytical solvers beat under-constrained networks on accuracy per FLOP.
+3. **Hard rules and exact checks:** Cryptographic signatures, arithmetic rules, SQL schema validators, and permission checks enforce exact binary guarantees where approximate probability is the wrong tool at any model scale.
 
-The practical synthesis is clear: encode invariances, symmetries, and hard invariants into the substrate, build verifiable evaluation targets, and let general learning and search spend the compute on discovering representations and strategies inside that space.[^sutton2019][^sutton2025] Keep checking whether each proposed heuristic adds a true structural invariant or merely hard-codes today's partial workaround. Once that boundary is clear, the natural first representation bottleneck to study in language models is how raw text enters the network as tokens.
+The practical synthesis is simple: encode symmetries, hardware-friendly structure, and exact rules into the substrate, build verifiable evaluation targets, and let general learning and search spend the compute discovering representations and strategies inside that space.[^sutton2019][^sutton2025] Before adding any heuristic, ask whether it supplies a durable structural property or merely patches today's compute shortage. Once that boundary is clear, the natural first representation bottleneck to study in language models is how raw text enters the network as tokens.
 
 <!-- leetllm: mastery:start -->
 
@@ -396,7 +406,7 @@ The practical synthesis is clear: encode invariances, symmetries, and hard invar
 ```checkpoint
 Suppose a code-generation pipeline increases Best-of-N sampling from k=16 to k=256, selecting the final solution solely by highest score from a learned style-and-length reward model rather than running the test suite. Why can pass@1 correctness drop even though average chosen reward rises?
 ---
-Drawing 256 samples exposes extreme outliers that maximize the proxy reward's loopholes (such as verbose comments or superficial formatting cues) while breaking subtle program logic, producing classic Goodhart overoptimization. Replacing or gating selection with an executable unit-test verifier restores monotonic scaling with test-time compute.
+Drawing 256 samples exposes extreme outliers that maximize the proxy reward's loopholes (such as verbose comments or superficial formatting cues) while breaking subtle program logic, producing classic Goodhart overoptimization. Replacing or filtering selection with an executable unit-test verifier restores monotonic scaling with test-time compute.
 ```
 
 <!-- leetllm: mastery:end -->

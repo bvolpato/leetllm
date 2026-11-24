@@ -61,7 +61,7 @@ $$
 \operatorname{inclusive}[i]=\operatorname{exclusive}[i]+x_i.
 $$
 
-Arg reduction carries a structured payload: `(value=6, index=7)`. Equal maxima need a tie rule. Nonfinite values need a policy too: this reference rejects them and chooses the lowest index among equal finite values.
+Arg reduction carries a structured payload: `(value=6, index=7)`. Equal maxima need a tie rule, and nonfinite values need an explicit rule too: this reference rejects nonfinite inputs and picks the lowest index among equal finite maxima.
 
 <!-- leetllm: test, deps=numpy, id=primitive-reference, output=show -->
 ```python title="primitive-reference.py"
@@ -128,7 +128,7 @@ Segment sums (including an empty segment): [7, 0, 4]
 ```
 <!-- leetllm: output:end -->
 
-The segment offsets specify half-open input ranges. A GPU implementation must preserve that grouping. One whole-array reduction would erase it. This CPU scatter uses a separate output buffer and does not prove that an in-place GPU compaction is safe. The CPU model also never has to say which thread holds which partial. A warp does.
+The segment offsets specify half-open input ranges that a GPU implementation must preserve; one whole-array reduction would erase those boundaries. Writing into a separate output buffer avoids overwriting unread inputs, whereas an in-place GPU compaction needs explicit synchronization. Next, we move from CPU array arithmetic to the warp level, where specific lanes hold specific partials.
 
 <figure>
   <img src="illustrations/_generated/compaction_segments_argmax_dark.png" alt="Left panel shows stream compaction keeping positive elements of [3, -1, 4, 1, 5, -9, 2, 6] at exclusive scan offsets [0, 1, 1, 2, 3, 4, 4, 5] into [3, 4, 1, 5, 2, 6]. Right top shows segmented reduction over half-open ranges [0, 4) = 7, [4, 4) = 0, and [4, 8) = 4. Right bottom shows argmax returning (6, 7) and tie-breaking [6, -1, 6] to (6, 0)." />
@@ -209,6 +209,8 @@ if (warp == 0) {
   <img src="illustrations/_generated/block_warp_handoff_dark.png" alt="Left panel traces warp 0 holding [1..8] in lanes 0 to 7 and zeros in lanes 8 to 31: offsets 16, 8, 4, 2, and 1 bring lane 0 from 1 through 1, 1, 6, and 16 to 36. Right panel shows eight warp leaders publishing [1..8] into shared warp_sums before __syncthreads(), then warp 0 padding lanes 8 to 31 with zero and summing to 36." />
   <figcaption>Warp leaders write eight partials to shared memory, the block barrier makes all eight writes visible to warp 0, and a second warp reduction produces one block total.</figcaption>
 </figure>
+
+> **Common mistake:** Guarding a warp shuffle or `__syncthreads()` behind `if (idx < n)`. Tail lanes in a partial tile must still participate in the collective (carrying the additive identity `0`), or partner reads become undefined and block barriers can hang.
 
 Notice the barrier placement: `__syncthreads()` sits outside all warp-divergent branches. Placing a block barrier inside `if (lane == 0)` or `if (warp == 0)` triggers undefined behavior because only a fraction of the block's threads reach the barrier.
 
@@ -307,6 +309,8 @@ Higher-precision reference: 1.0
 Blocks need not finish in index order. That alone doesn't change a fixed tree: a later pass can combine indexed partials in the same order every run. An atomic or schedule-dependent combining order can change rounding, sometimes substantially for ill-conditioned sums such as this example.
 
 Different valid combining trees can disagree without a race. Unexpected disagreement still needs investigation; non-associativity isn't permission to dismiss a correctness failure.
+
+> **Key insight:** Floating-point non-associativity means two race-free GPU reduction trees can return different bits on the same input. Repeatability (identical bits across runs) and accuracy (closeness to the mathematical sum) are separate properties; a fixed tree can repeat an inaccurate answer every time.
 
 Repeatability and numerical accuracy are two distinct properties:
 - **Repeatability** concerns identical output bits under specified conditions. Current CUB documents `run_to_run` as `DeviceReduce`'s default, with a fixed tree for the same GPU/build/configuration. Supported environment APIs can request other guarantees. This doesn't promise identical results across toolkit/library releases or tuning changes.[^nvidia2026cubReduce][^nvidia2026ccclDeterminism]
@@ -426,7 +430,7 @@ $$
 p_i = \frac{e^{x_i - m}}{\sum_j e^{x_j - m}}, \qquad m = \max_j x_j.
 $$
 
-For finite unmasked logits, $x_i-m\leq0$, so their exponentials cannot overflow. Small terms can underflow to zero. Masks, NaNs, infinities, and all-masked rows need explicit policies; this model uses `None` for masks, rejects other nonfinite values, and rejects a row with no unmasked logits.
+For finite unmasked logits, $x_i-m\leq0$, so their exponentials cannot overflow, though very negative terms can underflow to zero. Masks, NaNs, infinities, and all-masked rows need explicit handling: this model represents masks as `None` and rejects other nonfinite values or all-masked rows.
 
 A simple implementation makes three logical passes over the input:
 1. Reduction pass: find the global maximum $m = \max_j x_j$.
@@ -516,7 +520,7 @@ Eight probabilities need another input pass; one-shot iterator rejected
 ```
 <!-- leetllm: output:end -->
 
-This counts Python model reads, not CUDA transactions. If a later logit changes the maximum or denominator, a probability emitted earlier would be wrong unless it were updated. Keeping logits on chip or fusing a different output pattern changes the storage problem.
+> **Key insight:** Online softmax cuts standalone logit reads from three passes to two, not one, because no probability can be finalized until the last logit has been seen. FlashAttention eliminates that second HBM pass by rescaling the running weighted-value accumulator $O$ on chip instead of emitting the full probability row.
 
 <figure>
   <img src="illustrations/_generated/normalizer_output_passes_dark.png" alt="Left panel shows two-pass standalone softmax: pass 1 reads eight logits to compute (m=6, d=1.578968), and pass 2 rereads logits to output probabilities [0.032, 0.001, 0.086, 0.004, 0.233, 0.000, 0.012, 0.633]. Right panel shows fused attention tracking (m, d, O) in SRAM, rescaling both d and O by alpha, and emitting O/d without storing N x N probabilities." />
@@ -570,10 +574,10 @@ Different workloads demand different output semantics:
 | Cumulative offset at every index | exclusive scan | identity, input ordering, operator |
 | Cumulative aggregate including index | inclusive scan | operator, endpoint rule |
 | One aggregate per variable-length segment | segmented reduction | range offsets or keys, empty segment identity |
-| Winning value and source position | arg reduction | tie-breaking rule, NaN policy, index type |
+| Winning value and source position | arg reduction | tie-breaking rule, NaN handling, index type |
 | Maximum and normalizer from streamed logits | online normalizer | running scale, exponential sum, masks/empty state |
 
-Use CUB's `DeviceReduce` and `DeviceScan` as strong baselines for standalone whole-array operations. `BlockReduce` and `BlockScan` are different: threads invoke them cooperatively **inside your kernel**, so they can participate in fusion. CUB is part of CUDA Core Compute Libraries (CCCL) and dispatches architecture/type-specific policies; measure the installed CCCL version on the target workload to verify runtime and end-to-end performance.[^nvidia2026cubOverview]
+Use CUB's `DeviceReduce` and `DeviceScan` as strong baselines for standalone whole-array operations. `BlockReduce` and `BlockScan` are different: threads invoke them cooperatively **inside your kernel**, so they can participate in fusion. CUB is part of CUDA Core Compute Libraries (CCCL) and dispatches architecture- and type-specific tuning configurations; measure your installed CCCL version on the target workload to verify end-to-end performance.[^nvidia2026cubOverview]
 
 The explicit-temporary-storage overloads query bytes, allocate storage, then execute. Current documentation also exposes environment-based overloads that manage temporary allocation, so the query pattern isn't mandatory for every API. Check your installed CCCL version. For an int32-to-int64 sum comparison, explicitly widen inputs; recording only the output type omits the internal accumulator width.
 
@@ -659,9 +663,7 @@ The benchmark reports **logical byte rate**:
 - For reduction: $4N$ input bytes divided by elapsed time.
 - For scan: $4N$ input bytes plus $8N$ output bytes ($12N$ bytes total) divided by elapsed time.
 
-This numerator counts logical useful algorithmic data. Timing includes the intermediate work, while the numerator omits its bytes and the reduction scalar output. Cache hits change where bytes are served while leaving this logical count unchanged. Buffers are reused after warmup, so this run records no residency measurement. Correctness is checked before timing; timed invocations skip per-call validation.
-
-Record the source hash, compiler/toolkit, GPU, shape, iteration count, cache policy, and the exact timed composition. The one-thread kernels explain dependency and serve as correctness baselines; their speedups do not demonstrate competitiveness with CUB. For a library comparison, add a matched CUB variant and rerun actual GPU checks/timing.
+This numerator counts useful algorithmic bytes while elapsed time includes intermediate passes and metadata. Because cache hits change where bytes are served without changing the logical count, inspect DRAM counters separately when estimating physical HBM utilization. Record source hash, compiler/toolkit, GPU, shape, iteration count, and cache state alongside every run, and benchmark against a matched CUB variant before claiming a custom kernel is competitive.
 
 ## Review questions
 
@@ -723,7 +725,7 @@ A scan reads 1024 int32 inputs and writes 1024 int64 outputs in 3 microseconds. 
 ---
 4.096 GB/s, from input plus output bytes.
 
-Useful bytes are 1024 × (4 + 8) = 12288. Divide by 3 × 10⁻⁶ seconds to obtain 4.096 × 10⁹ bytes/s. This numerator omits metadata/intermediates and does not measure actual DRAM transactions.
+Useful bytes are 1024 × (4 + 8) = 12288. Divide by 3 × 10⁻⁶ seconds to obtain 4.096 × 10⁹ bytes/s. This is a logical data rate; inspect DRAM counters separately for physical memory traffic.
 ```
 
 ```checkpoint

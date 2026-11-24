@@ -52,7 +52,7 @@ For 1,000 pairs of numbers, add each pair into a separate output slot. At index 
 
 CUDA C++ expresses the work from one thread's point of view. With 256 threads per block, 1,000 elements require four blocks: 1,024 threads, of which 24 must skip memory access. The test harness below also checks lengths right around a block edge.
 
-Save this as `vector_add.cu`. It requires a CUDA toolkit to build and compatible NVIDIA hardware to run. The checks use small, exactly representable FP32 values; exact equality here isn't a general tolerance policy for reductions or matrix multiplication.
+Save this as `vector_add.cu`. Exact equality works here because these powers-of-two inputs are exact in FP32; reductions and matrix multiplications need explicit numerical tolerances.
 
 ```cpp title="vector_add.cu"
 #include <cuda_runtime.h>
@@ -153,7 +153,7 @@ At source level, you can inspect the bounds check and the index formula. You can
 
 NVIDIA's offline compiler driver, `nvcc`, coordinates separate host and device compilation. For this SIMT device kernel, the compilation path reaches <span data-glossary="ptx">Parallel Thread Execution (PTX)</span>, a versioned virtual instruction set architecture (ISA). PTX names virtual registers such as `%r0` and `%f0`; these names don't assign physical registers. It still specifies a target feature set, and its producer can optimize for that target. A PTX file isn't independent of architecture, ISA version, or driver support.[^nvccGuide2026][^nvidiaPtxIsa2026]
 
-The optimizing assembler, `ptxas`, transforms PTX into a CUDA binary, called a **cubin**, for a specific streaming multiprocessor target such as `sm_90`. A cubin is an ELF container holding encoded GPU machine instructions and metadata.[^cudaBinaryUtilities2026] Target compilation allocates physical registers, schedules instructions, and may spill values to memory. The proprietary allocator's exact assignment algorithm is undocumented and can shift between compiler versions, and instruction scheduling does not guarantee that every load's latency is hidden.
+The optimizing assembler, `ptxas`, transforms PTX into a CUDA binary, called a **cubin**, for a specific streaming multiprocessor target such as `sm_90`. A cubin is an ELF container holding encoded GPU machine instructions and metadata.[^cudaBinaryUtilities2026] Target compilation allocates physical registers, schedules instructions, and may spill values to memory; register assignment can shift across compiler releases, and instruction scheduling hides only the latency for which independent work exists.
 
 Engineers commonly call the human-readable native instruction listing **SASS**. SASS isn't an executable artifact or a portable source format. It's a disassembly of target-specific machine instructions stored in a cubin.
 
@@ -341,7 +341,9 @@ R=33, 48-warp limit: 100%; R=32, shared-memory constraint: 37.5%
 <figcaption>With eight warps per block, rounding 33 registers per thread to 1,280 registers per warp raises block use to 10,240. The same 65,536-register pool then fits only six blocks and 48 warps, while a 48-warp target reaches 100% and a 96 KiB shared-memory budget with 32 KiB per block caps R32 at three blocks (24 warps).</figcaption>
 </figure>
 
-The last case additionally assumes a 96 KiB shared-memory budget. It shows why low register use alone doesn't ensure full residency. For actual hardware, use the CUDA occupancy APIs with the compiled kernel, launch size, and dynamic shared-memory size, then compare theoretical residency with achieved occupancy and stall data. Higher occupancy can help hide latency; it can also lose to a lower-occupancy kernel with better reuse or fewer instructions.[^cudaProgrammingGuide2026]
+> **Key insight:** One extra register per thread (32 to 33) can trigger a 25% occupancy cliff because hardware allocates registers per warp in 256-register granules. Always read `ptxas -v` and occupancy reports together rather than eyeballing source variables.
+
+The last case assumes a 96 KiB shared-memory budget, showing why low register use alone doesn't ensure full residency. For actual hardware, use the CUDA occupancy APIs with the compiled kernel, launch size, and dynamic shared-memory size, then compare theoretical residency with achieved occupancy and stall data. Higher occupancy can help hide latency; it can also lose to a lower-occupancy kernel with better reuse or fewer instructions.[^cudaProgrammingGuide2026]
 
 ### Spills change the memory workload
 
@@ -392,7 +394,7 @@ Hash the source, compile options, target, compiler version, and any compile-time
 
 For example, two variants can have 1,000 elements but strides 1 and 2. A specialization that assumes stride 1 must not be reused for stride 2. Architecture suffixes encode hardware feature rules too: Hopper's WGMMA requires `sm_90a`, whereas baseline bulk asynchronous copies are available with `sm_90`. Inspect generated code to verify that a kernel uses an enabled feature. Unsupported cubins fail compatibility checks; describe the loader error precisely.[^nvidiaPtxIsa2026]
 
-This CPU exercise models a canonical cache key from an explicit compilation recipe, including launch geometry and pipeline stages. A production artifact store must also compile, publish, and validate kernel artifacts.
+The exercise below builds a canonical cache key from an explicit compilation recipe, including launch geometry and pipeline stages:
 
 <!-- leetllm: test, output=show, id=gpu-compilation-identity -->
 ```python title="compilation_identity.py"
@@ -482,7 +484,7 @@ changed included header: dependency-aware key misses
 ```
 <!-- leetllm: output:end -->
 
-The callable models a cached compiled operation; it doesn't compile CUDA. The explicit header dictionary also assumes the full dependency set has already been collected. A real build must discover nested includes and resolve their paths consistently. This responsibility extends to precompiled headers: NVRTC documents that checking whether their header contents changed belongs to the caller.[^nvrtc2026]
+A real build must discover nested includes and resolve their paths consistently; NVRTC explicitly leaves header-change detection for precompiled headers to the caller.[^nvrtc2026]
 
 <figure>
 <img src="illustrations/_generated/specialization_identity_dark.png"
@@ -520,11 +522,11 @@ Just-in-time (JIT) compilation moves work from build time to runtime. NVIDIA's r
 
 PTX loaded at runtime is compiled by the device driver's JIT compiler. Generated cubins enter a compute cache, and a driver upgrade invalidates that cache so the new JIT compiler can regenerate code.[^cudaProgrammingGuide2026]
 
-This makes JIT a service concern as well as a compiler step. Track each JIT invariant:
+This makes JIT a service concern as well as a compiler step. Track five core JIT requirements:
 
-| Invariant | Evidence to capture | Failure when omitted |
+| Requirement | Evidence to capture | Failure when omitted |
 |---|---|---|
-| Compilation identity | Source or IR hash, compiler version, flags, target, specialization values | Wrong artifact reused or <span data-glossary="rollout">rollout</span> can't be reproduced |
+| Compilation identity | Source or IR hash, compiler version, flags, target, specialization values | Wrong artifact reused or release can't be reproduced |
 | Load compatibility | GPU compute capability, driver version, PTX target, cubin targets | Missing image or unsupported PTX at module load |
 | Cold-start budget | Compile time, module-load time, cache state, first launch time | First request violates latency objective while steady state looks healthy |
 | Correctness | Reference outputs, tolerances, edge shapes, alignment and mask cases | Fast specialization returns wrong values on an edge case |
@@ -532,9 +534,9 @@ This makes JIT a service concern as well as a compiler step. Track each JIT inva
 
 ### Eight ranks, two different cache questions
 
-Suppose eight workers encounter the same missing specialization. They may all compile it. That wastes startup time, but doesn't by itself prove cache corruption. Ask separately: **Can readers see incomplete files? Can workers avoid duplicate compilation?**
+Suppose eight workers encounter the same missing specialization. They may all compile it, wasting startup time without necessarily corrupting the cache. Ask separately: **Can readers see incomplete files? Can workers avoid duplicate compilation?**
 
-In the pinned Triton file-cache implementation, inspected on October 10, each writer uses a unique PID/UUID temporary directory inside the cache, closes the completed file, and publishes it with `os.replace`. That path publishes without `fsync` or an advisory compilation lock; its `lock_path` attribute is unused. Group metadata checks child-file existence, so validate each artifact before treating the group as complete.[^triton2026fileCache]
+In Triton's file-cache implementation, each writer stages into a unique PID/UUID temporary directory inside the cache, closes the completed file, and publishes it with `os.replace` (without `fsync` or an advisory lock). Group metadata checks child-file existence, so validate each artifact before treating the group as complete.[^triton2026fileCache]
 
 On a filesystem providing the required same-filesystem atomic replacement semantics, publishing a completed file prevents readers from opening a partially written destination. This provides **atomic visibility**. Durability after power loss requires additional file/directory synchronization and explicit filesystem durability guarantees. Concurrent compilers can still consume redundant CPU and memory. Host launcher shared objects, device cubins, and metadata are distinct artifacts; avoid treating every Triton cache entry as a kernel `.so`.
 
@@ -697,7 +699,7 @@ Where do the enticing optimization claims need qualification? A shared-memory sw
 
 ### Check ownership without a GPU
 
-A CPU enumeration can verify the index arithmetic independently of either compiler. It can't detect generated-code bugs, GPU races, or invalid device memory access. For length 257, two 256-lane blocks cover indices 0..256 and leave 255 lanes masked out:
+For length 257, two 256-lane blocks cover indices `0..256` and leave 255 lanes masked out. Enumerating block and lane indices directly exposes off-by-one boundary bugs:
 
 <!-- leetllm: test, output=show, id=gpu-index-coverage -->
 ```python title="check_index_coverage.py"
@@ -796,21 +798,19 @@ Triton fits custom fusion and dense or structured kernels where block ownership 
 
 <span data-glossary="cutlass">CUTLASS</span> supplies CUDA C++ templates for high-performance linear algebra. CuTe, used inside modern CUTLASS, models hierarchical tensor layouts, tensors, copy atoms, and <span data-glossary="matrix">matrix</span> multiply-accumulate atoms. Its C++ surface keeps detailed control over thread-data mapping and architecture features. CuTe DSL brings the same low-level concepts into a Python JIT stack while preserving explicit memory, thread, and data hierarchy.[^cutlassDocs2026]
 
-Consider this family when matrix multiplication, convolution, attention building blocks, or unusual layouts need explicit layout and hardware-atom control. Whether it exposes a needed capability depends on the specific APIs and releases being compared. Expect a steeper layout-algebra learning curve and a larger specialization space. Use CUTLASS profiler or an equivalent harness, inspect PTX and SASS, and keep compile-time policies in the benchmark manifest.
+Consider this family when matrix multiplication, convolution, attention building blocks, or unusual layouts need explicit layout and hardware-atom control. Expect a steeper layout-algebra learning curve and a larger specialization space; use the CUTLASS profiler, inspect PTX and SASS, and record compile-time schedules in your benchmark manifest.
 
 ### CUDA Tile
 
-CUDA Tile changes CUDA's unit of thought from one SIMT thread to one block operating collectively on immutable multidimensional tiles. The compiler chooses the number of threads per block and maps tile operations onto registers, shared memory, <span data-glossary="tensor">tensor</span> cores, and other hardware resources. SIMT and tile kernels can coexist in one application.[^cudaTile2026]
+CUDA Tile changes CUDA's unit of thought from one SIMT thread to one block operating collectively on immutable multidimensional tiles (with compile-time power-of-two tile dimensions across its `cuda.tile` Python and C++ interfaces). The compiler chooses threads per block and maps tile operations onto registers, shared memory, and <span data-glossary="tensor">tensor</span> cores; SIMT and tile kernels can coexist in one application.[^cudaTile2026]
 
-> **Tooling snapshot, checked October 10, 2026:** The CUDA 13.4 guide lists cuTile Python through `cuda.tile` and CUDA Tile C++ from toolkit 13.3 onward. Each tile dimension must be a compile-time power of two. Pin the toolkit and language package used for a build; these features aren't assumptions for earlier toolkits.[^cudaTile2026]
-
-CUDA Tile offers source portability across NVIDIA generations by hiding thread mapping, not cross-vendor portability. Inspect Tile IR or emitted device images where supported, record compiler version, then profile on each architecture you claim to support.
+CUDA Tile offers source portability across supported NVIDIA generations by hiding thread mapping, not cross-vendor portability. Pin your CUDA toolkit and language package, inspect Tile IR or emitted device images, and profile on each target architecture.
 
 ### Pallas
 
-Pallas extends JAX with custom kernels for GPU and tensor processing unit (TPU) backends. Kernels use references (`Ref`s), launch grids, block specifications (`BlockSpec`s), and backend-specific pipelining or hardware APIs. Shared concepts don't make the APIs interchangeable.[^jaxPallas2026]
+Pallas extends JAX with custom kernels for GPU and tensor processing unit (TPU) backends, built around memory references (`Ref`s), launch grids, block specifications (`BlockSpec`s), and backend-specific pipelining APIs.[^jaxPallas2026]
 
-Pallas is useful when JAX composition or GPU and TPU integration matters. Check transformation support and supply derivative rules when needed. JAX 0.11 deprecated the Pallas Triton backend; 0.11.2, released September 17, removed Mosaic GPU's `pl.pallas_call` support. Mosaic GPU kernels now use `jax.experimental.pallas.mosaic_gpu.kernel`. The same release removed `pl.dot` and moved MGPU indexing toward `jax.lax.axis_index` and `axis_size`. A tutorial written against an older API may therefore fail before kernel compilation. Pin JAX and backend versions, inspect lowering, and profile each target; Pallas remains under active development.[^jaxPallasChangelog2026]
+Pallas is useful when JAX composition or GPU/TPU integration matters. Because its Mosaic GPU surface is still evolving rapidly (moving toward `jax.experimental.pallas.mosaic_gpu.kernel` and `jax.lax.axis_index` / `axis_size`), pin JAX and backend versions rather than copying older tutorials verbatim, and profile each target.[^jaxPallasChangelog2026]
 
 ### NKI
 
@@ -824,7 +824,7 @@ For each surface, note what you control and what evidence would support a choice
 |---|---|---|---|---|
 | CUDA C++ | Thread, warp, block | Explicit thread-level control | NVIDIA CUDA GPUs | PTX, cubin resources, SASS, target profile |
 | Triton | Blocked program | Tile shape, loads, masks, launch meta-parameters | Supported Triton GPU backends | Specialization key, compiler IR or assembly, target profile |
-| CUTLASS/CuTe | Hierarchical layout and hardware atom | Explicit layout, copy, pipeline, and MMA control | NVIDIA CUDA GPUs | Policy manifest, profiler, PTX/SASS, numeric check |
+| CUTLASS/CuTe | Hierarchical layout and hardware atom | Explicit layout, copy, pipeline, and MMA control | NVIDIA CUDA GPUs | Schedule manifest, profiler, PTX/SASS, numeric check |
 | CUDA Tile | Block-level immutable tiles | Tile partition and operations; compiler owns threads | CUDA Tile-capable NVIDIA stack | Tile/compiler artifact, version pin, per-target profile |
 | Pallas | Grid program over `Ref`s and blocks | Memory movement, block specs, backend pipeline APIs | JAX GPU and TPU backends, with backend-specific constraints | JAX/backend pin, lowering evidence, per-target profile |
 | NKI | Tile over Neuron memory and engines | SBUF placement plus optional low-level ISA control | AWS Inferentia2 and Trainium families | Neuron compiler record, profiler, framework comparison |

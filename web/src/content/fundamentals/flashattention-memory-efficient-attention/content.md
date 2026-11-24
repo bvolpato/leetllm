@@ -127,7 +127,7 @@ Host RAM bandwidth and bandwidth *from host to GPU* are different quantities. Ne
 
 <figure>
   <img src="illustrations/_generated/tile_working_set_dark.png" alt="A three-level memory map separates host CPU DRAM, H100 SXM GPU HBM, and SM-local shared memory and registers. Host transfers use a separate system link. HBM holds Q, K, V, output, weights, and activations; H100 SXM lists 80 GB HBM and 3.35 TB per second rated bandwidth. Arrows show input tiles entering SMs and output plus row statistics returning to HBM. Each SM has 228 KiB shared memory, at most 227 KiB per block, and a separate 256 KiB register file; shared memory shares physical capacity with L1, and launch settings and resident blocks affect budgets. A proportional band shows one tile working set: Q, K, and V occupy 16 KiB each, output is 32 KiB, and one FP32 score tile is 64 KiB, for 144 KiB total. These sizes do not imply one shared-memory allocation." />
-  <figcaption>CPU DRAM, GPU HBM, and SM-local resources sit at distinct levels. HBM moves tiles into shared memory and registers, then receives outputs and row statistics; host transfers use a separate system link. In the 128-row, dimension-64 example, Q, K, and V occupy 16 KiB each, O occupies 32 KiB, and one FP32 score tile occupies 64 KiB. Their 144 KiB subtotal shows logical array sizes; kernels reuse and distribute state across separate resource pools.</figcaption>
+  <figcaption>CPU DRAM, GPU HBM, and SM-local SRAM sit at distinct tiers. For a 128×64 tile, FP16 Q/K/V (16 KiB each), FP32 output accumulator (32 KiB), and one FP32 score tile (64 KiB) total 144 KiB of live working set across shared memory and registers.</figcaption>
 </figure>
 
 Use this as a capacity pyramid, not a one-way data pipe. Compute wants tiles in SRAM, so ask what happens when the same tile is reused. A materializing baseline keeps bouncing the full $n \times n$ score and probability matrices through HBM, while FlashAttention pays for local bookkeeping to avoid those round-trips.[^dao2022]
@@ -195,7 +195,7 @@ This block-wise processing strategy avoids quadratic auxiliary score and probabi
 
 <figure>
   <img src="illustrations/_generated/flash_attention_dark.png" alt="A 3 by 3 causal stencil shows 9 allocated score slots and 6 valid pairs. In a separate batch 8, 32-head, 8,192-token example, each full FP16 n by n score or probability array is 32 GiB. Four directional HBM transfers total 128 GiB of logical intermediates. The tiled path streams K and V tiles through an on-chip workspace, discards temporary score and probability tiles, keeps Q and row state on chip, and writes O plus an 8 MiB FP32 LSE array." />
-  <figcaption>The small lower-triangle stencil shows causal validity. The separate memory example uses batch 8, 32 heads, and 8,192 tokens: one FP16 $n \times n$ score or probability array is 32 GiB. A materializing path writes and reads both arrays, for 128 GiB of logical intermediate transfers. The tiled path streams $K_j$ and $V_j$ through the on-chip workspace, discards each $S_{ij}$ and $P_{ij}$ tile after the update, keeps $Q_i$ and $(m_i, \ell_i, N_i)$ live, and writes $O$ plus the row-wise 8 MiB FP32 LSE. These counts exclude $Q$, $K$, $V$, and $O$ and describe logical transfers rather than observed hardware traffic.</figcaption>
+  <figcaption>At batch 8, 32 heads, and 8,192 tokens, materializing full FP16 $S$ and $P$ arrays moves 128 GiB of intermediate transfers through HBM. Tiling streams $K_j$ and $V_j$ on chip, discards each $S_{ij}$ and $P_{ij}$ tile after updating $(m_i, \ell_i, N_i)$, and writes only $O$ plus an 8 MiB FP32 LSE vector.</figcaption>
 </figure>
 
 The upper path changes memory traffic by revisiting $n \times n$ intermediates in HBM. The lower path reuses small blocks in SRAM, then writes the output and compact row statistics. Same operator, different data lifetime.
@@ -271,7 +271,7 @@ The final row output is $O = N_{new} / \ell_{new}$, again about $32.405$. We nev
   <figcaption>The three scores and scalar values make the online update visible. When the reference maximum moves from 2 to 3, both old sums multiply by $\alpha = e^{2-3}$. Block B contributes $e^{3-3}=1$ to $\ell$ and 40 to $N$. Add those terms, then divide $N_{new}$ by $\ell_{new}$ to get 32.404513, matching dense softmax. Bar lengths are proportional within each state row.</figcaption>
 </figure>
 
-Test the same invariant with scalar values, independent of any GPU kernel:
+Verify the same rescaling identity directly on those three scores and values:
 
 <!-- leetllm: test, output=show -->
 ```python title="online-softmax-two-blocks.py"
@@ -387,15 +387,13 @@ This reveals an important difference between FlashAttention versions:
   $$
   This reduces non-matmul overhead. Achieved Tensor Core throughput still depends on the workload, hardware, and kernel schedule.[^dao2023]
 
-The saved LSE statistic is $L = m + \log \ell$, so backward can reconstruct a probability as $P_{ij} = e^{s_{ij} - L_i}$. Initialize the running state with $m = -\infty$, $\ell = 0$, and $N = 0$. Fully masked tiles need care: evaluating $-\infty - (-\infty)$ produces NaN. The sketch below handles those contributions explicitly. An entirely masked row has no mathematical softmax; returning zero matches the CPU PyTorch 2.14 behavior tested here and the FlashAttention package's documented convention.[^flashattention2026repo]
+The saved LSE statistic is $L = m + \log \ell$, so backward can reconstruct a probability as $P_{ij} = e^{s_{ij} - L_i}$. Initialize the running state with $m = -\infty$, $\ell = 0$, and $N = 0$. Fully masked tiles need care: evaluating $-\infty - (-\infty)$ produces NaN. The sketch below handles those contributions explicitly, returning zero for an entirely masked row to match PyTorch SDPA and the FlashAttention package convention.[^flashattention2026repo]
 
 The recurrence guarantees algebraic equivalence in exact arithmetic. The hardware schedule dictates where $Q, K, V,$ and running state reside. Later Q-resident schedules can write each final output tile and row statistic once. The original FA1 schedule also writes intermediate running state to HBM; both avoid the full $n\times n$ matrices.
 
 ### Pseudocode
 
-The same state update can run under different tile schedules. The original FlashAttention paper loops over K/V tiles in the outer loop and writes each Q tile's running state back to HBM between inner steps.[^dao2022] FlashAttention-2 keeps a Q tile on-chip and streams K/V tiles past it, which cuts extra HBM traffic for $O$ and the row stats.[^dao2023] The sketch below follows that later loop nest.
-
-This single-head CPU correctness sketch uses FP64 to compare the recurrence against PyTorch SDPA. A fused GPU kernel and a memory-efficient training backward require separate implementations. Autograd retains intermediate operations here; FlashAttention's custom backward recomputes them. Boolean mask entries mean **allowed**, and Q/K lengths may differ.
+The same state update can run under different tile schedules. The original FlashAttention paper loops over K/V tiles in the outer loop and writes each Q tile's running state back to HBM between inner steps.[^dao2022] FlashAttention-2 keeps a Q tile on-chip and streams K/V tiles past it, cutting extra HBM traffic for $O$ and the row stats.[^dao2023] The FP64 PyTorch sketch below follows that Q-outer schedule (with boolean `allowed` mask entries and arbitrary Q/K lengths) and verifies both forward outputs and gradients against PyTorch SDPA:
 
 <!-- leetllm: test, id=flash-sketch, deps=torch, output=show -->
 ```python title="flash-attention-sketch.py"
@@ -493,7 +491,9 @@ invalid block sizes rejected
 ```
 <!-- leetllm: output:end -->
 
-`numerator` stays unnormalized until every K/V tile for that Q block has contributed. The check covers unequal sequence lengths, a value dimension different from the query dimension, remainder tiles, masked tiles, an empty row, and gradients with respect to Q/K/V. None of those CPU checks measures GPU memory use or kernel speed.
+`numerator` stays unnormalized until every K/V tile for that Q block has contributed, matching dense SDPA across unequal sequence lengths, distinct value widths, remainder tiles, masked tiles, an empty row, and Q/K/V gradients.
+
+> **Key insight:** Keeping `numerator` unnormalized across the K/V loop removes an elementwise division from every tile step and lets you divide by the final denominator $\ell$ once before writing $O$ back to HBM.
 
 Finite inputs can still overflow intermediate arithmetic. Two very large values can overflow the unnormalized numerator even when their normalized mean fits in FP64. This sketch should reject that case rather than return infinity:
 
@@ -612,7 +612,7 @@ During the backward pass, FlashAttention **recomputes** the score and probabilit
 
 Recomputing tiles adds arithmetic but avoids transferring the saved quadratic array. That trade can reduce runtime when the avoided traffic costs more than the extra computation. Tile dimensions alone determine neither execution time: head dimension, dtype, scheduling, and GPU matter. The auxiliary-memory saving follows from which arrays are retained; a backward speedup still needs measurement.
 
-This calculator compares one FP16 probability matrix with the FP32 `softmax_lse` tensor saved by the current [`flash-attention` interface](https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/flash_attn_interface.py), not every tensor in training:
+This calculation compares one FP16 probability matrix with the FP32 `softmax_lse` tensor saved by [`flash-attention`](https://github.com/Dao-AILab/flash-attention/blob/main/flash_attn/flash_attn_interface.py):
 
 <!-- leetllm: test, output=show -->
 ```python title="saved-state-comparison.py"
@@ -644,7 +644,7 @@ one write plus one read: 64.00 GiB
 ```checkpoint
 Why can recomputing attention tiles during backward be faster than storing them during forward?
 ---
-If transferring the saved matrix costs more than recalculating its tiles, extra arithmetic can reduce runtime. FlashAttention saves compact row statistics and reconstructs probabilities locally. This explains the possible speedup without assigning an unmeasured time to either operation.
+When HBM bandwidth is the bottleneck, avoiding 64 GiB of probability-matrix writes and reads saves more time than re-multiplying $Q_i K_j^T$ on chip. FlashAttention saves compact row LSE statistics ($O(n)$) and reconstructs local probabilities in SRAM.
 ```
 
 ## Complexity analysis
@@ -660,7 +660,7 @@ With the mechanism in hand, separate mathematical work, extra attention state, a
 
 <figure>
   <img src="illustrations/_generated/memory_scaling_dark.png" alt="Two aligned plots compare one FP16 score matrix and the FP32 row-wise LSE for batch 8 and 32 heads. At 4,096, 8,192, 12,288, and 16,384 tokens, score storage is 8, 32, 72, and 128 GiB; LSE storage is 4, 8, 12, and 16 MiB. The 8,192-token points are highlighted. Score storage grows quadratically; LSE grows linearly. The ratio compares only these arrays." />
-  <figcaption>Read the two curves at the same token positions. From 4K to 16K, the score matrix grows sixteenfold while LSE grows fourfold. At 8K, the two arrays differ by 4,096×; the ratios compare only score storage with row-wise LSE. Q/K/V/O and total model memory are outside this calculation.</figcaption>
+  <figcaption>From 4K to 16K tokens, the FP16 score matrix grows 16x (8 to 128 GiB) while FP32 row-wise LSE grows 4x (4 to 16 MiB), a 4,096× auxiliary-state gap at 8K tokens.</figcaption>
 </figure>
 
 FLOPs stands for floating-point operations, and the memory row in the table refers only to extra state created by the attention kernel rather than the shared $Q$, $K$, $V$, and $O$ tensors both paths allocate. FlashAttention doesn't reduce the asymptotic mathematical work because both paths still execute $O(n^2 d)$ operations. Instead, the gain comes from avoiding $n^2$ score and probability transfers through HBM, though tile size, scheduling, datatype, and hardware still govern observed speed.
@@ -711,7 +711,7 @@ First assume square self-attention, **equal aligned tile sizes $B_r=B_c=B$**, an
 
 <figure>
   <img src="illustrations/_generated/causal_tile_scheduler_dark.png" alt="A labeled 4 by 4 tile schedule shows six fully allowed past pairs, four diagonal pairs, and six future pairs skipped. A diagonal tile applies a lower-triangular element mask, setting its upper triangle to negative infinity before softmax." />
-  <figcaption>In this equal-size 4 × 4 schedule, 10 of 16 tile pairs are computed and 6 future pairs are skipped. A diagonal tile masks its upper triangle with −∞ before softmax. The 37.5% skipped figure counts tile pairs, not launches, traffic, or time.</figcaption>
+  <figcaption>In an equal-size 4 × 4 tile grid, 10 of 16 tile pairs run (6 past, 4 diagonal with local −∞ upper-triangle masking) and 6 future pairs (37.5%) are skipped outright.</figcaption>
 </figure>
 
 ### Counting skipped tile work
@@ -728,7 +728,7 @@ $$
 \frac{\text{Computed tiles}}{\text{Total tiles}} = \frac{T(T+1)}{2 T^2} = \frac{1}{2} + \frac{1}{2T} \xrightarrow{T \to \infty} 50\%
 $$
 
-In the four-tile figure, 10 of 16 pairs run: **62.5% computed, 37.5% skipped**. The skipped fraction approaches 50% for a large equal-tile grid, measuring omitted tile work rather than physical K/V traffic or runtime (which also depend on cache reuse, diagonal work, buffering, and scheduling). You can audit these causal tile decisions directly without any GPU code:
+In the four-tile figure, 10 of 16 pairs run (**62.5% computed, 37.5% skipped**), approaching 50% skipped for large grids. You can trace these causal tile decisions directly in Python:
 
 <!-- leetllm: test, output=show -->
 ```python title="causal-tile-schedule.py"
@@ -798,7 +798,7 @@ The scheduler uses query/key positions to omit entirely future pairs, run fully 
 
 ## FlashAttention-2, FlashAttention-3, and FlashAttention-4
 
-Once tiling removes the full score and probability matrices from HBM, performance depends on how well each kernel schedules work for its hardware. The tiled online-softmax idea remains constant across generations, while successive designs alter loop order, warp ownership, and hardware pipelines. Tracking those changes separates algorithmic invariants from GPU-specific tuning.
+Once tiling removes the full score and probability matrices from HBM, performance depends on how well each kernel schedules work for its hardware. The tiled online-softmax algorithm stays constant across generations, while successive designs alter loop order, warp ownership, and hardware pipelines.
 
 ### Generational comparison
 
@@ -902,7 +902,7 @@ Serving engines rarely keep one contiguous KV tensor per request. [PagedAttentio
 
 Those kernels are **complementary to the <span data-glossary="pagedattention">PagedAttention</span> allocator**: paging decides *where* blocks live and how they are shared; the kernel decides *how* Q attends to them. An interface requiring 256-token pages cannot use this 16-token allocator example as-is, so match the selected backend's layout and page-size requirements before deploying. [GQA/MQA](/learn/multi-query-grouped-query-attention) further shrinks the cache, and teams should measure prefill TTFT and decode ITL separately.
 
-Count **valid causal pairs** separately from the full square workspace. Here a decode query sees 8,192 valid keys total, including its current position if present. These are per-head pair counts; kernel instruction counts require a separate measurement:
+Count **valid causal pairs** per head for an 8,192-token prefill versus a single decode step:
 
 <!-- leetllm: test, output=show -->
 ```python title="prefill-versus-decode.py"
@@ -1008,9 +1008,11 @@ all-valid cache output:   37.5
 ```
 <!-- leetllm: output:end -->
 
+> **Common mistake:** Passing `is_causal=True` during single-token KV-cached decode in PyTorch SDPA. Because PyTorch aligns causal masks to the upper-left corner, a 1×4 query-key matrix sees only key 0 (returning `10.0` instead of `37.5`), whereas `flash-attn` aligns to the bottom-right corner.
+
 <figure>
   <img src="illustrations/_generated/cached_query_mask_alignment_dark.png" alt="One query at absolute position 3 sees four valid cached keys at positions 0, 1, 2, and 3. Their scores are all zero and values are 10, 20, 40, and 80. Correct weights are one quarter each, contributing 2.5, 5, 10, and 20 for output 37.5. An upper-left 1 by 4 causal mask admits only key 0 and returns 10. Padding, unused cache slots, and future keys still need masking." />
-  <figcaption>At absolute position 3, all four supplied keys precede or match the query, so equal scores give each value weight $1/4$. The weighted contributions sum to 37.5. A one-row upper-left mask admits only the first key and returns 10. Keep padding, unused capacity, and future positions outside the mask’s allowed set.</figcaption>
+  <figcaption>At absolute position 3, all four supplied keys precede or match the query, so equal scores give each value weight $1/4$ (output 37.5). A one-row upper-left mask admits only key 0 and returns 10.</figcaption>
 </figure>
 
 Padding, unused cache capacity, or future keys still require explicit masking, because setting `is_causal=False` is valid here only when every key in the buffer is live. Once the math is verified, test dispatch on CUDA using `sdpa_kernel(SDPBackend.FLASH_ATTENTION)` to restrict the permitted backend, remembering that unsupported inputs may raise an error instead of silently falling back to math.[^pytorchSdpaDocs2026] Check eligibility first with `can_use_flash_attention` under the same mask, dropout, causal, and GQA settings as the real call so genuine execution errors propagate rather than being masked as an unsupported backend.[^pytorchSdpaBackends2026]
@@ -1041,7 +1043,7 @@ def attention_with_flash_probe(Q, K, V):
 
 
 output, dispatch_path = attention_with_flash_probe(Q, K, V)
-print("dispatch policy:", dispatch_path)
+print("dispatch path:", dispatch_path)
 ```
 
 Backend constraints determine eligibility; an out-of-memory error or device failure describes execution conditions, and a math fallback may need *more* memory. A successful restricted run confirms that a permitted implementation executed. Profile both paths to learn whether it beats the default or selected FA4. Record the PyTorch/CUDA versions, GPU, shapes, mask, dtype, and profiler trace. Warm up both paths, synchronize CUDA timing, and compare repeated latency samples plus peak allocated memory on identical inputs.[^pytorchSdpaTutorial2026] Set `dropout_p=0.0` explicitly at inference; SDPA doesn't inspect a module's `.eval()` state.[^pytorchSdpaDocs2026]

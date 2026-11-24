@@ -287,9 +287,9 @@ Compile for the target architecture with resource reporting enabled, such as `nv
 - **Shared memory per block:** If a block requests 64 KiB out of a 99 KiB per-SM SRAM budget, only one block can reside per SM at once, exposing latency whenever a warp stalls at `__syncthreads()`.
 - **Line info and specialization count:** Keeping `-lineinfo` maps Compute Sanitizer fault addresses directly to source lines. In Triton, check compilation cache size so dynamic shapes do not trigger unbounded runtime recompilations.
 
-### 3. Input preservation, aliasing, and tolerance audits
+### 3. Input preservation, aliasing, and tolerance checks
 
-Even if a generated kernel matches output values numerically, overwriting `x` in place corrupts residual connections downstream, and returning an aliased view of `x` breaks subsequent in-place ops. Similarly, `torch.testing.assert_close` evaluates:
+Even when a generated kernel matches output values numerically, overwriting `x` in place corrupts residual connections downstream, and returning an aliased view of `x` breaks subsequent in-place ops. Similarly, `torch.testing.assert_close` checks:
 
 $$
 |c - r| \le \mathrm{atol} + \mathrm{rtol} \cdot |r|
@@ -297,12 +297,14 @@ $$
 
 with `equal_nan=False` by default.[^pytorch2026AssertClose] On near-zero outputs ($|r| = 10^{-8}$), an overly loose `atol=1e-6` silently accepts an all-zero broken kernel. Conversely, direct FP32 squaring overflows $2 \times 10^{19}$ to infinity and collapses the product to zero, whereas FP64 intermediate arithmetic keeps the normalized scalar near one.
 
+> **Common mistake:** Treating `torch.allclose` with default tolerances as proof of correctness near zero. When $|r| = 10^{-8}$ and `atol = 1e-6`, a dead kernel that returns all zeros passes silently.
+
 <figure>
   <img src="illustrations/_generated/tolerance_and_overflow_dark.png" alt="For one reference component r=+1e-8 and candidate c=0, the atol=1e-6 acceptance interval includes zero, while atol=1e-10 excludes it. In the separate scalar overflow exercise, 1e19 squared is 1e38 and remains below the FP32 maximum 3.4e38, while 2e19 squared becomes 4e38 and overflows to infinity; reciprocal square root then yields zero and the direct FP32 product is zero, while the FP64 comparison is near one." />
   <figcaption>Absolute tolerance dominates near zero (`atol=1e-6` accepts zero output on a `10⁻⁸` target), while FP32 intermediate overflow collapses `2×10¹⁹` to zero.</figcaption>
 </figure>
 
-The Python script below verifies fresh output allocation, byte-level input preservation, empty-tensor view rejection, and NaN/infinity fidelity without relying on ad-hoc type checks. By computing uint8 byte snapshots of inputs before and after the candidate executes, the harness catches subtle in-place writes even when the returned tensor values match the reference. Testing zero-length inputs separately ensures that an empty return still receives its own tensor identity instead of echoing the caller's object.
+The PyTorch check below catches in-place input mutation (via uint8 byte snapshots before and after execution), shared storage aliases, empty-tensor identity aliases, and suppressed NaNs:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="audit-ownership-and-tolerances.py"
@@ -509,7 +511,9 @@ Paired A-B-B-A medians: A=111.2us, B=93.2us, speedup=1.19x (true 1.22x)
 
 ### 6. Roofline and DRAM counter check
 
-Compare effective bandwidth against the GPU's physical ceiling using hardware counters from Nsight Compute (`dram__bytes.sum`) alongside elapsed CUDA event time.[^nsightCompute2026] When requested bytes divided by latency exceeds 3.35 TB/s on an H100 SXM, cache reuse or weight broadcasting absorbed some of the traffic, as illustrated below for a 62.4 MB logical workload hitting 2.50 TB/s on HBM. Auditing logical tensor bytes separately from physical DRAM counter traffic prevents mistaking a small L2 cache effect for sustained main-memory throughput.
+Compare effective bandwidth against the GPU's physical ceiling using Nsight Compute counters (`dram__bytes.sum`) alongside elapsed CUDA event time.[^nsightCompute2026] When requested bytes divided by latency exceeds 3.35 TB/s on an H100 SXM, cache reuse or weight broadcasting absorbed some of the traffic, as shown below for a 62.4 MB logical workload hitting 2.50 TB/s on HBM. Separating logical tensor bytes from physical DRAM counter traffic keeps you from mistaking a small L2 cache effect for sustained main-memory throughput.
+
+> **Key insight:** A kernel claiming 5.2 TB/s on a 3.35 TB/s GPU has not broken physics; it is hitting L2 cache. Flush a buffer larger than L2 and check `dram__bytes.sum` before trusting any bandwidth speedup.
 
 <figure>
   <img src="illustrations/_generated/traffic_boundaries_dark.png" alt="During the same assumed 12 microsecond interval, three logical FP16 streams contribute 20.8 MB each: input reads, per-row weight reads, and output writes. Their 62.4 MB requested total implies 5.20 TB/s. The example separately assumes 30 MB of HBM traffic, or 2.50 TB/s, below the 3.35 TB/s H100 SXM peak. Cache and reuse explain why these numerators differ; the assumed HBM bytes are not a profiler measurement. If the weight is fetched only once, unique input, weight, and output payload is (2NH+H)×2 = 41.602 MB." />
@@ -536,7 +540,12 @@ Second, separate **tuning diagnostics** from the **held-out evaluation suite**. 
 | `short_scoreboard` stalls high | Shared memory bank conflicts or MIO ops | Add +1 stride padding on shared tile rows or transpose layout |
 | `barrier` stalls high | Uneven work before `__syncthreads()` | Rebalance warp reductions or fuse adjacent loops |
 
-Once the search budget finishes, freeze the winning kernel source, dispatch predicate, and autotune configuration (`BLOCK_M`, `BLOCK_N`, `num_warps`, `num_stages`) before running the **held-out shape and stride suite** (including prime row lengths, odd storage offsets, and large magnitudes never exposed in search feedback). Wait-free isolation ensures a candidate cannot tune branch conditions specifically to the final test matrix. Research benchmarks illustrate why shape generalization matters:[^ouyang2025kernelbench][^zhang2026kernelbenchverified][^wang2026kernelbenchx][^lin2026solexecbench][^du2026kernelOracleMutation]
+Once the search budget finishes, freeze the winning kernel source, dispatch predicate, and autotune configuration (`BLOCK_M`, `BLOCK_N`, `num_warps`, `num_stages`) before running the **held-out shape and stride suite** (prime row lengths, odd storage offsets, and large magnitudes never exposed in search feedback). Record the target SM architecture (`sm_90`), PTXAS register and shared-memory usage, verified dtype and shape domains, sanitizer pass flags, and L2-flushed median runtime versus PyTorch eager so downstream builds catch regressions when CUDA or Triton upgrades.
+
+<details>
+<summary>Deep dive: Kernel synthesis benchmarks and their limits</summary>
+
+Research benchmarks show why shape generalization and hardware counters matter alongside raw speedup ratios:[^ouyang2025kernelbench][^zhang2026kernelbenchverified][^wang2026kernelbenchx][^lin2026solexecbench][^du2026kernelOracleMutation]
 
 | Benchmark | What it measures | Limitation to watch |
 |---|---|---|
@@ -546,7 +555,7 @@ Once the search budget finishes, freeze the winning kernel source, dispatch pred
 | SOL-ExecBench | 235 B200 workloads scored against hardware roofline bounds | Static bounds require profiler counters to confirm fusion gains |
 | Oracle Mutation Analysis | Injects artificial defects to test evaluator catch rate | Quantifies test suite sensitivity rather than candidate safety |
 
-Record the verified **kernel verification profile** alongside the autotuned configuration, including target SM architecture (`sm_90`), PTXAS register and shared-memory usage, verified dtype and shape domains, sanitizer pass flags, L2-flushed median runtime vs. PyTorch eager, and arithmetic intensity ratio. Storing exact compiler flags and architecture targets ensures downstream builds detect regressions immediately if CUDA or Triton versions change. Re-running the held-out suite after any kernel parameter change closes the engineering loop cleanly.
+</details>
 
 <!-- leetllm: mastery:start -->
 

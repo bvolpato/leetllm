@@ -51,23 +51,23 @@ Single-sequence dense-model decode often has low arithmetic intensity: a matrix 
 
 | Hardware | Where model data can live | Memory pool to inspect |
 |---|---|---|
-| Discrete GPU | Device VRAM, with separate host RAM | Host/device transfers and the actual allocation/offload policy |
+| Discrete GPU | Device VRAM, with separate host RAM | Host/device transfers and the active allocation or offload configuration |
 | Apple Silicon | Physical memory shared by CPU and GPU | Available Metal working memory, system pressure, and competing users of the bus |
 | CPU | System RAM, possibly spread across NUMA nodes | Populated memory channels, sustained bandwidth, locality, and kernel support |
 
 ### Discrete GPU: capacity and bandwidth are different limits
 
-The GeForce RTX 4090 provides a concrete capacity and bandwidth example. NVIDIA specifies 24 GB GDDR6X, a 384-bit interface, and 1,008 GB/s peak memory bandwidth.[^nvidiaAdaArchitecture2026] Peak bandwidth describes the hardware specification; measure decode rate on the target workload. Four-bit stored weights also do not imply every multiplication uses native INT4 instructions: W4A16 kernels can unpack into floating-point arithmetic.
+The GeForce RTX 4090 offers 24 GB GDDR6X on a 384-bit interface with 1,008 GB/s peak memory bandwidth.[^nvidiaAdaArchitecture2026] Sustained decode rates depend on kernel efficiency and batch shape; four-bit stored weights also do not imply native INT4 arithmetic, since W4A16 kernels unpack weights into floating-point registers on the fly.
 
-Host RAM does not become extra ordinary CUDA device memory just because the machine has plenty of it. A runtime can intentionally execute some layers on CPU, transfer data, or use a supported managed-memory path. An ordinary device allocation can instead fail. Establish which path your installed backend uses before explaining a slowdown.
+Host RAM does not become extra ordinary CUDA device memory just because the machine has plenty of it. A runtime can intentionally execute some layers on CPU, transfer data, or use a supported managed-memory path; otherwise an ordinary device allocation simply fails. Establish which path your installed backend uses before explaining a slowdown.
 
 ### Apple Silicon: shared storage still has a working-set limit
 
 Unified memory lets CPU and GPU access the same physical memory pool without copying an array across a discrete GPU's PCIe link. Shared physical storage does not require identical CPU/GPU virtual addresses, eliminate synchronization, or make all installed RAM freely available to the model.
 
-As checked September 22, 2026, Apple's Mac Studio specifications list M5 Max variants at 460 or 614 GB/s and M5 Ultra at 1.2 TB/s, with supported memory configurations reaching 128 GB and 512 GB respectively.[^appleMacStudioSpecs2026] These are advertised hardware specifications. Model fit and token rate depend on the actual model, context, and runtime, so measure them on the target system.
+Apple's Mac Studio specifications list M5 Max variants at 460 or 614 GB/s and M5 Ultra at 1.2 TB/s, with memory reaching 128 GB and 512 GB respectively.[^appleMacStudioSpecs2026]
 
-Include macOS, other applications, runtime caches, and the Metal working-set constraints in your budget. There is no universal rule that macOS reserves exactly 20–25%. In MLX, supported execution devices are CPU and GPU; the framework does not expose the Neural Engine as an execution device.[^mlx2026][^mlxUnifiedMemory2026] Evaluate MLX-LM against another compatible runner using the same artifact quality, prompt, and concurrency before claiming one is faster.
+Include macOS, other applications, runtime caches, and Metal working-set limits in your budget; there is no fixed rule that macOS reserves exactly 20 to 25%. In MLX, supported execution devices are CPU and GPU (not the Neural Engine), so compare MLX-LM against other runners on identical artifacts, prompts, and concurrency.[^mlx2026][^mlxUnifiedMemory2026]
 
 ### CPU: channels, locality, and workload shape
 
@@ -107,7 +107,7 @@ The terms must refer to allocations that coexist. Do not sum unrelated peaks, co
 
 For $N$ uniformly stored weights at $b$ bits, the ideal payload is $Nb/8$ bytes. Real artifacts include grouping metadata and a mixture of tensor precisions. A dense array of zeros does not shrink just because someone calls it pruned; a sparse representation and compatible execution path are separate requirements.
 
-Google's model card lists Gemma 4 12B Unified at 11.95B parameters.[^gemma4modelcard2026] At uniform 16-bit precision, those weights occupy 23.9 decimal GB; four-bit codes alone would take 5.975 GB. As checked October 10, 2026, Ollama's `gemma4:12b` artifact page lists an 8.0 GB native payload, with Q4_K_M model data, a BF16 projector, and a Q8_0 423M-parameter draft model.[^ollamaGemma4Artifact2026] The draft adds another set of weights and execution/cache costs when used. Do not budget only the target model's four-bit codes. File size alone does not reveal loaded device footprint; preserve the local artifact identity because the tag can change.
+Google's model card lists Gemma 4 12B Unified at 11.95B parameters.[^gemma4modelcard2026] At uniform 16-bit precision, those weights occupy 23.9 GB; four-bit codes alone take 5.98 GB. Ollama's `gemma4:12b` artifact ships an 8.0 GB native payload containing Q4_K_M weights, a BF16 multimodal projector, and a Q8_0 423M-parameter draft model.[^ollamaGemma4Artifact2026] Budget every loaded component, not just the base four-bit weights, and pin the artifact digest because tags can change.
 
 ### Cache arithmetic starts with the architecture
 
@@ -203,11 +203,11 @@ Context=16384 Concurrency=4 Eviction=False -> KV=22.549 GB, Total=32.149 GB, Fit
 ```
 <!-- leetllm: output:end -->
 
-Doubling context from 16K to 32K adds 1.074 GB under capped retention. Doubling concurrency doubles this raw cache, **not** the shared weights or every allocation in the process. Full-length sliding storage takes the modeled total to 32.149 GB, beyond the assumed device capacity. Whether the server rejects the configuration, preempts requests, offloads, or fails allocation depends on its implementation.
+> **Key insight:** Doubling context from 16K to 32K adds only 1.074 GB when sliding layers evict old tokens, whereas turning off sliding-window eviction balloons the cache from 2.416 GB to 22.549 GB and pushes the 12B model past 24 GB VRAM.
 
 <figure>
   <img src="illustrations/_generated/memory_budget_dark.png" alt="Four memory layouts share a zero-origin 0 to 36 decimal GB scale. Each includes a 7.6 GB weight proxy and 2.0 GB assumed workspace. Capped-cache totals are 12.016 GB at 16K by 4, 13.090 GB at 32K by 4, and 14.432 GB at 16K by 8. Full-length sliding storage reaches 32.149 GB, above the 19.2 GB planning limit and 24 GB device capacity. These bars model device demand; offload requires an explicit runtime plan." />
-  <figcaption>Each zero-origin bar uses the same 7.6 GB weight proxy and 2.0 GB assumed workspace. Capped-cache totals are 12.016 GB (16K × 4), 13.090 GB (32K × 4), and 14.432 GB (16K × 8). Full-length sliding storage reaches 32.149 GB. The 19.2 GB line leaves a 4.8 GB planning reserve. Above 24 GB: device capacity exceeded. These bars model device demand; offload requires an explicit runtime plan.</figcaption>
+  <figcaption>With a 7.6 GB weight footprint and 2.0 GB workspace, capped-cache totals stay under the 19.2 GB planning limit (12.016 to 14.432 GB), whereas full-length sliding storage hits 32.149 GB and overflows a 24 GB GPU.</figcaption>
 </figure>
 
 **Try changing the worksheet:** keep four sessions, reduce the assumed working term to 1 GB, and then remove the reserve. Does the full-storage case fit? It still exceeds 24 GB. Next, keep capped retention but double sessions: identify which terms need new measurements rather than multiplying the whole total by two.
@@ -261,7 +261,7 @@ NVIDIA's current guide distinguishes device-only allocation, managed memory, map
 
 ### A transfer calculation you can falsify
 
-Suppose one step must read a 7.6 GB payload. Ignore compute, attention, unpacking, and launch overhead. Use 1,008 GB/s as a peak device-memory scenario, **assume** 25 GB/s for a host-to-device path, and **assume** 5 GB/s for storage. These are serial weight-stream calculations, not a Gemma benchmark or a prediction of what your runtime migrates.
+Suppose one decode step streams a 7.6 GB weight payload serially (ignoring compute, attention, unpacking, and launch overhead), comparing 1,008 GB/s VRAM, a 25 GB/s PCIe link, and a 5 GB/s NVMe drive:
 
 <!-- leetllm: test, output=show -->
 ```python title="serial-weight-stream.py"
@@ -296,11 +296,11 @@ Mixed/device stream-time ratio: 11.35x
 ```
 <!-- leetllm: output:end -->
 
-The 11.35× ratio compares two modeled stream times with the same assumptions. It cannot be compared directly with an unrelated measured 50 tokens/s to claim a fivefold slowdown. CPU-executed layers have CPU compute and activation-boundary costs; overlapped transfer has another timing model; disk reads also need subsequent processing. Profile the path your server actually takes.
+Moving just 2 GB of a 7.6 GB model across a 25 GB/s PCIe link adds 80 ms to a 5.6 ms VRAM sweep, an **11.35x** slowdown in serial stream time. CPU-executed layers, overlapped prefetch, and disk reads each add their own costs, so profile the exact execution path your runner takes.
 
 <figure>
   <img src="illustrations/_generated/transfer_floor_dark.png" alt="A logarithmic time axis compares four serial 7.6 GB weight-stream calculations: 7.54 ms at an advertised 1,008 GB/s device peak; 85.56 ms for 5.6 GB at that peak plus an assumed 2 GB over a 25 GB/s host link; 304 ms over that assumed host link; and 1,520 ms at an assumed 5 GB/s storage rate. The mixed path spends about 80 ms on its 2 GB host segment and is 11.35 times the device-only stream time under these assumptions. The calculations omit compute, attention, unpacking, launch overhead, transfer overlap, and real runtime policy, so these values describe a serial stream-time floor." />
-  <figcaption>With the stated serial assumptions, 7.6 GB takes 7.54 ms at the advertised device peak. The mixed path adds 80.00 ms for its 2 GB host leg to 5.56 ms of device streaming, totaling 85.56 ms. Host-PCIe and NVMe transfer rates represent serial link bounds. The plot gives a serial stream-time floor; a runtime benchmark also measures compute, attention, unpacking, launch overhead, transfer overlap, and placement policy.</figcaption>
+  <figcaption>Serial stream-time floor for 7.6 GB of weights: 7.54 ms resident in 1,008 GB/s VRAM, jumping 11.35x to 85.56 ms once 2 GB must cross a 25 GB/s host link (and 1,520 ms from 5 GB/s storage).</figcaption>
 </figure>
 
 ```checkpoint
@@ -316,17 +316,17 @@ Ruling a migration path in or out still leaves the question of how the runtime l
 | Option | Role and model packaging | What to check before selecting it |
 |---|---|---|
 | `llama.cpp` / `llama-server` | Native inference tools, commonly loading GGUF | Model/backend support, CPU/GPU split, cache settings, parallel serving, and driver/build dependencies |
-| Ollama | Model manager and HTTP server; imports supported Safetensors or GGUF through a Modelfile | Model/backend compatibility, loaded placement, parallel slots, queue limits, cloud policy, and API subset |
+| Ollama | Model manager and HTTP server; imports supported Safetensors or GGUF through a Modelfile | Model/backend compatibility, loaded placement, parallel slots, queue limits, offline settings, and API subset |
 | MLX-LM on MLX | Language-model tooling on Apple's array framework, commonly using Safetensors plus configuration | Supported architecture/quantization, task quality, CPU/GPU memory pressure, and serving needs |
 | vLLM | Server/runtime with scheduling, paged cache, and distributed inference features | Supported hardware/model/kernel combination, installation environment, arrival-load SLOs, and parallelism costs |
 
-GGUF is a tensor/metadata container, not “GPT-Generated Unified Format.” It can be sharded, and mapping it does not make startup instantaneous.[^gguf_spec2026] `llama.cpp` can run through native binaries without PyTorch/Python as the inference runtime, but its chosen backends still have dependencies. In the inspected CLI source, cache types include `f16`, `bf16`, `q8_0`, and `q4_0`; generic FP8 is not in that accepted list. Quantized cache carries metadata, has backend restrictions, and needs task evaluation.[^llamaCppArguments2026]
+GGUF is a tensor/metadata container, not “GPT-Generated Unified Format.” It can be sharded, and mapping it does not make startup instantaneous.[^gguf_spec2026] `llama.cpp` runs through native binaries without PyTorch or Python, though its chosen backends still carry driver dependencies. Its CLI accepts KV-cache types `f16`, `bf16`, `q8_0`, and `q4_0` (not generic FP8); quantized caches add metadata and need task evaluation.[^llamaCppArguments2026]
 
-A **Modelfile is configuration**, not a weight serialization format. Ollama's import documentation covers supported Safetensors and GGUF inputs.[^ollama2026import][^ollamagithub2026] Its API compatibility covers a subset of OpenAI endpoints/features. A basic client can target `http://localhost:11434/v1`, but model names, supported fields, context settings, and conversation behavior still need checking. The placeholder API key used by some clients does not secure the unauthenticated local server.[^ollama2026openai][^ollama2026authentication]
+A **Modelfile is configuration**, not a weight serialization format. Ollama imports supported Safetensors and GGUF inputs and exposes a subset of OpenAI endpoints at `http://localhost:11434/v1`; remember that the placeholder API key some clients send does not secure an unauthenticated local server.[^ollama2026import][^ollamagithub2026][^ollama2026openai][^ollama2026authentication]
 
-MLX is the array framework; MLX-LM supplies language-model tools. Its supported CPU/GPU operations share unified arrays, with dependencies scheduled between streams. There is no universal “MLX beats every Metal runner” result.[^mlx2026][^mlxUnifiedMemory2026]
+MLX is the array framework; MLX-LM supplies language-model tools whose supported CPU and GPU ops share unified arrays across streams.[^mlx2026][^mlxUnifiedMemory2026]
 
-vLLM's PagedAttention maps logical token blocks to cache blocks. These are not ordinary OS virtual-memory pages. Waste depends on block size, sequence lengths, sharing, and pool policy; “under 4%” is not a bound for every workload. It offers continuous batching and distributed serving, while **Ollama and llama-server also support concurrent requests**. Ollama documents parallel-request and queue controls, with memory implications.[^vllm2024][^ollama2026faq]
+vLLM's PagedAttention maps logical token blocks to cache blocks (distinct from OS virtual-memory pages), with waste set by block size, sequence lengths, sharing, and pool layout. Both vLLM and local servers like **Ollama and llama-server** support concurrent requests with explicit parallel-slot and queue limits.[^vllm2024][^ollama2026faq]
 
 ```checkpoint
 You have two GPUs and 30 technicians, but the quantized model fits on one GPU. Must you tensor-parallelize it across both?
@@ -368,7 +368,7 @@ ollama ps
 
 ### Separate the server's timings from client latency
 
-This native Ollama request fixes the context and output caps. Use a pinned local model checkpoint; the registry tag here is a reproducible request example, not an immutable checkpoint identity.[^ollama2026generate]
+This native Ollama request fixes context and output caps (use a pinned local digest in production):[^ollama2026generate]
 
 ```bash title="measure-local-request.sh"
 curl --fail --silent --show-error --max-time 300 \
@@ -480,6 +480,8 @@ Run `python3 read-generation-timing.py local-response.json` after the request. J
 
 Those rates describe aggregate generation throughput. Measure **time to first token (TTFT)** and individual token gaps with streaming and client arrival timestamps, stating whether the first thinking/content token or first chunk defines TTFT. Transport buffering can group tokens. Also measure client completion time, queueing, cold versus warm loads, cache reuse, peak memory, and failures under the intended arrival load; concurrency requires representative concurrent workloads.
 
+> **Common mistake:** Dividing total prompt tokens by `prompt_eval_duration` when prefix caching is active. If 600 of 1,000 prompt tokens came from cache and the remaining 400 took 0.2 s, uncached prefill speed is 2,000 tok/s, not 5,000 tok/s.
+
 <figure>
   <img src="illustrations/_generated/timing_receipt_dark.png" alt="A 1,000-token prompt contains 600 cached tokens and 400 newly evaluated tokens. Dividing the 400 uncached tokens by 0.2 seconds gives 2,000 prompt tokens per second; dividing all 1,000 by that duration would incorrectly report 5,000. A separate 80-token output over 2 seconds gives 40 output tokens per second. Client time to first token and individual streaming gaps require separate timestamps." />
   <figcaption>A 1,000-token prompt with 600 KV-cached prefix tokens leaves only 400 uncached tokens for the 0.2 s prompt evaluation clock (2,000 tok/s), while 80 generated tokens over 2.0 s give 40 tok/s. Client first-token time and inter-token latencies require streaming timestamps.</figcaption>
@@ -530,7 +532,7 @@ Both models score 75%, yet their failure modes differ completely. Under a releas
 | Symptom | Possible causes | A discriminating check |
 |---|---|---|
 | Startup OOM | Weight/workspace/pool demand, competing allocations, unsupported placement | Failed allocation and backend logs; device free/used memory; actual tensor types |
-| Long-input failure | Cache growth/reservation, prefill peak, graph/workspace pool | Hold concurrency fixed while sweeping context and prefill chunk; inspect peak and cache policy |
+| Long-input failure | Cache growth/reservation, prefill peak, graph/workspace pool | Hold concurrency fixed while sweeping context and prefill chunk; inspect peak memory and cache retention |
 | Long-context decode slowdown | Attention/cache work, CPU offload, explicit transfer, migration, faults, recomputation | Trace transfers/placement and cache events; correlate major faults, file I/O, swap, and request preemption |
 | Slow CPU decode | Bandwidth, NUMA placement, kernel path, thread contention | Thread sweep and locality experiment; use `perf list` to find platform-supported memory-controller counters |
 | Equal scores, broken schema | Quantization precision loss, template/chat-format shift, or sampling variance | Inspect paired outputs against strict schema validators and isolate one changed variable |

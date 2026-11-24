@@ -228,7 +228,7 @@ When a PDF page has no native text layer or arrives as an appendix scan (`scan-p
 Because silent guessing corrupts exact thresholds, ingestion code must never rewrite `1S seconds` into `15 seconds` without inspecting the original page image. Preserving per-page confidence scores alongside pattern-level anomaly flags queues uncertain extracts directly for human verification. Clean, high-confidence pages move straight to indexing while suspect numeric tokens remain strictly out of retrieval.
 
 <!-- leetllm: test, output=show -->
-```python title="ocr-uncertainty-gate.py"
+```python title="ocr-uncertainty-check.py"
 import re
 from dataclasses import dataclass
 
@@ -274,6 +274,8 @@ Page 8: ('source_review', 'Ambiguous numeric token near unit in scan-p8.png')
 Page 9: ('ready', 'OCR passed confidence and numeric checks')
 ```
 <!-- leetllm: output:end -->
+
+> **Common mistake:** Silently auto-correcting OCR artifacts like `1S seconds` to `15 seconds` with a regex. If the scan actually read `18 seconds` or `10 seconds`, automatic rewriting turns a noisy read into a confident hallucination; hold suspect numeric tokens with their page image instead.
 
 Tables inside scanned or native PDFs add a second failure mode when split into flat prose lines. Flattening a two-row serving parameter table into `"Prefill stall 15 seconds batch ID Idle KV cache 14 days"` destroys column association across cells. Emitting explicit field-value dictionaries or structured Markdown rows keeps threshold units attached to the exact parameter name.
 
@@ -484,7 +486,7 @@ Look at the two slices printed above: both `## Batch runner` headings stay disti
 
 ## Normalize four parser paths into one record stream
 
-Unifying native PDFs, OCR pages, HTML docs, and Markdown notes into one ordered record stream allows downstream chunkers, access filters, and version diffs to process every file uniformly. Keeping source locators (`inference-spec-v3.pdf#page=7` or `runtime-notes.md#batch-runner-1`) separate from normalized text digests lets systems verify extracted wording independently of display formatting. Every format adapter becomes a clean translator feeding one deterministic ingestion ledger.
+Unifying native PDFs, OCR pages, HTML docs, and Markdown notes into one ordered record stream allows downstream chunkers, access filters, and version diffs to process every file uniformly. Keeping source locators (`inference-spec-v3.pdf#page=7` or `runtime-notes.md#batch-runner-1`) separate from normalized text digests lets systems verify extracted wording independently of display formatting. Every format adapter becomes a clean translator feeding one deterministic ingestion stream.
 
 <!-- leetllm: test, output=show -->
 ```python title="unified-ingestion-stream.py"
@@ -615,18 +617,18 @@ Visual retrieval protects recall on diagrams and messy scanned tables by matchin
 
 ## Gate what enters retrieval
 
-Ingestion verification belongs inside an explicit gating layer separating extraction readiness, trust status, and query-time permissions before vectors hit production storage. Additionally, document upload parsers face classic denial-of-service risks from compressed archive bombs, malformed PDF streams, or Server-Side Request Forgery (`SSRF`) whenever external DTDs or image links resolve inside internal networks.[^owasp2026fileupload][^owasp2026ssrf] Treating every uploaded binary as untrusted input protects serving infrastructure before text analysis even begins.
+Ingestion verification belongs inside an explicit check layer separating extraction readiness, trust status, and query-time permissions before vectors hit production storage. Additionally, document upload parsers face classic denial-of-service risks from compressed archive bombs, malformed PDF streams, or Server-Side Request Forgery (`SSRF`) whenever external DTDs or image links resolve inside internal networks.[^owasp2026fileupload][^owasp2026ssrf] Treating every uploaded binary as untrusted input protects serving infrastructure before text analysis even begins.
 
 Running parsers inside isolated worker containers with capped memory, strict CPU timeouts, and streaming expansion limits stops decompression bombs immediately. Even if a 2 MiB compressed upload stays well beneath ingress upload limits, halting stream decoding once expanded bytes reach 256 MiB protects shared hosts from runaway memory growth. Once isolated extraction succeeds safely, passing records through both quality and trust checks blocks uncertain or quarantined text from reaching retrieval.
 
 <!-- leetllm: test, output=show -->
-```python title="index-readiness-gate.py"
+```python title="index-readiness-check.py"
 def index_decision(quality_status: str, trust_label: str, reader_team: str, allowed_teams: set[str]) -> tuple[bool, str]:
     """Allow indexing only when quality is ready and trust is unquarantined; enforce team access."""
     if quality_status != "ready":
-        return False, f"Blocked by quality gate: {quality_status}"
+        return False, f"Blocked by quality check: {quality_status}"
     if trust_label == "quarantine":
-        return False, "Blocked by trust gate: quarantine"
+        return False, "Blocked by trust check: quarantine"
     if reader_team not in allowed_teams:
         return True, "Indexed safely, but hidden from unauthorized reader_team"
     return True, "Indexed and visible to reader_team"
@@ -642,16 +644,18 @@ if __name__ == "__main__":
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 Clean spec -> (True, 'Indexed and visible to reader_team')
-Suspect OCR -> (False, 'Blocked by quality gate: source_review')
-Quarantined -> (False, 'Blocked by trust gate: quarantine')
+Suspect OCR -> (False, 'Blocked by quality check: source_review')
+Quarantined -> (False, 'Blocked by trust check: quarantine')
 Restricted -> (True, 'Indexed safely, but hidden from unauthorized reader_team')
 ```
 <!-- leetllm: output:end -->
 
-Separating indexing readiness from query-time team permissions prevents mistakes in either direction. An accurately transcribed security note quoting prompt-injection markers stays quarantined regardless of reader permissions, while a restricted `ml-infra` note indexes safely without leaking to `serving-team`. Below, we connect the HTML adapter directly into this gating pipeline so hidden HTML directives route straight into quarantine rather than production search.
+> **Key insight:** Quality readiness, quarantine trust, and reader team permissions are three independent checks. An accurately parsed external page containing prompt-injection comments must stay quarantined even for privileged readers, while a clean restricted internal spec can be indexed safely and filtered per caller at query time.
+
+Below, we connect the HTML adapter directly into this verification pipeline so hidden HTML directives route straight into quarantine rather than production search.
 
 <!-- leetllm: test, continue=html-adapter, output=show -->
-```python title="gate-html-extract.py"
+```python title="check-html-extract.py"
 def route_html_page(html_source: str) -> dict[str, object]:
     text, comments = extract_clean_html(html_source)
     has_marker = any("ignore" in c.lower() or "system:" in c.lower() for c in comments)
@@ -739,7 +743,7 @@ Yes. Because text digests do not track authorization lists, unchanged text still
       "Hold the candidate for pixel review with its cropped image, then update the versioned expectation."
     ],
     "answer": "Hold the candidate for pixel review with its cropped image, then update the versioned expectation.",
-    "explanation": "Silent OCR auto-correction can fabricate the wrong threshold under noise. Holding '4S seconds' alongside its page image keeps suspect guesses outside retrieval until reviewed, and bumping expectations separately records the legitimate v4 policy shift."
+    "explanation": "Silent OCR auto-correction can fabricate the wrong threshold under noise. Holding '4S seconds' alongside its page image keeps suspect guesses outside retrieval until reviewed, and bumping expectations separately records the legitimate v4 spec update."
   },
   {
     "question": "An HTML adapter processes `<nav>Expire cold prefix blocks after 14 days.</nav><main><p>Prefill stall.</p><p>Abort batch after 1<strong>5</strong> seconds.</p></main>` by skipping `<nav>`, adding separators at block tags, and joining inline text directly. Which extracted string results?",
@@ -786,14 +790,14 @@ Yes. Because text digests do not track authorization lists, unchanged text still
     "explanation": "MaxSim takes the maximum across patches per query token: max([0.91, 0.42, 0.15]) = 0.91 and max([0.20, 0.88, 0.30]) = 0.88, summing to 1.79. Even high visual scores locate candidate pages rather than replacing permission checks and direct reading of the page."
   },
   {
-    "question": "Under the index readiness gate, indexing requires quality 'ready' and trust not equal to 'quarantine'. An accurately transcribed external security note happens to quote an attack payload marker and receives trust 'quarantine', even though the current reader has team access. What should happen?",
+    "question": "Under the index readiness check, indexing requires quality 'ready' and trust not equal to 'quarantine'. An accurately transcribed external security note happens to quote an attack payload marker and receives trust 'quarantine', even though the current reader has team access. What should happen?",
     "options": [
       "Index the note immediately because accurate transcription clears the trust check.",
-      "Hold the note under quarantine for trust review; reader access alone does not bypass trust gating.",
+      "Hold the note under quarantine for trust review; reader access alone does not bypass trust checks.",
       "Index the note immediately because the reader belongs to an allowed team.",
       "Delete the note permanently as a confirmed exploit without reviewing the quotation context."
     ],
-    "answer": "Hold the note under quarantine for trust review; reader access alone does not bypass trust gating.",
+    "answer": "Hold the note under quarantine for trust review; reader access alone does not bypass trust checks.",
     "explanation": "Transcription quality, trust classification, and reader authorization are orthogonal checks. A blocked quarantine trust label keeps the document out of search until reviewed, regardless of transcription accuracy or reader permissions."
   },
   {
@@ -820,7 +824,7 @@ Retrieval pipelines often blame vector similarity or reranking models when answe
 
 <figure>
 <img src="illustrations/_generated/ingestion_pipeline_dark.png" alt="Document ingestion pipeline branching from digital PDF, HTML, and Markdown sources alongside scanned OCR pages through layout-aware extraction and validation into an indexed store for verified 15-second prefill rules or a review queue for uncertain 1S OCR text, garbled bytes, or interleaved columns." />
-<figcaption>Clean digital sources and OCR scans travel down format-specific adapters into one verification gate, routing checked extracts to search and flagging uncertain parses before retrieval.</figcaption>
+<figcaption>Clean digital sources and OCR scans travel down format-specific adapters into one verification layer, routing checked extracts to search and flagging uncertain parses before retrieval.</figcaption>
 </figure>
 
 ## Every format, one kind of record
@@ -907,7 +911,9 @@ Detecting extraction damage early keeps broken text completely out of vector sea
 
 ## OCR guesses, so keep doubt attached
 
-When an appendix page arrives as an image scan with no native text layer, <span data-glossary="ocr">OCR</span> engines like Tesseract or vision-language models such as olmOCR predict characters from pixel patterns.[^tesseract_docs][^olmocr2026] Under compression artifacts or faint ink, visual similarities routinely induce substitutions such as turning `"15 seconds"` into `"1S seconds"`. Silently auto-correcting `"1S"` into `"15"` corrupts critical numeric rules without leaving a trace. Clean ingestion gates hold ambiguous alphanumeric units and low-confidence extracts alongside their page image for human pixel verification.
+When an appendix page arrives as an image scan with no native text layer, <span data-glossary="ocr">OCR</span> engines like Tesseract or vision-language models such as olmOCR predict characters from pixel patterns.[^tesseract_docs][^olmocr2026] Under compression artifacts or faint ink, visual similarities routinely induce substitutions such as turning `"15 seconds"` into `"1S seconds"`. Silently auto-correcting `"1S"` into `"15"` corrupts critical numeric rules without leaving a trace. Clean ingestion checks hold ambiguous alphanumeric units and low-confidence extracts alongside their page image for human pixel verification.
+
+> **Key insight:** Never auto-correct suspect OCR digits with a regex. Keeping `image_ref` attached to held records lets a reviewer confirm the true pixels instead of baking a guessed number into the vector store.
 
 <!-- leetllm: test, output=show, id=reader-ingestion-review -->
 ```python title="reader-ocr-review.py"

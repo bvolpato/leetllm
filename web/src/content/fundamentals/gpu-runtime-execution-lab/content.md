@@ -49,7 +49,7 @@ If the host repeatedly supplies work more slowly than the device consumes it, it
 ```checkpoint
 Why can a GPU appear underutilized even when running an inference service at 100% CPU load?
 ---
-One possibility is slow host submission: the device runs out of ready work between operations. CPU load alone does not prove this cause. Check the CPU API timeline and device gaps, including other streams and communication.
+One common cause is slow host submission: the device drains its queue and goes idle between short kernels. High CPU load alone is only a clue; inspect the CPU API timeline and device gaps (including other streams and collectives) to confirm.
 ```
 
 A four-operation pipeline makes that idle gap concrete, first as a CPU simulation and then as a <span data-glossary="pytorch">PyTorch</span> CUDA benchmark:
@@ -146,11 +146,13 @@ without_event_read_before_copy_done=True
 ```
 <!-- leetllm: output:end -->
 
-The simulated host returns at tick 4, and device work finishes at tick 10. Removing the dependency permits affine to start at tick 1 before copy completes. The simulation shows the ordering hazard; real GPU scheduling and corrupted values require their own measurements. Square and reduce already follow affine in the same stream. Event/API overhead and resource contention aren't modeled.
+The simulated host returns at tick 4, while device work finishes at tick 10. Removing the cross-stream dependency lets `affine` start at tick 1 before `copy` finishes at tick 3 (`square` and `reduce` already wait for `affine` because they share the compute stream).
+
+> **Key insight:** A kernel launch returning to Python only means the command was queued. Without a stream dependency or completion event, a consumer on another stream can read half-written input memory.
 
 <figure>
   <img src="illustrations/_generated/submission-timeline_dark.png" alt="Three aligned traces share logical ticks 0–10. Four host submissions finish at tick 4; the copy runs 0–3, affine 3–7, square 7–9, and reduction 9–10. A ready-event arrow joins copy completion to affine start at tick 3. In the unsafe comparison, affine begins at tick 1 while the copy continues to tick 3; the red band marks this possible read hazard." />
-  <figcaption>Host calls 1–4 submit copy, affine, square, and reduce, in order. Host submission returns at tick 4 while device work completes at tick 10; the ready event connects copy completion to affine start at tick 3. Removing that wait lets affine start at tick 1 while the copy continues to tick 3, exposing a possible read hazard. Ticks model logical order; they omit API overhead, resource contention, and hardware time.</figcaption>
+  <figcaption>Host calls 1 to 4 submit copy, affine, square, and reduce by tick 4 while device work finishes at tick 10. The ready event orders affine after copy at tick 3; removing it lets affine overlap the unfinished copy at tick 1.</figcaption>
 </figure>
 
 ## Stream semantics and synchronization
@@ -292,11 +294,11 @@ The CUDA Graph lifecycle follows three distinct phases:
    `cudaGraphInstantiate` validates a graph snapshot and prepares its executable. Cost depends on graph contents and environment. Record it separately; a new graph or an unsuccessful update can require another instantiation.
 
 3. **Launch (`cudaGraphLaunch`):**
-   `cudaGraphLaunch` submits the prepared graph to a stream. First launch can also upload work descriptions, so separate it from repeat launches. NVIDIA's September 2024 CUDA 12.6 microbenchmark on an RTX 3060 and Xeon Silver 4208 reported about 2.5 µs plus roughly 1 ns/node for repeated straight-line kernel graphs with at least ten nodes. Multiple roots and non-kernel nodes behaved differently. These historical measurements illustrate why hardware, topology, and version belong in a performance claim.[^nvidia2024GraphLaunchCosts]
+   `cudaGraphLaunch` submits the prepared graph to a stream. First launch can also upload work descriptions, so separate it from repeat launches. On an RTX 3060 / Xeon Silver 4208 testbed, NVIDIA measured roughly 2.5 µs plus ~1 ns per node for repeated straight-line kernel graphs of 10+ nodes, though multiple roots and non-kernel nodes behave differently.[^nvidia2024GraphLaunchCosts]
 
 <figure>
   <img src="illustrations/_generated/graph-replay-submission_dark.png" alt="A cumulative-cost chart compares eager execution at 18 microseconds per iteration with graph replay at 12 milliseconds setup plus 12 microseconds per replay. The curves meet at 2,000 iterations and 36 milliseconds. A magnified view at iteration 2,001 compares the additional cost above that shared 36-millisecond base: 18 microseconds for eager and 12 microseconds for replay, a 6-microsecond modeled saving." />
-  <figcaption>Both modeled paths cost 36 ms at iteration 2,000. At iteration 2,001 they cost 36.018 ms and 36.012 ms, so replay saves 6 µs in this assumed example. Hardware, graph contents, and runtime determine actual costs.</figcaption>
+  <figcaption>Eager execution (18 µs/iter) and graph replay (12 ms setup + 12 µs/iter) break even at 2,000 iterations (36 ms). Starting at iteration 2,001, replay pulls ahead by 6 µs per step.</figcaption>
 </figure>
 
 Suppose eager execution takes 18 microseconds per iteration (including host launch overhead and kernel execution), while graph replay drops the time to 12 microseconds, but incurs 12 milliseconds of upfront capture and instantiation cost. Each replay saves 6 microseconds:
@@ -376,23 +378,24 @@ Identical topology is necessary, not sufficient, for whole-graph update. Node ma
   <figcaption>A successful update changes later launches while an in-flight launch keeps its original parameters. When an update fails, inspect the error node and build a valid executable before replay.</figcaption>
 </figure>
 
-Some execution variation can be represented without editing topology: CUDA provides node enable/disable APIs and conditional IF/WHILE/SWITCH nodes. PyTorch 2.14 documents selected `torch.cond` graph paths. Check their supported contents/backends before using them for data-dependent execution.[^nvidia2026CudaGraphsGuide][^pytorchCudaSemantics2026]
+Some execution variation can be represented without editing topology: CUDA provides node enable/disable APIs and conditional IF/WHILE/SWITCH nodes, and PyTorch supports selected `torch.cond` graph paths.[^nvidia2026CudaGraphsGuide][^pytorchCudaSemantics2026]
 
 ## Bucketed graph pools in inference runtimes
 
-Continuous batching changes the number of requests and tokens. Capturing compatible shapes ahead of time can move setup off the token-generation path, at the cost of capture time, memory, and padding. The runtime must select a graph whose complete input signature matches the work.[^vllm2026cudagraphs]
+Continuous batching changes the number of requests and tokens. Capturing compatible shapes ahead of time moves setup off the token-generation path, at the cost of capture time, memory, and padding. The runtime must select a graph whose complete input signature matches the work.[^vllm2026cudagraphs]
 
 Inference engines resolve this tension using **bucketed graph pools**:
-
 
 1. **Pre-Capture Discrete Buckets:**
    A typical bucket schedule is `[1, 2, 4, 8, 16]`. Actual capture sizes depend on configuration, model, memory, and backend; powers of two aren't required.
 2. **Padding with Attention Masking:**
-   Six compatible requests can use a bucket of eight. Every relevant output, reduction, and cache-write path must correctly handle the two dummy slots. Zero-valued padding alone isn't sufficient, and changing shape/kernel selection does not necessarily preserve bitwise floating-point results.
+   Six compatible requests can use a bucket of eight. Every relevant output, reduction, and cache-write path must mask the two dummy slots; zero-valued padding alone isn't sufficient.
 3. **Eager Fallback for Outliers:**
-   With no compatible graph, use an available piecewise/eager path. That path still has its own supported shapes and numerical behavior.
+   With no compatible graph, fall back to a piecewise or eager path.
 
-As inspected October 10, 2026, vLLM dispatches by runtime mode and a batch descriptor that includes padded token count, request count, uniformity, and LoRA status. Attention backends can restrict full-graph compatibility. SGLang documents separate decode/prefill graph backends and capture sizes, plus `--disable-cuda-graph-padding`. Prefill can therefore use supported graph paths; it isn't inherently eager.[^vllm2026cudagraphs][^sglang2026parallelism]
+In practice, vLLM dispatches by runtime mode and a batch descriptor covering padded token count, request count, uniformity, and LoRA status, while SGLang exposes separate decode and prefill graph backends alongside `--disable-cuda-graph-padding` (prefill can use graphs too; it is not inherently eager).[^vllm2026cudagraphs][^sglang2026parallelism]
+
+> **Common mistake:** Rebinding `x = new_tensor` before calling `graph.replay()`. The captured graph still reads the original virtual address baked in at capture time; copy new data into the static buffer in place (`static_x.copy_(new_tensor)`) before replaying.
 
 Trace the reduction after padding six inputs with two zeros. Our affine operation maps each dummy zero to one, which then survives squaring:
 
@@ -484,7 +487,7 @@ uv run web/src/content/fundamentals/gpu-runtime-execution-lab/assets/gpu_runtime
 
 The script uses a 4,096-element FP32 vector initialized with `linspace(0, 1, elements)` and a device-to-device copy. Its `stream` mode submits one dependent chain, not two independent pipelines. It doesn't benchmark pinned host transfers or copy/compute overlap.
 
-Before timing each mode, it fills the retained input buffer with zeros and ones, checking the expected sums (`elements` and `9 * elements`) within its declared tolerance. It restores the original input, warms up, primes events, and checks the last completed result against an FP64 CPU reference. This catches stale graph inputs but doesn't validate every timed iteration.
+Before timing each mode, the script fills the retained input buffer with zeros and ones (checking sums `elements` and `9 * elements`), restores the original input, warms up, primes events, and checks the final completed result against an FP64 CPU reference to catch stale graph inputs.
 
 ```bash title="save-run-output"
 uv run web/src/content/fundamentals/gpu-runtime-execution-lab/assets/gpu_runtime_lab.py \
@@ -502,9 +505,7 @@ Read these fields from your own successful run:
 | `fresh_input_checks`, `passed`, `tolerance` | Completed correctness checks for the two fresh inputs and final result |
 | `source_sha256`, `buffer_layout`, `environment` | Source identity, per-mode shapes/addresses, and recorded environment; `torch_cuda_build` names the toolkit used to build PyTorch |
 
-These are averages over a repeated, already allocated workload, not individual-request latency percentiles. The setup figure excludes context creation, allocation, and preflight. PyTorch 2.14's default `CUDAGraph(keep_graph=False)` instantiates at capture end; `keep_graph=True` has different first-replay behavior. The lab's preflight replays occur before timing.[^pytorch2026CudaGraphApi]
-
-If graph mode reduces host time, check whether end-to-end time also improves. A shorter event span is consistent with fewer submission gaps, but the trace must verify the cause. Eager and explicit-stream modes retain the same data dependencies, so merely selecting another stream shouldn't imply parallel arithmetic. Repeat runs in different mode orders to inspect warm-state and drift effects; reused buffers aren't a residency guarantee.
+These metrics report steady-state averages over a pre-allocated workload rather than request-level latency percentiles. PyTorch's default `CUDAGraph(keep_graph=False)` instantiates at capture end, whereas `keep_graph=True` defers instantiation to first replay.[^pytorch2026CudaGraphApi] When graph mode cuts host submission time, check whether end-to-end latency drops too, and repeat runs in varied mode orders so thermal or cache drift doesn't skew the comparison.
 
 ## Diagnostic guide for runtime bottlenecks
 

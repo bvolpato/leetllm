@@ -561,6 +561,8 @@ INT32 scores=[32258, 32004]; winner=0
 ```
 <!-- leetllm: output:end -->
 
+> **Common mistake:** Multiplying `int8` embedding arrays directly with `documents @ query` in NumPy. Narrow 8-bit accumulation wraps around (`[32258, 32004]` wraps to `[2, 4]`) and flips the top-ranked document; always widen to `int32` before multiplying.
+
 The true integer inner products favor row 0, whereas narrow 8-bit arithmetic wraps the products to 2 and 4 and reverses the winner. Casting after multiplication comes too late to undo overflow. For symmetric signed bytes confined to $[-127, 127]$, the worst-case dot magnitude across $d$ dimensions reaches $d \cdot 127^2$, meaning even three aligned coordinates overflow signed INT16's limit of 32,767. Verifying accumulator bit width prevents arithmetic wrap from masking genuine quantization error.
 
 Benchmark INT8 as the first candidate, then release it when measured quality, latency, and memory meet the declared budgets.
@@ -697,7 +699,7 @@ Don't assume the unit-vector L2/IP identity survives compression. Even if the or
 
 **Optimized Product Quantization (OPQ)** learns an orthonormal transform $\mathbf{R}$ and codebooks to reduce reconstruction distortion for the selected subspace decomposition.[^ge2013] Apply the same transform to queries; an orthonormal transform preserves exact L2 and inner products before quantization. The paper's Gaussian analysis and PCA-based construction describe a specific case of OPQ; measure retrieval quality as well as reconstruction error. Residual / IVFADC pipelines first assign vectors to coarse clusters, then quantize $\mathbf{x}-\mathbf{c}_{\text{coarse}}$; scoring must account for the selected coarse centroid.[^jegou2011]
 
-The next snippet uses four hand-written, two-centroid codebooks, not learned codebooks. It encodes database rows, constructs the query lookup tables, and checks their sums against distances to reconstructed vectors. Two centroids need only one bit per subspace in an ideally packed code; we store four byte-sized IDs here for clarity. The 96-byte sizing example above instead uses 256 centroids per subspace.
+The snippet below encodes two 8D documents across four 2D subspaces, builds the per-query ADC lookup table, and verifies that summing table lookups matches direct squared distance to the reconstructed vectors:
 
 <figure>
   <img src="illustrations/_generated/product_quantization_flow_dark.png" alt="Grid splits 8-dimensional embeddings into four 2d subspaces for two documents: FlashAttention stores centroid code [1, 1, 1, 1] and LayerNorm stores [0, 0, 0, 0]. Below a downward FlowArrow, a 2x4 Heatmap displays the asymmetric distance lookup table between unquantized query subvectors and centroid IDs 0 and 1, giving total squared distance 0.08 vs 56.57." />
@@ -842,7 +844,7 @@ cosine=0.019998; angle/pi=0.493634
 ```
 <!-- leetllm: output:end -->
 
-The identical fixed-axis sign codes discard the magnitude pattern that separates the directions. The random-hyperplane expectation applies to a different experiment; it does not repair these four retained signs.
+> **Key insight:** Coordinate-sign hashing is not the same as random-hyperplane LSH. Two nearly orthogonal vectors (`cosine = 0.020`) can produce identical sign bits (`Hamming = 0`) when their dominant energy sits on different positive axes, which is why 1-bit codes need full-precision rescoring on a shortlist.
 
 | Dimension | Practical effect |
 |-----------|------------------|
@@ -850,7 +852,7 @@ The identical fixed-axis sign codes discard the magnitude pattern that separates
 | Speed | Packed bits use XOR plus popcount, so both memory traffic and arithmetic drop. Implementations can add architecture-specific SIMD for packed-byte comparisons. |
 | Quality | Sign collisions can change ranking. Use it for shortlisting only when measured recall supports that choice. |
 
-You don't have to stop at one bit. Checked October 10, 2026, Qdrant documents 1.5- and 2-bit binary encodings, plus TurboQuant encodings that apply a random rotation before compression and score full-precision queries against compressed documents.[^qdrant2024] Those encodings have different reconstruction and scoring rules from the fixed-axis sign helper here. Exactly 1.5 bits per coordinate means an ideal $32/1.5\approx21.3\times$ float32 reduction, consistent with the guide's current approximately 21x figure. Measure actual packing, retained originals, and index overhead before treating a coordinate-payload ratio as a total-memory saving.
+You don't have to stop at one bit. Engines such as Qdrant also support 1.5-bit and 2-bit binary encodings alongside TurboQuant, which applies a random rotation before compression and scores full-precision queries against compressed documents.[^qdrant2024] Exactly 1.5 bits per coordinate yields a $32/1.5 \approx 21.3\times$ coordinate-payload reduction; measure full index RAM including retained originals and HNSW graph links before sizing memory.
 
 ### Shortlist cheaply, then rescore
 
@@ -937,7 +939,7 @@ Compression answers "how many bytes per row?" Approximate Nearest Neighbor (ANN)
 - **Upper layers:** Contain nested, exponentially sparser subsets of nodes. One common maximum-level sampler is $L=\lfloor-\ln(U)m_L\rfloor$, with $U$ uniform on $(0,1)$ and $m_L=1/\ln M$. Thus $\Pr(L\ge\ell)=e^{-\ell/m_L}=M^{-\ell}$. The fraction retained from one layer to the next is **$1/M$**, not $1/\ln M$. The latter is the exponential scale parameter.[^malkov2018]
 - **Search traversal:** Search begins at the top layer from a fixed entry point. At each upper layer, search performs a greedy 1-NN walk, hopping along express links until no neighbor is closer to the query than the current node. It then drops to that same node in the layer below and resumes. At Layer 0, the algorithm switches from a greedy 1-NN walk to a prioritized beam search of size $ef_{\text{search}}$ to assemble the candidate shortlist.
 
-At $M=32$, the scale is about 0.289 but only about 3.125% of nodes reach layer 1. Work the probability out before running this analytic calculation; it creates no ANN index:
+At $M=32$, the scale parameter $m_L$ is about 0.289 while only 3.125% ($1/32$) of nodes reach layer 1:
 
 <!-- leetllm: test, output=show -->
 ```python title="hnsw-level-scale-is-not-a-probability.py"
@@ -979,7 +981,7 @@ Always begin tuning with query-time exploration depth while recording Recall@K a
 | SQ, PQ, or BQ | Uncompressed shortlist and final ranking | Compressed shortlist preserves top-K evidence recall |
 | ANN settings | Exact-search results on a labeled sample | Recall and P99 latency both meet targets |
 
-Recording each model identifier, prefix width, normalization convention, quantizer, HNSW build parameters, shortlist depth, and reranker in a single versioned experiment log keeps every trade-off reproducible. Whenever a compressed-index <span data-glossary="rollout">rollout</span> shifts live search output, comparing adjacent entries isolates which parameter change altered Recall@K or latency. Keeping these experiment records paired with saved evaluation queries turns every production regression into a controlled comparison instead of guesswork.
+Recording each model identifier, prefix width, normalization convention, quantizer, HNSW build parameters, shortlist depth, and reranker in one versioned experiment log keeps every trade-off reproducible. Whenever a compressed-index upgrade shifts live search output, comparing adjacent entries isolates which parameter change altered Recall@K or latency. Keeping these experiment records paired with saved evaluation queries turns every production regression into a controlled comparison instead of guesswork.
 
 ## Bytes, RAM, and the shortlist bill
 
@@ -1017,7 +1019,7 @@ When retrieval quality shifts in production, symptoms usually isolate cleanly to
 - Recall drops after INT8 deployment. Inspect outlier distortion, clipping thresholds, omitted coordinate scales during scoring, and offline/online normalization mismatches before re-tuning calibration quantiles.
 - ANN results pass offline evaluation yet fail on live traffic. Check whether held-out queries mirror real phrasing, metadata filter selectivity, and <span data-glossary="chunking">chunking</span> granularity.
 - Query latency stays high after quantization. Profile graph exploration hops, disk vector fetches during rescoring, and reranker batch overhead rather than assuming vector code size dominates latency.
-- Index rollouts scramble existing rankings. Audit embedding version, dimensionality, normalization flag, and quantizer parameters, building versioned indexes separately instead of mixing incompatible representations.
+- Index upgrades scramble existing rankings. Check embedding version, dimensionality, normalization flag, and quantizer parameters, building versioned indexes separately instead of mixing incompatible representations.
 
 Every ranking shift traces cleanly to direction, vector length, prefix width, quantization step, or metadata filter placement, each isolated by the diagnostic checks above.
 

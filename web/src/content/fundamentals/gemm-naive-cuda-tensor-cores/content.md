@@ -49,7 +49,7 @@ Three principles from earlier lessons still govern our work. The [GPU compiler l
 
 We build one operation, $C = AB$, through five successive kernel stages. This is the $\alpha=1$, $\beta=0$ case of general matrix-matrix multiplication (GEMM), $C \leftarrow \alpha AB + \beta C$, so the kernel skips reading the old output buffer. <span data-glossary="matrix">Matrix</span> $A$ has shape $[M,K]$, $B$ has shape $[K,N]$, and $C$ has shape $[M,N]$, with all lab buffers stored in row-major order so neighboring columns occupy neighboring memory addresses.
 
-The complete CUDA source is [available as `gemm_lab.cu`](assets/gemm_lab.cu). Its kernels are written for clarity rather than peak throughput; a production library adds multi-stage schedules, layout transforms, fused epilogues, and architecture-specific instructions that would obscure the core mechanics here. Host C++ checks and CPU models run without a GPU, while CUDA compilation, kernel execution, sanitizers, and hardware timings require a compatible development system and device. You do not need any of those tools for the first question: what is $C_{1,0}$?
+The complete CUDA source is [available as `gemm_lab.cu`](assets/gemm_lab.cu), written for clarity rather than peak cuBLAS throughput so every memory mapping and barrier stays visible. The Python index and rounding checks run anywhere on CPU; compiling and profiling the CUDA kernels requires a CUDA-capable GPU. You do not need any GPU for the first question: what is $C_{1,0}$?
 
 ## Compute one output before launching a warp
 
@@ -186,8 +186,10 @@ The three shown instructions cover 33 versus 9 sectors in total, 72.7% fewer in 
 
 <figure>
   <img src="illustrations/_generated/warp_address_sectors_dark.png" alt="Comparison of aligned FP32 warp sector requests for 16 by 16 strided and 32 by 8 coalesced blocks. Two spatial grids highlight warp 0 coverage across the output matrix, a byte-offset table traces lanes L0, L1, L8, L16, and L31 across A, B, and C, and stacked bars total 33 sectors for strided (16 A, 1 B, 16 C) versus 9 sectors for coalesced (1 A, 4 B, 4 C), 3.67x fewer sectors." />
-  <figcaption>M = 32, N = K = 64. Spatial warp-0 grids and sampled lane byte offsets (L0, L1, L8, L16, L31) across one A load and B load at k = 0 plus the final C store show why coalesced indexing cuts warp 0 requests from 33 sectors to 9 sectors (requested 32-byte sectors, not measured HBM transfers).</figcaption>
+  <figcaption>M = 32, N = K = 64. Letting `threadIdx.x` vary across columns cuts warp-0 address requests from 33 sectors (strided) to 9 sectors (coalesced) across the k = 0 loads and final C store.</figcaption>
 </figure>
+
+> **Key insight:** Swapping `threadIdx.x` from `row` to `col` does not change a single floating-point operation, yet it drops warp-0's requested 32-byte sectors by 3.67x because adjacent lanes now hit contiguous columns of $B$ and $C$ while broadcasting a single element of $A$.
 
 ## Turn global loads into shared tiles
 
@@ -311,13 +313,11 @@ row 1 XOR vector: [1, 0, 3, 2]; logical vector order isn't preserved
   <figcaption>At $k=3$, the lab's $16\times16$ block broadcasts two distinct A words and repeats B's 16 distinct words without bank conflicts. The 32-way conflict belongs to a separate $32\ell+3$ column pattern, which padding to stride 33 or full-row XOR resolves to 1 service group, though full-row XOR permutes row 1's vector order to $[1,0,3,2]$.</figcaption>
 </figure>
 
-The old XOR expression's eight bank choices leave four different words per bank in the column example. Inspect the transformed addresses to see whether the access improves. These scalar address calculations show the mapping; profile cycles and inspect an actual Tensor Core layout for a GPU kernel.
+The old XOR expression's eight bank choices leave four different words per bank in the column example, so always check the transformed addresses before assuming a swizzle removes conflicts.
 
 ## Let each thread keep more than one answer
 
-In `gemm_shared`, each thread reads two shared floats for one multiply-accumulate: 8 bytes of per-thread operand demand for 2 FLOPs, or 0.25 FLOP/B. Hardware counters and generated instructions determine physical shared-memory traffic and saturation, including broadcast behavior.
-
-Register blocking gives each thread a 2D tile of $R_M \times R_N$ outputs held in local registers. In our lab kernel, each thread computes 4 horizontal outputs ($1 \times 4$ tile):
+In `gemm_shared`, each thread reads two shared floats for one multiply-accumulate: 8 bytes of per-thread operand demand for 2 FLOPs, or 0.25 FLOP/B. Register blocking gives each thread a 2D tile of $R_M \times R_N$ outputs held in local registers. In our lab kernel, each thread computes 4 horizontal outputs ($1 \times 4$ tile):
 
 ```cpp title="gemm_lab.cu"
 float acc[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -334,7 +334,7 @@ for (int k = 0; k < TILE; ++k) {
 
 <figure>
   <img src="illustrations/_generated/register_output_tile_dark.png" alt="Four 16 by 16 sub-tiles forming a 16 by 64 output block highlight columns +0, +16, +32, and +48 owned by thread tx equals 1, ty equals 2 along row 2. A per-k reuse diagram shows one shared A value pairing with those four B values into four FMA accumulators (8 FLOPs per 20 bytes), while a three-bar chart compares per-thread operand intensity across 1 by 1 (0.25 FLOP/B), 1 by 4 (0.40 FLOP/B), and 8 by 8 (2.0 FLOP/B) register tiles." />
-  <figcaption>Thread $(1,2)$ owns row 2 across columns $+0, +16, +32,$ and $+48$, loading one $A_s[2,k]$ value and four $B_s$ values per $k$ step for 8 FLOPs over 20 bytes (0.40 FLOP/B versus 0.25 for a single output, and 2.0 FLOP/B for an $8\times8$ register tile). These are source-demand ratios, not measured HBM traffic or compiled register counts.</figcaption>
+  <figcaption>Thread $(1,2)$ owns four columns ($+0, +16, +32, +48$) along row 2, raising per-thread operand intensity from 0.25 FLOP/B (1×1) to 0.40 FLOP/B (1×4), and up to 2.0 FLOP/B for an 8×8 register tile.</figcaption>
 </figure>
 
 A single float loaded from `As` into register `a` now feeds 4 independent multiply-adds. In an $8 \times 8$ register tile ($R_M = 8, R_N = 8$), a thread loads 8 values from $A$ and 8 values from $B$ (16 floats = 64 bytes), then executes $8 \times 8 = 64$ FMAs (128 FLOPs):
@@ -503,7 +503,7 @@ arithmetic error=0.00000000; original-input relative error=100%
   <figcaption>FP16 spacing doubles from 0.5 below 1,024 to 1.0 above it, while FP32 accumulation cannot recover precision discarded when inputs cast to FP16. For the cancelling case $A=[1.0001,1], B=[1,-1]^T$, the kernel matches Reference 1 at zero arithmetic error while differing from Reference 2 (0.00010002) by 100%.</figcaption>
 </figure>
 
-Cancellation makes the original output small, so input quantization dominates its relative error even when the kernel matches the rounded-input precision rules bit for bit. Wider FP32 accumulation cannot restore a difference already discarded during the FP16 input cast. Notice that this example separates the two error sources rather than setting an acceptable application tolerance.
+> **Common mistake:** Blaming a Tensor Core kernel for 100% relative error on cancelling inputs when the error actually happened before the kernel ran, during the FP32-to-FP16 input cast. Always separate rounded-input arithmetic checks (Reference 1) from original-input quantization loss (Reference 2).
 
 We check kernel correctness against Reference 1 using absolute and relative error bounds:
 
@@ -511,7 +511,7 @@ $$
 |C_{\text{gpu}} - C_{\text{ref}}| \le \text{atol} + \text{rtol} \cdot |C_{\text{ref}}|
 $$
 
-The lab gates WMMA against Reference 1 with $\text{atol} = 5 \times 10^{-3}$ and $\text{rtol} = 2 \times 10^{-3}$, then separately reports error against the original-input reference. Those tolerances belong strictly to this lab check, so you must analyze each shape and input range directly. Absolute tolerance handles values near zero while relative tolerance scales with output magnitude, leaving long reductions and model-level quality thresholds to separate validation.
+The lab checks WMMA against Reference 1 with $\text{atol} = 5 \times 10^{-3}$ and $\text{rtol} = 2 \times 10^{-3}$, and separately reports error against the original-input reference so input quantization and accumulation precision stay cleanly separated.
 
 ## The hardware roofline across kernel stages
 
@@ -546,7 +546,7 @@ Use measured HBM bytes for $I_{\text{HBM}}$, with the same operation count and t
 
 <figure>
   <img src="illustrations/_generated/boundary_roofline_dark.png" alt="A log-log A100 80GB SXM HBM roofline plot and a four-bar panel-load chart. The log-log roofline draws an HBM bandwidth slope of 2,039 GB/s meeting an FP32 compute ceiling of 19.5 TFLOP/s at the 9.56 FLOP/B knee and a dense FP16 ceiling of 312 TFLOP/s at the 153.0 FLOP/B knee, with no observed kernel points plotted. Beside it, the Panel-Load Ratios chart lists Scl 0.25, Sm 4.0, Reg 6.4, and TC 8.0 FLOP/B, noting these are not measured HBM bytes." />
-  <figcaption>Log-log A100 80GB SXM roofline (2,039 GB/s HBM2e slope meeting peak ceilings at knees of 9.56 FLOP/B for FP32 and 153.0 FLOP/B for dense FP16, with no measured kernel point plotted) paired with panel-load demand ratios (Scl 0.25, Sm 4.0, Reg 6.4, TC 8.0 FLOP/B), which are not measured HBM byte transfers.</figcaption>
+  <figcaption>A100 80GB SXM HBM roofline (2,039 GB/s slope meeting FP32 at 9.56 FLOP/B and dense FP16 at 153.0 FLOP/B) alongside panel-load intensity ratios (0.25 to 8.0 FLOP/B); use profiler DRAM counters for real HBM intensity.</figcaption>
 </figure>
 
 <!-- leetllm: test, output=show, continue=gpu-gemm-traffic-model -->
@@ -613,9 +613,9 @@ wmma_vs_original_fp32 max_abs=<measured> max_rel=<measured>
 wmma_padding=272x272x256 logical_flops=33930682 executed_flops=37879808
 ```
 
-After one poisoned-output correctness launch, the program performs five warmups and records CUDA events around repeated launches in one stream. It excludes allocation, transfers, FP16 conversion, padding, reference computation, and cropping. Short kernels can include host-launch gaps, the initial check inspects only the verification pass rather than every timed launch, and reusing buffers does not ensure cache residency. WMMA checks the logical crop against the rounded-input reference and all padded outputs for finiteness, not every padded value for zero, so repeat whole runs to assess distributions of their means rather than treating them as single-launch tail samples.
+After one poisoned-output correctness launch, the program runs five warmups and times 20 repeated launches on one stream with CUDA events (excluding allocation, host transfers, FP16 conversion, padding, and cropping). Repeat whole runs to inspect variance across runs.
 
-Use a structured row so someone else can reproduce the comparison:
+Use a structured JSON record so another engineer can reproduce the comparison:
 
 ```json title="gemm-record.json"
 {
@@ -623,17 +623,15 @@ Use a structured row so someone else can reproduce the comparison:
   "software": {"driver": "record it", "cuda": "record nvcc version", "git_commit": "record it"},
   "workload": {"M": 257, "N": 263, "K": 251, "warmups": 5, "iterations": 20},
   "path": {"kernel": "register_16x64", "input": "fp32", "accumulator": "fp32", "layout": "row-row-row"},
-  "timing": {"method": "CUDA events in one stream", "buffer_policy": "reused; cache residency unverified"},
+  "timing": {"method": "CUDA events in one stream", "buffer_reuse": "reused; cache residency unverified"},
   "correctness": {"reference": "CPU fp64 on fp32 inputs", "atol": 0.0002, "rtol": 0.0002},
   "result": {"status": "fill after run", "mean_ms": "fill after run", "tflop_s": "fill after run"}
 }
 ```
 
-Do not claim a `4.2x` speedup unless your benchmark record identifies both kernels, the exact shape, device clocks and state, timing scope, precision mode, and equivalent correctness checks. Timing an FP16 kernel with unmeasured conversion overhead or mismatched padding against an FP32 baseline misstates what improved. Always compare against a tuned library such as cuBLAS or a CUTLASS profiler kernel before calling a handwritten kernel competitive.
+Never claim a speedup without recording both kernels, exact shapes, clocks, timing scope, precision mode, and matched correctness checks, and always benchmark against cuBLAS or CUTLASS before calling a handwritten kernel competitive. Remember that the lab's FP16 WMMA row and FP32 scalar rows differ in input precision, so compare matched precision before attributing a timing ratio purely to tiling.
 
-The lab's FP16 WMMA row and FP32 scalar rows have different input precision. Compare matched precision using rounded inputs and an explicitly matched library compute mode before attributing a timing ratio to optimization.
-
-Check the exercised paths with Compute Sanitizer. These tools cover different hazards; extend coverage across representative inputs and schedules. A nonzero error exit code makes a gate actionable:
+Check exercised paths with Compute Sanitizer (`--error-exitcode 99` makes CI fail immediately on sanitizer errors):
 
 ```bash title="terminal"
 compute-sanitizer --error-exitcode 99 --tool memcheck ./gemm_lab 31 29 37 1
@@ -652,7 +650,7 @@ This command captures the first matching launch. The basic set is a starting cap
 
 ### Check the index model without a GPU
 
-Download [gemm_index_check.py](assets/gemm_index_check.py) alongside the CUDA file. It executes the two scalar ownership maps, cooperative shared loads, four-output register layout, and zero-padding/crop algebra on six integer shapes, including $17 \times 65 \times 19$ and $73 \times 61 \times 67$. Because it assumes both block barriers work, it checks index arithmetic only and cannot catch real scheduling races, floating-point error, or WMMA instruction behavior.
+Download [gemm_index_check.py](assets/gemm_index_check.py) alongside the CUDA file to verify the scalar ownership maps, cooperative shared loads, four-output register layout, and padding/crop indexing across six shapes (including $17 \times 65 \times 19$ and $73 \times 61 \times 67$):
 
 <!-- leetllm: test, output=show -->
 
@@ -700,7 +698,7 @@ for t in 0 .. k_tiles-1:
 
 <figure>
   <img src="illustrations/_generated/async_stage_ownership_dark.png" alt="Six-stage async tile ownership lifecycle, double-buffer slot timeline, and hardware async tiers table. Two horizontal flow rows trace steps 1 to 6: claim slot, G -> S copy, phase ready, MMA / WMMA, reads done, and slot free. Below left, a Double-Buffer Slots grid contrasts Interval A (Slot 0 MMA tile t, Slot 1 copy t+1) with Interval B (Slot 0 copy t+2, Slot 1 MMA tile t+1) separated by guard barriers. Below right, a Hardware Async Tiers table compares Pre-Amp, Ampere (cp.async), Hopper (TMA and WGMMA), and Blackwl (tcgen05 and Tensor Memory)." />
-  <figcaption>Async tile ownership runs through six phases: acquire a slot, issue the copy, wait for copy completion so consumers can read, run MMA or WMMA, wait for all reads to finish, and release the slot. Two shared-memory buffers alternate copy and compute across intervals, while architecture support progresses from register-staged loads (Pre-Ampere) through $cp.async$ (Ampere), TMA and 4-warp WGMMA (Hopper), and $tcgen05$ with Tensor Memory (Blackwell). The diagram illustrates slot ordering rather than measured overlap.</figcaption>
+  <figcaption>Async tile ownership runs through six phases: acquire a slot, issue the copy, wait for copy completion, run MMA/WMMA, wait for reads to finish, and release the slot. Double-buffered slots alternate copy and compute from Pre-Ampere register staging through Ampere $cp.async$, Hopper TMA + WGMMA, and Blackwell $tcgen05$.</figcaption>
 </figure>
 
 The two slots must not alias. Copy completion makes a tile readable; consumer completion makes its storage reusable. An asynchronous MMA can still read shared memory after issue, so releasing a stage at instruction issue is unsafe.
@@ -763,7 +761,7 @@ Try three experiments rather than assuming the last kernel wins:
 2. For a fixed shape and FP32 precision mode, compare scalar mappings, shared tiling, and register blocking. Check whether request-sector counts and measured HBM bytes move together, using a source-attributed capture to isolate caches or another limiting bottleneck when they diverge.
 3. Hold M=N=64 and sweep K through 32, 256, and 4096. Compare WMMA error against both references, then use a library with matched rounded inputs and compute mode. Does longer accumulation change error, useful rate, or both?
 
-Give another reader the source revision, exact flags, device/software versions, shapes, precision/tolerances, timer scope, reused-buffer policy, and named profiler evidence. State which observations support the claimed improvement and which remain unresolved. A measured result for one shape is the beginning of an explanation, not a ranking of kernel techniques.
+Give another reader the source revision, exact flags, device/software versions, shapes, precision/tolerances, timer scope, buffer-reuse setup, and named profiler evidence. State which observations support the claimed improvement and which remain unresolved. A measured result for one shape is the beginning of an explanation, not a ranking of kernel techniques.
 
 ```mastery-quiz
 [
@@ -842,7 +840,7 @@ Give another reader the source revision, exact flags, device/software versions, 
       "162 FLOP/B from multiplying compute and bandwidth."
     ],
     "answer": "200 FLOP/B from 180 divided by 0.9.",
-    "explanation": "The knee is peak compute divided by bandwidth:180×10^12/(.9×10^12)=200 FLOP/B. It is a ceiling relation, not a measured kernel bottleneck."
+    "explanation": "The knee is peak compute divided by bandwidth: 180 × 10^12 / (0.9 × 10^12) = 200 FLOP/B. It is a ceiling relation, not a measured kernel bottleneck."
   },
   {
     "question": "Two independent warp groups read a panel from shared slot P. The copy into P completes at step 2. One group issues an asynchronous matrix multiply at step 3 and finishes reading P at step 9. The other issues at step 5 and finishes reading P at step 7. A copy into a separate slot Q completes at step 11. At which step can a new copy first overwrite P?",

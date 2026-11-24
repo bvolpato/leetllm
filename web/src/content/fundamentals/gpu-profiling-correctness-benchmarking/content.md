@@ -44,13 +44,13 @@ A patch arrives with one exciting line: `triad_f32 is 1.8x faster`. It passed on
 
 A trustworthy performance result shows that both kernels computed the same operation, measured completed <span data-glossary="gpu">GPU</span> work under identical conditions, and improved the scope users care about. Profilers explain *where* time went; they cannot repair a broken comparison.
 
-Streaming multiprocessors, <span data-glossary="hbm">high-bandwidth memory</span>, grids, and event timing, from the [Accelerator Architecture Field Guide](/learn/accelerator-architecture-field-guide) and [CUDA for ML Training](/learn/cuda-gpu-computing-for-ml), are enough machinery. The triad still has to pass five evidence gates before that 1.8x line means anything:
+Streaming multiprocessors, <span data-glossary="hbm">high-bandwidth memory</span>, grids, and event timing, from the [Accelerator Architecture Field Guide](/learn/accelerator-architecture-field-guide) and [CUDA for ML Training](/learn/cuda-gpu-computing-for-ml), are enough machinery. Before that `1.8x` claim means anything, the triad kernel has to clear five verification steps:
 
-1. **Gate 1: Reference Verification.** Compare outputs against an independent reference within declared tolerances ($|y_i - r_i| \leq \text{atol} + \text{rtol}|r_i|$), including unaligned lengths. This lab uses a double-precision CPU reference; other operations need their own numerical analysis.
-2. **Gate 2: Compute Sanitizer.** Check exercised paths for invalid accesses and synchronization hazards. A clean report covers the exercised paths; add representative inputs and schedules to expand that evidence.
-3. **Gate 3: Clean Synchronized Timing.** Time completed work with CUDA events, a declared warmup policy, and a cache regime that matches the question. Collect benchmark samples outside profilers and sanitizers.
-4. **Gate 4: Hardware Roofline Bound.** Compare throughput with a ceiling for the same hardware, dtype, and memory level. Algorithmic useful bytes and measured HBM bytes are different quantities.
-5. **Gate 5: Reproducible Run Record.** Save source revision, GPU clocks, launch flags, Nsight section outputs, and raw event timings so another engineer can rerun the comparison directly.
+1. **Reference Verification:** Compare every output against an independent reference within declared tolerances ($|y_i - r_i| \leq \text{atol} + \text{rtol}|r_i|$), including unaligned lengths (here a double-precision CPU reference).
+2. **Compute Sanitizer:** Check exercised paths for invalid memory accesses and synchronization hazards across representative inputs.
+3. **Clean Synchronized Timing:** Time completed GPU work with CUDA events, an explicit warmup schedule, and a cache regime matching the question, outside profilers and sanitizers.
+4. **Hardware Roofline Bound:** Compare achieved throughput against the ceiling for the same hardware, dtype, and memory level, separating algorithmic useful bytes from measured HBM bytes.
+5. **Reproducible Run Record:** Save source revision, GPU clocks, launch flags, Nsight section outputs, and raw event timings so another engineer can rerun the comparison directly.
 
 One small kernel will carry the investigation. For every index $i$, it computes a floating-point triad:
 
@@ -72,7 +72,7 @@ Suppose a candidate replaces an existing `triad_f32` implementation. Before open
 | Cache regime | Report cache-hot and buffer-rotated measurements separately |
 | Baseline | Same compiler flags, device, inputs, output check, and timing method; record each version's launch shape |
 | Environment | GPU UUID, driver, CUDA runtime, source revision, clocks, power limit, and <span data-glossary="temperature">temperature</span> |
-| Decision | Keep candidate only if correctness gates pass and measured scope improves |
+| Decision | Keep candidate only if correctness checks pass and measured scope improves |
 
 The odd length is intentional. With 256 threads per block, the last block contains threads whose indexes exceed $n-1$. An index guard must reject them. Testing only lengths divisible by block size leaves an off-by-one bug invisible.
 
@@ -212,7 +212,7 @@ Its baseline feature compares two kernel runs side-by-side. However, microarchit
 
 Not every requested counter can be collected together. Nsight Compute may need multiple passes; the count depends on the metric set and GPU. Under **kernel replay**, it saves memory accessed by the kernel and restores the written subset before subsequent passes. A report requiring only one pass may avoid that save/restore work.[^nsightCompute2026]
 
-The collection policy changes the experiment:
+The collection mode changes the experiment:
 - Default cache control flushes GPU caches before each replay pass, removing reuse that a normal application may retain.
 - Nsight Compute normally serializes kernel launches for isolated counter collection. That doesn't mean it serializes every warp or memory-controller queue.
 - Save/restore, metric collection, and repeated execution increase collection cost. Application replay and range replay have different tradeoffs; range modes can preserve concurrent work where isolated kernel replay would change its behavior.
@@ -227,7 +227,7 @@ Compute Sanitizer instruments execution and can add substantial overhead. Its st
 
 <figure>
   <img src="illustrations/_generated/profile_scope_and_replay_dark.png" alt="A request-level Nsight Systems view orders CPU preparation, transfer, a kernel hotspot, and synchronization, with measured stream spans rather than synthetic numbers. In Nsight Compute kernel replay, all GPU memory accessible to the kernel is saved before pass one. That pass runs after a cache flush, then the profiler identifies the memory the kernel wrote. Before each later pass, Nsight Compute restores the original contents of that written subset, flushes GPU caches, and reruns the kernel for more counters. Kernel launches are serialized for isolated collection, while warps and memory-controller queues remain concurrent. A separate normal application workload holds its same-buffer or rotated-buffer cache policy constant. Clean CUDA-event latency and Compute Sanitizer run separately." />
-  <figcaption>Systems locates the request bottleneck; Compute examines a proven hotspot. Kernel replay snapshots accessible memory before pass one, then identifies writes. Later passes restore those original bytes, flush caches, and rerun. The normal application's cache policy remains a separate workload choice.</figcaption>
+  <figcaption>Systems locates the request bottleneck; Compute examines a proven hotspot. Kernel replay snapshots accessible memory before pass one, then restores written bytes and flushes caches before later passes, keeping the application's cache regime separate from clean event timing.</figcaption>
 </figure>
 
 ## Gate 3: Synchronized timing and benchmark state control
@@ -271,14 +271,14 @@ An event interval can include submission gaps, kernel stalls, and interference f
 
 <figure>
   <img src="illustrations/_generated/timing_boundaries_dark.png" alt="A constructed CPU/GPU trace shares a 0–85 μs axis. The host launch call runs from 0 to 3 μs. CUDA events run from 5 to 75 μs, measuring 70 μs that include a 5 μs GPU gap and a kernel from 10 to 75 μs. Host synchronization returns at 78 μs." />
-  <figcaption>The host returns from launch at 3 μs. Events then measure 70 μs from 5 to 75, including a 5 μs gap and 65 μs of kernel time. Synchronization returns at 78 μs, so host wall time is 78 μs from the initial call. This constructed trace leaves the gap's cause open.</figcaption>
+  <figcaption>The host returns from launch at 3 µs while CUDA events measure 70 µs (a 5 µs gap plus 65 µs of kernel execution) and host synchronization completes at 78 µs.</figcaption>
 </figure>
 
-CUDA events have roughly 0.5-microsecond resolution.[^cudaRuntimeEvents2026] For tiny kernels, consider timing a batch and dividing by its launch count. That reports an average interval, including any gaps between launches, while individual latency percentiles require a separate measurement. Keep batch size and cache policy identical across versions. A rounded-to-zero interval needs a longer measurement window.
+CUDA events have roughly 0.5-microsecond resolution.[^cudaRuntimeEvents2026] For tiny kernels, time a batch and divide by launch count to obtain a clean mean interval (keeping batch size and cache regime identical across versions).
 
 ### Cache policy: test residency rather than assume it
 
-The three triad buffers occupy $12{,}000{,}036$ bytes, about 11.44 MiB. H100 has a nominal 50 MB L2 cache, so this footprint can fit.[^nvidia2026hopperTuning] Residency also depends on cache policies, address mapping, competing work, and the preceding initialization. Use the selected device's reported cache capacity rather than a cross-model table.
+The three triad buffers occupy $12{,}000{,}036$ bytes, about 11.44 MiB. H100 has a nominal 50 MB L2 cache, so this footprint can fit.[^nvidia2026hopperTuning] Actual residency depends on cache replacement, address mapping, competing work, and initialization, so check your selected device's reported L2 size rather than a cross-model table.
 
 Suppose a warm same-buffer launch completes in **3 microseconds**. Dividing useful bytes by that interval gives about 4,000 GB/s of effective bandwidth. Hardware counters distinguish cache service, device-memory traffic, and other effects; useful-byte accounting can yield a rate above the HBM specification.
 
@@ -288,7 +288,7 @@ Two experiments encourage cache turnover:
 1. **Buffer rotation:** Cycle through distinct buffer triplets. The starter targets an aggregate footprint above twice the reported L2 capacity, subject to its memory budget. Inspect traffic counters to determine whether each launch's loads and stores reached HBM.
 2. **Separate sweep:** Access a large dummy buffer between timed launches when rotation is impractical. Verify L2 eviction and dirty-writeback traffic directly with hardware counters.
 
-For either experiment, examine traffic and hit-rate counters under a matching profiling policy. Nsight Compute's explicit cache-flush control is a profiler facility; a normal rotation loop isn't an architectural cache flush. Don't label rotation “true HBM” without checking what it measured.
+For either experiment, examine traffic and hit-rate counters under matching profiling settings. Nsight Compute's explicit cache-flush control is a profiler facility; a normal rotation loop isn't an architectural cache flush, so confirm HBM traffic with counters.
 
 <figure>
   <img src="illustrations/_generated/benchmark_sample_bias_dark.png" alt="Two physical working-set patterns feed the same triad kernel. Repeated X₀, Z₀, and Y₀ addresses total 11.44 MiB and can fit in a nominal 50 MB H100 L2, while rotating triplets target an aggregate footprint above twice the selected L2 capacity. Warmup touches every slot twice, up to a minimum of 20 launches. Normalized latency curves contrast L2-resident and HBM-streaming working sets; hardware counters confirm residency and byte traffic." />
@@ -299,7 +299,7 @@ For either experiment, examine traffic and hit-rate counters under a matching pr
 
 First use can include initialization, allocation, module loading, compilation, and clock changes. Which costs appear in samples depends on where the event pair sits. This starter initializes the runtime and allocates buffers before timing; warming its kernel loop doesn't measure those earlier costs.
 
-Use preliminary runs to choose a warmup policy based on latency and observed state, then freeze it before comparing versions. Stable samples don't prove every mechanism is stationary. Preserve later slow samples and investigate their cause; thermal or power throttling during sustained execution belongs in the evidence.
+Use preliminary runs to pick a warmup count from latency and clock stability, then freeze it before comparing versions. Preserve later slow samples and investigate their cause, since thermal or power throttling during sustained execution belongs in the evidence.
 
 ### Record clocks, power, and thermal state
 
@@ -309,7 +309,7 @@ GPU clocks dynamically adjust based on thermal headroom, power limits, and concu
 nvidia-smi --query-gpu=timestamp,uuid,name,driver_version,pstate,clocks.sm,clocks.mem,temperature.gpu,power.draw,power.limit --format=csv
 ```
 
-On dedicated hardware where you control the clock policy, a supported SM clock lock can reduce frequency variation. Select one GPU and a requested frequency appropriate to it. Replace this example's UUID and 1,500 MHz with values for the target GPU:[^nvsmi]
+On dedicated hardware where you control GPU clocks, a supported SM clock lock reduces frequency variation. Select one GPU and a requested frequency appropriate to it (replacing the UUID and 1,500 MHz with values for your target GPU):[^nvsmi]
 
 ```bash title="terminal"
 BENCH_GPU_UUID="GPU-replace-with-UUID"
@@ -317,7 +317,7 @@ BENCH_SM_MHZ=1500
 sudo nvidia-smi -i "$BENCH_GPU_UUID" --lock-gpu-clocks="$BENCH_SM_MHZ,$BENCH_SM_MHZ"
 ```
 
-Record the prior clock policy and restore it afterward. `nvidia-smi -i "$BENCH_GPU_UUID" --reset-gpu-clocks` restores defaults, while an earlier custom lock needs its own restoration. A requested SM lock doesn't lock memory clocks or prevent thermal and power limits from reducing frequency. Record observed SM and memory clocks alongside the requested settings.
+Record the prior clock state and restore it afterward (`nvidia-smi -i "$BENCH_GPU_UUID" --reset-gpu-clocks` restores defaults). A requested SM lock doesn't lock memory clocks or prevent thermal and power limits from reducing frequency, so record observed SM and memory clocks alongside the requested settings.
 
 When locking is unavailable, record observed state around each round and use time-series monitoring where possible. Before/after snapshots can miss changes inside a run. If versions experienced different thermal, power, or competing-work conditions, investigate and repeat rather than treating the pair as controlled.
 
@@ -390,9 +390,32 @@ You can conclude that the isolated kernel is probably bandwidth-limited under th
 
 ## Run the triad investigation: five gates in code
 
-The CUDA lab requires an NVIDIA GPU, a compatible driver/toolkit, and the profiling tools named below. The displayed output is an expected shape, not a recorded hardware run. CPU-only checks can validate arithmetic, host helpers, and paired latency scripts, while device correctness and speed require compiling and collecting logs, sanitizer runs, and event samples on your target GPU.
+The CUDA lab compares two tiny kernels: `triad_buggy` (with an off-by-one `i <= n` guard) and `triad_f32` (with the exact `i < n` guard):
 
-The file includes buggy and fixed kernels, deterministic inputs, a CPU reference, event timing, same-buffer and buffer-rotated modes, and raw-sample CSV output. Read it in three parts: kernels and checking helpers, setup and test modes, then the timed loop. `--profile` launches one fixed kernel as an isolated diagnostic run without the benchmark's warmup policy.
+```cpp title="triad_kernels.cu"
+__global__ void triad_buggy(
+    const float* x, const float* z, float* y, std::size_t n, float alpha
+) {
+    const std::size_t i = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    if (i <= n) {
+        y[i] = fmaf(alpha, x[i], z[i]);
+    }
+}
+
+__global__ void triad_f32(
+    const float* x, const float* z, float* y, std::size_t n, float alpha
+) {
+    const std::size_t i = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    if (i < n) {
+        y[i] = fmaf(alpha, x[i], z[i]);
+    }
+}
+```
+
+The complete standalone harness wraps both kernels with a double-precision CPU reference checker, NaN-poisoned outputs, `--check` / `--buggy` / `--profile` / `--bench-hot` / `--bench-rotate` modes, CUDA event timing, and raw-sample CSV logging. Expand the block below to save `triad_bench.cu` locally:
+
+<details>
+<summary>Full C++ benchmark harness: triad_bench.cu</summary>
 
 ```cpp title="triad_bench.cu"
 #include <cuda_runtime.h>
@@ -799,7 +822,9 @@ int main(int argc, char** argv) {
 }
 ```
 
-Compile with optimization and line information. Line information lets sanitizer and profiler reports point back to source without using debug build as performance binary:
+</details>
+
+Compile with optimization and line information so sanitizer and profiler reports map directly back to source lines without using a debug build:
 
 ```bash title="terminal"
 mkdir -p profile_runs
@@ -856,7 +881,7 @@ nsys profile \
 
 The full trace includes allocations, setup copies, the initial correctness readback, warmup, 200 timed launches, and final per-slot verification copies. Only the event-bounded sample region claims to exclude copies. Inside it, expect one launch and one event wait per sample; investigate long host gaps rather than mistaking setup or verification for timed work.
 
-List the installed sections before collecting a kernel profile. Section sets vary by installation; don't assume a set named `roofline` exists. The command names four standard sections and makes cache flushing explicit. `--clock-control none` leaves existing clock policy unchanged.[^nsightComputeCli2026]
+List the installed sections before collecting a kernel profile, since section sets vary by installation. The command below requests four standard sections with explicit cache flushing and `--clock-control none` (leaving GPU clock settings unchanged):[^nsightComputeCli2026]
 
 ```bash title="terminal"
 ncu --list-sets
@@ -873,7 +898,7 @@ ncu \
   ./triad_bench --profile
 ```
 
-On a locked-down host, `ncu` may return `ERR_NVGPUCTRPERM`. Counter-access policy blocked metric collection; the kernel didn't fail. Use an approved profiling host or ask an administrator to enable performance counters rather than changing privilege policy on a shared machine.[^nsightCompute2026]
+On a locked-down host, `ncu` may return `ERR_NVGPUCTRPERM`. That means counter-access permissions blocked metric collection, not that the kernel failed; run on a profiling-enabled host or ask an administrator to enable performance counters.[^nsightCompute2026]
 
 Read the achieved point, device-memory bytes, cache behavior, and SpeedOfLight sections together. Compare measured traffic per element with the 12-byte algorithmic count. Useful bandwidth above the device's HBM specification can reflect data served by cache, rather than impossible hardware performance.
 
@@ -893,13 +918,9 @@ nvidia-smi --query-gpu=timestamp,uuid,name,driver_version,pstate,clocks.sm,clock
   | tee profile_runs/gpu-state-after.csv
 ```
 
-The starter warms for at least 20 launches and enough launches to touch every rotation slot twice. Use that as an initial policy, then extend warmup until latency, clocks, temperature, and cache counters stabilize on the target machine.
+The starter warms for at least 20 launches (and enough to touch every rotation slot twice); extend warmup until latency, clocks, temperature, and cache counters stabilize on your machine. Record `nvcc`, `nsys`, `ncu`, and `compute-sanitizer` versions alongside the exact commands.
 
-The post-timing check validates each slot's final output, not every intermediate launch. Keep adversarial correctness runs separate so an intermittent omitted store can't hide behind a previous correct value. Record `nvcc`, `nsys`, `ncu`, and `compute-sanitizer` versions alongside the exact commands; profiler section availability and supported metrics vary by tool and GPU.
-
-`--bench-hot` selects the program's `same-buffer` regime. Use cache counters to verify residency. Percentiles use linear interpolation at index $q(N-1)$, so an even-count median averages the middle pair. Samples remain in acquisition order in the CSV. Match the selected CUDA device to its UUID, especially when `CUDA_VISIBLE_DEVICES` remaps ordinals; identify the exact GPU on a multi-GPU host.
-
-Don't compare a hot baseline with a rotated candidate. Run both versions in the same regime and alternate order across rounds.
+`--bench-hot` selects the `same-buffer` regime. Percentiles use linear interpolation at index $q(N-1)$, keeping samples in acquisition order inside the CSV. Match the selected CUDA device to its UUID on multi-GPU hosts, and always compare baseline and candidate under the same cache regime in alternating order.
 
 ## Diagnose contradictory evidence
 
@@ -911,7 +932,7 @@ GPU investigations often return signals that look inconsistent. Resolve by askin
 | sanitizer fails but sampled outputs match | error is harmless | illegal access missed sampled state | reject candidate and repair bounds |
 | `nvidia-smi` utilization is high | kernel is efficient | GPU stayed busy doing some work | Nsight Systems critical path, then kernel counters |
 | SpeedOfLight memory percentage is high | no optimization remains | one memory path is busy, perhaps wastefully | bytes per element and transaction efficiency |
-| cache-hot timing wins | candidate is universally faster | benchmark changed residency regime | same-buffer versus rotated A/B under same policy |
+| cache-hot timing wins | candidate is universally faster | benchmark changed residency regime | same-buffer versus rotated A/B under same cache regime |
 | profiler duration is slower | optimization regressed | instrumentation or replay perturbed execution | clean rerun outside profiler |
 | median improves while p90 worsens | clear win | distribution changed or throttling emerged | raw samples, clocks, power, temperature, paired order |
 | kernel improves but request latency doesn't | profiler is wrong | optimized scope isn't end-to-end bottleneck | return to Nsight Systems and critical path |
@@ -938,7 +959,7 @@ To reproduce a speedup claim cleanly, record the exact build, hardware clocks, p
     "driver": "<driver version>",
     "cuda_runtime": "<runtime version>",
     "power_limit_w": "<watts>",
-    "clock_policy": "locked_sm_clock_or_monitored"
+    "clock_mode": "locked_sm_clock_or_monitored"
   },
   "workload": {
     "operation": "y[i] = fmaf(1.25f, x[i], z[i])",
@@ -979,7 +1000,7 @@ The diagnostic script below pairs matched A-B-B-A CUDA-event timing rounds with 
 ```python title="analyze-profile-diagnostics.py"
 import numpy as np
 
-def audit_paired_round(
+def check_paired_round(
     a_events_us,
     b_events_us,
     sm_clock_mhz_before,
@@ -1019,7 +1040,7 @@ def audit_paired_round(
         "intensity_flop_per_byte": intensity_measured,
     }
 
-steady = audit_paired_round(
+steady = check_paired_round(
     a_events_us=[102.0, 101.0, 104.0, 100.0, 103.0],
     b_events_us=[82.0, 81.0, 83.0, 80.0, 82.0],
     sm_clock_mhz_before=1980,
@@ -1039,7 +1060,7 @@ print(
     f"I={steady['intensity_flop_per_byte']:.3f} FLOP/B)"
 )
 
-throttled = audit_paired_round(
+throttled = check_paired_round(
     a_events_us=[84.0, 85.0, 83.0, 86.0, 84.0],
     b_events_us=[102.0, 104.0, 103.0, 101.0, 102.0],
     sm_clock_mhz_before=1980,
@@ -1062,7 +1083,7 @@ drifted round: 0.82x | clock_drop=465 MHz -> reject pooled comparison
 ```
 <!-- leetllm: output:end -->
 
-Notice two distinct checks in that output. When SM frequency holds steady at 1,980 MHz and A-B-B-A pairing gives narrow IQRs, the 1.24x gain reflects kernel behavior under a single cache policy, and dividing algorithmic versus hardware-measured bytes keeps useful bandwidth separate from actual HBM traffic. When the clock drops by 465 MHz mid-run, the script flags the drift instead of averaging noisy rounds together.
+Notice two distinct checks in that output. When SM frequency holds steady at 1,980 MHz and A-B-B-A pairing gives narrow IQRs, the 1.24x gain reflects kernel behavior under one consistent cache regime, and dividing algorithmic versus hardware-measured bytes keeps useful bandwidth separate from actual HBM traffic. When the clock drops by 465 MHz mid-run, the script flags the drift instead of averaging noisy rounds together.
 
 <figure>
   <img src="illustrations/_generated/receipt_integrity_dark.png" alt="CUDA stream event timing paired with Nsight Compute roofline and warp stall diagnostics. On top, Host API enqueues the kernel asynchronously in 4 us and blocks on cudaEventSynchronize at 92 us, while GPU Stream 0 executes the kernel from 12 to 92 us inside an 85 us event span and A-B-B-A matched rounds give a 1.24x median speedup at locked 1980 MHz SM clock. On the bottom left, the Nsight roofline places triad_f32 at 0.167 FLOP per byte on the 3.35 TB/s HBM bandwidth slope at 87% SOL. On the bottom right, achieved occupancy is 78% with 64% long-scoreboard HBM wait stalls and 4% barrier stalls." />
@@ -1073,7 +1094,7 @@ Notice two distinct checks in that output. When SM frequency holds steady at 1,9
 
 Before promoting a candidate kernel, ask a colleague to reproduce one matched round from the run manifest and saved counter exports. Can they verify the exact inputs, replay the correctness cases, lock or monitor the same GPU clocks, explain the cache rotation depth, and regenerate the summaries from raw samples? If an undocumented setting flips the ranking, fix the measurement setup before trusting the ratio.
 
-A fast kernel helps an application only when it preserves the numerical precision rule and improves the target bottleneck. The isolated triad result is one piece of that picture. Confirm request-level impact on an end-to-end Nsight Systems trace: a verified kernel, an asynchronous event timer, and a roofline/stall profile answer separate engineering questions. The next lab modifies the kernel itself, keeping these same five verification gates in place.
+A fast kernel helps an application only when it preserves the numerical precision rule and improves the target bottleneck. The isolated triad result is one piece of that picture. Confirm request-level impact on an end-to-end Nsight Systems trace: a verified kernel, an asynchronous event timer, and a roofline/stall profile answer separate engineering questions. The next lab modifies the kernel itself, keeping these same five verification steps in place.
 
 <!-- leetllm: mastery:start -->
 

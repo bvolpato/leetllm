@@ -113,6 +113,8 @@ static slot occupancy: 43.3%
 
 Continuous batching is a *capacity* win because it keeps more useful work in flight. SM occupancy and MFU still depend on batch shape, kernel efficiency, and hardware. The open question is how the server actually refills those seats without waiting for C.
 
+> **Key insight:** Filling every batch seat does not mean the GPU is compute-bound. Pure decode can hit 100% seat occupancy while staying memory-bandwidth-bound with low MFU; combining decode rows with chunked prefill tokens is what lifts per-step arithmetic intensity.
+
 ---
 
 ## Continuous batching: schedule every iteration
@@ -137,11 +139,11 @@ If the projected next token would exceed the KV budget, *preempt* a victim befor
   <figcaption>Both requests start with one block, and their next tokens project four blocks against a budget of two. The scheduler pauses priority-0 background, frees its exclusively owned page, and runs priority-1 urgent. Once urgent completes, its KV is freed and background resumes. At each scheduling point, finish the in-flight pass, retire finished or cancelled requests, release only exclusive KV ownership, resume or start queued requests within batch and KV budgets, check projected growth, and recheck after priority preemption before running one pass. This CPU trace ends at 0/2 blocks after one preemption. Its counts trace state changes; runtime duration depends on the engine and workload.</figcaption>
 </figure>
 
-Real engines add prefix-cache hits, cancellations, and speculative drafts on top of this loop. The invariant stays the same: the active set is allowed to change at every iteration step.
+Real engines add prefix-cache hits, cancellations, and speculative drafts on top of this loop. The core rule stays the same: the active set can change at every iteration step.
 
 Seat count alone can't tell you how much work a batch contains. One long prefill can consume more scheduler work than many short decode-only streams. Modern schedulers cap a **per-step token budget** (vLLM's `max_num_batched_tokens`) and a **KV-cache block budget**, not only `max_num_seqs`.
 
-An available compatible [prefix-cache](/learn/prefix-caching-prompt-caching) hit reduces uncached prefill work; decode speed depends on the remaining workload and bottleneck. A decode-first policy then spends leftover budget on a capped prefill chunk.
+An available compatible [prefix-cache](/learn/prefix-caching-prompt-caching) hit reduces uncached prefill work; decode speed depends on the remaining workload and bottleneck. Decode-first scheduling then spends leftover budget on a capped prefill chunk.
 
 Suppose 96 live completions already need a decode token each, and a 1,800-token test-log prefill is waiting. With `max_num_batched_tokens = 1024`, decode takes 96 slots first. The remaining 928 tokens can run as a prefill chunk. The other 872 prompt tokens wait for later steps.
 
@@ -245,7 +247,7 @@ last-block slack: 31 tokens (16.1%)
 ```
 <!-- leetllm: output:end -->
 
-Paged KV management decides where state lives; [FlashAttention](/learn/flashattention-memory-efficient-attention) avoids full attention intermediates. Engines can combine them through compatible kernels. Allocation, kernel layout, and scheduling must agree; combining names alone does not prove a speedup.
+Paged KV management decides where state lives; [FlashAttention](/learn/flashattention-memory-efficient-attention) avoids full attention intermediates. Engines combine them through paged-KV attention kernels whose block layout and scheduler bookkeeping match.
 
 Memory is now flexible enough to refill seats. The next fight is that prefill and decode want different things from the same GPU.
 
@@ -280,13 +282,13 @@ Measure TTFT from the client's request start to the first received token, includ
 
 ## Who gets the next seat
 
-The scheduler rebuilds the active set every iteration. Policy decides which waiting work wins.
+The scheduler rebuilds the active set every iteration. The scheduling rule decides which waiting work wins.
 
 ### First-come-first-served (FCFS)
 Schedule in arrival order. Easy to reason about, usually fair, and a long migration plan at the head of the queue can block many one-liners.
 
 ### Shortest-job-first (SJF)
-Prioritize estimated service cost. Remaining output length matters, but so do prefill length, context-dependent attention, and batch composition. Prompt buckets can approximate one part of that cost. Tenant priority and token caps are policy/resource controls, not inherently SJF estimates.
+Prioritize estimated service cost. Remaining output length matters, but so do prefill length, context-dependent attention, and batch composition. Prompt buckets can approximate one part of that cost. Tenant priority and token caps are resource controls, not inherently SJF estimates.
 
 Unknown lengths turn scheduling into a fairness problem too. A stream of short requests can keep winning an estimate-based SJF queue while a long request waits forever. Use estimates as hints, age waiting requests, or allocate per-tenant shares; cap consecutive wins when a class is falling behind.
 
@@ -326,7 +328,7 @@ Users notice ITL jitter immediately. That makes decode-first scheduling reasonab
 
 Decode-first still needs a backstop when live streams exhaust the work or memory budget. Age waiting work or reserve a scheduling slot. Fairness can't make an infeasible deadline achievable; under overload, rejection or expiration may be necessary.
 
-As checked October 10, 2026, vLLM V1 exposes `--scheduling-policy` choices for FCFS and priority scheduling.[^vllm2026v1] Its priority queue processes smaller priority values first, breaking ties by arrival time.[^vllm2026requestqueue] The CPU simulation below deliberately defines larger integers as more urgent; translate the convention before applying a real engine's flag.
+vLLM V1 exposes `--scheduling-policy` choices for FCFS and priority scheduling.[^vllm2026v1] Its priority queue processes smaller priority values first, breaking ties by arrival time.[^vllm2026requestqueue] The CPU simulation below deliberately defines larger integers as more urgent; translate the convention before applying a real engine's flag.
 
 ### Preemption when KV is full
 When GPU KV blocks run out, the scheduler has to pause work, drop state, or stop accepting new requests. Two recovery designs:
@@ -338,11 +340,9 @@ When GPU KV blocks run out, the scheduler has to pause work, drop state, or stop
    - Pros: keeps progress; can beat replay when the prompt is long.
    - Cons: burns host-device bandwidth and adds resume latency.
 
-These are design options. Current vLLM V1 defaults to `RECOMPUTE`; its guide says legacy KV swapping is no longer required for preemption.[^vllm2026optimization][^vllm2026v1] V1 also offers optional KV offloading through connectors, a separate mechanism.[^vllm2026kvoffload] Read the selected engine's current policy and trace its actual state transfers.
+These are design options. Current vLLM V1 defaults to `RECOMPUTE`; its guide notes that legacy KV swapping is no longer required for preemption.[^vllm2026optimization][^vllm2026v1] V1 also offers optional KV offloading through connectors as a separate mechanism.[^vllm2026kvoffload] Check your engine's active default and trace its actual state transfers.
 
-The CPU scheduler below models **swap-out bookkeeping**. It stores block counts, not tensors, and performs no prefill, model forward pass, or host-device copy. `schedule_step` reserves capacity before a pass; `finish_decode_step` records one generated token per active request. It conservatively reserves a position for that new token, even though a real decoder normally creates its KV when the token is consumed by the following pass.
-
-To make progress testable, submission rejects requests whose maximum token history couldn't fit even when running alone. This is a deliberately conservative policy, not a vLLM implementation. Prefills and swap transfers are assumed complete before scheduling. Calls are serialized between iteration steps.
+The CPU scheduler below models **swap-out bookkeeping** in block counts so you can trace the state transitions directly. `schedule_step` reserves capacity before a pass; `finish_decode_step` records one generated token per active request and conservatively reserves a slot for it. To keep progress verifiable, submission rejects requests whose maximum token history could not fit even when running alone.
 
 <!-- leetllm: test, id=scheduler-trace, output=show -->
 
@@ -586,7 +586,7 @@ resume, cancellation, EOS, and capacity checks passed
 
 `schedule_step()` rebuilds the active set every iteration: retire finished requests, schedule queued work under the batch and KV budgets, then preempt if the next token won't fit.
 
-The assertions check refill, preemption, resumption, EOS, queued and active cancellation, and capacity-limit rejections. They cover state transitions only. This single-threaded simulation retains mutable `Request` objects, so callers must not change their tracked accounting fields. Resuming first and checking only the queue head can delay fresh or smaller work. The example also omits transfer failures, shared pages, device completion, arrivals, and latency-based fairness. A real engine must wait for in-flight readers before reusing blocks and suppress a canceled request's late output.
+In a GPU engine, retiring or preempting a request also requires waiting for in-flight readers before reusing its blocks, tracking shared prefix references, and suppressing any late output from a canceled stream. Resuming swapped work ahead of fresh arrivals and inspecting only the queue head can also stall smaller requests behind a blocked large prompt.
 
 Make that queue-head trade-off concrete. Two of three KV blocks belong to a resident stream throughout this short trace. The oldest waiting request needs two blocks; a newer one needs one. Strict head order accepts neither. Scanning for a fitting request can use the free block, but continuous one-block arrivals can keep winning while the two-block request waits. The original SGLang scheduling algorithm scans candidates against available state capacity.[^zheng2023a] Measure wait-time distributions under sustained arrivals to assess fairness.
 
@@ -627,13 +627,13 @@ small completions: 4; older request still waiting
 ```
 <!-- leetllm: output:end -->
 
-To start the older request before the resident stream ends, the scheduler needs two blocks at once. Raising its priority can't manufacture the missing block. A policy may preempt the resident, or preserve enough freed capacity as it becomes available rather than immediately refilling it. Compare replay or transfer cost, per-class wait, and SLO attainment when choosing that policy. Bypassing a blocked head trades fairness for capacity; measure both outcomes before adopting the policy.
+To start the older request before the resident stream ends, the scheduler needs two blocks at once. Raising its priority can't manufacture the missing block. Instead, the scheduler must either preempt the resident or reserve newly freed blocks until two accumulate rather than refilling them immediately. Compare replay or transfer cost, per-class wait, and SLO attainment before enabling head-of-line bypass, because skipping a blocked head trades fairness for short-term occupancy.
 
 Recomputation needs a different counter: **tokens already computed into KV**. Reset that counter, not the accepted output. This minimal history example makes the distinction executable:
 
 <figure>
   <img src="illustrations/_generated/preemption_recompute_dark.png" alt="The client-visible output IDs 201 and 202 remain accepted through preemption. Before the pause, KV contains prompt positions 101, 102, and 103 plus generated position 201; sampled token 202 has no KV position yet. The pause releases those four cached positions. Resume replays 101, 102, 103, and 201 without sampling or emitting them again, then uses 202 as the next decode input." />
-  <figcaption>The accepted output IDs [201, 202] stay on the client ledger while the four cached positions are released. Resume replays [101, 102, 103, 201] without sampling or emitting them again, then consumes 202 as the next decode input.</figcaption>
+  <figcaption>The accepted output IDs [201, 202] stay in the client transcript while the four cached positions are released. Resume replays [101, 102, 103, 201] without sampling or emitting them again, then consumes 202 as the next decode input.</figcaption>
 </figure>
 
 <!-- leetllm: test, output=show -->
@@ -663,7 +663,9 @@ accepted output is unchanged: [201, 202]
 ```
 <!-- leetllm: output:end -->
 
-Swap-out pays host-device bandwidth to keep KV. Recompute pays forward-pass work to rebuild it. Choose from measured history length, transfer bandwidth, and preemption frequency. Neither policy should restart the answer or duplicate tokens already delivered.
+Swap-out pays host-device bandwidth to keep KV. Recompute pays forward-pass work to rebuild it. Choose from measured history length, transfer bandwidth, and preemption frequency. Neither recovery path should restart the answer or duplicate tokens already delivered.
+
+> **Common mistake:** Replaying all tokens up to `output_ids[-1]` and sampling during recomputation either mutates already-delivered text or duplicates tokens on the client stream. Replay `[prompt + accepted[:-1]]` to rebuild KV state only, then feed `accepted[-1]` as the next decode input.
 
 ### Continuous batching times speculative decoding
 
@@ -764,7 +766,7 @@ This small benchmark checks TTFT and TPOT only. A streaming endpoint should add 
 
 The 10-second window makes SLO filtering concrete, but it doesn't tell us the endpoint's capacity. It has no arrival process, queue pressure, or output-length mix. A hand-picked batch can pass while live traffic fails between iterations.
 
-As offered arrival rate $\lambda$ rises, queue wait and TTFT climb while a decode-first policy keeps ITL steady, whereas launching aggressive prefills hurts ITL first. Past a sustainable operating point, queues grow or requests are rejected. An open-loop client sends according to preassigned timestamps, while a closed-loop client that waits for responses hides overload by slowing its own arrivals. Record both scheduled and actual send times so a saturated load generator does not quietly shift arrivals forward and erase its own queueing delay.
+As offered arrival rate $\lambda$ rises, queue wait and TTFT climb while decode-first scheduling keeps ITL steady, whereas launching aggressive prefills hurts ITL first. Past a sustainable operating point, queues grow or requests are rejected. An open-loop client sends according to preassigned timestamps, while a closed-loop client that waits for responses hides overload by slowing its own arrivals. Record both scheduled and actual send times so a saturated load generator does not quietly shift arrivals forward and erase its own queueing delay.
 
 MLPerf's Server/Interactive rules make this workload distinction explicit: its load generator sends queries with a Poisson arrival process, tests multiple offered QPS values, and reports the maximum supported rate under scenario latency and quality requirements. It also samples the performance trace from a fixed library with a deterministic seed.[^mlcommons2026inference] Use that discipline for an API benchmark without claiming MLPerf compliance: replay a public or production trace, or publish a fixed-seed distribution with the realized prompt and output lengths.
 
@@ -778,7 +780,7 @@ Fix the benchmark setup before tuning. Otherwise a scheduler change can quietly 
 | Warmup and window | Warmup requests or duration until compilation, allocators, and chosen caches are steady; measurement duration, drain time, and the samples excluded from warmup |
 | Baseline | The exact scheduler/engine configuration being compared, with equivalent tuning and the same trace, system, and SLOs |
 | Correctness | Deterministic or fixed-seed decoding where available, output validity, reference outputs or task-quality checks, token-count checks, and error, cancel, and timeout counts |
-| Metrics and operating point | Queue wait, TTFT, per-token ITL, TPOT, raw throughput, p50 and p99 for each latency signal, KV pressure, preemptions, SLO attainment, and goodput; report the highest $\lambda$ that passes every latency and correctness gate plus its neighboring pass/fail points |
+| Metrics and operating point | Queue wait, TTFT, per-token ITL, TPOT, raw throughput, p50 and p99 for each latency signal, KV pressure, preemptions, SLO attainment, and goodput; report the highest $\lambda$ that passes every latency and correctness target plus its neighboring pass/fail points |
 
 One mixed-length workload is enough to expose why one uniform batch is weak: 60% short requests with 128-256 prompt tokens and 16-64 output tokens, 30% medium requests with 512-2,048 prompt tokens and 128-512 output tokens, and 10% long requests with 2,048-4,096 prompt tokens and 512-2,048 output tokens. These proportions let us compare scheduling behavior; production capacity needs a measured or replayable workload. Keep the realized lengths and arrival timestamps so every scheduler sees the same work.
 
@@ -792,7 +794,7 @@ This checklist tells you how to judge a change. It doesn't yet say what to chang
 
 ## Chunked prefill keeps streams moving
 
-Chunk the prompt so a live decode can run between slices. An unchunked 4,000-token test log can make a mixed iteration too slow for live streams. Its duration depends on model, hardware, context, and batch; 4,000 tokens alone does not guarantee a millisecond stall. The decode results still wait for that iteration's work to complete.
+Chunk the prompt so live decodes can run between slices. An unchunked 4,000-token test log can make a mixed iteration far too slow for interactive streams: how many milliseconds that step takes depends on the model, hardware, context, and batch size, and every active decode waits until the entire iteration finishes.
 
 The 2023 SARATHI paper combines **chunked-prefills** and **decode-maximal batching**.[^agrawal2023] Sarathi-Serve's 2024 scheduler develops stall-free scheduling: new prefills join without pausing ongoing decodes.[^agrawal2024sarathiServe] That stall-free property still leaves ITL and SLO outcomes dependent on the workload and implementation.
 
@@ -914,25 +916,25 @@ prefill_done = prefill_queue + prefill
 decode_ready = prefill_done + handoff + decode_queue
 second_token = decode_ready + next_decode
 
-for policy, first_token in (
+for mode, first_token in (
     ("early", prefill_done), ("buffered", decode_ready)
 ):
     gap = second_token - first_token
     meets_targets = first_token <= 90 and gap <= 30
-    print(f"{policy}: TTFT={first_token} ms, first gap={gap} ms, targets met={meets_targets}")
+    print(f"{mode}: TTFT={first_token} ms, first gap={gap} ms, targets met={meets_targets}")
 assert second_token == 145
-print(f"second token arrives at {second_token} ms under both policies")
+print(f"second token arrives at {second_token} ms under both modes")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 early: TTFT=80 ms, first gap=65 ms, targets met=False
 buffered: TTFT=135 ms, first gap=10 ms, targets met=False
-second token arrives at 145 ms under both policies
+second token arrives at 145 ms under both modes
 ```
 <!-- leetllm: output:end -->
 
-Neither delivery policy satisfies the 90 ms TTFT and 30 ms gap targets here. Buffering changes where the delay is visible; it doesn't create capacity or finish the second token earlier.
+Neither delivery mode satisfies the 90 ms TTFT and 30 ms gap targets here. Buffering changes where the delay is visible; it doesn't create capacity or finish the second token earlier.
 
 ---
 
@@ -945,7 +947,7 @@ A scheduler usually reveals its bottleneck in the trace long before it fails in 
   *Try:* Chunk prefills and reduce the mixed-step budget, then remeasure both ITL and TTFT. Gap uniformity depends on step duration, queueing, and state growth.
 
 - **Symptom 2: Stable P50 ITL, but P99 TTFT inflates under load while decode throughput stays high.**
-  *Check:* Inspect prefill wait by request class and whether decode consumes all available work or state capacity. Offered overload can resemble policy starvation.
+  *Check:* Inspect prefill wait by request class and whether decode consumes all available work or state capacity. Offered overload can resemble scheduler starvation.
   *Try:* Age waiting work or reserve prefill slots within the budgets. Reject or expire requests whose deadlines can't be met; use deadline-aware scheduling to protect TTFT.
 
 - **Symptom 3: Out-of-memory crashes or sudden preemption thrashing mid-generation.**
@@ -970,7 +972,7 @@ A finished request no longer has to hold its seat until the longest neighbor end
 
 Replay the same mixed trace across scheduler settings. Warm up until the endpoint reaches its declared steady state, send requests with the chosen open-loop arrival process, and drain every response before ending the run. Record per-request queue wait, TTFT, ITL, output length, correctness, token-budget use, KV-block pressure, preemptions, and errors.
 
-Plot offered $\lambda$ against p50 and p99 latency, raw throughput, SLO attainment, and goodput. Compare each curve with the policy you think you configured, then keep the trace and pass/fail operating points as the acceptance artifact for the next scheduler change.
+Plot offered $\lambda$ against p50 and p99 latency, raw throughput, SLO attainment, and goodput. Compare each curve with the scheduling rule you configured, then keep the trace and pass/fail operating points as the reference baseline for the next scheduler change.
 
 Count all offered requests when reporting SLO attainment, including rejected, timed-out, and invalid responses as failures. Declare whether throughput uses the arrival window or elapsed time including drain; never silently drop unfinished requests. Goodput is the load-sweep operating point, not a separate throughput curve that falls at each offered load. Plot compliant throughput at each load, then mark the highest passing offered rate.
 
@@ -985,7 +987,7 @@ Count all offered requests when reporting SLO attainment, including rejected, ti
 - Trace slot reuse across explicit iteration steps and distinguish that count from GPU utilization or elapsed time.
 - Enforce both per-iteration work and resident KV capacity, including growth, completion, cancellation, and oversize rejections.
 - Preserve accepted output when swapping or recomputing state; explain what the CPU simulation leaves untested.
-- Explain chunking and phase separation with their overheads, without promising either guarantees an SLO.
+- Explain chunking and phase separation with their overheads, and how each shifts latency between TTFT and ITL.
 - Define the arrival process, failure denominator, latency aggregation, and highest passing load before comparing serving configurations.
 
 ```mastery-quiz
@@ -1035,7 +1037,7 @@ Count all offered requests when reporting SLO attainment, including rejected, ti
     "explanation": "Decode consumes 11 positions first, leaving 48 − 11 = 37. The remaining 90 − 37 = 53 prompt positions wait for later chunks. Position counts alone do not determine mixed-step elapsed time."
   },
   {
-    "question": "A trace shows stable live-stream gaps, but queued prefills miss first-token deadlines while all work positions stay assigned to decode. Which policy experiment addresses this evidence?",
+    "question": "A trace shows stable live-stream gaps, but queued prefills miss first-token deadlines while all work positions stay assigned to decode. Which scheduling change addresses this evidence?",
     "options": [
       "Reserve aged-prefill work within token/KV limits; assess both latency classes.",
       "Increase sequence seats within current KV limits; retain existing work selection.",
@@ -1043,7 +1045,7 @@ Count all offered requests when reporting SLO attainment, including rejected, ti
       "Reserve aged-prefill work within token/KV limits; rank aggregate output TPS."
     ],
     "answer": "Reserve aged-prefill work within token/KV limits; assess both latency classes.",
-    "explanation": "Aging or reserved prefill slots can address prefill wait while retaining resource checks. A seat increase alone leaves the work-selection constraint, and omitting waits or ranking only raw TPS hides the stated objective. Deadlines that remain infeasible need rejection/expiration under policy."
+    "explanation": "Aging or reserved prefill slots can address prefill wait while retaining resource checks. A seat increase alone leaves the work-selection constraint, and omitting waits or ranking only raw TPS hides the stated objective. Deadlines that remain infeasible need rejection or expiration."
   },
   {
     "question": "A client has received output IDs [21, 22, 23] for prompt IDs [11, 12]. The server loses the request's KV cache just after sampling 23. The first decode step after replay must predict the next new token. Where should replay end, which ID should that step consume, and what should the client receive during replay?",
@@ -1079,7 +1081,7 @@ Count all offered requests when reporting SLO attainment, including rejected, ti
     "explanation": "The target processes five verification inputs and four ordinary inputs. That leaves 24 − 5 − 4 = 15 positions for the prompt. Counting just the two accepted tokens as verification work gives 18. Charging them again on top of the five inputs gives 13. Counting the speculative stream as one ordinary input gives 19."
   },
   {
-    "question": "A request waits 15 ms for prefill, which takes 45 ms and produces token one. State handoff takes 35 ms, the decode queue takes 20 ms, and decode takes 5 ms to produce token two. The stages run in sequence and delivery is instantaneous. Early delivery sends token one when prefill ends. Buffered delivery holds it until decode can start. What are the (TTFT, first gap) pairs in ms, and which policies meet both limits of 100 ms for TTFT and 70 ms for the gap?",
+    "question": "A request waits 15 ms for prefill, which takes 45 ms and produces token one. State handoff takes 35 ms, the decode queue takes 20 ms, and decode takes 5 ms to produce token two. The stages run in sequence and delivery is instantaneous. Early delivery sends token one when prefill ends. Buffered delivery holds it until decode can start. What are the (TTFT, first gap) pairs in ms, and which delivery modes meet both limits of 100 ms for TTFT and 70 ms for the gap?",
     "options": [
       "Early (60, 60) passes. Buffered (115, 5) fails.",
       "Early (45, 75) fails. Buffered (95, 25) passes.",
@@ -1087,7 +1089,7 @@ Count all offered requests when reporting SLO attainment, including rejected, ti
       "Early (60, 60) passes. Buffered (95, 25) passes."
     ],
     "answer": "Early (60, 60) passes. Buffered (115, 5) fails.",
-    "explanation": "Prefill ends at 15 + 45 = 60 ms. Decode starts at 60 + 35 + 20 = 115 ms and token two arrives at 120 ms under either policy. Early delivery gives a 60 ms first gap and meets both limits. Buffering leaves a 5 ms gap but misses the 100 ms TTFT limit. An early TTFT of 45 ms omits the prefill queue. A buffered TTFT of 95 ms ends at handoff while the request still has 20 ms to wait for decode."
+    "explanation": "Prefill ends at 15 + 45 = 60 ms. Decode starts at 60 + 35 + 20 = 115 ms and token two arrives at 120 ms under either mode. Early delivery gives a 60 ms first gap and meets both limits. Buffering leaves a 5 ms gap but misses the 100 ms TTFT limit. An early TTFT of 45 ms omits the prefill queue. A buffered TTFT of 95 ms ends at handoff while the request still has 20 ms to wait for decode."
   },
   {
     "question": "A fixed four-GPU deployment is tested at 8, 10 and 12 offered requests/s, with joint attainment 0.96, 0.91 and 0.88. The requirement is at least 0.90. What highest tested passing rate and per-GPU rate are supported?",
@@ -1189,7 +1191,7 @@ A free seat doesn't mean a request can run. A scheduler is watching three separa
 | Scheduled positions | Prompt and decode work in the next step | One long prompt consumes the whole step |
 | Cache capacity | Storage held by active requests and reservations | The next position needs a physical block that doesn't exist |
 
-The work budget counts positions, and positions aren't time. A prompt position and a decode position have very different costs, so a fixed token budget doesn't give you a fixed-length step. Don't treat it as a millisecond guarantee.
+The work budget counts positions, and positions aren't time. A prompt position and a decode position have very different costs, so treat a fixed token budget as a cap on scheduled work rather than on step duration.
 
 The memory budget is the sneaky one, because it changes while requests run. A sequence near the end of a block will need a new allocation on its next token. Prefix reuse can shrink fresh prefill work, while shared blocks and private tails still follow the [ownership rules](/learn/kv-cache-paged-attention-llm-serving) you've seen. If you only check the current payload when accepting a request, you can accept one just before the next step runs out of memory. Find out how your runtime actually reserves: some keep lookahead slots, some account for speculative proposals, and hybrid models have extra state of their own.
 
@@ -1199,7 +1201,7 @@ Requests can only join or leave at a safe point. Each scheduling cycle follows t
 
 1. Retire finished and cancelled work, and release what it owned.
 2. Look at what's left in each budget.
-3. Choose decode work and prompt chunks according to policy.
+3. Choose decode work and prompt chunks according to your scheduling rule.
 4. Allocate or reserve the state those need before launching the step.
 5. Execute, record accepted output, and advance processed lengths.
 6. Return to the queue at the next safe point.
@@ -1210,7 +1212,7 @@ Treat the queue as a resource too. An unlimited wait queue can keep your GPU bus
 
 ## Who goes next?
 
-No scheduling policy wins everywhere. Each one fails in a recognizable way, and that's the useful way to think about them.
+No scheduling rule wins everywhere. Each one fails in a recognizable way, and that's the useful way to think about them.
 
 **First-come-first-served** is easy to explain and fair in an obvious sense. Its weakness is head-of-line blocking: a huge request at the front that can't fit holds up small requests behind it that could run right now.
 
@@ -1241,15 +1243,15 @@ shortest first: 35.0 steps
 
 That 35 needs an oracle, and you don't have one. The output limit is an upper bound and a poor prediction, and a GPU that batches jobs together has step costs that shift with its neighbors. Estimates also turn this into a fairness problem, because a steady stream of short requests can keep winning while a long one waits forever. Use estimates as hints, age the requests that are waiting, or give each tenant a share. Then track p99 and maximum queue wait by request class. If short-job latency improves while long-job wait grows, the scheduler has traded fairness for a better average, and it hasn't found any free capacity.
 
-**Decode-first** protects streams people are already watching, and it's often the right default for interactive traffic. As of November 2026, vLLM prioritizes pending decodes and then fits prefill chunks into the remaining budget in the same batch.[^vllm2026optimization] Under sustained load, though, decode-first can hold a new prompt back for as long as running streams fill the budget. In a restricted example with a fixed finite running set, no bypass or resumed requests, and compatible state and budgets, the front prompt can enter after enough running work finishes. General scheduling has no such automatic wait bound: priorities, resumption and resource constraints can keep it waiting. At the 35 ms per token from the [inference chapter](/learn/inference-mechanics-ttft-tps-kv-cache), a 200-step reply takes seven seconds, which can easily outlast your first-token target. You need an aging rule or a reserved prefill budget that keeps new work moving.
+**Decode-first** protects streams people are already watching, and it's often the right default for interactive traffic. vLLM V1 prioritizes pending decodes and then fits prefill chunks into the remaining budget in the same batch.[^vllm2026optimization] Under sustained load, though, decode-first can hold a new prompt back for as long as running streams fill the budget. At the 35 ms per token from the [inference chapter](/learn/inference-mechanics-ttft-tps-kv-cache), a 200-step reply takes seven seconds, which can easily outlast your first-token target. You need an aging rule or a reserved prefill budget that keeps new work moving.
 
-Tenant and priority policies add another layer. A big background job shouldn't quietly consume the interactive budget you promised everyone else. Give it a limited share, fair scheduling, or a separate pool if measurements justify the extra machinery.
+Tenant quotas and priority tiers add another layer. A big background job shouldn't quietly consume the interactive budget you promised everyone else. Give it a limited share, fair scheduling, or a separate pool if measurements justify the extra machinery.
 
-Whatever you choose, make it explainable from telemetry: what waited, how long, and which budget stopped it. Averages hide starvation, and the requests that starve are the ones that generate support tickets.
+Whatever you choose, make it explainable from telemetry: what waited, how long, and which budget stopped it. Averages hide starvation, and the requests that starve are the ones users actually notice.
 
 ## Pause without losing the answer
 
-Sooner or later the state pool fills up, and the scheduler has to pause a running request. That's **preemption**, and there are two ways to recover.[^kwon2023] **Recomputing** drops the request's cache and rebuilds it later, which spends compute. **Swapping** moves the state to CPU memory and back, which spends bandwidth and needs a compatible restore. As of November 2026, vLLM defaults to recomputing.[^vllm2026optimization]
+Sooner or later the state pool fills up, and the scheduler has to pause a running request. That's **preemption**, and there are two ways to recover.[^kwon2023] **Recomputing** drops the request's cache and rebuilds it later, which spends compute. **Swapping** moves the state to CPU memory and back, which spends bandwidth and needs a compatible restore. vLLM V1 defaults to recomputing.[^vllm2026optimization]
 
 The danger is in what you rebuild. A paused request has two histories that are easy to confuse: the tokens it has accepted, and the positions it has processed. Suppose the prompt IDs are 101, 102, and 103. The model has accepted outputs 201 and 202, and the user may have already seen both. The cache holds only the prompt plus 201, because 202 was just sampled and hasn't been fed back in yet.
 
@@ -1285,7 +1287,9 @@ already emitted: [201, 202]
 ```
 <!-- leetllm: output:end -->
 
-A real engine also has to replay with the correct model, positions, and adapter, and it needs a clear policy for randomness and sampling state.
+A real engine also has to replay with the correct model, positions, and adapter, and preserve sampling state consistently.
+
+> **Common mistake:** Sampling again during recomputation changes text the client has already seen, and emitting during replay sends duplicate tokens. Rebuild KV state over `[prompt + accepted[:-1]]` silently, then feed `accepted[-1]` as the next decode input.
 
 Treat frequent preemption as a capacity alarm. Each pause costs replay work that produces no new output, and the longer the history, the higher the cost. A system that survives only by constantly rebuilding itself may look fine on memory and terrible on useful throughput. Count preemptions per request and recomputed positions, and put them on a dashboard.
 
@@ -1375,11 +1379,11 @@ Schedulers usually tell you what's wrong well before headline throughput moves. 
 
 ## A full worker is not a broken worker
 
-This mistake takes down healthy fleets. A worker at its limit should defer or reject extra work under policy. If your health check treats "full" as "unhealthy" and restarts it, you've thrown away live streams, destroyed its cache, and added a cold start, all at the moment you were already out of capacity. Then the load shifts to the next worker, and it happens again.
+This mistake takes down healthy fleets. A worker at its limit should defer or reject extra work cleanly. If your health check treats "full" as "unhealthy" and restarts it, you've thrown away live streams, destroyed its cache, and added a cold start, all at the moment you were already out of capacity. Then the load shifts to the next worker, and it happens again.
 
 Health, readiness, and load are three different observations. A worker with a failed engine should stop taking traffic even with an empty queue. A busy one should stay up. The [GPU deployment chapter](/learn/llm-deployment-gpu-serving-autoscaling) turns this distinction into worker and fleet controls.
 
-Overload needs a written policy too: maximum queued work, a waiting deadline, a retry budget, and how priorities behave. Rejections have to stay visible in your offered-load numbers. And a client that immediately retries every rejection amplifies load at the worst moment, so limit retries and back off. Active streams need care as well. If a stream gets interrupted, don't start a fresh sample and append it to the partial answer, because the combined text can be misleading. Use a supported continuation, or tell the client it was interrupted.
+Overload needs explicit rules too: maximum queued work, a waiting deadline, a retry budget, and how priorities behave. Rejections have to stay visible in your offered-load numbers. And a client that immediately retries every rejection amplifies load at the worst moment, so limit retries and back off. Active streams need care as well. If a stream gets interrupted, don't start a fresh sample and append it to the partial answer, because the combined text can be misleading. Use a supported continuation, or tell the client it was interrupted.
 
 ## Start simple
 

@@ -144,7 +144,7 @@ BatchNorm reduces each channel across the mini-batch and spatial or temporal dim
 
 1. **Padding and causality:** Padding can contaminate statistics unless explicitly excluded. `BatchNorm1d` on `(batch, channels, time)` reduces across batch and time, so a training-time token can depend on future tokens through those statistics. A causal attention mask does not repair that separate dependency.
 2. **Cross-sample coupling:** With batch statistics, changing the other examples changes a token's normalization. Whether that helps or hurts depends on the task and sampling.
-3. **Train/eval statistics:** With PyTorch's default running-statistics policy, evaluation uses stored estimates and can handle batch size one. If `track_running_stats=False`, evaluation also uses current batch statistics. One value per channel is insufficient for PyTorch's training-style BatchNorm; batch size one with several temporal positions is a different case.
+3. **Train/eval statistics:** With PyTorch's default running-statistics behavior, evaluation uses stored estimates and can handle batch size one. If `track_running_stats=False`, evaluation also uses current batch statistics. One value per channel is insufficient for PyTorch's training-style BatchNorm; batch size one with several temporal positions is a different case.
 
 Per-token LayerNorm eliminates batch coupling and time mixing cleanly at the normalization layer itself. Note that it does not erase padding tokens elsewhere in the forward pass, so causal attention masks and loss weights still remain mandatory whenever sequences are batched together. The comparison table below summarizes the practical contrasts before showing the effect directly in Python:
 
@@ -160,7 +160,7 @@ Per-token LayerNorm eliminates batch coupling and time mixing cleanly at the nor
 ```checkpoint
 Why is BatchNorm awkward for autoregressive decoding while LayerNorm is natural?
 ---
-BatchNorm's reduction and running-statistics policy need to fit causal training and single-token evaluation. Stored-statistics evaluation can handle batch size one; it is the different statistics source and possible time reduction that need care. Per-token LayerNorm uses just the current token's features in either mode.
+BatchNorm's reduction and running-statistics behavior need to fit causal training and single-token evaluation. Stored-statistics evaluation can handle batch size one; it is the different statistics source and possible time reduction that need care. Per-token LayerNorm uses just the current token's features in either mode.
 ```
 
 The executable script below compares how LayerNorm and BatchNorm respond when neighboring elements in the batch change. It evaluates both normalizers on the same `[1.0, 3.0, 5.0, 7.0]` token vector while perturbing the peer tokens around it. Watch how BatchNorm shifts the output for that identical token while LayerNorm leaves every coordinate untouched:
@@ -229,7 +229,7 @@ First token unchanged with time-and-hidden reduction: False
 ```
 <!-- leetllm: output:end -->
 
-Here is a single-hidden-dimension implementation. It upcasts half-precision statistics, keeps the output dtype, and broadcasts the affine parameters. It is an educational module, not a fused-kernel performance replacement:
+This single-hidden-dimension implementation upcasts half-precision statistics, keeps the output dtype, and broadcasts the affine parameters:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="pytorch-implementation.py"
@@ -463,7 +463,7 @@ $$
 \frac{\partial x_L}{\partial x_l} = I + \sum_{k=l}^{L-1} J_{F, k} J_{\text{LN}, k} \frac{\partial x_k}{\partial x_l}
 $$
 
-That explicit identity matrix $I$ creates a direct skip gradient route around the branch. Even with an identity skip, however, gradients are not automatically bounded because $I + B$ can blow up when $B$ is large, or cancel along specific directions where $B h = -h$. Final output normalization and prediction head weights shape total loss gradients too, so Pre-LN placement by itself does not guarantee stability or dictate a universal safe learning rate. In Xiong et al.'s tested machine translation and BERT settings, Pre-LN removed the need for learning-rate warmup, yet subsequent Peri-LN studies report gradient spikes and evolving variance growth under Pre-LN and retain warmup themselves.[^xiong2020][^kim2025] Consequently, placement, initialization gain, precision, and warmup schedule interact as one coupled recipe. Checking autograd against the analytical block Jacobians above confirms the exact gradient structure in code:
+That explicit identity matrix $I$ creates a direct skip gradient route around the branch. Even with an identity skip, gradients can still blow up when $B$ is large or cancel along directions where $B h = -h$, and final output normalization plus prediction-head weights shape total loss gradients too. In Xiong et al.'s tested machine translation and BERT settings, Pre-LN removed the need for learning-rate warmup, yet subsequent Peri-LN studies report gradient spikes and evolving variance growth under Pre-LN and retain warmup themselves.[^xiong2020][^kim2025] Consequently, placement, initialization gain, precision, and warmup schedule act as one coupled recipe. Checking autograd against the analytical block Jacobians above confirms the exact gradient structure in code:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="block-jacobians.py"
@@ -727,7 +727,7 @@ tensor([[[ 1.0000,  0.3333, -0.3333,  1.6667]]])
 ```
 <!-- leetllm: output:end -->
 
-To compare directly against PyTorch, pass an explicit `eps=1e-6` to `nn.RMSNorm(4, eps=1e-6)` because PyTorch 2.14 defaults `eps=None` to the computation dtype's machine epsilon (FP32 for half, BF16, or FP32 inputs, and FP64 for FP64). Positive epsilon prevents division by zero and turns scale invariance into an approximation on tiny inputs, leaving zeros at zero while slightly attenuating small nonzero signals. Upcasting before squaring also prevents silent FP16 overflow because FP16 stores `300.0` cleanly, yet its square `90,000` exceeds `torch.finfo(torch.float16).max` (`65504.0`) and overflows before the square root ever runs. Below, compare raw FP16 accumulation directly against FP32 upcasting.[^pytorch_rmsnorm][^pytorchTypeInfo2026]
+To compare directly against PyTorch, pass an explicit `eps=1e-6` to `nn.RMSNorm(4, eps=1e-6)` because PyTorch defaults `eps=None` to the computation dtype's machine epsilon (FP32 for half, BF16, or FP32 inputs, and FP64 for FP64). Positive epsilon prevents division by zero and turns scale invariance into an approximation on tiny inputs, leaving zeros at zero while slightly attenuating small nonzero signals. Upcasting before squaring also prevents silent FP16 overflow because FP16 stores `300.0` cleanly, yet its square `90,000` exceeds `torch.finfo(torch.float16).max` (`65504.0`) and overflows before the square root ever runs. Below, compare raw FP16 accumulation directly against FP32 upcasting.[^pytorch_rmsnorm][^pytorchTypeInfo2026]
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="normalization-fp16-overflow-and-input-rounding.py"
@@ -764,7 +764,9 @@ LayerNorm after input rounding: [0.0, 0.0, 0.0, 0.0]
 ```
 <!-- leetllm: output:end -->
 
-Casting the squared tensor afterward leaves the infinity intact. Casting **before** the product repairs this accumulation failure. In the second case, FP16 rounds all four values to 10,000 before LayerNorm sees them. FP32 accumulation cannot recover those lost differences. When checking a low-precision kernel against a reference, feed both the same rounded input; compare with the original FP32 input separately to measure input-rounding error.
+> **Common mistake:** Upcasting to FP32 *after* squaring FP16 activations. A finite FP16 value like `300.0` overflows `65,504` the moment you compute `x * x` in FP16, turning RMS into `inf`; always cast to FP32 before squaring.
+
+In the second case, FP16 rounds all four values (`10000, 10001, 9999, 10002`) to `10000.0` before LayerNorm even runs, and FP32 accumulation cannot recover differences already lost during input casting. When checking a low-precision kernel against a reference, feed both the same rounded input and measure input-rounding error separately.
 
 ---
 
@@ -782,9 +784,9 @@ Placing LayerNorm after the residual add represents just one configuration in a 
 | **DeepNorm** | DeepNet (Wang et al. 2022) | Post-LN layout with depth-dependent skip scaling $\alpha$ and init scaling $\beta$[^wang2022] |
 | **QK-Norm** | ViT-22B, Gemma 3, Qwen3 | Normalizes Q/K inside attention; can accompany residual norms[^dehghani2023Vit22B][^gemma3Technical2025][^transformersQwen35172026] |
 
-These rows name compatible design dimensions. Qwen3 combines Pre-RMSNorm with per-head Q/K RMSNorm before RoPE. Gemma 3 keeps its input/output residual-branch norms and replaces Gemma 2's attention soft-capping with QK-Norm. These concrete designs were checked October 10, 2026; the Qwen3 code reference is pinned to Transformers 5.17.0.[^transformersQwen35172026][^gemma3Technical2025]
+These rows combine cleanly: Qwen3 pairs Pre-RMSNorm with per-head Q/K RMSNorm before RoPE, while Gemma 3 keeps its input/output residual-branch norms and replaces Gemma 2's attention soft-capping with QK-Norm.[^transformersQwen35172026][^gemma3Technical2025]
 
-**A naming trap:** Qwen3's `post_attention_layernorm` is applied after the attention residual addition but **before the MLP**, followed by another residual addition. It is the MLP's *input* norm in a Pre-LN layout. Read the operations around the add instead of classifying placement from a variable name.[^transformersQwen35172026]
+> **Key insight:** Do not infer Pre-LN vs. Post-LN from attribute names. Qwen3's `post_attention_layernorm` runs *after* the attention residual add but *before* the MLP, making it the MLP's Pre-LN input norm.[^transformersQwen35172026] Always read the order of operations around the residual add.
 
 ### QK-Norm controls one source of attention scale
 
@@ -979,7 +981,7 @@ post | loss=1.3183 | block grad norms=[0.2663, 0.2614, 0.2619, 0.2555, 0.2684, 0
 ```
 <!-- leetllm: output:end -->
 
-Both layouts have healthy nonzero gradients in this small MLP example. It contains no attention or training loop, and is not a reproduction of the papers' transformers. The seed gives matching linear weights, inputs, targets, and heads here; the final Pre-LN norm initializes to unit scale/zero bias without drawing random values. For a training comparison, preserve those controls and compare schedules and output norms explicitly.
+Both layouts have healthy nonzero gradients in this six-layer MLP stack, with the shared seed matching linear weights, inputs, targets, and heads across runs (the final Pre-LN norm initializes deterministically to unit scale and zero bias). Use the mini exercises below to push the same harness to deeper stacks and test ablations directly.
 
 ### Mini exercise
 
@@ -996,7 +998,7 @@ Normalize one token by hand, then place that same norm on the branch or on the s
 ## Mastery check
 
 - Calculate LayerNorm by hand: token mean, population variance, epsilon adjustment, and learned scale/shift.
-- Trace the exact reduction axes. Explain BatchNorm's batch/time coupling and eval policy, and show why a hidden-only norm avoids future-token mixing.
+- Trace the exact reduction axes. Explain BatchNorm's batch/time coupling and eval behavior, and show why a hidden-only norm avoids future-token mixing.
 - Formulate the block Jacobians for Pre-LN ($I + J_F J_{\text{LN}}$) and Post-LN ($J_{\text{LN}}(I + J_F)$).
 - Scope Xiong's last-FFN initialization bound and explain why measured gradients/updates motivate a warmup experiment without establishing a universal schedule.
 - State the assumptions behind relative-write dilution, distinguish aligned from uncorrelated writes, and use task ablations to investigate redundancy.
@@ -1047,7 +1049,7 @@ QK-Norm operates inside attention. It does not normalize FFN writes, the value/o
       "LayerNorm applies a causal mask to peers; training BatchNorm changes the current token’s attention weights."
     ],
     "answer": "LayerNorm uses this token’s features; training BatchNorm uses statistics shared with the changed peers.",
-    "explanation": "Hidden-only LayerNorm recomputes statistics inside each token. Training BatchNorm couples examples through batch statistics. Stored running estimates describe its default evaluation policy, not the training case in this question."
+    "explanation": "Hidden-only LayerNorm recomputes statistics inside each token. Training BatchNorm couples examples through batch statistics. Stored running estimates describe its default evaluation mode, not the training case in this question."
   },
   {
     "question": "A port changes x+F(LN(x)) into LN(x+F(x)). Which change appears in the direct skip contribution to the block Jacobian?",
@@ -1127,7 +1129,7 @@ QK-Norm operates inside attention. It does not normalize FFN writes, the value/o
     "explanation": "QK normalization operates on queries and keys inside attention, whereas residual and branch norms regulate different tensors around the residual addition. Bounding raw attention logits fixes neither residual stream growth nor overall gradient flow."
   },
   {
-    "question": "A DeepNorm port initializes its selected branch matrices with gain beta=0.5. Later the trained branch produces G(x)=2, but the forward pass multiplies that result by0.5 again. What should review require?",
+    "question": "A DeepNorm port initializes its selected branch matrices with gain beta=0.5. Later the trained branch produces G(x)=2, but the forward pass multiplies that result by 0.5 again. What should review require?",
     "options": [
       "Use LN(alpha*x+2): beta belongs to the specified initialization, so another forward factor changes the recipe.",
       "Use LN(alpha*x+1): the initialization gain must also multiply every trained branch result during forward.",
@@ -1135,7 +1137,7 @@ QK-Norm operates inside attention. It does not normalize FFN writes, the value/o
       "Use LN(0.5*x+2): the initialization gain replaces the depth-dependent skip scale after training begins."
     ],
     "answer": "Use LN(alpha*x+2): beta belongs to the specified initialization, so another forward factor changes the recipe.",
-    "explanation": "DeepNorm uses LN(alpha*x+G(x)). Beta is the selective initialization gain, while alpha scales the skip path during forward. Applying beta to G again changes the specified architecture. Preserve the matching depth-dependent coefficients and initialization policy."
+    "explanation": "DeepNorm uses LN(alpha*x+G(x)). Beta is the selective initialization gain, while alpha scales the skip path during forward. Applying beta to G again changes the specified architecture. Preserve the matching depth-dependent coefficients and initialization rule."
   }
 ]
 ```
