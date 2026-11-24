@@ -180,7 +180,7 @@ The one-request computation repeats across each row. Feature lengths must agree,
 
 ## Use a matrix to make several outputs
 
-The three predictions above use one shared rule, but a service often needs more than one output. Suppose it also wants an escalation-priority score computed from the same two features. While a single weight vector produces one output, a weight **matrix** `W` produces both by placing one column of weights per output:
+The three predictions above use one shared rule, but a service often needs more than one output. Suppose it also wants a priority score computed from the same two features. While a single weight vector produces one output, a weight **matrix** `W` produces both by placing one column of weights per output:
 
 $$
 W =
@@ -462,7 +462,7 @@ if np.any(lengths == 0):
 unit_tokens = tokens / lengths
 cosines = unit_tokens @ unit_tokens.T
 
-print("contract", tokens.shape, "@", tokens.T.shape, "->", scores.shape)
+print("shape_rule", tokens.shape, "@", tokens.T.shape, "->", scores.shape)
 print("raw_scores", scores.tolist())
 print("cosine_diagonal", np.diag(cosines).round(6).tolist())
 np.testing.assert_allclose(np.diag(cosines), 1.0)
@@ -470,7 +470,7 @@ np.testing.assert_allclose(np.diag(cosines), 1.0)
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-contract (3, 2) @ (2, 3) -> (3, 3)
+shape_rule (3, 2) @ (2, 3) -> (3, 3)
 raw_scores [[1.0, 0.5, 0.0], [0.5, 0.5, 0.5], [0.0, 0.5, 1.0]]
 cosine_diagonal [1.0, 1.0, 1.0]
 ```
@@ -631,7 +631,7 @@ empty_prompt each prompt needs at least one real token
 ```
 <!-- leetllm: output:end -->
 
-The mask fixes padding bias, while order-sensitive models such as transformers add positional information and causal or attention masks separately; in real pipelines you also verify that retained token values are finite. Even as token vectors grow wide and matrices become learned parameters, the core invariant stays simple: preserve batch and sequence, match the feature axis, and let the multiplication change its width.
+The mask fixes padding bias, while order-sensitive models such as transformers add positional information and causal or attention masks separately; in real pipelines you also verify that retained token values are finite. Even as token vectors grow wide and matrices become learned parameters, the core rule stays simple: preserve batch and sequence, match the feature axis, and let the multiplication change its width.
 
 ## Recognize the shape rule inside a neural-network layer
 

@@ -14,13 +14,13 @@
     "OpenAI",
     "Anthropic"
   ],
-  "shortDescription": "Trace a large language model from pre-training, SFT, and DPO alignment through quantization, PagedAttention serving, and bundle evaluation gates.",
+  "shortDescription": "Trace a large language model from pre-training, SFT, and DPO alignment through quantization, PagedAttention serving, and versioned bundle checks.",
   "keyConceptsTested": [
     "Pre-training cross-entropy optimization and Chinchilla vs. inference scaling",
     "Byte-Pair Encoding and web-corpus curation pipelines",
     "Supervised fine-tuning with assistant-only loss masking",
     "Direct Preference Optimization, verifiable rewards, and test-time compute",
-    "Contamination audits, LLM-as-a-judge bias, and versioned release gates",
+    "Contamination checks, LLM-as-a-judge bias, and versioned release checks",
     "Post-training quantization, activation outliers, and AWQ/GPTQ compression",
     "PagedAttention, continuous batching, and speculative decoding",
     "Trace isolation separating frozen weights from runtime rules and caching"
@@ -28,26 +28,29 @@
 }
 ---
 
-Suppose a model-serving assistant receives a prompt of `6144` tokens and classifies it for `chunked_batch` execution because retrieval returned rule `DOC-V1` capping single-pass context at `4096` tokens. The next morning, an infrastructure upgrade ships `DOC-V2` raising the single-pass ceiling to `8192` tokens, so the same `6144`-token request should now route directly to `single_pass`. Updating that decision does not call for retraining a 70-billion-parameter <span data-glossary="llm">large language model (LLM)</span>; it requires updating the deterministic rule and retrieved context delivered alongside frozen weights.
+Yesterday, your serving assistant received a `6144`-token prompt and routed it to `chunked_batch` because retrieved rule `DOC-V1` capped single-pass context at `4096` tokens. This morning, `DOC-V2` ships and raises the ceiling to `8192` tokens, so the exact same `6144`-token request should now run as `single_pass`. Do you need to retrain a 70-billion-parameter <span data-glossary="llm">large language model (LLM)</span> to fix that answer? Of course not. You update the deterministic rule, retrieved document, and cache key sitting around the frozen weights.
 
-In [Building Your First AI Application](/learn/first-ai-app-end-to-end), we separated interactive application handlers from neural or statistical scoring and persistent execution traces. This lesson maps every lifecycle stage of a decoder language model across pre-training, post-training alignment, offline evaluation, weight quantization, and high-throughput GPU serving. Understanding which artifacts hold learned parameters and which govern runtime context gives you a systematic framework for diagnosing model failures without wasteful retraining.
+In [Building Your First AI Application](/learn/first-ai-app-end-to-end), we separated request handlers from statistical scoring and saved traces. This lesson maps the entire lifecycle of a decoder LLM across pre-training, post-training alignment, offline evaluation, quantization, and high-throughput GPU serving. Knowing which stages change weights and which stages live strictly at runtime prevents you from blaming neural parameters for a stale retrieval index or broken cache key.
 
-A **model-building loop** changes parameter tensors through <span data-glossary="pretraining">pre-training</span> and post-training, while optional compression packs weights into lower-bit formats or smaller distilled architectures. A **production serving loop** holds an approved, frozen <span data-glossary="model-checkpoint">checkpoint</span> steady and routes requests using live retrieved documentation, schema checks, and telemetry. Selected production traces can then feed curated evaluation suites or future fine-tuning batches after human audit.
+Two distinct loops run side by side:
+
+- **The model-building loop** updates parameter tensors through <span data-glossary="pretraining">pre-training</span> and post-training, then optionally packs those weights into lower-bit formats.
+- **The production serving loop** holds an approved, frozen <span data-glossary="model-checkpoint">checkpoint</span> steady and steers requests with live retrieved documentation, schema checks, and telemetry. Selected production traces feed future evaluation sets or fine-tuning batches after human review.
 
 <figure>
   <img src="illustrations/_generated/llm_lifecycle_dark.png" alt="Lifecycle diagram separating Model Training (update W) and Compress (PTQ / AWQ 4b) flowing into Eval Gate, which promotes verified checkpoints to Serving (W frozen + KV). Runtime Rules (DOC-V2 8k) flow directly into Serving context without touching training weights." />
-  <figcaption>The model-building path updates weights before an offline gate evaluates the frozen bundle, whereas updated runtime rules (`DOC-V2 8k`) alter serving context directly without altering model parameters.</figcaption>
+  <figcaption>The model-building path updates weights before offline evaluation verifies the frozen bundle, whereas updated runtime rules (`DOC-V2 8k`) alter serving context directly without touching model parameters.</figcaption>
 </figure>
 
 ## Five lifecycle stages at a glance
 
-Even a seemingly simple verdict ("route `6144` tokens to `chunked_batch` under `DOC-V1`") weaves together five engineering disciplines. Teams enter at different layers: foundation labs pre-train base models on clusters of thousands of accelerators, applied teams post-train open checkpoints via low-rank adapters or preference tuning, and product engineers optimize hosted inference, retrieval precision, and quantization trade-offs. Separating what updates weights from what shifts runtime context prevents misattributing a stale retrieval chunk or cache bug to faulty neural parameters.
+Even a single routing decision (`6144` tokens under `DOC-V1` vs `DOC-V2`) rests on five distinct engineering stages. Foundation labs pre-train base checkpoints on thousands of accelerators, applied teams post-train open weights with SFT or preference tuning, and serving teams compress weights and schedule GPU memory. Keeping weight updates separate from runtime context stops teams from retraining models to fix a configuration change:
 
 | Lifecycle stage | Primary inputs | Output artifact | Updates weights $W$? |
 |---|---|---|---|
 | 1. Pre-training | Curated web corpus and BPE vocabulary | Base transformer checkpoint | Yes |
 | 2. Post-training | Chat turns, preference pairs, verifiable rewards | Instruction-aligned checkpoint | Yes |
-| 3. Evaluation | Candidate bundle, golden cases, benchmark rubrics | Pass/hold gate report | No |
+| 3. Evaluation | Candidate bundle, golden cases, benchmark rubrics | Pass/hold evaluation report | No |
 | 4. Compression | Approved weights plus calibration activations | Quantized INT8/INT4 checkpoint | Changes numeric format |
 | 5. Serving & retrieval | Frozen weights, KV-cache pool, live rules (`DOC-V2`) | Checked tokens and telemetry traces | No during inference |
 
@@ -55,12 +58,12 @@ Even a seemingly simple verdict ("route `6144` tokens to `chunked_batch` under `
 flowchart LR
     PT["Pre-Training: next-token fit"]:::primary --> SFT["Post-Training: SFT & DPO"]:::secondary
     SFT --> CMP["PTQ / AWQ Compression"]:::highlight
-    CMP --> EV{"Versioned Eval Gate"}:::warning
+    CMP --> EV{"Versioned Eval Check"}:::warning
     EV -- "promoted" --> SRV["Serving Engine (Frozen W)"]:::primary
     CTX["Live Rules: DOC-V2 8192"]:::secondary --> SRV
 ```
 
-Keeping runtime state out of model weights also simplifies security and governance. Because context windows accept live system documentation at inference time, rule thresholds belong in versioned retrieval stores and application logic rather than baked inside neural checkpoints. That separation lets engineering teams update operational limits in seconds while re-verifying only the deterministic checks and runtime cache keys.
+> **Key insight:** Operational thresholds belong in versioned retrieval stores and application code, never baked into neural weights. When a limit changes from `4096` to `8192`, updating the retrieved rule and cache key takes seconds and leaves the verified checkpoint untouched.
 
 ## Stage 1: pre-training builds the base predictor
 
@@ -246,23 +249,27 @@ Widened margin (-4 vs -6):     DPO loss = 0.4741 (lower loss)
 
 For verifiable technical domains such as unit-tested Python code or exact symbolic math, **Reinforcement Learning with Verifiable Rewards (RLVR)** replaces human preference labels with deterministic test execution rewards.[^deepseekai2025] Inference-time compute scales a separate orthogonal dimension: holding weights fixed while allocating additional reasoning tokens or parallel verifier-scored rollouts.[^snell2024] Whenever an automated reward function scores only a subset of structured keys while leaving free-text summaries unchecked, a model can still emit contradictory prose alongside passing fields, so display and execution paths must inspect or construct outputs strictly from verified values.
 
-## Stage 3: evaluation gates, contamination, and bundle hashes
+## Stage 3: evaluation checks, contamination, and bundle hashes
 
-Before promoting any checkpoint, engineering teams evaluate the complete serving stack across both public benchmarks and domain-specific regression suites. Classic public benchmarks such as MMLU (57 academic subjects) and GSM8K (grade-school arithmetic) track broad capability baselines across checkpoints.[^hendrycks2021] [^cobbe2021] However, static web benchmarks suffer from **data contamination** whenever evaluation problems leak into training crawls or post-training datasets, inflating scores without improving real task reliability.
+Before promoting a checkpoint, evaluate the entire serving stack across both public benchmarks and domain-specific regression suites. Benchmarks like MMLU (57 academic subjects) and GSM8K (grade-school arithmetic) track broad capability baselines,[^hendrycks2021][^cobbe2021] yet static web benchmarks suffer from **data contamination** whenever test items leak into training crawls, inflating scores without improving real-world reliability.
 
-Auditing contamination combines multiple partial signals rather than relying on one check alone.[^sun2025] Exact n-gram scans locate verbatim overlaps, controlled numeric perturbations test whether changing entity names or constants triggers sharp accuracy drops, and rolling private or newly published suites such as LiveBench release timestamped problems without relying on model judges.[^livebenchRepository2026] When comparing open-ended replies via LLM-as-a-judge, evaluators must also guard against **positional bias** (favoring whichever response appears first in `[A, B]` vs `[B, A]`), **verbosity bias**, and potential self-preference effects documented in MT-Bench.[^zheng2023]
+Detecting contamination combines several partial signals rather than trusting one scan.[^sun2025] Exact n-gram scans catch verbatim copies, numeric perturbations check whether swapping constants causes accuracy to collapse, and rolling benchmarks like LiveBench release fresh timestamped items scored without LLM judges.[^livebenchRepository2026] When you do use LLM-as-a-judge for open-ended replies, watch for **positional bias** (picking whichever reply sits first in `[A, B]` vs `[B, A]`), **verbosity bias**, and self-preference documented in MT-Bench.[^zheng2023]
 
-| Audit failure mode | Signal observed in evaluation | Concrete mitigation |
+| Evaluation failure mode | Observable signal | Concrete fix |
 |---|---|---|
 | Corpus leakage | Exact problem match inside training shards | Exclude leaked questions; verify with fresh dated benchmarks |
 | Positional judge skew | Judge selects `A` in `[A, B]` and `B` in `[B, A]` | Run bidirectional swaps and log disagreement counts |
-| Prompt or template drift | Chat template changed after metric approval | Bind every approval report to immutable component hashes |
-| Threshold staleness | Model answers `chunked_batch` under `DOC-V1` after `DOC-V2` ships | Re-index retrieval docs and invalidate verdict caches by version |
+| Prompt or template drift | Chat template changed after metric approval | Bind every evaluation report to immutable component hashes |
+| Threshold staleness | Model answers `chunked_batch` under `DOC-V1` after `DOC-V2` ships | Re-index retrieval docs and include rule version in cache keys |
 
-Evaluation metrics apply strictly to the exact combination of weights, tokenizer, chat template, retrieval index version, and runtime latency settings that generated them. Modifying even one upstream component can alter token boundaries, break structured output adherence, or shift cache hit behavior under load. Reusing prior benchmark scores across modified bundles hides configuration drift until end users encounter production regressions, as checked in the manifest audit below.
+> **Common mistake:** Reusing a benchmark report after swapping the chat template, quantization bit width, or retrieval rule. An evaluation score belongs to the entire versioned bundle, not to the weight file alone.
+
+Compute an immutable SHA-256 bundle fingerprint alongside golden accuracy and p95 latency so any configuration drift automatically triggers re-evaluation:
 
 <!-- leetllm: test, deps=numpy, output=show -->
-```python title="eval-gate-and-bundle-check.py"
+```python title="eval-bundle-check.py"
+import hashlib
+import json
 import numpy as np
 
 golden_correct = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=np.int32)
@@ -270,6 +277,10 @@ latencies_ms = np.array([140, 165, 190, 210, 240, 275, 310, 345, 410, 445], dtyp
 
 acc = float(golden_correct.mean())
 p95_ms = float(np.percentile(latencies_ms, 95))
+
+def bundle_digest(manifest: dict[str, str]) -> str:
+    canonical = json.dumps(manifest, sort_keys=True).encode()
+    return hashlib.sha256(canonical).hexdigest()[:12]
 
 approved_bundle = {
     "weights": "llama3-8b-v2",
@@ -279,24 +290,25 @@ approved_bundle = {
 }
 runtime_bundle = {**approved_bundle, "template": "chatml-v5"}
 
-gate_ok = acc == 1.0 and p95_ms <= 500.0
-bundle_match = approved_bundle == runtime_bundle
-print(f"Golden pass rate={acc:.0%}, p95={p95_ms:.1f}ms -> quality_gate={gate_ok}")
-print(f"Candidate bundle matches evaluated manifest: {bundle_match} (re-eval required)")
+passed_checks = acc == 1.0 and p95_ms <= 500.0
+approved_hash = bundle_digest(approved_bundle)
+runtime_hash = bundle_digest(runtime_bundle)
+print(f"Golden pass rate={acc:.0%}, p95={p95_ms:.1f}ms -> checks_passed={passed_checks}")
+print(f"Approved hash={approved_hash}, runtime hash={runtime_hash} -> match={approved_hash == runtime_hash}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-Golden pass rate=100%, p95=429.2ms -> quality_gate=True
-Candidate bundle matches evaluated manifest: False (re-eval required)
+Golden pass rate=100%, p95=429.2ms -> checks_passed=True
+Approved hash=1b362290b149, runtime hash=95bd831c7d03 -> match=False
 ```
 <!-- leetllm: output:end -->
 
-Any edit to the chat template, quantization bit width, or retrieval rule invalidates the previous bundle manifest and triggers a fresh release evaluation before traffic promotion. Recording exact hashes alongside measured accuracy and p95 latency prevents silent skew between offline validation and serving traffic. With the checkpoint manifest pinned cleanly, teams can compress approved weights without losing track of what each artifact actually guarantees.
+Changing just the chat template from `chatml-v4` to `chatml-v5` flips the bundle digest immediately, signaling that the old evaluation report no longer applies.
 
 ## Stage 4: compression and activation-aware quantization
 
-Once model weights clear offline quality gates, deployment engineers often quantize tensors to fit tight GPU VRAM budgets and ease memory-bandwidth congestion during decoding. Even when tensor cores have spare arithmetic capacity, streaming massive parameter arrays across GPU memory buses limits single-stream generation speed. A dense 70-billion-parameter model stored in 16-bit floating point (`BF16` or `FP16`, two bytes per parameter) alone consumes:
+Once weights pass Stage 3 evaluation, deployment teams often quantize them to fit GPU VRAM budgets and relieve the memory-bandwidth bottleneck during decode. A dense 70-billion-parameter model in 16-bit floating point (`BF16` or `FP16`, two bytes per weight) requires:
 
 $$
 \text{Weight GiB} = \frac{70 \times 10^9 \times 2}{1024^3} \approx 130.4\text{ GiB}
@@ -395,11 +407,11 @@ Speculative verify: accepted=4, total emitted in 1 target pass=5
 ```
 <!-- leetllm: output:end -->
 
-Every optimization in Stage 5 preserves identical target sampling mathematics while reclaiming idle arithmetic cycles and stranded GPU VRAM. Comparing physical slot occupancy and iteration idle gaps numerically makes those efficiency gains transparent before sizing a production cluster. Alongside infrastructure metrics, teams still rely on trace-level debugging whenever served predictions drift from updated documentation.
+> **Key insight:** PagedAttention, continuous batching, and speculative decoding all leave the target model's output distribution mathematically unchanged. They win purely by reclaiming fragmented VRAM, idle batch slots, and underused tensor compute.
 
 ## Diagnosing production regressions systematically
 
-When a serving endpoint returns wrong classifications or sluggish completions, isolate the failure along the lifecycle map instead of retraining weights immediately. Compare the deployed bundle manifest (`weights`, `template`, `rule_doc`), verify retrieved passages and verdict cache keys, inspect JSON parser termination flags, check compressed checkpoint accuracy on identical prompts, and split request latency into queue, prefill, and decode intervals. Trace-driven triage resolves threshold bugs and stale caches in minutes while preserving verified model weights untouched.
+When a deployed endpoint starts returning wrong classifications or slow completions, walk the lifecycle before touching training scripts: compare the active bundle manifest (`weights`, `template`, `rule_doc`), inspect retrieved passages and cache keys, check parser stop flags, test quantized vs unquantized outputs on the same prompt, and split latency into queue, prefill, and decode. Most regressions trace to stale retrieval, cache-key collisions, or template drift, all fixable in minutes with frozen weights.
 
 ```checkpoint
 Suppose DOC-V2 upgrades the single-pass token limit from 4096 to 8192, yet a 6144-token request still receives a cached `chunked_batch` verdict while bypassing the cache returns `single_pass`. Where does the bug live?

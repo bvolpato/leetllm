@@ -27,20 +27,20 @@
 }
 ---
 
-A <span data-glossary="llm">large language model (LLM)</span> might return the exact structured JSON your notebook expected, yet break immediately when placed behind live user traffic. Under real load, upstream API calls stall at variable network hops, trip HTTP `429` rate limits, drop streaming connections mid-sentence, or hallucinate fields that look plausible until downstream code reads them. Treating an external model as a deterministic in-process function leaves your product exposed to silent hangs, duplicate side effects, and runaway token bills. Moving from exploration to production therefore requires defensive engineering around every single request, timeout, parse, and retry.
+Your notebook prompt returns spotless JSON on five test inputs. Then you put it behind an HTTP endpoint, and within an hour a provider socket hangs for two minutes, a traffic spike triggers HTTP `429`, a proxy cuts a Server-Sent Events stream one character before the closing brace, and the model invents a citation ID (`KB-999`) that never existed in your database.
 
-Building on the prompt-structuring principles from [Prompt Engineering Fundamentals](/learn/prompt-engineering-fundamentals), this lesson wraps generative inference in a resilient server-side service layer. Suppose our platform receives technical support incidents about inference failures, such as GPU memory exhaustion or time-to-first-token latency spikes, alongside retrieved knowledge-base excerpts (`KB-101`, `KB-104`, `KB-109`). We ask the model to produce a structured `TriageExtraction` identifying the failure category, severity, confidence, and cited chunk IDs, while application code enforces typed schemas, verifies cited IDs against retrieved context, bounds every retry by the remaining request deadline, and isolates queue writes behind durable idempotency keys. Each defensive layer addresses a distinct production failure mode, and testing them locally with deterministic HTTP mocks verifies the service logic before spending a cent on live tokens.
+An external <span data-glossary="llm">large language model (LLM)</span> is not a deterministic local function. It is a variable-latency network service with stochastic outputs and per-token billing. Building on [Prompt Engineering Fundamentals](/learn/prompt-engineering-fundamentals), this lesson wraps LLM inference in a clean backend service layer. We will route ML platform support tickets alongside retrieved knowledge-base excerpts (`KB-101`, `KB-104`, `KB-109`) into a typed `TriageExtraction`, verifying cited IDs, bounding retries by a single request deadline, isolating queue writes with idempotency keys, and testing the whole stack offline with local HTTP mocks before spending a cent on live tokens.
 
 <figure>
   <img src="illustrations/_generated/api_contract_dark.png" alt="Server-side LLM wrapper architecture: Client UI sends validated ticket text to an API Wrapper holding the secret key and latency budget, calls the Hosted LLM with strict JSON schema, validates output structure and evidence IDs at Schema Gate, runs an idempotent queue write, and records a redacted telemetry span." />
-  <figcaption>End-to-end request architecture inside the model wrapper. Credentials stay on the backend server, structured outputs pass Pydantic schema checks and knowledge-base grounding before queuing an escalation, and OpenTelemetry logs token usage alongside keyed HMAC fingerprints.</figcaption>
+  <figcaption>End-to-end request flow inside the model wrapper. Credentials stay on the backend server, structured outputs pass Pydantic schema and knowledge-base grounding checks before queuing work, and OpenTelemetry logs token usage alongside keyed HMAC fingerprints.</figcaption>
 </figure>
 
 ## Keep credentials and prompts on the server
 
-Calling a frontier model requires an <span data-glossary="secrets-management">API key</span> or cloud IAM credential that charges your organization's token quota and grants access to fine-tuned endpoints. Embedding that token inside browser JavaScript, mobile apps, or build logs hands anyone inspecting network requests full spending access to your account. Frontend frameworks make this leak surprisingly easy unless environment variable prefixes are carefully separated: Next.js inlines any variable beginning with `NEXT_PUBLIC_` directly into compiled browser assets, while Vite exposes every variable starting with `VITE_` through `import.meta.env`.[^next2026EnvVariables][^vite2026EnvVariables] Always keep provider credentials strictly inside server-side secret managers or backend <span data-glossary="environment-variable">environment variables</span>.
+Calling a hosted model requires an <span data-glossary="secrets-management">API key</span> or cloud credential that bills your account's token quota. Shipping that key inside browser JavaScript, mobile binaries, or build logs hands anyone inspecting network traffic full spending access. Frontend build tools make accidental leaks easy: Next.js inlines any variable prefixed with `NEXT_PUBLIC_` into browser bundles, and Vite exposes `VITE_` variables via `import.meta.env`.[^next2026EnvVariables][^vite2026EnvVariables] Keep provider keys strictly inside server-side secret managers or backend <span data-glossary="environment-variable">environment variables</span>.
 
-Startup validation catches missing deployment secrets before traffic reaches the endpoint rather than failing lazily on the first customer request. Reading configuration from an environment mapping and failing fast on missing or blank strings avoids mysterious authentication crashes later in request handling. Production workers pair this startup check with separate staging and production credentials, rotating keys immediately whenever accidental exposure is suspected. Adding a single startup assertion guarantees misaligned container configurations surface during deployment health checks rather than mid-stream during user sessions.
+Check that the key exists at server startup rather than waiting for the first user request to fail with an authentication crash. Separate staging and production keys so you can rotate one without disrupting the other:
 
 <!-- leetllm: test, output=show, output_title="Server secret check" -->
 ```python title="server-secret-check.py"
@@ -66,11 +66,13 @@ print({"loaded": bool(loaded_key), "prefix": loaded_key[:6]})
 ```
 <!-- leetllm: output:end -->
 
-Validating key presence at boot confirms configuration wiring on the application host, while an authenticated health call confirms active vendor quota and model permissions. Keeping secrets behind a server route also creates a natural checkpoint to inspect caller sessions, impose per-tenant token caps, redact sensitive prompts before logging, and decouple product routes from changing provider wire formats. Without that single server-side intermediary, engineering teams end up duplicating rate limits and logging logic inconsistently across client platforms.
+Checking key presence at boot verifies host configuration, while an authenticated health call confirms active quota and model access. Routing calls through a single backend service also gives you one place to enforce caller rate limits, redact prompts before logging, and swap provider SDKs without rewriting product code.
+
+> **Common mistake:** Relying on CORS headers to protect a key placed in `NEXT_PUBLIC_` or `VITE_` variables. CORS restricts cross-origin browser requests; it never hides constants already downloaded inside the client JavaScript bundle.
 
 ## Wrap inference in a typed request layer
 
-Letting individual web route handlers construct vendor SDK dictionaries spreads retry loops, timeout parameters, and model names across dozens of files. One route ends up retrying HTTP `500` five times while another blocks an entire worker pool for sixty seconds on a hung socket. A unified backend wrapper translates application intent into a provider-agnostic task structure first, then delegates wire formatting to thin per-vendor adapters. Separating application meaning from vendor wire protocols allows rapid A/B testing between model providers without rewriting downstream persistence or billing handlers:
+Letting individual route handlers build raw vendor SDK dictionaries scatters retry loops, timeouts, and model names across the codebase. One handler retries HTTP `500` five times while another blocks a worker thread for sixty seconds on a dead socket. A unified backend wrapper translates application intent into a provider-agnostic task object first, then delegates wire formatting to thin per-vendor adapters:
 
 | Layer | Responsibility | Why centralizing helps |
 |---|---|---|
@@ -163,11 +165,11 @@ task: classify_ticket org_ml_infra ('KB-101', 'KB-104')
 ```
 <!-- leetllm: output:end -->
 
-Every model call serves two consumers simultaneously: the product handler expects a typed extraction or clear failure state, while reliability engineering expects structured latency, token count, and status metrics regardless of whether inference succeeded. Capturing elapsed duration and attempt status inside a `try ... finally` block guarantees failed calls and validation rejections remain visible in production telemetry. Keeping telemetry orthogonal to product return values ensures alerts fire on rising parse failures even when fallback paths keep the endpoint returning HTTP 200.
+Every model call serves two outputs at once: the caller receives a typed extraction or structured error, while observability receives elapsed time, token counts, and status inside a `try ... finally` block so parse rejections never disappear behind fallback responses.
 
 ## Enforce strict schemas and verify cited evidence
 
-Natural language replies work well in chat interfaces, but downstream software pipelines need deterministic enums, numeric ranges, and reference IDs. When an upstream model formats keys unpredictably or wraps JSON inside prose, regex cleanup scripts fail silently on edge cases. Modern APIs provide two distinct formatting mechanisms, and neither replaces application-side checks:
+Downstream code needs exact enums, bounded numbers, and real document IDs rather than free-form prose. Modern APIs offer two formatting modes, and neither eliminates server-side verification:
 
 | Mechanism | Provider guarantee | Required server validation |
 |---|---|---|
@@ -256,11 +258,13 @@ sub_10ms_gate: True
 ```
 <!-- leetllm: output:end -->
 
-Notice how fast this two-step gate runs (under 10 ms in Python, typically sub-millisecond) and how cleanly it separates syntax/type parsing from semantic verification. Pydantic stops extra fields, invalid enums, out-of-range confidence values, and empty rationales, while the set difference check blocks citations that never appeared in `<kb>`. Combining structural schema enforcement with domain verification ensures downstream triage queues never store plausible-looking hallucinations as ground truth.
+This two-step validator runs in under a millisecond and cleanly separates structure from meaning. Pydantic blocks unknown fields, wrong types, and out-of-range scores, while the set difference blocks any citation absent from the retrieved `<kb>` context.
+
+> **Key insight:** Constrained decoding (`json_schema`) guarantees valid field names and types, never factual grounding. Always check model-emitted IDs, prices, or enum cross-constraints against trusted backend state.
 
 ### Exercise an OpenAI SDK adapter with local HTTP mocks
 
-Real vendor responses add protocol envelopes around generated text: status fields (`completed` vs `incomplete`), safety refusal parts, and SDK transport objects. Using `httpx.MockTransport` inside the official `openai.OpenAI` client lets tests exercise request construction, strict schema attachment, completion status inspection, and refusal handling in milliseconds without spending live tokens.[^openai_python_sdk] Setting `max_retries=0` inside the vendor client ensures our outer resilience wrapper remains the sole retry owner rather than multiplying attempts underneath a tight deadline. Without resetting `max_retries=0`, hidden SDK retry loops silently square total request volume whenever an upstream cluster slows down:
+Real vendor responses wrap generated text in status envelopes (`completed` vs `incomplete`) and safety refusal objects. Passing `httpx.MockTransport` into the official `openai.OpenAI` client lets you test request payloads, strict schemas, truncation, and refusals in milliseconds without spending tokens.[^openai_python_sdk] Setting `max_retries=0` on the SDK client keeps retry ownership in your outer wrapper instead of silently squaring request volume (for example, 3 outer attempts times 3 inner SDK attempts equals 9 HTTP calls):
 
 <!-- leetllm: test, continue=schema-check, id=sdk-adapter, output=show, output_title="OpenAI SDK adapter outcomes" -->
 ```python title="responses-adapter-mock.py"
@@ -370,7 +374,7 @@ truncated REJECT incomplete_output:incomplete
 ```
 <!-- leetllm: output:end -->
 
-Notice two practical safeguards inside this adapter. First, passing `store=False` opts out of application-state response storage for that call, though teams handling regulated inputs still configure organization-level Zero Data Retention and endpoint policies separately rather than relying on a single flag.[^openai2026datacontrols] Second, always inspect live TLS trust stores inside minimal production containers before shipping, because local mock transports do not exercise CA certificate verification. Verifying both data-retention policy settings and OS certificate bundles in staging closes the remaining gap between local mock tests and deployed traffic.
+Passing `store=False` opts out of application-state response storage for that request; when handling regulated inputs, pair it with organization-level Zero Data Retention settings and verify live TLS certificates in staging since local mock transports skip TLS.[^openai2026datacontrols]
 
 ## Manage timeouts, rate limits, and jittered retries
 
@@ -529,14 +533,14 @@ aborted: need 3.65s but only 1.80s left
 
 ## Isolate outages with circuit breakers and idempotency
 
-Retrying individual calls helps brief glitches, yet hammers a hard-down vendor endpoint into prolonged failure. A three-state <span data-glossary="circuit-breaker">circuit breaker</span> tracks recent transport errors per failure domain (for example, `primary_model` vs `fallback_model`, never tripping globally across healthy tenants because one caller exhausted quota) and fails fast once error counts cross a threshold.[^azure2026CircuitBreaker] During cooldown, traffic diverts cleanly to an independently evaluated secondary model or returns a fast degraded response; once cooldown expires, the breaker enters `half_open` and allows a single canary probe to decide whether to restore primary routing or extend protection.
+Retrying brief hiccups works well, yet hammering a hard-down endpoint only worsens the outage. A three-state <span data-glossary="circuit-breaker">circuit breaker</span> tracks recent transport failures per failure domain (such as `primary_model` versus `fallback_model`) and fails fast once consecutive errors cross a threshold.[^azure2026CircuitBreaker] During cooldown, traffic shifts to a fallback model; once cooldown expires, the breaker enters `half_open` and sends a single probe request to test recovery while concurrent requests stay on fallback.
 
 <figure>
   <img src="illustrations/_generated/circuit_breaker_fallback_dark.png" alt="Three-state circuit breaker transitions: Closed serves primary traffic until k errors trip Open, Open directs traffic to Fallback during cooldown, cooldown transitions to Half-Open with one canary probe, a healthy probe restores Closed, and a failed probe routes back to Fallback and Open." />
   <figcaption>State transitions across a scoped circuit breaker. While Open, requests route straight to a verified fallback model; after cooldown, a single Half-Open canary probe checks upstream health before admitting normal traffic.</figcaption>
 </figure>
 
-Two safeguards keep fallback routing safe in production: enforce the exact same Pydantic schema and knowledge-base citation checks on the secondary provider (latency, context limits, and refusal profiles vary across vendors), and verify customer data-residency policies allow sending requests to the backup region. In addition, size spare capacity quotas on the backup provider ahead of incidents so sudden failover traffic does not trigger secondary `429` cascades across tenants. Keep breaker counters isolated per failure domain rather than global across workloads so one tenant's malformed quota error never halts healthy models elsewhere:
+Keep two operational checks on any fallback route: run the exact same Pydantic schema and KB citation checks on the backup model, and keep spare quota and data-residency alignment ready so sudden failover traffic does not trigger a second wave of `429` errors:
 
 <!-- leetllm: test, output=show, output_title="Circuit breaker and idempotent escalation" -->
 ```python title="breaker-and-idempotency.py"
@@ -632,7 +636,7 @@ event: response.completed
 data: {"finish_reason": "stop"}
 ```
 
-Crucially, reaching clean end-of-file (`EOF`) without observing a terminal success event (`response.completed` or valid `finish_reason="stop"`) does **not** verify a complete answer: network proxies routinely close idle TCP streams mid-response right before the closing brace or disclaimer. Buffer streamed previews for user visibility only, then validate the complete payload through your Pydantic and citation checks after confirming terminal completion status. Treating unconfirmed buffers strictly as provisional UI previews stops truncated prose from poisoning stored audit records or downstream triggers:
+Crucially, reaching clean end-of-file (`EOF`) without a terminal success event (`response.completed` or `finish_reason="stop"`) does **not** prove the response finished: network proxies routinely close idle TCP streams mid-response right before the closing brace. Display streamed deltas as provisional previews only, and run schema and citation checks strictly after confirming the terminal completion frame:
 
 <figure>
   <img src="illustrations/_generated/streaming_state_machine_dark.png" alt="Streaming SSE client state machine: response.created opens an empty draft, text deltas measure TTFT and accumulate buffered preview text, an EOF or error leaves a failed partial draft, whereas response.completed sends the full response through Pydantic schema and KB citation validation." />
@@ -680,11 +684,13 @@ socket_drop: {'status': 'failed', 'chars': 45, 'reason': 'socket reset mid-strea
 ```
 <!-- leetllm: output:end -->
 
-Notice that both the normal completion and the `eof_no_done` drop buffered all 67 characters, yet only the stream that emitted `response.completed` transitions to `completed`. Whenever an application runs automated structured extraction rather than streaming prose to a human reader, skipping SSE streaming altogether via buffered requests keeps error handling and retries noticeably simpler. When streaming is enabled, enforce maximum buffer byte caps alongside first-token timers so slow adversarial payloads cannot exhaust worker memory.
+Both the normal completion and the `eof_no_done` drop received all 68 characters, yet only the stream that emitted `response.completed` transitions to `completed`. For automated background extraction with no human watching tokens arrive, skip SSE streaming altogether and use simpler buffered responses.
+
+> **Common mistake:** Treating a clean TCP close (`EOF`) on an SSE stream as a finished answer. Always require an explicit terminal event (`response.completed` or `finish_reason="stop"`) before persisting or acting on the buffered output.
 
 ## Instrument spans, token costs, and redacted logs
 
-Once wrapped calls run in production, root-cause analysis requires structured tracing across retrieval, each model attempt, and schema checks rather than unstructured `print` logs. Separating spans for database retrieval, individual retry attempts, and Pydantic checks pinpoints whether p99 regressions stem from slow vector queries, provider throttling, or malformed JSON loops. Following the OpenTelemetry GenAI semantic conventions (Development convention snapshot pinned here), attach a consistent parent trace span with standardized child attributes:[^otelGenaiSpans2026Pinned]
+When p99 latency spikes, unstructured `print` statements cannot tell you whether the bottleneck is vector retrieval, provider throttling, or repeated validation failures. Instrument retrieval, each model attempt, and schema validation as separate child spans following the OpenTelemetry GenAI semantic conventions:[^otelGenaiSpans2026Pinned]
 
 - `gen_ai.provider.name` and `gen_ai.operation.name`: Identifies vendor and call type (`chat`, `embeddings`).
 - `gen_ai.request.model` and `gen_ai.response.model`: Separates alias requested from snapshot served.
@@ -714,7 +720,7 @@ At 200,000 requests per day across a 30-day month at a simpler \$0.00098 baselin
 
 ### Scrub sensitive user text with keyed HMAC fingerprints
 
-Prompts frequently contain customer identifiers, stack traces, or internal tickets, making raw request logging an OWASP sensitive-data vulnerability and compliance liability.[^owasp2025][^otelsensitivedata2026] Compute a keyed HMAC-SHA256 digest over prompt strings inside your instrumentation wrapper so engineers can still correlate repeated failing prompts across logs without storing a single byte of plaintext customer input. Store the HMAC secret inside the server key manager alongside provider credentials, and truncate or scope digests per tenant to balance cross-request deduplication against linkability:
+Prompts frequently carry customer identifiers, stack traces, or internal tickets, making plaintext request logs a sensitive-data leak.[^owasp2025][^otelsensitivedata2026] Logging a keyed HMAC-SHA256 digest instead lets you correlate repeated failing prompts without storing raw user text:
 
 <!-- leetllm: test, output=show, output_title="Subset token accounting and HMAC scrubbing" -->
 ```python title="cost-and-hmac-telemetry.py"
@@ -755,7 +761,7 @@ print(record)
 ```
 <!-- leetllm: output:end -->
 
-Every pattern in this chapter protects a separate link in the chain: secrets stay off the client, strict schemas and retrieved-ID checks reject malformed or ungrounded outputs, deadlines and full jitter tame network storms, circuit breakers and idempotency keys contain outages, SSE terminal verification prevents truncated drafts from masquerading as answers, and OpenTelemetry spans track cost cleanly without leaking user text. Verifying each layer individually with local HTTP transports, synthetic triggers, and accounting checks builds reliable production intuition before a single token hits public traffic. Putting these building blocks behind real HTTP routes, a local fast-path classifier, and persistent SQLite storage is the focus of the next chapter.
+> **Key insight:** Provider usage objects report `cached_tokens` inside `input_tokens` and `reasoning_tokens` inside `output_tokens`. Subtract cached reads and writes from total input before pricing uncached tokens, and never add reasoning tokens on top of total output.
 
 ```checkpoint
 A usage log reports 3,200 total input tokens (including 2,000 cached reads and 200 cache writes) and 300 output tokens (including 120 reasoning tokens). Why must you compute ordinary_input = 3200 - 2000 - 200 and keep output at 300 rather than 420?

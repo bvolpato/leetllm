@@ -33,23 +33,19 @@
 }
 ---
 
-An assistant reading a 2,000-line Python ML codebase may be asked to tag technical notes by topic, pull out the exact parameter name `rope_theta`, and explain why grouped-query attention saves KV memory. Classic NLP pipelines solve those jobs with separate models, whereas one autoregressive language model can attempt all three through the same text prompt. Understanding when that shared interface succeeds, and when a simpler encoder or exact string match works better, connects Transformer mechanics directly to modern LLM engineering.
+An assistant reading a 2,000-line Python ML codebase gets three completely different jobs in one afternoon: classify a technical note by topic, extract the exact parameter name `rope_theta`, and explain why grouped-query attention shrinks the KV cache. Classic NLP builds three separate models for those tasks. A modern decoder language model handles all three through the exact same text-completion loop.
 
-**GPT** stands for *Generative Pre-trained Transformer*, the causal model family introduced by OpenAI, while **large language model (LLM)** names the broader category. A GPT-style decoder generates text by predicting the next <span data-glossary="token">token</span> conditioned on a prefix. That single continuation mechanism can express topic classification, span lookup, and multi-sentence explanation, even though format validity and factual accuracy still demand task-level evaluation.
-
-The original <span data-glossary="transformer">Transformer</span> debuted in 2017 as an encoder-decoder model for machine translation.[^vaswani2017] Later research diverged along overlapping axes covering attention visibility, compute allocation, post-training alignment, and serving memory efficiency. Tracing how those design choices fit together clarifies what each modern improvement buys in practice. More importantly, it highlights which engineering checks remain mandatory even on frontier checkpoints.
+**GPT** (*Generative Pre-trained Transformer*) names OpenAI's causal decoder family, while **large language model (LLM)** covers the broader class of large pretrained language models. Starting from the original 2017 encoder-decoder <span data-glossary="transformer">Transformer</span>,[^vaswani2017] modern LLMs evolved along four axes: causal next-token framing, compute-optimal scaling, leaner inner blocks (RMSNorm, SwiGLU, RoPE, GQA, MoE), and post-training alignment. Understanding how each choice works tells you when one big decoder wins and when a small encoder or exact lookup beats it.
 
 ## One generation loop, many tasks
 
-Dedicated task architectures solve classification and span extraction directly by fitting specialized output heads. A classifier maps a pooled representation to logits over a closed label set such as `{"Attention", "Training", "Serving"}`, while an extraction model scores start and end indices `[start_idx, end_idx]` inside a document. An autoregressive decoder takes a different route, framing every task as next-token completion from a formatted prompt. Left-to-right self-attention conditions each decoding step on the task instruction, any in-context demonstrations, and the partial reply emitted so far.
+Dedicated models wire a separate output head to every job: a linear layer over `{"Attention", "Training", "Serving"}` for classification, or `[start_idx, end_idx]` pointers for span extraction. An autoregressive decoder instead turns every task into next-<span data-glossary="token">token</span> prediction from a formatted prompt. Left-to-right self-attention reads the instruction, any few-shot examples, and the partial answer emitted so far:
 
-Writing `Topic:` or `Key:` steers next-token probability mass toward valid continuations like `Attention` or `rope_theta`, even when those answers span multiple subword tokens. Base pretraining checkpoints often continue raw patterns unpredictably unless adapted, whereas instruction-tuned or chat checkpoints expect the conversation delimiters used during post-training. Across engineering workflows, a technical documentation assistant encounters three recurring task patterns:
+1. **Classification:** Map `"Scales query-key dot products by 1/sqrt(d_k)"` to one label in `{"Attention", "Training", "Serving"}`.
+2. **Extraction:** Copy the exact identifier `rope_theta` from `"rotary_pos.py sets rope_theta = 10000"`.
+3. **Synthesis:** Explain why GQA reduces KV cache memory using a source paragraph.
 
-1. **Classification:** Given a snippet such as `"Scales query-key dot products by 1/sqrt(d_k)"`, return one category from `{"Attention", "Training", "Serving"}`.
-2. **Extraction:** Given a module line `"rotary_pos.py sets rope_theta = 10000"`, copy the exact parameter identifier `rope_theta`.
-3. **Synthesis:** Given the question `"Why does GQA cut KV cache size?"`, produce a clear technical explanation grounded in the source paragraph.
-
-Bidirectional encoders such as BERT excel when trained with task-specific classification or span heads because every token reads both left and right context simultaneously.[^devlin2019] Causal decoders instead make left-to-right generation native, allowing a single unified prompt to express classification, verbatim extraction, and technical explanation without swapping network heads. When the goal is rapid tagging over fixed schemas, small encoders still win easily on latency and compute per token. Below, a few-shot prompt translates classification into plain next-token completion:
+Bidirectional encoders like BERT still dominate fast, low-cost tagging over fixed label sets because every token attends left and right at once.[^devlin2019] Causal decoders win on flexibility: one prompt format handles classification, verbatim lookup, and prose explanation without changing a single head weight. Ending a few-shot prompt with `Topic:` concentrates next-token probability onto the valid labels:
 
 ```text
 Classify the ML note into Attention, Training, or Serving.
@@ -69,14 +65,14 @@ Note: Causal masks set future key scores to negative infinity before softmax.
 Topic:
 ```
 
-The decoder encodes the entire prefix, attends over the task rules and worked pairs, and predicts the next token immediately following the trailing `Topic:` cue. Because every demonstration outputs one category word right after `Topic:`, well-calibrated models concentrate probability mass onto valid labels such as `Attention`. Free-form generation can still drift into conversational replies such as `"The topic is Attention"`, so applications rely on constrained schema decoding or post-hoc validation paired with held-out accuracy checks. For exact substring lookup like `rope_theta`, matching extracted strings verbatim against the source code catches hallucinated edits reliably.
+Unconstrained generation can still emit conversational wrappers like `"The topic is Attention"`, so applications pair prompts with constrained decoding or strict parsing and check extracted strings verbatim against the source.
 
 <figure>
   <img src="illustrations/_generated/decoder_task_interface_dark.png" alt="A single autoregressive next-token loop expresses three distinct NLP tasks: classifying a technical snippet as Attention, extracting the exact parameter name rope_theta from source text, and synthesizing why GQA saves memory, with each output verified by its own check." />
   <figcaption>One prompt-to-next-token loop can express classification, exact span lookup, and grounded explanation. Label membership, verbatim source matching, and claim support each require an independent verification step.</figcaption>
 </figure>
 
-The Python snippet below pairs that exact few-shot prompt builder with a NumPy softmax distribution over candidate next-token logits at the trailing `Topic:` position. Adjusting the score gap demonstrates how vocabulary probabilities concentrate onto valid class labels without updating model weights. Even small logit shifts between valid and competing tokens rapidly push the top label toward full confidence.
+The snippet below builds that few-shot prompt and computes the softmax probabilities over candidate next tokens at the trailing `Topic:` cue:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Prompt framing output" -->
 ```python title="prompt-framing-as-generation.py"
@@ -131,7 +127,7 @@ P(The       | prompt) = 0.023
 ```
 <!-- leetllm: output:end -->
 
-Notice how in-context prompting shifts next-token probabilities solely by conditioning the hidden representation on the prefix, without modifying a single model weight. At position $t$, the attention mechanism pulls context from earlier worked pairs and aligns the final hidden vector with rows of the unembedding matrix corresponding to allowed class names. That property makes few-shot prompting fast to iterate on, though output reliability still hinges on prompt wording, decoding constraints, and empirical evaluation.
+> **Key insight:** Few-shot prompting updates zero model weights. Attention over the prefix steers the final hidden state so its dot product with the unembedding matrix favors valid label tokens.
 
 ```checkpoint
 Why can a decoder-only model classify a technical note even though its pretraining objective was next-token prediction?
@@ -142,25 +138,23 @@ In-context demonstrations cast classification as pattern completion ending at `T
 <span id="the-fork-reading-and-writing-split-apart"></span>
 ## Why encoders read both ways and decoders write left to right
 
-Why did causal decoders become the default backbone for modern conversational assistants? Autoregressive prediction unifies open-ended text generation, tool invocation, and multi-turn replies behind a single interface, whereas task quality still hinges on training data and evaluation. Going back to the 2018 split between BERT and GPT reveals how the attention mask separates representation learning from left-to-right synthesis.
+The 2017 Transformer paired a bidirectional encoder reading the source text with a causal decoder writing the target via cross-attention.[^vaswani2017] A year later, BERT and GPT split those halves into two standalone families:
 
-Vaswani et al.'s 2017 architecture paired a bidirectional encoder stack reading the source sentence with an autoregressive decoder stack generating target translations via cross-attention.[^vaswani2017] Within a year, researchers showed that standalone single-stack variants could excel when specialized for understanding versus generation. Each branch trades bidirectional token visibility for autoregressive simplicity in distinct ways:
-
-1. **BERT (2018):** A bidirectional encoder lets every non-padding token attend to both earlier and later tokens in the sequence.[^devlin2019] Original BERT pretrained with masked language modeling (masking 15% of tokens, replacing 80% with `[MASK]`, 10% with random tokens, and keeping 10% unchanged) alongside next-sentence prediction. Sentence-BERT further trains pooled encoder states with contrastive pairs for semantic similarity, since raw pooled embeddings from masked models need task tuning for strong retrieval.[^reimers2019]
-2. **GPT (2018):** A causal decoder retains masked self-attention and feed-forward layers while removing encoder cross-attention.[^radford2018] Its lower-triangular <span data-glossary="causal-mask">causal mask</span> allows query position $i$ to attend to keys $j \le i$, so every sequence position simultaneously learns to predict $x_{i+1}$ from preceding tokens only.
+1. **BERT (2018):** A bidirectional encoder lets every non-padding token attend both left and right.[^devlin2019] It pretrains with masked language modeling (corrupting 15% of tokens: 80% `[MASK]`, 10% random, 10% unchanged) and next-sentence prediction; contrastive variants like Sentence-BERT turn pooled encoder states into strong retrieval embeddings.[^reimers2019]
+2. **GPT (2018):** A causal decoder keeps masked self-attention and MLPs while dropping cross-attention.[^radford2018] Its lower-triangular <span data-glossary="causal-mask">causal mask</span> restricts query $i$ to keys $j \le i$, training every position to predict $x_{i+1}$ from preceding context alone.
 
 | System task | Encoder-only (BERT-style) | Decoder-only (GPT-style) |
 |---|---|---|
-| Categorize a code review comment | Fine-tuned classification head over `[CLS]` or pooled states | Prompted category completion or attached linear head |
-| Write a grounded explanation | Requires specialized generation adaptations or separate decoder | Native autoregressive interface backed by retrieval checks |
-| Dense semantic search | Contrastive or bi-encoder model trained for retrieval | Decoder-based embedding models exist, needing size and quality tradeoffs |
-| Multi-turn assistant | Strong candidate for reranking and classification stages inside pipelines | Instruction- and chat-trained generator paired with external state |
+| Categorize a code review comment | Fine-tuned linear head over `[CLS]` or pooled states | Prompted completion or attached linear head |
+| Write a grounded explanation | Needs a separate decoder | Native autoregressive generation |
+| Dense semantic search | Contrastive bi-encoder trained for retrieval | Possible, usually heavier per query |
+| Multi-turn assistant | Fast reranker or classifier inside the pipeline | Instruction-tuned generator with conversation history |
 
-Keeping architecture distinct from training objective prevents common confusion across NLP system design. Text-to-text encoder-decoder models such as T5 generate text fluently while reading input prompts bidirectionally.[^raffel2020] Decoders dominate generalist assistants because one next-token loop scales cleanly to multi-turn prompts and long-form outputs, while lightweight encoders continue to power fast search and classification stages.
+Encoder-decoder hybrids like T5 still read prompts bidirectionally while generating left to right.[^raffel2020] Generalist assistants converged on decoder-only stacks because one causal loop scales cleanly to long multi-turn prefixes, while lightweight encoders keep winning fast search and tagging jobs.
 
 ### A decoder writes left to right
 
-Under a causal mask, query position $t$ may attend only to keys at positions $j \le t$. When predicting the continuation after `scales`, the model mixes value vectors from `<bos>`, `rope`, and `scales` while strictly zeroing attention weights onto later positions such as `<eos>`. During teacher-forced training, all $T$ positions compute logits in parallel within each layer because future-key scores receive $-\infty$ before softmax, guaranteeing zero information leakage across time. The NumPy check below compares masked causal attention weights directly against unmasked bidirectional weights on identical query-key projections for `["<bos>", "rope", "scales", "<eos>"]`:
+Under a causal mask, query $t$ attends only to keys $j \le t$. Setting future scores ($j > t$) to $-\infty$ before softmax zeroes all future attention weights, allowing all $T$ positions to train in parallel with zero leakage across time. Compare masked causal weights against unmasked bidirectional weights on identical $Q$ and $K$ projections for `["<bos>", "rope", "scales", "<eos>"]`:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Visibility mask output" -->
 ```python title="visibility-masks.py"
@@ -198,7 +192,7 @@ future mass in causal row 2:     0.0
 ```
 <!-- leetllm: output:end -->
 
-Every entry above the main diagonal in `causal_weights` is exact zero before any output projection runs. A bidirectional encoder computes full attention over all unpadded tokens, whereas a causal decoder enforces this lower-triangular visibility rule so training on complete text matches sequential generation step for step. Each query row still sums to one over its visible prefix, preventing probability leakage into unseen tokens while keeping gradient computation vectorized.
+Every entry above the diagonal in `causal_weights` is exact zero, while each row still sums to one over its visible prefix.
 
 ```checkpoint
 What mathematical property distinguishes a causal decoder attention matrix from an encoder attention matrix?
@@ -208,21 +202,19 @@ In causal self-attention, query $i$ attends only to keys $j \le i$, including th
 
 ## The life of a token: prefill, KV cache, and decode
 
-Tracing a single question, `"Why is RoPE relative ?"`, clarifies how text generation executes across layers and why inference splits into two phases. A tokenizer converts the string into integer token IDs, an embedding table maps each ID to a vector of width $d_{\text{model}}$, and positional information encodes token order. Inside each pre-normalization decoder block, the hidden state passes through RMSNorm or LayerNorm, causal self-attention with its output projection, a residual addition, and a normalized feed-forward branch before reaching the next layer.
+Follow the five-token prompt `"Why is RoPE relative ?"` through a pre-norm decoder. Each token ID looks up a $d_{\text{model}}$ embedding, passes through stacked blocks (normalization, causal self-attention, residual addition, normalized MLP), and finally projects the last hidden state through $W_{\text{vocab}} \in \mathbb{R}^{d_{\text{model}} \times |V|}$ (often stored transposed as $[|V|, d_{\text{model}}]$) into <span data-glossary="logits">logits</span> and <span data-glossary="softmax">softmax</span> probabilities.[^radford2019code]
 
-After the final block and normalization layer, the last prompt position's hidden vector multiplies the vocabulary head $W_{\text{vocab}} \in \mathbb{R}^{d_{\text{model}} \times |V|}$ to produce raw <span data-glossary="logits">logits</span> (some libraries store this matrix transposed as $[|V|, d_{\text{model}}]$).[^radford2019code] Applying <span data-glossary="softmax">softmax</span> turns those logits into normalized probabilities over candidate next tokens. In our worked five-token prompt, `Because` scores highest with logit `0.38`, ahead of `Since`, `It`, and `The`. Efficient serving avoids recomputing earlier key and value projections on every generated word by splitting execution into two distinct phases:
+To avoid recomputing earlier key and value vectors on every generated token, serving splits inference into two phases:
 
-1. **Prefill:** All $T$ prompt tokens run forward together, populating the **<span data-glossary="kv-cache">KV cache</span>** at every layer while emitting next-token logits from the final position. Processing $BT$ rows simultaneously lets matrix multiplications reuse model weights heavily across tokens, and very long prompts may run in chunks.
-2. **Cached decode:** Only the newly sampled token enters the next forward step. Each layer computes one new key and value vector, appends them to the cache, and computes attention from the new query against all prior cached keys plus itself.
-
-Long prefill passes tend to be compute-bound with strong weight reuse across many prompt rows, whereas small-batch decode often becomes constrained by HBM memory bandwidth as accelerators stream large weight matrices and cached tensors for a handful of query rows.[^pope2023] Increasing concurrent batch size raises weight reuse during decode, while quantization, head sharing, and fused kernels alter where hardware bottlenecks sit. Notice in the lifecycle diagram below how sampling advances the text stream one token ahead of cached key-value positions until the next decode step processes that token.
+1. **Prefill:** Run all $T$ prompt tokens together in parallel, filling each layer's **<span data-glossary="kv-cache">KV cache</span>** and emitting the first generated token from position $T$. Processing many token rows at once reuses loaded weights heavily, making long prefills compute-bound.
+2. **Cached decode:** Feed only the newly chosen token at step $T + 1$, append its single new $(K, V)$ pair to each layer's cache, and attend $Q_{T+1}$ across $K_1 \dots K_{T+1}$. At small batch sizes, streaming full layer weights and past caches for one query row shifts the bottleneck to HBM memory bandwidth.[^pope2023]
 
 <figure>
   <img src="illustrations/_generated/token_lifecycle_decoder_dark.png" alt="Prefill processes five prompt tokens Why, is, RoPE, relative, and question mark, caching keys and values at positions 1 to 5. Selecting Because with logit 0.38 leaves 6 text tokens and 5 cached positions. The next decode step passes Because at position 6, lets Q6 attend to K1 through K6, and extends the cache to six positions." />
   <figcaption>Immediately after sampling `Because`, the text sequence holds six tokens while the KV cache still holds five positions. The decode step feeds `Because` at position 6, computes K₆ and V₆, attends Q₆ across K₁ through K₆, and updates the cache to length six.</figcaption>
 </figure>
 
-This NumPy calculation runs the exact final projection behind the figure, maps `h5` to next-token probabilities, and tracks how the per-layer KV tensor expands from five cached positions to six during decode. Running each tensor step explicitly verifies why batch and sequence shapes change between prefill, token selection, and cached decode. Inspecting those tensor shapes side by side prevents common off-by-one indexing bugs in custom serving loops:
+This NumPy calculation runs the exact output projection behind the figure and tracks how the per-layer KV cache expands from 5 to 6 positions:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Decoder shape trace output" -->
 ```python title="decoder-output-and-cache-shapes.py"
@@ -274,34 +266,28 @@ Prefill multiplies each weight matrix across hundreds or thousands of prompt row
 <span id="the-evolution-trajectory-gpt-1-to-aligned-assistants"></span>
 ## How GPT grew from text completion into assistants
 
-Turning a raw next-token predictor into a helpful assistant required advances across training objectives, scaling budgets, and model architecture simultaneously. Rather than unfolding as one linear progression, modern LLMs combine distinct research tracks pursued between 2017 and 2024. Those parallel threads span prompt-driven task transfer and alignment, balanced compute-data scaling, and sparse parameter routing across specialized sub-networks.
+Modern LLMs did not arrive from one tweak. Between 2018 and 2024, three parallel advances transformed raw text predictors into fast, helpful assistants: prompting and preference alignment, compute-balanced scaling, and sparse Mixture-of-Experts routing.
 
 <figure>
   <img src="illustrations/_generated/llm_evolution_dark.png" alt="Three LLM design axes from 2018 to 2024: prompting and alignment moving from GPT-1 through GPT-3 to InstructGPT, compute-optimal allocation comparing Gopher 280B on 300B tokens with Chinchilla 70B on 1.4T tokens at matched compute, and Mixtral sparse routing executing 2 of 8 experts for 13B active out of 47B total parameters." />
   <figcaption>Three parallel axes reshaped LLMs: prompting and alignment (GPT-1 through InstructGPT), balanced parameter-to-token compute allocation (Gopher versus Chinchilla), and sparse Mixture-of-Experts routing (Mixtral 8x7B).</figcaption>
 </figure>
 
-### 1. GPT-1: Generative pretraining and fine-tuning (2018)
+### 1. GPT-1 to GPT-3: scaling unlocks in-context learning
 
-Transfer from unlabeled text predates the Transformer, and GPT-1 demonstrated how effectively a 12-layer, 117-million-parameter causal decoder adapts across NLP tasks after pretraining on BooksCorpus (over 7,000 books).[^radford2018] Its two-stage workflow combined unsupervised next-token pretraining with supervised fine-tuning paired with a linear output head and an auxiliary language-modeling loss. Even while relying primarily on task-specific weights, the authors observed early zero-shot generalization emerging from raw pretraining alone.
+- **GPT-1 (2018, 117M parameters):** Pretrained on BooksCorpus, then fine-tuned per task with a linear head and auxiliary LM loss.[^radford2018]
+- **GPT-2 (2019, 1.5B parameters):** Trained on ~40 GB of WebText and evaluated zero-shot through prompt cues like `Sentiment:` with no task-specific weight updates.[^radford2019]
+- **GPT-3 (2020, 175B parameters, 300B tokens):** Showed strong **few-shot in-context learning**, where placing solved demonstrations in the prefix lifts accuracy dramatically without gradient steps.[^brown2020]
 
-### 2. GPT-2: Zero-shot task framing (2019)
+### 2. InstructGPT and DPO: aligning with human preference
 
-Scaling the decoder to 1.5 billion parameters on WebText (roughly 40 GB of curated web text), GPT-2 evaluated benchmarks purely through prompts without updating weights per task.[^radford2019] Appending cues like `Input: The derivation was crystal clear. Sentiment:` primes a pretrained model to assign probability to `positive`. Zero-shot results varied sharply across tasks, yet they demonstrated that broad text pretraining internalizes substantial task structure directly inside the continuation distribution.
+A raw pretrained model completes documents rather than answering questions: given `"Explain causal masking"`, it may happily generate three more quiz questions instead of an explanation. **InstructGPT (2022)** established the three-stage **RLHF** alignment recipe:[^ouyang2022]
 
-### 3. GPT-3: Few-shot in-context conditioning (2020)
+1. **Supervised Fine-Tuning (SFT):** Fine-tune on curated human prompt-response demonstrations to teach assistant turn structure.
+2. **Reward Modeling (RM):** Train a scalar reward model on human pairwise rankings of candidate replies.
+3. **Reinforcement Learning (PPO):** Maximize predicted reward while a KL penalty anchors the policy near the SFT model.
 
-Brown et al. scaled autoregressive decoders to **175 billion parameters** trained on 300 billion tokens.[^brown2020] Across diverse language benchmarks, placing solved demonstrations directly inside the prefix improved task scores dramatically without gradient updates, though several reasoning and comparison tasks remained brittle. Because in-context predictions are sensitive to example ordering, prompt wording, and label formatting, prompt engineering emerged as an empirical discipline alongside training.
-
-### 4. InstructGPT: Aligning with human preference (2022)
-
-A pure pretraining checkpoint optimizes document continuation rather than helpful conversation, so asking `"Explain causal masking"` might yield another quiz question or a bibliography instead of an answer. Ouyang et al.'s **InstructGPT** popularized a three-stage **RLHF** alignment recipe to steer pretrained models toward following user intent.[^ouyang2022] Each stage shapes output style and reward adherence through distinct signals:
-
-1. **Supervised Fine-Tuning (SFT):** Fine-tune the pretrained model on curated human-written prompt-and-response demonstrations so it adopts an assistant turn structure.
-2. **Reward Modeling (RM):** Sample multiple candidate replies per prompt, collect human pairwise rankings, and train a scalar reward model to assign higher scores to preferred completions.
-3. **Reinforcement Learning (PPO):** Optimize the policy to maximize predicted reward while applying a KL-divergence penalty relative to the SFT reference so text fluency stays intact (their PPO-ptx variant also mixed pretraining gradients to curb benchmark regressions).
-
-On InstructGPT's API evaluation distribution, human labelers preferred outputs from a 1.3B aligned model over the 175B pretrained GPT-3 baseline.[^ouyang2022] Preference alignment improves helpfulness and instruction adherence, though reward models can still reinforce confident-sounding factual errors unless verified against evidence. Modern preference optimization methods such as Direct Preference Optimization (DPO) simplify that final step by optimizing directly on `(prompt, chosen, rejected)` triples using Bradley-Terry preference probabilities over log-likelihood margins. Run this NumPy calculation to compute pairwise preference probabilities and DPO implicit reward margins on grounded technical explanations:
+On InstructGPT's API prompts, human raters preferred a **1.3B aligned model** over the **175B raw GPT-3 base model**.[^ouyang2022] Later methods like **Direct Preference Optimization (DPO)** remove the separate reward model and optimize directly on `(prompt, chosen, rejected)` log-probability margins:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Preference record output" -->
 ```python title="preference-records.py"
@@ -345,42 +331,32 @@ Causal mask role       | margin=0.270 | P(chosen>rejected)=0.567
 ```
 <!-- leetllm: output:end -->
 
-Deployment checkpoints reflect distinct post-training stages, and developers match those roles carefully to application requirements. Selecting a base checkpoint when an interactive interface expects instruction formatting causes rambling continuations, whereas using a chat checkpoint for raw log-likelihood scoring adds template overhead. Understanding what each stage optimizes makes checkpoint selection predictable:
+Match the checkpoint type to the workload:
 
-| Checkpoint type | Primary training objective | Expected behavior | Typical production use |
-|---|---|---|---|
-| **Base model** | Next-token pretraining on large corpora | Continues text naturally with weak turn discipline | Continued pretraining, domain fine-tuning, or likelihood scoring |
-| **Instruct model** | Instruction SFT paired with preference or RL optimization | Follows explicit task instructions and formats | Classification, structured extraction, and single-turn synthesis |
-| **Chat model** | Conversation-formatted multi-turn post-training | Respects system, user, and assistant role delimiters | Interactive assistants paired with external memory and tools |
+| Checkpoint type | Training objective | Typical use |
+|---|---|---|
+| **Base** | Next-token pretraining | Continued pretraining, domain fine-tuning, likelihood scoring |
+| **Instruct** | SFT + preference / RL optimization | Single-turn instructions, extraction, synthesis |
+| **Chat** | Multi-turn role-delimited post-training | Interactive assistants with external memory and tools |
 
-A **chat template** serializes message turns into the exact control tokens a checkpoint learned during post-training.[^huggingface2026chattemplates] Templates differ even across models sharing a base family, and releases such as DeepSeek-V4.1-Flash distribute a custom encoding helper alongside model weights rather than a single Jinja template.[^deepseek2026v41flash] Always invoke the checkpoint's official template cleanly without double-wrapping special tokens. Because stateless inference endpoints retain no memory between HTTP requests, applications store conversation turns explicitly and re-send the serialized prefix on each turn.
-
-```checkpoint
-What does the 1.3B InstructGPT preference comparison prove, and what does it leave unresolved?
----
-It shows that instruction and preference tuning can outweigh two orders of magnitude in raw parameter count for human-judged helpfulness on API prompts. It does not prove superior factual recall, math accuracy, or reasoning ability, which must be evaluated separately.
-```
+A **chat template** serializes message roles into the exact control tokens the checkpoint learned during post-training.[^huggingface2026chattemplates] Templates vary across families (some releases like DeepSeek-V4.1-Flash ship a custom encoding helper alongside weights),[^deepseek2026v41flash] and stateless APIs hold no server-side memory between requests, so your application re-sends the serialized conversation prefix on each turn.
 
 <span id="scaling-laws-and-compute-optimality"></span>
 ## What scaling laws say about a fixed training budget
 
-Every large pretraining run confronts a constrained allocation decision over parameter count $N$ and training token count $D$ given a fixed floating-point compute budget $C$. Kaplan et al. (2020) fitted empirical power laws connecting validation cross-entropy loss to $N$, $D$, and compute $C$, concluding that parameter count should grow substantially faster than dataset size.[^kaplan2020] Guided partly by those early curves, major 2020-2021 models pushed parameters upward toward 175B in GPT-3 (~1.7 tokens per parameter) and 280B in **Gopher** (~1.1 tokens per parameter), while keeping pretraining corpora near 300 billion tokens.[^hoffmann2022]
+Given a fixed training compute budget $C$, how should you split FLOPs between parameter count $N$ and training tokens $D$? Kaplan et al. (2020) fitted power laws recommending much faster growth in parameters than data ($N \propto C^{0.73}, D \propto C^{0.27}$),[^kaplan2020] which led 2020-2021 models like GPT-3 (175B) and Gopher (280B) to train on just 300B tokens (~1.1-1.7 tokens per parameter).[^hoffmann2022]
 
-$$
-N \propto C^{0.73}, \quad D \propto C^{0.27} \quad \text{(Kaplan 2020)}
-$$
+Hoffmann et al. (2022) re-ran over 400 Transformer experiments while matching each run's cosine learning-rate decay to its exact token horizon.[^hoffmann2022] Their **Chinchilla** scaling law found equal scaling ($N \propto C^{0.5}, D \propto C^{0.5}$), roughly **20 tokens per parameter**: at the exact same compute budget as 280B Gopher, 70B Chinchilla trained on 1.4T tokens beat Gopher across MMLU and BIG-bench.
 
-Hoffmann et al. (2022) revisited that trade-off across more than 400 Transformer runs spanning 70M to over 16B parameters, matching each model's cosine learning-rate decay horizon directly to its target token budget rather than slicing checkpoints from one shared run.[^hoffmann2022] Under matched decay schedules, **Chinchilla** observed near-equal optimal scaling ($N \propto C^{0.5}, D \propto C^{0.5}$), meaning doubling model weights calls for roughly doubling training tokens around **20 tokens per parameter**. At the same reported compute budget as 280B Gopher, 70B Chinchilla trained on 1.4 trillion tokens and outperformed Gopher on aggregate MMLU and BIG-bench evaluations, though modern checkpoints like Llama 3 8B overtrain past `15T` repeated high-value tokens to minimize downstream inference costs.[^hoffmann2022][^dubey2024]
-
-| Model run | Parameters ($N$) | Training tokens ($D$) | Tokens per parameter | Training regime |
+| Model run | Parameters ($N$) | Training tokens ($D$) | Tokens / param | Regime |
 |---|---:|---:|---:|---|
-| Gopher | 280B | 300B | ~1.1 | Undertrained relative to Chinchilla frontier |
-| GPT-3 | 175B | 300B | ~1.7 | Undertrained under matched-compute comparison |
-| Chinchilla | 70B | 1.4T | 20.0 | Tests compute-optimal training ratio |
-| LLaMA 1 | 65B | 1.4T | ~21.5 | Public-data training targeting strong smaller models |
-| Llama 3 | 8B | >15T | >1,875 | Overtrained beyond 20:1 to shrink inference cost |
+| Gopher | 280B | 300B | ~1.1 | Undertrained vs. Chinchilla frontier |
+| GPT-3 | 175B | 300B | ~1.7 | Undertrained |
+| Chinchilla | 70B | 1.4T | 20.0 | Compute-optimal training ratio |
+| LLaMA 1 | 65B | 1.4T | ~21.5 | Strong smaller open-weight model |
+| Llama 3 | 8B | >15T | >1,875 | Overtrained to minimize serving cost |
 
-Vectorized NumPy code makes it straightforward to compare tokens-per-parameter ratios alongside Hoffmann et al.'s parametric loss decomposition $L(N, D) = E + A / N^{\alpha} + B / D^{\beta}$. Because the fitted curve models loss under fixed corpus statistics, real models like Llama 3 8B achieve lower real-world perplexity than the 2022 fit predicts thanks to multi-stage filtering and curriculum improvements. Run the calculation below to verify how published parameter counts compare on ratios and raw fitted loss:
+Compare tokens-per-parameter ratios and Hoffmann et al.'s parametric loss curve $L(N, D) = E + A / N^{\alpha} + B / D^{\beta}$ directly:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Scaling allocation output" -->
 ```python title="tokens-per-parameter.py"
@@ -410,7 +386,7 @@ Llama-3-8B   | tokens/param= 1875.0 | fitted_loss=1.949
 ```
 <!-- leetllm: output:end -->
 
-Dense Transformer training cost follows the standard approximation $C \approx 6ND$ FLOPs, counting forward pass ($2ND$ FLOPs for one multiply-add per weight per token) and backward pass ($4ND$ FLOPs for activation and weight gradients).[^hoffmann2022] Embeddings, attention softmax, and MoE routing shift exact counts at very small widths or sparse designs, yet $6ND$ makes training budget trade-offs transparent across candidate runs. Notice in the NumPy calculation below how changing $N$ or $D$ impacts both total compute and tokens per parameter:
+Dense Transformer training uses approximately $C \approx 6ND$ FLOPs ($2ND$ forward, $4ND$ backward).[^hoffmann2022] Doubling both $N$ and $D$ multiplies total training compute by $4\times$:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Fixed-budget allocation output" -->
 ```python title="compare-training-allocations.py"
@@ -437,28 +413,24 @@ tokens only     | compute=4.0x | tokens/param= 80.0
 ```
 <!-- leetllm: output:end -->
 
-Scaling both $N$ and $D$ by $2\times$ multiplies training FLOPs by **four**, matching the compute cost of expanding only parameters $4\times$ or only tokens $4\times$ while preserving balanced capacity and data. Chinchilla optimality minimizes pretraining loss for that fixed training FLOP budget, ignoring inference economics. Once a model serves millions or billions of requests, inference cost dominates total spend, making smaller "overtrained" checkpoints economically superior.[^touvron2023][^dubey2024] Investing extra training compute into an 8B model rather than stopping at a 20:1 Chinchilla split cuts memory footprint, batch latency, and GPU count per served request across the entire operational lifetime of the checkpoint.
-
-```checkpoint
-Why do modern labs intentionally train 8B models on 15 trillion tokens, far beyond Chinchilla's 20:1 training ratio?
----
-Chinchilla's ratio minimizes pretraining loss for a fixed training budget. When a model serves heavy production traffic, extra pretraining on a smaller checkpoint pays for itself by reducing weight memory, GPU count, and per-token latency across billions of inference tokens.
-```
+> **Key insight:** Chinchilla's 20:1 ratio minimizes loss for a *fixed training budget*. Once a checkpoint serves billions of requests, inference dominates total spend, so labs intentionally overtrain compact models like Llama 3 8B past 15T tokens to cut serving memory and latency.[^touvron2023][^dubey2024]
 
 <span id="modern-frontier-architectures-rmsnorm-swiglu-and-rope"></span>
 ## Three newer building blocks: RMSNorm, SwiGLU, and RoPE
 
-Modern decoder architectures also refined three inner components introduced after the original 2017 Transformer, popularized widely by LLaMA and subsequent open models.[^touvron2023] Specific releases still mix alternatives, such as original Gemma's GeGLU feed-forward block.[^gemmaTeam2024Architecture] Comparing normalization, gated MLPs, and rotary position encodings highlights how small mathematical edits simplify kernels and support longer sequences.
+Modern decoders refined three inner blocks of the 2017 Transformer, popularized by LLaMA and widely adopted across open weights (with variants such as Gemma's GeGLU).[^touvron2023][^gemmaTeam2024Architecture]
 
 ### 1. Root Mean Square Normalization (RMSNorm)
 
-Standard LayerNorm centers activations by subtracting mean $\mu$ and dividing by centered standard deviation $\sqrt{\sigma^2 + \epsilon}$, followed by learned scale $\gamma$ and bias $\beta$.[^pytorch_layernorm] Zhang and Sennrich (2019) showed that dropping both mean centering and the bias offset leaves stability and perplexity competitive in tested Transformers while simplifying the statistic to root-mean-square magnitude $\text{RMS}(x) = \sqrt{\frac{1}{d} \sum_{i=1}^d x_i^2 + \epsilon}$ and output $\frac{x}{\text{RMS}(x)} \odot \gamma$.[^zhang2019][^pytorch_rmsnorm] LayerNorm removes common-mode offsets across features before rescaling, whereas RMSNorm preserves non-zero constant offsets while normalizing vector energy. Fused CUDA kernels determine concrete speedups on modern accelerators, making empirical profiling necessary when benchmarking either normalization layer.
+LayerNorm subtracts the feature mean $\mu$, divides by centered standard deviation $\sqrt{\sigma^2 + \epsilon}$, and applies gain $\gamma$ and bias $\beta$.[^pytorch_layernorm] **RMSNorm** drops mean centering and bias, scaling directly by root-mean-square energy $\operatorname{RMS}(x) = \sqrt{\frac{1}{d}\sum_{i=1}^d x_i^2 + \epsilon}$ to output $\frac{x}{\operatorname{RMS}(x)} \odot \gamma$.[^zhang2019][^pytorch_rmsnorm]
 
 ### 2. SwiGLU activations and Rotary Position Embeddings (RoPE)
 
-Early Transformer MLPs applied ReLU or GELU inside a two-matrix expansion $\text{activation}(xW_1)W_2$, whereas Gated Linear Units multiply two parallel projections so one learned gate modulates the linear value stream.[^shazeer2020] **SwiGLU** applies $\operatorname{SiLU}(z) = z\,\sigma(z)$ to the gate branch inside $(\operatorname{SiLU}(x W_{\text{gate}}) \odot (x W_{\text{up}})) W_{\text{down}}$. Because SwiGLU replaces two $d \times d_{\text{ff}}$ matrices with three, keeping parameter count matched to a $4d$ standard FFN shrinks hidden width to $\frac{8}{3}d$ (often rounded up to hardware-friendly multiples).[^shazeer2020] Unlike sigmoid gating clamped inside $[0, 1]$, SiLU gating permits negative values and unrestricted positive scaling.
+**SwiGLU** replaces a two-matrix FFN with a gated three-matrix block: $(\operatorname{SiLU}(x W_{\text{gate}}) \odot (x W_{\text{up}})) W_{\text{down}}$, where $\operatorname{SiLU}(z) = z\,\sigma(z)$.[^shazeer2020] Because three matrices replace two, matching the parameter count of a standard $4d$ FFN shrinks hidden width from $4d$ to $\frac{8}{3}d$.
 
-Rather than adding static position vectors solely at the embedding table, Su et al.'s **Rotary Position Embeddings (RoPE)** rotate 2D coordinate pairs inside each head's $Q$ and $K$ projections by angles $m\theta_i$ proportional to token index $m$, giving $\mathbf{q}_m = R_{\Theta, m}^d \mathbf{q}$ and $\mathbf{k}_n = R_{\Theta, n}^d \mathbf{k}$.[^su2021] Because orthogonal rotations satisfy $R_{\Theta, m}^T R_{\Theta, n} = R_{\Theta, n - m}$, the inner product $\langle \mathbf{q}_m, \mathbf{k}_n \rangle = \mathbf{q}^T R_{\Theta, n - m} \mathbf{k}$ depends strictly on relative displacement $(n - m)$ whenever unrotated content vectors stay fixed. Verify both RMSNorm stabilization and SwiGLU activation shapes directly in NumPy below:
+**Rotary Position Embeddings (RoPE)** rotate 2D coordinate pairs of $Q$ and $K$ by angles $m\theta_i$ proportional to token position $m$: $\mathbf{q}_m = R_{\Theta, m}^d \mathbf{q}$ and $\mathbf{k}_n = R_{\Theta, n}^d \mathbf{k}$.[^su2021] Because orthogonal rotations satisfy $R_{\Theta, m}^T R_{\Theta, n} = R_{\Theta, n - m}$, the dot product $\langle \mathbf{q}_m, \mathbf{k}_n \rangle = \mathbf{q}^T R_{\Theta, n - m} \mathbf{k}$ depends purely on relative offset $n - m$ for fixed unrotated vectors.
+
+Verify RMSNorm and SwiGLU in NumPy:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Frontier mechanics output" -->
 ```python title="frontier-architectures-rmsnorm-swiglu.py"
@@ -495,30 +467,24 @@ swiglu vector out: [-0.0806 -0.1669 -0.0247 -0.1053]
 ```
 <!-- leetllm: output:end -->
 
-With $\epsilon = 10^{-6}$ in the denominator, the output vector's root-mean-square norm sits just under `1.0`, rounding cleanly to `1.0` at four decimals. Learned per-channel weights $\gamma$ scale features freely afterward so downstream residual additions maintain arbitrary dynamic range. Without mean centering, RMSNorm skips the pass over activation averages while stabilizing forward and gradient norms cleanly.
-
-```checkpoint
-What does the RoPE identity prove about shifting a fixed query/key pair, and what does it not prove?
----
-Holding unrotated $q$ and $k$ fixed, RoPE makes their dot product invariant to shared shifts in absolute position, depending solely on $n - m$. In deep trained networks, hidden representations vary with context and rotary frequencies can decay differently across dimensions, so long-context extrapolation must be tested empirically.
-```
+With $\epsilon = 10^{-6}$, the normalized vector's RMS sits at `1.0`, while learned gain $\gamma$ restores arbitrary channel scale.
 
 <span id="attention-scaling-and-kv-cache-bandwidth-reduction"></span>
 ## How attention design changes KV cache costs
 
-At long context lengths or large batch sizes, storing and reading cached keys and values can rival or exceed model weights in GPU memory usage. With separate key and value tensors, uniform head dimension $d_{\text{head}}$, and precision $P$ bytes per element (typically `2` for FP16/BF16), total **raw KV payload** across $B$ requests of length $L$ satisfies:
+At long contexts or large batches, the KV cache easily rivals model weights in GPU memory. For $B$ requests of length $L$ at $P$ bytes per element (2 for FP16/BF16), raw KV payload is:
 
 $$
 \text{Memory}_{\text{KV}} = 2 \times B \times L \times n_{\text{layers}} \times n_{\text{kv\_heads}} \times d_{\text{head}} \times P
 $$
 
-Factor `2` accounts for storing both keys and values, while ragged batches replace $BL$ with the sum of active sequence lengths and serving systems add quantization scales, page slack, and activation buffers. Because changing `n_kv_heads` scales KV cache traffic linearly, three head-sharing topologies trade cache footprint directly against head expressivity:
+Sharing key and value heads across queries shrinks that cache linearly:
 
-1. **Multi-Head Attention (MHA):** Every query head maintains its own key and value head ($n_{\text{kv\_heads}} = n_{\text{q\_heads}}$). Thirty-two query heads store 32 K heads and 32 V heads.
-2. **Multi-Query Attention (MQA):** All query heads share a single K head and a single V head ($n_{\text{kv\_heads}} = 1$).[^shazeer2019] Raw KV payload drops by $1/32$ for 32 query heads, at the potential cost of quality regressions unless pretrained or uptrained carefully.
-3. **Grouped-Query Attention (GQA):** Query heads partition into $g$ groups, each sharing one KV head ($n_{\text{kv\_heads}} = g$).[^ainslie2023] Using 8 KV heads across 32 query heads reduces KV memory and decode cache reads by $4\times$ while preserving perplexity close to MHA in published uptraining studies.
+1. **MHA:** Every query head owns its own K and V head ($n_{\text{kv\_heads}} = n_{\text{q\_heads}}$).
+2. **MQA:** All query heads share a single K and V head ($n_{\text{kv\_heads}} = 1$).[^shazeer2019]
+3. **GQA:** Query heads split into $g$ groups sharing one KV head each ($n_{\text{kv\_heads}} = g$), cutting cache size by $n_{\text{q\_heads}} / g$ while keeping quality near MHA.[^ainslie2023]
 
-Compute exact raw KV cache footprints across MHA, GQA, and MQA in NumPy for an 8-request batch at 8,192 context length to see how dramatically head sharing shifts GPU RAM capacity. Notice how easily an unshared 32-head MHA cache fills a single workstation GPU before adding model weights or batch concurrency. Evaluating raw tensor byte counts explicitly keeps deployment capacity estimates realistic before writing custom kernels:
+Compare raw KV cache footprints for an 8-request batch at 8,192 tokens:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="KV cache comparison output" -->
 ```python title="gqa-kv-cache-accounting.py"
@@ -545,7 +511,7 @@ MQA | kv_heads= 1 | cache= 1.00 GiB | relative=0.031
 ```
 <!-- leetllm: output:end -->
 
-Moving from 32-head MHA to 8-head GQA saves **24 GiB** of raw cache memory in this configuration alone, freeing HBM headroom for larger batches or longer prompts. Next, run a NumPy 2D RoPE check confirming that rotating query and key matrices preserves dot products whenever relative displacement $m - n$ stays fixed. Verifying the shifted dot-product value directly confirms why positional offsets remain invariant under orthogonal rotation:
+8-head GQA saves **24 GiB** over 32-head MHA on this batch alone. Next, verify RoPE's shift invariance directly in 2D: shifting both positions `(4, 2)` to `(14, 12)` keeps the inner product identical while changing the gap to `(14, 2)` changes it:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="RoPE relative position output" -->
 ```python title="rope-relative-position.py"
@@ -578,23 +544,17 @@ shift invariant:   True
 ```
 <!-- leetllm: output:end -->
 
-Alongside head sharing, modern runtimes pair **FlashAttention** and **PagedAttention** to eliminate attention bottlenecks cleanly. FlashAttention tiles score and probability blocks in fast GPU SRAM to avoid materializing $T \times T$ intermediate matrices in HBM, slashing memory traffic while keeping total arithmetic quadratic in $T$ with $\Theta(T^2 d^2 / M)$ HBM transfers.[^dao2022] PagedAttention manages logical KV caches via non-contiguous physical memory pages, eliminating fragmentation across varying prompt lengths and boosting batch throughput.[^kwon2023] Together, head sharing, SRAM tiling, and paged KV management lift maximum batch concurrency without altering exact mathematical attention outputs.
-
-```checkpoint
-Why can GQA lower decode latency, and why does a 75% KV reduction rarely cut end-to-end latency by 75%?
----
-Reading 8 KV heads instead of 32 trims memory bandwidth spent streaming cached keys and values during attention. Total step latency also includes dense weight reads for Q/K/V/output projections, MLP layers, GPU synchronization, and scheduler overhead, so attention savings only affect attention's share of step time.
-```
+Modern runtimes pair head sharing with **FlashAttention** (tiling attention in fast GPU SRAM to avoid writing $T \times T$ score matrices to HBM)[^dao2022] and **PagedAttention** (storing KV caches in non-contiguous physical pages to eliminate memory fragmentation).[^kwon2023]
 
 ## Sparse architectures: Mixture of Experts (MoE)
 
-Standard dense Transformers route every token through the same feed-forward network. **Sparsely gated Mixture-of-Experts (MoE)** layers replace that single wide MLP with $E$ parallel expert networks and a learned router that picks only the top-$k$ experts per token.[^shazeer2017][^jiang2024] Retaining the top-$k$ gating logits, masking remaining scores to $-\infty$, and applying softmax yields normalized sparse routing weights $H(x) = \text{Softmax}(\text{Top-}k(x \cdot W_g))$ and blended output $\sum_{i \in \text{Top-}k} H(x)_i \cdot \text{Expert}_i(x)$.
+A **sparsely gated Mixture-of-Experts (MoE)** layer replaces one wide dense MLP with $E$ parallel experts and a router that activates only the top-$k$ experts per token:[^shazeer2017][^jiang2024] $H(x) = \operatorname{Softmax}(\operatorname{Top-}k(x W_g))$ and output $\sum_{i \in \text{Top-}k} H(x)_i \operatorname{Expert}_i(x)$.
 
 ### The fundamental MoE tradeoff: VRAM versus FLOPs
 
-Mixtral 8x7B holds **47 billion total parameters** across 8 experts per layer while activating only 2 experts per token, executing roughly **13 billion active parameters** per forward pass.[^jiang2024] Active parameter counts govern per-token projection FLOPs, whereas total parameters govern checkpoint memory: at 2 bytes per weight, 47B parameters occupy **94 GB (87.54 GiB)** before KV cache or activations.[^huggingface2026acceleratebigmodel] Training sparse routers cleanly also requires preventing expert collapse where every token picks the same two networks. Classical MoE adds an auxiliary load-balancing loss, whereas DeepSeek-V3 adjusts per-expert routing biases dynamically alongside a smaller sequence-level balance term.[^deepseekv3_2024]
+Mixtral 8x7B holds **47B total parameters** across 8 experts per layer while running only **13B active parameters** per token.[^jiang2024] Active parameters govern per-token FLOPs, whereas total parameters govern resident GPU VRAM: at 2 bytes per weight, 47B parameters still occupy **94 GB (87.54 GiB)** before KV cache or activations.[^huggingface2026acceleratebigmodel] Keeping routers balanced across experts requires either an auxiliary load-balancing loss or dynamic per-expert routing biases as in DeepSeek-V3.[^deepseekv3_2024]
 
-Run a NumPy top-2 router simulation using the exact expert logits `[2.4, 0.3, 0.5, -0.2]` for `"import"` and `[0.1, 2.2, 0.7, 0.0]` for `"assertion"`, verifying both normalized weights and blended expert output vectors. Watching how top-$k$ selection masks out lower-scoring experts highlights why active FLOPs shrink even though all expert matrices sit loaded in device memory. Notice also how sharply slight logit differences steer token mass toward the leading expert:
+Trace a top-2 router in NumPy across four experts:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="MoE routing output" -->
 ```python title="top-two-expert-router.py"
@@ -630,56 +590,38 @@ assertion  -> [('E1', 0.818), ('E2', 0.182)] | out=[0.164 0.891 0.137]
 ```
 <!-- leetllm: output:end -->
 
-Inactive experts still reside in VRAM unless offloaded across CPU/NVMe links with substantial transfer latency penalties. Consequently, sparse MoE models deliver strong FLOP efficiency only when batch sizes and cross-GPU communication stay well balanced. Serving engines must also budget full parameter VRAM even when per-token active counts look small on paper.
-
-```checkpoint
-Why do active parameters alone fail to predict either GPU memory capacity or serving latency?
----
-A sparse MoE checkpoint still stores all $E$ experts in memory (roughly 94 GB for 47B FP16 weights), so active count understates VRAM requirements. Latency also includes all-to-all expert communication, load imbalance, and memory transfers, which differentiate MoE execution from a 13B dense model.
-```
+> **Common mistake:** Sizing GPU memory from a MoE model's *active* parameters. Unless experts are offloaded to CPU with heavy transfer latency, every inactive expert stays resident in VRAM, so budget weight memory from *total* parameters.
 
 <span id="reasoning-models-and-test-time-compute"></span>
 ## Reasoning models and the cost of extra inference compute
 
-Standard autoregressive decoding commits directly to answer tokens one step after reading the prompt. **Test-time compute** trades extra generated tokens, verifier checks, or tree search for higher accuracy on multi-step math, code synthesis, and logic problems. OpenAI o1 (2024) and DeepSeek-R1 (2025) popularized training models via reinforcement learning to generate structured internal reasoning traces before emitting final answers.[^openai_learning_reasoning_2024][^deepseekr1_2025]
+Standard decoding writes answer tokens immediately after the prompt. **Test-time compute** spends extra generated tokens on internal verification, backtracking, or search to raise accuracy on multi-step math, code, and logic. OpenAI o1 and DeepSeek-R1 popularized training models with reinforcement learning to produce structured reasoning traces before answering.[^openai_learning_reasoning_2024][^deepseekr1_2025]
 
-During multi-step reasoning, an internal or visible scratchpad lets the model test candidate hypotheses against the prompt, detect contradictions, backtrack, and reconcile constraints before finalizing output tokens. Checked on **30 October 2026**, OpenAI's Responses API exposes `reasoning.effort` controls across supported models so callers can adjust reasoning token budgets per request.[^openai2026reasoning] Because reasoning tokens consume context window capacity and bill as generated output tokens even when hidden from final text, reserving sufficient `max_output_tokens` headroom prevents answers from truncating mid-thought. Evaluating effort settings across identical held-out benchmarks lets teams measure verified accuracy improvements directly against latency and dollar spend.
-
-```checkpoint
-How do reasoning-trained models differ from standard chat models during inference?
----
-Reasoning-trained checkpoints spend variable additional decoding steps on intermediate verification and backtracking before producing a final answer. That extra compute can raise accuracy on hard multi-step tasks while increasing context consumption, latency, and billed output tokens, without eliminating the need for source grounding.
-```
+APIs such as OpenAI's Responses API expose a `reasoning.effort` control to dial that inference budget per request.[^openai2026reasoning] Because reasoning tokens consume context space and bill as output tokens even when hidden, leave sufficient `max_output_tokens` headroom and verify that higher effort improves held-out accuracy within your latency and cost limits.
 
 ## Open weights, licensing, and local serving
 
-Publicly downloadable parameters empower self-hosting, custom quantization, and specialized fine-tuning, yet **"open weights"** does not automatically mean unrestricted commercial or open-source software rights. Meta's original 2023 LLaMA release restricted weights to approved non-commercial research, setting a clear precedent that license inspection precedes every deployment decision.[^touvron2023][^meta2023OriginalLlamaRelease] Reviewing four distinct open-release dimensions separately prevents engineering teams from conflating file access with permissive usage terms:
+**"Open weights"** means you can download the tensor files, not that the checkpoint is unrestricted open source. Meta's original LLaMA release restricted weights to non-commercial research, establishing that license terms must be checked before commercial use.[^touvron2023][^meta2023OriginalLlamaRelease]
 
-| Category | Meaning | Required check |
+| Category | Meaning | What to check |
 |---|---|---|
-| **Open weights** | Checkpoint tensors are downloadable under published terms | Inspect commercial caps, acceptable-use clauses, and redistribution rules |
-| **Open-source software** | Code meets the Open Source Definition | Verify repository code dependencies and redistribution terms |
-| **Open-source AI (OSI)** | Freedom to use, study, modify, and share code, weights, and data info | Check training code availability and documented data information[^osi2024] |
-| **Open data** | Datasets released under stated usage licenses | Confirm whether downstream training permits derivative models |
+| **Open weights** | Tensors are downloadable under published terms | Commercial caps, acceptable use, redistribution |
+| **Open-source software** | Code satisfies the Open Source Definition | Repository and dependency licenses |
+| **Open-source AI (OSI)** | Freedom to use, study, modify, and share with documented data info | Training code and data information[^osi2024] |
+| **Open data** | Datasets released under stated usage licenses | Downstream training permissions |
 
-Note that OSI's Open Source AI definition requires sufficient **data information** describing how a model was trained rather than necessarily publishing every proprietary raw corpus example, and copyleft licenses can still qualify.[^osi2024] Two model releases checked on **30 October 2026** illustrate why model cards, legal terms, and architecture specifications each deserve independent verification before committing production pipelines. Reading release notes alongside actual checkpoint manifests prevents mismatches between paper tables and deployed artifacts:
+Comparing two open-weight releases shows why checkpoint manifests and license clauses matter:
 
 | Model release | Published specifications | Operational implications |
 |---|---|---|
-| **GLM-5.3** | States a 1M-token context window with post-training advances atop GLM-5.2.[^zai2026glm53guide][^zai2026glm53] | Custom GLM-5.3 license requires security review for certain MaaS providers above \$10B trailing 12-month revenue.[^zai2026glm53CurrentLicense] Verify exact tensor sizes from the released checkpoint alongside the GLM-5 paper's 744B/40B figures.[^glm52026] |
-| **DeepSeek-V4.1-Flash** | MIT-licensed release noting a 552B backbone, 1M context, 8B active prefill parameters, and 16B active decode parameters.[^deepseek2026v41flash] | Combines causal encoder-decoder staging, shared compressed caches, conditional memory, and speculative decoding, requiring runtime kernels matched to those modules. |
+| **GLM-5.3** | 1M-token context window atop GLM-5.2.[^zai2026glm53guide][^zai2026glm53] | Custom license adds review rules for large MaaS providers;[^zai2026glm53CurrentLicense] verify exact tensor sizes against the GLM-5 paper's 744B/40B specs.[^glm52026] |
+| **DeepSeek-V4.1-Flash** | MIT-licensed 552B backbone, 1M context, 8B active prefill / 16B active decode.[^deepseek2026v41flash] | Uses compressed caches, conditional memory, and speculative decoding that require matching runtime kernels. |
 
-Always pin exact checkpoint hashes or versioned API identifiers rather than floating aliases across reproducible evaluations. DeepSeek's changelog notes that older API names route dynamically (`deepseek-flash` mapped to `V4.1-Flash-1017` on 17 October), whereas local weights remain frozen at their download snapshot.[^deepseek2026v4flash0731release] Auditing weights, tokenizer configs, and chat templates together ensures an evaluation benchmark measures the exact artifact deployed later.
-
-```checkpoint
-Why is labeling an open-weight checkpoint "open source" often imprecise?
----
-Downloadable parameters alone omit training pipelines, data documentation, and unrestricted commercial redistribution rights. Inspect the exact checkpoint license separately from inference library code and verify compliance with OSI AI criteria when open-source status is required.
-```
+Pin exact checkpoint hashes or versioned API snapshots rather than floating aliases (which providers can silently redirect, as with DeepSeek's `deepseek-flash` alias routing to newer snapshots).[^deepseek2026v4flash0731release]
 
 ## Evaluating a released model on your workload
 
-Public leaderboards narrow candidate shortlists cleanly, yet actual deployment decisions depend on domain prompts, schema adherence, latency budgets, and unit costs. Build a clean held-out evaluation split grouping related documents to prevent leakage, include ambiguous or missing-evidence prompts that test grounded abstention, and verify structured fields independently from explanation accuracy. The NumPy scorecard below evaluates three deployment candidates (`hosted-fast`, `hosted-deep`, and `local-restricted`) across an interactive IDE assistant scenario (`p95 <= 750 ms` deadline) and an offline batch benchmark job (no latency deadline). Both runs enforce mandatory license eligibility before ranking surviving candidates with explicit weighted quality, latency, and cost objectives:
+Public leaderboards narrow the shortlist, but real deployment choices hinge on your prompts, latency ceiling, license rules, and unit cost. Score three candidates (`hosted-fast`, `hosted-deep`, `local-restricted`) across an interactive IDE budget (`p95 <= 750 ms`) and an offline batch job by masking out ineligible models with $-\infty$ before ranking:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Workload scorecard output" -->
 ```python title="model-workload-scorecard.py"
@@ -712,25 +654,19 @@ batch benchmark | eligible=hosted-fast,hosted-deep | winner=hosted-deep (84.40)
 ```
 <!-- leetllm: output:end -->
 
-Disqualifying ineligible checkpoints via hard boolean masks before applying linear weights prevents high accuracy or low dollar cost from overriding non-negotiable latency or license rules. Even if a restricted checkpoint costs far less per token, masking its score to $-\infty$ ensures weighted scoring cannot promote a non-compliant candidate accidentally. Separating hard constraints from soft utility weights also lets product teams change latency deadlines cleanly without retuning quality multipliers.
-
-```checkpoint
-Why does the 94% accurate hosted-deep candidate lose in interactive IDE usage yet win in batch evaluation?
----
-The 1,200 ms latency violates the hard 750 ms interactive deadline, removing hosted-deep before weighted ranking. Without a tight latency cap during batch scoring, its higher quality outweighs the extra latency and dollar spend.
-```
+Hard boolean masks disqualify ineligible models before linear scoring so high accuracy or low price can never override a missed latency deadline or license restriction.
 
 <span id="context-window-scaling-and-lost-in-the-middle"></span>
 ## Longer context and the evidence that gets missed
 
-Supporting 128k or 1M tokens in memory guarantees capacity, not uniform retrieval accuracy across every offset. Liu et al. (2023) tested multi-document question answering and key-value lookup while shifting the sole supporting document across context slots from start to finish.[^liu2023lost] Across many evaluated models, accuracy dropped markedly when decisive evidence sat in the middle compared with the beginning or end, forming a distinctive **U-shaped** performance curve.
+Accepting 128k or 1M tokens proves input capacity, not uniform recall at every offset. Liu et al. (2023) shifted the single answer-bearing document across positions 1 to 20 and found a striking **U-shaped curve**: accuracy stayed high at the start and end while dropping sharply in the middle.[^liu2023lost]
 
 <figure>
   <img src="illustrations/_generated/lost_in_the_middle_dark.png" alt="A 20-document context window tests evidence slots 1, 5, 10, 15, and 20 with 20 questions each. Accuracy forms a U-shaped curve: 15 of 20 at slot 1, 10 of 20 at slot 5, 7 of 20 in the middle at slot 10, 10 of 20 at slot 15, and 14 of 20 at slot 20." />
   <figcaption>Twenty retrieved documents hold one evidence passage shifted across positions 1, 5, 10, 15, and 20, illustrating the U-shaped middle retrieval drop characterized by Liu et al.</figcaption>
 </figure>
 
-While attention weights toward early tokens ("attention sinks") correlate with long-context stability, diagnosing a retrieval drop requires moving the exact evidence across matched positions and scoring end-task correctness directly. Repeating the task query both before and after context documents helped synthetic key-value lookup in Liu et al.'s experiments yet barely changed multi-document QA curves, underscoring why prompt layouts must be measured on the target task.[^liu2023lost] Computing the position-sweep accuracy curve, edge-versus-center drop, and quadratic curvature in NumPy quantifies that U-shaped degradation directly across slots:
+To separate positional degradation from question difficulty, hold the exact passage constant while sweeping its slot across the prompt and fitting the accuracy curve:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Position sweep curve output" -->
 ```python title="position-sweep-curve.py"
@@ -764,20 +700,20 @@ quadratic x^2 coeff=0.00386 (positive confirms U-shape)
 
 ### Practical prompt packing mitigations
 
-When assembling long technical documents or retrieval chunks for an assistant, structured prompt packing reduces positional forgetting and trims prefill cost. Organizing the prompt explicitly keeps governing instructions separate from retrieved snippets while placing relevant facts near high-attention regions. Three concrete habits help stabilize long-context generation:
+Three habits counter positional forgetting and cut prefill cost:
 
-1. **Place governing instructions cleanly:** Put system instructions in the model's supported system or developer role and wrap retrieved documents inside explicit delimiters so untrusted source text stays separate from directives.
-2. **Test task and evidence placement:** Compare instruction-before-context, instruction-after-context, and adjacent evidence ordering empirically while preserving logical chronology where needed.
-3. **Prune low-value filler:** Trimming redundant background chunks shrinks prefill FLOPs and KV cache pressure while keeping decisive passages closer to attention peaks.
+1. **Separate instructions from retrieved text:** Keep directives in the system/developer role and delimit retrieved passages cleanly.
+2. **Put decisive evidence at the edges:** Place top-ranked retrieved snippets near the start or right before the question, and test ordering on held-out queries.
+3. **Prune low-value filler:** Trimming redundant chunks shrinks prefill FLOPs and KV memory while keeping relevant facts near high-attention regions.
 
-This NumPy simulation models attention weight landing on the decisive `causal_mask` snippet when placed at slot 1 (start), slot 4 (middle), or slot 6 (immediately adjacent to the trailing question) under combined primacy and recency weighting. Comparing slot weights quantitatively illustrates why placing retrieved evidence directly before the user query raises focus without rewriting prompt instructions. Running that packing sensitivity check on synthetic chunk sequences also mirrors how retrieval rerankers place top snippets last inside the prompt:
+Modeling combined primacy and recency weighting shows why placing the key `causal_mask` passage adjacent to the question lifts its salience:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Context packing output" -->
 ```python title="evidence-near-question.py"
 import numpy as np
 
 chunks = [
-    "Policy: explain attention behavior using cited source lines.",
+    "Instruction: explain attention behavior using cited source lines.",
     "Note A: RoPE applies pairwise 2D rotations to queries and keys.",
     "Note B: RMSNorm omits mean subtraction across features.",
     "Note C: Weight tying shares embedding and LM head matrices.",
@@ -800,7 +736,7 @@ print("adjacent_evidence_weight:     ", round(float(attention[-1]), 3))
 
 <!-- leetllm: output:start -->
 ```text title="Context packing output" output compact
-1: weight=0.209 | Policy: explain attention behavior using cited source lines.
+1: weight=0.209 | Instruction: explain attention behavior using cited source lines.
 2: weight=0.151 | Note A: RoPE applies pairwise 2D rotations to queries and keys.
 3: weight=0.141 | Note B: RMSNorm omits mean subtraction across features.
 4: weight=0.185 | Note C: Weight tying shares embedding and LM head matrices.
@@ -810,15 +746,9 @@ adjacent_evidence_weight:      0.313
 ```
 <!-- leetllm: output:end -->
 
-```checkpoint
-Why does retrieval-augmented generation (RAG) remain useful even when models advertise 1-million-token context windows?
----
-Retrieval surfaces focused, current evidence while shrinking prompt prefill latency and KV cache consumption compared with passing an entire repository or corpus raw. Large context windows still help when whole-document structure matters, so pairing selective retrieval with position-aware packing balances cost and accuracy.
-```
-
 ## Match the architecture to the job
 
-Complex language systems combine multiple specialized models instead of routing every task through one massive autoregressive decoder. Separating embedding lookup, rapid tagging, interactive conversation, and deliberate reasoning cuts latency and GPU memory per user request while keeping answer quality high. Use the matrix below to match each NLP workload stage with the right model family and measurement target:
+Production systems rarely send every task to one giant decoder. Match each stage to the lightest architecture that fits:
 
 | NLP workload stage | Recommended architecture | Primary selection criterion |
 |---|---|---|

@@ -594,11 +594,11 @@ after zeroing again:  -8.0
 
 ### Evaluation mode and no_grad
 
-During validation and inference, we don't compute parameter updates. We use two complementary controls:
-- **`model.eval()`**: Switches module behavior. Dropout becomes an identity; BatchNorm uses its stored running estimates by default. Those estimates aren't the exact population statistics, and BatchNorm configured without running statistics still uses batch statistics. This mode doesn't disable autograd.[^pytorch2026autograd][^pytorchBatchNorm2d2026]
-- **`with torch.no_grad():`**: Disables reverse-mode gradient recording within the current thread and block, reducing memory use for operations that would otherwise track gradients. It doesn't change existing parameters' `requires_grad` flags; tensor factories with an explicit `requires_grad=True` are an exception. It also doesn't disable forward-mode automatic differentiation.[^pytorchNoGrad2026]
+During validation and inference, we don't compute parameter updates. Two complementary controls handle this:
+- **`model.eval()`**: Switches layers that behave differently at test time: Dropout becomes an identity pass-through and BatchNorm uses its stored running statistics. Note that `eval()` does not disable autograd.[^pytorch2026autograd][^pytorchBatchNorm2d2026]
+- **`with torch.no_grad():`**: Disables reverse-mode gradient tracking inside the block, avoiding activation storage and cutting memory use during validation and inference.[^pytorchNoGrad2026]
 
-Call `model.train()` again when returning to training after validation.
+> **Common mistake:** Calling `model.eval()` without `torch.no_grad()` still allocates the full autograd graph during validation, often causing out-of-memory errors on larger batches. Always pair them, then call `model.train()` when resuming training.
 
 ## Batching dynamics: full batch, mini-batch, and online stochastic
 
@@ -909,7 +909,7 @@ Compare curves using compatible loss definitions; dropout and training-mode Batc
 
 ### Early stopping with checkpointing
 
-Our early-stopping policy separates two decisions: save every new lowest-loss checkpoint, but reset patience only after improvement greater than `min_delta` from the last patience-reset value. Small improvements can accumulate toward that threshold. Stop after `patience` evaluations without such progress. This separation ensures the checkpoint restored for evaluation is the actual lowest observed loss, even when its improvement is small:
+Our early-stopping rule separates two decisions: save every new lowest-loss checkpoint, but reset patience only after improvement greater than `min_delta` from the last patience-reset value. Small improvements can accumulate toward that threshold. Stop after `patience` evaluations without such progress so the checkpoint restored for evaluation is always the actual lowest observed loss:
 
 <!-- leetllm: test, id=early-stopping, output=show -->
 ```python title="early-stopping-checkpoint.py"

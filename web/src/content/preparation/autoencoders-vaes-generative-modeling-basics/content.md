@@ -34,20 +34,20 @@
 }
 ---
 
-A sequence model compresses an ordered history into a hidden state. A screenshot crop poses the same question in pixels. Can two numbers preserve a bright 2 by 2 alert badge on a 5 by 5 grayscale screenshot? Suppose you hand the decoder a random pair of numbers. What can it draw if training only showed it codes produced by an encoder?
+Can two numbers describe an entire 5 by 5 grayscale crop well enough to redraw its bright 2 by 2 highlight? Now turn the question around: suppose you pick a random pair of numbers and hand them to the decoder. What will it paint if training only ever showed it codes produced by an encoder?
 
-An **<span data-glossary="autoencoder">autoencoder</span>** learns to reconstruct its input from a latent code, which we make compact here.[^hinton2006autoencoder] A **<span data-glossary="variational-autoencoder">variational autoencoder (VAE)</span>** learns a probabilistic latent model with a prior we can sample for generation. Its objective connects reconstruction and prior sampling, but useful samples still depend on the model, data, and training.[^kingma2014]
+An **<span data-glossary="autoencoder">autoencoder</span>** compresses an input into a compact latent code and learns to reconstruct the original from that code.[^hinton2006autoencoder] A **<span data-glossary="variational-autoencoder">variational autoencoder (VAE)</span>** takes the next step: it shapes the latent space around a known probability distribution so fresh random draws decode into coherent new examples.[^kingma2014]
 
 ## Compress one screenshot crop
 
-Start with a tiny crop. Each grayscale number is between `0` (dark) and `1` (bright). A real screenshot has many more pixels, but a 5 by 5 crop lets us inspect every single number. The bright 2 by 2 block is the highlighted region: one latent coordinate can track those four center pixels while a second coordinate tracks the faint lower band, leaving dark border pixels weighted near zero.
+Start with a 5 by 5 grayscale patch whose pixels lie between `0` (dark) and `1` (bright). A bright 2 by 2 block sits in the middle and a faint two-pixel strip sits below it. One latent coordinate can track the four bright center pixels, while a second tracks the faint lower band.
 
 <figure>
   <img src="illustrations/_generated/grayscale_patch_dark.png" alt="A 5 by 5 crop passes through two spatial weight masks. The center mask averages 0.85, 0.88, 0.90, and 0.92 into z1 = 0.888; the lower mask averages 0.18 and 0.16 into z2 = 0.170. A decoder rebuilds the crop with mean squared error 0.0027." />
   <figcaption>The colored masks select four center pixels and two lower pixels from the same crop, compressing 25 pixel intensities into $z_1=0.8875$ and $z_2=0.170$. A matching two-basis decoder reconstructs the patch at mean squared error 0.0027.</figcaption>
 </figure>
 
-An autoencoder has two learned functions:
+An autoencoder pairs two learned functions:
 
 $$
 z = f_\phi(x)
@@ -55,9 +55,9 @@ z = f_\phi(x)
 \hat{x} = g_\theta(z)
 $$
 
-The encoder $f_\phi$ maps the input $x$ to the latent code $z$. Meanwhile, the decoder $g_\theta$ maps that code to a reconstruction $\hat{x}$. Here $\phi$ and $\theta$ denote their learned weights. A narrow $z$ creates the **hourglass bottleneck**: the decoder receives input-specific information through those two coordinates. The network must discover compact summaries. A large network can still memorize a tiny dataset.
+The encoder $f_\phi$ compresses the input $x$ into a latent vector $z$, and the decoder $g_\theta$ rebuilds $\hat{x}$ from $z$. When $z$ has far fewer coordinates than $x$, it forms an **hourglass bottleneck**: every piece of information the decoder needs about a specific image has to squeeze through those two numbers.
 
-For this crop, the first encoder map averages the four bright center pixels and the second averages two lower pixels:
+Before training a network, build the bottleneck by hand so every multiplication is visible. Let $z_1$ average the four bright center pixels and $z_2$ average the two lower pixels:
 
 $$
 z_1 = 0.25 \times (0.85 + 0.88 + 0.90 + 0.92) = 0.8875 \approx 0.888
@@ -67,15 +67,13 @@ $$
 z_2 = 0.50 \times (0.18 + 0.16) = 0.170
 $$
 
-We chose these weights by hand, so the bottleneck arithmetic is visible before asking optimization to discover a useful map.
-
-For normalized pixels, mean-squared error (MSE) measures reconstruction directly:
+Mean-squared error (MSE) scores the reconstruction pixel by pixel across all $N = 25$ positions:
 
 $$
 L_{\text{recon}} = \frac{1}{N}\sum_{i=1}^{N}(x_i-\hat{x}_i)^2
 $$
 
-$N$ is the number of pixels, here 25. Each term is one pixel's squared error. The next snippet runs that same encoder, then a matching crafted decoder, so you can see the 25-to-2 shrink and the reconstruction error together.
+Run this hand-crafted encoder and matching decoder to watch 25 pixel values shrink to 2 numbers and expand back out:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="crafted-autoencoder-forward.py"
@@ -118,11 +116,11 @@ reconstruction MSE: 0.0027
 ```
 <!-- leetllm: output:end -->
 
-The input shrinks from 25 numbers to 2. This crafted decoder does well on this one pattern because we built its weights around it. Notice what it loses: rearranging the four selected center pixels while preserving their average leaves $z_1$ unchanged. The decoder then produces the same reconstruction for different inputs. Learned weights can capture variation across a family of crops.
+The 25 pixels compress into `[0.888, 0.170]` and rebuild with MSE `0.0027`. Compression always discards something, though: swapping the four center pixels leaves their average $z_1$ identical, so the decoder produces the exact same output for both crops.
 
 ## Learn the bottleneck
 
-The next program makes noisy variations of the same crop and trains an autoencoder in <span data-glossary="pytorch">PyTorch</span>. The training loop uses <span data-glossary="gradient">gradients</span> to update weights with an <span data-glossary="optimizer">optimizer</span>, as in the backpropagation lesson. Compare its MSE with a deliberately uninformative baseline that returns the average crop for every input.
+Now let <span data-glossary="pytorch">PyTorch</span> learn both networks from 48 noisy copies of the crop using <span data-glossary="gradient">gradients</span> and an <span data-glossary="optimizer">optimizer</span>. Compare the trained autoencoder against a lazy baseline that ignores the input and always predicts the average crop.
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="train-tiny-autoencoder.py"
@@ -177,22 +175,24 @@ latent shape: (1, 2)
 ```
 <!-- leetllm: output:end -->
 
-The trained MSE is close to the constant-crop baseline. These nearly identical inputs don't require an informative code: a decoder can do well by remembering their shared pattern. Optimization works as expected. To test whether the latent captures useful variation, train and evaluate on distinct patterns, hold out crops, and check whether perturbing the latent changes the reconstruction.
+Look closely at that comparison: the trained MSE (`0.0006`) matches the constant mean-crop baseline. Because all 48 patches are tiny jittered copies of one pattern, the decoder can memorize the shared template without relying on the bottleneck at all.
 
-An autoencoder's reconstruction loss scores codes produced by its encoder for training inputs. A random pair can fall far from those codes, where the decoder has received little training signal:
+> **Common mistake:** Treating low reconstruction MSE as proof that the latent code learned meaningful structure. Always compare against a constant mean predictor and check whether perturbing or swapping latent codes changes the decoded image.
+
+Even on diverse datasets where the bottleneck carries real information, plain reconstruction loss has a deeper gap for generation:
 
 $$
 L_{\text{AE}} = \|x - g_\theta(f_\phi(x))\|_2^2
 $$
 
-The encoder can arrange codes without matching a chosen prior. It might place center-highlight crops near $(-1.8, 1.2)$ and lower-strip crops near $(1.7, -1.3)$. A standard-normal draw can fall in a region rarely reached by encoded training crops, where reconstruction loss offers little evidence about decoder quality. Outputs there may be useful, blurry, or implausible. The encoder may produce separated or overlapping clusters, and random samples may succeed or fail. A separate model could also learn a distribution over deterministic codes.
+This loss only scores codes the encoder actually produced. Nothing stops the encoder from parking center-highlight crops near $(-1.8, 1.2)$ and lower-strip crops near $(1.7, -1.3)$, leaving the origin $(0, 0)$ empty. When you draw a fresh vector from a standard normal prior $\mathcal{N}(0, I)$, it lands in that unvisited gap where the decoder has never been trained to paint.
 
 | Model question | Deterministic autoencoder answer |
 |---|---|
 | What does the encoder output? | One point $z$ for each input |
 | What is optimized? | Reconstruction of encoded training examples |
-| Can you decode a known encoded crop? | Yes, if reconstruction training worked |
-| What constrains a standard-normal draw? | Plain reconstruction loss leaves its relation to encoded crops unconstrained |
+| Can you decode a known encoded crop? | Yes, when the bottleneck preserves its structure |
+| What constrains a standard-normal draw? | Nothing in plain reconstruction loss ties encoded clusters to the prior |
 
 <figure>
   <img src="illustrations/_generated/autoencoder_architecture_dark.png" alt="Side-by-side comparison of deterministic autoencoder codes and a variational autoencoder posterior in a 2D latent plane relative to standard normal prior contours: the deterministic autoencoder places isolated points at (-1.8, 1.2) and (1.7, -1.3) leaving (0, 0) empty, whereas the VAE places a posterior centered at mu=[0.4, -0.2] with standard deviation [0.705, 1.051] and draws z=[0.752, -1.251] inside the prior." />
@@ -207,25 +207,19 @@ The reconstruction loss evaluates codes produced by the encoder for training-lik
 
 ## A VAE learns distributions over codes
 
-A VAE starts with a generative story: draw a latent $z$ from a prior $p(z)$, then draw an image from a decoder distribution $p_\theta(x\mid z)$. For an observed crop, inference runs that story backward: which latent values could have produced it? The encoder predicts an **approximate posterior**, written $q_\phi(z \mid x)$, over those possible values.
+A VAE flips the problem into a generative story: draw a latent vector $z$ from a simple prior $p(z)$, then generate an image from a decoder distribution $p_\theta(x \mid z)$. Given an observed crop $x$, inference asks the reverse question: which latent vectors $z$ could have generated it? Because the exact posterior $p_\theta(z \mid x)$ is intractable for neural decoders, the encoder predicts a tractable **approximate posterior** $q_\phi(z \mid x)$ instead. This is amortized <span data-glossary="variational-inference">variational inference</span>: one shared neural network predicts the posterior parameters for every input crop.
 
-The word *approximate* matters: computing the exact posterior $p_\theta(z \mid x)$ is generally impractical, so the encoder parameterizes a tractable variational family $q_\phi(z \mid x)$. This approximation method is <span data-glossary="variational-inference">variational inference</span>. Here it's amortized: one encoder predicts posterior parameters for every crop, sharing its learned inference procedure across inputs.
-
-For the common diagonal-Gaussian case, it predicts a mean vector $\mu$ and a log-<span data-glossary="variance">variance</span> vector $\log \sigma^2$:
+In the standard diagonal-Gaussian VAE, the encoder outputs a mean vector $\mu(x)$ and a log-<span data-glossary="variance">variance</span> vector $\log \sigma^2(x)$:
 
 $$
-q_\phi(z \mid x) = \mathcal{N}\left(\mu(x), \operatorname{diag}(\sigma^2(x))\right)
-$$
-
-The model also declares a simple **prior**, usually:
-
-$$
+q_\phi(z \mid x) = \mathcal{N}\left(\mu(x), \operatorname{diag}(\sigma^2(x))\right),
+\qquad
 p(z) = \mathcal{N}(0, I)
 $$
 
-The posterior describes codes for one observed crop. The prior is the distribution we sample from when no input crop is provided. In $\mathcal{N}(0,I)$, each coordinate has mean zero and variance one, and the coordinates are independent. A diagonal posterior similarly has independent coordinates conditional on this crop, though its means and variances depend on the input. Even when each individual crop uses a factorized diagonal posterior, averaging across the training set gives an aggregate posterior $q_\phi(z)$ whose dimensions generally remain correlated.
+Think of $q_\phi(z \mid x)$ as the region of latent codes that plausibly explain one crop, and $p(z) = \mathcal{N}(0, I)$ as the distribution we will sample from later when generating from scratch. Even though each individual crop has independent diagonal coordinates, averaging those posteriors across the whole dataset produces an aggregate posterior $q_\phi(z)$ whose dimensions can still be correlated.
 
-Why predict `logvar` instead of a raw standard deviation? An unconstrained linear layer can output negative values, while standard deviation must stay positive. Exponentiating half a finite log variance gives a positive scale. Floating-point exponentiation can still underflow to zero or overflow to infinity. Softplus offers another positive parameterization; log variance is one convenient choice.
+Predicting `logvar` rather than a raw standard deviation lets an unconstrained linear layer output any real number while `sigma = exp(0.5 * logvar)` stays strictly positive:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="log-variance-to-standard-deviation.py"
@@ -254,9 +248,7 @@ Those two vectors define a Gaussian for one crop. The encoder can place that Gau
 
 ## Keep posteriors near a sampleable prior
 
-If the encoder may put each crop's distribution anywhere it likes, prior samples still won't reliably land where the decoder has trained. A useful prior penalty vanishes when the posterior equals the standard normal prior and grows rapidly whenever posterior means drift or variances shrink away from one.
-
-VAEs measure that mismatch with <span data-glossary="kl-divergence">Kullback-Leibler (KL) divergence</span>. KL isn't a symmetric distance: direction matters. For a diagonal Gaussian posterior and standard-normal prior, the closed form is:[^kingma2014]
+The VAE pulls every crop's posterior toward the standard normal prior using <span data-glossary="kl-divergence">Kullback-Leibler (KL) divergence</span>. Because both distributions are Gaussians, the penalty has a clean closed form:[^kingma2014]
 
 $$
 D_{\mathrm{KL}}\left(q_\phi(z \mid x) \,\|\, p(z)\right)
@@ -266,9 +258,7 @@ D_{\mathrm{KL}}\left(q_\phi(z \mid x) \,\|\, p(z)\right)
 \left(1 + \log \sigma_j^2 - \mu_j^2 - \sigma_j^2\right)
 $$
 
-The penalty is zero when $\mu=0$ and $\sigma=1$. Moving means away from zero or making variances very different from one increases it.
-
-Use the same two-dimensional posterior we'll sample from next: $\mu = [0.40, -0.20]$ and $\log\sigma^2 = [-0.70, 0.10]$. One coordinate at a time:
+This penalty hits zero only when $\mu = 0$ and $\sigma = 1$, and grows rapidly whenever posterior means drift away from the origin or variances collapse toward zero. Work it out by hand for $\mu = [0.40, -0.20]$ and $\log\sigma^2 = [-0.70, 0.10]$:
 
 $$
 \begin{aligned}
@@ -441,12 +431,14 @@ $$
 
 For fixed $\tau$, the last term is constant with respect to the weights. The first term is scaled **summed** squared error. Mean MSE needs its own reduction factor. A smaller observation variance penalizes the same pixel errors more strongly. Changing the reconstruction reduction also changes the optimization problem unless you adjust the KL coefficient.
 
-The reconstruction term averages over posterior samples. Our code uses one reparameterized draw per example, giving a Monte Carlo estimate of that expectation. For this fixed model and example, averaging $n$ independent draws divides the estimator variance by $n$, at the cost of more decoder work. The Gaussian KL term is evaluated analytically.[^kingma2014]
+The reconstruction term averages over posterior draws. In practice, one reparameterized sample per input gives an unbiased Monte Carlo estimate (averaging $n$ independent draws cuts estimator variance by $n$), while the Gaussian KL evaluates analytically.[^kingma2014]
 
-This ledger computes both terms for one crop using a fixed reconstruction:
+> **Key insight:** Scaling reconstruction loss by `mean` versus `sum` over pixels shifts the effective weight of $\beta$ by a factor of $N$. Whenever you change the reduction or latent dimension, recalibrate $\beta$ to match.
+
+Compute both loss terms across three values of $\beta$ on a single crop:
 
 <!-- leetllm: test, deps=numpy, output=show -->
-```python title="vae-loss-ledger.py"
+```python title="vae-loss-breakdown.py"
 import numpy as np
 
 x = np.array([0.10, 0.90, 0.85, 0.12])
@@ -475,7 +467,7 @@ beta=1.0: recon=0.0017 KL=0.2009 total=0.2026
   <figcaption>Increasing $\beta$ trades reconstruction accuracy for lower KL in this four-dimensional VAE. At $\beta=0.00$, all four coordinates exceed the active-dimension cutoff of 0.1 nats and total KL is 34.6 nats. At $\beta \in [0.10, 0.50]$, two coordinates remain above that cutoff. At $\beta \ge 1.00$, none do, total KL is near zero, and reconstruction summed squared error is about 1.23.</figcaption>
 </figure>
 
-Higgins et al. studied $\beta$-VAE, increasing the KL weight to restrict latent information and encourage disentangled representations.[^higgins2017] A factorized prior alone leaves learned coordinates free to mix real-world factors. Unsupervised disentanglement requires assumptions about the model and data.[^locatello2019Disentanglement] Measure reconstruction distortion, active latent dimensions, and prior samples across a sweep of $\beta$ rather than relying on one unweighted sum:
+Higgins et al. introduced $\beta$-VAE to dial up KL pressure and squeeze the latent channel, encouraging more structured representations.[^higgins2017] A factorized prior alone cannot guarantee disentanglement without inductive biases or supervision,[^locatello2019Disentanglement] so sweeping $\beta$ and watching reconstruction error alongside active latent dimensions shows the exact rate-distortion trade-off:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="beta-rate-distortion-sweep.py"
@@ -538,13 +530,11 @@ beta=2.00: sse=1.226, kl=0.000, active=0/4
 ```
 <!-- leetllm: output:end -->
 
-The sweep shows how stronger KL pressure reduces the number of active coordinates while reconstruction error rises. Two active coordinates match the number of factors used to generate these patches, but identifying what each coordinate represents requires another experiment: vary one coordinate while inspecting the decoded patch. At $\beta=1.0$, KL is small rather than exactly zero. Test how much the reconstruction changes when its code changes, as the next example does.
+Stronger KL pressure steadily prunes active coordinates while reconstruction error climbs. Between $\beta=0.10$ and $0.50$, exactly two coordinates stay active, matching the two true coordinates $(c_x, c_y)$ that generated the patches. By $\beta=1.0$, KL collapses nearly to zero and the decoder abandons the latent code altogether.
 
 ## Train a tiny VAE
 
-Now train a two-dimensional VAE on two families of synthetic crops: one with a bright center highlight and one with a bright lower strip. A constant image can't fit both well. After training, compare reconstruction from each posterior mean with reconstruction from the other family's means. Swapping codes should hurt if they carry pattern information. Finally, decode three prior draws and inspect whether the center or lower strip is bright.
-
-The decoder returns Gaussian mean images in this MSE-based example. We display those means without adding observation noise. The loss below is mean pixel error plus a chosen KL weight. This coefficient is an experimental setting with the mean-MSE scale defined above.
+Now train a two-dimensional VAE on two distinct families of 5 by 5 crops: one with a bright center square and one with a bright lower strip. No single constant image can fit both. After training, swap the two families' posterior means to verify that the decoder genuinely uses $z$, then decode three fresh draws from $\mathcal{N}(0, I)$ to inspect what the prior generates. Using mean-MSE reconstruction paired with $\beta = 0.02$ keeps both loss terms on the same scale:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="train-tiny-vae.py"
@@ -649,56 +639,96 @@ Every tensor transformation in this minimal VAE uses clean batch-major shapes. H
 
 The reductions matter too. `F.mse_loss` averages pixel errors over the batch, while the KL term sums its two latent dimensions before averaging over the batch. `beta = 0.02` is specific to this setup. If you change latent width or loss reduction, retune it and keep logging both terms.
 
-Swapping the families' codes raises MSE from `0.0005` to `0.1276`, showing that the decoder uses input-dependent information. Prior draw 0 has a bright lower strip; draw 1 has a bright center; draw 2 is less distinct. Checking three prior draws alongside training reconstructions confirms that both clusters remain active, while systematic quality assessment requires held-out patterns and larger decoded sample grids.
+Swapping the two families' latent codes jumps MSE from `0.0005` to `0.1276`, confirming the decoder genuinely reads $z$. Even better, look at the three fresh prior draws: draw 0 paints a bright lower strip (`0.875`), while draws 1 and 2 paint bright center squares (`0.877` and `0.800`). Random numbers from $\mathcal{N}(0, I)$ now decode into recognizable crops.
 
 ## Watch for posterior collapse
 
-Low KL can look like success because each posterior matches the prior. But if reconstruction stays acceptable while changing $z$ barely changes the output, what happened? The decoder found a shortcut and stopped using its latent input. In information-theoretic terms, the <span data-glossary="mutual-information">mutual information</span> $I(X;Z)$ between observations and latent codes can fall toward zero: knowing the sampled code no longer tells you much about which crop produced it. This failure is called **posterior collapse**. Van den Oord et al. describe it as a common issue for VAEs paired with high-capacity autoregressive decoders.[^oord2017vqvae]
+Low KL looks great on a dashboard because every posterior matches the prior. Yet if changing $z$ barely alters the decoded output, the decoder has taken a shortcut and stopped using the latent code. In information theory, the <span data-glossary="mutual-information">mutual information</span> $I(X;Z)$ between inputs and codes collapses toward zero: **posterior collapse**.[^oord2017vqvae]
 
-An expressive autoregressive decoder can model data through previously observed pixels or tokens while ignoring the global latent. Training can settle near $q_\phi(z\mid x)=p(z)$, with little input-specific information in the code.[^bowman2016SentenceVAE] That decoder can still generate varied, plausible outputs. An unconditional deterministic mean-image decoder optimized with MSE favors the dataset's mean image when it ignores $z$. Averaging follows from that decoder and loss; posterior collapse describes the broader failure to use latent information.
+High-capacity autoregressive decoders trigger this easily because they can predict each pixel or token from earlier ones while letting $q_\phi(z\mid x) \approx p(z)$.[^bowman2016SentenceVAE] They still generate sharp, varied samples, just without listening to $z$. A deterministic MSE decoder that ignores $z$ instead collapses to the blurry dataset average.
 
-There are two pressures hidden in the average KL. Let $q(z)$ be the mixture of encoder posteriors over the data and let $I_q(X;Z)$ measure information under that joint data/encoder distribution. Then:[^hoffman2016ELBOSurgery]
+Splitting the average KL into two pieces reveals why low KL can mislead you. Let $q(z)$ be the aggregate mixture of encoder posteriors over the dataset:[^hoffman2016ELBOSurgery]
 
 $$
 \mathbb{E}_X D_{\mathrm{KL}}(q_\phi(z\mid X)\,\|\,p(z))
 = I_q(X;Z)+D_{\mathrm{KL}}(q(z)\,\|\,p(z))
 $$
 
-Aggregate prior matching and per-crop posterior matching measure separate properties. If every posterior equals the prior, $I_q(X;Z)=0$: a sampled code cannot tell us which crop it came from. A large average KL can reflect prior mismatch, useful information, or both.
+> **Key insight:** Average KL bundles two opposite forces: useful information carried by the code ($I_q(X;Z)$, which you want positive) and mismatch between the aggregate codes and the prior ($D_{\mathrm{KL}}(q(z)\|p(z))$, which you want small). Pushing total KL to zero crushes both.
 
-The training code already reports KL per latent dimension. One near-zero dimension can be unused capacity when the other distinguishes the two patterns. This per-dimension monitor raises a warning only when KL is tiny in every dimension; it doesn't diagnose collapse by itself:
+Watch posterior collapse happen directly by comparing our two-family VAE at $\beta = 0.02$ against an over-penalized run at $\beta = 0.50$. Checking both per-dimension KL and the MSE jump from swapping codes exposes collapse immediately:
 
-<!-- leetllm: test, deps=numpy, output=show -->
-```python title="posterior-collapse-monitor.py"
-import numpy as np
+<!-- leetllm: test, deps=torch, output=show -->
+```python title="posterior-collapse-check.py"
+import torch
+from torch import nn
+import torch.nn.functional as F
 
-logged_kl_by_dimension = {
-    "using latent": np.array([0.31, 0.18]),
-    "suspected collapse": np.array([0.0003, 0.0001]),
-}
-threshold = 0.001
+torch.manual_seed(8)
+center_mark = torch.tensor([
+    0.05, 0.10, 0.08, 0.10, 0.06,
+    0.12, 0.88, 0.86, 0.13, 0.08,
+    0.10, 0.91, 0.90, 0.12, 0.07,
+    0.06, 0.15, 0.14, 0.10, 0.06,
+    0.05, 0.08, 0.08, 0.05, 0.04,
+])
+lower_mark = torch.tensor([
+    0.04, 0.07, 0.06, 0.08, 0.05,
+    0.10, 0.15, 0.12, 0.10, 0.06,
+    0.08, 0.18, 0.16, 0.09, 0.06,
+    0.06, 0.84, 0.88, 0.11, 0.07,
+    0.04, 0.07, 0.08, 0.05, 0.04,
+])
+patches = torch.cat([
+    torch.clamp(center_mark + 0.02 * torch.randn(32, 25), 0.0, 1.0),
+    torch.clamp(lower_mark + 0.02 * torch.randn(32, 25), 0.0, 1.0),
+])
 
-for run_name, kl_dims in logged_kl_by_dimension.items():
-    low_kl_warning = bool(np.all(kl_dims < threshold))
-    print(f"{run_name:18} total_KL={kl_dims.sum():.4f} low_KL_warning={low_kl_warning}")
+def run_vae(beta: float):
+    torch.manual_seed(8)
+    enc = nn.Sequential(nn.Linear(25, 12), nn.Tanh())
+    mu_head, lv_head = nn.Linear(12, 2), nn.Linear(12, 2)
+    dec = nn.Sequential(nn.Linear(2, 12), nn.Tanh(), nn.Linear(12, 25), nn.Sigmoid())
+    params = list(enc.parameters()) + list(mu_head.parameters()) + list(lv_head.parameters()) + list(dec.parameters())
+    opt = torch.optim.Adam(params, lr=0.03)
+    for _ in range(300):
+        h = enc(patches)
+        mu, lv = mu_head(h), lv_head(h)
+        z = mu + torch.exp(0.5 * lv) * torch.randn_like(mu)
+        recon = F.mse_loss(dec(z), patches)
+        kl = -0.5 * (1 + lv - mu.square() - lv.exp()).sum(1).mean()
+        opt.zero_grad()
+        (recon + beta * kl).backward()
+        opt.step()
+    with torch.no_grad():
+        h = enc(patches)
+        mu, lv = mu_head(h), lv_head(h)
+        kl_dims = -0.5 * (1 + lv - mu.square() - lv.exp()).mean(0)
+        own_mse = F.mse_loss(dec(mu), patches).item()
+        swap_mse = F.mse_loss(dec(mu.roll(32, dims=0)), patches).item()
+    return kl_dims.tolist(), own_mse, swap_mse
+
+for label, beta in [("healthy (beta=0.02)", 0.02), ("collapsed (beta=0.50)", 0.50)]:
+    kl_dims, own_mse, swap_mse = run_vae(beta)
+    print(f"{label:22s} KL={[round(v, 4) for v in kl_dims]} own_MSE={own_mse:.4f} swap_MSE={swap_mse:.4f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-using latent       total_KL=0.4900 low_KL_warning=False
-suspected collapse total_KL=0.0004 low_KL_warning=True
+healthy (beta=0.02)    KL=[0.7133, 0.0019] own_MSE=0.0004 swap_MSE=0.1280
+collapsed (beta=0.50)  KL=[0.0, 0.0] own_MSE=0.0326 swap_MSE=0.0326
 ```
 <!-- leetllm: output:end -->
 
-Interpret a low KL value alongside reconstruction quality, generated samples, and whether predictions respond when $z$ changes. A rapid collapse toward zero still warrants investigation.
+In the collapsed run, KL hits zero on every dimension and swapping codes leaves MSE completely unchanged (`0.0320` vs `0.0320`): the decoder outputs the same average blur regardless of $z$.
 
-Three interventions worth testing are:
+Three reliable levers prevent or fix posterior collapse:
 
-1. **KL annealing:** Start with weak KL pressure and increase it toward the intended final weight. Bowman et al. anneal from zero to one for their likelihood-scaled objective.[^bowman2016SentenceVAE] Our mean-MSE example uses a different scale, so choose the endpoint to match its loss scale. The nearly constant-crop experiment showed that zero KL weight can leave the latent unused.
-2. **Free bits:** The original formulation sums $\max(\tau,\mathbb{E}_X D_{\mathrm{KL},j})$ over latent groups, with each group's KL averaged over the minibatch before applying the floor.[^kingma2016IAFFreeBits] Below $\tau$, that KL contribution has zero gradient; reconstruction can reward additional information without extra KL cost. Mutual information can still remain low. With natural logarithms, the threshold is measured in nats despite the name.
-3. **Decoder rebalancing:** Reduce decoder capacity or weaken autoregressive conditioning. Bowman's word dropout removes some teacher-forced context so latent information becomes more useful.[^bowman2016SentenceVAE] Test whether the decoder uses $z$ after the change, and monitor sample quality because reducing decoder capacity can hurt it.
+1. **KL annealing:** Start with weak KL weight and ramp it up during training so the encoder learns useful codes before prior pressure kicks in.[^bowman2016SentenceVAE]
+2. **Free bits:** Floor each latent group's batch-average KL at $\tau$ via $\sum_j \max(\tau, \mathbb{E}_X D_{\mathrm{KL},j})$ so gradients vanish below the floor and the encoder gets a free budget of nats to encode input structure.[^kingma2016IAFFreeBits]
+3. **Weaker decoder conditioning:** Drop out part of an autoregressive decoder's context (such as word dropout) so it must lean on the latent code to predict accurately.[^bowman2016SentenceVAE]
 
-The order in free bits is observable. Suppose one latent group has per-example KL values `0.2` and `2.2` nats, and its floor is `1.0`. Its batch average is `1.2`, already above the floor, so the original formulation keeps the KL gradient for both examples. Flooring each example first would suppress the first example's gradient and charge a different total:
+Notice that the reduction order in free bits changes the gradient. Suppose one latent group has per-example KL values `0.2` and `2.2` nats with floor `1.0`. Their batch average is `1.2`, already above the floor, so both examples keep their KL gradients. Flooring each example first would zero the first example's gradient and charge a higher loss:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="free-bits-reduction-order.py"
@@ -725,9 +755,7 @@ derivatives: [0.0, 0.5]
 ```
 <!-- leetllm: output:end -->
 
-These are derivatives with respect to the KL values. Autograd then multiplies them by each value's derivative with respect to the encoder parameters. The example avoids the exact threshold, where the floor has a corner; below the group threshold, that group's KL contribution has zero derivative for every example.
-
-Inspect interpolation to see whether it is meaningful. A decoder built from continuous layers changes continuously with $z$ in a deterministic autoencoder too; mathematical continuity alone says little about image plausibility. The path $z(\alpha)=(1-\alpha)z_A+\alpha z_B$ can cross regions poorly represented during training in either model. Gaussian posterior support alone doesn't tell us where most probability mass lies or where decoding works well.
+Autograd multiplies these derivatives by each KL term's gradient with respect to encoder weights. Below the group floor, that group's KL gradient drops cleanly to zero for every example in the batch.
 
 ```checkpoint
 An expressive autoregressive VAE has KL near zero but generates varied, plausible images. Does that rule out posterior collapse?
@@ -867,19 +895,18 @@ spatial reduction: 64 x
 ```
 <!-- leetllm: output:end -->
 
-Channels and decoder quality still matter. For an RGB image and four-channel latent at $f=8$, the spatial area shrinks by 64 while the channel count grows from 3 to 4, for a 48-fold reduction in scalar values. Those element counts alone do not determine runtime or compressed-file size. Rombach et al. find that aggressive compression hurts their downstream results; detail discarded by the encoder can't be uniquely recovered from its code. A generator may synthesize plausible detail without reproducing the original pixels.
+Channels factor in too: turning a 3-channel RGB image into a 4-channel latent at $f = 8$ shrinks spatial area by $64\times$ and scalar element count by $48\times$. Pushing compression too hard discards fine detail that the decoder cannot uniquely recover.[^rombach2022]
 
 ## Debug the latent interface
 
-Start by logging reconstruction and KL losses separately. A low total can hide a reconstruction term that dominates, or a KL term that has collapsed toward zero.
+Four quick checks catch almost every VAE training bug:
 
-If sampling or KL returns `NaN` or `Inf`, check the scale path first: compute standard deviation as `sigma = exp(0.5 * logvar)`. The expression `exp(logvar)` gives variance. Inspect the range of `logvar` before adding an explicit clamp, since a clamp can hide unstable optimization.
+- **Log reconstruction and KL separately:** A smooth total loss can mask a reconstruction term that swamps KL or a KL term that collapsed to zero.
+- **Check the scale formula first on `NaN`/`Inf`:** Standard deviation is `exp(0.5 * logvar)`, while `exp(logvar)` is variance. Inspect `logvar` magnitudes before clamping.
+- **Keep posterior and prior roles separate:** The encoder produces $q_\phi(z \mid x)$ from an input; generation draws fresh samples from $p(z)$. Always test whether changing $z$ changes the decoded image.
+- **Track codebook utilization in VQ-VAE:** If only a handful of code IDs ever fire, most of the discrete bottleneck sits unused.
 
-Keep the two distributions distinct. The encoder supplies $q_\phi(z \mid x)$ for an observed crop; generation samples from the prior $p(z)$. If decoded outputs barely change when $z$ changes, the decoder may be ignoring its latent input even when reconstruction looks fine.
-
-For a VQ-VAE, log code usage as well. If only a few code IDs are selected, the codebook's capacity is going unused and the discrete bottleneck needs a closer look.
-
-One loss number mixes three checks: whether the crop was rebuilt, whether a random draw lands where the decoder was trained, and whether changing the code changes the picture.
+> **Key insight:** One scalar loss mixes three separate questions: can the model rebuild its input, do random prior draws land where the decoder was trained, and does changing the code actually change the picture?
 
 ---
 

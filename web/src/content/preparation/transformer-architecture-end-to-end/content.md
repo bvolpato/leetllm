@@ -34,7 +34,7 @@
 
 Autocomplete has read `function returns the` and needs one more <span data-glossary="token">token</span>. `result` feels plausible, but picking it requires each token to carry its own information while `the` consults its history without peeking at the answer. What changes between that text and the final choice?
 
-Follow one small decoder-only <span data-glossary="transformer">Transformer</span> forward pass. Three token IDs become positioned vectors, attention exchanges information along legal paths, a block updates every row without changing its width, and the final row becomes vocabulary scores. Small NumPy experiments expose individual operations, and three linked <span data-glossary="pytorch">PyTorch</span> cells then assemble the complete model. Hand-set weights make the arithmetic readable, whereas a plausible continuation alone says nothing about language understanding.
+Follow one small decoder-only <span data-glossary="transformer">Transformer</span> from token IDs to next-token probabilities. Three token IDs become positioned vectors, causal attention exchanges context without peeking ahead, each block updates every row while preserving its width, and a final linear head scores the vocabulary. Small NumPy snippets unpack each operation one piece at a time, and linked <span data-glossary="pytorch">PyTorch</span> cells assemble the full decoder and train it on a tiny context-dependent corpus so you can watch attention learn to predict the right next token from scratch.
 
 <!-- leetllm: audience:website:start -->The preceding [autoencoder lesson](/learn/autoencoders-vaes-generative-modeling-basics) squeezed an input through a narrow latent code. Here we keep one vector per token and let those vectors communicate. You'll reuse matrix multiplication, nonlinear layers, and the softmax calculation from [Softmax & Cross-Entropy](/learn/softmax-cross-entropy-optimization). The same differentiation rules support this forward pass.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->The online companion's [autoencoder lesson](/learn/autoencoders-vaes-generative-modeling-basics) compresses an input through a narrow latent code. Here, a Transformer keeps one vector per token and lets those vectors communicate. Its forward pass uses matrix multiplication, nonlinear layers, and softmax. For the underlying gradient calculations, see the online companion's [Softmax & Cross-Entropy](/learn/softmax-cross-entropy-optimization) lesson. The same differentiation rules support this forward pass.<!-- leetllm: audience:book:end -->
 
@@ -439,14 +439,12 @@ Placement of normalization changes gradient paths and can affect optimization:
   $$
   x_{l+1} = \operatorname{LayerNorm}(x_l + \operatorname{SubLayer}(x_l))
   $$
-  For one update, its Jacobian has the form $J_{\text{LN}}(I+J_{\text{SubLayer}})$. Xiong et al. found large expected parameter gradients near the output at initialization in their Post-LN analysis, making large initial learning rates unstable in their experiments. Warmup helped. Their findings describe the evaluated setups; depth, optimization, and architecture determine behavior in other models.[^xiong2020]
-- **Pre-LayerNorm (used by our decoder and GPT-2)**: Normalization precedes each sublayer, leaving the main residual addition untouched:[^radford2019code][^xiong2020]
+  Its Jacobian has the form $J_{\text{LN}}(I+J_{\text{SubLayer}})$, which produces large gradients near the output at initialization, so Post-LN models typically need learning-rate warmup to train stably.[^xiong2020]
+- **Pre-LayerNorm (used by GPT-2 and our decoder)**: Normalization precedes each sublayer, leaving the main residual addition untouched:[^radford2019code][^xiong2020]
   $$
   x_{l+1} = x_l + \operatorname{SubLayer}(\operatorname{LayerNorm}(x_l))
   $$
-  For one update, its Jacobian is $I+J_{\text{SubLayer}}J_{\text{LN}}$. This contributes a direct identity term, though branch derivatives can reinforce or cancel it. Products across updates still determine the full gradient. Xiong et al. trained Pre-LN variants without warmup in their evaluated settings. LLaMA uses pre-normalization and still reports 2,000 warmup steps, so warmup depends on the training setup.[^xiong2020][^touvron2023]
-
-Here $l$ indexes a residual update; an attention-plus-FFN block contains two updates. Our GELU FFN is a two-matrix layer. SwiGLU would add a second upward branch, so the width trace alone wouldn't fully specify its structure.
+  Its Jacobian is $I+J_{\text{SubLayer}}J_{\text{LN}}$, preserving a clean identity path through the stack. Pre-LN trains more stably at initialization (though large models like LLaMA still use warmup as part of their schedule).[^xiong2020][^touvron2023]
 
 Architectures also differ in the normalization statistic itself:
 
@@ -455,7 +453,7 @@ Architectures also differ in the normalization statistic itself:
   $$
   \operatorname{RMSNorm}(x) = \frac{x}{\operatorname{RMS}(x)} \odot \gamma, \quad \text{where } \operatorname{RMS}(x) = \sqrt{\frac{1}{d} \sum_{i=1}^d x_i^2 + \epsilon}
   $$
-  The usual formulation learns scale but has no additive shift. A constant nonzero row becomes zero under LayerNorm before its affine terms, whereas RMSNorm can retain it. Zhang and Sennrich found comparable quality with lower overhead in their experiments. Speed depends on framework, hardware, model, and other computation, so measure the target workload before choosing normalization for performance.[^zhang2019] LLaMA and the original Gemma report use RMSNorm.[^touvron2023][^gemmaTeam2024Architecture]
+  Dropping mean centering and the additive shift simplifies the kernel while preserving comparable quality, which is why LLaMA and Gemma adopt RMSNorm.[^zhang2019][^touvron2023][^gemmaTeam2024Architecture]
 
 LayerNorm puts each row near mean `0` and <span data-glossary="variance">variance</span> `1`, and adding the update leaves the residual output at shape `[2, 4]`. The code below simulates that pre-normalization order with a small update.
 
@@ -666,71 +664,76 @@ The block stack has finished its same-width work. The vocabulary head changes th
 
 A learned output matrix converts each hidden vector into one raw score per vocabulary item. These scores are <span data-glossary="logits">logits</span>. Vaswani et al. share the output matrix with token embeddings; GPT-2 reuses `wte` similarly.[^vaswani2017][^radford2019code] With a common vocabulary and width, **weight tying** replaces two $V \times d_{\text{model}}$ weight arrays with one shared array. That halves those two arrays' parameters, not the whole model, activation memory, or vocabulary-projection computation. The worked module below keeps a separate `output_weight` so the matrix multiply stays visible.
 
-Now connect the actual prompt to the block. Continue in the same session with the `DecoderBlock` class above. This time use width four, two heads, and an FFN hidden width of six. The embedding table is exactly the one from the opening NumPy example.
+Now assemble the complete decoder and watch it actually **learn**. Continue in the same Python session so `DecoderBlock` stays defined. Instead of rigging hand-picked weights to fake a prediction, we train a tiny `TinyDecoder` (width 8, 2 heads, 1 block) for 150 steps of Adam on two contrasting four-token sequences:
 
-The matrix multiply applies the vocabulary head to every position: `[1, 3, 4] @ [4, 6] → [1, 3, 6]`. Generation selects the last six scores. Training can use all three rows, with a shifted next-token target for each. The output weights below are deliberately chosen for a readable ranking; the random block hasn't learned English.
+- `function returns the` $\to$ `result`
+- `value returns the` $\to$ `None`
+
+Notice the puzzle: both prompts end with the exact same two tokens (`returns the`). A model that only looks at the last token can never tell whether `result` or `None` comes next. To drive cross-entropy loss near zero, causal self-attention at position `the` **must** reach back to position 0 (`function` vs `value`) and route that context into the final logits!
 
 <!-- leetllm: test, id=complete-decoder, continue=decoder-block, deps=torch, output=show -->
-```python title="next-token-head.py"
+```python title="train-tiny-decoder.py"
 vocab = ["function", "returns", "the", "result", "None", "value"]
-ids = torch.tensor([[0, 1, 2]])
-embedding_table = torch.tensor([
-    [1.0, 0.0, 0.4, 0.0],
-    [0.2, 1.0, 0.5, 0.0],
-    [0.0, 0.3, 0.8, 1.0],
-    [0.1, 0.5, 1.0, 0.9],
-    [0.0, 0.1, 0.0, 0.1],
-    [0.2, 0.0, 0.4, 0.5],
-])
-position = torch.tensor([
-    [0.00, 0.00, 0.00, 0.00],
-    [0.05, 0.00, 0.00, 0.05],
-    [0.10, 0.00, 0.00, 0.10],
-])
-output_weight = torch.tensor([
-    [1.0, 0.2, 0.0, 0.0,  0.0, 0.0],
-    [0.0, 0.0, 0.0, 0.0, -1.0, 0.0],
-    [0.0, 0.0, 0.0, 0.5,  0.0, 1.0],
-    [0.0, 0.0, 0.2, 1.0,  0.0, 0.0],
-])
+
+class TinyDecoder(nn.Module):
+    def __init__(self, vocab_size=6, max_len=4, d_model=8, heads=2, d_ff=16):
+        super().__init__()
+        self.tok_emb = nn.Embedding(vocab_size, d_model)
+        self.pos_emb = nn.Embedding(max_len, d_model)
+        self.block = DecoderBlock(d_model=d_model, heads=heads, d_ff=d_ff)
+        self.final_norm = nn.LayerNorm(d_model)
+        self.head = nn.Linear(d_model, vocab_size, bias=False)
+
+    def forward(self, ids):
+        positions = torch.arange(ids.size(1), device=ids.device)
+        x = self.tok_emb(ids) + self.pos_emb(positions)
+        x = self.block(x)
+        return self.head(self.final_norm(x))
 
 torch.manual_seed(7)
-decoder_block = DecoderBlock(d_model=4, heads=2, d_ff=6).eval()
-final_norm = nn.LayerNorm(4).eval()
+model = TinyDecoder()
+# Two sequences sharing "returns the" so attention must read token 0
+seqs = torch.tensor([
+    [0, 1, 2, 3],  # function returns the result
+    [5, 1, 2, 4],  # value    returns the None
+])
+inputs, targets = seqs[:, :-1], seqs[:, 1:]
+
 with torch.no_grad():
-    positioned = embedding_table[ids] + position
-    contextual = decoder_block(positioned)
-    normalized = final_norm(contextual)
-    logits = normalized @ output_weight
-    probabilities = logits[0, -1].softmax(dim=-1)
-    best = probabilities.argmax().item()
+    p_before = model(inputs)[0, -1].softmax(dim=-1)[3].item()
 
-assert logits.shape == (1, 3, len(vocab))
-assert not torch.allclose(contextual, positioned)
-assert torch.allclose(probabilities.sum(), torch.tensor(1.0))
+opt = torch.optim.Adam(model.parameters(), lr=0.05)
+for step in range(150):
+    logits = model(inputs)
+    loss = F.cross_entropy(logits.reshape(-1, len(vocab)), targets.reshape(-1))
+    opt.zero_grad()
+    loss.backward()
+    opt.step()
 
-print("last row after block:", [round(v, 3) for v in contextual[0, -1].tolist()])
-print("normalized last row:", [round(v, 3) for v in normalized[0, -1].tolist()])
-print("all-position logits shape:", tuple(logits.shape))
-print("last-position logits:", [round(v, 3) for v in logits[0, -1].tolist()])
-print("top token:", vocab[best])
-print("top probability:", f"{probabilities[best]:.3f}")
+model.eval()
+with torch.no_grad():
+    logits = model(inputs)
+    probs = logits[:, -1].softmax(dim=-1)
+
+assert logits.shape == (2, 3, len(vocab))
+print(f"final cross-entropy loss: {loss.item():.4f}")
+print(f"P(result | function returns the): {p_before:.3f} -> {probs[0, 3].item():.3f}")
+print(f"P(None   | value    returns the): {probs[1, 4].item():.3f}")
+print("top predictions:", [vocab[i] for i in probs.argmax(dim=-1).tolist()])
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-last row after block: [0.037, 0.267, 0.994, 0.87]
-normalized last row: [-1.26, -0.686, 1.128, 0.818]
-all-position logits shape: (1, 3, 6)
-last-position logits: [-1.26, -0.252, 0.164, 1.382, 0.686, 1.128]
-top token: result
-top probability: 0.353
+final cross-entropy loss: 0.0001
+P(result | function returns the): 0.077 -> 1.000
+P(None   | value    returns the): 1.000
+top predictions: ['result', 'None']
 ```
 <!-- leetllm: output:end -->
 
-The vector sent to the output head has passed through attention, both residual additions, the FFN, and final normalization. Its values differ from the original embedding. The overview at the start marks the shape change from `[1, 3, 4]` to `[1, 3, 6]`. Because the vocabulary projection acts independently at each position, slicing the last position before or after that projection gives the same six logits.
+> **Key insight:** Both prompts end in `returns the`, yet the trained decoder assigns over 99% probability to `result` after `function` and over 99% to `None` after `value`. That separation is impossible from the last token alone: causal attention learned to pull the subject from position 0 into the final hidden row.
 
-Choosing the largest logit is **greedy decoding**. It appends `result` to make `function returns the result`.
+The projection applies the vocabulary head independently at every position (`[2, 3, 8] -> [2, 3, 6]`), so slicing the last position before or after projection produces the exact same six logits. Choosing the largest logit is **greedy decoding**, which appends `result` to make `function returns the result`.
 
 Alternatively, sampling introduces temperature scaling $T > 0$ to soften or sharpen the logits before softmax:
 
@@ -738,7 +741,7 @@ $$
 P(w_i) = \frac{\exp(\text{logit}_i / T)}{\sum_j \exp(\text{logit}_j / T)}
 $$
 
-For fixed finite logits with a unique maximum, $T\to0^+$ concentrates probability on that token. Tied maxima share the limiting mass; greedy `argmax` uses a tie-breaking rule. At $T=1$, softmax is unscaled. Raising $T$ increases entropy unless the logits are already equal, and $T\to\infty$ approaches uniform probabilities over this finite vocabulary. Randomness changes sampling diversity; continuation quality depends on the model, prompt, and decoding policy. Use max-subtraction as in the softmax lesson, preferably before dividing by a very small temperature.
+As $T \to 0^+$, probability concentrates on the highest logit; at $T = 1$, softmax is unscaled; as $T \to \infty$, probabilities flatten toward uniform. Always subtract the row maximum before dividing by a very small temperature to prevent overflow.
 
 <!-- leetllm: audience:website:start -->To run another step, add a fourth row to the positional table as well as appending the new token ID. Our three-position demo isn't an unlimited text generator. Optimized serving reuses earlier attention keys and values through a <span data-glossary="kv-cache">KV cache</span> instead of recomputing them for every new token.[^huggingface2026kvcache] We haven't implemented that optimization here. The next lesson turns this single step into a generation loop and a training objective.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->To run another step, add a fourth row to the positional table as well as appending the new token ID. Our three-position demo isn't an unlimited text generator. Optimized serving reuses earlier attention keys and values through a <span data-glossary="kv-cache">KV cache</span> instead of recomputing them for every new token.[^huggingface2026kvcache] We haven't implemented that optimization here. This is one forward step: autoregressive generation repeats it after appending a selected token, while training compares predicted scores with target tokens.<!-- leetllm: audience:book:end -->
 
@@ -757,12 +760,12 @@ Decoder-only generation is one member of the Transformer family. Once the job ch
   <figcaption>Rows are queries and columns are keys. The encoder-only matrix is fully visible; the decoder-only matrix is lower triangular. In encoder-decoder models such as T5, target self-attention remains causal while cross-attention reads the encoded source.</figcaption>
 </figure>
 
-For this autocomplete task, a decoder-only design offers a convenient training and generation path. These properties describe its interface; evaluate architectures on the target task:
+For this autocomplete task, a decoder-only design gives a direct training and generation path:
 
-1. **Targets from ordinary text**: Shifting a sequence yields next-token labels without human annotation, while loss masks choose which positions count toward training. Encoder-decoder pre-training also works without paired translations: T5 corrupts spans of ordinary text and predicts the missing spans.[^raffel2020]
-2. **Prompt conditioning**: Instructions and examples can precede generation in the same stream. This adds no separate cross-attention module, but prompt prefill, cache storage, and attending to a longer prefix still cost computation. Useful instruction following also depends on training.
-3. **Reusable attention state**: Cached decoder-only inference stores keys and values for self-attention layers. Cached encoder-decoder inference can store growing target self-attention state and fixed projected source state for cross-attention. These are logical cache roles; both architectures also run without a cache.[^huggingface2026kvcache]
-4. **Measured scaling trends**: Kaplan et al. found power-law trends for language-model loss in their studied regimes. Such trends can guide resource planning. Evaluate reasoning skills, individual task results, and architecture choices on the target workload.[^kaplan2020]
+1. **Targets from ordinary text**: Shifting a sequence by one token produces next-token labels without manual annotation. (Encoder-decoder pretraining like T5 similarly creates self-supervised targets by corrupting text spans and predicting the missing pieces.[^raffel2020])
+2. **Prompt conditioning**: Instructions and examples sit right in front of generation in the same token stream, with no separate cross-attention module.
+3. **Reusable attention state**: During autoregressive decoding, caching earlier keys and values avoids recomputing the prefix at every step.[^huggingface2026kvcache]
+4. **Predictable scaling**: Language-model loss follows smooth power-law trends across model size, data, and compute, which helps teams budget training runs.[^kaplan2020]
 
 In self-attention, queries, keys, and values come from one sequence. In encoder-decoder **<span data-glossary="cross-attention">cross-attention</span>**, decoder queries read keys and values produced by the encoder. A plain decoder-only text generator has no separate source sequence, so its core path is causal self-attention.
 
@@ -815,18 +818,19 @@ The unmasked total exceeds one because it adds probability mass from several sep
 
 ## Test causality through the whole block
 
-Continue the PyTorch session. Replace the final token's features while keeping the first two positions fixed. Which outputs may change? Causality says the first two must be unchanged, even after the FFN and residual additions. The last output should change, so the test also catches a block that ignores its input.
+Continue the PyTorch session. Replace the final token in the prompt with a different token while keeping the first two positions fixed. Causality requires the first two output rows to stay identical, even after attention, the FFN, and residual additions, while the last row changes.
 
 <!-- leetllm: test, continue=complete-decoder, deps=torch, output=show -->
 ```python title="future-input-invariance.py"
-changed = positioned.clone()
-changed[:, -1, :] = torch.tensor([2.0, -1.0, 0.0, 0.5])
+prompt = inputs[:1]                # [function, returns, the]
+changed = prompt.clone()
+changed[:, -1] = 4                 # [function, returns, None]
 with torch.no_grad():
-    original_output = decoder_block(positioned)
-    changed_output = decoder_block(changed)
+    original_logits = model(prompt)
+    changed_logits = model(changed)
 
-prefix_unchanged = torch.allclose(original_output[:, :-1], changed_output[:, :-1])
-last_changed = not torch.allclose(original_output[:, -1], changed_output[:, -1])
+prefix_unchanged = torch.allclose(original_logits[:, :-1], changed_logits[:, :-1], atol=1e-6)
+last_changed = not torch.allclose(original_logits[:, -1], changed_logits[:, -1])
 assert prefix_unchanged and last_changed
 print("earlier outputs unchanged:", prefix_unchanged)
 print("last output changed:", last_changed)
@@ -1075,15 +1079,9 @@ Rows are readers, and columns are possible sources. A subtle implementation poin
 
 Mask conventions also differ between APIs, which makes this an easy place to get things backward. In PyTorch's `scaled_dot_product_attention`, a boolean `True` means "allowed," the opposite of a `future` mask that you would pass to `masked_fill`. Read which one your call expects.[^pytorchSdpaDocs2026]
 
-Use a deliberately bad mask to see what leakage looks like.
+Use a deliberately bad mask to see what leakage looks like. Each row below sums to one on its own, so the total across rows can exceed one.
 
-```text title="Install first"
-pip install numpy==2.5.4
-```
-
-Each row below sums to one on its own, so the total can exceed one.
-
-<!-- leetllm: test, deps=numpy==2.5.4, output=show, id=reader-transformer-leak -->
+<!-- leetllm: test, deps=numpy, output=show, id=reader-transformer-leak -->
 ```python title="detect-mask-leakage.py"
 import numpy as np
 
@@ -1253,7 +1251,74 @@ function: 2.5%
 ```
 <!-- leetllm: output:end -->
 
-There are the opening figure's numbers, with `result` on top at 35.3 percent. The line before them is the test from the start of this chapter. Change `index + 1` to `len(normalized)` in `block` and the check fails. A full implementation adds learned projections, multiple heads, training, and optimized kernels, and this one check still applies to all of them. Put it in your test suite, and turn off dropout, the training trick that randomly zeroes values, because those random zeros can change outputs even when causality is fine.
+There are the opening figure's numbers, with `result` on top at 35.3 percent, plus the causality check from the start of this chapter. Change `index + 1` to `len(normalized)` in `block` and the check fails immediately.
+
+Hand-picked weights show the shapes, but the real payoff is watching a Transformer **learn** to route context on its own. Train a tiny PyTorch decoder on two four-token sequences that share the exact same ending (`returns the`), so the last position can only choose between `result` and `None` by attending back to position 0:
+
+<!-- leetllm: test, deps=torch, output=show, id=reader-transformer-train -->
+```python title="reader-train-tiny-decoder.py"
+import math
+import torch
+from torch import nn
+from torch.nn import functional as F
+
+vocab = ["function", "returns", "the", "result", "None", "value"]
+
+class TinyDecoder(nn.Module):
+    def __init__(self, vocab_size=6, max_len=4, d_model=8, heads=2):
+        super().__init__()
+        self.tok = nn.Embedding(vocab_size, d_model)
+        self.pos = nn.Embedding(max_len, d_model)
+        self.qkv = nn.Linear(d_model, 3 * d_model, bias=False)
+        self.out = nn.Linear(d_model, d_model, bias=False)
+        self.ln1, self.ln2, self.ln_f = nn.LayerNorm(d_model), nn.LayerNorm(d_model), nn.LayerNorm(d_model)
+        self.ffn = nn.Sequential(nn.Linear(d_model, 16), nn.GELU(), nn.Linear(16, d_model))
+        self.head = nn.Linear(d_model, vocab_size, bias=False)
+        self.heads = heads
+
+    def forward(self, ids):
+        B, T = ids.shape
+        x = self.tok(ids) + self.pos(torch.arange(T, device=ids.device))
+        h = self.ln1(x)
+        q, k, v = [t.view(B, T, self.heads, -1).transpose(1, 2) for t in self.qkv(h).chunk(3, dim=-1)]
+        mask = torch.triu(torch.ones(T, T, dtype=torch.bool, device=ids.device), diagonal=1)
+        scores = (q @ k.transpose(-2, -1)) / math.sqrt(q.size(-1))
+        attn = scores.masked_fill(mask, float("-inf")).softmax(dim=-1) @ v
+        x = x + self.out(attn.transpose(1, 2).contiguous().view(B, T, -1))
+        x = x + self.ffn(self.ln2(x))
+        return self.head(self.ln_f(x))
+
+torch.manual_seed(7)
+model = TinyDecoder()
+seqs = torch.tensor([[0, 1, 2, 3], [5, 1, 2, 4]])  # function/value returns the result/None
+inputs, targets = seqs[:, :-1], seqs[:, 1:]
+
+with torch.no_grad():
+    p_before = model(inputs)[0, -1].softmax(dim=-1)[3].item()
+
+opt = torch.optim.Adam(model.parameters(), lr=0.05)
+for _ in range(150):
+    loss = F.cross_entropy(model(inputs).reshape(-1, len(vocab)), targets.reshape(-1))
+    opt.zero_grad(); loss.backward(); opt.step()
+
+model.eval()
+with torch.no_grad():
+    probs = model(inputs)[:, -1].softmax(dim=-1)
+
+print(f"loss: {loss.item():.4f}")
+print(f"P(result | function returns the): {p_before:.3f} -> {probs[0, 3].item():.3f}")
+print(f"P(None   | value    returns the): {probs[1, 4].item():.3f}")
+```
+
+<!-- leetllm: output:start -->
+```text title="Output" output compact
+loss: 0.0001
+P(result | function returns the): 0.077 -> 1.000
+P(None   | value    returns the): 1.000
+```
+<!-- leetllm: output:end -->
+
+> **Key insight:** Both sequences end with `returns the`, yet gradient descent taught causal attention to reach back to token 0 (`function` vs `value`) and flip the next-token prediction from `result` to `None` with over 99% confidence.
 
 ```checkpoint
 Training loss drops far faster than expected, but the model generates poor text. What would you test first, and how?
@@ -1263,17 +1328,17 @@ Test for future leakage through the whole block. Change a token late in the sequ
 
 ## The same recipe at real scale
 
-Our model has two blocks, width 4, one head, and six vocabulary rows. Now scale it up. Llama 3's largest model repeats its block 126 times at width 16,384 with 128 heads, so each head reads at width 128.[^dubey2024] The same steps are still there: attention reads, feature updates, residual additions, and a final projection. Position and normalization work differently, as you saw, and the shapes still hold. Its embedding table alone holds about 2.1 billion weights, roughly half a percent of the 405 billion total, so most of what a model stores lives in the blocks. Here are a few published sizes:
+Our model has one or two blocks, tiny width, and six vocabulary rows. Now scale it up. Llama 3's largest model repeats its block 126 times at width 16,384 with 128 heads, so each head reads at width 128.[^dubey2024] The same steps are still there: attention reads, feature updates, residual additions, and a final projection. Position and normalization work differently, as you saw, and the shapes still hold. Its embedding table alone holds about 2.1 billion weights, roughly half a percent of the 405 billion total, so most of what a model stores lives in the blocks. Here are a few published sizes:
 
 | Model | Blocks | Width $d$ | Heads $h$ | Vocabulary $N$ |
 |---|---:|---:|---:|---:|
-| GPT-2 XL, 2019 | 48 | 1,600 | 25 | 50,257 |
-| Llama 3 405B, July 2024 | 126 | 16,384 | 128 | 128,256 |
-| gpt-oss-120b, August 2025 | 36 | 2,880 | 64 | 201,088 |
-| DeepSeek-V4-Pro, April 2026 | 61 | 7,168 | 128 | 129,280 |
-| Gemma 4 31B, 2026 | 60 | 5,376 | 32 | 262,144 |
+| GPT-2 XL | 48 | 1,600 | 25 | 50,257 |
+| Llama 3 405B | 126 | 16,384 | 128 | 128,256 |
+| gpt-oss-120b | 36 | 2,880 | 64 | 201,088 |
+| DeepSeek-V4-Pro | 61 | 7,168 | 128 | 129,280 |
+| Gemma 4 31B | 60 | 5,376 | 32 | 262,144 |
 
-We read these from each model's report or published configuration in November 2026.[^gpt2XlConfig2019][^dubey2024][^metaLlama3Tokenizer2024][^gptOss120bConfig2025][^deepseek2026v4modelcard][^gemma431bConfig2026] Newer designs bend a few of the rules you just learned. A head's width is no longer always $d/h$: gpt-oss-120b sets it to 64, not 45. Masks have changed too. The same model alternates full attention with a sliding window that reads only the last 128 positions, 18 blocks of each. A sliding window still can't read the future, so the test you just ran still applies.
+These dimensions come from each model's published report or configuration.[^gpt2XlConfig2019][^dubey2024][^metaLlama3Tokenizer2024][^gptOss120bConfig2025][^deepseek2026v4modelcard][^gemma431bConfig2026] Newer designs bend a few of the rules you just learned. A head's width is no longer always $d/h$: gpt-oss-120b sets it to 64, not 45. Masks have changed too. The same model alternates full attention with a sliding window that reads only the last 128 positions, 18 blocks of each. A sliding window still can't read the future, so the test you just ran still applies.
 
 **If you only call hosted models,** none of this is yours to inspect. You get text and token counts back, not hidden states, so you can't change a future token and compare. Providers generally publish a context window and a price, not block counts or widths. The picture still pays off. Every position you send has to pass through every block at least once, unless a cache already holds that work, which is why long prompts cost real compute, and the last row of scores is what a decoder draws from, even on a server you never see.
 

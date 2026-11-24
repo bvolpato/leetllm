@@ -201,7 +201,7 @@ The baseline matched 4 of the 8 food labels; the revised prompt matched all 8. T
   <figcaption>Green cells (1) match the food target; gray cells (0) differ. The revision changes reviews that mix food with another aspect of the restaurant.</figcaption>
 </figure>
 
-Download [prompt-capture.json](assets/prompt-capture.json) and [prompt_lab.py](assets/prompt_lab.py) into an `assets` folder. The capture contains the exact prompts, raw final responses, expected labels, and run details. Both responses were recorded on November 16, 2026 in separate Codex CLI sessions with `gpt-6-astra` selected and no tools used. Each prompt was run once. The saved responses let you inspect and score the experiment without an account or API key.
+Download [prompt-capture.json](assets/prompt-capture.json) and [prompt_lab.py](assets/prompt_lab.py) into an `assets` folder. The capture contains the exact prompts, raw final responses, expected labels, and run details recorded in separate sessions with no tools used. Each prompt was run once, and the saved responses let you inspect and score the experiment without an account or API key.
 
 The evaluator below loads those responses and calculates the results. It also checks that each nonempty evidence quote appears in the original review. This check catches invented quotations; deciding whether a real quotation supports the label still requires understanding its meaning.
 

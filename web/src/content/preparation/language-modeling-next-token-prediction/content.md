@@ -30,9 +30,9 @@
 }
 ---
 
-The [previous lesson](/learn/transformer-architecture-end-to-end) traced a Transformer from token IDs all the way to unnormalized vocabulary scores. Now an editor prompt ends with `The function returns the`. How does text turn into a probability distribution over what comes next, and what mechanics govern the loop after the model picks a continuation?
+Your code editor pauses at `The function returns the`. How does a neural network turn four words into a probability distribution over tens of thousands of candidate continuations, and what happens the moment it picks one?
 
-A <span data-glossary="token">token</span> is the atomic unit of text in the model's vocabulary. Tokenizers frequently split long words or prefix tokens with spaces, but our running example treats each visible word and punctuation mark as a distinct token. If the model chooses `result`, the conditioning context grows to `The function returns the result`. The updated distribution might next favor a period. This append-and-predict cycle is **autoregressive generation**.
+In the [previous lesson](/learn/transformer-architecture-end-to-end), a Transformer turned token IDs into raw vocabulary scores. A <span data-glossary="token">token</span> is the model's atomic text unit (subwords or characters in production; whole words and punctuation in our running example). If the model selects `result`, the context becomes `The function returns the result`, and the next step favors a period. Repeating that append-and-predict cycle is **autoregressive generation**.
 
 <figure>
   <img src="illustrations/_generated/next_token_dark.png" alt="The prompt The function returns the gives result 60 percent, value 25, index 10 and other tokens together 5. After result is selected and appended, the new distribution gives the period 80 percent and the token and 20 percent. Nested probability strips show result-period carries 48 percent of the initial prompt-conditioned mass, result-and 12 percent, and other first tokens 40 percent." />
@@ -43,69 +43,40 @@ A <span data-glossary="token">token</span> is the atomic unit of text in the mod
 
 ## Next-token scores build a sequence
 
-An **autoregressive language model** assigns a categorical probability distribution over the vocabulary for the token that follows a prefix. A GPT-style <span data-glossary="llm">large language model (LLM)</span> learns these conditional predictions from text.[^radford2018][^radford2019] The basic generation loop consumes one such distribution per selected token, while training and batched serving score multiple positions in parallel before separating scoring from sequence-level decoding.
-
-Suppose a model reads the four-token prompt `"The function returns the"`. Its actual output probabilities depend on its tokenizer, learned weights, and earlier conversation context, so no two checkpoints assign identical numbers. Across a simplified vocabulary slice, a plausible next-token ranking looks like this:
-
 ### Next-token distributions after a prompt
 
-| Candidate token | Probability | Sampling behavior |
-|---|---:|---|
-| `result` | 60% | Greedy argmax picks this directly, and sampling draws it most often. |
-| `value` | 25% | Plausible alternative continuation frequently chosen under stochastic sampling. |
-| `index` | 10% | At this distribution, selected about one time in ten under repeated unfiltered sampling. |
-| Other tokens combined | 5% | The remaining vocabulary mass distributed across thousands of long-tail tokens. |
-
-Summing the explicit candidates captures 95% of the probability mass in this example, while the final row bundles all remaining vocabulary tokens so the distribution sums to exactly 100%.
+An **autoregressive language model** predicts a probability distribution over the entire vocabulary for the next token given a prefix.[^radford2018][^radford2019] For `"The function returns the"`, a model might put 60% mass on `result`, 25% on `value`, 10% on `index`, and 5% spread across the rest of the vocabulary.
 
 ### Reading the distribution before sampling
 
-The table captures the model's conditional probabilities given the prefix observed so far. Appending or changing even a single modifier shifts semantic expectation and rearranges the top candidates right away. Comparing four closely related prompts shows how sensitive that distribution stays to local phrasing:
+Change one word in the prefix and the distribution shifts immediately:
 
 | Prompt context | Top continuation | Why the prediction shifts |
 |---|---|---|
-| `The function returns the` | `result` | Standard completion in code documentation corpora. |
-| `The function returns the cached` | `value` | The adjective `cached` shifts semantic expectation toward stored objects. |
-| `The function returns the first` | `index` | The ordinal modifier changes the likely noun to an offset or index. |
-| `The function returns the` (REST API doc context) | `response` | System instructions and surrounding context reshape the token ranking. |
+| `The function returns the` | `result` | Standard completion in code documentation |
+| `The function returns the cached` | `value` | The adjective `cached` steers toward stored objects |
+| `The function returns the first` | `index` | The ordinal modifier shifts expectation to an offset |
+| `The function returns the` (REST API context) | `response` | Surrounding domain context reshapes the ranking |
 
-Shifting surrounding context alters or preserves top candidates depending on what patterns dominated training, and large models can memorize exact training phrases in addition to generalizing from context.[^carlini2021Extraction]
+Context reshapes next-token rankings dynamically, while large checkpoints can also memorize verbatim training phrases.[^carlini2021Extraction]
 
-Probability theory explains why scoring one token at a time suffices to score an entire document. Under the **chain rule of probability**, the joint probability of any sequence $W = (w_1, w_2, \dots, w_n)$ factorizes exactly into a product of conditional probabilities:
+Why is predicting *one token at a time* enough to model an entire document? By the **chain rule of probability**, any sequence $W = (w_1, w_2, \dots, w_n)$ factorizes *exactly* into a product of conditional next-token probabilities:
 
 $$
 P(w_1, w_2, \dots, w_n) = \prod_{t=1}^{n} P(w_t \mid w_1, \dots, w_{t-1}) = \prod_{t=1}^{n} P(w_t \mid w_{<t})
 $$
 
-Here $w_t$ represents the token at position $t$, $n$ is total sequence length, and $w_{<t}$ denotes the history of all preceding tokens. The first term is $P(w_1)$ under the chosen starting context, often a beginning-of-sequence token. When scoring continuations after a user prompt, each factor conditions on that prompt as well, and including an end token lets the model assign probability to stopping cleanly. Notice that this factorization is an exact mathematical identity requiring no independence assumptions at all. Every step conditions on the complete prefix observed so far. Next-token training simply tasks the network with approximating each conditional factor $P(w_t \mid w_{<t})$ accurately.
-
-Consider guessing continuations for a test runner log prompt (`The test runner says the assertion`) where multiple endings compete cleanly for probability mass:
-
-```text title="completion-prompt.txt"
-The test runner says the assertion
-```
-
-Among candidate completions such as `passed`, `failed`, or `holds`, every word fits the local English syntax. A language model assigns weights across those options from its training weights, while a decoding rule picks one concrete continuation. Evaluating whether those confidence scores match reality requires calibration checks against held-out logs rather than judging grammar alone.
+No independence assumption is needed. Every step conditions on the complete prefix observed so far, and including an explicit end token `<eos>` lets the model assign probability to stopping cleanly.
 
 ### Softmax probabilities from raw logits
 
-Tokenizer vocabularies typically hold tens or hundreds of thousands of entries, including subwords and special control tokens. Keeping the arithmetic compact lets us trace every exponential and sum by hand on a five-token vocabulary. Given the prompt `The compiler reported`, the network projects its final hidden state through an unembedding matrix into raw, real-valued <span data-glossary="logits">logits</span>:
-
-| Token | Logit ($z_i$) | Semantic role |
-|---|---:|---|
-| `error` | 3.0 | Dominant continuation in compilation logs. |
-| `warning` | 1.5 | Plausible diagnostic outcome. |
-| `success` | -1.0 | Grammatically viable, but uncommon after `reported`. |
-| `the` | -2.0 | Could start a noun phrase such as `the error`, but sits low in this example. |
-| `</s>` | -3.0 | Premature sequence termination. |
-
-The softmax operator converts these unconstrained logits into normalized probabilities:
+At each step, the unembedding layer outputs raw real-valued <span data-glossary="logits">logits</span> $z \in \mathbb{R}^{|V|}$. After `The compiler reported`, suppose a five-token vocabulary scores `error = 3.0`, `warning = 1.5`, `success = -1.0`, `the = -2.0`, and `</s> = -3.0`. Subtracting the peak logit $\max_j z_j$ before exponentiating converts those scores into normalized probabilities without floating-point overflow (as derived in the [softmax optimization lesson](/learn/softmax-cross-entropy-optimization)):
 
 $$
 P(w_i) = \frac{\exp(z_i - \max_j z_j)}{\sum_{k=1}^{|V|} \exp(z_k - \max_j z_j)}
 $$
 
-Subtracting $\max_j z_j$ keeps the exponential numerically stable without altering the output distribution. As derived in the [softmax optimization lesson](/learn/softmax-cross-entropy-optimization), shifting every logit by the maximum keeps the largest exponent at $\exp(0) = 1$, preventing floating-point overflow while preserving exact probability ratios. Verify the conversion over all five logits in Python:
+Verify the conversion across all five tokens in Python:
 
 <!-- leetllm: test, output=show -->
 ```python title="tiny-vocabulary-example.py"
@@ -137,35 +108,21 @@ top token  error
 ```
 <!-- leetllm: output:end -->
 
-`error` commands 80% of the probability mass, followed by `warning` at roughly 18%. The probabilities sum cleanly to 1.0. Softmax normalizes the model's internal scores, whereas verifying whether a build failed still requires reading the test runner's report. The next question is how a model acquires those scores from raw text.
+`error` takes 80% of the mass, `warning` takes 18%, and all five probabilities sum to `1.0`. Now the central question: how does a model learn those conditional probabilities from raw text?
 
 ---
 
 ## Estimating probabilities from observed n-gram counts
 
-Before neural networks dominated natural language processing, language models estimated sequence probabilities by counting token co-occurrences directly in text corpora. A **bigram model** approximates the full conditional history $w_{<t}$ using only the single immediately preceding token $w_{t-1}$. That truncation defines the **first-order Markov assumption**:
-
-$$
-P(w_t \mid w_1, \dots, w_{t-1}) \approx P(w_t \mid w_{t-1})
-$$
-
-Under Maximum Likelihood Estimation (MLE), the bigram transition probability equals the ratio of observed pair frequency to previous-token frequency. This fraction converts raw corpus counts into a normalized next-token distribution:
+The simplest language model needs no neural network at all: just count adjacent token pairs. A **bigram model** truncates history to the single preceding token (the **first-order Markov assumption**) and estimates probabilities by Maximum Likelihood:
 
 $$
 P(w_t \mid w_{t-1}) = \frac{C(w_{t-1}, w_t)}{C(w_{t-1})}
 $$
 
-Here $C(w_{t-1}, w_t)$ counts adjacent pairs, and the denominator counts occurrences of the conditioning token **with a following prediction target**: $C(w_{t-1}) = \sum_{v \in V} C(w_{t-1}, v)$. Our explicit end token ensures that ordinary final words have a successor. We don't model transitions out of `<eos>`.
-
-| Previous token ($w_{t-1}$) | Next token candidate ($w_t$) | Observed count | Bigram probability |
-|---|---|---:|---:|
-| `returns` | `value` | 3 | $3 / 6 = 0.500$ |
-| `returns` | `result` | 2 | $2 / 6 = 0.333$ |
-| `returns` | `error` | 1 | $1 / 6 = 0.167$ |
-
 ### Counting bigram events in code comments
 
-We can verify these calculations directly on a small corpus of six code comments. Surrounding each comment with `<bos>` and `<eos>` gives every sentence an explicit start context and a stopping target. Running the counter in Python reproduces all three conditional fractions above and reveals what happens to unseen words:
+Here $C(w_{t-1}) = \sum_{v \in V} C(w_{t-1}, v)$ counts occurrences of $w_{t-1}$ that have a successor (we add `<bos>` and `<eos>` so final words have a stopping target). Count bigrams across six code comments in Python:
 
 <!-- leetllm: test, id=bigram-counts, output=show -->
 ```python title="count-bigram-events.py"
@@ -232,26 +189,18 @@ row sum: 1.000
 ```
 <!-- leetllm: output:end -->
 
-An out-of-vocabulary word still needs an unknown-token or subword policy because add-one smoothing only redistributes mass over known entries. While Laplace smoothing demonstrates the math simply, discounting and backoff methods such as Kneser-Ney perform much better on real text.[^chenGoodman1998Smoothing] Still, count tables hit a fundamental combinatorial wall as history widens. With vocabulary size $|V| = 50,000$, there are $|V|^4 = 6.25 \times 10^{18}$ possible four-token prefixes, forcing sparse tables and heuristic backoff with no parameter sharing across similar words.
+Add-one smoothing only redistributes mass over a declared vocabulary; unseen words outside $V$ still need an unknown-token or subword strategy, and production n-gram systems rely on stronger discounting methods like Kneser-Ney.[^chenGoodman1998Smoothing] Even with smoothing, count tables hit a combinatorial wall: at $|V| = 50{,}000$, there are $|V|^4 = 6.25 \times 10^{18}$ four-token prefixes, with zero parameter sharing between similar words.
 
 ---
 
 ## Neural language models and distributed representations
 
-In 2003, Yoshua Bengio and colleagues replaced discrete n-gram tables with a neural network that learns continuous word vectors jointly alongside a next-word predictor.[^bengio2003] Sharing embedding and projection parameters allows observations from one phrase to inform predictions for semantically related phrases that never appeared verbatim. Notice how smoothly that generalizes beyond exact prefix matches when two verbs or nouns share context.
+Bengio et al. (2003) broke that sparsity wall by mapping each token ID to a learned dense vector in $\mathbb{R}^d$ inside an embedding matrix $E \in \mathbb{R}^{|V| \times d}$.[^bengio2003] Words appearing in similar contexts move closer together in embedding space, letting updates from one phrase transfer to related combinations:
 
-Instead of representing tokens as orthogonal one-hot vectors with zero overlap ($e_i^\top e_j = 0$), a neural language model maps each token ID into a dense vector in $\mathbb{R}^d$. Words appearing in similar contexts move closer together in vector space as gradients update $E$. The architecture processes fixed context windows through four clean stages:
-
-1. Look up continuous embeddings for the previous $n - 1$ context tokens in an embedding matrix $E \in \mathbb{R}^{|V| \times d}$.
-2. Concatenate these vectors into a single feature vector $x \in \mathbb{R}^{(n-1)d}$.
-3. Apply a shared predictor to $x$ to yield vocabulary logits. Bengio's model included a nonlinear `tanh` hidden layer and an optional direct affine route, whereas our small lab below uses an affine output map alone.
-4. Pass logits through softmax to form next-token probabilities.
-
-```text title="neural-ngram-path.txt"
-our lab: context IDs -> embedding lookup E -> concatenated x -> affine map -> logits -> softmax
-```
-
-Learned representations share statistical strength across related contexts without storing separate counts for every word tuple. As similar words move together in embedding space, unseen combinations naturally inherit sensible probability estimates. Actual generalization still depends on training data coverage, model capacity, and optimization choices.
+1. Look up embeddings for the previous $n - 1$ context tokens in $E$.
+2. Concatenate them into $x \in \mathbb{R}^{(n-1)d}$.
+3. Project $x$ to vocabulary logits (Bengio used a `tanh` hidden layer; our tiny lab below uses a direct affine projection).
+4. Apply softmax to obtain next-token probabilities.
 
 <figure>
   <img src="illustrations/_generated/count_to_neural_lm_dark.png" alt="Six corpus records contribute three value, two result and one error after returns. The neural lab reads function and returns, looks up two learned six-dimensional embedding rows, concatenates twelve features and applies the shared twelve-by-eight map. Three selected logits after 200 updates are value 7.904, result 0.678 and error 0.036, and softmax normalizes all eight logits." />
@@ -260,9 +209,7 @@ Learned representations share statistical strength across related contexts witho
 
 ### Training a tiny neural n-gram with gradient descent
 
-The program below implements a complete neural n-gram from scratch without external frameworks. It reads two context tokens, maps each word to a 6-dimensional embedding vector, concatenates them into 12 features, and projects those features onto 8 vocabulary logits. Running 200 optimization steps shows how quickly the model separates conflicting two-token contexts.
-
-To train those weights, the backward pass applies the exact cross-entropy gradient derived in the softmax lesson: $\frac{\partial \mathcal{L}}{\partial z} = p - y$. Gradients flow backward through the linear projection straight into the active rows of $E$. Step by step, gradient descent aligns the context vectors needed to separate targets:
+Train this two-token neural n-gram from scratch with exact cross-entropy gradients $\frac{\partial \mathcal{L}}{\partial z} = p - y$ flowing straight back into $E$:
 
 <!-- leetllm: test, output=show -->
 ```python title="tiny-neural-ngram.py"
@@ -379,25 +326,19 @@ after 'test returns':     result
 ```
 <!-- leetllm: output:end -->
 
-Notice how the learned model separates `function returns` from `test returns`: it outputs `value` after `function returns` and `result` after `test returns`. The loss dropped from 2.145 to 0.235 nats, close to the theoretical floor of $\frac{2 \ln(2)}{6} \approx 0.231$ nats imposed because `test returns` appears once with `result` and once with `error`. Because softmax outputs remain strictly positive, finite logits approach those corner probabilities while assigning tiny residual mass to the remaining vocabulary entries. Without a nonlinear hidden layer, each logit is simply a sum of two position-specific embeddings and a bias, which fits all six training rows cleanly while leaving unseen-prefix generalization untested.
-
-```checkpoint
-Does distinguishing `function returns` from `test returns` prove that neural embeddings are strictly necessary?
----
-No. This result shows context-dependent fitting on six training targets. A discrete trigram table also uses two-token contexts, whereas embeddings and shared predictor weights let updates influence related contexts. Evaluate held-out prefixes to compare generalization. Count models can assign unseen n-gram probabilities through backoff or interpolation.
-```
+Loss drops from `2.145` to `0.235` nats, right near the irreducible conditional-entropy floor $\frac{2 \ln(2)}{6} \approx 0.231$ nats caused by `test returns` appearing once with `result` and once with `error`.
 
 ### Temperature scaling on output logits
 
-During inference, sampling algorithms often reshape output logits before drawing tokens by dividing them by a positive **<span data-glossary="temperature">temperature</span>** scalar $T > 0$:
+During decoding, dividing raw logits by a positive **<span data-glossary="temperature">temperature</span>** $T > 0$ reshapes the sampling distribution without changing model weights:
 
 $$
 P(w_i) = \frac{\exp(z_i / T)}{\sum_j \exp(z_j / T)}
 $$
 
-- $0 < T < 1.0$ (Cooling): Amplifies logit differences and increases the maximum probability. Sampling remains stochastic unless filtering or numerical rounding leaves one choice.
-- $T = 1.0$ (Unscaled): Standard softmax probabilities derived directly from learned parameters.
-- $T > 1.0$ (Heating): Flattens logit differences across candidates. For finite logits and a finite vocabulary, the distribution approaches uniform as $T \to \infty$, though actual generation quality still depends on the prompt and task.
+- **$0 < T < 1.0$ (Cooling):** Amplifies logit gaps and concentrates mass on top candidates (as $T \to 0^+$, mass collapses onto the argmax; APIs accepting `T = 0` switch to greedy argmax explicitly).
+- **$T = 1.0$:** Standard unscaled softmax probabilities.
+- **$T > 1.0$ (Heating):** Flattens gaps and spreads mass toward lower-ranked tokens, approaching uniform as $T \to \infty$.
 
 <!-- leetllm: test, output=show, output_title="Temperature comparison" -->
 ```python title="compare-temperatures.py"
@@ -427,37 +368,30 @@ T=2.0 top=0.575 second=0.272
 ```
 <!-- leetllm: output:end -->
 
-At $T = 0.5$, `error` surges to 95.2% probability. At $T = 2.0$, it drops to 57.5%, leaving significant mass for alternatives. Temperature changes the sampling distribution while leaving the model's learned parameters unchanged.
-
-As $T \to 0^+$, a unique maximum logit captures all probability mass, whereas tied maxima share it equally. Because the ratio $z_i / T$ is undefined at $T=0$, inference APIs that accept zero temperature implement greedy argmax as a separate branch.
+At $T = 0.5$, `error` jumps to 95.2%; at $T = 2.0$, it drops to 57.5%.
 
 ### Causal versus masked language modeling
 
-**Causal language modeling** defines an objective: predict the next token solely from earlier tokens ($w_{<t}$). Bigrams, recurrent networks, and causally masked decoder Transformers can all implement this left-to-right objective, separating the training goal from the underlying architecture. By contrast, **masked language modeling** (BERT) corrupts a span and predicts missing tokens from both left and right context simultaneously.[^devlin2019]
+**Causal language modeling** predicts each token strictly from prior context ($w_{<t}$), which fits left-to-right text generation. **Masked language modeling** (BERT) corrupts 15% of positions (80% `[MASK]`, 10% random, 10% unchanged) and predicts the missing tokens using both left and right context simultaneously.[^devlin2019]
 
 | Objective | Visible context | Core training task | Primary architectural use |
 |---|---|---|---|
 | Causal language modeling | Only prior tokens ($w_{<t}$) | Predict the single next token | Generative decoders (GPT, LLaMA, Claude) |
 | Masked language modeling | Full bidirectional context ($w_{<t}$ and $w_{>t}$) | Reconstruct masked tokens in place | Encoders for embeddings, reranking, classification (BERT) |
 
-BERT predicts selected original tokens from a corrupted sequence. In its original recipe, 15% of positions are selected, with 80% replaced by `[MASK]`, 10% swapped for random tokens, and 10% left unchanged.[^devlin2019] Its bidirectional conditionals do not form the sequential left-to-right factors used for autoregressive text generation, so ordinary BERT models aren't trained for single-pass append-one-token decoding.
-
 ---
 
 ## Teacher forcing and parallel causal training
 
-How does a causal model learn from massive corpora without manual labeling? Every document turns into a self-supervised training sequence because at each position $t$, the observed next token $w_{t+1}$ serves directly as the ground-truth label.
+Every raw text document supplies its own supervision: at position $t$, the observed next token $w_{t+1}$ is the target label.
 
 ### The causal attention mask and parallel GEMM
 
-During pre-training, the model receives ground-truth tokens at every position, a technique called **teacher forcing**. In recurrent neural networks (RNNs), step-by-step hidden state dependencies forced forward and backward passes to run sequentially across time. In a decoder Transformer, teacher forcing allows every position inside one layer to compute simultaneously:
+During **teacher forcing**, the model reads ground-truth tokens at every position rather than its own sampled tokens. Unlike an RNN that must step sequentially through time, a causal Transformer scores all $T$ positions within a layer in parallel:
 
-1. The entire token sequence $x_1, \dots, x_T$ enters the network at once.
-2. The **causal attention mask** sets attention logits $M_{ij} = -\infty$ for all positions $j > i$.
-3. Because $\exp(-\infty) = 0$, position $t$ can't attend to future tokens $t+1, \dots, T$.
-4. Matrix operations process all known positions together inside each layer rather than waiting for earlier sampled tokens, though deeper layers still execute after earlier layers.
-
-One sequence pass isn't constant work or constant latency. For fixed model widths, full self-attention evaluates $\mathcal{O}(T^2)$ pairwise score and value operations per layer alongside per-token projections and feed-forward MLPs. Parallelism removes sequential position bottlenecks during training, while hardware compute and memory bandwidth still determine step latency.[^vaswani2017]
+1. Feed the entire sequence $x_1, \dots, x_T$ at once.
+2. Add a **causal attention mask** setting future scores $M_{ij} = -\infty$ for $j > i$ so $\exp(-\infty) = 0$ blocks future leakage.
+3. Evaluate every position's next-token logits simultaneously per layer (full self-attention still performs $\mathcal{O}(T^2)$ pairwise work per layer, and deeper layers still depend on earlier layers).[^vaswani2017]
 
 <figure>
   <img src="illustrations/_generated/teacher_forcing_vs_generation_dark.png" alt="Four observed input tokens bos, function, returns and value align with shifted labels function, returns, value and eos. A four-by-four additive causal mask has key positions j across columns and query positions i down rows: zero on and below the diagonal and minus infinity above. The four target probabilities and losses align below the same columns. Generation instead selects function, returns, value and eos sequentially, passing each selected token into the next context." />
@@ -466,22 +400,22 @@ One sequence pass isn't constant work or constant latency. For fixed model width
 
 ### Exposure bias and the train-inference gap
 
-Teacher forcing delivers a clean, stable training gradient, yet it introduces a classic train-inference mismatch known as **exposure bias**.[^bengio2015ScheduledSampling] Under ordinary teacher-forced training, each prediction conditions on an observed dataset prefix rather than the model's own prior samples. During free-running generation, each continuation appends the model's chosen tokens, so an early mistake can steer the prefix into unfamiliar territory and compound downstream. Scheduled sampling and rollout-based methods study ways to bridge that gap, while evaluation should test both teacher-forced loss and open-ended generation for fluency, repetition, drift, and clean stopping.
+Teacher forcing gives fast, low-variance gradients, at the cost of **exposure bias**: during training every step conditions on clean ground-truth prefixes, whereas during generation each step conditions on the model's own prior samples, so an early slip can compound.[^bengio2015ScheduledSampling]
 
 ### Shifting tokens into inputs and target labels
 
-Training a causal decoder requires aligning input prefixes with shifted next-token targets. Given `[<bos>, function, returns, value, <eos>]`, input rows drop the final token while target rows drop the initial `<bos>`:
+Given `[<bos>, function, returns, value, <eos>]`, inputs drop the last token and targets drop the first:
 
-| Input prefix to model ($x$) | Supervised target label ($y$) |
+| Input prefix ($x$) | Target label ($y$) |
 |---|---|
 | `<bos>` | `function` |
 | `<bos> function` | `returns` |
 | `<bos> function returns` | `value` |
 | `<bos> function returns value` | `<eos>` |
 
-In Hugging Face Transformers 5.6.2, `DataCollatorForLanguageModeling(mlm=False)` copies input IDs into labels and marks padding positions with `-100`.[^huggingface2026datacollator] Because the built-in causal loss shifts labels internally (`labels[..., 1:]` paired with all but the last logit, verified October 10, 2026 in [versioned source](https://github.com/huggingface/transformers/blob/v5.6.2/src/transformers/loss/loss_utils.py)), callers must not pre-shift those arrays beforehand.[^huggingface2026causalloss] The snippet below shifts arrays explicitly because our custom loss expects pre-aligned pairs.
+> **Common mistake:** Double-shifting labels or masking genuine `<eos>` tokens. In Hugging Face Transformers, `DataCollatorForLanguageModeling(mlm=False)` copies input IDs into `labels` and masks padding with `-100`, while the built-in causal loss shifts `labels[..., 1:]` internally.[^huggingface2026datacollator][^huggingface2026causalloss] When `pad_token_id == eos_token_id`, always derive `-100` target masks from the attention mask so genuine stop tokens stay supervised.
 
-Keep target masking separate from attention masking, and watch out for shared padding/EOS token IDs. If `pad_token_id == eos_token_id`, masking by token ID hides genuine stop tokens along with real padding unless you derive `-100` targets directly from the attention mask. Packed multi-document batches and instruction-only tuning similarly require explicit document-reset masks and response-only loss masks.
+The snippet below shifts arrays explicitly for a custom loss function:
 
 <!-- leetllm: test, output=show -->
 ```python title="shift-next-token-labels.py"
@@ -631,25 +565,15 @@ mean batch perplexity:     5.000
 ```
 <!-- leetllm: output:end -->
 
-Only the pooled result measures surprise per scored token across these four observations. Taking a plain mean of batch losses gives each batch equal weight, so the single easy target counts as much as all three harder targets. Taking a mean of batch perplexities introduces a further difference because exponentiation is nonlinear. Retain the loss sum and count after excluding padding, prompt-only labels, and other ignored targets.
+Only the pooled calculation (`sum(nll) / sum(counts)`) measures true per-token perplexity across variable-length batches. Averaging per-batch losses gives a 1-token batch the same weight as a 3-token batch, and averaging per-batch perplexities distorts the result further because $\exp(\cdot)$ is nonlinear.
 
-```checkpoint
-A model assigns the true next token a probability of 0.01 at one position. Roughly how much does that position contribute to cross-entropy loss?
----
-The contribution is -log(0.01) ≈ 4.605 nats. That is a heavy penalty. Confident correct predictions contribute near 0 loss, whereas low-probability surprises drive loss and perplexity up quickly.
-```
+> **Key insight:** Only compare token perplexity across models sharing the exact same tokenizer, text split, and windowing rule. To compare across different tokenizers, report bits per byte instead.[^huggingface_ppl]
 
 ---
 
 ## The autoregressive generation loop
 
-In basic autoregressive decoding, the model selects one token before it can evaluate probabilities for the following position. Every generated word extends the sequence passed into the next forward evaluation, forming an iterative loop:
-
-1. **Input:** Feed the prompt tokens into the network.
-2. **Predict:** Compute vocabulary logits and softmax probabilities for the *next token*.
-3. **Select:** Pick a token via greedy argmax or temperature-scaled sampling.
-4. **Append:** Concatenate the newly selected token to the input sequence.
-5. **Repeat:** Feed the expanded context back into the model to predict the subsequent token.
+During generation, the model cannot jump ahead: it must pick token $t$ before scoring token $t + 1$. Each iteration reads the current prefix, computes vocabulary logits, selects one token via greedy argmax or sampling, appends it to the context, and repeats until hitting a stop token or length cap.
 
 ```mermaid
 graph TD
@@ -661,7 +585,7 @@ graph TD
 
 ### A deterministic generation loop in code
 
-This small script demonstrates the sequential mechanics cleanly. On each step, it looks up the current prefix, picks the highest-probability token, appends it, and stops when it encounters `</s>`:
+Trace that sequential control loop over the distributions from Figure 1:
 
 <!-- leetllm: test, output=show -->
 ```python title="a-tiny-generation-loop-in-code.py"
@@ -694,20 +618,16 @@ final text: 'The function returns the result.'
 ```
 <!-- leetllm: output:end -->
 
-This small lookup table stands in for a full language model to trace the control loop cleanly. A production neural model computes logits across every token prefix inside its context window. In practice, a real tokenizer also decodes selected integer IDs back to text rather than using a space-and-period shortcut.
-
-| Termination condition | Trigger mechanism | Production handling |
+| Termination condition | Trigger mechanism | Handling |
 |---|---|---|
-| End or end-of-turn token | A configured stop-token ID is selected | End this generation or turn, allowing tool calls to take another application step. |
-| Output token budget | Selected tokens reach the configured output limit | Report the limit so an incomplete answer isn't mistaken for a completed task. |
-| Stop sequence match | A configured delimiter matches | Follow the API's policy for retaining or stripping the delimiter. |
-| Application interruption | Cancellation, timeout, or an application filter fires | Report the actual reason and handle partial output explicitly. |
+| End / end-of-turn token | Stop-token ID selected | End generation or turn cleanly |
+| Output token budget | Token count hits `max_tokens` | Surface truncation so incomplete output is not treated as finished |
+| Stop sequence match | Configured delimiter appears | Retain or strip delimiter per API setting |
+| Application interruption | Client cancel, timeout, or filter | Report the stop reason and treat partial text as incomplete |
 
 ### Greedy selection versus temperature sampling
 
-In **greedy decoding**, the engine always picks the argmax logit $\hat{w} = \arg\max_i z_i$. While fixed logits and deterministic tie-breaking keep greedy decoding reproducible across identical kernels, tiny floating-point changes across hardware can flip close ties, and selecting the highest-probability token at step one does not guarantee the highest-probability sequence overall. Suppose $P(A)=0.6$ and $P(B)=0.4$, while the best second token carries probability $0.1$ after $A$ versus $0.9$ after $B$: greedy picks $A$ and peaks at $0.6 \times 0.1 = 0.06$, missing the $B$ continuation at $0.4 \times 0.9 = 0.36$.
-
-In **stochastic sampling**, the engine draws each token randomly according to the softmax distribution. To filter out absurd tail tokens, top-$k$ sampling keeps only the $k$ highest logits and top-$p$ (nucleus) sampling keeps the smallest top set reaching cumulative mass $p$, then renormalizes the surviving weights before drawing. Filtering alters selection frequencies directly relative to raw softmax, as demonstrated below when comparing argmax against temperature sampling:
+**Greedy decoding** picks $\hat{w} = \arg\max_i z_i$ at every step, which can miss higher-probability full sequences (if $P(A)=0.6$ leads to $0.1$ while $P(B)=0.4$ leads to $0.9$, greedy picks $0.06$ instead of $0.36$). **Stochastic sampling** draws from the softmax distribution, commonly after **top-$k$** (keep the $k$ highest logits) or **top-$p$ / nucleus** filtering (keep the smallest set reaching cumulative probability $p$) and renormalizing:
 
 <!-- leetllm: test, output=show -->
 ```python title="greedy-versus-sampling.py"
@@ -769,18 +689,13 @@ In standard multi-head self-attention, every position $t$ computes query, key, a
 
 ### The KV cache and memory bandwidth bottlenecks
 
-For a fixed causal Transformer in evaluation mode, unchanged prefix tokens and position IDs always produce identical historical keys and values. Future appends cannot alter earlier hidden states, creating the reuse invariant behind inference caching. Storing those layer-specific tensors in GPU High Bandwidth Memory (HBM) lets the engine skip old projections, though quantized, offloaded, or sliding-window caches modify what stays retained.[^pope2023][^huggingface2026kvcache] After prefill emits the first token, each decode step runs four concise operations:
+Because causal masking prevents future tokens from altering past hidden states, every prefix token's keys and values stay identical across future decode steps. Caching those per-layer tensors in GPU HBM lets each decode step run only the newly selected token: compute its $(q_t, k_t, v_t)$, append $k_t$ and $v_t$ to the cache, attend $q_t$ over all cached keys and values, and project to the next token.[^pope2023][^huggingface2026kvcache]
 
-1. Feed the token just selected from the previous call so each layer computes its new query, key, and value vectors for that single position.
-2. Append $k_t$ and $v_t$ to the cached tensors in HBM.
-3. Compute attention by multiplying query vector $q_t$ against all accumulated cached keys and values.
-4. Apply the final language modeling head to produce next-token logits and select the following token.
-
-After prefill, projection and feed-forward work per added position is independent of retained sequence length for a fixed model. Full-attention work per position remains linear in the number of visible cached positions. Cache reuse avoids recomputing old projections, while cumulative full-attention work remains quadratic across a growing continuation.
+That eliminates repeated projections, dropping projection work from $\mathcal{O}(m^2)$ to $\mathcal{O}(m)$ and cumulative attention work from $\mathcal{O}(m^3)$ to $\mathcal{O}(m^2)$ across $m$ generated tokens.
 
 ### Check the cache against a full pass
 
-Here is the reuse invariant for one attention layer. Fixed input states stand in for positioned layer inputs. We prefill three positions, then feed positions four and five separately. Each new query is at the **end** of its cache, so all stored keys are allowed. Using nonsquare `is_causal=True` here would instead align the query to the start of the key row, as the previous Transformer lesson showed.
+Verify that prefilling 3 positions and decoding positions 4 and 5 incrementally produces the exact same output as one full causal pass (each decode query sits at the *end* of its cache, so it attends to every cached key):
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="cached-attention-matches-a-full-pass.py"
@@ -816,33 +731,20 @@ matches full pass: True
 ```
 <!-- leetllm: output:end -->
 
-In a complete decoder, each attention layer needs its own cache, and position IDs must continue from the processed prefix. Cached keys already include that layer's positional treatment, such as RoPE. Prefill and decode still execute normalization, feed-forward blocks, and the vocabulary head, skipping only reusable history.
+Each layer keeps its own cache with positional encodings (such as RoPE) already baked into the cached keys. On modern GPUs, this creates two distinct hardware regimes:[^pope2023]
 
-How does this change accelerator utilization?
-
-- **Prefill often has higher arithmetic intensity:** Many prompt positions reuse loaded weight matrices, making large matrix multiplies more likely to be compute-limited.
-- **Small-batch decode often hits memory bandwidth:** One position per sequence does relatively little arithmetic per loaded weight. In a simplified batch-one, two-byte dense weight multiply, one multiply-plus-add gives about 2 FLOPs per 2-byte weight, or 1 FLOP/byte. Attention also reads visible KV data. This estimate isn't the arithmetic intensity of every decode kernel.
-
-Batches reuse weights across requests and can increase arithmetic intensity. Context length, model size, quantization, accelerator hardware, kernel fusion, and distributed communication change the bottleneck. Treat these as workload-dependent tendencies and benchmark the actual system.[^pope2023] Speculative decoding can verify several proposed tokens together and accept a block, while preserving the target autoregressive distribution under the exact algorithm.[^leviathan2023]
+- **Prefill is usually compute-bound:** Many prompt tokens reuse loaded weights together inside large matrix multiplies.
+- **Small-batch decode is usually memory-bandwidth-bound:** Streaming a 2-byte weight to do one multiply-add yields ~1 FLOP/byte per single token, leaving tensor cores hungry until larger batching or **speculative decoding** (verifying multiple draft tokens in one parallel target pass while preserving the exact target distribution)[^leviathan2023] increases arithmetic intensity.
 
 ### Sizing the KV cache in high bandwidth memory
 
-For uniform full-attention layers with equal key/value head dimensions and precision, the raw KV tensor payload for a batch is:
+For uniform full-attention layers, raw KV payload for $B$ concurrent sequences of cached length $S$ at $P_{\text{bytes}}$ per element (2 for FP16/BF16, 1 for FP8/INT8) is:
 
 $$
 \text{Memory}_{\text{KV}} = 2 \times L \times H_{\text{KV}} \times d_h \times S \times B \times P_{\text{bytes}}
 $$
 
-Where:
-- $2$: stores both Key and Value matrices
-- $L$: number of Transformer layers
-- $H_{\text{KV}}$: number of Key/Value attention heads
-- $d_h$: stored key/value head dimension (often $d_{\text{model}} / H_Q$, but architecture-dependent)
-- $S$: number of cached positions per sequence
-- $B$: concurrent batch size
-- $P_{\text{bytes}}$: payload bytes per stored value (2 for FP16/BF16, 1 for FP8/INT8)
-
-This assumes each request has the same cached length and each layer keeps every position. For variable lengths, replace $SB$ with their summed cached lengths, and for differing layers sum their separate payloads. Quantization scales, page rounding, allocation reserves, and other model/runtime tensors add memory beyond this formula. A token just selected hasn't necessarily been fed back and cached yet.
+(For variable sequence lengths, replace $S B$ with the sum of cached positions across requests; a token just sampled is not cached until fed back into the next step.)
 
 <!-- leetllm: test, output=show -->
 ```python title="kv-cache-memory-budget.py"
@@ -867,19 +769,17 @@ for sequence_length in [2_048, 32_768]:
 ```
 <!-- leetllm: output:end -->
 
-At 32,768 cached positions each, our four-request batch has 16 GiB of raw KV payload. At batch size 32, that becomes 128 GiB. Compare it with the chosen model's weight footprint and runtime overhead because layer and head counts alone do not tell us how much memory the weights occupy.
+At 32,768 tokens per request, just four concurrent streams take **16 GiB** of raw KV memory; at batch size 32, that explodes to **128 GiB**. Two architecture and serving advances tame that growth:
 
-Two architecture choices keep the KV payload practical:
-
-1. **Grouped-Query Attention (GQA):** Query-head groups share fewer KV heads. Changing 32 KV heads to 8 reduces raw KV payload 4× at equal layer count, head dimension, precision, and cached length. The original paper obtained quality close to multi-head attention in its uptrained T5 experiments, while quality at other model and head-ratio settings depends on the model and training recipe. Changing a checkpoint's head count requires a compatible architecture and training/conversion strategy.[^ainslie2023]
-2. **PagedAttention (vLLM):** KV blocks can occupy noncontiguous physical storage and be allocated as needed. The original paper measured only 20.4%–38.2% useful token-state occupancy in the compared systems' allocated **KV memory**, with waste from reserves and fragmentation. This wasn't a universal percentage of all GPU VRAM. Equal block sizes avoid external fragmentation, while partial final blocks can still waste space. Block sizes are implementation and workload choices whose tradeoffs the paper evaluated empirically.[^kwon2023]
+1. **Grouped-Query Attention (GQA):** Sharing 8 KV heads across 32 query heads cuts raw KV cache size $4\times$ while preserving quality close to full multi-head attention.[^ainslie2023]
+2. **PagedAttention (vLLM):** Maps fixed-size KV blocks onto noncontiguous physical pages, eliminating external fragmentation so waste stays confined to the partially filled final block per sequence (the vLLM paper measured only 20.4%-38.2% actual KV occupancy in prior contiguous-buffer systems).[^kwon2023]
 
 ---
 
 <span id="why-next-token-objectives-learn-structured-computation"></span>
 ## How next-token predictions can reflect structure
 
-A natural question is how predicting one token at a time lets a language model track code state or multi-step reasoning. Under a narrow Markov assumption, a bigram or short n-gram reading only `# output:` misses the variable initialization and decrement completely. By contrast, a Transformer attending over the full snippet can learn representations that carry `retries = 3`, apply `-= 1`, and predict `2`:
+Predicting one token at a time forces a Transformer to track program state across the context. A bigram reading only `# output:` misses `retries = 3` and `retries -= 1`, while full self-attention can carry the variable state and predict `2`:
 
 ```text title="tracking-a-value.txt"
 retries = 3
@@ -887,51 +787,43 @@ retries -= 1
 print(retries)  # output:
 ```
 
-Cross-entropy training on program execution traces rewards state-sensitive internal circuits, yet pattern shortcuts can still fool narrow tests. Next-token pre-training builds rich predictive structure and enables few-shot in-context tasks as observed in GPT-3, while instruction tuning and preference optimization further shape assistant behavior as explored in the next lesson.[^brown2020] Always test varied inputs and operations rather than relying on a single clean completion before inferring algorithmic generalization.
+Pretraining on code and text traces builds strong in-context predictive structure,[^brown2020] yet a single correct completion can still come from a shortcut. Vary the inputs and operations and compare predictions against actual program execution to test whether the model truly follows the arithmetic.
 
 ---
 
 ## Failure modes and debugging
 
-Next-token prediction creates a supervised label at every token position across large corpora. Because the model only learns what prefixes predict plausible continuations, the exact same objective produces recurring failure modes in deployed assistants. Understanding those failure modes starts with separating conditional token probability from verified truth.
-
 ### Treating probabilities as ground-truth facts
 
-High token probability reflects conditional likelihood under the model's context and weights rather than verified factual truth. Suppose an internal documentation assistant reads `The rate-limit page says free-tier requests are` and assigns 75% probability to `unlimited` even though actual policy specifies 60 requests per minute. Diagnosing that hallucination requires inspecting the prompt context, retrieved policy documents, model weights, and decoding settings rather than trusting the top token score:
+Because next-token training maximizes conditional plausibility rather than verifying external truth, high probability is never a fact check. Suppose an assistant reads `The rate-limit page says free-tier requests are` and assigns 75% probability to `unlimited` when the current docs state `60 requests per minute`.
 
-| Failure symptom | Root mechanism | Production remediation |
+| Failure symptom | Root cause | Fix |
 |---|---|---|
-| Plausible hallucination | Missing or misused evidence because plausible text isn't factual verification | Retrieve authoritative documentation and check that the answer follows it |
-| Outdated API limits | Learned weights or prompt text may be stale | Query a current authoritative source and preserve its date/version |
-| False citations | Plausible-looking URLs can be generated without source support | Open the source and verify the attributed claim or quote |
-| Repetitive loops | Model scores and decoding policy can reinforce a repeated prefix | Inspect the prompt, checkpoint, filtering, and stop policy before adjusting decoding settings |
+| Plausible hallucination | High continuation likelihood without verified evidence | Retrieve authoritative docs and verify the answer against them |
+| Outdated facts | Stale weights or stale retrieved passage | Query current authoritative sources and inspect retrieval traces |
+| Invented citations | Plausible URL patterns generated from memory | Fetch and verify the cited source directly |
+| Repetitive loops | Model scores and greedy/narrow decoding reinforce a repeated span | Inspect prompt, stop tokens, and sampling settings |
 
 <span id="the-relational-database-myth"></span>
 ### Why an LLM isn't a live database
 
-Language models do not execute live database queries when emitting tokens. Every forward pass simply mixes prompt context with learned neural weights. Although parameters can encode memorized passages and exact training details, current facts require connecting retrieval or tool calls to an external database and verifying the answer against the fetched record.[^carlini2021Extraction]
-
----
+A language model never runs a live SQL lookup when generating tokens: every step simply combines prompt context with frozen weights. Although weights can memorize training text,[^carlini2021Extraction] current facts require external retrieval or tool calls verified against the latest authoritative record.
 
 ## Stress-testing prefix distributions and cache budgets
 
-Two small lab edits illustrate how conflicting training targets create an irreducible loss floor and why halving KV storage does not automatically double serving speed. First, appending `"function returns exception"` to `count-bigram-events.py` grows the row after `returns` to 7 counts (`value: 3`, `result: 2`, `error: 1`, `exception: 1`), dropping `value` from `0.500` to $3/7 \approx 0.429$ while placing `exception` at $1/7 \approx 0.143$. Running the same addition in `tiny-neural-ngram.py` pairs the identical two-token prefix `function returns` twice with `value` and once with `exception`, forcing cross-entropy toward a `67%` / `33%` split with an unavoidable conditional-entropy floor.
+> **Key insight:** Next-token prediction gives you a universal sequence engine: factorize text via the chain rule, train every position in parallel with teacher forcing, and reuse cached KV states at decode time. Grounding answers in current truth still belongs to retrieval and verification.
 
 ```checkpoint
-Why can't our next-token model achieve zero loss if identical conditioning prefixes are paired with both `value` and `exception`?
+Why can't a next-token model achieve zero cross-entropy loss if identical prefixes (`function returns`) appear twice with `value` and once with `exception`?
 ---
-The same conditioning input produces one normalized distribution, which can't assign probability 1 to two different targets. The cross-entropy optimum matches their empirical frequencies and has a positive conditional-entropy floor. Bayes classification error is a different quantity: for a two-to-one split, it is 1/3 on that prefix, while minimum log loss is −(2/3)ln(2/3)−(1/3)ln(1/3) ≈ 0.637 nats. More informative conditioning could separate the cases.
+One prefix produces one normalized distribution, which cannot put probability 1 on two different targets at once. The cross-entropy minimum matches their empirical 2/3 vs. 1/3 split, leaving an irreducible conditional-entropy floor of −(2/3)ln(2/3) − (1/3)ln(1/3) ≈ 0.637 nats.
 ```
-
-Next, test the arithmetic in `kv-cache-memory-budget.py` by halving `kv_heads` from 8 to 4. That single dimension change cuts the four-request KV payload at 32,768 positions from 16.00 GiB to 8.00 GiB. Doubling KV head capacity lets more equal-length requests fit inside cache memory, though actual serving throughput still depends on model weights, batching, attention compute, and memory traffic.
 
 ```checkpoint
-The cache calculator predicts half the raw KV payload after halving KV heads. Does that predict twice the tokens per second?
+Halving KV heads cuts raw KV cache storage in half. Does that automatically double tokens per second?
 ---
-No. It predicts tensor storage under the stated dimensions. Weight loading, attention work, other block operations, batching, kernel choice, and communication still affect speed. Measure storage and throughput separately, and evaluate a compatible model's quality before accepting the architectural tradeoff.
+No. Halving KV heads cuts cache storage and KV reads by half, while dense weight loads, MLP compute, batching, kernels, and communication still contribute to step latency. Measure storage and throughput separately.
 ```
-
-Together, these mechanics form the foundation of modern language models: factorize documents via the probability chain rule, train parallel causal Transformers with teacher forcing, and reuse cached KV states during decoding. Relying on external retrieval keeps factual claims grounded in current sources rather than raw token likelihood. The next lesson examines how that same next-token predictor scaled from base models into modern reasoning assistants.
 
 ```mastery-quiz
 [

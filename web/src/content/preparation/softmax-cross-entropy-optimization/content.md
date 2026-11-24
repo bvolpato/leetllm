@@ -22,51 +22,34 @@
     "Entropy, cross-entropy, and KL divergence as separate quantities",
     "Softmax cross-entropy gradient p minus y",
     "Why PyTorch cross-entropy receives logits",
-    "Temperature versus decoding policy",
+    "Temperature versus decoding strategy",
     "Label smoothing and finite optimal logit gaps",
     "Averaging loss across supervised token positions"
   ]
 }
 ---
 
-The [previous lesson](/learn/training-backpropagation-gradient-descent) predicted one continuous scalar: extra decode latency in milliseconds. Half squared error could tell the model to raise or lower that scalar prediction by a fixed number of units. A review triage classifier faces a different problem: pick exactly one category among `bug`, `docs`, and `security`. Suppose the incident note reads, "This docs page is stale," while the model emits raw scores `bug=3.0`, `docs=1.0`, `security=0.0` and chooses `bug` instead of `docs`, raising the question of what training signal backpropagation should send through the network.
+A review classifier reads `"This docs page is stale"` and outputs raw scores `bug = 3.0`, `docs = 1.0`, `security = 0.0`. It picked the wrong label, and it was not even close. If we only score right versus wrong, a confident blunder (11% on `docs`) looks identical to a narrow miss (49% on `docs`). How do we turn raw scores into probabilities, punish confident mistakes steeply, and send back a clean gradient?
 
-A binary right-or-wrong check gives the exact same outcome for a narrow near-miss and a confident mistake. Assigning `docs` an 11% probability should cost significantly more than assigning it 49%, even if `bug` wins the top spot in both runs. We need a mathematical bridge that turns classification scores into normalized probability shares, converts missed confidence into an exact penalty, and sends back a clean gradient on those scores. Normalization makes probabilities sum to one, while calibration requires comparing predicted confidence with observed empirical outcomes.
+In the [previous lesson](/learn/training-backpropagation-gradient-descent), half squared error nudged a single continuous prediction up or down. Here we build the multiclass equivalent that powers every modern classifier and language model: **softmax** turns unconstrained scores into competing probabilities, **cross-entropy** prices missed confidence in nats, and their combined gradient collapses to the remarkably simple vector $p - y$.
 
 ## A decision begins as three raw scores
 
-Our final linear layer outputs one unconstrained real number per possible class, called **<span data-glossary="logits">logits</span>**. Each score comes from a dot product between the internal hidden representation and a class weight vector, plus an optional bias, and softmax later converts those real-valued scores into probabilities:
+The final linear layer emits one unconstrained real score per class, called **<span data-glossary="logits">logits</span>**:
 
-| Label | Current logit | What the incident note says |
+| Label | Current logit | Ground truth |
 |---|---:|---|
-| `bug` | `3.0` | Model's current favorite, but incorrect |
-| `docs` | `1.0` | Correct supervised target |
-| `security` | `0.0` | Plausible alternative, incorrect here |
+| `bug` | `3.0` | Model's favorite, wrong |
+| `docs` | `1.0` | True target class |
+| `security` | `0.0` | Competing class |
 
-A larger logit means the network prefers that label over competitors, though a value like `3.0` is an uncalibrated score rather than a percentage share. Logits can be negative, zero, or arbitrarily positive without breaking mathematics, whereas a finite categorical distribution over mutually exclusive, exhaustive choices must place every probability $p_i$ in $[0, 1]$ with sum $1$. Inspecting `bug=3.0`, `docs=1.0`, `security=0.0` makes both facts concrete: `bug` leads with the largest logit, the raw score sum is $4.0$, and the list does not form a valid probability distribution until normalized:
+Raw logits identify the leader (`bug`), yet they can be negative or sum to anything (`4.0` here) instead of forming a valid probability distribution in $[0, 1]$ summing to `1.0`. **<span data-glossary="softmax">Softmax</span>** converts any logit vector $z \in \mathbb{R}^K$ into normalized probabilities in two steps: exponentiate every score so weights are strictly positive (a `+2.0` logit lead becomes an $e^{2.0} \approx 7.389\times$ weight lead), then divide by their sum $\sum_{j=1}^K e^{z_j}$:
 
-<!-- leetllm: test, output=show -->
-```python title="inspect-raw-logits.py"
-labels = ["bug", "docs", "security"]
-logits = [3.0, 1.0, 0.0]
+$$
+p_i = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}
+$$
 
-best_index = max(range(len(logits)), key=logits.__getitem__)
-print("largest logit:", labels[best_index])
-print("raw score sum:", sum(logits))
-print("valid probability distribution:", all(0 <= z <= 1 for z in logits) and sum(logits) == 1)
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-largest logit: bug
-raw score sum: 4.0
-valid probability distribution: False
-```
-<!-- leetllm: output:end -->
-
-The raw scores identify a winner without telling us how much probability mass the correct label received. **<span data-glossary="softmax">Softmax</span>** solves that by turning each unconstrained score into a positive weight via exponentiation and normalizing all weights by their shared sum so they sum to one.
-
-First, exponentiating each logit guarantees positivity because $e^z > 0$ for every real number $z \in (-\infty, +\infty)$, while also magnifying differences so a logit lead of $+2.0$ becomes a weight multiplier of $e^{2.0} \approx 7.389$. Second, dividing each weight by the partition function $\sum_{j=1}^K e^{z_j}$ forces the resulting shares to sum to `1.0`. On our three triage scores, $e^{3.0} \approx 20.086$, $e^{1.0} \approx 2.718$, and $e^{0.0} = 1.000$ yield a shared denominator of $23.804$:
+On our three scores, $e^{3.0} \approx 20.086$, $e^{1.0} \approx 2.718$, and $e^{0.0} = 1.000$ sum to $23.804$:
 
 | Label | Logit $z_i$ | Unnormalized weight $e^{z_i}$ | Probability share $p_i$ |
 |---|---:|---:|---:|
@@ -75,20 +58,14 @@ First, exponentiating each logit guarantees positivity because $e^z > 0$ for eve
 | `security` | `0.0` | `1.00` | `0.042` |
 | **Total (before rounding)** | | **`≈23.804`** | **`1.000`** |
 
-The general formula applies this two-step normalization to any vector $z \in \mathbb{R}^K$, where $p_i$ is the probability assigned to class $i$, $z_i$ is its logit, and $K$ is the number of competing classes:
-
-$$
-p_i = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}
-$$
-
-On this input, the model places `0.844` on the wrong `bug` label and only `0.114` on the target `docs` label, handing that low probability straight to the loss function.
+The model puts `84.4%` probability on the wrong label and only `11.4%` on `docs`.
 
 <figure>
   <img src="illustrations/_generated/softmax_logits_dark.png" alt="Visual progression of softmax and log-sum-exp stabilization: raw logits [3.0, 1.0, 0.0] are shifted by max logit 3.0 to [0.0, -2.0, -3.0], exponentiated to weights [1.000, 0.135, 0.050] summing to 1.185, and normalized into probability mass 84.4 percent bug, 11.4 percent docs, and 4.2 percent security." />
   <figcaption>Exponentiation stretches score gaps into positive weights. Subtracting the peak logit 3.0 caps every exponential at 1.0 to prevent floating-point overflow, while normalizing by the shared sum 1.185 preserves the exact probability shares.</figcaption>
 </figure>
 
-On these small scores, stable softmax preserves the class ordering, keeps every probability positive, and normalizes the entries to sum to `1.0`. Mathematically, softmax is strictly positive for any finite logits, though floating-point implementations can underflow tiny shares to zero and introduce small rounding error in the sum:
+Compute stable softmax directly in Python:
 
 <!-- leetllm: test, output=show -->
 ```python title="stable-softmax.py"
@@ -126,26 +103,15 @@ Probabilities are consequences of logits and compete for a fixed budget of 1.0. 
 
 ## Stable arithmetic prevents floating-point overflow
 
-Our gentle logits `[3.0, 1.0, 0.0]` fit easily inside standard floating-point variables. What happens when a deep network produces raw scores like `[1000.0, 998.0, 997.0]`?
+Small logits like `[3.0, 1.0, 0.0]` exponentiate effortlessly, but what if a deep layer emits `[1000.0, 998.0, 997.0]`? In `float32`, `exp(z)` overflows past $z \approx 88.72$; in `float16`, it overflows past $z \approx 11.09$ (**bfloat16** keeps `float32`'s wide exponent range with fewer mantissa bits).[^googleBfloat162026] Once exponentials hit `+inf`, dividing `inf / inf` produces `NaN` and poisons gradients across the network.
 
-If exponentiation runs in `float32`, its largest finite result is approximately $3.4 \times 10^{38}$, so exponential overflow starts around a logit of $88.72$. For `float16`, the largest finite value is $65504$, and the threshold is about $11.09$: even $e^{12}$ cannot fit. **bfloat16 has roughly float32's range**, with fewer precision bits.[^googleBfloat162026] An operation may compute in a wider dtype than its input; the implementation's compute dtype determines the exponent range used for exponentiation.
-
-Once an exponential becomes `+inf`, the denominator can become `+inf`. Dividing `inf / inf` yields `NaN` (Not a Number). If you backpropagate through a nonfinite loss and step the optimizer, the invalid values can spread into parameters. Python's `math.exp`, used below, computes with ordinary Python floats (normally binary64) and raises `OverflowError` for `math.exp(1000.0)` instead of returning infinity.
-
-Softmax possesses a key algebraic property: **shift invariance**.[^goodfellow2016] Adding or subtracting any arbitrary scalar constant $c$ from every logit leaves the resulting probabilities completely unchanged:
+Softmax has a clean algebraic escape hatch: **shift invariance**.[^goodfellow2016] Subtracting any constant $c$ from every logit cancels out identically:
 
 $$
 \frac{e^{z_i - c}}{\sum_{j=1}^K e^{z_j - c}} = \frac{e^{z_i} e^{-c}}{e^{-c} \sum_{j=1}^K e^{z_j}} = \frac{e^{z_i}}{\sum_{j=1}^K e^{z_j}}
 $$
 
-The common factor $e^{-c}$ factors out of the sum and cancels between numerator and denominator. This identity unlocks the classic numerical stabilization trick: choose $c = m = \max_j(z_j)$, the maximum logit across the vector.
-
-For a nonempty vector of finite logits, subtracting $m$ makes the largest shifted value zero ($z_{\text{max}} - m = 0$). Every other shifted logit is nonpositive ($z_j - m \le 0$); tied maxima are also zero. Exponentiating these values gives:
-1. The largest exponential is $e^0 = 1.0$. Overflow is mathematically impossible.
-2. Every other exponential lies in $(0, 1]$.
-3. The denominator sum is at least $1.0$, preventing division by zero.
-
-Very negative shifted logits (such as $-1000$) can underflow to `0.0`, approximating a tiny probability by zero. Keep the loss in log space to avoid taking the logarithm of that rounded zero. Max-subtraction stabilizes finite values; validate inputs for `NaN` or `+inf` separately. A masked candidate may have logit `-inf` if at least one candidate has a finite score; an all-masked vector has no valid distribution.
+Setting $c = m = \max_j z_j$ makes every shifted logit nonpositive ($z_j - m \le 0$), so the largest exponential is $e^0 = 1.0$, overflow is impossible, and the denominator is at least `1.0` (masked entries may hold `-inf` as long as at least one candidate stays finite):
 
 <!-- leetllm: test, output=show -->
 ```python title="overflow-then-stable.py"
@@ -203,11 +169,11 @@ $$
 L_{\text{CE}} = -\sum_{k=1}^K y_k \log(p_k)
 $$
 
-Because $y_k = 0$ for all non-target classes and $y_c = 1$ for the target, every term except the target class vanishes and cross-entropy reduces to **Negative Log-Likelihood (NLL)**, $L = -\log(p_c)$. For our incident note where $c = \text{docs}$, $L = -\log(0.114195\ldots) \approx 2.170$ nats, whereas assigning `0.844` to `docs` would drop the loss to $-\log(0.844) \approx 0.170$ nats and assigning `0.999` would drop it to `0.001` nats.
+Because $y_k = 0$ for every non-target class and $y_c = 1$ for the true class, cross-entropy simplifies to **Negative Log-Likelihood (NLL)**, $L = -\log(p_c)$. For our review note where $c = \text{docs}$, $L = -\log(0.1142) \approx 2.170$ nats; pushing `docs` to `0.844` drops the loss to `0.170` nats, and `0.999` drops it to `0.001` nats.
 
 ### The log-sum-exp formulation prevents underflow crashes
 
-Computing `p = softmax(z)` followed by `math.log(p[c])` introduces a subtle failure mode. With `logits = [1000.0, 0.0, -1.0]` and target `docs`, the target's shifted logit is $-1000$ and its exponential underflows to `0.0`, causing Python's `math.log(0.0)` to raise `ValueError` and NumPy or PyTorch to return `-inf` even though the true finite logit difference defines a perfectly finite loss. Expanding $p_c$ expresses cross-entropy directly in terms of raw logits so intermediate probabilities never appear:[^goodfellow2016]
+Never compute `log(softmax(z))` in two separate steps. For `logits = [1000.0, 0.0, -1.0]` with target `docs`, `exp(-1000)` underflows to `0.0` and `log(0.0)` explodes to `-inf` even though the exact loss is cleanly `1000.0`. Expand $p_c$ directly in log space with the same max shift $m = \max_j z_j$:[^goodfellow2016]
 
 $$
 L = -\log\left(\frac{e^{z_c}}{\sum_j e^{z_j}}\right) = \log\left(\sum_{j=1}^K e^{z_j}\right) - z_c
@@ -275,9 +241,9 @@ $$
 H(P, Q) = H(P) + D_{\text{KL}}(P \parallel Q)
 $$
 
-For our one-hot `docs` target, $P = [0, 1, 0]$ has zero entropy ($H(P) = 0$): this annotation assigns all target mass to one label. Every fraction of a nat in the $2.170$ loss is mismatch with that target ($D_{\text{KL}} = 2.170$). The annotation records its selected label; ambiguity and label noise require separate evidence.
+For a one-hot target $P = [0, 1, 0]$, target entropy is zero ($H(P) = 0$), so all `2.170` nats of cross-entropy are prediction mismatch ($D_{\text{KL}} = 2.170$). For a soft target such as $P = [0.5, 0.5, 0]$, target entropy is $H(P) = \ln(2) \approx 0.693$ nats: even a perfect model ($Q = P$) reports `0.693` cross-entropy with $D_{\text{KL}} = 0$.
 
-When targets are soft (such as in distillation or human annotations with disagreement, like $P = [0.5, 0.5, 0]$), the reference distribution has inherent entropy $H(P) = \ln(2) \approx 0.693$ nats. Even an ideal model ($Q = P$) will report a loss of $0.693$ nats, with $D_{\text{KL}} = 0$. Don't mistake inherent target uncertainty for model failure.
+> **Key insight:** Cross-entropy equals target entropy plus KL divergence: $H(P, Q) = H(P) + D_{\text{KL}}(P \parallel Q)$. A nonzero loss floor on soft targets reflects $H(P)$, not model error.
 
 <!-- leetllm: test, output=show -->
 ```python title="entropy-cross-entropy-kl.py"
@@ -437,7 +403,7 @@ $$
 \frac{\partial L_{\text{CE}}}{\partial z_j} = \sum_i \frac{\partial L}{\partial p_i} \frac{\partial p_i}{\partial z_j} = \sum_i \left(-\frac{y_i}{p_i}\right) \cdot p_i (\delta_{ij} - p_j) = -\sum_i y_i (\delta_{ij} - p_j) = p_j - y_j
 $$
 
-Under squared probability error, by contrast, $\frac{\partial L_{\text{sq}}}{\partial p_i} = (p_i - y_i)$ lacks that $1/p_i$ cancellation, leaving the softmax Jacobian factor intact in $\frac{\partial L_{\text{sq}}}{\partial z_j} = \sum_i (p_i - y_i) p_i (\delta_{ij} - p_j)$. When the model is confidently wrong ($p_{\text{bug}} \approx 0.9993$ and $p_{\text{docs}} \approx 0.0003$), the Jacobian entries shrink to roughly $0.0003$ on the target and $0.0007$ on the wrong winner, choking off the squared-error gradient. Cross-entropy avoids that saturation completely, keeping the target logit gradient at $0.0003 - 1.0 = -0.9997$ whenever the local prediction is confident and wrong, while deeper layers still depend on downstream network Jacobians:
+Under squared probability error, $\frac{\partial L_{\text{sq}}}{\partial p_i} = (p_i - y_i)$ lacks that $1/p_i$ cancellation, leaving the softmax Jacobian factor inside $\frac{\partial L_{\text{sq}}}{\partial z_j} = \sum_i (p_i - y_i) p_i (\delta_{ij} - p_j)$. When the model is confidently wrong ($p_{\text{bug}} \approx 0.9993$, $p_{\text{docs}} \approx 0.0003$), that Jacobian factor collapses the squared-error gradient to `-0.0007`, while cross-entropy stays at full strength `-0.9997`:
 
 <!-- leetllm: test, output=show -->
 ```python title="confidently-wrong-gradients.py"
@@ -488,7 +454,7 @@ In this example, the target logit gradients differ by roughly three orders of ma
 
 ## PyTorch expects unnormalized logits directly
 
-In PyTorch, `nn.CrossEntropyLoss` takes unnormalized logits rather than probabilities.[^pytorchCrossEntropy2026] For integer class targets without label smoothing, it computes a numerically stabilized `log_softmax` followed by negative log-likelihood (`NLLLoss`), with exact kernel count and intermediate allocations varying by backend and execution mode.[^pytorchCrossEntropyImplementation2026] Inserting `nn.Softmax()` beforehand causes PyTorch to treat normalized probabilities $p$ as raw logits, turning the loss into $-\log(\operatorname{softmax}(p)_c) = \log(\sum_j e^{p_j}) - p_c$ and altering both the objective and upstream gradients while every tensor shape still passes checks:
+PyTorch's `nn.CrossEntropyLoss` expects raw unnormalized logits, not probabilities.[^pytorchCrossEntropy2026] Internally it fuses stabilized `log_softmax` with `NLLLoss`.[^pytorchCrossEntropyImplementation2026] Passing `nn.Softmax()` output into `nn.CrossEntropyLoss` applies softmax a *second* time to numbers already squashed into $[0, 1]$, silently shrinking the loss and choking gradients while every tensor shape still passes:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="pytorch-cross-entropy.py"
@@ -549,23 +515,20 @@ distorted docs gradient: -0.127
 ```
 <!-- leetllm: output:end -->
 
-The corrective gradient for `docs` shrank from $-0.886$ to $-0.127$. Feed raw logits directly into `nn.CrossEntropyLoss`. You can compute softmax separately for training metrics, distillation targets, or inference probabilities; the mistake is passing those probabilities as the loss's **input**. For integer targets, use `torch.long` class indices. Soft probability targets use floating-point tensors matching the input shape; PyTorch doesn't validate that they are normalized distributions.[^pytorchCrossEntropy2026]
+> **Common mistake:** Putting `nn.Softmax()` at the end of a classification network trained with `nn.CrossEntropyLoss`. Here the corrective gradient on `docs` collapses from `-0.886` to `-0.127` with zero runtime warning. Always feed raw logits to `nn.CrossEntropyLoss` (and pass `torch.long` integer indices or properly normalized float probability targets).[^pytorchCrossEntropy2026]
 
 ## Temperature scaling shapes inference entropy
 
-Our classification examples train at temperature $T = 1.0$. Other objectives, including distillation, can use a different temperature during training. Scaling fixed logits by a positive **<span data-glossary="temperature">temperature</span>** $T > 0$ changes how concentrated the distribution is:
+Dividing logits by a positive **<span data-glossary="temperature">temperature</span>** $T > 0$ reshapes probability sharpness without modifying model weights:
 
 $$
 p_i(T) = \frac{e^{z_i / T}}{\sum_{j=1}^K e^{z_j / T}}
 $$
 
-Dividing logits by $T$ changes how sharply probabilities concentrate:
-- When $T < 1.0$, logit differences expand. As $T \to 0^+$, probability concentrates on the highest-scoring class **if the maximum is unique**. Tied maxima instead share the limiting mass equally.
-- When $T > 1.0$, logit differences shrink. Mass spreads more evenly across competitors. As $T \to \infty$, the distribution approaches uniform uncertainty ($1/K$).
+- **$0 < T < 1$:** Stretches logit gaps, concentrating mass onto the top class (or splitting it equally across tied maxima as $T \to 0^+$; APIs offering `T = 0` switch to greedy argmax).
+- **$T > 1$:** Compresses logit gaps, spreading mass toward uniform ($1/K$) as $T \to \infty$.
 
-Positive temperature preserves the mathematical ranking. Rescaling fixed logits doesn't update the network's weights, although a calibration procedure can fit temperature on held-out data. Softmax itself is undefined at $T=0$; a serving API may use zero as a convention for greedy decoding. Greedy selection and drawing a sample from a sharpened distribution are different operations.
-
-In distillation, Hinton et al. soften teacher and student distributions with higher temperatures to expose relationships among non-target classes ("dark knowledge"). Their experiments use different temperatures for different setups, so evaluate the value for the specific distillation task.[^hinton2015] Cross-entropy through $\operatorname{softmax}(z/T)$ has raw-logit gradient $(p(T)-y)/T$. Distillation commonly multiplies the soft-target objective by $T^2$ to compensate for its high-temperature gradient scaling. During serving, temperature changes sampling diversity; the decoding policy still decides how a token is selected.
+Temperature preserves class ranking, so lowering $T$ never fixes a misranked prediction. In knowledge distillation, Hinton et al. raise $T$ to expose relative probabilities among non-target classes ("dark knowledge") and multiply the soft-target loss by $T^2$ to cancel the $1/T$ gradient scaling of $\operatorname{softmax}(z/T)$.[^hinton2015] During serving, temperature adjusts sampling diversity alongside the chosen decoding strategy:
 
 | Temperature | `bug` ($z=3$) | `docs` ($z=1$) | `security` ($z=0$) | Interpretation |
 |---:|---:|---:|---:|---|
@@ -616,9 +579,9 @@ No. Lowering temperature sharpens the current ranking, strengthening the mistake
 
 ## Label smoothing curbs overconfident logits
 
-Temperature rescaling does nothing to constrain logit gaps during training, because optimizing one-hot cross-entropy on a single example ($y_{\text{docs}} = 1.0$) drives $p_{\text{docs}} \to 1.0$ by pushing $z_{\text{docs}} - z_k \to +\infty$ for all $k \ne \text{docs}$. Without regularization, a model on separable training data keeps widening score gaps even after reaching 100% accuracy unless weight decay, early stopping, conflicting labels, or architectural constraints check weight growth. **Label smoothing** changes the objective directly by mixing the one-hot target with a uniform distribution over $K$ classes using smoothing factor $\alpha \in (0, 1)$, so $\tilde{y}_k = (1 - \alpha) y_k + \frac{\alpha}{K}$ and for our 3-class `docs` example ($\alpha = 0.1$) $\tilde{y}_{\text{docs}} \approx 0.9333$ while $\tilde{y}_{\text{bug}} = \tilde{y}_{\text{security}} \approx 0.0333$.[^szegedy2016LabelSmoothing]
+With a one-hot target ($y_{\text{docs}} = 1$), minimizing cross-entropy pushes $z_{\text{docs}} - z_k \to +\infty$ because $p_{\text{docs}}$ only reaches `1.0` at infinite logit margin. **Label smoothing** mixes the one-hot target with a uniform distribution over $K$ classes using weight $\alpha \in (0, 1)$: $\tilde{y}_k = (1 - \alpha) y_k + \frac{\alpha}{K}$.[^szegedy2016LabelSmoothing] For 3 classes and $\alpha = 0.1$, the target becomes `[0.033, 0.933, 0.033]`, so cross-entropy reaches its minimum at a finite logit gap $z_{\text{docs}} - z_{\text{competitor}} = \ln(0.9333 / 0.0333) = \ln(28) \approx 3.332$ (note that smoothing a teacher's labels can still hurt downstream distillation).[^muller2019LabelSmoothing]
 
-Instead of requiring an infinite logit margin for zero gradient, the optimal smoothed distribution now settles at a finite gap $\frac{p_{\text{docs}}}{p_{\text{competitor}}} = \frac{1-0.1+0.1/3}{0.1/3} = 28$, giving $z_{\text{docs}} - z_{\text{competitor}} = \ln(28) \approx 3.332$. Whenever $p_{\text{docs}}$ exceeds `0.9333...`, its logit gradient turns positive and gradient descent pulls the margin back toward equilibrium, achieving the minimum loss equal to the positive entropy of the smoothed target (while common shifts across all logits still cancel out). Label smoothing can improve generalization and calibration depending on label noise and $\alpha$, though Müller et al. also showed that smoothing a teacher's labels can hurt subsequent distillation.[^muller2019LabelSmoothing] Test this behavior directly with PyTorch's `nn.CrossEntropyLoss(label_smoothing=0.1)`:
+Verify PyTorch's `nn.CrossEntropyLoss(label_smoothing=0.1)` against the manual soft-target loss and $p - \tilde{y}$ gradient:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="label-smoothing-cross-entropy.py"
@@ -785,34 +748,7 @@ padding excluded from candidates: 0.313
 
 The padding class receives a positive gradient because this supervised prediction placed almost all its probability mass there, whereas excluding it alters the candidate distribution and changes the training objective. Only apply a vocabulary mask when the task strictly forbids a candidate class, keep the ground-truth class available, and retain at least one finite option, since assigning positive target probability to an excluded class drives cross-entropy to infinity.[^pytorchCrossEntropy2026]
 
-Class weighting also changes reduction rules. With integer targets and no label smoothing, `weight[c]` scales each target's loss and `reduction="mean"` divides by the sum of those class weights across non-ignored positions, whereas floating-point probability targets divide instead by the raw count of positions. Because even a one-hot float target behaves differently from an integer index when class weights are set, verify the exact reduction formula before combining weighted microbatch means.[^pytorchCrossEntropy2026] Standard library loops reproduce the unweighted sequence reduction directly:
-
-<!-- leetllm: test, output=show -->
-```python title="average-position-losses.py"
-import math
-
-def per_position_cross_entropy(logits: list[list[float]], targets: list[int]) -> list[float]:
-    losses = []
-    for row, target_index in zip(logits, targets, strict=True):
-        peak = max(row)
-        log_total = math.log(sum(math.exp(z - peak) for z in row))
-        losses.append((peak - row[target_index]) + log_total)
-    return losses
-
-logits = [[3.0, 1.0, 0.0], [0.5, 0.0, 2.0]]
-targets = [1, 2]
-losses = per_position_cross_entropy(logits, targets)
-
-print("position losses:", [round(value, 3) for value in losses])
-print("mean loss:", round(sum(losses) / len(losses), 3))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-position losses: [2.17, 0.306]
-mean loss: 1.238
-```
-<!-- leetllm: output:end -->
+Class weighting also changes reduction denominators: with integer targets and no smoothing, `reduction="mean"` divides by the **sum of target class weights** across supervised positions, whereas float probability targets divide by the **raw count of positions**.[^pytorchCrossEntropy2026]
 
 ```checkpoint
 A decoder emits a logit tensor of shape [3, 7, 11] for batch, sequence and vocabulary, with integer targets [3, 7]. Which two equivalent layouts satisfy PyTorch cross-entropy?

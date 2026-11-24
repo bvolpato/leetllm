@@ -33,13 +33,13 @@
 }
 ---
 
-A sentiment classifier reads a short review phrase token by token: `slow`, then `yet`, then `engaging`. Reverse that order to `engaging`, `yet`, `slow`, and the emphasis flips from an early caveat that turns positive to an upbeat opening undercut by the final word. A closing modifier can determine whether the sentence reads favorably overall. Word order shapes the interpretation, so how can one neural architecture track order across phrases of different lengths?
+A sentiment classifier reads a short review phrase token by token: `slow`, then `yet`, then `engaging`. Reverse that order to `engaging`, `yet`, `slow`, and the verdict flips from an early caveat redeemed by praise to a bright opening dragged down at the end. Word order changes meaning, so how does one neural network preserve order across phrases of any length?
 
-The [previous lesson](/learn/softmax-cross-entropy-optimization) converted raw class scores, or <span data-glossary="logits">logits</span>, into a <span data-glossary="softmax">softmax</span> probability distribution. We will keep that same multiclass head at the tail end, scoring three sentiment labels: `negative`, `positive`, and `neutral`. Our job here is to compress a variable-length stream of tokens into the single fixed-size vector that the downstream head expects.
+We will keep the same three-class <span data-glossary="logits">logits</span> and <span data-glossary="softmax">softmax</span> head from the [previous lesson](/learn/softmax-cross-entropy-optimization) (`negative`, `positive`, `neutral`), and build the recurrent backbone that folds a variable-length token stream into the single fixed-size vector that head expects.
 
 ## Order is part of the input
 
-If you shuffle token vectors, a bag-of-words sum or average treats every permutation identically because addition commutes. An order-aware model preserves temporal structure by feeding each step's running summary into the next calculation, though heavily compressed states can still collide or discard order signals that carry no predictive value. The scalar accumulator below demonstrates this asymmetry: because each step multiplies the running state by `0.6` before adding the current token weight, tokens arriving later exert greater direct influence on the final value.
+A bag-of-words sum treats every permutation identically because addition commutes. An order-aware recurrence folds each step's running state into the next calculation. Multiply the previous state by `0.6` before adding the current token weight, and later tokens carry more direct weight in the final number:
 
 <!-- leetllm: test, output=show -->
 ```python title="order-changes-the-state.py"
@@ -77,7 +77,7 @@ The forward phrase computes `0.6 * (0.6 * 1.0 + 0.4) + 0.9 = 1.5`. Reversing the
 
 A **<span data-glossary="recurrent-neural-network">recurrent neural network</span> (RNN)** makes this update rule trainable. Its **hidden state** ($h_t$) is a running vector carried from one token to the next, serving as working memory across positions. The learned update rule is called a **recurrent cell**, and each new token advances the sequence by one **timestep**.
 
-Start with a scalar hidden state. Multiply the incoming token signal by `0.8`, multiply the previous hidden state by `0.5`, add them, and pass the sum through **<span data-glossary="tanh">hyperbolic tangent (tanh)</span>**. Like sigmoid, tanh is a smooth S-shaped activation in $(-1, 1)$ that is symmetric around zero: $\tanh(-a)=-\tanh(a)$, while the batch mean depends on the input distribution. Starting from $h_0 = 0.0$ on token `1.0`, the pre-activation is `0.8`, giving $h_1 = \tanh(0.8) \approx 0.664$. Next, for token `0.4`, adding `0.8 * 0.4` and `0.5 * 0.664` gives `0.652` and $h_2 = \tanh(0.652) \approx 0.573$, as traced over all three tokens below:
+Start with a scalar hidden state. Multiply the incoming token by `0.8`, multiply the previous hidden state by `0.5`, add them, and squash the sum through **<span data-glossary="tanh">hyperbolic tangent (tanh)</span>** into $(-1, 1)$. Starting from $h_0 = 0.0$ on token `1.0`, $h_1 = \tanh(0.8) \approx 0.664$; on token `0.4`, $h_2 = \tanh(0.8 \times 0.4 + 0.5 \times 0.664) \approx 0.573$:
 
 <!-- leetllm: test, output=show -->
 ```python title="one-dimensional-rnn.py"
@@ -134,44 +134,28 @@ These are **one-hot** token vectors where one coordinate is `1` and all others a
 | $W_{xh}$ | `(2, 3)` | $(d_h, d_x)$ | Maps current token into hidden space |
 | $W_{hh}$ | `(2, 2)` | $(d_h, d_h)$ | Maps prior hidden state to new hidden state |
 
-Notice how each row of $W_{xh}$ and $W_{hh}$ computes one hidden coordinate of $h_t$ by taking a dot product with the input and the prior state. Together, those shapes keep the hidden state dimension independent of how long the phrase grows. We can now trace the full hidden-state trajectory across all three tokens in pure Python and verify that its width stays fixed at two:
+Trace the full hidden-state trajectory across all three one-hot tokens in NumPy:
 
-<!-- leetllm: test, output=show -->
+<!-- leetllm: test, deps=numpy, output=show -->
 ```python title="vector-rnn-forward-pass.py"
-import math
+import numpy as np
 
-def matvec(matrix, vector):
-    return [sum(weight * value for weight, value in zip(row, vector, strict=True)) for row in matrix]
-
-
-def add(left, right):
-    return [a + b for a, b in zip(left, right, strict=True)]
-
-
-def tanh_vec(values):
-    return [math.tanh(value) for value in values]
-
-
-tokens = [
-    [1.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0],
-    [0.0, 0.0, 1.0],
-]
-W_xh = [
+tokens = np.eye(3)
+W_xh = np.array([
     [0.8, 0.2, 0.1],
     [0.1, 0.7, 0.4],
-]
-W_hh = [
+])
+W_hh = np.array([
     [0.5, 0.1],
     [0.0, 0.6],
-]
+])
 
-state = [0.0, 0.0]
+state = np.zeros(2)
 for step, token in enumerate(tokens, start=1):
-    state = tanh_vec(add(matvec(W_xh, token), matvec(W_hh, state)))
-    print(f"h_{step} = {[round(value, 3) for value in state]}")
+    state = np.tanh(W_xh @ token + W_hh @ state)
+    print(f"h_{step} = {[round(float(v), 3) for v in state]}")
 
-print("final width:", len(state))
+print("final width:", state.shape[0])
 ```
 
 <!-- leetllm: output:start -->
@@ -300,19 +284,19 @@ for steps in [1, 4, 8, 12]:
 
 ### A matrix bound, and what it actually proves
 
-In the general multivariate case, $J_j = \frac{\partial h_j}{\partial h_{j-1}}$ is a **Jacobian matrix**. Differentiating $h_j = \tanh(W_{hh} h_{j-1} + W_{xh} x_j + b_h)$ gives $J_j = \operatorname{diag}(1 - h_j^2) W_{hh}$. Backpropagating an error gradient vector from timestep $T$ back to timestep $k$ multiplies by transposed Jacobians in reverse chronological order:[^bengio1994][^pascanu2013]
+In multiple dimensions, each transition has a **Jacobian matrix** $J_j = \frac{\partial h_j}{\partial h_{j-1}} = \operatorname{diag}(1 - h_j^2) W_{hh}$. Backpropagating a final-step loss gradient to step $k$ multiplies by transposed Jacobians in reverse time order:[^bengio1994][^pascanu2013]
 
 $$
 \nabla_{h_k} L = J_{k+1}^{\mathsf{T}} J_{k+2}^{\mathsf{T}}\cdots J_T^{\mathsf{T}}\nabla_{h_T} L
 $$
 
-This expression assumes a loss only at the final state, whereas intermediate losses add their own gradient terms along the backward chain. Matrix order matters here, so code applies $J_T^{\mathsf{T}}$ first before stepping backward toward $k$. Taking the induced Euclidean norm and using its submultiplicative property yields the classic norm bound:
+Taking induced Euclidean norms yields the classic bound:
 
 $$
 \left\| \frac{\partial h_T}{\partial h_k} \right\| \le \prod_{j=k+1}^T \left\| \operatorname{diag}\left(1 - h_j^2\right) \right\| \cdot \| W_{hh} \| \le \left( \gamma \, \sigma_{\max}(W_{hh}) \right)^{T-k}
 $$
 
-Here $\gamma = \max_j \|\operatorname{diag}(1 - h_j^2)\| \le 1$, and $\sigma_{\max}(W_{hh})$ is the largest singular value (spectral norm) of the recurrent matrix. Whenever a uniform bound satisfies $\gamma\sigma_{\max}(W_{hh}) < 1$, every long temporal Jacobian shrinks exponentially, giving a **sufficient condition** for vanishing distant paths even while recent positions carry strong parameter gradients. Conversely, when $\gamma\sigma_{\max}(W_{hh}) > 1$, growth becomes possible without being guaranteed, because trajectory behavior depends on vector directions, intermediate activations, and Jacobian alignment rather than a constant linear spectral radius alone.[^pascanu2013]
+Here $\gamma = \max_j \|\operatorname{diag}(1 - h_j^2)\| \le 1$ and $\sigma_{\max}(W_{hh})$ is the spectral norm (largest singular value) of $W_{hh}$. Whenever $\gamma\sigma_{\max}(W_{hh}) < 1$, distant gradients are guaranteed to decay exponentially. When $\gamma\sigma_{\max}(W_{hh}) > 1$, growth becomes possible but not automatic, because actual trajectory growth depends on vector directions and Jacobian alignment.[^pascanu2013]
 
 ```checkpoint
 For a linear recurrence, take W = [[0.5, 1], [0, 0.5]]. Its largest singular value is about 1.21. Does that prove distant gradients grow without bound?
@@ -320,7 +304,7 @@ For a linear recurrence, take W = [[0.5, 1], [0, 0.5]]. Its largest singular val
 No. Here Wⁿ = [[0.5ⁿ, n·0.5ⁿ⁻¹], [0, 0.5ⁿ]], which tends to zero. Some directions can grow temporarily, but repeated multiplication eventually contracts. The exact powers decay even though the bound ‖Wⁿ‖ ≤ 1.21ⁿ grows, so inspect the matrix power before inferring gradient growth.
 ```
 
-In float32 arithmetic, decay severity depends on both path factors and parameter scale. With a factor of `0.6`, $0.6^{50} \approx 8.08 \times 10^{-12}$ stays representable in float32, though small gradients can lose optimization leverage relative to the learning rate well before numeric underflow. Meanwhile, expanding paths push updates in the opposite direction, destabilizing weights or producing nonfinite values.
+> **Key insight:** Vanishing gradients hurt training long before float32 underflow. Even when $0.6^{50} \approx 8 \times 10^{-12}$ is still representable in float32, distant gradients are dwarfed by near-term gradients and barely move the weights.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Left column outlines four steps in the sequence modeling guide: shared-weight recurrence, skipping padding slots, additive LSTM and coupled GRU gates, and direct attention paths. Right chart plots exponential backward decay over 12 steps: an LSTM gate of 0.98 keeps 0.785, a 0.60 factor drops to 0.002, and a 0.28 factor vanishes near zero." />
@@ -329,7 +313,7 @@ In float32 arithmetic, decay severity depends on both path factors and parameter
 
 ### Truncation and gradient clipping
 
-Two practical techniques manage gradient flow during recurrent sequence training: **truncated BPTT** to cap backward memory and **gradient norm clipping** to tame exploding updates. **Truncated BPTT** splits a long sequence into shorter chunks, carrying the forward state values across chunks while calling `h = h.detach()` (or detaching both `h` and `c` in an LSTM) to cut the autograd graph at each split. Detaching reduces activation memory at the cost of blocking credit assignment across chunks, so earlier tokens stop receiving updates from later losses. Holding weights fixed and cutting our three-token phrase after step 2 leaves the forward final state untouched while zeroing earlier token derivatives and shrinking the weight gradient:
+Two standard controls manage recurrent gradients: **truncated BPTT** caps backward memory by splitting long sequences into chunks and calling `h = h.detach()` (and `c.detach()` in an LSTM) between chunks, while **gradient norm clipping** rescales exploding gradients back to a ceiling $c$. Detaching keeps the exact forward state value while cutting backward credit assignment across the chunk boundary:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="same-state-different-credit.py"
@@ -399,7 +383,7 @@ clipped gradient: [3.904, -3.123]
 ```
 <!-- leetllm: output:end -->
 
-For a finite, nonzero gradient, norm clipping rescales its magnitude while preserving direction in exact arithmetic.[^pascanu2013] Clipping caps the gradient norm directly: under plain SGD without momentum or weight decay, each step norm is at most $\eta c$, whereas adaptive optimizers and momentum modify that effective step size. Leaving $g=0$ unchanged avoids dividing by zero, and any nonfinite gradients should be diagnosed before rescaling. Clipping limits oversized gradients from exploding backward paths, while gates offer a different memory mechanism altogether alongside initialization, regularization, objectives, and dependency length.
+Norm clipping shrinks oversized gradients while preserving their direction,[^pascanu2013] capping exploding updates without solving vanishing gradients. Fixing vanishing memory requires changing the cell architecture itself.
 
 ## LSTM: Additive cell state and gated memory
 
@@ -479,7 +463,7 @@ Contrast this directly with the vanilla RNN product $\prod \operatorname{diag}(1
 2. **Additive cell update:** The cell state passes through no $\tanh$ during the update.
 3. **Controllable retention:** Forget gates near one slow decay. If every gate on a coordinate is 0.999 for 100 transitions, its direct-path factor is about 0.905, retaining 90.5%. At 0.5, the same product is approximately $7.89\times10^{-31}$.
 
-Hochreiter and Schmidhuber's original LSTM kept a fixed unit-weight cell self-connection called the **constant error carousel**.[^hochreiter1997] Later, Gers et al. added learned forget gates so the cell could reset stale features dynamically instead of integrating indefinitely.[^gers2000] Full backpropagation still routes gradients through hidden states, gates, and the output factor $o_t\odot(1-\tanh^2(c_t))$, which can shrink or grow, so the direct cell path stabilizes long-range memory without eliminating vanishing or exploding modes altogether.
+> **Key insight:** An LSTM protects long-range memory with an *additive* highway ($c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$). Along the direct cell path, derivatives multiply by the diagonal forget gates $\prod f_j$ instead of repeated powers of $W_{hh}$ and $\tanh$ derivatives.[^hochreiter1997][^gers2000]
 
 ```checkpoint
 What does an LSTM forget gate value near 1 do?
@@ -539,7 +523,7 @@ $$
 \tilde{h}_t = \tanh\left(W_{in} x_t + b_{in} + r_t \odot (W_{hn} h_{t-1} + b_{hn})\right)
 $$
 
-PyTorch documents this deliberate change as an efficiency choice so recurrent projections can execute together before applying reset. Actual kernel counts still depend on the backend, tensor shapes, and execution mode. Because matrix multiplication and coordinate-wise scaling generally do not commute ($U_h(r\odot h)\ne r\odot(U_hh)$), mixing coordinates changes the candidate vector whenever weights are non-diagonal:
+PyTorch makes this change so recurrent matrix projections can fuse before applying the reset gate. Because matrix multiplication and coordinate-wise scaling do not commute ($U_h(r\odot h) \ne r\odot(U_hh)$) for non-diagonal weights, the two conventions yield different candidate vectors:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="gru-reset-placement.py"
@@ -571,7 +555,7 @@ The two candidate implementations diverge sharply (`-0.273` versus `0.040`). Mix
 
 ## Parameter auditing and tensor geometry
 
-Every gate and candidate vector in an RNN cell emits $d_h$ values from a concatenated vector $[h_{t-1}, x_t]$ of width $d_h + d_x$. Each affine block therefore needs a weight matrix of shape $(d_h, d_h + d_x)$ and a bias vector of shape $(d_h,)$. Grouping these blocks per cell shows how total parameter count scales across all three recurrent architectures:
+Every gate and candidate block in a recurrent cell outputs $d_h$ values from $[h_{t-1}, x_t]$ of width $d_h + d_x$:
 
 | Cell | Affine blocks | General parameter formula | Our example ($d_x=3, d_h=2$) |
 |---|---:|---|---:|
@@ -579,13 +563,13 @@ Every gate and candidate vector in an RNN cell emits $d_h$ values from a concate
 | GRU | 3 ($z$, $r$, candidate) | $3 \left[d_h(d_x + d_h) + d_h\right]$ | $3 \times 12 = 36$ |
 | LSTM | 4 ($f$, $i$, candidate, $o$) | $4 \left[d_h(d_x + d_h) + d_h\right]$ | $4 \times 12 = 48$ |
 
-With equal hidden widths and one bias vector per block, a GRU uses three-quarters as many parameters and dense projections as an LSTM. Real wall-clock throughput still depends on batch sizes, fused GPU kernels, and sequence lengths alongside raw FLOPs. Notice also why PyTorch's `nn.GRU` reports 42 parameters instead of 36: PyTorch stores separate input-hidden ($b_{in}$) and hidden-hidden ($b_{hn}$) biases for every gate:[^pytorch2026gru]
+With equal hidden width, a GRU uses three-quarters as many parameters as an LSTM. Why does PyTorch's `nn.GRU(3, 2)` report **42** parameters instead of **36**? PyTorch keeps two biases per block ($b_{in}$ and $b_{hn}$), adding $3 d_h = 6$ parameters (and in the candidate block, $b_{hn}$ sits inside the reset gate multiplication, so it cannot fold into $b_{in}$):[^pytorch2026gru]
 
 $$
 \text{PyTorch GRU parameters} = 3 \times \left[ d_h(d_x + d_h) + 2d_h \right] = 3 \times (10 + 4) = 42
 $$
 
-Those extra biases don't change the hidden width, nor are they strictly redundant. Because PyTorch places $b_{hn}$ inside the reset multiplication ($r_t \odot (W_{hn} h_{t-1} + b_{hn})$), it scales dynamically with the reset gate and cannot fold into a static input bias. Finally, a one-layer unidirectional `nn.GRU(input_size=3, hidden_size=2, batch_first=True)` reads an input tensor of shape `(B, T, 3)` and returns per-step outputs `(B, T, 2)` alongside a final hidden state of shape `(1, B, 2)`, whose leading axis indexes `num_layers * num_directions` rather than time.
+A unidirectional 1-layer `nn.GRU(3, 2, batch_first=True)` maps `(B, T, 3)` to per-step outputs `(B, T, 2)` and final hidden state `(1, B, 2)`, where the first axis is `num_layers * num_directions`.
 
 ```checkpoint
 Why can the textbook parameter formula and framework parameter count differ for the same GRU?
@@ -595,52 +579,39 @@ Our textbook formula counts one bias per block. PyTorch stores input-hidden and 
 
 ## Sequence padding and batch masking
 
-In production workloads, sequences within a batch rarely share the same length. Frameworks pad shorter sequences with dummy rows (typically zeros) so they fit inside one rectangular <span data-glossary="tensor">tensor</span>. Running an unmasked recurrent loop over those padded slots creates a silent bug where **padding is still processed as a token**, triggering another state transition even when the input row is all zeros:
+When sequences in a batch have different lengths, frameworks pad shorter items (often with zeros) into a rectangular <span data-glossary="tensor">tensor</span>. Running an unmasked RNN over those filler slots still executes another state update:
 
 $$
 h_t = \tanh(W_{hh} h_{t-1} + W_{xh} \mathbf{0} + b_h) = \tanh(W_{hh} h_{t-1} + b_h)
 $$
 
-Unless $h_{t-1}$ already sits at a fixed point of that transition, every zero row alters the hidden vector. Even worse, arbitrary filler tokens outside zero push the hidden state even farther away. Verify how both zero and nonzero pad rows perturb our vector RNN state:
+> **Common mistake:** Assuming zero-padded rows leave the RNN hidden state untouched. Even an all-zero input vector still multiplies $h_{t-1}$ by $W_{hh}$ and adds $b_h$, shifting the final state away from the last real token.
 
-<!-- leetllm: test, output=show -->
+Watch both zero and nonzero filler rows perturb our vector RNN state in NumPy:
+
+<!-- leetllm: test, deps=numpy, output=show -->
 ```python title="padding-is-another-update.py"
-import math
+import numpy as np
 
-def matvec(matrix, vector):
-    return [sum(weight * value for weight, value in zip(row, vector, strict=True)) for row in matrix]
-
-
-def add(left, right):
-    return [a + b for a, b in zip(left, right, strict=True)]
-
-
-def tanh_vec(values):
-    return [math.tanh(value) for value in values]
-
-
-W_xh = [
+W_xh = np.array([
     [0.8, 0.2, 0.1],
     [0.1, 0.7, 0.4],
-]
-W_hh = [
+])
+W_hh = np.array([
     [0.5, 0.1],
     [0.0, 0.6],
-]
+])
 
 def run(tokens):
-    state = [0.0, 0.0]
+    state = np.zeros(2)
     for token in tokens:
-        state = tanh_vec(add(matvec(W_xh, token), matvec(W_hh, state)))
-    return [round(value, 3) for value in state]
+        state = np.tanh(W_xh @ token + W_hh @ state)
+    return [round(float(v), 3) for v in state]
 
-two_tokens = [
-    [1.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0],
-]
+two_tokens = [np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0])]
 print("two real tokens:      ", run(two_tokens))
-print("plus a zero pad row:  ", run(two_tokens + [[0.0, 0.0, 0.0]]))
-print("plus a junk pad row:  ", run(two_tokens + [[9.0, -9.0, 9.0]]))
+print("plus a zero pad row:  ", run(two_tokens + [np.zeros(3)]))
+print("plus a junk pad row:  ", run(two_tokens + [np.array([9.0, -9.0, 9.0])]))
 ```
 
 <!-- leetllm: output:start -->
@@ -738,37 +709,30 @@ Three short words already share a two-number bottleneck. A hundred-word paragrap
 
 ## The sequential bottleneck, and how attention changes it
 
-Because each standard nonlinear recurrent transition computes $s_t = f(s_{t-1}, x_t)$ sequentially from its predecessor (with $s_t=h_t$ for a vanilla RNN or GRU and $s_t=(h_t,c_t)$ for an LSTM), a 4,096-token sequence triggers 4,096 dependent state steps along the time axis. Backend fusion and persistent kernels govern how those steps launch on GPU. Even though input projections can be batched across positions ahead of time, small batch sizes or narrow hidden widths often leave matrix units underutilized across the serial loop.[^nvidiaCuDNNRNN2026]
+Because every nonlinear recurrent step $s_t = f(s_{t-1}, x_t)$ waits for $s_{t-1}$ to finish, a 4,096-token sequence runs 4,096 serial steps along the time axis, leaving modern GPU matrix units underutilized at small batch sizes.[^nvidiaCuDNNRNN2026]
 
 ### Self-attention breaks the serial chain
 
-A Transformer replaces these recurrent transitions with **<span data-glossary="self-attention">self-attention</span>** and position-wise transformations.[^vaswani2017] Instead of threading one state from left to right across the entire prompt, every token already present during training can compute its interactions simultaneously. Two operations drive that direct routing across positions:
+A Transformer replaces serial recurrence with **<span data-glossary="self-attention">self-attention</span>**, projecting all known tokens in parallel ($Q = X W_Q, K = X W_K, V = X W_V$) and routing directly between any two allowed positions in one layer:[^vaswani2017]
 
-1. **Parallel projections:** Queries, keys, and values can be projected across the sequence together (often with a combined projection):
-   $$
-   Q = X W_Q, \quad K = X W_K, \quad V = X W_V
-   $$
-2. **Direct routing:** A position can attend directly to any position permitted by the mask:
-   $$
-   \operatorname{Attention}(Q, K, V) = \operatorname{softmax}\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}+M\right) V
-   $$
-   A causal mask sets $M_{ij}=-\infty$ for future positions $j>i$ and zero for allowed positions. Position 4,096 can read a weighted value from Position 1 within a single layer, whereas a recurrent model relays that signal through 4,095 intermediate updates.
+$$
+\operatorname{Attention}(Q, K, V) = \operatorname{softmax}\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}+M\right) V
+$$
 
-Because attention treats input positions symmetrically except for masking, models add positional encodings to preserve word order. During autoregressive generation, future tokens are still unknown, so each newly sampled token depends serially on the tokens generated before it. Comparing the two layer types at sequence length $T$ and hidden width $d$ highlights the trade-off between path depth and pairwise work:
+With a causal mask ($M_{ij} = -\infty$ for $j > i$), position 4,096 reads position 1 in a single layer instead of crossing 4,095 recurrent steps (and positional encodings supply word order since attention itself is permutation-symmetric). During autoregressive decoding, generating new tokens one by one remains serial in both architectures.
 
 | Property | Recurrent layer (RNN / LSTM / GRU) | Self-attention layer (Transformer) |
 |---|---|---|
-| Sequential operations during training | $O(T)$ (strictly serial across timesteps) | $O(1)$ (parallel tensor operations across all tokens) |
-| Interaction path length between distant tokens | $O(T)$ (information must survive $T$ transitions) | $O(1)$ (direct pairwise dot product) |
-| Compute at comparable input/hidden width $d$ | $O(Td^2)$ | $O(T^2d+Td^2)$, including projections |
-| Parallel work during training | Across batch items and projection coordinates, while transitions remain dependent | Across available positions, with utilization shaped by tensor dimensions and kernels |
-| State available for the next update | Fixed-width $h_t$, plus $c_t$ for LSTM | Full attention reads explicit representations of all allowed positions |
+| Sequential ops during training | $O(T)$ serial steps | $O(1)$ parallel across tokens |
+| Path length between distant tokens | $O(T)$ transitions | $O(1)$ direct dot product |
+| Compute (width $d$) | $O(Td^2)$ | $O(T^2d + Td^2)$ |
+| Carried state | Fixed-width $h_t$ (and $c_t$) | Explicit KV cache of all allowed positions |
 
-Although a recurrent cell carries a fixed-width state across steps, full BPTT still caches intermediate activations across the sequence unless truncated or recomputed. Conversely, full self-attention avoids serial training dependencies at the cost of quadratic pairwise compute, though FlashAttention tiles the computation to avoid materializing the full $T \times T$ score matrix in GPU HBM.[^dao2022] Meanwhile, structured state-space architectures such as Mamba recover parallel training over long sequences by preparing input-dependent recurrence coefficients and evaluating a linear associative scan, keeping inference state size constant per token without turning standard nonlinear LSTMs or GRUs into parallel scans.[^gu2023]
+FlashAttention tiles self-attention in GPU SRAM to avoid materializing the $T \times T$ score matrix in HBM,[^dao2022] while structured state-space models such as Mamba recover parallel training via input-dependent linear associative scans while keeping constant inference state per token.[^gu2023]
 
 ## Diagnosing recurrent failure modes
 
-Three implementation bugs already surface in the numbers from this chapter. State leakage across independent sequences, decoupled cell versus hidden updates, and non-commutative reset gates each break subtle assumptions when building models by hand. Verify each behavior in the checkpoints below before scaling a recurrent training run:
+Three subtle bugs show up directly in the numbers from this lesson: forgetting to reset hidden state between independent sequences, assuming the LSTM output gate alters the stored cell, and testing GRU compatibility on diagonal weights. Check each one below:
 
 ```checkpoint
 In the scalar RNN, start a second, independent review containing only token 0.4. What happens if you mistakenly reuse the first sequence's final state instead of resetting to zero?

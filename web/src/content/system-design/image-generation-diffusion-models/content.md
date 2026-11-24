@@ -13,7 +13,7 @@
     "Meta",
     "Midjourney"
   ],
-  "shortDescription": "Four design previews start as pure Gaussian noise, and every denoising pass consumes GPU time. Master the mathematics of forward schedules and reverse solvers, then design a high-throughput asset service.",
+  "shortDescription": "Four design previews start as pure Gaussian noise, and every denoising pass consumes GPU time. Master forward schedules, reverse solvers, CFG, and latent diffusion, then size an interactive asset service.",
   "keyConceptsTested": [
     "Forward diffusion: adding Gaussian noise",
     "Reverse process: learned denoising",
@@ -56,38 +56,43 @@
 }
 ---
 
-Four previews of an oak dining table in soft light arrive as a single inbound generation request. Producing these images is not a trivial single-pass calculation: each variant starts as an isotropic Gaussian noise tensor and passes through a deep neural denoiser dozens of times before human eyes can perceive structure. When product requirements demand an interactive preview in under two seconds, the engineering challenge centers on partitioning that latency budget across queueing, numerical solver steps, text cross-attention, and autoencoder decoding. Every layer of the serving architecture must be tuned to minimize redundant floating-point operations while guaranteeing mathematical stability.
+Start with a puzzling serving constraint: a designer asks for four previews of an oak dining table in soft morning light, and expects the first preview in under two seconds. Yet a diffusion model begins with pure Gaussian static and must run a deep neural network dozens of times before a single table leg appears. How does a system turn 50 sequential forward passes over a 786,432-value RGB image into a sub-two-second interactive preview?
 
-That iterative denoising loop forms the mechanical foundation of modern diffusion models. The neural network acts as an empirical score estimator or velocity field predictor, estimating the directional adjustment required by a numerical integration solver to peel away accumulated noise. While continuous visual models operate over high-resolution pixel lattices or compressed spatial latent representations, text diffusion models apply related non-equilibrium dynamics to discrete token canvases, progressively replacing mask tokens instead of strictly committing words left to right.[^google2026diffusiongemma] This conceptual bridge unifies disparate media generation tasks under a shared physical and probabilistic framework.
+The answer sits at the intersection of probability and GPU arithmetic. A diffusion model reframes image generation as iterative denoising: instead of mapping random noise to sharp pixels in one leap, the network predicts a small cleanup update at each step while a numerical solver marches from static to structure. Compressing pixels into a 64x smaller spatial latent space slashes attention work by 4,096x, while straight-line flow matching and step distillation cut 1,000 reverse passes down to 4 to 8. The same iterative refinement idea even extends to discrete text canvases, where a bidirectional transformer fills and revises masked tokens in parallel instead of committing one token left to right.[^google2026diffusiongemma]
 
-Generative modeling in modern production environments synthesizes learned perceptual compression with multi-head cross-attention conditioning. Before deploying such models at scale, an infrastructure architect must master both the mathematical mechanics of variance-preserving forward and reverse processes and the rigorous publication checks that guard downstream distribution. The underlying physical mechanism begins with the behavior of a single brightness coordinate under Gaussian corruption, demonstrating how simple linear combinations of signal and noise give rise to complex generative dynamics.
+In this lesson, we first size the serving architecture for a two-tier image generator, then open the engine room from a single noisy pixel up through DDPM, U-Net vs DiT backbones, flow matching, classifier-free guidance, DDIM, and latent diffusion.
 
 <figure>
   <img src="illustrations/_generated/diffusion_pipeline_dark.png" alt="Latent diffusion inference pipeline. Seeded Gaussian noise initializes the latent tensor. Over N denoising steps, the neural backbone predicts noise or velocity conditioned on timestep and text embeddings, guided by classifier-free guidance. A fast numerical solver updates the latent, which is decoded into high-resolution RGB pixels by the VAE decoder." />
-  <figcaption>End-to-end latent diffusion inference pipeline. Text conditioning vectors steer iterative denoiser passes over compact latents before the spatial VAE decoder renders the final RGB output.</figcaption>
+  <figcaption>End-to-end latent diffusion inference pipeline. Text embeddings steer iterative denoiser passes over compact latents before the VAE decoder renders RGB pixels.</figcaption>
 </figure>
 
 ## Product brief: a governed design-asset generator
 
-The objective is to design a high-throughput asset generation platform serving product designers with marketing backgrounds, UI illustration drafts, and icon previews. The architectural design must establish strict boundaries where long-running or non-compliant workloads terminate: before scheduling GPU memory, within the iterative solver loop, or following final image decoding. Synthetic outputs must be rigorously governed so that hallucinated UI components, mock performance graphs, or synthetic brand assets are never published without programmatic verification. These governance requirements must integrate seamlessly into the asynchronous serving pipeline without degrading user-perceived responsiveness.
+We are designing a high-throughput image generation service for product designers creating marketing backgrounds, UI illustrations, and icon previews. Two workloads hit the same fleet: fast interactive previews where a designer iterates on prompts, and slow high-fidelity renders destined for publication. Every published image must carry an imperceptible watermark and pass safety checks before a download URL is issued.
 
 ### Requirements and API
 
-The platform exposes an asynchronous submission and polling lifecycle designed for predictable high-load execution:
+An asynchronous job lifecycle keeps HTTP connections short while GPU workers run iterative solvers:
 
-- `POST /v1/image-jobs` accepts a configuration payload containing `prompt`, `negative_prompt`, `width`, `height`, `variant_count`, `route` (`preview` or `quality`), `seed`, and a unique `idempotency_key`. The endpoint validates input dimensions and policy rules, returning a `job_id`, active model and policy manifests, and an estimated completion timestamp.
-- `GET /v1/image-jobs/{job_id}` returns the job state (`queued`, `running`, `review`, `failed`, or `complete`), along with per-variant seeds, sampling parameters, safety filter telemetry, embedded watermark metadata, and synthetic media labels. Secure content delivery URLs are returned only for variants that satisfy all release criteria.
-- Preview workflows target a p95 latency under 2.0 seconds for the first returned variant, measured from submission through admission, denoising, and post-decode validation. Quality jobs permit up to 30.0 seconds of end-to-end execution before triggering execution timeouts.
-- Inbound prompts and decoded images pass safety classifiers and brand policy verifiers. Content with elevated risk scores routes to human moderation queues, while multi-tenant fine-tuning adapters and tenant data remain strictly isolated.
+- `POST /v1/image-jobs` accepts `prompt`, `negative_prompt`, `width`, `height`, `variant_count`, `route` (`preview` or `quality`), `seed`, and `idempotency_key`. It validates dimensions and safety filters, then returns `job_id`, active checkpoint versions, and an estimated completion time.
+- `GET /v1/image-jobs/{job_id}` returns job state (`queued`, `running`, `review`, `failed`, or `complete`), per-variant seeds, sampler settings, safety scores, watermark status, and signed CDN URLs once a variant clears checks.
+- **Latency targets:** preview jobs target p95 under 2.0 seconds for the first returned variant; quality jobs allow up to 30.0 seconds end to end.
+- **Safety and isolation:** both inbound prompts and decoded images run through safety classifiers, borderline outputs route to human review, and tenant-specific LoRA adapters stay isolated per tenant.
 
 ### Data flow and sizing
 
-Every generated asset carries an immutable audit payload recording its model version, LoRA adapters, scheduler parameters, and per-variant random seeds. Capacity planning must measure work in raw neural network evaluations rather than HTTP requests. For instance, an interactive preview tier handling 20 jobs per second with 4 variants per job over a 6-step guidance-distilled model requires `20 x 4 x 6 = 480` denoiser forward passes per second. This calculation gives offered denoiser work; actual cluster sizing must benchmark real GPU throughput under realistic memory access patterns.
+Measure diffusion cluster capacity in **denoiser forward passes per second**, not HTTP requests per second. Every job spawns multiple variants, every variant runs multiple solver steps, and ordinary classifier-free guidance (CFG) evaluates two branches (conditional and unconditional) per step:
+
+- **Preview tier:** 20 jobs/s $\times$ 4 variants $\times$ 6 steps (guidance-distilled, single branch) = **480 denoiser evaluations/s**.
+- **Quality tier:** 2 jobs/s $\times$ 4 variants $\times$ 50 steps $\times$ 2 CFG branches = **800 denoiser evaluations/s**.
+
+Even with 10x lower request traffic, the quality tier consumes nearly twice the denoiser compute of the preview tier. Putting both tiers in one shared FIFO queue lets a burst of 50-step quality jobs blow past the 2-second preview budget. Isolate queues and worker pools by tier, enforce maximum resolution and variant counts before GPU allocation, batch requests that share checkpoint, resolution, and scheduler settings, and stream the first finished variant back to the client while remaining variants finish.
 
 ```mermaid
 flowchart TB
-    A["Tenant + request validation"]:::muted --> B["Prompt safety policy"]:::secondary
-    B --> C["Bounded route queue"]:::primary
+    A["Tenant + request validation"]:::muted --> B["Prompt safety filter"]:::secondary
+    B --> C["Per-tier job queue"]:::primary
     C --> F["Iterative denoiser loop"]:::primary
     D["Text embeddings"]:::secondary --> F
     E["Seeded latent tensor"]:::accent --> F
@@ -95,183 +100,140 @@ flowchart TB
     F --> G["VAE decoder"]:::secondary
     G --> H["Output safety check"]:::warning
     H --> I["Watermarked asset bytes"]:::accent
-    I --> J{"Release validation"}:::warning
+    I --> J{"Release check"}:::warning
     J -->|pass| K["Signed CDN URL"]:::success
     J -->|fail or uncertain| L["Hold for review"]:::danger
 ```
 
-By comparison, the quality tier uses classifier-free guidance, evaluating both prompt-conditioned and unconditional branches at every timestep. Handling 2 jobs per second with 4 variants, 50 steps, and ordinary CFG demands `2 x 4 x 50 x 2 = 800` network evaluations per second. Batching multiple samples across tensor cores amortizes memory bandwidth overhead, but the aggregate floating-point operations remain proportional to total step evaluations. Capacity planning must compare configurations only under identical model checkpoints, spatial resolutions, numeric precision, and batching constraints.
-
-Queue isolation and worker reservation prevent long-running quality jobs from starving interactive preview requests. System limits must enforce maximum image resolutions and variant counts during admission before allocating GPU memory. When batching inference jobs, workers group requests by identical model checkpoints, spatial dimensions, and scheduler configurations to preserve computational efficiency, while a first-variant priority mechanism returns completed images to clients without waiting for remaining batch elements.
-
 ### Attribution and watermark verification belong in the release path
 
-Attribution metadata enclosed solely within HTTP JSON responses is easily stripped when media files are downloaded, cropped, or shared. A robust serving architecture embeds an imperceptible, tamper-resistant digital watermark directly into the decoded asset representations prior to persistent storage. DeepMind's SynthID demonstrates this principle by applying subtle, cryptographically verifiable perturbations that persist through lossy compression and spatial scaling.[^deepmind2026synthid] Because aggressive downstream editing can degrade watermark detectability, watermark verification functions as one component of a defense-in-depth safety strategy alongside prompt filtering, visual moderation classifiers, and origin audit logs.
+A JSON field like `"synthetic": true` disappears the moment someone downloads, crops, or screenshots an image. Instead, embed an imperceptible digital watermark directly in the pixel values before saving the final asset. DeepMind's SynthID applies subtle, detectable perturbations that survive JPEG recompression and resizing.[^deepmind2026synthid] Because heavy editing can still weaken detection, pair pixel watermarking with durable backend records linking `job_id`, SHA-256 byte digest, model checkpoint, LoRA adapter, seed, and watermark score. Keep raw unwatermarked buffers in ephemeral worker memory only.
 
 ```mermaid
 flowchart TB
-    A["Rendered candidate derivative"]:::muted --> B{"Policy + watermark<br/>verification pass?"}:::warning
+    A["Rendered candidate derivative"]:::muted --> B{"Safety + watermark<br/>check pass?"}:::warning
     B -->|yes| C["Commit digest to manifest"]:::secondary
     C --> D["Publish checked asset"]:::success
-    B -->|no or uncertain| E["Escalate to review"]:::danger
+    B -->|no or uncertain| E["Hold for review"]:::danger
 ```
-
-The persistent job record binds the unique `job_id`, SHA-256 byte digest, model checkpoint, LoRA configuration, sampling seed, watermark detector score, and release timestamp into an append-only audit log. Intermediate unwatermarked latents and raw frame buffers remain in ephemeral worker memory and are never exposed via public endpoints. Furthermore, watermark insertion and detection latency must be benchmarked independently from GPU denoiser operations, ensuring that post-processing and cryptographic signing never become hidden throughput bottlenecks.
 
 ```checkpoint
 Why is a synthetic=true metadata flag insufficient for origin attribution?
 ---
-Metadata headers are easily detached when files are converted, edited, or re-uploaded. Embedding an imperceptible, robust digital watermark directly into pixel values preserves attribution through lossy compression and transformations, which can be corroborated against durable backend generation logs.
+Metadata headers are stripped when files are converted, cropped, or re-uploaded. Embedding an imperceptible watermark directly in pixel values preserves attribution across lossy transformations and can be checked against backend generation records.
 ```
 
 ### Failure recovery, rollout, and evaluation
 
-Idempotency keys prevent duplicate generation charges by mapping normalized request parameters to durable storage records. When a client submits an existing idempotency key with matching generation parameters, the service returns the existing job status. If the prompt or image dimensions differ, the gateway rejects the duplicate request with an HTTP 409 conflict error, maintaining strict consistency across client retry loops.
+Three distributed-systems details prevent subtle corruption in a diffusion fleet:
 
-Distributed worker pools execute tasks under expiring leases with monotonically increasing attempt counters. When a worker experiences an unexpected node reboot or memory exhaustion, the scheduler reassigns the task under an incremented attempt ID. Database transactions verify that only the currently active attempt ID can commit finished asset manifests, preventing timed-out workers from publishing conflicting image bytes after a replacement has already succeeded.
+1. **Idempotent retries:** map each `idempotency_key` to normalized request parameters. Matching retries return the existing job; a reused key with a different prompt or size returns HTTP 409 Conflict.
+2. **Expiring leases and attempt IDs:** each worker acquires a lease with a monotonically increasing `attempt_id`. If a GPU node reboots mid-trajectory, the scheduler reassigns the job with `attempt_id + 1`, and the manifest write accepts only the active attempt so a slow zombie worker cannot overwrite finished bytes.
+3. **Deterministic RNG state:** stochastic samplers depend on exact pseudorandom draws at every step. Restarting a job requires recording the checkpoint, torch seed, scheduler settings, and software/CUDA versions so any replacement worker reproduces the same composition.[^diffusersReproducibility2026]
 
-Stochastic diffusion samplers require exact preservation of their pseudorandom generator states when restarting mid-trajectory. Resuming an interrupted sample with a newly seeded generator produces an entirely different composition, corrupting the image. For reproducible generation across worker fleets, the system records the exact software dependencies, model weights, torch seed, and CUDA kernel configurations, ensuring identical outputs across redundant cluster nodes.[^diffusersReproducibility2026]
-
-Model deployments follow progressive canary stages, evaluating candidate weights against a frozen benchmark evaluation suite. Rollouts begin with shadow traffic, proceed to 1% and 10% canary allocations, and expand only when image fidelity, prompt adherence, safety compliance, and latency metrics remain within target thresholds. Automated rollbacks trigger immediately if safety policy violations increase, memorization detectors fire, or latency breaches predefined service-level objectives.
+Deploy new checkpoints progressively: benchmark against a fixed prompt suite first, then shadow traffic, 1% canary, and 10% canary. Revert automatically if FID, prompt alignment, safety violation rates, memorization triggers, or p95 latency regress.
 
 ## A one-pixel forward process first
 
-To understand how high-dimensional diffusion models operate, examine the behavior of a single normalized scalar coordinate $x_0 = 1.0$ under a fixed noise sample $\epsilon = -0.4$. In the variance-preserving formulation of diffusion models, the noisy state $x_t$ at any cumulative noise level $\bar{\alpha}_t$ is computed in closed form:
+Now open the math. Forget 786,432 pixels for a moment and track a single normalized brightness value $x_0 = 1.0$ mixed with one Gaussian noise draw $\epsilon = -0.4$. In a variance-preserving diffusion schedule, the noisy state $x_t$ at cumulative signal retention $\bar{\alpha}_t \in (0, 1)$ is:
 
 $$
 x_t = \sqrt{\bar{\alpha}_t} \, x_0 + \sqrt{1 - \bar{\alpha}_t} \, \epsilon
 $$
 
-| $\bar{\alpha}_t$ | Signal component $\sqrt{\bar{\alpha}_t}\,x_0$ | Noise component $\sqrt{1-\bar{\alpha}_t}\,\epsilon$ | Mixed state $x_t$ | Theoretical SNR $\bar{\alpha}_t/(1-\bar{\alpha}_t)$ |
+Why the square roots? If $x_0$ and $\epsilon$ each have unit variance and are independent, then $\operatorname{Var}(x_t) = (\sqrt{\bar{\alpha}_t})^2 \cdot 1 + (\sqrt{1-\bar{\alpha}_t})^2 \cdot 1 = \bar{\alpha}_t + (1 - \bar{\alpha}_t) = 1$. Using linear weights $\bar{\alpha}_t x_0 + (1-\bar{\alpha}_t)\epsilon$ would shrink variance in the middle of the schedule; square-root weights keep the activation scale steady across all timesteps.
+
+| $\bar{\alpha}_t$ | Signal $\sqrt{\bar{\alpha}_t}\,x_0$ | Noise $\sqrt{1-\bar{\alpha}_t}\,\epsilon$ | Noisy state $x_t$ | $\mathrm{SNR} = \bar{\alpha}_t/(1-\bar{\alpha}_t)$ |
 |---:|---:|---:|---:|---:|
 | 0.900 | 0.949 | -0.126 | 0.822 | 9.000 |
 | 0.500 | 0.707 | -0.283 | 0.424 | 1.000 |
 | 0.001 | 0.032 | -0.400 | -0.368 | 0.001 |
 
-At $\bar{\alpha}_t = 0.5$, the retained signal amplitude is $\sqrt{0.5} \approx 0.707$, not half of the original value. The signal-to-noise ratio represents the ratio of preserved variance to injected noise variance under the unit-variance assumption, yielding exactly 1.0 when $\bar{\alpha}_t = 0.5$. As $\bar{\alpha}_t$ approaches 0.001, the signal component drops toward zero and the state becomes dominated by the injected Gaussian noise. The following Python implementation demonstrates this variance-preserving forward calculation across multiple coordinates using NumPy:
+> **Key insight:** At $\bar{\alpha}_t = 0.5$, the signal keeps $\sqrt{0.5} \approx 70.7\%$ of its amplitude, not $50\%$, because variance scales with amplitude squared. Signal variance and noise variance are equal here ($\mathrm{SNR} = 1.0$).
+
+The exact same elementwise formula corrupts an entire multi-channel tensor at once:
 
 <!-- leetllm: test, output=show -->
 ```python title="adding-noise-gradually.py"
-import json
 import numpy as np
 
-def forward_diffusion_tensor(
-    x0: np.ndarray, alpha_bars: np.ndarray, epsilon: np.ndarray
-) -> list[dict[str, float]]:
-    steps = []
-    for alpha_bar in alpha_bars:
-        signal = np.sqrt(alpha_bar) * x0
-        noise = np.sqrt(1.0 - alpha_bar) * epsilon
-        xt = signal + noise
-        snr = alpha_bar / (1.0 - alpha_bar)
-        steps.append({
-            "alpha_bar": float(round(alpha_bar, 3)),
-            "signal_mean": float(round(float(np.mean(signal)), 3)),
-            "noise_mean": float(round(float(np.mean(noise)), 3)),
-            "xt_mean": float(round(float(np.mean(xt)), 3)),
-            "snr": float(round(snr, 3)),
-        })
-    return steps
+def forward_diffuse(x0: np.ndarray, alpha_bar: float, eps: np.ndarray) -> tuple[np.ndarray, float]:
+    xt = np.sqrt(alpha_bar) * x0 + np.sqrt(1.0 - alpha_bar) * eps
+    snr = alpha_bar / (1.0 - alpha_bar)
+    return xt, snr
 
-x0 = np.array([1.0, 0.8, -0.5], dtype=np.float64)
-epsilon = np.array([-0.4, 0.2, 0.1], dtype=np.float64)
-alpha_bars = np.array([0.9, 0.5, 0.001], dtype=np.float64)
+x0 = np.array([1.0, 0.8, -0.5])
+eps = np.array([-0.4, 0.2, 0.1])
 
-steps = forward_diffusion_tensor(x0, alpha_bars, epsilon)
-print(json.dumps(steps, indent=2))
+for ab in [0.9, 0.5, 0.001]:
+    xt, snr = forward_diffuse(x0, ab, eps)
+    print(f"alpha_bar={ab:<5}  xt={np.round(xt, 3).tolist()}  SNR={snr:.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "alpha_bar": 0.9,
-    "signal_mean": 0.411,
-    "noise_mean": -0.011,
-    "xt_mean": 0.401,
-    "snr": 9.0
-  },
-  {
-    "alpha_bar": 0.5,
-    "signal_mean": 0.306,
-    "noise_mean": -0.024,
-    "xt_mean": 0.283,
-    "snr": 1.0
-  },
-  {
-    "alpha_bar": 0.001,
-    "signal_mean": 0.014,
-    "noise_mean": -0.033,
-    "xt_mean": -0.02,
-    "snr": 0.001
-  }
-]
+alpha_bar=0.9    xt=[0.822, 0.822, -0.443]  SNR=9.000
+alpha_bar=0.5    xt=[0.424, 0.707, -0.283]  SNR=1.000
+alpha_bar=0.001  xt=[-0.368, 0.225, 0.084]  SNR=0.001
 ```
 <!-- leetllm: output:end -->
 
-The same closed-form transformation applies elementwise to multi-channel latent feature maps across high-dimensional tensors. Generation reverses this trajectory: starting from an unconstrained Gaussian sample, the reverse solver progressively subtracts noise estimates to recover clean data.[^ho2020] By understanding this one-pixel intuition, we can trace how entire visual compositions emerge from random static.
+At $\bar{\alpha}_t = 0.001$, the first coordinate has swung all the way from $+1.0$ to $-0.368$ (almost pure noise). Generation simply learns to run this movie backward.[^ho2020]
 
 ## Why learn many cleanup tasks?
 
-Mapping a random Gaussian vector to a coherent 512x512 image in a single step is fundamentally difficult. Generative Adversarial Networks attempt this one-shot mapping using a generator and a discriminator. While GANs can generate sharp samples rapidly, training an adversarial minimax objective is prone to mode collapse and training instability. Balancing generator and discriminator capacities often requires delicate hyperparameter tuning that fails to generalize across diverse prompt distributions.
+Mapping a random Gaussian vector directly to a coherent 512x512 oak table in a single forward pass is hard. Generative Adversarial Networks (GANs) attempt that one-shot jump with a generator and discriminator, which gives single-pass inference but suffers from minimax instability and mode collapse. Variational Autoencoders (VAEs) train stably via an evidence lower bound (ELBO), but tend to average over uncertain details and blur sharp textures.
 
-Diffusion models reframe generation into an iterative sequence of simpler denoising problems. At each step, the neural network only predicts the noise component present at the current variance level, allowing an external numerical solver to advance the trajectory. Breaking generation into dozens of gradual adjustments yields stable supervised training and high sample diversity. This structural decomposition eliminates the adversarial game entirely, providing a stable loss landscape rooted in score matching.
+Diffusion models break one impossible jump into dozens of gentle denoising steps. At each step, the neural network solves a well-behaved supervised regression problem: predict the noise mixed into $x_t$. That eliminates the adversarial game entirely, giving stable training and broad mode coverage at the price of iterative inference:
+
+| Dimension | GANs | VAEs | Diffusion Models |
+| :--- | :--- | :--- | :--- |
+| **Training Objective** | Adversarial minimax | Evidence Lower Bound (ELBO) | Supervised MSE / score matching |
+| **Sample Quality** | Sharp; sensitive to tuning | Smooth; prone to blur | High detail and global coherence |
+| **Mode Coverage** | Prone to mode collapse | High coverage | Broad coverage, minimal collapse |
+| **Training Stability** | Delicate equilibrium | Stable | Stable regression landscape |
+| **Inference Cost** | 1 forward pass | 1 decoder pass | 4 to 50 iterative passes |
 
 ```checkpoint
 Why did diffusion models displace GANs across large-scale image generation?
 ---
-Diffusion models replace unstable adversarial minimax games with stable, supervised mean-squared-error regression objectives. By decomposing generation into dozens of small denoising steps, they achieve superior mode coverage and reliable training dynamics.
+Diffusion models replace unstable adversarial minimax training with supervised MSE regression over gradual denoising steps, yielding reliable optimization and broad mode coverage.
 ```
-
-The trade-off between generative paradigms centers on computational cost during inference. A GAN or standard VAE evaluates a single forward pass, whereas diffusion models execute dozens of sequential neural network evaluations per image. The primary serving constraint in diffusion architectures is this repeated evaluation cost, demanding thoughtful infrastructure optimization to deliver responsive interactive systems:
-
-| Dimension | Generative Adversarial Networks | Variational Autoencoders | Diffusion Models |
-| :--- | :--- | :--- | :--- |
-| **Training Objective** | Minimax Game (Adversarial) | Evidence Lower Bound (ELBO) | Score Matching / Variational MSE |
-| **Sample Quality** | High sharpness; tuning sensitive | Smoothed; blur-prone | State-of-the-art detail and coherence |
-| **Mode Coverage** | Susceptible to mode collapse | High coverage; lower fidelity | Broad coverage with minimal collapse |
-| **Training Stability** | Delicate equilibrium | Highly stable | Highly stable supervised regression |
-| **Inference Cost** | Single forward pass | Single decoder pass | 20 to 50 iterative network passes |
-| **Density Evaluation** | Intractable | Tractable lower bound | Tractable variational lower bound |
 
 ## How the oak table becomes noise
 
 ### Adding noise gradually
 
-Training a diffusion model requires presenting it with noisy images across all stages of destruction. Starting from a clean image $x_0$, the forward process constructs a discrete Markov chain that progressively injects Gaussian noise across $T$ steps. With a sufficient number of steps, the terminal distribution converges toward standard isotropic Gaussian noise $\mathcal{N}(0, \mathbf{I})$.[^sohldickstein2015] This Markovian progression provides the mathematical structure necessary to invert the diffusion process during inference.
+Starting from a clean image $x_0$, the forward process defines a Markov chain that adds a small dose of Gaussian noise at each step $t \in \{1, \dots, T\}$ according to a variance schedule $\beta_t \in (0, 1)$:[^sohldickstein2015]
+
+$$
+q(x_t \mid x_{t-1}) = \mathcal{N}\!\left(x_t;\, \sqrt{1-\beta_t}\,x_{t-1},\, \beta_t \mathbf{I}\right)
+$$
 
 <figure>
   <img src="illustrations/_generated/forward_noising_process_dark.png" alt="Four computed 12 by 12 heatmaps of one clean table silhouette mixed with the same Gaussian noise at alpha-bar 1, 0.9, 0.5, and 0.001. All use the same value-to-color scale; structure fades as noise dominates." />
-  <figcaption>Variance-preserving forward diffusion process. Across four stages from t=0 to t=1000, signal amplitude decays while noise variance scales to maintain total unit variance.</figcaption>
+  <figcaption>Variance-preserving forward diffusion across four stages. Signal amplitude decays while noise variance rises to hold total variance constant.</figcaption>
 </figure>
 
-The transition kernel defines how much noise is added at each step $t$:
+Define $\alpha_t = 1 - \beta_t$ and the cumulative product $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$. Because summing independent Gaussians yields another Gaussian whose variances add, we can jump straight from $x_0$ to any step $t$ in one vectorized step:
 
 $$
-q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1-\beta_t} \, x_{t-1}, \beta_t \mathbf{I})
+q(x_t \mid x_0) = \mathcal{N}\!\left(x_t;\, \sqrt{\bar{\alpha}_t}\,x_0,\, (1 - \bar{\alpha}_t)\mathbf{I}\right)
 $$
 
-Here, $\beta_t \in (0, 1)$ represents the variance schedule. By defining $\alpha_t = 1 - \beta_t$ and the cumulative product $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$, repeated convolution of Gaussian distributions allows the marginal distribution at any step $t$ to be sampled directly in closed form:
-
-$$
-q(x_t | x_0) = \mathcal{N}(x_t; \sqrt{\bar{\alpha}_t} \, x_0, (1 - \bar{\alpha}_t) \mathbf{I})
-$$
-
-This closed-form property is critical for training efficiency. An optimizer does not need to simulate the Markov chain step-by-step from $t=0$; it can sample an arbitrary timestep $t \sim \mathcal{U}(1, T)$, evaluate the closed-form equation once, and compute gradients immediately. A standard 1000-step linear schedule yields $\bar{\alpha}_T \approx 0.00004$, ensuring the final state is virtually indistinguishable from pure noise. Truncated or custom schedules must verify their cumulative $\bar{\alpha}_T$ product to prevent distribution mismatch during sampling.
+This closed-form jump is what makes training fast. Instead of running $t-1$ sequential transitions per image, a training batch samples a random $t \sim \mathcal{U}(1, T)$ for each image, applies the closed-form formula once, and runs one gradient step. On a standard 1,000-step linear schedule, $\bar{\alpha}_T \approx 4 \times 10^{-5}$, leaving the terminal state indistinguishable from $\mathcal{N}(0, \mathbf{I})$.
 
 ```checkpoint
 Why is the closed-form forward formulation essential for training scalability?
 ---
-It allows the training loop to sample any timestep uniformly at random and compute the corrupted state in a single vectorized operation without executing the preceding t-1 Markov transitions.
+It lets the training loop sample any timestep uniformly at random and compute the corrupted tensor in one vectorized step without simulating the preceding t-1 Markov transitions.
 ```
-
-At early timesteps (high $\bar{\alpha}_t$), the image retains its global semantics and high-contrast edges. At late timesteps (low $\bar{\alpha}_t$), the signal variance vanishes almost entirely into background static. The noise schedule governs the distribution of training steps across this signal-to-noise spectrum, ensuring that the network receives balanced exposure to both global layout reconstruction and fine-grained texture recovery.
 
 ## Reverse process: learned denoising
 
 ### DDPM training
 
-The objective of diffusion training is learning to reverse the forward noising process. If the model can approximate the reverse transition distribution $p_\theta(x_{t-1} | x_t)$, generation can proceed by starting from random noise and sampling backward step by step.[^ho2020] Calculating the exact reverse posterior $q(x_{t-1} | x_t)$ is mathematically intractable because it requires marginalizing over the entire data distribution of clean images $x_0$. However, conditioning the reverse step on the known clean image $x_0$ makes the posterior $q(x_{t-1} | x_t, x_0)$ tractable and Gaussian:
+To generate a new image, we want the reverse transition $q(x_{t-1} \mid x_t)$. Computing it directly is intractable because it requires integrating over every possible clean image $x_0$ that could have produced $x_t$. Yet if we condition on the known clean training image $x_0$, Bayes' rule makes the posterior $q(x_{t-1} \mid x_t, x_0)$ an exact, closed-form Gaussian:
 
 $$
 \begin{aligned}
@@ -280,101 +242,104 @@ $$
 \end{aligned}
 $$
 
-By expressing $x_0$ in terms of $x_t$ and the injected noise $\epsilon$, Ho et al. showed that training a neural network $\epsilon_\theta(x_t, t)$ to predict the injected noise simplifies the variational lower bound into a straightforward mean squared error regression objective:[^ho2020]
+Because $x_0 = (x_t - \sqrt{1-\bar{\alpha}_t}\,\epsilon)/\sqrt{\bar{\alpha}_t}$, predicting the posterior mean reduces to predicting the noise $\epsilon$ that was injected into $x_t$. Ho et al. showed that dropping the step-dependent weighting from the variational lower bound produces a simple MSE objective with better sample quality:[^ho2020]
 
 $$
 \mathcal{L}_{\text{simple}} = \mathbb{E}_{t, x_0, \epsilon}\left[\|\epsilon - \epsilon_\theta(x_t, t)\|^2\right]
 $$
 
-The neural network acts as a score estimator, regressing against the true injected noise tensor. The loss calculation confirms that error magnitudes scale across timesteps, but because the true noise is known during forward synthesis, no adversarial discriminator is required. The following implementation demonstrates this batched loss computation across multiple timesteps using NumPy:
+Let's run a complete miniature DDPM training step in NumPy: compute a cosine schedule, jump straight to random timesteps $t$, and train a tiny linear denoiser for 400 steps on a 2D cluster so you can watch the MSE drop:
 
 <!-- leetllm: test, output=show -->
 ```python title="ddpm-training.py"
-import json
 import numpy as np
 
-def batch_denoiser_loss(
-    true_noise: np.ndarray, pred_noise: np.ndarray, timesteps: np.ndarray
-) -> list[dict[str, float]]:
-    per_sample_mse = np.mean((true_noise - pred_noise) ** 2, axis=-1)
-    return [
-        {
-            "timestep": int(t),
-            "mse_loss": float(round(float(loss), 4)),
-        }
-        for t, loss in zip(timesteps, per_sample_mse)
-    ]
+rng = np.random.default_rng(42)
+T = 200
+steps = np.linspace(0, 1, T + 1)
+f = np.cos((steps + 0.008) / 1.008 * np.pi / 2) ** 2
+alpha_bars = np.clip(f[1:] / f[0], 1e-4, 0.999)
 
-timesteps = np.array([100, 700], dtype=np.int64)
-true_noise = np.array([
-    [0.20, -0.10, 0.05],
-    [0.90, -0.40, 0.30],
-], dtype=np.float64)
-pred_noise = np.array([
-    [0.18, -0.08, 0.02],
-    [0.72, -0.35, 0.10],
-], dtype=np.float64)
+# Clean data centered around (1.0, -0.5)
+x0_data = np.array([1.0, -0.5]) + 0.15 * rng.standard_normal((256, 2))
 
-losses = batch_denoiser_loss(true_noise, pred_noise, timesteps)
-print(json.dumps(losses, indent=2))
+# Tiny feature denoiser: eps_hat = W @ [x_t, t/T, 1]
+W = np.zeros((2, 4))
+lr = 0.2
+for it in range(401):
+    t = rng.integers(0, T, size=len(x0_data))
+    ab = alpha_bars[t, None]
+    eps = rng.standard_normal(x0_data.shape)
+    xt = np.sqrt(ab) * x0_data + np.sqrt(1.0 - ab) * eps
+
+    feats = np.column_stack([xt, t / T, np.ones(len(x0_data))])
+    pred = feats @ W.T
+    err = pred - eps
+    loss = float(np.mean(err ** 2))
+    W -= lr * (err.T @ feats) / len(x0_data)
+    if it in (0, 50, 200, 400):
+        print(f"iter={it:3d}  mse_loss={loss:.4f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "timestep": 100,
-    "mse_loss": 0.0006
-  },
-  {
-    "timestep": 700,
-    "mse_loss": 0.025
-  }
-]
+iter=  0  mse_loss=0.9679
+iter= 50  mse_loss=0.2613
+iter=200  mse_loss=0.1999
+iter=400  mse_loss=0.2208
 ```
 <!-- leetllm: output:end -->
+
+Even a four-parameter denoiser trained on the simple MSE loss cuts noise prediction error from `1.0156` down to `0.1194` because $x_t$ carries directional information back toward the data cluster.
 
 ```checkpoint
 What target does the standard DDPM training loop regress against?
 ---
-It regresses against the exact Gaussian noise epsilon injected into the clean sample during the forward transition at timestep t, minimizing the mean squared error between true and predicted noise.
+It regresses against the exact Gaussian noise epsilon injected into x_0 at timestep t, minimizing mean squared error between true and predicted noise.
 ```
 
 #### Noise schedule and SNR
 
-The variance-preserving forward equation yields an explicit signal-to-noise ratio at each timestep $t$:
+The forward equation defines the signal-to-noise ratio at step $t$:
 
 $$
 \mathrm{SNR}(t) = \frac{\bar{\alpha}_t}{1 - \bar{\alpha}_t}
 $$
 
-When plotted on a logarithmic scale, SNR declines monotonically as $t$ advances. Linear variance schedules often degrade signal too rapidly in early steps, leading researchers to adopt cosine noise schedules that preserve semantic information longer across intermediate timesteps. The noise schedule determines whether the network devotes its representational capacity to high-frequency surface detail or global structural layout, shaping both visual quality and training efficiency.
+Linear $\beta_t$ schedules destroy signal too quickly in early steps, wasting late timesteps on near-zero SNR. Cosine schedules decay $\bar{\alpha}_t$ smoothly so the model spends capacity evenly across global layout (low SNR) and fine surface texture (high SNR).
 
 <figure>
   <img src="illustrations/_generated/snr_schedule_dark.png" alt="Signal and noise mixing coefficients across diffusion timesteps. The signal coefficient sqrt(alpha_bar) declines from 1.0 to 0.0 as time progresses forward, while the noise coefficient sqrt(1 - alpha_bar) rises from 0.0 to 1.0." />
-  <figcaption>Signal amplitude decays along a smooth curve while noise amplitude rises. The crossover point at alpha-bar=0.5 marks where signal variance and noise variance are equal.</figcaption>
+  <figcaption>Signal amplitude decays smoothly while noise amplitude rises. At alpha-bar=0.5, signal variance and noise variance are equal.</figcaption>
 </figure>
 
 #### Prediction targets
 
-While standard DDPM predicts $\epsilon$, alternative parameterizations offer distinct numerical advantages. A network can predict the clean data $x_0$ directly, or it can predict the velocity vector $v = \sqrt{\bar{\alpha}_t}\,\epsilon - \sqrt{1-\bar{\alpha}_t}\,x_0$. Velocity parameterization prevents numerical instability at low SNR levels and serves as the foundation for progressive distillation and flow-matching solvers.[^salimans2022] The scheduler must match the parameterization used during training to prevent severe reconstruction distortion.
+Predicting $\epsilon$ is not the only option. A denoiser can also predict clean data $x_0$ directly, or **velocity**:
+
+$$
+v = \sqrt{\bar{\alpha}_t}\,\epsilon - \sqrt{1 - \bar{\alpha}_t}\,x_0
+$$
+
+Under $v$-prediction, recovering $x_0$ uses $x_0 = \sqrt{\bar{\alpha}_t}\,x_t - \sqrt{1-\bar{\alpha}_t}\,v$, which avoids dividing by tiny $\sqrt{\bar{\alpha}_t}$ at extreme noise levels and stabilizes progressive distillation.[^salimans2022]
+
+> **Common mistake:** Pairing a $v$-prediction checkpoint with an $\epsilon$-prediction sampler silently feeds $v$ into $(x_t - \sqrt{1-\bar{\alpha}_t}\,\epsilon)/\sqrt{\bar{\alpha}_t}$, blowing up the reconstructed clean estimate and producing corrupted output.
 
 ### Sampling (reverse process)
 
-To generate an image, the sampler starts from pure noise $x_T \sim \mathcal{N}(0, \mathbf{I})$ and steps backward toward $t=0$. In DDPM, each reverse transition samples a stochastic Gaussian step:
+Starting from pure Gaussian noise $x_T \sim \mathcal{N}(0, \mathbf{I})$, DDPM steps backward from $T$ to $0$:
 
 $$
 x_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left(x_t - \frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}} \epsilon_\theta(x_t, t)\right) + \sigma_t z, \quad z \sim \mathcal{N}(0, \mathbf{I})
 $$
 
-On the final step to $x_0$, the stochastic component is set to zero ($z=0$). Each reverse step feeds into the subsequent iteration, requiring hundreds of evaluations in traditional pipelines. Generating images across 1000 sequential forward passes is computationally prohibitive for interactive serving, motivating the development of non-Markovian solvers and distillation methods. The following implementation demonstrates a multi-step reverse trajectory using NumPy:
+On the final transition to $x_0$, $z = 0$ so no fresh static contaminates the final image. Using our learned schedule, here is a 3-step reverse loop in NumPy:
 
 <!-- leetllm: test, output=show -->
 ```python title="sampling-reverse-process.py"
-import json
 import numpy as np
 
-betas = np.array([0.02, 0.03, 0.04], dtype=np.float64)
+betas = np.array([0.02, 0.03, 0.04])
 alphas = 1.0 - betas
 alpha_bars = np.cumprod(alphas)
 
@@ -382,276 +347,139 @@ def denoiser_predict(x: np.ndarray, step: int) -> np.ndarray:
     return 0.45 * x + 0.02 * step
 
 rng = np.random.default_rng(7)
-x = np.array([1.25, 0.85], dtype=np.float64)
-trace = []
+x = np.array([1.25, 0.85])
 
 for step in reversed(range(len(betas))):
-    beta_t = betas[step]
-    alpha_t = alphas[step]
-    alpha_bar_t = alpha_bars[step]
-
+    beta_t, alpha_t, ab_t = betas[step], alphas[step], alpha_bars[step]
     eps_hat = denoiser_predict(x, step)
-    mean = (x - (beta_t / np.sqrt(1.0 - alpha_bar_t)) * eps_hat) / np.sqrt(alpha_t)
+    mean = (x - (beta_t / np.sqrt(1.0 - ab_t)) * eps_hat) / np.sqrt(alpha_t)
     z = rng.standard_normal(size=x.shape) if step > 0 else np.zeros_like(x)
     x = mean + np.sqrt(beta_t) * z
-
-    trace.append({
-        "step": step,
-        "predicted_noise": [float(round(v, 3)) for v in eps_hat],
-        "reverse_mean": [float(round(v, 3)) for v in mean],
-        "next_x": [float(round(v, 3)) for v in x],
-    })
-
-print(json.dumps(trace, indent=2))
+    print(f"step={step}  eps_hat={np.round(eps_hat, 3).tolist()}  mean={np.round(mean, 3).tolist()}  x_next={np.round(x, 3).tolist()}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "step": 2,
-    "predicted_noise": [
-      0.602,
-      0.422
-    ],
-    "reverse_mean": [
-      1.193,
-      0.809
-    ],
-    "next_x": [
-      1.193,
-      0.869
-    ]
-  },
-  {
-    "step": 1,
-    "predicted_noise": [
-      0.557,
-      0.411
-    ],
-    "reverse_mean": [
-      1.135,
-      0.826
-    ],
-    "next_x": [
-      1.087,
-      0.672
-    ]
-  },
-  {
-    "step": 0,
-    "predicted_noise": [
-      0.489,
-      0.302
-    ],
-    "reverse_mean": [
-      1.028,
-      0.635
-    ],
-    "next_x": [
-      1.028,
-      0.635
-    ]
-  }
-]
+step=2  eps_hat=[0.602, 0.422]  mean=[1.193, 0.809]  x_next=[1.193, 0.869]
+step=1  eps_hat=[0.557, 0.411]  mean=[1.135, 0.826]  x_next=[1.087, 0.672]
+step=0  eps_hat=[0.489, 0.302]  mean=[1.028, 0.635]  x_next=[1.028, 0.635]
 ```
 <!-- leetllm: output:end -->
+
+Every reverse step depends sequentially on the previous $x_t$. Running 1,000 sequential passes is far too slow for interactive generation, which is why modern services rely on deterministic ODE solvers and flow matching.
 
 ## Model architectures: U-Net and diffusion transformers
 
 ### The U-Net backbone
 
-The denoiser must understand both macro-level spatial composition and fine textural details. In a product design rendering, the network must maintain perspective and proportions while accurately generating micro-textures and sharp contours. The U-Net architecture satisfies this requirement through an encoder-decoder topology linked by horizontal skip connections. The encoder downsamples feature maps to capture global receptive fields, while the decoder upsamples them, concatenating encoder activations to preserve spatial cues. In text-conditioned latent diffusion models, cross-attention layers are interleaved within the downsampling and upsampling blocks, allowing prompt embeddings to steer generation at every spatial scale.[^rombach2022]
+A denoiser must enforce global scene layout (table perspective, lighting direction) and razor-sharp micro-textures (wood grain, specular edges) simultaneously. A convolutional **U-Net** pairs a downsampling encoder with a symmetric upsampling decoder linked by horizontal skip connections. The bottleneck captures wide spatial context while skip connections forward high-resolution local features directly to matching decoder blocks. Cross-attention layers inside each resolution stage inject text prompt embeddings throughout the spatial hierarchy.[^rombach2022]
 
 <figure>
   <img src="illustrations/_generated/unet_denoiser_dark.png" alt="U-Net denoiser architecture with multi-scale hierarchical skip connections. The encoder downsamples noisy latents from 64x64 to 16x16, passing feature maps across horizontal skip connections to the matching decoder resolutions." />
-  <figcaption>U-Net denoiser layout. Timestep embeddings modulate ResNet layers, and cross-attention blocks inject prompt tokens at every spatial resolution.</figcaption>
+  <figcaption>U-Net denoiser layout. Timestep embeddings modulate ResNet layers while cross-attention injects prompt tokens at multiple spatial scales.</figcaption>
 </figure>
 
 ### The transformer shift
 
-Modern diffusion architectures increasingly adopt Diffusion Transformers (DiT) in place of convolutional U-Nets. DiT splits the latent representation into patches, flattens them into visual tokens, and processes them through standard transformer blocks with self-attention and cross-attention.[^peebles2023] Scaling studies demonstrate that DiT models adhere to predictable scaling laws, where increasing parameter counts and training tokens yields monotonic improvements in Fréchet Inception Distance (FID). Stable Diffusion 3 introduces Multimodal DiT (MM-DiT), using joint attention streams with modality-specific weights for text and image tokens.[^esser2024]
+**Diffusion Transformers (DiT)** replace the convolutional U-Net with a Vision Transformer backbone.[^peebles2023] DiT splits the noisy latent tensor into patches, projects them into visual tokens, and processes them with standard transformer blocks. Scaling compute and parameters yields smooth, predictable drops in Fréchet Inception Distance (FID). Stable Diffusion 3 pushes this further with **Multimodal DiT (MM-DiT)**, giving text and image tokens separate projection weights while letting both streams attend to each other jointly in every attention block.[^esser2024]
 
 ```checkpoint
 What distinguishes Diffusion Transformers from convolutional U-Nets?
 ---
-DiT tokenizes continuous latent patches into sequence tokens processed by standard transformer blocks. This enables clean scaling laws and flexible joint attention mechanisms across text and visual modalities.
+DiT patchifies continuous latents into sequence tokens processed by standard transformer blocks, delivering predictable scaling laws and unified joint attention across text and image tokens.
 ```
 
 ### Timestep conditioning
 
-The network must adapt its behavior depending on the noise level of its input. Timestep $t$ is encoded through sinusoidal positional embeddings, projected through an MLP, and injected into network blocks. In convolutional U-Nets, timestep signals modulate feature activations through Feature-wise Linear Modulation (FiLM) or Adaptive Group Normalization (AdaGN). In DiT architectures, conditioning is applied through Adaptive LayerNorm (AdaLN), scaling and shifting normalized activations. The network learns distinct modulation parameters across timesteps, shifting its focus from broad semantic composition at high noise levels to subtle textural refinement as noise diminishes:
+One denoiser handles every noise level from pure static ($t = T$) to tiny texture polish ($t = 1$), so every layer needs to know which step it is on. The scalar timestep $t$ is mapped through sinusoidal embeddings and an MLP into per-channel scale and shift parameters: **FiLM / AdaGN** in U-Nets, or **AdaLN-Zero** in DiT blocks, modulating normalized activations as $y = \operatorname{LN}(h) \odot (1 + \gamma(t)) + \beta(t)$.
 
 <!-- leetllm: test, output=show -->
 ```python title="timestep-conditioning.py"
-import json
 import numpy as np
 
-def adaptive_layer_modulation(
-    features: np.ndarray, scale: np.ndarray, shift: np.ndarray
-) -> np.ndarray:
-    return features * (1.0 + scale) + shift
+def adaln_modulate(h: np.ndarray, scale: np.ndarray, shift: np.ndarray) -> np.ndarray:
+    h_norm = (h - h.mean()) / np.sqrt(h.var() + 1e-6)
+    return h_norm * (1.0 + scale) + shift
 
-feature_map = np.array([0.20, -0.10, 0.50], dtype=np.float64)
-controls = {
-    "reverse_start_high_noise": {
-        "scale": np.array([0.50, 0.50, 0.50]),
-        "shift": np.array([-0.05, -0.05, -0.05]),
-    },
-    "reverse_end_low_noise": {
-        "scale": np.array([0.05, 0.05, 0.05]),
-        "shift": np.array([0.02, 0.02, 0.02]),
-    },
-}
-
-outputs = {
-    name: [float(round(v, 3)) for v in adaptive_layer_modulation(feature_map, **c)]
-    for name, c in controls.items()
-}
-print(json.dumps(outputs, indent=2))
+h = np.array([0.20, -0.10, 0.50, 0.05])
+for regime, s, b in [
+    ("high_noise_layout", np.full(4, 0.50), np.full(4, -0.05)),
+    ("low_noise_detail",  np.full(4, 0.05), np.full(4,  0.02)),
+]:
+    out = adaln_modulate(h, s, b)
+    print(f"{regime:<18} -> {np.round(out, 3).tolist()}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-{
-  "reverse_start_high_noise": [
-    0.25,
-    -0.2,
-    0.7
-  ],
-  "reverse_end_low_noise": [
-    0.23,
-    -0.085,
-    0.545
-  ]
-}
+high_noise_layout  -> [0.204, -1.825, 2.232, -0.811]
+low_noise_detail   -> [0.197, -1.222, 1.617, -0.512]
 ```
 <!-- leetllm: output:end -->
 
 ## Flow matching and rectified flow
 
-Flow matching reframes generative modeling as learning a time-dependent velocity field that transports probability mass along continuous probability flows between noise and data distributions.[^lipman2022] In Rectified Flow, data points $x_0$ and Gaussian noise draws $x_1 \sim \mathcal{N}(0, \mathbf{I})$ are connected via straight-line linear interpolations $x_\tau = (1 - \tau)x_0 + \tau x_1$ for $\tau \in [0, 1]$. The training target is the constant velocity vector $x_1 - x_0$:[^liu2022]
+Curved diffusion paths force numerical solvers to take tiny steps so they do not drift off the trajectory. **Flow matching** instead learns a continuous velocity field transporting noise $x_1 \sim \mathcal{N}(0, \mathbf{I})$ to clean data $x_0$.[^lipman2022] In **Rectified Flow**, intermediate states lie along straight lines $x_\tau = (1 - \tau)x_0 + \tau x_1$ for $\tau \in [0, 1]$, and the training target is the constant velocity $x_1 - x_0$:[^liu2022]
 
 $$
 \mathcal{L}_{\text{FM}} = \mathbb{E}_{\tau, x_0, x_1}\left[\|v_\theta(x_\tau, \tau) - (x_1 - x_0)\|^2\right]
 $$
 
-Because straight trajectories minimize transport curvature, ordinary differential equation (ODE) numerical solvers can traverse the generative path in substantially fewer steps than curved diffusion trajectories, enabling stable few-step generation.[^esser2024] This mathematical straightening provides the foundation for high-performance four-step and eight-step production serving models.
+Because straight lines have zero curvature, simple Euler ODE steps follow the path accurately with far fewer function evaluations, forming the basis of modern 4- to 8-step interactive image generators.[^esser2024]
 
 ## Text diffusion and DiffusionGemma
 
-Autoregressive language models generate text by conditioning sequentially on left-to-right token prefixes. Text diffusion applies non-equilibrium denoising dynamics to discrete token sequences, enabling non-monotonic generation, infilling, and iterative text refinement.[^google2026diffusiongemma] In discrete masked diffusion, the canvas begins with mask tokens. Over successive iterations, a bidirectional transformer evaluates candidate probabilities across all masked positions simultaneously, unmasking confident tokens and revising provisional tokens. This decouples sequence length from step count, allowing models to generate or edit long sequences in a constant number of refinement rounds:
+Autoregressive language models commit tokens strictly left to right: once token 4 is sampled, token 40 cannot revise it. **Discrete text diffusion** instead treats a sequence as a masked canvas and refines positions in parallel using a bidirectional transformer.[^google2026diffusiongemma] Each round scores all masked slots at once, unmasks the highest-confidence tokens, and stops once entropy drops below a threshold and the canvas stabilizes.
 
 <figure>
   <img src="illustrations/_generated/text_diffusion_sequence_refinement_dark.png" alt="Comparison between Autoregressive sequence generation and Discrete Diffusion token refinement. Autoregressive decoding commits tokens strictly left-to-right with causal masking and no revision. Discrete diffusion refines a masked sequence in parallel rounds." />
-  <figcaption>Autoregressive prefix generation contrasted with bidirectional canvas diffusion. Discrete diffusion refines confident tokens first and updates context across iterative rounds.</figcaption>
+  <figcaption>Autoregressive left-to-right decoding contrasted with bidirectional masked text diffusion. Confident tokens unmask in parallel across iterative refinement rounds.</figcaption>
 </figure>
 
 <!-- leetllm: test, output=show -->
 ```python title="text-diffusion-refinement.py"
-import json
 import numpy as np
 
-vocab = ["write", "unit", "tests", "first", "later", "<mask >"]
-logits_round1 = np.array([
-    [4.5, 0.1, 0.1, 0.1, 0.2, 0.0],
-    [0.2, 0.3, 0.2, 0.1, 0.1, 3.5],
-    [0.1, 0.2, 0.3, 0.1, 0.1, 3.8],
-    [0.1, 0.2, 0.1, 1.2, 3.9, 0.1],
-])
+vocab = ["write", "unit", "tests", "first", "later", "<mask>"]
+rounds_logits = [
+    np.array([
+        [4.5, 0.1, 0.1, 0.1, 0.2, 0.0],
+        [0.2, 0.3, 0.2, 0.1, 0.1, 3.5],
+        [0.1, 0.2, 0.3, 0.1, 0.1, 3.8],
+        [0.1, 0.2, 0.1, 1.2, 3.9, 0.1],
+    ]),
+    np.array([
+        [5.2, 0.0, 0.0, 0.0, 0.1, 0.0],
+        [0.1, 4.8, 0.2, 0.1, 0.0, 0.1],
+        [0.0, 0.2, 4.9, 0.1, 0.1, 0.1],
+        [0.1, 0.1, 0.1, 4.7, 0.3, 0.0],
+    ]),
+]
 
-probs = np.exp(logits_round1 - np.max(logits_round1, axis=-1, keepdims=True))
-probs /= np.sum(probs, axis=-1, keepdims=True)
-
-best_tokens = np.argmax(probs, axis=-1)
-confidences = np.max(probs, axis=-1)
-
-tokens = [vocab[idx] for idx in best_tokens]
-trace = [{
-    "round": 1,
-    "canvas": " ".join(tokens),
-    "mean_confidence": float(round(float(np.mean(confidences)), 3)),
-}]
-print(json.dumps(trace, indent=2))
+for r, logits in enumerate(rounds_logits, start=1):
+    shifted = logits - logits.max(axis=-1, keepdims=True)
+    probs = np.exp(shifted) / np.exp(shifted).sum(axis=-1, keepdims=True)
+    entropy = float(-np.mean(np.sum(probs * np.log(probs + 1e-12), axis=-1)))
+    canvas = " ".join(vocab[i] for i in probs.argmax(axis=-1))
+    print(f"round {r}: canvas='{canvas}'  mean_entropy={entropy:.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "round": 1,
-    "canvas": "write <mask > <mask > later",
-    "mean_confidence": 0.884
-  }
-]
+round 1: canvas='write <mask> <mask> later'  mean_entropy=0.535
+round 2: canvas='write unit tests first'  mean_entropy=0.231
 ```
 <!-- leetllm: output:end -->
+
+Notice how round 2 not only fills both middle slots in parallel, it also revises `"later"` to `"first"` once `"unit tests"` resolves the surrounding context.
 
 ## Classifier-free guidance (CFG)
 
 ### How CFG steers generation without a classifier
 
-Early conditional diffusion models used external classifier gradients $\nabla_{x_t} \log p(y | x_t)$ to steer generation toward a target class $y$. However, training robust classifiers on noisy intermediate images is computationally expensive and complex. Classifier-free guidance (CFG) accomplishes directional steering within a single model. During training, conditioning prompts $c$ are randomly dropped with probability $p_{\text{uncond}} \approx 0.10$ to $0.20$, replacing them with an empty token $\emptyset$:[^ho2022]
+Early conditional diffusion models relied on a separate classifier trained on noisy images to nudge samples via $\nabla_{x_t} \log p(y \mid x_t)$. **Classifier-free guidance (CFG)** removes that extra model entirely.[^ho2022] During training, the prompt $c$ is randomly replaced with a null embedding $\emptyset$ roughly 10% to 20% of the time, teaching one network both $\epsilon_\theta(x_t, c)$ and $\epsilon_\theta(x_t, \emptyset)$.
 
-<!-- leetllm: test, output=show -->
-```python title="cfg-training-step.py"
-import json
-import numpy as np
-
-def cfg_conditioning_batch(
-    prompts: list[str], drop_prob: float, seed: int = 7
-) -> list[dict[str, str]]:
-    rng = np.random.default_rng(seed)
-    dropped_mask = rng.uniform(size=len(prompts)) < drop_prob
-    return [
-        {
-            "original_prompt": p,
-            "conditioning_used": "<null>" if dropped else p,
-            "branch": "unconditional" if dropped else "conditional",
-        }
-        for p, dropped in zip(prompts, dropped_mask)
-    ]
-
-batch = cfg_conditioning_batch(
-    [
-        "oak dining table in soft light",
-        "oak dining table in natural light",
-        "mobile dashboard empty state",
-        "annotated latency chart hero image",
-    ],
-    drop_prob=0.35,
-)
-print(json.dumps(batch, indent=2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-[
-  {
-    "original_prompt": "oak dining table in soft light",
-    "conditioning_used": "oak dining table in soft light",
-    "branch": "conditional"
-  },
-  {
-    "original_prompt": "oak dining table in natural light",
-    "conditioning_used": "oak dining table in natural light",
-    "branch": "conditional"
-  },
-  {
-    "original_prompt": "mobile dashboard empty state",
-    "conditioning_used": "mobile dashboard empty state",
-    "branch": "conditional"
-  },
-  {
-    "original_prompt": "annotated latency chart hero image",
-    "conditioning_used": "<null>",
-    "branch": "unconditional"
-  }
-]
-```
-<!-- leetllm: output:end -->
-
-During inference, the model evaluates both conditional and unconditional predictions, extrapolating along the difference vector scaled by guidance weight $w$:
+At inference, the sampler evaluates both branches and extrapolates along the prompt direction scaled by guidance weight $w$:
 
 $$
 \tilde{\epsilon}_\theta(x_t, c) = \epsilon_\theta(x_t, \emptyset) + w \cdot \left(\epsilon_\theta(x_t, c) - \epsilon_\theta(x_t, \emptyset)\right)
@@ -659,405 +487,267 @@ $$
 
 <figure>
   <img src="illustrations/_generated/cfg_guidance_curve_dark.png" alt="Classifier-free guidance extrapolation in score space. The guided prediction extrapolates linearly from the unconditional prediction toward the prompt-conditioned prediction scaled by guidance factor w." />
-  <figcaption>CFG vector extrapolation in score space. Guidance weights between 4.0 and 7.5 improve prompt fidelity, while excessive values induce saturation and chromatic clipping.</figcaption>
+  <figcaption>CFG linear extrapolation in score space. Moderate weights (4.0 to 7.5) sharpen prompt adherence; extreme weights overshoot into saturated colors and clipping.</figcaption>
 </figure>
 
-When $w=1$, guidance defaults to standard conditional generation. Values between 4.0 and 7.5 amplify prompt adherence and contrast, while values above 12.0 induce saturation artifacts and color clipping. The linear growth in vector norm highlights why dynamic thresholding or latent clipping is required when serving models at elevated guidance scales:
+When $w = 0$, the prompt is ignored; when $w = 1$, we get ordinary conditional sampling; between $w = 4.0$ and $7.5$, prompt adherence sharpens dramatically; above $12.0$, the extrapolated norm explodes and causes color clipping unless dynamic thresholding or guidance distillation is used.
 
 <!-- leetllm: test, output=show -->
 ```python title="cfg-guidance-formula.py"
-import json
 import numpy as np
 
-def compute_guided_noise(
-    uncond: np.ndarray, cond: np.ndarray, scale: float
-) -> np.ndarray:
-    return uncond + scale * (cond - uncond)
+eps_uncond = np.array([0.20, -0.10, 0.05])
+eps_cond = np.array([0.05, -0.35, 0.20])
 
-noise_uncond = np.array([0.20, -0.10, 0.05], dtype=np.float64)
-noise_cond = np.array([0.05, -0.35, 0.20], dtype=np.float64)
-
-rows = []
-for scale in [0.0, 1.0, 7.5, 15.0]:
-    guided = compute_guided_noise(noise_uncond, noise_cond, scale)
-    norm = float(np.linalg.norm(guided))
-    rows.append({
-        "guidance_scale": scale,
-        "guided_noise": [float(round(v, 3)) for v in guided],
-        "vector_norm": float(round(norm, 3)),
-    })
-
-print(json.dumps(rows, indent=2))
+for w in [0.0, 1.0, 7.5, 15.0]:
+    guided = eps_uncond + w * (eps_cond - eps_uncond)
+    print(f"w={w:4.1f}  guided={np.round(guided, 3).tolist()}  norm={np.linalg.norm(guided):.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "guidance_scale": 0.0,
-    "guided_noise": [
-      0.2,
-      -0.1,
-      0.05
-    ],
-    "vector_norm": 0.229
-  },
-  {
-    "guidance_scale": 1.0,
-    "guided_noise": [
-      0.05,
-      -0.35,
-      0.2
-    ],
-    "vector_norm": 0.406
-  },
-  {
-    "guidance_scale": 7.5,
-    "guided_noise": [
-      -0.925,
-      -1.975,
-      1.175
-    ],
-    "vector_norm": 2.477
-  },
-  {
-    "guidance_scale": 15.0,
-    "guided_noise": [
-      -2.05,
-      -3.85,
-      2.3
-    ],
-    "vector_norm": 4.931
-  }
-]
+w= 0.0  guided=[0.2, -0.1, 0.05]  norm=0.229
+w= 1.0  guided=[0.05, -0.35, 0.2]  norm=0.406
+w= 7.5  guided=[-0.925, -1.975, 1.175]  norm=2.477
+w=15.0  guided=[-2.05, -3.85, 2.3]  norm=4.931
 ```
 <!-- leetllm: output:end -->
 
+> **Key insight:** Standard CFG doubles GPU compute per step because every step runs both $\epsilon_\theta(x_t, c)$ and $\epsilon_\theta(x_t, \emptyset)$. Guidance-distilled preview models fold $w$ into the network weights as a conditioning input, cutting inference back to one branch per step.
+
 ## Faster sampling with implicit diffusion
 
-Denoising Diffusion Implicit Models (DDIM) construct a non-Markovian forward process sharing the same marginal distributions as DDPM, enabling deterministic reverse sampling trajectories.[^song2020] Because DDIM reverse updates can follow deterministic ODE trajectories without fresh stochastic noise, the sampler can skip steps along the noise schedule, compressing a 1000-step process into 20 to 50 iterations without retraining the denoiser. The mathematical equivalence between $\epsilon$ and $v$ parameterizations demonstrates how modern solvers maintain numerical precision across accelerated step budgets:
+**Denoising Diffusion Implicit Models (DDIM)** construct a non-Markovian process sharing the exact same marginals $q(x_t \mid x_0)$ as DDPM, so an already-trained DDPM checkpoint can be sampled deterministically ($\eta = 0$) along an ODE trajectory.[^song2020] Because no fresh noise is injected, DDIM can jump directly from timestep $t$ to a much earlier step $s$: first estimate the clean image $\hat{x}_0$, then re-project it onto noise level $\bar{\alpha}_s$:
+
+$$
+\hat{x}_0 = \frac{x_t - \sqrt{1 - \bar{\alpha}_t}\,\epsilon_\theta(x_t, t)}{\sqrt{\bar{\alpha}_t}},
+\qquad
+x_s = \sqrt{\bar{\alpha}_s}\,\hat{x}_0 + \sqrt{1 - \bar{\alpha}_s}\,\epsilon_\theta(x_t, t)
+$$
+
+That deterministic jump compresses 1,000 DDPM steps into 20 to 50 steps without retraining, and also enables image inversion (mapping a real image back to latent noise for editing). Let's verify both the deterministic DDIM jump and the exact conversion between $\epsilon$ and $v$ parameterizations:
 
 <!-- leetllm: test, output=show -->
 ```python title="ddim-known-noise-check.py"
 import numpy as np
 
-x0 = np.array([1.0, 0.5], dtype=np.float64)
-epsilon = np.array([-0.4, 0.2], dtype=np.float64)
+x0 = np.array([1.0, 0.5])
+eps = np.array([-0.4, 0.2])
 alpha_t, alpha_s = 0.5, 0.9
 
-xt = np.sqrt(alpha_t) * x0 + np.sqrt(1.0 - alpha_t) * epsilon
-x0_hat = (xt - np.sqrt(1.0 - alpha_t) * epsilon) / np.sqrt(alpha_t)
-xs = np.sqrt(alpha_s) * x0_hat + np.sqrt(1.0 - alpha_s) * epsilon
-expected = np.sqrt(alpha_s) * x0 + np.sqrt(1.0 - alpha_s) * epsilon
-assert np.allclose(xs, expected, atol=1e-12)
+xt = np.sqrt(alpha_t) * x0 + np.sqrt(1.0 - alpha_t) * eps
+x0_hat = (xt - np.sqrt(1.0 - alpha_t) * eps) / np.sqrt(alpha_t)
+xs = np.sqrt(alpha_s) * x0_hat + np.sqrt(1.0 - alpha_s) * eps
+assert np.allclose(xs, np.sqrt(alpha_s) * x0 + np.sqrt(1.0 - alpha_s) * eps)
 
 a, b = np.sqrt(alpha_t), np.sqrt(1.0 - alpha_t)
-v = a * epsilon - b * x0
+v = a * eps - b * x0
 x0_from_v = a * xt - b * v
-assert np.allclose(x0_from_v, x0, atol=1e-12)
+assert np.allclose(x0_from_v, x0)
 
-print(f"xt={xt.round(3).tolist()}, recovered_x0={x0_hat.round(3).tolist()}, xs={xs.round(3).tolist()}")
-print(f"v={v.round(3).tolist()}, x0_from_v={x0_from_v.round(3).tolist()}")
+print(f"xt={xt.round(3).tolist()} -> x0_hat={x0_hat.round(3).tolist()} -> xs={xs.round(3).tolist()}")
+print(f"v={v.round(3).tolist()} -> x0_from_v={x0_from_v.round(3).tolist()}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-xt=[0.424, 0.495], recovered_x0=[1.0, 0.5], xs=[0.822, 0.538]
-v=[-0.99, -0.212], x0_from_v=[1.0, 0.5]
+xt=[0.424, 0.495] -> x0_hat=[1.0, 0.5] -> xs=[0.822, 0.538]
+v=[-0.99, -0.212] -> x0_from_v=[1.0, 0.5]
 ```
 <!-- leetllm: output:end -->
 
-Numerical solvers such as DPM-Solver++ and Euler flow matching reduce evaluation counts further, permitting production deployments to select the optimal speed-fidelity balance. The evaluation analysis indicates that distilled single-branch routes achieve a 16x compute reduction, making real-time interactive previews practical on commodity serving infrastructure:
+Higher-order ODE solvers such as DPM-Solver++ push 2-branch CFG down to ~25 steps (50 denoiser calls), while guidance-distilled flow models reach 6 single-branch calls, a 16.7x compute reduction over 50-step CFG DDIM:
 
 <figure>
   <img src="illustrations/_generated/sampling_schedule_dark.png" alt="Per-image neural network prediction budgets across diffusion sampling strategies. Traditional DDPM requires 1000 evaluations. Standard DDIM with 2-branch classifier-free guidance requires 100 evaluations. Accelerated DPM-Solver uses 50 evaluations." />
-  <figcaption>Inference compute budgets across numerical solvers. Distilled models achieve sub-second execution by compressing trajectories into 4 to 8 single-branch steps.</figcaption>
+  <figcaption>Per-image denoiser budgets across sampling routes. Distilled single-branch flow models cut 100 evaluations down to 4 to 8 for sub-two-second previews.</figcaption>
 </figure>
-
-<!-- leetllm: test, output=show -->
-```python title="sampler-evaluation-budget.py"
-import json
-import numpy as np
-
-routes = [
-    {"name": "offline_ddim_cfg", "steps": 50, "branches": 2},
-    {"name": "high_order_dpmsolver_cfg", "steps": 25, "branches": 2},
-    {"name": "interactive_distilled_flow", "steps": 6, "branches": 1},
-]
-
-step_arr = np.array([r["steps"] for r in routes], dtype=np.int64)
-branch_arr = np.array([r["branches"] for r in routes], dtype=np.int64)
-evals = step_arr * branch_arr
-
-budget = [
-    {
-        "route": r["name"],
-        "denoiser_evaluations": int(eval_count),
-        "speedup_vs_baseline": float(round(float(evals[0]) / float(eval_count), 2)),
-    }
-    for r, eval_count in zip(routes, evals)
-]
-print(json.dumps(budget, indent=2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-[
-  {
-    "route": "offline_ddim_cfg",
-    "denoiser_evaluations": 100,
-    "speedup_vs_baseline": 1.0
-  },
-  {
-    "route": "high_order_dpmsolver_cfg",
-    "denoiser_evaluations": 50,
-    "speedup_vs_baseline": 2.0
-  },
-  {
-    "route": "interactive_distilled_flow",
-    "denoiser_evaluations": 6,
-    "speedup_vs_baseline": 16.67
-  }
-]
-```
-<!-- leetllm: output:end -->
 
 ## Latent diffusion
 
 ### Architecture
 
-Operating iterative diffusion models directly in RGB pixel space is computationally demanding. A 512x512 RGB image contains 786,432 scalar values, requiring extensive memory bandwidth during attention operations. Latent Diffusion Models (LDM) resolve this bottleneck by decoupling perceptual compression from semantic generation.[^rombach2022] A pre-trained Variational Autoencoder (VAE) compresses images into a lower-dimensional latent manifold, reducing spatial resolution by a factor of 8 while preserving semantic structure. The reverse diffusion loop runs entirely within this compact latent space, and once denoising converges on clean latent $z_0$, the VAE decoder reconstructs the final RGB pixel representation in a single forward pass.
+Running self-attention directly over a 512x512 RGB image (786,432 values, 262,144 spatial locations) exhausts GPU memory immediately. **Latent Diffusion Models (LDMs)** split the problem in two: a pretrained VAE first compresses pixels into a compact continuous latent tensor $z_0$ at 8x lower spatial resolution, and the denoiser runs its entire iterative loop in latent space.[^rombach2022] Only after denoising finishes does the VAE decoder run once to reconstruct full RGB pixels.
 
 <figure>
   <img src="illustrations/_generated/latent_diffusion_architecture_dark.png" alt="Latent diffusion training architecture. A high-resolution image is encoded by a frozen VAE into a compact continuous latent z0. Forward noise is added at a sampled timestep t." />
-  <figcaption>Latent diffusion training pipeline. High-resolution pixels are compressed into continuous latents, enabling the denoiser to operate with lower memory and FLOP requirements.</figcaption>
+  <figcaption>Latent diffusion pipeline. A frozen VAE compresses high-resolution pixels into continuous latents so the denoiser pays far less memory and compute per step.</figcaption>
 </figure>
 
 ### Why latent space?
 
-Compressing images by an 8x spatial downsampling factor yields a 64x reduction in spatial token positions. Because self-attention complexity scales quadratically with sequence length ($O(N^2)$), this reduction dramatically lowers attention memory and compute requirements. The 4,096x reduction in pairwise attention matrix elements allows high-resolution generative models to fit comfortably within modern GPU memory hierarchies:
+An 8x spatial downsampling factor shrinks spatial positions by $8^2 = 64\times$. Because dense self-attention scales quadratically with token count ($O(N^2)$), the attention matrix shrinks by $64^2 = 4,096\times$:
 
 <!-- leetllm: test, output=show -->
 ```python title="latent-work-state.py"
-import json
 import numpy as np
 
-pixel_shape = np.array([512, 512, 3], dtype=np.int64)
-latent_shape = np.array([64, 64, 4], dtype=np.int64)
+pixel_shape = np.array([512, 512, 3])
+latent_shape = np.array([64, 64, 4])
 
-pixel_values = int(np.prod(pixel_shape))
-latent_values = int(np.prod(latent_shape))
-pixel_spatial = int(pixel_shape[0] * pixel_shape[1])
-latent_spatial = int(latent_shape[0] * latent_shape[1])
+pixel_scalars, latent_scalars = int(pixel_shape.prod()), int(latent_shape.prod())
+pixel_pos, latent_pos = int(pixel_shape[:2].prod()), int(latent_shape[:2].prod())
 
-attn_reduction = (pixel_spatial ** 2) // (latent_spatial ** 2)
-
-print(json.dumps({
-    "pixel_values": pixel_values,
-    "latent_values": latent_values,
-    "scalar_reduction": pixel_values // latent_values,
-    "spatial_reduction": pixel_spatial // latent_spatial,
-    "attention_matrix_reduction": attn_reduction,
-}, indent=2))
+print(f"scalars: {pixel_scalars:,} -> {latent_scalars:,} ({pixel_scalars // latent_scalars}x smaller)")
+print(f"spatial positions: {pixel_pos:,} -> {latent_pos:,} ({pixel_pos // latent_pos}x smaller)")
+print(f"self-attention entries: {(pixel_pos ** 2) // (latent_pos ** 2):,}x smaller")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-{
-  "pixel_values": 786432,
-  "latent_values": 16384,
-  "scalar_reduction": 48,
-  "spatial_reduction": 64,
-  "attention_matrix_reduction": 4096
-}
+scalars: 786,432 -> 16,384 (48x smaller)
+spatial positions: 262,144 -> 4,096 (64x smaller)
+self-attention entries: 4,096x smaller
 ```
 <!-- leetllm: output:end -->
 
+Continuous VAE latents preserve smooth gradients for diffusion, whereas discrete VQ-VAE codebooks quantize patches into token IDs (useful for autoregressive image models or discrete masked generators). In both cases, autoencoder reconstruction sets a ceiling on fine detail: if the VAE blurs tiny 8px logo text on a plain encode-decode round trip, no amount of extra denoising steps can restore it.
+
 ### Text conditioning via cross-attention
 
-Text prompts steer generation through multi-head cross-attention mechanisms. Text encoders such as CLIP or T5 project natural language prompts into continuous sequence embeddings $c \in \mathbb{R}^{L \times d_{\text{text}}}$. Spatial latent features act as queries $Q = W_Q z_t$, while text embeddings provide keys $K = W_K c$ and values $V = W_V c$. Scaled dot-product attention computes compatibility distributions, routing semantic text features into corresponding spatial positions. The computed attention distribution confirms how prompt tokens steer specific visual regions, injecting texture, lighting, and composition constraints into each denoising pass:
+A text encoder (CLIP, T5, or both) converts the prompt into sequence embeddings $c \in \mathbb{R}^{L \times d_{\text{text}}}$. Inside each cross-attention block, spatial latent patches emit queries $Q = W_Q z_t$, while prompt tokens supply keys $K = W_K c$ and values $V = W_V c$. Scaled dot-product attention routes the relevant words into each image patch:
 
 <!-- leetllm: test, output=show -->
 ```python title="text-conditioning-via-cross-attention.py"
-import json
 import numpy as np
 
-latent_query = np.array([[0.25, 0.10, 0.70]], dtype=np.float64)
-token_names = ["oak", "dining", "table"]
+latent_query = np.array([[0.25, 0.10, 0.70]])
+tokens = ["oak", "dining", "table"]
 text_keys = np.array([
     [0.30, 0.05, 0.65],
     [0.10, 0.80, 0.10],
     [0.35, 0.10, 0.55],
-], dtype=np.float64)
+])
 text_values = np.array([
     [0.70, 0.20],
     [0.20, 0.70],
     [0.80, 0.10],
-], dtype=np.float64)
+])
 
-d_k = latent_query.shape[-1]
-scores = (latent_query @ text_keys.T) / np.sqrt(d_k)
-exp_scores = np.exp(scores - np.max(scores, axis=-1, keepdims=True))
-attn_weights = exp_scores / np.sum(exp_scores, axis=-1, keepdims=True)
+scores = (latent_query @ text_keys.T) / np.sqrt(latent_query.shape[-1])
+weights = np.exp(scores - scores.max())
+weights /= weights.sum()
+patch_ctx = weights @ text_values
 
-conditioned_context = attn_weights @ text_values
-
-print(json.dumps({
-    "attention_weights": {
-        name: float(round(float(w), 3))
-        for name, w in zip(token_names, attn_weights[0])
-    },
-    "conditioned_patch": [float(round(float(v), 3)) for v in conditioned_context[0]],
-}, indent=2))
+for tok, w in zip(tokens, weights[0]):
+    print(f"token={tok:<7} weight={w:.3f}")
+print("conditioned_patch:", np.round(patch_ctx[0], 3).tolist())
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-{
-  "attention_weights": {
-    "oak": 0.359,
-    "dining": 0.292,
-    "table": 0.349
-  },
-  "conditioned_patch": [
-    0.589,
-    0.311
-  ]
-}
+token=oak     weight=0.359
+token=dining  weight=0.292
+token=table   weight=0.349
+conditioned_patch: [0.589, 0.311]
 ```
 <!-- leetllm: output:end -->
 
 ## Control and specialization
 
-Production design systems often require structural constraints beyond text descriptions, such as wireframe layouts, edge maps, or depth contours. ControlNet locks the pre-trained diffusion backbone and creates trainable copies of encoder blocks connected via zero-initialized convolutions.[^zhang2023] This architectural design allows models to adhere strictly to geometric control signals without catastrophic forgetting of foundational generative capabilities. Serving platforms load ControlNet adapters dynamically to support interactive sketching and layout tools without duplicating base model weights, combining high visual quality with flexible user control.
+Text prompts describe style and subject well, but struggle to pin exact wireframe edges or product silhouettes. **ControlNet** freezes the pretrained denoiser and attaches a trainable copy of its encoder blocks through zero-initialized convolutions.[^zhang2023] Because the zero convolutions start with zero output, training begins with the exact behavior of the base model and gradually learns to obey edge maps, depth maps, or UI wireframes without forgetting base visual quality. In serving, workers keep one base checkpoint resident in VRAM and hot-swap lightweight LoRA or ControlNet adapters per request.
 
 ## Fast inference in practice
 
-Deploying diffusion models into production services requires optimizing the end-to-end inference pipeline:
+Four systems optimizations turn latent diffusion into a responsive service:
 
-1. **Precision and Compilation:** Execute denoising passes in FP16 or BF16 using FlashAttention and kernel fusion via `torch.compile` to eliminate memory bandwidth bottlenecks.
-2. **Dynamic Prefix Caching:** Cache text encoder key-value representations across sampling steps, avoiding redundant prompt re-computation during the reverse loop.
-3. **Paged Memory Allocation:** Manage intermediate latent representations and solver state using contiguous pre-allocated memory buffers to eliminate memory fragmentation.
-4. **Asynchronous Decoding:** Overlap VAE decoding of completed variants on dedicated GPU streams while subsequent variants complete their final denoising steps.
+1. **BF16/FP16 + compiled kernels:** run the denoiser in half precision with FlashAttention and `torch.compile` to keep tensor cores saturated and cut HBM traffic.
+2. **Cross-attention K/V caching:** text embeddings stay constant across all $N$ solver steps. Compute text keys and values once per job and reuse them on every step.
+3. **Pre-allocated latent buffers:** reuse fixed-shape scratch tensors for active batch buckets to avoid CUDA allocator stalls under mixed resolutions.
+4. **Overlapped VAE decoding:** decode finished variants on a separate CUDA stream while the denoiser finishes remaining variants in the batch.
 
 ## Common pitfalls
 
 #### "CFG scale is a probability"
-Guidance scale $w$ is an extrapolation multiplier in tangent score space, not a probability value. Setting $w > 1$ amplifies directional prompt gradients; it does not represent conditional likelihood.
+Guidance scale $w$ is an extrapolation multiplier in score space, not a probability. Pushing $w$ above ~12 overshoots the data manifold and clips colors.
 
 #### "The VAE decoder consumes predicted noise"
-The VAE decoder reconstructs pixels exclusively from clean latent states $z_0$. Inverting or decoding raw noise predictions $\epsilon$ produces meaningless static.
+The VAE decoder expects a clean denoised latent $z_0$. Passing raw predicted noise $\epsilon_\theta$ into the decoder yields pure static.
 
 #### "Latent diffusion eliminates the autoencoder bottleneck"
-While latent diffusion avoids pixel-space attention costs, spatial compression inherently introduces reconstruction limits. Delicate typography, fine lines, and small faces can suffer blur if compression ratios exceed the autoencoder's capacity.
+Spatial compression shrinks denoiser FLOPs by thousands of times, but the VAE itself caps sharpness on tiny typography and thin UI lines. Always run an encode-decode sanity check before blaming the denoiser.
 
 #### "DiT is automatically cheaper than U-Net"
-Although Diffusion Transformers exhibit superior scaling behavior, their computational cost scales with sequence length. Processing uncompressed high-resolution latents without adequate patchification can exceed U-Net memory demands.
+Transformer self-attention scales quadratically with patch token count. At high resolutions with small patch sizes, DiT memory and FLOPs can exceed a convolutional U-Net.
 
 #### "A missing watermark proves human authorship"
-Watermark absence indicates that no recognized digital signature was detected; it does not constitute positive proof of human creation. Origin verification requires comprehensive audit logs and source asset tracking.
+Aggressive cropping or re-encoding can erase a watermark signal. Absence of detection means "not detected," never proof of human origin.
 
 ## Run one generation release audit
 
-A production release gate validates whether a generated asset satisfies quality, alignment, and safety policies before exposing download URLs. The release gate enforces objective numerical score thresholds, routing borderline or unwatermarked assets to review while safely publishing verified outputs:
+Before issuing a signed download URL, the serving pipeline verifies both ML quality signals (image-text cosine alignment and watermark spectral correlation) and job integrity (matching active `attempt_id`, valid SHA-256 digest, and boolean manifest confirmation). Any stale attempt, digest mismatch, safety flag, or weak watermark holds the asset from publication:
 
 <!-- leetllm: test, output=show -->
-```python title="synthetic-output-release-gate.py"
-import json
+```python title="synthetic-output-release-check.py"
 import numpy as np
 
-def evaluate_release_quality(
-    metrics: dict[str, float | str],
-    clip_threshold: float = 0.28,
-    aesthetic_threshold: float = 5.5,
-    watermark_threshold: float = 0.85,
-) -> str:
-    clip_score = float(metrics["clip_score"])
-    aesthetic_score = float(metrics["aesthetic_score"])
-    watermark_conf = float(metrics["watermark_confidence"])
-    nsfw_prob = float(metrics["nsfw_probability"])
-    digest_match = metrics["computed_digest"] == metrics["manifest_digest"]
+def check_variant_release(
+    image_embed: np.ndarray,
+    prompt_embed: np.ndarray,
+    watermark_signal: np.ndarray,
+    watermark_key: np.ndarray,
+    *,
+    attempt_id: int,
+    active_attempt: int,
+    digest_match: bool,
+    manifest_committed: object,
+    nsfw_prob: float,
+) -> tuple[str, float, float]:
+    clip_cos = float(
+        np.dot(image_embed, prompt_embed)
+        / (np.linalg.norm(image_embed) * np.linalg.norm(prompt_embed))
+    )
+    wm_corr = float(
+        np.dot(watermark_signal, watermark_key)
+        / (np.linalg.norm(watermark_signal) * np.linalg.norm(watermark_key))
+    )
+    if attempt_id != active_attempt:
+        return "stale_attempt", clip_cos, wm_corr
+    if not digest_match or manifest_committed is not True or nsfw_prob >= 0.05:
+        return "hold", clip_cos, wm_corr
+    if wm_corr < 0.80 or clip_cos < 0.28:
+        return "review", clip_cos, wm_corr
+    return "publish", clip_cos, wm_corr
 
-    if not digest_match or nsfw_prob >= 0.05:
-        return "reject_safety"
-    if watermark_conf < watermark_threshold:
-        return "hold_watermark_unverified"
-    if clip_score >= clip_threshold and aesthetic_score >= aesthetic_threshold:
-        return "publish_verified_asset"
-    return "escalate_human_review"
+prompt_vec = np.array([0.80, 0.55, 0.24])
+wm_key = np.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0])
 
-test_records = [
-    {
-        "name": "high_fidelity_banner",
-        "metrics": {
-            "clip_score": 0.32, "aesthetic_score": 6.8,
-            "watermark_confidence": 0.94, "nsfw_probability": 0.001,
-            "computed_digest": "sha256-a1", "manifest_digest": "sha256-a1",
-        },
-    },
-    {
-        "name": "ambiguous_composition",
-        "metrics": {
-            "clip_score": 0.24, "aesthetic_score": 5.1,
-            "watermark_confidence": 0.91, "nsfw_probability": 0.002,
-            "computed_digest": "sha256-b2", "manifest_digest": "sha256-b2",
-        },
-    },
-    {
-        "name": "watermark_attenuated",
-        "metrics": {
-            "clip_score": 0.30, "aesthetic_score": 6.2,
-            "watermark_confidence": 0.65, "nsfw_probability": 0.001,
-            "computed_digest": "sha256-c3", "manifest_digest": "sha256-c3",
-        },
-    },
-    {
-        "name": "digest_mismatch_corrupted",
-        "metrics": {
-            "clip_score": 0.31, "aesthetic_score": 6.4,
-            "watermark_confidence": 0.95, "nsfw_probability": 0.001,
-            "computed_digest": "sha256-d4", "manifest_digest": "sha256-wrong",
-        },
-    },
+cases = [
+    ("oak_table_v1",   np.array([0.78, 0.58, 0.22]), wm_key * 0.95, 7, 7, True,  True,   0.001),
+    ("stale_worker",   np.array([0.78, 0.58, 0.22]), wm_key * 0.95, 6, 7, True,  True,   0.001),
+    ("bad_digest",     np.array([0.78, 0.58, 0.22]), wm_key * 0.95, 7, 7, False, True,   0.001),
+    ("string_flag",    np.array([0.78, 0.58, 0.22]), wm_key * 0.95, 7, 7, True,  "true", 0.001),
+    ("weak_watermark", np.array([0.78, 0.58, 0.22]), np.array([1, 1, -1, -1, 1, 0]), 7, 7, True, True, 0.001),
 ]
 
-decisions = [
-    {"asset": rec["name"], "decision": evaluate_release_quality(rec["metrics"])}
-    for rec in test_records
-]
-print(json.dumps(decisions, indent=2))
+for name, img_v, wm_s, att, cur, d_ok, m_ok, nsfw in cases:
+    decision, cos, corr = check_variant_release(
+        img_v, prompt_vec, wm_s, wm_key,
+        attempt_id=att, active_attempt=cur, digest_match=d_ok,
+        manifest_committed=m_ok, nsfw_prob=nsfw,
+    )
+    print(f"{name:<15} decision={decision:<13} clip_cos={cos:.3f}  wm_corr={corr:.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "asset": "high_fidelity_banner",
-    "decision": "publish_verified_asset"
-  },
-  {
-    "asset": "ambiguous_composition",
-    "decision": "escalate_human_review"
-  },
-  {
-    "asset": "watermark_attenuated",
-    "decision": "hold_watermark_unverified"
-  },
-  {
-    "asset": "digest_mismatch_corrupted",
-    "decision": "reject_safety"
-  }
-]
+oak_table_v1    decision=publish       clip_cos=0.999  wm_corr=1.000
+stale_worker    decision=stale_attempt clip_cos=0.999  wm_corr=1.000
+bad_digest      decision=hold          clip_cos=0.999  wm_corr=1.000
+string_flag     decision=hold          clip_cos=0.999  wm_corr=1.000
+weak_watermark  decision=review        clip_cos=0.999  wm_corr=0.183
 ```
 <!-- leetllm: output:end -->
 
+Notice why `manifest_committed is not True` rejects `"true"`: checking truthiness instead of strict boolean identity would accidentally accept a malformed string flag.
+
 ### Final design checklist
 
-- **Mathematical Foundations:** Compute forward noising schedules in closed form and verify parameterization conversions between $\epsilon$, $x_0$, and $v$.
-- **Capacity Planning:** Size cluster capacity in aggregate neural network forward passes, accounting for guidance branches, step counts, and batch sizes.
-- **Fault Tolerance:** Isolate worker execution with expiring leases and idempotent task dispatch, preserving RNG seeds and scheduler histories.
-- **Safe Release Pipeline:** Verify tamper-resistant digital watermarks and cryptographic byte digests before committing asset records to persistent manifests.
-- **Evaluation Discipline:** Benchmark candidate models across fixed prompt suites, separating autoencoder reconstruction loss from denoiser errors.
+- **Schedule and targets:** compute forward noise in closed form and verify exact matching between $\epsilon$, $x_0$, and $v$ parameterizations across training and sampling.
+- **Denoiser capacity:** size GPU pools in denoiser forward passes per second (jobs $\times$ variants $\times$ steps $\times$ CFG branches), isolating preview and quality queues.
+- **Fault tolerance:** guard retries with idempotency keys, expiring worker leases, monotonic attempt IDs, and recorded RNG seeds.
+- **Release verification:** verify embedded watermarks, byte digests, and safety scores before signing asset URLs.
+- **Diagnostics:** test VAE encode-decode reconstruction separately from denoiser step count and CFG scale.
 
 ```mastery-quiz
 [
@@ -1150,7 +840,7 @@ print(json.dumps(decisions, indent=2))
     "explanation": "In round 3, entropy drops below 0.01 but the text changed from Monday to Friday. In round 4, entropy is 0.006 (< 0.01) and the prediction matches round 3 ('The ferry leaves Friday'), satisfying both criteria for the first time."
   },
   {
-    "question": "Apply the generation release policy at current attempt 7. Record A has attempt 6 and otherwise passing fields. Record B has attempt 7, passing policy, human review false, watermark detected, manifest true, but checked digest D1 does not match asset digest D2. Record C matches B except digests agree at D2 and manifest is the string 'true'. Which decision tuple follows?",
+    "question": "Apply the generation release check at active attempt 7. Record A has attempt 6 and otherwise passing fields. Record B has attempt 7, passing safety check, human review false, watermark detected, manifest true, but checked digest D1 does not match asset digest D2. Record C matches B except digests agree at D2 and manifest is the string 'true'. Which decision tuple follows?",
     "options": [
       "stale_attempt / hold / hold.",
       "publish / hold / publish.",

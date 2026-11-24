@@ -49,52 +49,51 @@
 }
 ---
 
-A shared large language model (LLM) platform serves one hundred workspaces. Tenant A submits a long design review; Tenant B needs a short incident summary. Both wait, although the accelerator dashboard looks only moderately busy. Then B receives a passage from A's private postmortem.
+A shared LLM platform serves one hundred workspaces on one GPU cluster. Tenant A submits a 12,000-token design review; Tenant B asks for a 40-token incident summary. Both stall in the queue even though GPU utilization sits at 55%. Seconds later, B's answer quotes a paragraph from A's private postmortem.
 
-These symptoms require different responses. Queueing might come from compute, memory, admission policy, or scheduling. Foreign evidence is an authorization failure. Adding capacity might address the first problem; it won't repair the second.
+Those two symptoms have completely different root causes. Stall time points to KV-cache exhaustion, chunked-prefill starvation, or quota lock contention; adding GPUs might relieve it. Foreign text in B's reply is an authorization or cache-isolation failure that extra GPUs will never fix.
 
-You already followed [code completion](/learn/design-code-completion-system) through one serving path. The shared platform behind it has to keep A's long review and B's short summary side by side. They can share frozen weights and execution steps. Their evidence, request state, resource budgets, and usage records stay scoped to each one.
+In [Code Completion](/learn/design-code-completion-system), we optimized a single low-latency serving path. Here we design the shared platform underneath: sharing frozen base weights and GPU batch steps while keeping identity, quotas, memory pages, adapters, caches, and billing strictly isolated per tenant.
 
 ## Define what sharing may change
 
-A dense 72-billion-parameter model at two bytes per weight needs about 144 GB of weight storage. One hundred independent copies would need 14.4 TB before runtime state. Sharing a copy across compatible requests can reduce duplication, although a fleet still needs replicas for capacity and availability. A *model replica* can itself span several graphics processing units (GPUs).
+A 72B-parameter model in BF16 (2 bytes per parameter) occupies roughly 144 GB of VRAM just for weights. Running one hundred dedicated copies would burn 14.4 TB before a single token is generated. Sharing frozen model replicas across tenants saves orders of magnitude in hardware, yet sharing weights never implies sharing data or schedules.
 
-That saving is not a <span data-glossary="tenant-isolation">tenant-isolation</span> mechanism. Write down the invariants before picking a serving engine:
+Anchor the architecture on six clear guarantees before choosing a serving engine:
 
-| Perimeter | Invariant |
+| Layer | Design rule |
 |---|---|
-| Identity | A caller can act only for a workspace it is authorized to use |
-| State | Prompts, adapters, retrieved evidence, caches, and logs retain their authorized scope |
-| Admission | Concurrent decisions cannot reserve the same remaining allowance or physical capacity twice |
-| Scheduling | Backlogged tenants receive their declared service shares, subject to explicit overload policy |
-| Accounting | Retries and duplicate completion events cannot create free allowance or duplicate charges |
-| Recovery | Reconcile attempt status and usage after a lost response before retrying or refunding |
+| Identity | A caller can act only within workspaces it is authorized to access |
+| Data state | Prompts, adapters, retrieved chunks, KV caches, and logs stay scoped to the reader |
+| Quotas | Concurrent requests cannot double-spend remaining token allowances or GPU pages |
+| Scheduling | Backlogged tenants receive their configured compute share without starving short jobs |
+| Metering | Retries and duplicate completion messages never double-bill or refund twice |
+| Recovery | Uncertain attempts stay held until worker execution stops and usage reconciles |
 
-The <span data-glossary="control-plane">control plane</span> owns policy, deployment, artifact authorization, and worker membership. Data-plane services carry requests and run inference. Both the gateway and worker enforce relevant policy; a protected gateway is insufficient if clients can call a worker's administrative endpoints directly.
+Separate the <span data-glossary="control-plane">control plane</span> (configuration, deployments, artifact permissions, worker membership) from the data plane (gateway routing and GPU inference). Enforce access checks at **both** the gateway and worker; protecting only the gateway fails if a client can hit worker admin endpoints directly.
 
 <figure>
   <img src="illustrations/_generated/multi_tenant_dark.png" alt="Multi-tenant LLM serving platform architecture with isolated control and data planes. The gateway resolves caller identity and workspace authorization, enforces rate limits, and binds requests to specific tenant quotas. Workers execute requests across continuous batching engines with isolated KV cache pages, scoped LoRA adapter slots, and metered usage accounting." />
-  <figcaption>The gateway authenticates callers and resolves workspace permissions before execution. Continuous batching workers process requests using isolated KV-cache pages and dynamic LoRA slots while metering GPU usage per tenant.</figcaption>
+  <figcaption>Control plane and data plane separation. The gateway resolves identity and reserves quotas before continuous-batching workers execute requests across isolated KV pages and dynamic LoRA slots.</figcaption>
 </figure>
 
-Define <span data-glossary="slo">service-level objectives (SLOs)</span> by tier and workload. In this platform, **<span data-glossary="ttft">time to first token (TTFT)</span>** starts at external request arrival and ends at the first usable output, so it includes queueing, prompt processing, and adapter loading. An engine metric may start later; name the timing measurement point before comparing it with the gateway's result. **<span data-glossary="itl">Inter-token latency (ITL)</span>** also needs a sampling unit: current vLLM records gaps between streamed output events, which can bundle tokens. Its request-level **time per output token (TPOT)** instead uses `(completion latency − TTFT) / (output tokens − 1)` for more than one output token.[^vllm2026metrics] Also report completion latency, error rate, and throughput under the same offered load. A request with a great first-token time and a failed stream isn't a successful completion.
+Define <span data-glossary="slo">service-level objectives (SLOs)</span> with exact measurement endpoints:
 
-For example, a tier might target p95 TTFT below 800 ms and p95 streamed-output gaps below 120 ms. These targets need measurements under the intended workload. A percentile across all output gaps can overweight requests with more events. For a goodput metric, separately specify a per-request success/deadline rule and count completions satisfying it. A fleet percentile does not enforce a per-request gate.
+- **<span data-glossary="ttft">Time to first token (TTFT)</span>:** measured from external gateway arrival to the first usable output token (covering queueing, prefill, and adapter loading), not from when the GPU engine dequeues the prompt.
+- **<span data-glossary="itl">Inter-token latency (ITL)</span> vs. TPOT:** serving engines like vLLM can bundle multiple tokens into one streamed event, so raw event gaps differ from request-level **time per output token (TPOT)** $= (\text{completion} - \text{TTFT}) / (\text{output tokens} - 1)$.[^vllm2026metrics]
 
-Make the distinction concrete. One request emits a first token at 100 ms, bundles four more tokens into an event at 220 ms, and completes at 240 ms. Its observed output-event gap is 120 ms, while request TPOT is `(240 − 100) / (5 − 1) = 35 ms`. Neither number reconstructs the individual decoding gaps behind that bundle. Specify whether a tenant's streaming objective constrains observed output gaps, a request mean, or another defined rule before declaring success.
+For example, if a stream emits token 1 at 100 ms, bundles four tokens into one frame at 220 ms, and finishes at 240 ms, the observed event gap is **120 ms** while request TPOT is $(240 - 100) / (5 - 1) = \mathbf{35\text{ ms}}$. Specify whether a tenant's SLO tracks per-event stream gaps or average TPOT, and track completion rate alongside latency so failed streams never make fast-failing traffic look healthy.
 
 <figure>
   <img src="illustrations/_generated/bundled_stream_timing_dark.png" alt="Stream latency timeline comparing observed output event gaps with completion-based time per output token (TPOT). A request arrives at 0 ms, yields its first token at 100 ms, receives a four-token chunk at 220 ms, and completes at 240 ms. The event gap of 120 ms reflects network delivery, whereas true TPOT averages 35 ms per token." />
-  <figcaption>The 120 ms gap between streamed network frames differs from the 35 ms completion-based TPOT, showing why bundled token streaming requires distinct latency metrics.</figcaption>
+  <figcaption>Stream bundling separates observed event gaps (120 ms) from completion-based TPOT (35 ms). Define both metrics clearly in tenant SLOs.</figcaption>
 </figure>
 
 ## Establish identity before touching tenant state
 
-Treat an incoming `Tenant-ID: A` header only as a workspace selector. Authenticate the principal, check its current workspace grants, and construct the internal context from that decision. Validate authorization on every protected operation, with denial as the default.[^owasp2026Authorization]
+Treat an HTTP `Tenant-ID: A` header as an untrusted workspace selector, never as proof of access. Authenticate the caller, verify current workspace grants server-side, and reject unauthorized selections before any cache lookup, adapter fetch, or retrieval call.[^owasp2026Authorization]
 
-The internal envelope should carry the resolved tenant and principal, request and attempt IDs, policy revision, authorized model/adapter revisions, deadline, and output cap. Protect it with authenticated service communication and narrowly scoped credentials. A signature protects integrity, but the receiver must still validate issuer, audience, expiry, and permission for the operation. Do not let a downstream service overwrite tenant identity from an untrusted body field.
-
-This example evaluates permissions after credential verification, using simulated principal grants rather than a production directory. A caller can select an authorized workspace, but claiming a different one must fail before any lookup.
+Propagate the resolved tenant, principal, request ID, attempt ID, approved model/adapter revisions, deadline, and output cap inside a signed internal envelope over authenticated service links. Never let a downstream worker overwrite tenant identity from a request body field.
 
 <!-- leetllm: test, id=tenant-context, output=show -->
 ```python title="trusted-tenant-context.py"
@@ -134,38 +133,36 @@ denied: unknown acting for A
 ```
 <!-- leetllm: output:end -->
 
-Tenant identity is only the first permission dimension. Workspace A can contain documents visible to Alice but not another employee. Retrieval, tool calls, cached answers, and exported logs must honor those finer grants too. Never ask the language model to decide whether a document belongs to the caller.
+Workspace membership is only the outer layer: inside Workspace A, Alice may be allowed to read engineering docs while another user cannot. Pass principal-level permissions into retrieval, tool execution, caches, and logs, and never rely on the LLM prompt to enforce document access.
 
 ## Reserve quota and memory before dispatching requests
 
-Different limits answer different questions:
+No single rate limit protects every resource:
 
-| Limit | What it controls | Remaining requirement |
+| Control | Resource it limits | What it leaves unchecked |
 |---|---|---|
-| Requests per minute (RPM) | Request arrival rate | Concurrent streams, prompt size, or compute cost |
-| Tokens per minute (TPM) | A defined time-window token budget | Equal GPU cost per token |
-| Period quota | Total usage allowed in a billing period | Fair scheduling of active requests |
-| Concurrency cap | Outstanding work per tenant | Memory fit for each request |
-| Context/output cap | Maximum sequence growth | Aggregate pool capacity |
-| KV-byte/page budget | Reserved conversation state | Available compute or acceptable latency |
+| RPM | Request arrival rate | Prompt length, concurrency, and decode work |
+| TPM | Tokens over a rolling window | Uneven GPU cost between prefill and decode |
+| Period quota | Total spend in a billing period | Fair scheduling among active requests |
+| Concurrency cap | Simultaneous in-flight streams per tenant | Per-request KV memory size |
+| Context / output cap | Maximum sequence length | Aggregate cluster capacity |
+| KV-page budget | Reserved attention memory | Compute throughput and tail latency |
 
-Tokenize the fully assembled request with the deployed tokenizer, including templates and authorized retrieved content. Enforce byte and retrieval-size limits before that work too. Reserve input tokens plus the maximum output allowance under the chosen quota policy. If tool iterations or server-added context can expand the request, reserve each extra step or stop before exceeding the remaining allowance.
-
-A period quota has a useful conservation rule. Start with 1,000 units; reserve 300 input plus 400 maximum output. Available allowance becomes 300. If trusted completion reports 120 output tokens, actual usage is 420, so release the unused 280 and leave 580 available. A duplicate completion must leave 580 unchanged.
+Tokenize the fully assembled prompt (including system instructions and retrieved passages) with the target model's tokenizer, then reserve `input_tokens + max_output` before dispatch. For a fixed-period quota, conservation holds at every instant:
 
 $$
-\text{limit}=\text{available}+\text{held reservations}+\text{settled usage}.
+\text{limit} = \text{available} + \text{held reservations} + \text{settled usage}.
 $$
 
-This example charges all input tokens, including cached input, against its quota. A different product policy can choose different units, but it must declare them. This is not yet a TPM implementation: a rolling-window limiter also needs authoritative time, window attribution, and a defined rule for long-running requests and late reconciliation. Refunding an old reservation into an unrelated new window can manufacture allowance.
+Start with 1,000 units and reserve 300 input plus 400 max output (holding 700, leaving 300 available). If generation finishes at 120 output tokens, actual usage is 420; settling releases the unused 280 and leaves **580 available**. Delivering that same completion message twice must still leave 580.
 
 ### Make reservation and settlement idempotent
 
-An idempotency key must be scoped to the tenant and bound to a fingerprint of the resolved execution request. Repeating the same key and request returns the same reservation. Reusing it for a different prompt, model revision, or output cap is a conflict, not free work. This prevents duplicate admission, but a durable dispatcher must also prevent two workers from executing the same reservation.
+Scope every idempotency key to `(tenant, request_id)` and bind it to a canonical fingerprint of the resolved execution parameters (prompt, model revision, adapter revision, output cap). Replaying the exact request returns the existing hold; reusing the key with different parameters raises a conflict.
 
-The next cell implements a **single-process, fixed-period ledger** with integer token and page units. Its lock makes local check-and-update atomic. It does not provide durable storage, distributed locking, authentication, execution ownership, or a rolling time window. Only trusted gateway and worker code may call it.
+Here is an atomic single-process `QuotaStore` implementing hold, idempotent replay, conflict detection, and exact settlement:
 
-<!-- leetllm: test, id=quota-ledger, output=show -->
+<!-- leetllm: test, id=quota-store, output=show -->
 ```python title="quota-reservations.py"
 from dataclasses import dataclass
 from threading import Lock
@@ -173,7 +170,7 @@ from threading import Lock
 
 @dataclass(frozen=True)
 class Spec:
-    fingerprint: str  # trusted canonical request fingerprint, not a client assertion
+    fingerprint: str
     input_tokens: int
     max_output: int
     kv_pages: int
@@ -182,38 +179,34 @@ class Spec:
 @dataclass
 class Entry:
     spec: Spec
-    output: int | None = None  # None means held, including uncertain execution
+    output: int | None = None  # None while held or uncertain
 
 
-class Ledger:
+class QuotaStore:
     def __init__(self, tenants, token_limit=1000, concurrency=2, page_limit=20):
-        for value in (token_limit, concurrency, page_limit):
-            if value is True or value is False or not isinstance(value, int) or value <= 0:
-                raise ValueError("limits must be positive integers")
+        if min(token_limit, concurrency, page_limit) <= 0:
+            raise ValueError("limits must be positive integers")
         self.limits = (token_limit, concurrency, page_limit)
         self.used = {tenant: 0 for tenant in tenants}
         self.entries = {}
         self.lock = Lock()
 
     def _held(self, tenant):
-        return [entry for (owner, _), entry in self.entries.items()
-                if owner == tenant and entry.output is None]
+        return [e for (owner, _), e in self.entries.items()
+                if owner == tenant and e.output is None]
 
     def available(self, tenant):
         with self.lock:
-            return self.limits[0] - self.used[tenant] - sum(
-                e.spec.input_tokens + e.spec.max_output for e in self._held(tenant))
+            held_tokens = sum(e.spec.input_tokens + e.spec.max_output for e in self._held(tenant))
+            return self.limits[0] - self.used[tenant] - held_tokens
 
     def reserve(self, tenant, request_id, spec):
         if tenant not in self.used:
             raise PermissionError("unknown tenant")
         if not request_id or not spec.fingerprint:
             raise ValueError("identity and fingerprint are required")
-        if any(x is True or x is False or not isinstance(x, int) or x < 0
-               for x in (spec.input_tokens, spec.max_output, spec.kv_pages)):
-            raise ValueError("reservation units must be nonnegative integers")
-        if spec.kv_pages == 0:
-            raise ValueError("a positive page reservation is required")
+        if spec.input_tokens < 0 or spec.max_output < 0 or spec.kv_pages <= 0:
+            raise ValueError("invalid reservation units")
         key = (tenant, request_id)
         with self.lock:
             if key in self.entries:
@@ -221,21 +214,20 @@ class Ledger:
                     raise ValueError("idempotency conflict")
                 return key
             held = self._held(tenant)
-            tokens = sum(e.spec.input_tokens + e.spec.max_output for e in held)
-            pages = sum(e.spec.kv_pages for e in held)
+            held_tokens = sum(e.spec.input_tokens + e.spec.max_output for e in held)
+            held_pages = sum(e.spec.kv_pages for e in held)
             limit, concurrency, page_limit = self.limits
-            if (self.used[tenant] + tokens + spec.input_tokens + spec.max_output > limit
+            if (self.used[tenant] + held_tokens + spec.input_tokens + spec.max_output > limit
                     or len(held) >= concurrency
-                    or pages + spec.kv_pages > page_limit):
-                raise ValueError("admission limit exceeded")
+                    or held_pages + spec.kv_pages > page_limit):
+                raise ValueError("quota or capacity limit exceeded")
             self.entries[key] = Entry(spec)
             return key
 
     def settle(self, tenant, request_id, output_tokens):
-        # Called only after actual usage and execution retirement are known.
         with self.lock:
             entry = self.entries[(tenant, request_id)]
-            if output_tokens is True or output_tokens is False or not isinstance(output_tokens, int) or not 0 <= output_tokens <= entry.spec.max_output:
+            if not 0 <= output_tokens <= entry.spec.max_output:
                 raise ValueError("invalid usage")
             if entry.output is not None:
                 if entry.output != output_tokens:
@@ -245,16 +237,15 @@ class Ledger:
             entry.output = output_tokens
 
 
-ledger = Ledger(["A", "B"])
+store = QuotaStore(["A", "B"])
 spec = Spec("resolved-request-v1", 300, 400, 5)
-assert ledger.reserve("A", "r1", spec) == ("A", "r1")
-assert ledger.reserve("A", "r1", spec) == ("A", "r1")
-print("after reservation:", ledger.available("A"))
-ledger.settle("A", "r1", 120)
-ledger.settle("A", "r1", 120)  # duplicate delivery must be harmless
-assert ledger.available("A") == 580
-assert ledger.available("B") == 1000
-print("after repeated settlement:", ledger.available("A"))
+assert store.reserve("A", "r1", spec) == ("A", "r1")
+assert store.reserve("A", "r1", spec) == ("A", "r1")
+print("after reservation:", store.available("A"))
+store.settle("A", "r1", 120)
+store.settle("A", "r1", 120)
+assert store.available("A") == 580 and store.available("B") == 1000
+print("after repeated settlement:", store.available("A"))
 ```
 
 <!-- leetllm: output:start -->
@@ -264,9 +255,9 @@ after repeated settlement: 580
 ```
 <!-- leetllm: output:end -->
 
-Test the arithmetic and failure paths. This continuation races two reservations that would jointly exceed the allowance. Exactly one can succeed. Its local lock validates one process; a separate test must cover cross-host consensus.
+Now race two concurrent threads for the same 700-unit reservation against a 1,000-unit quota, and trace a client disconnect before settlement arrives:
 
-<!-- leetllm: test, continue=quota-ledger, output=show -->
+<!-- leetllm: test, continue=quota-store, output=show -->
 ```python title="quota-failure-cases.py"
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
@@ -280,14 +271,14 @@ def must_reject(call):
     raise AssertionError("invalid operation succeeded")
 
 
-before = ledger.available("A")
-must_reject(lambda: ledger.reserve("A", "r1", Spec("different-request", 300, 400, 5)))
-must_reject(lambda: ledger.settle("A", "r1", 121))
-must_reject(lambda: ledger.reserve("A", "bad", Spec("bad", -1, 10, 1)))
-must_reject(lambda: ledger.reserve("unknown", "r1", spec))
-assert ledger.available("A") == before
+before = store.available("A")
+must_reject(lambda: store.reserve("A", "r1", Spec("different-request", 300, 400, 5)))
+must_reject(lambda: store.settle("A", "r1", 121))
+must_reject(lambda: store.reserve("A", "bad", Spec("bad", -1, 10, 1)))
+must_reject(lambda: store.reserve("unknown", "r1", spec))
+assert store.available("A") == before
 
-race = Ledger(["A"])
+race = QuotaStore(["A"])
 barrier = Barrier(2)
 
 
@@ -302,62 +293,58 @@ def contender(request_id):
 
 with ThreadPoolExecutor(max_workers=2) as pool:
     accepted = list(pool.map(contender, ["one", "two"]))
-assert sum(accepted) == 1
-assert race.available("A") == 300
-uncertain = Ledger(["A"])
+assert sum(accepted) == 1 and race.available("A") == 300
+
+uncertain = QuotaStore(["A"])
 uncertain.reserve("A", "lost-response", spec)
-# An unconfirmed attempt supplies no completed usage report.
 must_reject(lambda: uncertain.reserve("A", "new-attempt", spec))
 assert uncertain.reserve("A", "lost-response", spec) == ("A", "lost-response")
 assert uncertain.available("A") == 300
-uncertain.settle("A", "lost-response", 120)  # confirmed retirement finally arrives
+uncertain.settle("A", "lost-response", 120)
 assert uncertain.available("A") == 580
+
 print("concurrent reservations accepted:", sum(accepted))
-print("conflicts and invalid input leave the ledger unchanged")
+print("conflicts and invalid input leave the quota store unchanged")
 print("unconfirmed disconnect: held 700; terminal settlement: available", uncertain.available("A"))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 concurrent reservations accepted: 1
-conflicts and invalid input leave the ledger unchanged
+conflicts and invalid input leave the quota store unchanged
 unconfirmed disconnect: held 700; terminal settlement: available 580
 ```
 <!-- leetllm: output:end -->
 
-The disconnect trace deliberately keeps 700 units held. A new identity cannot spend that allowance again, while replaying the original reservation changes nothing. The final `settle` call records confirmed evidence of both usage and execution retirement; calling it with zero merely because the client disconnected would invent evidence the ledger cannot check itself. This example omits a distributed coordinator.
-
-Across gateways, use a durable transaction, conditional update, or equivalent atomic service for the allowance and idempotency record. “Read balance, then write balance” on separate connections is not sufficient. Serializable database transactions can reject conflicting work and require whole-transaction retries; design retries to preserve the same idempotency identity.[^postgresqlIsolation2026] Publish dispatch only from committed reservation state, through a recoverable delivery protocol. Aborting a database transaction does not undo GPU work already launched as a side effect.
-
-Tenant allowance and physical worker capacity are separate reservations. Either coordinate them transactionally or use a recoverable staged protocol: reserve tenant allowance, obtain worker capacity, dispatch once, and release the first reservation if placement definitely failed. Do not release it merely because an acknowledgment timed out. Execution may already be running.
+Across multiple gateway replicas, replace the in-process lock with a serializable database transaction or atomic conditional update, retrying serialization conflicts with the **same** idempotency key.[^postgresqlIsolation2026] Dispatch to a GPU worker only after the reservation commits, and never release a hold merely because a response timed out while the worker might still be generating.
 
 <figure>
-  <img src="illustrations/_generated/quota_lifecycle_dark.png" alt="Four-stage tenant quota reservation and settlement lifecycle on a 1000-unit scale. Initially 1000 units are available. Reserving 300 input tokens plus 400 maximum output tokens places a 700-unit hold, leaving 300 available. When actual completion generates 120 output tokens, 420 tokens settle, releasing 280 unused units back to 580 available. Duplicate settlement delivery produces zero extra charge." />
-  <figcaption>Token quota holds reserve worst-case output capacity during generation. Settling the actual 120 generated tokens refunds 280 unused units; duplicate settlement reports are idempotent.</figcaption>
+  <img src="illustrations/_generated/quota_lifecycle_dark.png" alt="Four-stage tenant quota reservation and settlement lifecycle on a 1000-unit scale. Initially 1000 units are available. Reserving 300 input tokens plus 400 max output places a 700-unit hold, leaving 300 available. Settling 120 generated tokens charges 420 and releases 280 back to 580 available. Duplicate settlement produces zero extra charge." />
+  <figcaption>Worst-case output tokens stay held during generation. Settling 120 actual output tokens returns 280 unused units once; duplicate reports are no-ops.</figcaption>
 </figure>
 
 ```checkpoint
 A gateway loses the response after dispatch. Can it refund the whole reservation and retry with a new request ID?
 ---
-No. The worker may still be executing. Keep the request in an uncertain state, recover its authoritative status, and reuse the original idempotency identity. Refunding and starting a new attempt without ownership control can double-execute work and exceed the quota.
+No. The worker may still be executing. Keep the request in an uncertain state, recover its status from the worker, and reuse the original idempotency key. Refunding and starting a fresh ID risks double execution and quota overrun.
 ```
 
 <figure>
-  <img src="illustrations/_generated/idempotent_admission_race_dark.png" alt="Idempotent admission race and conflict resolution between two concurrent requests. Two contenders simultaneously request 700 units against a 1000-unit ledger. Contender 1 wins the lock and acquires a 700-unit hold, leaving 300 units available. Contender 2 is rejected due to insufficient capacity. Replaying the identical request with the same fingerprint returns the existing hold, while changing the prompt fingerprint triggers an idempotency conflict." />
-  <figcaption>Contender 1 wins the lock, leaving insufficient units for Contender 2. Identical replayed requests return existing reservations safely, whereas modified payloads trigger idempotency conflicts.</figcaption>
+  <img src="illustrations/_generated/idempotent_admission_race_dark.png" alt="Idempotent race and conflict resolution between two concurrent requests. Two contenders simultaneously request 700 units against a 1000-unit quota. Contender 1 acquires a 700-unit hold, leaving 300 available; Contender 2 is rejected. Replaying the identical request returns the existing hold, while changing the prompt fingerprint triggers an idempotency conflict." />
+  <figcaption>Atomic locking guarantees only one 700-unit contender succeeds against a 1,000-unit limit. Identical replays return the existing hold; modified payloads fail with a conflict.</figcaption>
 </figure>
 
 ## Budget memory before promising concurrency
 
-The [KV cache](/learn/kv-cache-paged-attention-llm-serving) stores attention keys and values for active context. For a full-attention model with 80 layers, 8 KV heads, head dimension 128, and two-byte values, each cached token uses:
+The [KV cache](/learn/kv-cache-paged-attention-llm-serving) dominates per-request VRAM. For an 80-layer GQA model with 8 KV heads, head dimension 128, and 2-byte FP16/BF16 elements, every cached token costs:
 
 $$
-2\times80\times8\times128\times2=327{,}680\text{ bytes}=0.3125\text{ MiB}.
+2 \times 80 \times 8 \times 128 \times 2 = 327{,}680\text{ bytes} = 0.3125\text{ MiB}.
 $$
 
-At 4,000 tokens, that is 1.2207 GiB per sequence before metadata and other memory. The leading factor counts keys and values. Use KV-head count, not query-head count, for grouped-query attention. Other architectures and cache layouts need their own formula.
+At 4,000 tokens, a single sequence consumes **1.2207 GiB** of KV memory before activations or engine metadata. (Always use KV-head count, not query-head count, for grouped-query attention.)
 
-PagedAttention maps logical token blocks to non-contiguous physical blocks.[^kwon2023pagedattention] With 16-token blocks, our shape uses 5 MiB per block. Sequence A with 47 tokens requires three blocks and sequence B with 31 tokens requires two. They use 78 of 80 reserved token slots, leaving two slots unused. Paging limits this tail waste; it does not authorize block-table access.
+PagedAttention splits KV memory into fixed-size physical blocks (say 16 tokens, or **5 MiB per block**) mapped through per-sequence block tables.[^kwon2023pagedattention] Sequence A (47 tokens) occupies 3 pages and Sequence B (31 tokens) occupies 2 pages, wasting only 2 of 80 allocated token slots. Keep ceiling division in exact integers so large inputs never suffer floating-point rounding drift:
 
 <!-- leetllm: test, output=show -->
 ```python title="paged-kv-reservations.py"
@@ -366,7 +353,7 @@ BLOCK_TOKENS = 16
 
 
 def reserve_pages(input_tokens, max_output):
-    if any(n is True or n is False or not isinstance(n, int) or n < 0 for n in (input_tokens, max_output)):
+    if input_tokens < 0 or max_output < 0:
         raise ValueError("token counts must be nonnegative integers")
     return (input_tokens + max_output + BLOCK_TOKENS - 1) // BLOCK_TOKENS
 
@@ -376,9 +363,9 @@ for tenant, tokens in (("A", 47), ("B", 31)):
     print(f"{tenant}: {pages} pages, {pages * BLOCK_TOKENS - tokens} unused token slots")
 print("MiB per page:", BYTES_PER_TOKEN * BLOCK_TOKENS / 2**20)
 print("GiB for 4000 cached tokens:", round(BYTES_PER_TOKEN * 4000 / 2**30, 4))
-assert reserve_pages(16, 1) == 2  # output growth crosses a page boundary
+assert reserve_pages(16, 1) == 2
 assert reserve_pages(0, 0) == 0
-assert reserve_pages(2**54 + 1, 0) == 2**50 + 1  # exact integer arithmetic
+assert reserve_pages(2**54 + 1, 0) == 2**50 + 1
 ```
 
 <!-- leetllm: output:start -->
@@ -391,29 +378,19 @@ GiB for 4000 cached tokens: 1.2207
 <!-- leetllm: output:end -->
 
 <figure>
-  <img src="illustrations/_generated/kv_cache_paging_dark.png" alt="PagedAttention memory management with non-contiguous physical block allocation. Tenant A with 47 tokens maps to physical blocks P0, P2, and P4. Tenant B with 31 tokens maps to blocks P1 and P3. A separate sequence demonstrates that allocating a single token beyond a 16-token page boundary requires an immediate second physical page reservation." />
-  <figcaption>Non-contiguous physical pages eliminate external memory fragmentation across tenants, though sequence growth across 16-token boundaries allocates an entire new page block.</figcaption>
+  <img src="illustrations/_generated/kv_cache_paging_dark.png" alt="PagedAttention memory management with non-contiguous physical block allocation. Tenant A with 47 tokens maps to physical blocks P0, P2, and P4. Tenant B with 31 tokens maps to blocks P1 and P3. Adding one token beyond a 16-token block requires allocating an entire second physical page." />
+  <figcaption>PagedAttention eliminates external fragmentation across tenants, confining internal waste to at most 15 tokens in the final block.</figcaption>
 </figure>
 
-Keep page arithmetic in integers. Converting `2**54 + 1` tokens to a float before rounding would lose one token and underreserve a page. That regression input is far beyond a real model's context; deployment must enforce the actual context and output caps before allocation.
-
-The formula above is aggregate logical KV storage. Per-device fit depends on tensor sharding or replicated KV heads, layer placement, precision, and engine metadata. Reserve weights, adapters, activations, graph buffers, and headroom too. Check available memory and tensor placement on the selected worker before scheduling the request.
-
-Reserving the full input-plus-output cap is conservative. Incremental page allocation accommodates more concurrency, but the platform must define what happens when growth fails: queue, preempt, swap, recompute, or terminate under an explicit policy. If reservation covers only the prompt, choose and document the output-growth policy before enabling streaming.
-
-For shared prefix blocks, distinguish physical occupancy from tenant accounting. One physical block may have several references. A policy might charge each tenant logical usage or apportion shared occupancy; either can be coherent if declared. Summing per-request logical bytes overstates physical occupancy when blocks are shared, while forgetting shared references can release live state too early.
-
-Remote KV adds another placement option, not free memory. Authorize the trust scope and verify model, adapter, token sequence, position, and cache-layout compatibility before transfer. Compare lookup and transfer time with recomputation under the deadline. Retire ownership only after readers finish; network timeouts do not establish that a remote reader has stopped.
+Reserving `input_tokens + max_output` up front prevents mid-stream OOMs at the cost of lower peak concurrency. Allocating pages incrementally packs more requests onto each GPU, provided you define explicit preemption (swap to CPU RAM or recompute on resume) when memory fills. For shared prefix blocks, track physical reference counts separately from logical tenant billing so one physical block is never freed while another tenant still reads it.
 
 ## Schedule active tenant turns fairly
 
-[Continuous batching](/learn/continuous-batching-request-scheduling) removes finished sequences and inserts new requests at step boundaries.[^yu2022] B shouldn't wait for A's entire generation merely because they started together. But continuous batching alone doesn't prevent A's long prompt from monopolizing a step.
+[Continuous batching](/learn/continuous-batching-request-scheduling) inserts new requests and retires finished ones at every decode iteration.[^yu2022] Still, a single 12,000-token prefill from Tenant A can freeze Tenant B's short decode tokens for hundreds of milliseconds.
 
-Chunked prefill splits prompt work so it can interleave with decode. In current vLLM documentation, `max_num_batched_tokens` bounds tokens processed per iteration; changing it trades prefill throughput and first-token delay against streaming latency.[^vllm2026optimization] Enforce tenant quotas separately and measure per-tenant latency.
+**Chunked prefill** slices long prompts into small token chunks interleaved with active decode steps. In vLLM, `max_num_batched_tokens` caps total tokens processed per step, letting you trade raw prefill throughput against smooth streaming latency.[^vllm2026optimization]
 
-Use per-tenant queues and explicit service shares. A priority class can have a larger share without giving it unbounded priority forever. Otherwise sustained premium traffic can starve B's lower tier. Add maximum waiting time, aging, or reserved service for that tier, then declare what happens when offered load exceeds capacity.
-
-The miniature deficit scheduler below charges **synthetic work units**, not requests or measured GPU time. A receives four units per round and B two. A's chunks cost three units each; B's cost one. Unused credit carries forward while the queue remains backlogged.
+To keep heavy tenants from crowding out light ones across steps, schedule per-tenant queues with **deficit round-robin (DRR)**. Give Tenant A a 4-unit quantum (chunk cost 3) and Tenant B a 2-unit quantum (chunk cost 1); unused credit carries forward only while a tenant remains backlogged:
 
 <!-- leetllm: test, output=show -->
 ```python title="deficit-scheduling.py"
@@ -424,6 +401,7 @@ quantum = {"A": 4, "B": 2}
 credit = {tenant: 0 for tenant in queues}
 served = {tenant: 0 for tenant in queues}
 jobs = {tenant: 0 for tenant in queues}
+
 for _ in range(3):
     for tenant, queue in queues.items():
         if not queue:
@@ -437,8 +415,8 @@ for _ in range(3):
             jobs[tenant] += 1
         if not queue:
             credit[tenant] = 0
-assert served == {"A": 12, "B": 6}
-assert jobs == {"A": 4, "B": 6}
+
+assert served == {"A": 12, "B": 6} and jobs == {"A": 4, "B": 6}
 print("served work units:", served)
 print("completed chunks:", jobs)
 ```
@@ -450,45 +428,39 @@ completed chunks: {'A': 4, 'B': 6}
 ```
 <!-- leetllm: output:end -->
 
-The intended 2:1 work share is **not** a 2:1 request-count share. Real prefill and decode tokens have different, context-dependent costs, and co-batching changes those costs. Calibrate a scheduling cost model and reconcile estimates with measurements. Bound chunk size and batch-building time; a fair average over three rounds doesn't bound tail latency.
-
-[Speculative decoding](/learn/speculative-decoding) adds proposal and verification work to that budget. Reserve the positions and temporary state used during proposal and verification; the accepted token count understates the work. Keep the proposal path inside the tenant's data permissions and verify compatibility with its target and adapter. Measure latency while other tenants compete for the same positions.
-
-Preemption also has a cost. Preserve the generated prefix and execution state needed to resume, account for repeated prefill, and avoid evicting the same victim indefinitely. A victim-selection function doesn't free memory by itself. Retire or swap its actual blocks, update allocator state, and reserve the newcomer's blocks atomically with respect to competing scheduling decisions. An asynchronous device operation may need to complete before reuse is safe.
+> **Key insight:** A 2:1 compute share (12 units vs. 6 units) is **not** a 2:1 chunk or request count (4 chunks vs. 6 chunks). Because prefill tokens, decode tokens, long contexts, and [speculative decoding](/learn/speculative-decoding) proposals all consume different amounts of GPU time, calibrate scheduler work units against measured step latency and cap chunk sizes so tail latency stays predictable.
 
 ```checkpoint
 Why can two requests with equal token counts deserve different scheduler charges?
 ---
-Their prefill/decode split, context length, cache reuse, and batch companions can change execution cost. Token counts are convenient units, but equal counts don't prove equal GPU work or equal delay imposed on other tenants.
+Their prefill-to-decode split, context length, prefix cache hit rate, and co-batched neighbors change actual GPU execution time. Equal token counts do not mean equal compute cost or equal delay imposed on other tenants.
 ```
 
 <figure>
-  <img src="illustrations/_generated/deficit_service_rounds_dark.png" alt="Deficit round-robin scheduling across three rounds. Tenant A receives 4 quantum credits per round with chunk cost 3; Tenant B receives 2 credits with chunk cost 1. Over three rounds, Tenant A serves 12 work units across 4 chunks, while Tenant B serves 6 work units across 6 chunks, maintaining a 2:1 work ratio despite completing fewer chunks." />
-  <figcaption>Deficit round-robin preserves a 2:1 work unit ratio across three rounds, demonstrating that chunk count does not equate to consumed GPU compute.</figcaption>
+  <img src="illustrations/_generated/deficit_service_rounds_dark.png" alt="Deficit round-robin scheduling across three rounds. Tenant A receives 4 credits per round with chunk cost 3; Tenant B receives 2 credits with chunk cost 1. Over three rounds, Tenant A serves 12 work units across 4 chunks while Tenant B serves 6 work units across 6 chunks, maintaining a 2:1 work ratio." />
+  <figcaption>Deficit round-robin holds the 2:1 work-unit share (12 vs. 6) across three rounds even though Tenant B completes more individual chunks (6 vs. 4).</figcaption>
 </figure>
+
+When memory pressure forces preemption, wait for asynchronous GPU kernels to finish and block references to retire before handing freed pages to another tenant, and add age-based protection so the same low-priority request is not repeatedly evicted.
 
 ## Keep adapter residency separate from permission
 
-[Low-Rank Adaptation (LoRA)](/learn/lora-parameter-efficient-fine-tuning) adds small learned matrices to selected frozen base layers.[^hu2021] Compatible requests can share base execution while using different adapters. The adapter modifies model behavior; it is not an authorization perimeter or a substitute for document access controls.
+[Low-Rank Adaptation (LoRA)](/learn/lora-parameter-efficient-fine-tuning) lets one frozen base model serve dozens of fine-tuned tenant behaviors in the same batch by adding small low-rank weight deltas.[^hu2021]
 
-Resolve a tenant-facing alias such as `docs-current` into an approved immutable artifact revision and compatible base-model revision. Check permission before consulting a hot cache. Bind the resolved revision to the request for its whole lifetime, including retries and cached KV. A mutable alias must not silently change an active request halfway through generation.
+Resolve mutable aliases like `docs-current` to an immutable `(base_revision, adapter_revision)` pair at request entry, verify tenant permission **before** checking whether the adapter is already hot in VRAM, and pin that revision for the request's entire lifetime (including retries and prefix caches). vLLM supports per-request LoRA selection while warning that dynamic runtime loading belongs only inside a trusted, isolated worker perimeter.[^vllm2026lora] Validate artifact ownership, rank, size, and digest inside a trusted adapter service rather than letting tenants supply arbitrary paths.
 
-As checked on November 7, 2026, vLLM supports per-request LoRA selection and warns that runtime loading should be used only in an isolated, fully trusted environment.[^vllm2026lora] Do not expose raw load/unload endpoints, filesystem paths, or arbitrary artifact URLs to tenants. An adapter service should validate ownership, format, size, rank, base compatibility, and artifact integrity before a worker loads it.
-
-Cache eviction needs reference tracking. If A's adapter is least recently used but still referenced by an in-flight batch, eviction cannot invalidate that batch's handle. Evict an unreferenced artifact, wait, or use another worker. A least-recently-used list alone does not implement safe concurrent hot-swapping.
+Track active batch references on every cached adapter slot: an LRU eviction pass must skip any adapter whose reference count is nonzero, either evicting an idle slot, waiting, or routing the incoming request to another replica.
 
 <figure>
-  <img src="illustrations/_generated/adapter_reference_lifetime_dark.png" alt="Dynamic LoRA adapter lifecycle with reference counting. Tenant permission and base compatibility are validated before cache lookup. An in-flight request pins adapter A (reference count 1), preventing eviction by competing tenant requests. Only when execution completes and reference count drops to 0 does the cache manager permit eviction and hot-swap of adapter B." />
-  <figcaption>Active execution pins adapter weights in VRAM with an incremented reference count. Eviction and hot-swapping are deferred until all references drop to zero.</figcaption>
+  <img src="illustrations/_generated/adapter_reference_lifetime_dark.png" alt="Dynamic LoRA adapter lifecycle with reference counting. Tenant permission and base compatibility are validated before cache lookup. An in-flight request pins adapter A (refcount 1), blocking eviction until execution completes and refcount drops to 0." />
+  <figcaption>Reference counting prevents hot-swap thrashing: an active batch pins adapter A in VRAM until its refcount hits zero.</figcaption>
 </figure>
 
 ## Scope retrieval and caching to the actual reader
 
-A relevant document is not necessarily an authorized document. Apply tenant and principal-level predicates inside the trusted retrieval operation, before retrieved text leaves the security perimeter. Revalidate sensitive permissions before materializing content if grants can change during the request. A broad top-K followed by filtering can lose all authorized candidates and may expose foreign IDs or scores to a component that was not allowed to see them.
+Apply tenant and principal access predicates **inside** the trusted retrieval service before top-$K$ truncation, so forbidden passages never leave the database or leak via foreign scores. In PostgreSQL, enabling row-level security without a rule blocks ordinary queries, yet superusers, `BYPASSRLS` roles, and table owners bypass it unless `FORCE ROW LEVEL SECURITY` is set.[^postgresql_rls_docs] Always test queries under the exact production service role.
 
-The isolation perimeter matters more than a particular database feature. A trusted retrieval service can perform the check internally; keep forbidden evidence inside that service rather than sending it to a tenant-facing application for later discard. Defense-in-depth checks at content fetch remain useful. In PostgreSQL, enabled row-level security without a policy denies ordinary row access, but superusers and `BYPASSRLS` roles bypass it. Table owners normally bypass it too unless subject to `FORCE ROW LEVEL SECURITY`. Test the actual retrieval-service role with the production query path to confirm the policy applies.[^postgresql_rls_docs]
-
-The snippet below extends our multi-tenant model to demonstrate filtered retrieval and cached KV prefixes. It operates on in-memory rows with simulated relevance scores, not a vector database. Alice's own tenant contains a second document she is not allowed to read.
+Similarly, partition prefix caches by the complete compatibility tuple: `(tenant, principal, acl_revision, base_revision, adapter_revision, tokenizer_revision, kv_layout, token_ids)`. vLLM's prefix caching hashes token blocks with LoRA identity and supports a first-block `cache_salt` to isolate sharing groups.[^vllm2026prefix] Combine that salt with server-side authentication so callers can never supply another tenant's salt:
 
 <!-- leetllm: test, continue=tenant-context, output=show -->
 ```python title="authorized-evidence-and-cache.py"
@@ -500,15 +472,14 @@ documents = [
 
 
 def search(context, top_k):
-    if top_k is True or top_k is False or not isinstance(top_k, int) or top_k <= 0:
-        raise ValueError("top_k must be a positive integer")
+    if top_k <= 0:
+        raise ValueError("top_k must be positive")
     allowed = [d for d in documents if d["tenant"] == context.tenant
                and context.principal in d["readers"]]
     return [d["id"] for d in sorted(allowed, key=lambda d: d["score"], reverse=True)[:top_k]]
 
 
 def namespace(context, acl_revision, adapter_revision, token_ids):
-    # A conservative identity tuple, not vLLM's wire-level block-hash implementation.
     return (context.tenant, context.principal, acl_revision, "base-v3",
             adapter_revision, "tokenizer-v3", "kv-layout-v1", tuple(token_ids))
 
@@ -531,62 +502,53 @@ ACL revision, adapter revision, and cross-tenant misses verified
 ```
 <!-- leetllm: output:end -->
 
-A key is a compatibility partition, not permission to fetch its value. The cache service must authenticate and authorize its caller. Do not accept a caller-selected trust-group ID or cache salt without resolving membership. Cached answers, semantic caches, and KV prefixes have different compatibility needs; an answer cache may also depend on retrieval corpus revision, tool state, and generation settings.
-
-vLLM's prefix caching hashes token blocks with extra state such as LoRA identity and supports a first-block `cache_salt` to separate reuse groups.[^vllm2026prefix] Use it alongside API authorization, secure transport, and process isolation. Identical prompt text can tokenize differently or run under different positions, model behavior, and permissions; validate the full sharing context.
-
-For private retrieval, default to a conservative principal or permission-set scope. Broader tenant-wide reuse needs explicit shared-visibility rules. After revocation, stop new reads under stale grants and invalidate or make stale cache entries unreachable according to the retention policy. Existing streams and historical logs need their own revocation/retention decisions.
+Bumping `acl_revision` or `adapter_revision` immediately misses stale KV entries without touching other tenants. When permissions are revoked, advance the ACL revision and invalidate affected cache entries.
 
 <figure>
-  <img src="illustrations/_generated/authorized_evidence_and_cache_dark.png" alt="Multi-tenant retrieval filtering and KV-cache namespace scoping. Search queries apply tenant and principal access control predicates before ranking to prevent unauthorized document leakage. The cache namespace combines tenant ID, user principal, ACL revision, model revision, adapter ID, and token IDs, ensuring cached KV activations cannot be accessed across tenant or permission boundaries." />
-  <figcaption>Filtering retrieval by tenant and principal before ranking prevents leaking unauthorized passages into prompt context. Comprehensive cache namespaces prevent cross-tenant KV reuse.</figcaption>
+  <img src="illustrations/_generated/authorized_evidence_and_cache_dark.png" alt="Multi-tenant retrieval filtering and KV-cache namespace scoping. Search queries filter by tenant and principal before ranking. Cache namespaces combine tenant, principal, ACL revision, model, adapter, and token IDs to prevent cross-tenant reuse." />
+  <figcaption>Filtering retrieval before ranking blocks unauthorized passages, while full composite cache keys prevent cross-tenant or stale-ACL prefix hits.</figcaption>
 </figure>
 
 ## Match isolation perimeters to your threat model
 
-Namespaces, scheduler quotas, and cache salts protect different paths. They do not create separate operating-system or GPU security domains. Avoid a single “isolation level” that hides which resources remain shared.
+Cache salts and scheduler weights are logical isolation controls, not hardware security perimeters. Pick the physical isolation tier that matches your tenants' threat model:
 
-| Choice | Separation it can provide | What still needs scrutiny |
+| Isolation tier | What it separates | What stays shared |
 |---|---|---|
-| Shared worker process | Logical request, adapter, and KV mappings | Shared address space, kernels, administrative access, and implementation bugs |
-| Separate processes/containers | Process address-space and deployment boundaries | Host kernel, device access, driver stack, and side channels |
-| Separate Multi-Instance GPU (MIG) instances | Partitioned GPU compute and memory resources | Host/driver trust, instance provisioning, model fit, and remaining shared infrastructure |
-| Virtual machines or dedicated nodes/pools | Additional host or deployment separation | Hypervisor/platform trust, network, storage, identity, and operational access |
+| Shared worker process | Logical request queues, adapters, and KV block tables | Process memory, GPU kernels, and serving-engine bugs |
+| Separate containers / processes | OS address spaces and cgroup limits | Host kernel, GPU driver, and shared VRAM engines |
+| NVIDIA MIG GPU instances | Hardware-sliced GPU memory and SMs | Host OS, driver, and remaining PCIe/NVLink infrastructure |
+| Dedicated VMs or node pools | Hypervisor / physical hardware per tenant | Control plane, network fabric, and operator access |
 
-NVIDIA distinguishes GPU instances from compute instances inside them. Compute instances within one GPU instance share its memory and some engines; they are not equivalent to separate GPU-instance memory boundaries.[^nvidiaMigConcepts2026] A MIG partition is not automatically a dedicated node or a virtual machine, and a large tensor-parallel replica may not fit the chosen partitioning scheme.
-
-Encryption and personally identifiable information (PII) masking are additional controls, not replacements for these isolation mechanisms. A masked prompt can still retrieve another tenant's postmortem. A redaction service can also miss sensitive data; protect its placeholder map, logs, and error paths. Do not infer a specific regulatory requirement from the word “regulated”; document the actual data and adversary assumptions.
+Note a subtle hardware detail: NVIDIA **compute instances** inside a single MIG GPU instance still share that GPU instance's memory and engines, whereas separate **GPU instances** partition memory controllers.[^nvidiaMigConcepts2026] Also keep encryption and PII redaction distinct from access control: redacting emails does not stop Workspace B from retrieving Workspace A's postmortem.
 
 <figure>
-  <img src="illustrations/_generated/runtime_security_boundaries_dark.png" alt="Multi-tenant runtime security boundaries comparison across four isolation tiers: in-process multiplexing, container and process separation, hardware GPU slicing via MIG, and dedicated node or VM clusters. Each tier balances memory density, multiplexing efficiency, and tenant blast radius." />
-  <figcaption>Comparing isolation boundaries from in-process multiplexing to dedicated GPU nodes balances resource utilization against tenant blast radius.</figcaption>
+  <img src="illustrations/_generated/runtime_security_boundaries_dark.png" alt="Multi-tenant runtime security boundaries across four isolation tiers: in-process multiplexing, container separation, hardware GPU slicing via MIG, and dedicated node or VM clusters." />
+  <figcaption>Moving from shared processes to MIG slices or dedicated nodes trades packing density for a smaller tenant blast radius.</figcaption>
 </figure>
 
 ## Separate usage, allocated cost, and the customer bill
 
-Record immutable usage events with tenant, request, attempt, reservation, model/adapter revision, input/output counts, cached-input counts, terminal status, and metering-policy revision. A retry is a new execution attempt under the same logical request. Generated output, delivered output, and billable output can differ after disconnection; state which metric the billing policy charges.
+Record one immutable usage event per execution attempt carrying tenant, request ID, attempt ID, model/adapter revision, input/cached/output token counts, and terminal status. Distinguish generated tokens, delivered tokens (before a client disconnect), and billable tokens explicitly.
 
-A timing log showing “this request took 200 ms” does not mean it consumed 200 exclusive GPU-ms. Several requests may share a step, and a replica may span multiple GPUs. Shared execution cost is measured at the worker/step level; assigning it to requests is an **allocation policy**, not a uniquely observable physical truth.
-
-Suppose four GPUs run a shared step for 0.2 seconds. That is 0.8 GPU-seconds. At \$2 per GPU-hour, the step costs about \$0.000444. The equivalent four-GPU node rate is \$8 per node-hour: multiply that by 0.2 **node-seconds**, not 0.8 GPU-seconds. Mixing those units quadruples the charge.
-
-This calculation assigns 25% of shared cost to A and 75% to B as policy inputs. Compare those allocations with measured request-level utilization when setting the policy. Conservation should hold before rounding individual invoices.
+Wall-clock latency never equals exclusive GPU time when requests share a batch across a multi-GPU replica. Measure compute at the **step** level, then allocate that step cost across co-batched requests without losing conservation. Watch unit consistency: a 4-GPU node running a 0.2 s step burns **0.8 GPU-seconds** (at \$2/GPU-hour) or **0.2 node-seconds** (at \$8/node-hour), both equal to \$0.000444. Multiplying GPU-seconds by the node-hour price silently quadruples the cost:
 
 <!-- leetllm: test, output=show -->
 ```python title="shared-cost-allocation.py"
 from decimal import Decimal as D
 
 seconds, gpus = D("0.2"), D(4)
-per_gpu_hour = D(2)  # USD per GPU-hour
+per_gpu_hour = D(2)
 node_hour = per_gpu_hour * gpus
 step_cost = seconds * gpus * per_gpu_hour / D(3600)
 assert step_cost == seconds * node_hour / D(3600)
+
 shares = {"A": D("0.25"), "B": D("0.75")}
-assert sum(shares.values()) == 1
 allocated = {tenant: step_cost * share for tenant, share in shares.items()}
 assert sum(allocated.values()) == step_cost
 wrong = seconds * gpus * node_hour / D(3600)
 assert wrong == 4 * step_cost
+
 print("step cost USD:", f"{step_cost:.9f}")
 print("allocated USD:", {t: f"{cost:.9f}" for t, cost in allocated.items()})
 print("mixing GPU-seconds with node-hour price overcharges by:", f"{wrong / step_cost:.0f}")
@@ -600,60 +562,57 @@ mixing GPU-seconds with node-hour price overcharges by: 4
 ```
 <!-- leetllm: output:end -->
 
-Queue wait consumes deadline budget but is not busy accelerator time. Idle replicas, CPU work, storage, transfer, and failed/recomputed attempts still cost money; track them separately and declare their allocation rule. A customer token price can differ from internal allocated cost. Compare the two to detect an unsustainable workload mix, without pretending the tariff is a hardware measurement.
+Track idle replicas, queue wait, storage, and failed retries separately from active GPU steps, and compare allocated internal cost against customer token tariffs to spot unprofitable workload mixes early.
 
 ```checkpoint
 Worker attempt A/r1/1 settles 420 units. Two deliveries have different message IDs but describe that same settlement. Can the second message charge another 420?
 ---
-No. Bind settlement to a stable tenant/reservation/attempt identity. Transport message IDs can change across deliveries. The balance and logical charge stay unchanged; conflicting usage is rejected. Retain genuine additional attempts separately and apply the declared billing policy to their work.
+No. Deduplicate on the stable `(tenant, reservation, attempt)` identity rather than transport message IDs. The second delivery leaves balances unchanged, and any conflicting usage value raises an error.
 ```
 
 <figure>
-  <img src="illustrations/_generated/step_cost_conservation_dark.png" alt="Continuous batch step cost conservation across a 4-GPU node over a 0.2-second forward step. Total compute equals 0.8 GPU-seconds or 0.2 node-seconds. Tenant allocation divides total compute according to batch token occupancy: Tenant A at 25 percent and Tenant B at 75 percent, summing exactly to 100 percent of step cost before rounding." />
-  <figcaption>Total node compute time is conserved and partitioned across active batch tokens. Unit matching ensures GPU-seconds are not erroneously multiplied by node-hour rates.</figcaption>
+  <img src="illustrations/_generated/step_cost_conservation_dark.png" alt="Continuous batch step cost conservation across a 4-GPU node over a 0.2-second forward step. Total compute equals 0.8 GPU-seconds or 0.2 node-seconds, partitioned 25% to Tenant A and 75% to Tenant B, summing to 100%." />
+  <figcaption>Step compute is conserved across co-batched tenants (25% A, 75% B). Keep GPU-seconds paired with GPU-hour rates and node-seconds paired with node-hour rates.</figcaption>
 </figure>
 
 ## Recover without losing ownership
 
-A durable request state machine should distinguish reserved, queued, running, cancel-requested, usage-uncertain, and terminal states. Dispatch and terminal events need replay-safe processing. Cancellation is not complete until the worker has stopped generation and retired device/state references, or recovery has established an equivalent safe perimeter.
+Model every request through explicit durable states: `RESERVED`, `QUEUED`, `RUNNING`, `CANCEL_REQUESTED`, `USAGE_UNCERTAIN`, and `TERMINAL`. Cancellation finishes only after the worker halts generation and frees all KV/adapter references.
 
-Before streaming begins, a bounded retry may be transparent if request ownership prevents duplicate execution. After output has been delivered, restarting can duplicate or contradict text. Use an explicit resumable-stream protocol with sequence numbers and compatible state, or terminate the stream with a clear partial-result error. Do not silently append a fresh answer to an old prefix.
-
-Quarantine poison requests after bounded retries, but avoid copying raw prompts into broadly accessible dead-letter queues. Store a scoped identifier and protected diagnostic metadata. Evaluate model quality and tenant isolation with separate checks from worker readiness.
-
-For rollout, resolve immutable model and adapter revisions, isolate incompatible cache namespaces, and send only authorized shadow traffic to approved destinations. Shadow inference still consumes data, quota policy decisions, and compute. Change routing for new requests, drain old references, and retain a rollback path. A base-model revision needs compatible loaded weights and state. Choose one shared pool or separate pools according to serving and rollout constraints.
+- **Before the first token streams:** a retry is transparent if ownership checks prevent two workers from running the same attempt simultaneously.
+- **After tokens have streamed:** restarting blindly appends duplicate or contradictory text. Either implement a resumable sequence-numbered stream or close with a clear partial-output error.
+- **Poison requests:** quarantine after limited retries using scoped IDs and diagnostic metadata rather than copying raw tenant prompts into shared dead-letter queues.
+- **Model upgrades:** pin immutable revisions, isolate incompatible KV namespaces, drain in-flight references before unloading old weights, and verify that any shadow traffic is authorized and accounted for in compute budgets.
 
 <figure>
-  <img src="illustrations/_generated/uncertain_attempt_recovery_dark.png" alt="Failure recovery and quota reconciliation workflow for uncertain execution attempts. A 700-token quota hold is reserved before generation. When a network timeout occurs mid-generation at token 420, the engine terminates execution, reconciles actual usage by billing 420 tokens, and refunds the remaining 280 tokens. Subsequent retries with the same idempotency key detect terminal status and avoid duplicate billing." />
-  <figcaption>When a network timeout interrupts generation, reconciling actual token progress charges only consumed compute and refunds remaining quota holds without duplicate execution.</figcaption>
+  <img src="illustrations/_generated/uncertain_attempt_recovery_dark.png" alt="Failure recovery and quota reconciliation for uncertain execution attempts. A 700-token hold is reserved before generation. On a timeout at token 420, the engine stops execution, settles 420 tokens, and refunds 280 tokens without allowing duplicate retries." />
+  <figcaption>On a mid-stream timeout, reconcile actual worker progress (420 tokens) and release the remaining 280-token hold only after execution halts.</figcaption>
 </figure>
 
 ## Diagnose the opening incident with evidence
 
-First stop the cross-tenant path, contain access, preserve scoped audit evidence, and inspect identity propagation, retrieval predicates, and cache ownership. Do not treat it as a latency tuning exercise.
+Return to the opening outage: stalled queues at 55% GPU utilization plus Tenant A's postmortem leaking into Tenant B's summary.
 
-Then explain why A and B wait. Compare queue age, dispatched requests, active sequences, KV occupancy, preemptions, adapter misses, and per-stage latency by tenant and route. A generic utilization percentage can hide a memory or policy bottleneck. Scale only when additional ready capacity addresses the measured constraint; otherwise repair admission, batch construction, or state handling.
-
-A representative load test should include short summaries, long prompts, adapter churn, cache misses, disconnects, worker loss, quota-service outages, and retries. Name hardware/count/topology, engine version, model and precision, prompt/output distributions, warmup, concurrency, arrival process, and baseline. Measure aggregate throughput, overload behavior, and per-tenant tail latency. The local examples above verify arithmetic and control logic; benchmark serving speed, hostile-runtime isolation, and distributed correctness separately.
+1. **Contain the leak first.** Pause the suspect retrieval or cache path, preserve scoped diagnostic traces, and inspect gateway identity propagation, database access predicates, and prefix-cache salts. Never treat an isolation breach as a performance ticket.
+2. **Isolate the bottleneck second.** Inspect queue age, active sequence count, KV-block occupancy, preemption rate, adapter swap misses, and per-tenant TTFT/ITL. A 55% GPU compute reading commonly hides 100% KV-cache saturation from long prompts (like A's design review) or head-of-line blocking from unchunked prefills. Add replicas only once telemetry confirms capacity, rather than scheduling or memory fragmentation, is the constraint.
 
 ### Follow-up questions
 
 #### How would you recover a reservation whose worker disappeared after producing some tokens?
 
-Keep its usage uncertain rather than refunding immediately. Reconcile durable dispatch/attempt records with worker events, establish that the old execution cannot continue, and apply the documented partial-usage policy. A replacement attempt needs ownership control and a defined streaming behavior.
+Keep the reservation in `USAGE_UNCERTAIN` rather than refunding immediately. Reconcile durable dispatch records against worker heartbeats and event logs, confirm the old execution can no longer emit tokens or hold pages, settle confirmed partial usage under the declared billing rule, and guard any replacement attempt with ownership checks.
 
 #### What would justify sharing cached prefixes across two principals in one tenant?
 
-Both must be authorized for the prefix's full data and execution context, with compatible model/adapter/token state. Resolve a deliberate shared trust group, authorize cache reads, and specify how revocation invalidates reuse. Check document-level permissions for each tenant before sharing a prefix.
+Both principals must hold identical permissions over every document embedded in the prefix, plus identical model, adapter, and tokenizer revisions. Map them to a server-resolved shared trust group, authorize cache reads on every hit, and bump the group's ACL revision immediately on any permission revocation.
 
 ### What strong answers show
 
-- Trusted identity is resolved before retrieval, adapter lookup, admission, cache access, and billing; worker access cannot bypass the gateway.
-- Quota and capacity reservations are atomic or recoverably staged, idempotent, and safe under uncertain execution.
-- Memory calculations use the actual cache layout and placement, while scheduling charges bounded work rather than assuming requests cost the same.
-- Logical cache and tenant controls are distinguished from process, GPU-instance, VM, and host isolation perimeters.
-- Usage events, internal cost allocation, and customer pricing have explicit units and duplicate-event semantics.
-- Rollout, cancellation, and retry protocols preserve execution ownership and state compatibility, with production claims limited to measured evidence.
+- Identity is resolved server-side before retrieval, adapter lookup, quota reservation, cache access, or billing, and workers cannot be bypassed around the gateway.
+- Quota and KV-page reservations are atomic, idempotent, and hold uncertain attempts until execution terminates.
+- KV sizing uses exact GQA head counts and integer block math, while deficit scheduling charges work units rather than raw request counts.
+- Logical isolation (salts, quotas, queues) is clearly distinguished from OS, MIG, VM, and physical-node security perimeters.
+- Usage events, step-cost allocation, and customer tariffs conserve units cleanly and handle duplicate deliveries safely.
 
 ## Check your understanding
 
@@ -693,7 +652,7 @@ Both must be authorized for the prefix's full data and execution context, with c
     "explanation": "The key binds to one resolved request. A different immutable execution fingerprint is not a replay, and cannot replace the prior reservation or silently dispatch new work."
   },
   {
-    "question": "A full-cap policy accepts 29 input tokens and allows 20 output tokens. Pages hold 16 tokens. How much page capacity must it reserve?",
+    "question": "A full-cap rule accepts 29 input tokens and allows 20 output tokens. Pages hold 16 tokens. How much page capacity must it reserve?",
     "options": [
       "Four pages, providing 64 positions for the declared full cap",
       "Three pages, providing 48 positions for the declared full cap",
@@ -701,7 +660,7 @@ Both must be authorized for the prefix's full data and execution context, with c
       "Five pages, providing 80 positions for the declared full cap"
     ],
     "answer": "Four pages, providing 64 positions for the declared full cap",
-    "explanation": "The cap covers 29+20=49 positions. Integer ceiling division by 16 gives 4 pages and 64 positions. Incremental prompt-only allocation would require a separately declared growth-failure policy."
+    "explanation": "The cap covers 29+20=49 positions. Integer ceiling division by 16 gives 4 pages and 64 positions. Incremental prompt-only allocation would require a separately declared growth-failure rule."
   },
   {
     "question": "Cedar is charged 18 synthetic work units in six chunks and Birch 9 units in nine chunks. Which pair describes Cedar:Birch work and chunk ratios?",
@@ -712,7 +671,7 @@ Both must be authorized for the prefix's full data and execution context, with c
       "Work 2:1; chunks 2:3"
     ],
     "answer": "Work 2:1; chunks 2:3",
-    "explanation": "18:9 is 2:1 work, while 6:9 is 2:3 chunks. Synthetic units do not represent measured GPU time, and aggregate service totals alone do not guarantee a maximum wait."
+    "explanation": "18:9 is 2:1 work, while 6:9 is 2:3 chunks. Synthetic units differ from raw chunk counts, and aggregate totals alone do not cap tail wait time."
   },
   {
     "question": "A request pins adapter revision r 8. Its alias advances to r 9 while every cache slot remains referenced. What can the platform do safely?",
@@ -726,7 +685,7 @@ Both must be authorized for the prefix's full data and execution context, with c
     "explanation": "An active request retains its immutable approved artifact and compatible state. Alias changes affect new resolution; cache eviction waits for safe reference retirement or uses another eligible placement."
   },
   {
-    "question": "Two readers share Cedar but have different private-document grants. A caller supplies the other reader’s cache salt. Which control is still required?",
+    "question": "Two readers share Cedar but have different private-document grants. A caller sends the other reader's cache salt. Which control is still required?",
     "options": [
       "A tenant-plus-salt match, followed by cache lookup before document authorization",
       "A tenant-plus-model match, followed by reuse of the cached document permissions",
@@ -734,7 +693,7 @@ Both must be authorized for the prefix's full data and execution context, with c
       "A principal-plus-salt match, followed by reuse of the cached ACL revision"
     ],
     "answer": "A trusted reader-group grant, followed by compatible-state and current access checks",
-    "explanation": "A salt partitions cache reuse. It neither authenticates its caller nor grants the prefix’s document permissions. Broader reuse requires a deliberately authorized compatible group and revocation behavior."
+    "explanation": "A salt partitions cache reuse. It neither authenticates its caller nor grants the prefix's document permissions. Broader reuse requires a deliberately authorized compatible group and revocation handling."
   },
   {
     "question": "Two GPUs share a 0.3-second step. The complete two-GPU node costs 6 dollars per hour. What is the compute cost of this step before allocating it between requests?",
@@ -745,10 +704,10 @@ Both must be authorized for the prefix's full data and execution context, with c
       "0.001800 dollars"
     ],
     "answer": "0.000500 dollars",
-    "explanation": "Use 0.3 node-seconds×6 dollars per node-hour÷3600=0.0005 dollars. Equivalent GPU accounting uses 0.6 GPU-seconds at 3 dollars per GPU-hour. Allocation between requests is a separate policy."
+    "explanation": "Use 0.3 node-seconds×6 dollars per node-hour÷3600=0.0005 dollars. Equivalent GPU accounting uses 0.6 GPU-seconds at 3 dollars per GPU-hour. Allocation between requests is a separate step."
   },
   {
-    "question": "During a handoff, an old worker stops submitting GPU work and reports actual token usage while a queued copy is still referencing the request's KV pages. Closing an attempt in this ledger settles its quota and returns its pages to the allocator. What should the recovery owner do?",
+    "question": "During a handoff, an old worker stops submitting GPU work and reports actual token usage while a queued copy is still referencing the request's KV pages. Closing an attempt in this quota store settles its quota and returns its pages to the allocator. What should the recovery owner do?",
     "options": [
       "Record the usage event, keep the quota reserved, and keep the pages assigned",
       "Settle the usage, return the unused quota, and keep the pages assigned",
@@ -756,7 +715,7 @@ Both must be authorized for the prefix's full data and execution context, with c
       "Settle the usage, return the unused quota, and release the pages"
     ],
     "answer": "Record the usage event, keep the quota reserved, and keep the pages assigned",
-    "explanation": "The usage record indicates how many tokens to charge. The queued copy still holds an active page reference, so the recovery coordinator records the event and leaves the entry open. Releasing pages while references remain active risks memory corruption. Once execution fully halts and references retire, the coordinator settles quota and releases both holds."
+    "explanation": "The usage record shows how many tokens to charge. The queued copy still holds an active page reference, so the recovery owner records the event and leaves the entry open. Releasing pages while references remain active risks memory corruption. Once execution halts and references retire, the owner settles quota and releases both holds."
   },
   {
     "question": "A stream emits its first token at 80 ms, three more together at 200 ms, and completes at 230 ms. What can be computed from those observations?",

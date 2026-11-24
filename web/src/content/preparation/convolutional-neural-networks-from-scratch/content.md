@@ -32,11 +32,11 @@
 }
 ---
 
-A bright hairline mark cuts diagonally across an equipment panel photo. Shift that mark two pixels right, and any capable inspector still recognizes the scratch. A model that memorizes absolute pixel coordinates breaks on that tiny shift because each coordinate feeds a separate learned weight.
+A bright hairline mark cuts diagonally across an equipment panel photo. Shift that mark two pixels right, and any human inspector still spots it instantly. A dense neural network that assigns a separate weight to every pixel coordinate breaks on that tiny shift, because the scratch just moved onto different input wires.
 
-The [previous lesson](/learn/neural-networks-from-scratch) fed named tabular features into dense layers. Their order had to match the weight columns. Images add a useful structure: nearby pixels form edges, corners, and textures. Flattening preserves every pixel value and can be reversed if you know the shape. A dense layer connects coordinates to weights; local neighborhoods and shared detectors must come from the architecture or be learned from examples.
+The [previous lesson](/learn/neural-networks-from-scratch) fed named tabular features into dense layers where every column had a fixed meaning. Images carry spatial structure: nearby pixels form edges, corners, and textures, and the same pattern can appear anywhere in the frame. Flattening a photo into a long vector forces a dense layer to relearn the same edge detector at every location from scratch.
 
-Convolutional neural networks tackle this challenge through two ideas: local receptive fields and weight sharing.[^lecun1998][^goodfellow2016] We trace one `4 x 4` panel crop through hand calculations, tensor dimensions, pooling layers, and a matching PyTorch forward pass to see how raw pixels turn into class scores.
+Convolutional neural networks bake that spatial structure directly into the architecture through two ideas: **local receptive fields** and **weight sharing**.[^lecun1998][^goodfellow2016] We will trace one `4 x 4` crop by hand through convolution, tensor shapes, max pooling, border padding, and a matching PyTorch forward pass.
 
 ## Make reuse pay for itself
 
@@ -67,24 +67,24 @@ parameter-count ratio: 86,017x
 ```
 <!-- leetllm: output:end -->
 
-The dense layer requires over 38.5 million parameters, whereas the convolutional layer uses 448. Although the parameter-count ratio is roughly 86,000x, notice that the two layers produce structurally different outputs: 256 global dense scores versus sixteen `222 x 222` local feature maps, so task accuracy and hardware throughput must be compared separately. Two architectural choices drive this drastic reduction: local connectivity restricts each output neuron to a tiny spatial neighborhood, and weight sharing reuses the identical filter bank across every spatial position.
+The dense layer requires over 38.5 million parameters, while the convolutional layer needs just 448. Two design choices drive that 86,000x reduction: **local connectivity** restricts each detector to a small $3 \times 3$ neighborhood, and **weight sharing** slides that single filter bank across every position on the grid.
 
-To isolate the contribution of weight sharing, consider a locally connected layer with sixteen `3 x 3` RGB filters and independent weights at every position. Without padding, the output grid has `222 x 222` positions. Giving each position its own private weights balloons the count to `222 * 222 * 448 = 22,079,232` parameters. Weight sharing compresses those 22 million parameters down to 448 without altering the output dimensions.
+Without weight sharing, giving each of the `222 x 222` output positions its own private 16-filter bank would still take `222 * 222 * 448 = 22,079,232` parameters. Sharing one filter bank across all positions collapses 22 million weights down to 448 while keeping the exact same `16 x 222 x 222` feature map output.
 
 <figure>
   <img src="illustrations/_generated/output_shape_parameter_savings_dark.png" alt="A tied 16-filter bank is reused across a 222 by 222 field of local output positions, for 448 total parameters. Giving every position its own bank uses 22,079,232 parameters for the same output shape. A dense layer over a flattened 224 by 224 RGB crop uses 38,535,424 parameters and produces 256 scores." />
   <figcaption>One 16-filter bank serves all 222 × 222 output sites with 448 parameters. Independent banks keep that local output shape and use 22,079,232 parameters. A dense layer over the flattened RGB crop uses 38,535,424 parameters for 256 scores.</figcaption>
 </figure>
 
-Beyond parameter savings, weight sharing introduces a mathematical property called **<span data-glossary="translation-equivariance">translation equivariance</span>**. Formally, an operation $f$ is equivariant to translation operator $T_{\Delta}$ when shifting the input produces an identically shifted feature map:
+Beyond saving memory, weight sharing gives convolution **<span data-glossary="translation-equivariance">translation equivariance</span>**. An operation $f$ is equivariant to a spatial shift $T_{\Delta}$ when shifting the input shifts the feature map by the exact same amount:
 
 $$
 f(T_{\Delta}(x)) = T_{\Delta}(f(x))
 $$
 
-For stride-one convolution away from boundary effects, shifting a pattern three pixels right shifts its response three pixels right. The same detector is reused at each position. On a finite crop, padding and a pattern entering or leaving the image can break that exact equality. With stride greater than one, arbitrary pixel shifts also change alignment with the sampling grid.
+For stride-one convolution away from image borders, shifting a scratch three pixels right shifts its detector peak three pixels right. (Image boundaries and strides larger than one break exact equality because patterns cross the border or fall out of phase with the sampling grid.)
 
-Equivariance differs from **translation invariance**, where $g(T_{\Delta}(x)) = g(x)$ produces an unchanged output. Local pooling can provide some shift tolerance. A classification head is invariant only when its features and pooling preserve the relevant shifts. Global spatial averaging is unchanged by rearranging feature-map values; boundaries and downsampling can make a translated finite image produce different features.
+> **Key insight:** **Translation equivariance** ($f(T_{\Delta}(x)) = T_{\Delta}(f(x))$) means the feature map moves with the object; **translation invariance** ($g(T_{\Delta}(x)) = g(x)$) means the final prediction stays unchanged when the object moves. Convolutions provide equivariance; pooling and global averaging build invariance on top.
 
 ## Let one detector find one pattern
 
@@ -211,7 +211,7 @@ strongest response: (1, 1)
   <figcaption>The highlighted upper-left 3 × 3 window produces 0.852 from its three row sums. Reusing the kernel at all four valid offsets fills the 2 × 2 feature map; the strongest response, 0.874, lands at the bottom right.</figcaption>
 </figure>
 
-Mathematical convolution flips the kernel horizontally and vertically before computing these sliding sums. PyTorch uses cross-correlation, with no flip.[^goodfellow2016] [^pytorchConv2d2026] With freely learned filters, either kernel orientation can be absorbed into the learned parameters, so both conventions represent the same operations. For a fixed or imported asymmetric kernel, the orientation changes its responses. Our vertically symmetric kernel happens to give the same result either way. That trace used one grayscale channel and windows that fit inside the crop. What happens to the output shape when the photo has color, or when the kernel has to see the border?
+Strict mathematical convolution flips the kernel horizontally and vertically before sliding, whereas PyTorch's `nn.Conv2d` computes cross-correlation without flipping.[^goodfellow2016][^pytorchConv2d2026] When weights are learned from data, the network simply learns the flipped or unflipped orientation directly (watch out only when importing a fixed asymmetric filter). Now extend this single grayscale channel to color images, strides, and border padding.
 
 ## Shapes, channels, and padding modes
 
@@ -291,16 +291,16 @@ parameters including biases: 448
 ```
 <!-- leetllm: output:end -->
 
-For a PyTorch batch with dimensions ordered NCHW (`batch, channels, height, width`), $F$ filters map $(N, C_{\text{in}}, H_{\text{in}}, W_{\text{in}})$ to $(N, F, H_{\text{out}}, W_{\text{out}})$. Input and output channel counts can differ. Grouped convolution changes connectivity: each filter sees $C_{\text{in}}/G$ channels, and both input and output counts must be divisible by the group count $G$.[^pytorchConv2d2026] NCHW describes axis order here, not a required physical memory layout.
+For a PyTorch batch ordered **NCHW** (`batch, channels, height, width`), $F$ filters map $(N, C_{\text{in}}, H_{\text{in}}, W_{\text{in}})$ to $(N, F, H_{\text{out}}, W_{\text{out}})$. In a grouped convolution with $G$ groups, each filter reads only $C_{\text{in}}/G$ input channels (both $C_{\text{in}}$ and $F$ must be divisible by $G$), cutting parameter count by a factor of $G$.[^pytorchConv2d2026]
 
 ## Receptive fields and channel expansion
 
-An activation in the first feature map sees a small $3 \times 3$ input window. Stacking a second $3 \times 3$ convolution layer lets each second-layer activation view a $3 \times 3$ patch of the first feature map, which in turn depends on a $5 \times 5$ region of the original image. That input footprint influencing a single activation is its **<span data-glossary="receptive-field">receptive field</span>**, and tracking it across stacked layers requires two state variables:[^araujo2019ReceptiveFields]
+An activation in the first feature map sees a $3 \times 3$ input patch. Stacking a second $3 \times 3$ convolution lets each second-layer activation see a $3 \times 3$ window of the first map, which reaches a $5 \times 5$ region of the raw image. That input footprint is the unit's **<span data-glossary="receptive-field">receptive field</span>**, tracked across layers with two numbers:[^araujo2019ReceptiveFields]
 
-1. `field`: the side length of the receptive field in raw input pixel units.
-2. `jump`: the distance between adjacent activation centers in raw input pixel units.
+1. `field`: the side length of the receptive field in raw input pixels.
+2. `jump`: the spacing between adjacent activation centers in raw input pixels.
 
-For a layer with kernel size $K$, stride $S$, and dilation $D$, its effective kernel span is $D(K - 1) + 1$:
+For a layer with kernel size $K$, stride $S$, and dilation $D$:
 
 $$
 \text{field}_{\text{new}} = \text{field} + D(K - 1) \cdot \text{jump},
@@ -308,7 +308,7 @@ $$
 \text{jump}_{\text{new}} = \text{jump} \cdot S
 $$
 
-All layers in this trace have dilation one. `field` describes the theoretical footprint. Learned weights, activations, padding, and input determine each pixel's actual contribution; some pixels can have zero local gradient:
+Tracing a four-layer stack at dilation $D = 1$ shows how stride-two pooling accelerates context growth:
 
 <!-- leetllm: test, output=show -->
 ```python title="receptive-field-trace.py"
@@ -346,10 +346,10 @@ Notice how pooling accelerates receptive field growth: a stride of 2 doubles the
 
 Downsampling feature maps reduces the number of spatial positions processed by later layers while summarizing evidence over a larger spatial neighborhood. Because pooling operates directly on activations with a fixed reduction rule rather than learned parameters, it shrinks spatial dimensions without increasing weight count, though every downsampling step discards fine localization detail. Two pooling mechanisms cover most convolutional architectures:
 
-1. **Max pooling:** Selects the maximum value within each window. It acts as a feature detector: if a crack feature fires strongly anywhere in a $2 \times 2$ window, max pooling preserves that peak response, offering localized translation tolerance.
-2. **Average pooling:** Computes the arithmetic mean within each window. Feature-map responses may represent learned patterns, including background intensity. A single large response contributes less to the mean than to the maximum.
+1. **Max pooling:** Keeps the peak value in each window. If a crack detector fires strongly anywhere in a $2 \times 2$ cell, max pooling preserves that peak and adds local shift tolerance.
+2. **Average pooling:** Takes the arithmetic mean of each window, diluting a sharp single-pixel spike across its neighbors.
 
-**Global Average Pooling (GAP)** averages the spatial values separately for each channel, giving one value per channel and example. Starting with $(N, C, H, W)$, the result can retain shape $(N, C, 1, 1)$ or be flattened to $(N, C)$. A following $Q$-class linear head needs $CQ + Q$ parameters instead of $CHWQ + Q$. This saves parameters when $HW > 1$ and removes spatial information from the head; measure the effect on held-out accuracy.
+**Global Average Pooling (GAP)** averages each channel across its entire spatial grid, collapsing $(N, C, H, W)$ to $(N, C)$. A $Q$-class linear head then needs only $CQ + Q$ parameters instead of $CHWQ + Q$, trading away spatial location in exchange for a dramatically smaller head.
 
 Evaluate standard $2 \times 2$ max pooling with stride 2 over this $4 \times 4$ response grid:
 
@@ -394,8 +394,8 @@ winner coordinates: [(1, 1), (1, 2), (2, 1), (2, 2)]
 
 The output keeps `0.91`, `0.44`, `0.21`, and `0.77`, picking one winning peak from each `2 x 2` quadrant at zero-based coordinates `(1, 1)`, `(1, 2)`, `(2, 1)`, and `(2, 2)`. Tracking those exact winner positions during the forward pass determines where error signals flow on the backward pass, because non-winning cells did not affect the maximum in that neighborhood. As a result, error gradients $\delta = \frac{\partial \mathcal{L}}{\partial y}$ split along different rules for max and average pooling:
 
-- In **max pooling**, the selected input activation receives the window's gradient: $\frac{\partial \mathcal{L}}{\partial x_{\text{winner}}} = \delta$. Other cells receive zero from that window. These aren't necessarily raw pixels. Ties require a backward convention; our NumPy example selects the first maximum in flattened order.
-- In **average pooling** over an unpadded $K \times K$ window, each cell receives $\delta/K^2$ from that window. Backpropagation computes gradients, not parameter updates. If pooling windows overlap, contributions to a shared cell add.
+- In **max pooling**, only the winning activation receives the window's incoming gradient: $\frac{\partial \mathcal{L}}{\partial x_{\text{winner}}} = \delta$. All non-winning cells in that window get zero.
+- In **average pooling** over an unpadded $K \times K$ window, every cell receives $\delta / K^2$. When windows overlap, a cell accumulates the sum of gradients from every window that covers it.
 
 ```checkpoint
 For the four pooled values above, suppose the incoming gradients are [[2.0, -1.0], [0.5, 3.0]]. Which entries of the 4 by 4 input-gradient map are nonzero?
@@ -506,11 +506,13 @@ reflect max absolute response: 0.0
 ```
 <!-- leetllm: output:end -->
 
-Constant zero padding yields an artificial response of `1.8` on an untextured, uniform surface. Reflection padding outputs `0.0`. When edge artifacts appear near image borders, evaluate padding modes and keep training and inference configurations synchronized.
+Constant zero padding triggers an artificial edge response of `1.8` on a completely uniform surface, while reflection padding stays at `0.0`.
+
+> **Common mistake:** Ignoring border padding when small defects can appear near the frame edge. Valid padding starves corner pixels of window visits (1 vs. 9 for a $3\times 3$ kernel), while zero padding injects an artificial brightness cliff around every image border.
 
 ## Build it: an inspectable forward pass
 
-Now trace the unpadded `4 x 4` crop through one end-to-end forward pass: convolution, ReLU activation, max pooling, and a two-class linear head. Because the weights below are hand-chosen, the resulting logits demonstrate forward-pass arithmetic rather than trained defect-detection accuracy. Notice also why the ReLU step matters when stacking layers: linear convolutions without intermediate nonlinearities collapse mathematically into a single affine transformation, whereas finite image boundaries and strides prevent the composed operator from reducing neatly to one small shared kernel.
+Put the pieces together on our unpadded `4 x 4` crop: convolution, ReLU, $2 \times 2$ max pooling, and a two-class linear head. Without ReLU between layers, stacked linear convolutions collapse into a single affine map; ReLU lets deeper layers compose nonlinear features.
 
 ```mermaid
 flowchart TB
@@ -603,15 +605,15 @@ matches NumPy: True
 ```
 <!-- leetllm: output:end -->
 
-The float32 PyTorch calculation matches NumPy's float64 baseline within `1e-6`, though different reduction orders in optimized GPU or CPU kernels can still introduce tiny floating-point rounding differences. LeNet-5 and AlexNet established that deep stacks of learned convolutions scale from handwritten digits to million-image classification, naturally tempting engineers to stack even deeper layers.[^lecun1998] [^krizhevsky2012] Yet adding depth beyond a few dozen plain layers surfaced an unexpected failure: deeper plain models suffered higher *training* error than shallower counterparts, known as the **degradation problem**. The ResNet authors showed that this slowdown persisted even with batch normalization and healthy backward gradient norms, pointing to an optimization bottleneck rather than overfitting or simple vanishing gradients.[^he2015]
+The float32 PyTorch result matches our hand-written NumPy pass to `1e-6`. Once LeNet-5 and AlexNet proved convolutional stacks could scale to millions of images,[^lecun1998][^krizhevsky2012] researchers tried stacking dozens of plain layers and hit a surprise: deeper plain networks had *higher training error* than shallower ones. This **degradation problem** persisted even with batch normalization and healthy gradient norms, pointing to an optimization barrier rather than overfitting.[^he2015]
 
-He et al.'s **ResNet** makes the learned branch represent a residual, $\mathcal{F}(\mathbf{x})$, which is added to the original input when their shapes match.[^he2015] An identity shortcut computes:
+He et al.'s **ResNet** broke through that barrier by letting each block learn a residual correction $\mathcal{F}(\mathbf{x})$ added directly to its input:[^he2015]
 
 $$
 \mathbf{y} = \mathcal{F}(\mathbf{x}) + \mathbf{x}
 $$
 
-The basic block below applies ReLU after this elementwise sum just as the original ResNet formulation specifies, requiring a projection shortcut whenever spatial size or channel count changes between stages. Inside each residual branch, `BatchNorm2d` normalizes every channel using batch and spatial statistics and maintains running averages during training for reuse at evaluation time.[^pytorchBatchNorm2d2026] Here we construct the block in training mode to check tensor shape preservation; measuring panel defect accuracy requires held-out evaluation data:
+Inside each residual branch, `BatchNorm2d` normalizes every channel using batch and spatial statistics while tracking running averages for inference, and a final ReLU activates the sum (changing spatial size or channel width requires a projection shortcut).[^pytorchBatchNorm2d2026] Build a standard residual block in PyTorch and verify that the shortcut preserves tensor geometry:
 
 <!-- leetllm: test, deps=pytorch, output=show -->
 ```python title="residual-block-pytorch.py"
@@ -656,7 +658,7 @@ $$
 \frac{\partial \mathcal{L}}{\partial \mathbf{x}} = \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \left( \frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \mathbf{I} \right)
 $$
 
-For the residual sum, the identity term provides a direct additive gradient path. If the branch Jacobian is small, this path can help avoid repeatedly shrinking gradients through that branch. A branch Jacobian of $-\mathbf{I}$ cancels the identity term exactly, so total gradient size depends on both paths. The block's ReLU after addition introduces another gate, so the displayed derivative is for the sum before that ReLU. The original paper demonstrates successful training of residual networks with 50, 101, and 152 layers.[^he2015]
+> **Key insight:** The identity term $\mathbf{I}$ in $\frac{\partial \mathcal{L}}{\partial \mathbf{x}} = \frac{\partial \mathcal{L}}{\partial \mathbf{y}} \left(\frac{\partial \mathcal{F}}{\partial \mathbf{x}} + \mathbf{I}\right)$ creates a direct additive gradient highway across dozens or hundreds of layers. Even when $\frac{\partial \mathcal{F}}{\partial \mathbf{x}}$ shrinks, gradients still flow straight back through $\mathbf{I}$ (unless $\frac{\partial \mathcal{F}}{\partial \mathbf{x}} = -\mathbf{I}$ or a post-addition ReLU zeroes out a negative sum).[^he2015]
 
 ```checkpoint
 If an identity shortcut exists, can the total input gradient still be zero?
@@ -664,14 +666,12 @@ If an identity shortcut exists, can the total input gradient still be zero?
 Yes. For the residual sum, a branch derivative of -I makes I + (-I) = 0. A zero incoming gradient or an inactive ReLU after the sum can also give zero. The shortcut adds a gradient path, while the full gradient still depends on path interactions and activation state.
 ```
 
-A different connection pattern powers **Vision Transformers (ViT)**.[^dosovitskiy2020] Instead of sliding small local filters, ViT slices an image into non-overlapping patches (typically $16 \times 16$ pixels). Linearly projecting each flattened patch into an embedding vector of dimension $D$ is mathematically equivalent to a standard 2D convolution with `kernel_size=16`, `stride=16`, and `out_channels=D`.
+**Vision Transformers (ViT)** take a contrasting approach.[^dosovitskiy2020] ViT splits an image into non-overlapping patches (commonly $16 \times 16$ pixels) and projects each flattened patch into a $D$-dimensional embedding, an operation mathematically identical to a single `Conv2d(kernel_size=16, stride=16, out_channels=D)`. After that patch stem, the two families diverge:
 
-The architectural contrast lies in how subsequent layers mix information:
+- **CNNs** enforce local neighborhoods and shared spatial filters throughout the stack, a strong **inductive bias** that learns well from modest datasets.
+- **Vision Transformers** rely on positional embeddings and global self-attention so any two patches can interact in layer one, trading built-in locality for global flexibility that shines with large-scale pretraining or strong distillation recipes like DeiT.[^dosovitskiy2020][^touvron2021DeiT]
 
-- **Convolutional networks** share local filters across space, encouraging a detector learned in one location to be useful elsewhere. This **inductive bias**, an architectural assumption about useful functions, can help with limited labeled data. Strides, boundaries, and later heads still affect shift behavior.
-- **The original Vision Transformer** retains spatial structure through patch extraction and positional embeddings, while its self-attention can combine information from any pair of patches in a layer. It has less built-in image locality than a CNN; the original paper found large-scale pretraining useful for its comparisons.[^dosovitskiy2020]
-
-Data efficiency and model rankings depend on task and training recipe. DeiT showed competitive image transformers trained on ImageNet without external training images, using a stronger training recipe and teacher distillation.[^touvron2021DeiT] ConvNeXt modernized convolutional design and competed with the Transformers studied in its experiments.[^liu2022convnext] For an inspection task, compare suitable pretrained backbones on held-out panel photos, including tiny defects and image boundaries. Account for inference cost as well as accuracy. A score traces back to a kernel window, a pooling winner, and a border the padding invented. This chapter uses hand-chosen weights to trace predictions; training would update them using prediction error.
+Modernized convolutional architectures such as ConvNeXt close much of the gap with Vision Transformers,[^liu2022convnext] so both families remain competitive backbones. Every CNN prediction still comes down to the same chain you just traced: a shared local kernel, a saved pooling winner, and the padding choices at the border.
 
 <!-- leetllm: mastery:start -->
 ## Change the crop, compute the response

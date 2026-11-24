@@ -9,14 +9,14 @@
   "order": 10,
   "coverImage": "illustrations/_generated/app_flow_dark.png",
   "companies": ["OpenAI", "Anthropic", "Google", "Microsoft", "Amazon"],
-  "shortDescription": "Build a useful ticket classifier one layer at a time: train a model, serve predictions, add a browser, handle uncertainty, and save results. Then extend it with streaming and model fallback.",
+  "shortDescription": "Build a message classifier one layer at a time: train a model, serve predictions over HTTP, add a browser form, handle uncertainty, and stream an LLM fallback.",
   "keyConceptsTested": [
     "Text features, learned weights, and model predictions",
     "Building a prediction API and browser interface incrementally",
     "Confidence thresholds and accuracy-coverage tradeoffs",
     "FastAPI request validation and structured LLM fallback parsing",
-    "SQLite running-to-terminal trace state transitions and recovery",
-    "Model accuracy-coverage evaluation versus HTTP fault-injection tests",
+    "Persisting request traces in SQLite for reconnect recovery",
+    "Model accuracy-coverage evaluation versus HTTP error-handling tests",
     "Safe error reporting and disconnect recovery in streaming frontends"
   ]
 }
@@ -204,7 +204,7 @@ The denominator sums over the $K=4$ categories. We use the largest probability, 
 
 Evaluate several thresholds on these fourteen labeled tickets. They were held out from training and include two messages that mix topics. The program also prints macro-F1, which averages a precision-and-recall score across categories; we will study that metric in the classification lessons.
 
-<!-- leetllm: test, deps=numpy,scikit-learn,fastapi,pydantic,httpx, id=triage-train, output=show, output_title="Model metrics and confidence gate curve" -->
+<!-- leetllm: test, deps=numpy,scikit-learn,fastapi,pydantic,httpx, id=triage-train, output=show, output_title="Model metrics and confidence threshold curve" -->
 ```python title="evaluate-local-classifier.py"
 import sys
 from pathlib import Path
@@ -241,7 +241,7 @@ print("sample:", sample["category"], "conf:", sample["confidence"], "features:",
 ```
 
 <!-- leetllm: output:start -->
-```text title="Model metrics and confidence gate curve" output compact
+```text title="Model metrics and confidence threshold curve" output compact
 overall accuracy: 0.929 macro_f1: 0.929
 tau=0.25 coverage=1.000 sel_acc=0.929
 tau=0.35 coverage=0.857 sel_acc=1.000
@@ -377,54 +377,38 @@ rejected candidate
 
 When a model response takes time, the browser can show useful progress instead of waiting for one final JSON object. **Server-sent events**, or SSE, represent a stream of named events, each carrying a data payload.[^whatwgSse2026] Our `POST /v1/triage/stream` endpoint first sends the local probabilities, then explanation chunks, and finally a completion or error event. The browser uses `fetch` to read this response as it arrives.
 
-Longer requests also make saved state more useful. The advanced server inserts a `running` row before model work begins and gives its ID to the browser. When processing finishes, it updates the row to `completed` or `failed`. If the browser disconnects, `/v1/traces/{trace_id}` can tell it what happened without asking the model to run again.
-
-The update below matches only a row still at `running`, version 1. A completed row is version 2, so a late worker cannot overwrite it. This is the database equivalent of crossing a task off a shared list once:
-
-```sql title="Conditional SQLite terminal transition"
-UPDATE traces
-SET status = ?, version = 2, route = ?, category = ?, confidence = ?,
-    probabilities_json = ?, top_features_json = ?, rationale = ?,
-    model_version = ?, latency_ms = ?, error_code = ?
-WHERE trace_id = ? AND status = 'running' AND version = 1;
-```
+Longer requests also make saved state more useful. The advanced server writes a `running` row to SQLite before model work begins and sends its `trace_id` to the browser in the first event. When processing finishes, it updates that row to `completed` or `failed`. If the browser loses its connection mid-stream, `GET /v1/traces/{trace_id}` lets it check the final saved result without triggering a second model call.[^pythonSqlite2026]
 
 <figure>
   <img src="illustrations/_generated/streaming_lifecycle_seq_dark.png" alt="Time moves down three lanes: browser, server, and SQLite. The server saves a running row before sending local_signal and token events. It saves the completed result before sending done to the browser." />
-  <figcaption>The successful request has two important ordering rules: save <code>running</code> before streaming, and save <code>completed</code> before sending <code>done</code>. A broken connection can interrupt the browser's view while the database still records the outcome.</figcaption>
+  <figcaption>The streaming lifecycle follows two ordering rules: save <code>running</code> before streaming begins, and save <code>completed</code> before sending <code>done</code>. If the connection drops, the database still holds the outcome.</figcaption>
 </figure>
 
-The browser UI in [index.html](assets/index.html) reads the HTTP stream chunk by chunk with `ReadableStream`, parses SSE `event:` and `data:` lines as packets arrive, and renders provisional class probabilities immediately upon receiving `local_signal`. To prevent cross-site scripting when untrusted ticket snippets or rationale text are displayed back to operators, every field is inserted via DOM `textContent` rather than raw HTML interpolation. Explicit UI state banners distinguish provisional streaming frames, committed terminal traces, server error codes, and mid-stream disconnects:
+The browser UI in [index.html](assets/index.html) reads the HTTP stream chunk by chunk with `ReadableStream`, parses SSE `event:` and `data:` lines as packets arrive, and renders provisional class probabilities immediately upon receiving `local_signal`. Every field is written with DOM `textContent` rather than raw HTML so untrusted user text cannot inject markup.
 
-| UI state | Stream or HTTP event | What the browser learns |
+| UI state | Stream or HTTP event | What the browser knows |
 |---|---|---|
 | Idle | Ready | No request submitted yet |
 | Streaming | `local_signal` and `token` frames arrived | Trace row exists (`running` or `completed`), confidence bars are provisional until `done` |
-| Completed | `event: done` with `status == "completed"` | SQLite committed `completed` (`v2`) under displayed `route` and `trace_id` |
-| Model failure | `event: error` with sanitized `error_code` | Upstream timeout or bad output recorded as `failed`; no raw upstream text leaked |
+| Completed | `event: done` with `status == "completed"` | SQLite saved `completed` under the displayed `route` and `trace_id` |
+| Model failure | `event: error` with sanitized `error_code` | Upstream timeout or bad output saved as `failed`; no raw upstream text leaked |
 | Validation error (`422`) | Rejected by Pydantic before stream starts | No model call ran and no SQLite trace was written |
-| Storage error (`503`) | Initial insert failed or terminal commit blocked | Caller warned whether upstream model work may already have run |
 | Connection lost mid-stream | Stream closed without `done` or `error` | Server outcome unknown; user can click **Verify Saved Trace** (`GET /v1/traces/{id}`) |
 
 ### Check the complete request and its failure paths
 
-Test a clear message through the local path and an uncertain message through the fallback path. `StubLLM` below is a test adapter: it supplies a chosen response so we can check the server's routing and saved state repeatedly. The local classifier, HTTP handlers, database, and event parsing all execute. Evaluate an actual hosted model separately with labeled inputs when connecting its adapter.
-
-<details>
-<summary>Run the streaming and recovery checks</summary>
+Test both branches end to end: a clear message that finishes locally with zero LLM calls, and an ambiguous message that streams a fallback explanation and saves a recoverable trace. `StubLLM` supplies deterministic responses so the HTTP handlers, SSE parser, and SQLite persistence run offline in milliseconds.
 
 <!-- leetllm: test, continue=triage-validation, id=triage-http, output=show, output_title="Live HTTP, SQLite, and SSE stream tests" -->
 ```python title="test-http-and-sse.py"
 import json
-import sqlite3
-from contextlib import closing
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from fastapi.testclient import TestClient
 from triage_app import create_app
 
 class StubLLM:
-    name = "stub-llm@2026"
+    name = "stub-llm"
     def __init__(self, payload=None, error=None):
         self.payload = payload or {
             "category": "auth_access",
@@ -485,10 +469,10 @@ recovered trace: completed llm_fallback auth_access
 ```
 <!-- leetllm: output:end -->
 
-Now make the fallback time out, return an invalid category, and raise an exception. Each case should produce a useful error code without exposing the message inside the exception. Finally, stop SQLite writes before the initial insert and before the final update. The first failure prevents model work; the second happens after the model has run, leaving the earlier `running` row available for inspection.[^fastapiErrors2026]
+Next, verify how the server reacts when the fallback fails: a timeout, an invalid category, or an unexpected runtime error. Each failure should return a clean, stable `error_code` without leaking raw exception text or secret prompt contents back to the browser.[^fastapiErrors2026]
 
-<!-- leetllm: test, continue=triage-http, id=triage-faults, output=show, output_title="Error scrubbing and database fault isolation" -->
-```python title="test-fault-isolation.py"
+<!-- leetllm: test, continue=triage-http, id=triage-faults, output=show, output_title="Safe error handling on fallback failures" -->
+```python title="test-error-handling.py"
 secret_ticket = "Secret prompt payload timeout billing mixed crash token xyz"
 
 for fault_llm, expected_code in [
@@ -504,52 +488,33 @@ for fault_llm, expected_code in [
 
 bad_req = client.post("/v1/triage", json={"ticket_text": " " * 20})
 assert bad_req.status_code == 422 and bad_req.json() == {"error_code": "invalid_request"}
-
-for op in ("INSERT", "UPDATE"):
-    with TemporaryDirectory() as tmp:
-        fault_db = Path(tmp) / "fault.sqlite3"
-        spy_llm = StubLLM()
-        fault_app = create_app(fault_db, fallback_model=spy_llm)
-        with closing(sqlite3.connect(fault_db)) as db, db:
-            db.execute(f"""
-                CREATE TRIGGER block_{op} BEFORE {op} ON traces
-                BEGIN SELECT RAISE(ABORT, 'disk full'); END;
-            """)
-        with TestClient(fault_app) as fault_client:
-            r = fault_client.post("/v1/triage", json={"ticket_text": secret_ticket})
-            assert r.status_code == 503 and r.json() == {"error_code": "storage_unavailable"}
-        print("db fault", op, "-> http:", r.status_code, "llm_calls:", spy_llm.calls)
+print("blank input -> http:", bad_req.status_code, bad_req.json()["error_code"])
 
 client.close()
 lab.cleanup()
 ```
 
 <!-- leetllm: output:start -->
-```text title="Error scrubbing and database fault isolation" output compact
+```text title="Safe error handling on fallback failures" output compact
 scrubbed fault: failed upstream_timeout
 scrubbed fault: failed invalid_model_output
 scrubbed fault: failed upstream_error
-db fault INSERT -> http: 503 llm_calls: 0
-db fault UPDATE -> http: 503 llm_calls: 1
+blank input -> http: 422 invalid_request
 ```
 <!-- leetllm: output:end -->
 
-</details>
-
-The model evaluation asks whether the predicted category is useful. The application checks ask whether a request reaches the model, produces a readable response, and leaves the expected saved result. Both matter because a useful model can sit behind a broken endpoint, and a reliable endpoint can serve poor predictions.
+> **Key insight:** Model evaluation and application testing answer different questions. Evaluation measures whether predictions are accurate; HTTP tests verify that requests reach the model, stream cleanly, save state, and fail safely without leaking internals.
 
 ## Take the local project further
 
-Several natural projects grow from this working application. Improve the training set and compare its routing curve, connect a hosted-model adapter for uncertain messages, or add a page where reviewers correct predictions. Use corrected examples in a later training set and measure whether the changes help on a separate evaluation set.
+Several practical extensions grow naturally from this working app: expand the training set and re-plot the coverage curve, plug in a real hosted LLM adapter for uncertain messages, or add a small review UI where humans correct labels that feed the next training run.
 
-When deploying for other people, add authentication and keep saved records scoped to their owner. Use persistent storage that survives replacement of the application container, configure deadlines for model calls, and limit request volume. These changes become easier to reason about now that you can follow one request through the complete app:
+When you deploy this app for real users, four operational upgrades turn the local prototype into a reliable service:
 
-1. **Authentication and authorization:** Require bearer or session authentication on `/v1/triage`, `/v1/triage/stream`, and `/v1/traces/{trace_id}`, and scope trace lookups to the owning organization so callers cannot read another tenant's records.
-2. **External LLM timeouts and budgets:** Configure explicit connect and read deadlines on the `httpx` or vendor SDK client inside `StructuredEscalationModel`, cap max output tokens, and track token spend per trace.
-3. **Managed persistent storage:** A local SQLite file on a disposable container filesystem vanishes on redeploy; migrate `TraceLedger` to managed PostgreSQL with connection pooling and a periodic job that sweeps abandoned `running` traces older than the request deadline.
-4. **Input retention and secret hygiene:** Rotate and protect the HMAC key via a secret manager, and keep raw error tracebacks in restricted server logs rather than browser responses.
-5. **Rate limiting and concurrency:** Protect `/v1/triage/stream` against connection exhaustion with per-tenant concurrency limits and bounded FastAPI worker pools.
-6. **Dataset versioning and continuous evaluation:** Pin `scikit-learn` and model artifact versions alongside prompt versions so accuracy and confidence-threshold curves remain reproducible across deployments.
+1. **Authentication and scoping:** Require login or API tokens on the prediction and trace endpoints so callers can read only their own saved traces.
+2. **Deadlines and spend caps:** Set explicit connect and read timeouts and a `max_tokens` cap on the fallback LLM client, and log token usage per request.
+3. **Managed database:** Replace the local SQLite file (which disappears when a container restarts) with managed PostgreSQL and clean up abandoned `running` rows past the request timeout.
+4. **Rate limits and versioned evaluation:** Cap concurrent streaming connections per user, and version your training data, classifier, and fallback prompt together so you can compare accuracy-coverage curves across releases.
 
 ```checkpoint
 Why run a fast local classifier ahead of an LLM fallback instead of sending every ticket straight to a hosted API?

@@ -3,7 +3,7 @@
   "id": "design-real-time-voice-ai-agent",
   "slug": "design-real-time-voice-ai-agent",
   "title": "Real-Time Voice AI Agent",
-  "shortDescription": "A caller inquires about incident 4219. Design a real-time voice agent that achieves sub-500ms time-to-first-audio, handles instant barge-in interruption, and reconciles confirmed playout.",
+  "shortDescription": "A caller asks about incident 4219. Design a real-time voice agent that achieves sub-500ms time-to-first-audio, handles instant barge-in interruption, and reconciles confirmed playout.",
   "difficulty": "Hard",
   "category": "System Design",
   "section": "System Design Capstones",
@@ -53,223 +53,133 @@
 }
 ---
 
-A real-time voice agent must listen, answer, and stop speaking without losing track of the conversation. A caller dials an incident response hotline and asks, "What is incident four two one nine?" Two seconds later, incoming audio frames still reach the server, but no answer has reached the speaker. To the caller, a slow model and a dropped call feel indistinguishable.
+A caller dials an operations hotline and asks, "What is incident four two one nine?" Two seconds pass in dead air. Audio packets are still flowing cleanly to the server, yet nothing plays from the speaker. To the caller, a slow model and a dropped line feel identical.
 
-The serving lessons explained time-to-first-token, caching, and streaming. Those clocks stop when a token leaves the server. The caller hears an answer only when playback starts on the device. The inspectable default is a cascade of speech-to-text, a language model, and text-to-speech. Native audio is the comparison once that path has a budget. The Python examples are CPU simulations of timing and state contracts, not recordings, speech-model calls, or measured service benchmarks.
-
-In a study of question-response sequences across ten languages, Stivers et al. found a mean response offset of 208ms, with language-specific means within about 250ms of it.[^stivers2009] Use that result as context when setting a latency objective. Target a 500ms speech-end-to-first-audio <span data-glossary="slo">SLO</span>, measured separately for each supported network and device group.
-
-```checkpoint
-What makes voice agents harder than text chat?
----
-Voice is continuous and time-sensitive. Silence, overlap, jitter, and interruptions are part of the interface, so the system must stream every stage and maintain state about what the user actually heard.
-```
+Text chat stops its clock when the first token leaves the inference server. A voice agent only wins when sound reaches the caller's ear, and it must stop talking the instant the caller cuts in without losing track of what was actually heard. Across ten languages, human question-response offsets average roughly 208 ms, with language-specific means clustered within about 250 ms of that mark.[^stivers2009] Aiming for a 500 ms speech-end-to-first-audio <span data-glossary="slo">service-level objective (SLO)</span> keeps conversation natural while giving the stack room for transcription, reasoning, synthesis, and network transport.
 
 ## The latency illusion
 
-If the agent takes too long to reply, the caller assumes the system missed the prompt and repeats it. That second attempt overlaps the late first answer, and the call unravels.
+When an agent hesitates for two seconds, the caller assumes the line missed the prompt and repeats the question. That second attempt collides with the late first reply, and the call unravels.
 
-Before picking a model, name the clock you need to win. If acoustic speech ends at `0ms` but endpointing commits at `300ms`, no decoder can recover those 300ms. If first audio is late after a quick commit, look at generation, synthesis, transport, and playout instead.
+Before tuning a single model weight, identify which clock is blowing the budget. If acoustic speech ends at 0 ms and endpointing waits 300 ms of silence before committing the turn, no GPU optimization can win back those 300 ms. Conversely, if turn commit fires at 60 ms yet audio plays at 900 ms, the bottleneck sits in generation, synthesis, transport, or playout buffering.
 
-A useful product target for this incident line is a measured <span data-glossary="time-to-first-audio">time-to-first-audio (TTFA)</span> budget around 500ms on the network and device slices you intend to support. Endpoint policy, tools, model choice, and jitter move the distribution, so ship from p50/p95, not from one lucky trace. Research systems such as AudioPaLM and SpeechGPT showed that speech-native models can collapse some of the speech-recognition, language-model, and speech-synthesis hops,[^rubenstein2023][^zhang2023a] but cascaded pipelines remain the right default when you need inspectable transcripts, vendor swaps, or deterministic tool gates. Some of those hops can begin before the caller finishes reciting the incident number, and the pipeline must explicitly coordinate them.
-
-```checkpoint
-Why might a team set a 500ms first-audio target instead of accepting a 2-second pause?
----
-Human turn-taking expects quick feedback. A measured first-audio target near 500ms can preserve conversational flow on supported paths; a two-second silent tail is much more likely to be perceived as a missed turn or failed call.
-```
+The <span data-glossary="time-to-first-audio">time-to-first-audio (TTFA)</span> target of 500 ms at p95 governs the cascaded pipeline below: streaming speech-to-text, a language model, and streaming text-to-speech. Speech-native models such as AudioPaLM and SpeechGPT demonstrated that a single multimodal architecture can collapse several of those hops.[^rubenstein2023][^zhang2023a] Even so, a cascaded pipeline remains the inspectable starting point whenever you need exact transcripts, modular vendor swaps, and strict tool checks.
 
 ## One packet through the incident-status agent
 
-Speech-to-text can start during the utterance. A factual answer and any tool with a side effect have to wait for a committed turn. The audio still passes through four core stages before the caller hears a response:
+Speech recognition can start while the caller is still talking, whereas factual answers and state-changing tools must wait for a committed turn. Every turn crosses four cooperating stages:
 
-1. **Listen (Voice Activity Detection):** The system detects when the caller starts speaking and when speech concludes. VAD gates speech boundaries; a separate noise-suppression stage reduces noise mixed with speech.
-2. **Transcribe (Speech-to-Text):** Audio is converted to text. This must happen *while* the caller is speaking (streaming), rather than waiting for acoustic silence.
-3. **Think (Large Language Model):** The model may prepare from stable partial transcripts, but the orchestrator must not speak a factual answer or execute a side effect until turn-commit policy accepts the input. Once committed, it streams the answer in speakable chunks.
-4. **Speak (Text-to-Speech):** The voice synthesis engine reads the first few words as soon as they arrive from the LLM, without waiting for the full sentence.
-
-Those overlaps must deliver first audio inside the measured latency budget while supporting seamless interruption. Set that budget before choosing components.
+1. **Listen (Voice Activity Detection):** Detect speech onset and pauses frame by frame so the client can mute immediately during interruptions; a separate noise-suppression filter cleans background noise mixed with speech.
+2. **Transcribe (Speech-to-Text):** Decode audio incrementally while the caller speaks instead of waiting for silence.
+3. **Think (Large Language Model):** Prefetch read-only context from stable partial transcripts if useful, then stream short speakable clauses once the turn commits.
+4. **Speak (Text-to-Speech):** Synthesize audio from the first complete clause rather than waiting for the full reply.
 
 ## The latency budget: a worked example
 
-The hotline requires full-duplex communication: the caller can interrupt at any time, the agent queries incident state, and first audio arrives within the target budget.
-
-### Core requirements for full-duplex voice
-- Maintain a full-duplex channel: the caller can interrupt while the agent is speaking.
-- Turn speech into a committed incident query, not a guess from the first partial.
-- Look up incident 4219 and summarize severity without blocking the first spoken clause.
-- Start speaking as soon as a stable clause exists.
-- Mute speaker playback the instant user speech is detected.
+A full-duplex hotline must let the caller interrupt mid-sentence, resolve incident 4219 without blocking the first spoken clause, and mute playback within 100 ms of new user speech.
 
 ### Example service objectives
-- Speech-end to first audio: Track p50 and <span data-glossary="p95-latency">p95</span> from the acoustic end of user speech to first played assistant audio. This is the user-visible end-to-end clock; an operations line might start with a p95 target of 500ms on declared network slices.
-- Commit to first audio: Track the internal clock from accepted turn commitment to first played audio. A route might start with a p95 target of 400ms. This excludes endpointing delay and makes post-commit LLM, TTS, and playout regressions easier to isolate.
-- Mute on <span data-glossary="barge-in">barge-in</span>: Track user-speech onset to muted playback; a product might set a p95 target of 100ms.
-- Concurrency: Size media and inference tiers from forecast active sessions and measured per-session work, rather than assuming `10k+`.
-- Audio path: Negotiate supported codecs and sample rates, then measure jitter, loss, and intelligibility by device class.
-- Availability: Choose an error budget for the call product and include media-connect, model, and tool failure modes.
+
+- **Speech-end to first audio:** Track p50 and <span data-glossary="p95-latency">p95</span> from the acoustic end of caller speech to the first played audio frame (target: 500 ms p95 on supported network slices).
+- **Commit to first audio:** Track p50 and p95 from accepted turn commitment to first played audio (target: 400 ms p95). Separating this internal clock isolates LLM, TTS, and playout regressions from endpointing changes.
+- **Mute on <span data-glossary="barge-in">barge-in</span>:** Track user-speech onset to muted local speaker playback (target: 100 ms p95).
+- **Concurrency and audio quality:** Size media and inference pools from measured per-session CPU/GPU load and codec negotiation, tracking jitter, packet loss, and call-connect errors inside one error budget.
 
 ### Latency budget breakdown
 
-Use 500ms speech-end TTFA and 400ms commit-to-audio as example targets, not laws of physics. A deployed route must report both distributions across p50, p95, and p99 <span data-glossary="tracing">traces</span> rather than a single happy-path budget.
+Measure every stage against one shared origin: acoustic speech end at `0 ms`. Because streaming <span data-glossary="speech-to-text">STT</span> runs continuously during speech and <span data-glossary="text-to-speech">TTS</span> starts as soon as the first speakable fragment leaves the LLM, overlapping stages beat their serial sum by 130 ms.
 
 <figure>
-  <img src="illustrations/_generated/latency_budget_dark.png" alt="A synthetic voice schedule starts at acoustic speech end. Turn commit spans 0–60 ms, STT finalization 0–100 ms, the LLM clause 60–240 ms, the TTS chunk 210–345 ms, and playout 345–380 ms. First audio is 380 ms from speech end and 320 ms from turn commit. STT was already streaming during speech." />
-  <figcaption>The user clock starts at acoustic speech end. The internal clock starts later at turn commit. Streaming work overlaps both, which is why first audio is 380ms rather than the 510ms serial sum.</figcaption>
+  <img src="illustrations/_generated/latency_budget_dark.png" alt="Voice pipeline timeline starting at acoustic speech end (0 ms): turn commit 0 to 60 ms, STT finalization 0 to 100 ms, LLM first clause 60 to 240 ms, TTS first chunk 210 to 345 ms, and playout buffer 345 to 380 ms. First audio lands at 380 ms from speech end and 320 ms from turn commit." />
+  <figcaption>The user clock begins at acoustic speech end (380 ms TTFA) while the internal clock begins at turn commit (320 ms). Stage overlap saves 130 ms compared with running the same durations serially (510 ms).</figcaption>
 </figure>
 
-Trace the ranges from one shared event: acoustic speech end at `0ms`. Streaming STT has already been consuming frames during the utterance, so only its finalization tail remains after speech ends. Read-only preparation may also be warm before commit. <span data-glossary="text-to-speech">TTS</span> starts only after an accepted turn yields a stable speakable clause.
+| Stage | Window from speech end | Role in the turn |
+| :--- | :--- | :--- |
+| **Streaming STT partials** | Before `0 ms` | Emits "What is incident" while the caller is still speaking |
+| **Turn commit** | `0–60 ms` | Semantic end-of-turn accepts the query without waiting 300 ms for pure silence |
+| **STT finalization tail** | `0–100 ms` | Locks the final transcript on already-streamed frames |
+| **LLM first clause** | `60–240 ms` | Streams tokens after commit; a speakable fragment opens at 210 ms |
+| **TTS first chunk** | `210–345 ms` | Begins synthesizing the first fragment while the clause finishes |
+| **Playout buffer** | `345–380 ms` | Jitter buffer smooths network <span data-glossary="variance">variance</span> before speaker playback |
 
-Keep the two clocks separate. Speech-end TTFA includes endpointing and commit delay. Commit-to-audio starts at the accepted boundary and measures the internal response path. Streaming <span data-glossary="speech-to-text">STT</span> begins during speech rather than waiting for either clock.
-
-Consider this representative schedule for a user query. At 60ms the endpoint policy accepts that the turn ended, while STT finalization completes by 100ms. The first clause acknowledges the inquiry without asserting facts about an incident whose status remains unresolved:
-
-| Stage | Position relative to acoustic speech end | What's happening |
-|-------|------------------------------------------|------------------|
-| **Streaming STT partials** | Begin during speech, often before `0ms` | Decoder emits "What is incident" while the caller is still talking |
-| **Turn commit** | `0-60ms` | Semantic end-of-turn accepts that the caller's query is complete rather than relying solely on a fixed silence threshold |
-| **STT finalization tail** | `0-100ms` | Final transcript catches up with audio already streamed during speech |
-| **First speakable LLM tokens / clause fragment** | `60-240ms` | Post-commit generation streams tokens; a speakable fragment can be ready before the full clause ends |
-| **First TTS chunk** | `210-345ms` | Synthesizer starts on the first speakable fragment (here at 210ms), while the clause may still finish at 240ms |
-| **Playout buffer** | `345-380ms` | Jitter buffer smooths network <span data-glossary="variance">variance</span> before the speaker |
-
-If the post-speech spans ran one after another, their durations would add to about 510ms. In practice:
-- STT begins decoding before the caller finishes saying "incident," preventing acoustic decoding cost from stacking after speech ends.
-- The orchestrator can pre-classify intent or start a cancellable read-only lookup from stable words; it can't commit an incident number, speak a result, or perform a side effect from an unstable transcript.
-- After turn commitment, TTS starts synthesizing a speakable acknowledgement such as "I'll check that," before the full clause is finished. This overlap lets the TTS window open at 210ms while the LLM clause window still ends at 240ms. Finding the incident remains a separate tool result.
-- The `0-60ms` commit window assumes semantic end-of-turn or an early-commit policy, not a fixed ~300ms silence threshold alone. Pure silence endpointing that waits ~300ms after speech end can't hit a 60ms commit; use the longer silence budget only when semantic EOT is unavailable or unreliable.
-
-This candidate trace plays first audio 380ms after acoustic speech end and 320ms after turn commit. Those numbers describe one path, not a <span data-glossary="rollout">rollout</span> decision. Ship only after measuring p50/p95 for both clocks alongside incorrect-commit rate, <span data-glossary="endpointing">endpointing</span> aggressiveness, model size, and network jitter.
+Notice the dependence on semantic <span data-glossary="endpointing">endpointing</span>: a fixed 300 ms silence rule pushes turn commit to 300 ms, making a 320 ms post-commit path land at 620 ms instead of 380 ms. Always track both clocks across p50, p95, and p99 <span data-glossary="tracing">traces</span> alongside false-cutoff rate.
 
 <!-- leetllm: test, output=show -->
 ```python title="accounting-for-overlapped-first-audio.py"
-import json
-
-# One synthetic schedule, in milliseconds after acoustic speech end.
-spans = {
+spans_ms = {
     "endpoint_commit": (0, 60),
     "stt_finalization": (0, 100),
     "llm_first_clause": (60, 240),
     "tts_first_chunk": (210, 345),
     "playout_buffer": (345, 380),
 }
-speech_end_ms = 0
-turn_commit_ms = spans["endpoint_commit"][1]
-first_audio_ms = spans["playout_buffer"][1]
-speech_end_target_ms = 500
-commit_target_ms = 400
 
-print(json.dumps({
-    "sequential_sum_ms": sum(end - start for start, end in spans.values()),
-    "speech_end_to_first_audio_ms": first_audio_ms - speech_end_ms,
-    "commit_to_first_audio_ms": first_audio_ms - turn_commit_ms,
-    "speech_end_target_ms": speech_end_target_ms,
-    "commit_target_ms": commit_target_ms,
-    "meets_speech_end_trace_target": first_audio_ms - speech_end_ms <= speech_end_target_ms,
-    "meets_commit_trace_target": first_audio_ms - turn_commit_ms <= commit_target_ms,
-    "ship_decision_requires_p95": True,
-}, indent=2))
+serial_sum = sum(end - start for start, end in spans_ms.values())
+turn_commit = spans_ms["endpoint_commit"][1]
+first_audio = spans_ms["playout_buffer"][1]
+
+print(f"serial_sum_ms:                {serial_sum}")
+print(f"speech_end_to_first_audio_ms: {first_audio} (target <= 500)")
+print(f"commit_to_first_audio_ms:     {first_audio - turn_commit} (target <= 400)")
+print(f"overlap_savings_ms:           {serial_sum - first_audio}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-{
-  "sequential_sum_ms": 510,
-  "speech_end_to_first_audio_ms": 380,
-  "commit_to_first_audio_ms": 320,
-  "speech_end_target_ms": 500,
-  "commit_target_ms": 400,
-  "meets_speech_end_trace_target": true,
-  "meets_commit_trace_target": true,
-  "ship_decision_requires_p95": true
-}
+serial_sum_ms:                510
+speech_end_to_first_audio_ms: 380 (target <= 500)
+commit_to_first_audio_ms:     320 (target <= 400)
+overlap_savings_ms:           130
 ```
 <!-- leetllm: output:end -->
 
-```checkpoint
-Why is the sequential latency sum misleading?
----
-Production voice pipelines overlap stages. STT starts during speech, reversible preparation can start from stable partials, and TTS can synthesize the first accepted clause before the full answer is done. Measure speech-end-to-audio for user experience and commit-to-audio for the internal response path.
-```
-
 ## How the pieces fit together
 
-The architecture usually separates three concerns: client-side capture and playback, a latency-sensitive media edge, and the inference pipeline. Picture a call where the LLM p95 stays flat but mobile callers begin hearing gaps. That points first to packet timing, echo, or playout state at the media edge, not to model execution. Decoupling transport from inference makes that diagnosis possible.
+Split the system into three layers with distinct failure modes: client capture and playback, a stateful media edge, and a stateless-per-turn inference tier. When mobile callers hear choppy audio while LLM p95 stays flat, that split immediately points to packet timing, echo, or jitter buffering at the media edge rather than GPU inference.
 
-In many deployments, a media gateway terminates <span data-glossary="webrtc">WebRTC (Web Real-Time Communication)</span> or SIP (Session Initiation Protocol), handles jitter buffers and routing, then forwards audio to inference over an internal low-latency link.[^perkins2021] A media gateway can serve a 1:1 assistant; multi-party rooms use an SFU (Selective Forwarding Unit) to selectively forward participant streams. Serious deployments also benefit from a dedicated ingress tier close to the user.
-
-Within inference, the voice pipeline orchestrates turn detection, STT or native-audio encoding, LLM reasoning, tool calls, and TTS or audio decoding. A conversation state manager sits alongside the pipeline, keeping track of dialogue turns, client playout offsets, and tool results so the model only commits to what the user heard.
+A media gateway terminates <span data-glossary="webrtc">WebRTC</span> (or SIP for telephony), manages jitter buffers and encryption, and streams decoded audio frames over a low-latency internal link to the inference orchestrator.[^perkins2021] Multi-party rooms add a Selective Forwarding Unit (SFU) to fan out streams. Alongside the hot path sit two fast side lanes: local voice-activity detection to mute playback immediately, and a confirmed-playout tracker that records only audio the client actually played.
 
 <figure>
-  <img src="illustrations/_generated/voice_agent_dark.png" alt="The voice hot path runs microphone, media edge, turn detection and STT, LLM and tools, then TTS and playout. A separate local-VAD lane mutes and cancels speech with a p95 target under 100 ms. A confirmed-playout lane stores client acknowledgments in the heard ledger for the next turn." />
-  <figcaption>Keep the speech path short. Mute-on-barge-in and confirmed-playout accounting run in side lanes so they don't add hops to every audio packet.</figcaption>
+  <img src="illustrations/_generated/voice_agent_dark.png" alt="Hot path running microphone, media edge, turn detection and STT, LLM and tools, then TTS and playout. Side lanes handle local VAD mute under 100 ms p95 and client-confirmed playout tracking for conversation history." />
+  <figcaption>Keep the audio hot path short. Barge-in muting and playout confirmation run in parallel control lanes so they add zero hops to normal media packets.</figcaption>
 </figure>
-
-The top row is the hot path. The bottom lanes are control planes: mute as soon as local VAD detects caller speech, then record only audio whose playout the client acknowledged. A healthy model can't repair a media path that has already missed its playout deadline.
-
-```checkpoint
-Why split media transport from inference orchestration?
----
-Audio transport handles jitter, packet loss, echo, routing, and playback timing. Inference handles STT, tools, LLM, and TTS. Their failure modes and scaling profiles differ.
-```
 
 ## Knowing when to listen: voice activity detection
 
-Voice Activity Detection (VAD) gives the system frame-level evidence that the user is speaking. During an incident-status query, that evidence can initiate capture and trigger instant muting, but it cannot determine whether the caller's thought is complete.
+Voice Activity Detection (VAD) classifies short audio frames (typically 10–30 ms) as speech or silence. Frame-level VAD is fast enough to trigger immediate speaker muting, yet it cannot tell whether a caller finished speaking.
 
-VAD isn't the same thing as turn detection. VAD estimates speech presence in audio windows. Turn detection (endpointing) decides when the user's *turn* has finished. A hybrid policy can combine silence duration, transcript stability, and a model's estimate of semantic completeness. That permits different waits for "incident four ..." and "thank you," rather than treating every pause alike.[^livekit2026turn] Local VAD can still provide the fast interruption signal.
+Suppose a caller recites "incident four ... two ... one ... nine" with brief pauses between digits. Pure silence VAD sees quiet frames after "four" and cuts the caller off mid-number. **Turn detection (endpointing)** solves this by combining silence duration, transcript stability, and a semantic end-of-turn model that waits longer after "incident four..." than after "thank you."[^livekit2026turn]
 
-Consider a caller saying, "incident four ... two ... one ... nine" with pauses between digits. Frame-level VAD may observe brief silence after four; a naive endpoint committing there dispatches an incomplete identifier downstream. Semantic endpointing holds the turn through those pauses, then commits once the request is semantically complete. The faster signal mutes playback, while the richer signal owns transcript and tool commitment.
-
-Client-side VAD can mute without a network round trip; withholding silence from upload is a separate capture policy. Server-side detection centralizes tuning and can use richer context. The state machine below processes 20ms frame speech probabilities; production VAD models such as Silero VAD enforce specific sample rates (8 kHz or 16 kHz) and frame sizes.[^silero2021]
+Production detectors such as Silero VAD operate on fixed sample rates (8 kHz or 16 kHz) and fixed frame sizes, retaining a short pre-roll buffer so the opening consonant of a word is never clipped.[^silero2021] The frame state machine below tracks contiguous 20 ms frames, preserves 40 ms of pre-roll on `speech_start`, and trims trailing silence on `speech_end`:
 
 <!-- leetllm: test, output=show -->
 ```python title="knowing-when-to-listen-voice-activity.py"
 from collections import deque
-from dataclasses import asdict, dataclass
-import json
+from dataclasses import dataclass
 
 @dataclass
 class VADEvent:
-    type: str
+    kind: str
     frame: int
-    audio_ms: int
+    retained_ms: int
 
 class VoiceActivityDetector:
-    """Detect speech boundaries from one probability per 20ms audio frame."""
-
-    def __init__(
-        self,
-        frame_ms: int = 20,
-        speech_threshold: float = 0.5,
-        silence_duration_ms: int = 60,
-        prefix_padding_ms: int = 40,
-    ):
-        if frame_ms <= 0 or silence_duration_ms <= 0 or prefix_padding_ms < 0:
-            raise ValueError("invalid frame, silence, or padding duration")
-        if not (0.0 <= speech_threshold <= 1.0):
-            raise ValueError("threshold must be finite and in [0, 1]")
+    def __init__(self, frame_ms: int = 20, threshold: float = 0.5,
+                 silence_ms: int = 60, pre_roll_ms: int = 40):
         self.frame_ms = frame_ms
-        self.speech_threshold = speech_threshold
-        self.silence_frames_required = (silence_duration_ms + frame_ms - 1) // frame_ms
-        self.pre_roll = deque(maxlen=(prefix_padding_ms + frame_ms - 1) // frame_ms)
-        self.next_frame = 0
+        self.threshold = threshold
+        self.silence_frames_req = (silence_ms + frame_ms - 1) // frame_ms
+        self.pre_roll: deque[int] = deque(maxlen=(pre_roll_ms + frame_ms - 1) // frame_ms)
         self.speech_frames: list[int] = []
         self.in_speech = False
         self.trailing_silence = 0
 
-    def process_frame(self, frame_id: int, probability: float) -> VADEvent | None:
-        """Return speech boundary events for one audio frame."""
-        if frame_id != self.next_frame:
-            raise ValueError("frames must be contiguous from zero")
-        if probability is True or probability is False or not (0.0 <= probability <= 1.0):
-            raise ValueError("probability must be finite and in [0, 1]")
-        self.next_frame += 1
-        if probability >= self.speech_threshold:
+    def process_frame(self, frame_id: int, prob: float) -> VADEvent | None:
+        if prob >= self.threshold:
             if not self.in_speech:
                 self.in_speech = True
-                self.speech_frames = list(self.pre_roll)
-                self.speech_frames.append(frame_id)
+                self.speech_frames = list(self.pre_roll) + [frame_id]
                 self.trailing_silence = 0
                 return VADEvent("speech_start", frame_id, len(self.speech_frames) * self.frame_ms)
             self.speech_frames.append(frame_id)
@@ -282,606 +192,300 @@ class VoiceActivityDetector:
 
         self.speech_frames.append(frame_id)
         self.trailing_silence += 1
-        if self.trailing_silence < self.silence_frames_required:
+        if self.trailing_silence < self.silence_frames_req:
             return None
 
-        utterance_frames = self.speech_frames[:-self.trailing_silence]
+        utterance = self.speech_frames[:-self.trailing_silence]
         self.in_speech = False
         self.speech_frames = []
         self.trailing_silence = 0
         self.pre_roll.clear()
-        self.pre_roll.extend(range(frame_id - self.silence_frames_required + 1, frame_id + 1))
-        return VADEvent("speech_end", frame_id, len(utterance_frames) * self.frame_ms)
+        self.pre_roll.extend(range(frame_id - self.silence_frames_req + 1, frame_id + 1))
+        return VADEvent("speech_end", frame_id, len(utterance) * self.frame_ms)
 
-probabilities = [0.04, 0.08, 0.66, 0.74, 0.69, 0.22, 0.15, 0.09]
-detector = VoiceActivityDetector()
-assert VoiceActivityDetector(silence_duration_ms=61).silence_frames_required == 4
-events = []
-
-for frame_id, probability in enumerate(probabilities):
-    event = detector.process_frame(frame_id, probability)
-    if event:
-        events.append(asdict(event))
-
-print(json.dumps(events, indent=2))
+probs = [0.04, 0.08, 0.66, 0.74, 0.69, 0.22, 0.15, 0.09]
+vad = VoiceActivityDetector(frame_ms=20, silence_ms=60, pre_roll_ms=40)
+for fid, p in enumerate(probs):
+    ev = vad.process_frame(fid, p)
+    if ev:
+        print(f"{ev.kind:12s} at frame {ev.frame}, retained={ev.retained_ms}ms")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "type": "speech_start",
-    "frame": 2,
-    "audio_ms": 60
-  },
-  {
-    "type": "speech_end",
-    "frame": 7,
-    "audio_ms": 100
-  }
-]
+speech_start at frame 2, retained=60ms
+speech_end   at frame 7, retained=100ms
 ```
 <!-- leetllm: output:end -->
 
-The demo uses 60ms of silence so its output fits in eight frames. `audio_ms` counts retained frames, including pre-roll; it isn't the amount of detected speech. A 61ms threshold needs four 20ms frames (80ms), so the code rounds up. It also rejects missing or reordered frames rather than silently shortening time. A live implementation needs a policy for gaps, maximum utterance length, and flushing when the stream closes.
-
-A phone support bot might experiment with 300ms, then tune false cutoffs against lag. Semantic endpointing can hold through a pause inside an incident number or commit earlier when the request appears complete. Measure both latency and cutoffs across pause-heavy speech, accents, noise, and supported languages.[^livekit2026turn]
+Notice two details: ceiling division ensures a 61 ms silence threshold requires four 20 ms frames (80 ms) rather than prematurely firing at 60 ms, and `retained_ms` includes the 40 ms pre-roll (frames 0–1) plus active speech (frames 2–4) while stripping trailing silence (frames 5–7). Live phone lines often start near 300 ms of silence fallback and add semantic endpointing to eliminate mid-number cutoffs.[^livekit2026turn]
 
 ### VAD deployment: client vs. server
 
-Choosing where to run VAD changes responsiveness, bandwidth, and operational control.
-
-| Feature | Client-Side VAD | Server-Side Detection |
+| Dimension | Client-side VAD | Server-side turn detection |
 | :--- | :--- | :--- |
-| **Barge-in reaction** | Can mute local playout without a network round trip | Includes transport delay before server action reaches playback |
-| **Bandwidth** | Can suppress silence if upload policy uses its output | Receives the configured upstream stream continuously |
-| **Operational control** | Requires testing across device/browser classes | Centralizes threshold and model tuning |
-| **Turn consistency** | Device signals may differ | Can apply one server-side commit policy |
-| **Data exposure** | Reduced only if capture/upload policy withholds silent frames | Depends on retained audio and server policy |
+| **Barge-in speed** | Mutes local speaker with zero network RTT | Delayed by uplink plus downlink transport |
+| **Bandwidth** | Can suppress silent frames before upload | Receives continuous upstream audio |
+| **Tuning consistency** | Varies across browser and mobile hardware | Single centralized threshold and semantic model |
+| **Best responsibility** | Immediate speaker mute and local capture | Authoritative turn commitment and tool dispatch |
 
-Many production systems use both: local VAD to mute playback without a network round trip, plus server-side turn detection to accept turn boundaries. A local false positive is an interruption defect; a server false positive can truncate a number or fire a tool. Log each event with its type and device class: speech onset and turn completion are different events, so their timestamp difference alone isn't a disagreement.
+Running both works best: local VAD mutes playback immediately on speech onset, while server-side endpointing combines acoustic silence with semantic completeness to commit the turn. Log speech onset and turn commit as distinct event types per device class when diagnosing false interruptions.
 
 <figure>
-  <img src="illustrations/_generated/vad_topology_dark.png" alt="Audio splits into local voice activity detection, which mutes playback without waiting for the network, and server endpointing, which commits a stable transcript boundary. A decision trace records speech onset and turn endpoint separately by device class." />
-  <figcaption>Local speech onset can mute playback; server turn completion permits commitment. Trace both decisions by event type and device, then compare equivalent boundaries when investigating a mismatch.</figcaption>
+  <img src="illustrations/_generated/vad_topology_dark.png" alt="Audio splits into local VAD for instant playback muting and server endpointing for committed turn transcripts, recording both signals separately by device class." />
+  <figcaption>Local VAD owns fast playback muting while server-side endpointing owns turn commitment. Log both events separately per device class to separate mute errors from premature turn cutoffs.</figcaption>
 </figure>
-
-```checkpoint
-Why run both local VAD and server-side turn detection?
----
-Local VAD can mute local playback quickly and can suppress silence before upload when configured to do so. Server-side detection (silence endpointing plus a semantic end-of-turn model) gives centralized boundaries and richer context for deciding when the turn is truly complete, beyond the moment audio goes quiet.
-```
 
 ### Acoustic echo cancellation (AEC)
 
-<span data-glossary="echo-cancellation">Acoustic echo cancellation (AEC)</span> prevents the agent from hearing itself. When the agent speaks and the user interrupts, the microphone picks up both the user's voice and the agent's own output playing from the speaker. Without AEC, the VAD would trigger on the agent's voice, creating an echo loop where the agent transcribes its own speech and responds to it.
+<span data-glossary="echo-cancellation">Acoustic echo cancellation (AEC)</span> stops the agent from hearing itself. On speakerphone or laptop speakers, the microphone picks up both the caller's voice and the agent's playback. Without working AEC, VAD mistakes the agent's own speech for a caller interruption, mutes playback, transcribes its own sentence, and loops.
 
-Modern browser capture stacks expose echo-cancellation constraints so applications can request microphone input with system or remote audio removed before it reaches VAD and STT.[^w3cMediaCapture] The browser or device owns that processing, and implementations vary. Treat the constraint as a request, then test the resulting audio path across speaker volume, microphone placement, rooms, and device classes.
-
-One common failure is deploying voice agents without AEC testing in real acoustic environments. Laptop speakers and microphones placed close together, as in mobile phones, create strong echo that untested AEC configurations may fail to suppress. The symptom is immediate: the agent interrupts itself.
-
-```checkpoint
-What happens if echo cancellation fails during agent playback?
----
-The microphone can capture the agent's own voice, VAD treats it as user speech, STT transcribes it, and the agent can interrupt or respond to itself.
-```
+Browser media APIs let applications request echo cancellation on capture tracks,[^w3cMediaCapture] yet actual suppression quality depends heavily on OS audio drivers, speaker volume, and room acoustics. Test AEC on real phones and laptops at high speaker volume rather than relying on headphones in a quiet office.
 
 ## From sound to text: speech-to-text
 
-Two primary approaches exist for real-time STT. Streaming STT allows the system to recognize "What is incident" before the caller finishes pronouncing the word. That early text is useful only if the orchestrator knows which actions are safe to reverse.
+Streaming recognition overlaps decoding with speech; batch recognition waits for the caller to stop talking.
 
 ### Streaming STT (recommended for latency)
 
-Streaming STT sends partial transcripts as audio arrives, allowing the LLM to pre-read the turn and start cancellable, read-only preparation before the utterance is complete. Provider SDKs differ, but the <span data-glossary="state-machine">state machine</span> must separate unstable interim text from committed text that may enter history, trigger tools, or reach TTS.
+Streaming STT emits incremental hypotheses while audio arrives. Those interim strings frequently revise earlier words, so the <span data-glossary="state-machine">state machine</span> must keep tentative partials separate from committed text.
+
+Safe actions split sharply across the commit line: an unstable partial like `"Close incident four two"` can trigger intent classification or a discardable read-only prefetch, whereas writing conversation history, speaking factual claims, or firing a side-effecting tool must wait for a boolean `committed is True`. Reject non-boolean flags such as the string `"false"`, which evaluates truthy in Python.
 
 <!-- leetllm: test, output=show -->
-```python title="streaming-stt-recommended-for-latency.py"
-from dataclasses import asdict, dataclass
-import json
-
-@dataclass
-class TranscriptEvent:
-    kind: str
-    text: str
-    stable_prefix: str
-
-def common_prefix(left: str, right: str) -> str:
+```python title="streaming-stt-and-commit-check.py"
+def common_word_prefix(a: str, b: str) -> str:
     shared = []
-    for left_word, right_word in zip(left.split(), right.split()):
-        if left_word != right_word:
+    for w1, w2 in zip(a.split(), b.split()):
+        if w1 != w2:
             break
-        shared.append(left_word)
+        shared.append(w1)
     return " ".join(shared)
 
-def emit_transcript_events(partials: list[tuple[str, bool]]) -> list[TranscriptEvent]:
-    events = []
-    previous_text = ""
-
-    for text, is_final in partials:
-        if is_final is not True and is_final is not False:
-            raise ValueError("is_final must be boolean")
-        stable_prefix = text if is_final else common_prefix(previous_text, text)
-
-        if is_final:
-            events.append(TranscriptEvent("final", text, stable_prefix))
-        else:
-            events.append(TranscriptEvent("interim", text, stable_prefix))
-        previous_text = text
-
-    return events
-
-partials = [
-    ("What is", False),
-    ("What is incident", False),
-    ("What is incident number four two", False),
-    ("What is incident number four two one nine?", True),
-]
-
-print(json.dumps([asdict(event) for event in emit_transcript_events(partials)], indent=2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-[
-  {
-    "kind": "interim",
-    "text": "What is",
-    "stable_prefix": ""
-  },
-  {
-    "kind": "interim",
-    "text": "What is incident",
-    "stable_prefix": "What is"
-  },
-  {
-    "kind": "interim",
-    "text": "What is incident number four two",
-    "stable_prefix": "What is incident"
-  },
-  {
-    "kind": "final",
-    "text": "What is incident number four two one nine?",
-    "stable_prefix": "What is incident number four two one nine?"
-  }
-]
-```
-<!-- leetllm: output:end -->
-
-The shared-prefix heuristic is intentionally conservative: it only exposes words repeated across two successive hypotheses. Even that prefix is tentative because a provider can revise earlier words later. Ask what should happen when the partial reads `Close incident four two one nine`: classify it and prefetch a read-only record, but don't write history, speak a result, or close anything. The commit boundary matters most when a partial transcript changes meaning. An incident lookup may be safe to prefetch and discard; closing an incident or promising mitigation status isn't.
-
-<!-- leetllm: test, output=show -->
-```python title="gating-work-on-transcript-commit.py"
-import json
-
-def permitted_actions(text: str, committed: bool) -> list[str]:
+def allowed_actions(text: str, committed: object) -> list[str]:
     if committed is not True and committed is not False:
-        raise ValueError("committed must be boolean")
+        raise ValueError("committed must be a boolean")
     actions = ["classify_intent"]
     if "incident" in text.lower():
         actions.append("prefetch_read_only_status")
     if committed:
         actions.extend(["write_history", "speak_response"])
         if "close" in text.lower():
-            actions.append("ask_for_close_confirmation")
+            actions.append("request_close_confirmation")
     return actions
 
-events = [
-    {"text": "Close incident four two one nine", "committed": False},
-    {"text": "Show incident four two one nine", "committed": True},
-    {"text": "Show incident four two one nine", "committed": "false"},
+partials = [
+    ("What is", False),
+    ("What is incident", False),
+    ("What is incident four two", False),
+    ("What is incident four two one nine?", True),
 ]
+prev = ""
+for text, is_final in partials:
+    stable = text if is_final else common_word_prefix(prev, text)
+    print(f"final={str(is_final):5s} | stable={stable!r:36s} | actions={allowed_actions(text, is_final)}")
+    prev = text
 
-decisions = []
-for event in events:
-    try:
-        decisions.append({"committed": event["committed"], "actions": permitted_actions(**event)})
-    except ValueError as error:
-        decisions.append({"committed": event["committed"], "error": str(error)})
-
-assert "speak_response" not in permitted_actions(events[0]["text"], False)
-assert "speak_response" in permitted_actions(events[1]["text"], True)
-assert "error" in decisions[2]
-print(json.dumps(decisions, indent=2))
+try:
+    allowed_actions("Close incident 4219", "false")
+except ValueError as err:
+    print("string_flag_rejected:", err)
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  {
-    "committed": false,
-    "actions": [
-      "classify_intent",
-      "prefetch_read_only_status"
-    ]
-  },
-  {
-    "committed": true,
-    "actions": [
-      "classify_intent",
-      "prefetch_read_only_status",
-      "write_history",
-      "speak_response"
-    ]
-  },
-  {
-    "committed": "false",
-    "error": "committed must be boolean"
-  }
-]
+final=False | stable=''                                   | actions=['classify_intent']
+final=False | stable='What is'                            | actions=['classify_intent', 'prefetch_read_only_status']
+final=False | stable='What is incident'                   | actions=['classify_intent', 'prefetch_read_only_status']
+final=True  | stable='What is incident four two one nine?' | actions=['classify_intent', 'prefetch_read_only_status', 'write_history', 'speak_response']
+string_flag_rejected: committed must be a boolean
 ```
 <!-- leetllm: output:end -->
-
-JSON `false` is a boolean; `"false"` is a nonempty string and therefore truthy in Python. The third event must be rejected rather than committing speech and history. Validate the adapter's flags before this gate; a well-typed flag still needs an authoritative turn/transcript decision and caller authorization.
 
 ### End-of-utterance STT
 
-Using a batch recognizer such as Whisper[^radford2022] after an endpoint event is much simpler, but it adds the endpoint wait and full decode after the user stops talking.
+Running a batch model such as Whisper[^radford2022] after silence fires simplifies orchestration, but every millisecond of decoding stacks after endpointing. For a 1,200 ms utterance with 300 ms endpointing and 450 ms decode, the transcript is not ready until 750 ms after speech ends, before the LLM or TTS even starts.
 
-<!-- leetllm: test, output=show -->
-```python title="end-of-utterance-stt-simpler-slightly-higher.py"
-import json
-
-def batch_stt_timeline(speech_ms: int, endpoint_ms: int, decode_ms: int) -> dict[str, int | str]:
-    acoustic_speech_end_ms = speech_ms
-    turn_commit_ms = acoustic_speech_end_ms + endpoint_ms
-    transcript_ready_ms = turn_commit_ms + decode_ms
-    return {
-        "approach": "end-of-utterance",
-        "speech_ms": speech_ms,
-        "endpoint_ms": endpoint_ms,
-        "decode_ms": decode_ms,
-        "acoustic_speech_end_ms": acoustic_speech_end_ms,
-        "turn_commit_ms": turn_commit_ms,
-        "first_transcript_ms": transcript_ready_ms,
-    }
-
-print(json.dumps(batch_stt_timeline(speech_ms=1200, endpoint_ms=300, decode_ms=450), indent=2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-{
-  "approach": "end-of-utterance",
-  "speech_ms": 1200,
-  "endpoint_ms": 300,
-  "decode_ms": 450,
-  "acoustic_speech_end_ms": 1200,
-  "turn_commit_ms": 1500,
-  "first_transcript_ms": 1950
-}
-```
-<!-- leetllm: output:end -->
-
-| Approach | Latency | Complexity |
-|----------|---------|-----------|
-| **Streaming STT** | Measure first partial, stable text, and final transcript separately | Revisions and turn state |
-| **End-of-utterance** | Endpoint wait plus decode; 750ms after speech in this trace | Simpler scheduling |
-
-```checkpoint
-When is batch STT acceptable, and when is it a bad fit?
----
-Batch STT suits recordings and may suit short commands or prototypes whose latency budget permits it. For a live call, measure the endpoint wait plus decode cost before accepting the simpler design.
-```
+| Approach | Post-speech delay before LLM | Operational complexity |
+| :--- | :--- | :--- |
+| **Streaming STT** | 0–100 ms finalization tail | Must track interim revisions and turn state |
+| **End-of-utterance STT** | Endpoint wait + full decode (~750 ms) | Simple stateless batch request |
 
 ## Speak a first clause, not a full plan
 
-After turn commitment, the LLM should emit a stable first speakable clause without waiting for a long response plan. Before commitment, the system may only do reversible preparation. That makes <span data-glossary="ttft">Time-to-First-Token (TTFT)</span> relevant without letting an unstable transcript become spoken truth. The serving mechanics are in [Inference Mechanics](/learn/inference-mechanics-ttft-tps-kv-cache).
-
-Long reasoning and slow tools are a poor fit for the acknowledgement path unless measurements still meet the TTFA objective. The agent can say an honest status quickly, run the slow work in the background, and speak the result when it lands.
-
-Give the first clause one concise job: communicate verified facts immediately. Separate the spoken channel from display text: avoid reading Markdown syntax aloud, pronounce incident digits deliberately, and keep clauses short. This template example formats an already verified status; it does not call an LLM or stream tokens.
-
-<!-- leetllm: test, output=show -->
-```python title="thinking-before-the-user-finishes-llm.py"
-import json
-
-def voice_chunks(incident_status: dict[str, str]) -> list[str]:
-    status = incident_status["status"]
-    if status not in {"open", "closed"}:
-        raise ValueError("a verified open or closed status is required")
-    spoken_status = "still open" if status == "open" else "closed"
-    reply = (
-        f"Incident {incident_status['id']} is {spoken_status}. "
-        f"Severity is {incident_status['severity']}. "
-        "I can text you the incident link."
-    )
-    clauses = [part.strip() + "." for part in reply.split(".") if part.strip()]
-    return clauses
-
-transcript = "What is incident number four two one nine?"
-chunks = voice_chunks(
-    incident_status={"id": "4219", "severity": "sev-two", "status": "open"},
-)
-
-assert voice_chunks({"id": "4219", "severity": "sev-two", "status": "closed"})[0] == "Incident 4219 is closed."
-print(json.dumps({
-    "contains_incident": "incident" in transcript.lower(),
-    "max_words_per_clause": max(len(clause.split()) for clause in chunks),
-    "streamed_clauses": chunks,
-}, indent=2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-{
-  "contains_incident": true,
-  "max_words_per_clause": 7,
-  "streamed_clauses": [
-    "Incident 4219 is still open.",
-    "Severity is sev-two.",
-    "I can text you the incident link."
-  ]
-}
-```
-<!-- leetllm: output:end -->
-
-The formatter uses verified status rather than speculating before lookup completion. The caller provides an authorized, current tool result and verifies that offering to text a link is an active capability. For this hotline, test how TTS pronounces `4219` and `sev-two`: phonetically ambiguous output can misdirect the caller to an incorrect incident.
+Once the turn commits, the LLM's <span data-glossary="ttft">time-to-first-token (TTFT)</span> dominates responsiveness (see [Inference Mechanics](/learn/inference-mechanics-ttft-tps-kv-cache)). Prompt the voice model to emit short, plain-spoken clauses without Markdown syntax, and test how TTS pronounces domain identifiers like `4219` or `sev-two` so spoken numbers never confuse a caller.
 
 ### Slow tools don't get to steal the first word
 
-A status lookup, page request, or ticket creation can finish quickly or stall. Human acknowledgement is a separate event from a service accepting a page. If a result isn't ready by the first-clause deadline, speak an honest acknowledgement and continue the work asynchronously. Don't narrate a result you don't have yet.
+An incident lookup might finish in 90 ms; paging an on-call engineer might take 2.4 seconds. Reserve the downstream synthesis, transport, and playout window (for example, 200 ms out of a 400 ms post-commit budget) as a hard deadline: if the tool has not returned by 200 ms, emit an honest status acknowledgement ("I am checking that now") and report the real outcome asynchronously when the tool finishes.
 
-Do not predict tool completion from average latency estimates. The helper consumes the actual tool state returned by the application: pending, succeeded, or failed. Its 200ms decision point reserves 200ms for synthesis, transport, and playout inside the 400ms post-commit budget, ensuring deterministic fallback when lookups run long.
+Never blur service acceptance with human delivery, and never treat spoken confirmation as authorization. Verify caller permissions in the tool executor, deduplicate retries with an idempotency key,[^awsIdempotentApis2026] and record executed side effects independently of conversation playback: muting "I paged the owner" does not unsend a page.
 
 <!-- leetllm: test, output=show -->
 ```python title="acknowledge-then-finish-slow-tools.py"
-import json
-
-COMMIT_TO_AUDIO_BUDGET_MS = 400
-SPEECH_PATH_RESERVE_MS = 200
-
-def first_speakable(intent: str, tool_state: str, *, authorized: bool,
-                    confirmed: bool = False, status: str | None = None) -> str:
-    if tool_state not in {"pending", "succeeded", "failed"}:
-        raise ValueError("unknown tool state")
+def first_speakable_clause(intent: str, tool_state: str, *,
+                           authorized: bool, confirmed: bool = False,
+                           status: str | None = None) -> str:
     if authorized is not True:
-        return "I can't perform that request with this session's permissions."
+        return "I cannot perform that request with this session's permissions."
     if intent in {"page_owner", "close_incident"} and confirmed is not True:
         return "Please confirm that action and incident number."
     if tool_state == "failed":
-        return "That request failed. I haven't confirmed a change."
+        return "That request failed. No change was confirmed."
     if intent == "lookup_status" and tool_state == "succeeded" and status in {"open", "closed"}:
         return f"Incident 4219 is {status}."
     if intent == "page_owner" and tool_state == "succeeded":
         return "The paging service accepted the page."
     if intent == "close_incident" and tool_state == "succeeded":
         return "The incident service confirmed the close."
-    return "I'm checking the request. I'll tell you when I have a result."
+    return "I am checking the request and will share the result once it returns."
 
-print(json.dumps([
-    first_speakable("lookup_status", "succeeded", authorized=True, status="open"),
-    first_speakable("page_owner", "pending", authorized=True, confirmed=True),
-    first_speakable("close_incident", "succeeded", authorized=True),
-], indent=2))
-assert COMMIT_TO_AUDIO_BUDGET_MS - SPEECH_PATH_RESERVE_MS == 200
-assert "failed" in first_speakable("page_owner", "failed", authorized=True, confirmed=True)
+cases = [
+    ("fast_lookup", first_speakable_clause("lookup_status", "succeeded", authorized=True, status="open")),
+    ("slow_page",   first_speakable_clause("page_owner", "pending", authorized=True, confirmed=True)),
+    ("unconfirmed", first_speakable_clause("close_incident", "succeeded", authorized=True, confirmed=False)),
+    ("failed_page", first_speakable_clause("page_owner", "failed", authorized=True, confirmed=True)),
+]
+for label, phrase in cases:
+    print(f"{label:12s}: {phrase}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  "Incident 4219 is open.",
-  "I'm checking the request. I'll tell you when I have a result.",
-  "Please confirm that action and incident number."
-]
+fast_lookup : Incident 4219 is open.
+slow_page   : I am checking the request and will share the result once it returns.
+unconfirmed : Please confirm that action and incident number.
+failed_page : That request failed. No change was confirmed.
 ```
 <!-- leetllm: output:end -->
 
-```checkpoint
-Why separate spoken output from display formatting?
----
-Markdown syntax and long preambles can sound awkward when read aloud. Produce short spoken clauses, and test identifier pronunciation separately from display text.
-```
-
-```checkpoint
-What should the agent say if paging the owner takes 2.4 seconds?
----
-After authorization and any required confirmation, acknowledge that the request is pending. Continue the tool asynchronously, and report acceptance or failure only after the service returns a result. Track delivery and human-read acknowledgment as separate states.
-```
-
-The helper only chooses words; it performs no operation and provides no authorization enforcement. The executor must bind a confirmed action to the authenticated caller, incident, tool arguments, and request ID. Caller ID alone isn't authentication. Recheck authorization before execution, deduplicate retries with an idempotency key, and preserve the service result separately from the spoken transcript. Muting "I paged the owner" can't undo a page already sent. After a timeout, reconcile the original operation rather than submitting a second page blindly.[^awsIdempotentApis2026]
-
 ### Serving optimizations that matter in voice
 
-Live voice sessions stress inference differently from chat. TTFT matters more than long-form throughput because TTS can't speak until the first stable clause arrives. Session length also matters because a 20-minute call can accumulate enough context to make KV-cache management part of the latency budget, not a background infrastructure concern. If TTFT rises only on long calls, inspect context growth and cache pressure before swapping models.
+Long phone calls stress inference differently than single-turn chat because a 20-minute call accumulates thousands of context tokens while still demanding low TTFT on every reply:
 
-- Paged KV caches: Long-lived sessions fragment memory if every request expects one contiguous <span data-glossary="kv-cache">KV-cache</span> region. <span data-glossary="pagedattention">PagedAttention</span>-style allocators let serving systems grow and trim per-session context without constant copying, which helps keep latency stable across many simultaneous calls.[^kwon2023]
-- Speculative decoding: A draft model proposes <span data-glossary="token">tokens</span> that the target model verifies in parallel, reducing decode latency when acceptance and implementation overhead are favorable.[^leviathan2023] Measure TTFA and total clause latency on the served model pair to determine whether it improves the user-visible path.
-- Aggressive context hygiene: Don't keep every interim transcript forever. Preserve final transcripts, tool results, and only the portion of assistant audio the user heard before barge-in.
+- **Paged KV memory:** Allocators such as <span data-glossary="pagedattention">PagedAttention</span> let long calls grow and evict <span data-glossary="kv-cache">KV-cache</span> blocks without fragmentation across concurrent sessions.[^kwon2023]
+- **Speculative decoding:** Draft-and-verify decoding can trim clause latency when acceptance is high on short conversational turns.[^leviathan2023]
+- **Context hygiene:** Drop superseded interim transcripts and unplayed interrupted speech so long calls keep only committed turns, tool results, and confirmed spoken replies.
+- **Prefix-aware prompt caching:** Order every prompt from most stable to most volatile: (1) system instructions and style rules, (2) tool schemas and examples, (3) append-only committed turns, and (4) dynamic call state (current timestamp, fresh tool result, playout cursor). Putting `current_time` at the top breaks prefix reuse on every turn. Where APIs require explicit cache breakpoints, place them right after the static prefix.[^openai2026promptcaching]
 
-#### Prompt caching is prefix economics
-
-Prefix reuse needs matching leading tokens and a cached endpoint the next request can look up. Keep stable policy and examples first, volatile state later. OpenAI's guide, checked October 10, 2026, distinguishes earlier implicit caching from GPT-5.6-and-later explicit/implicit breakpoints.[^openai2026promptcaching] These Responses API rules aren't automatically the rules of a stateful audio session.
-
-Build the prompt in this order:
-
-1. Stable policy, output style, and safety instructions.
-2. Stable tool definitions and few-shot examples.
-3. Conversation history that grows by appending committed turns.
-4. Dynamic call state such as current incident result, timestamp, or playback acknowledgement.
-
-Putting `current_time=...` or a rolling account balance near the top changes early tokens and can turn every later request into a cache miss. Keep volatile facts in a suffix or tool result, but never move instructions merely to chase hits when doing so changes model behavior or the authorization boundary.
-
-Stable text alone isn't sufficient. In the documented GPT-5.6-and-later case, an implicit write through `[stable policy][dynamic request A]` doesn't separately cache the shorter policy prefix. Replacing A with B misses that entry. An explicit breakpoint after the stable content can write a reusable endpoint; both requests must preserve that boundary and meet minimum length. A `prompt_cache_key` doesn't create the missing entry.[^openai2026promptcaching]
-
-Measure economics directly:
+Account for cached reads, cache writes, and uncached input tokens separately:
 
 $$
 \text{input cost} = T_{\text{read}} C_{\text{read}} + T_{\text{write}} C_{\text{write}} + T_{\text{ordinary}} C_{\text{ordinary}}
 $$
 
-Use disjoint read, write, and ordinary-input counts. Some routes charge cache writes separately; OpenAI's current guide reports `cached_tokens` and `cache_write_tokens` for the newer mechanism.[^openai2026promptcaching] Each C is a price per token; divide a per-million price by one million. Sum text and audio costs separately. Where writes carry the ordinary rate, fold them into ordinary input. Measure total call cost and TTFA alongside hit fraction; a hit doesn't repair endpointing, tools, TTS, or playout.
-
-```checkpoint
-Why should the current incident status appear after stable voice instructions and tool schemas?
----
-The status changes often, so placing it near the top changes early tokens. Preserve the stable prefix and, where required, its cache-write/lookup breakpoint. Verify usage metadata, write/read costs, latency, and unchanged behavior on the actual route.
-```
-
-```checkpoint
-Why should interim transcripts not live forever in voice-agent context?
----
-Interim text can be wrong and bloats long sessions. Keep final transcripts, tool results, and assistant audio actually heard; drop unstable partials and truncated speech.
-```
+Here each $C$ is price per token (per-million price divided by $10^6$), and the three token buckets are disjoint. Keep text and audio token pricing separate, and remember that prefix caching cuts LLM prefill time without fixing slow endpointing, tools, or TTS.
 
 ## Speaking without waiting for the full answer: TTS with streaming
 
-The first clause can be ready while the model is still writing the rest. The TTS engine takes the token stream, buffers a phrase, and synthesizes that chunk while later text is still arriving. The first chunk should answer the immediate question. Later chunks can carry detail.
-
-Waiting for a full paragraph delays first audio. One TTS call per token makes the voice stutter. Buffer punctuation or a short character limit, then measure whether the clause sounds natural and arrives inside TTFA.
+Waiting for a full paragraph before calling TTS adds seconds of silence, while synthesizing every individual <span data-glossary="token">token</span> destroys prosody. Buffer incoming tokens until a clause punctuation mark (`,`, `.`, `!`, `?`) or a soft character limit arrives without splitting mid-word, then hand each clause to streaming TTS immediately.
 
 <!-- leetllm: test, output=show -->
 ```python title="speaking-without-waiting-for-the-full-answer.py"
-import json
-
 def flush_speakable_clauses(tokens: list[str], max_chars: int = 52) -> list[str]:
-    if max_chars is True or max_chars is False or not isinstance(max_chars, int) or max_chars <= 0:
-        raise ValueError("max_chars must be a positive integer")
-    buffer = ""
-    flushed = []
-
-    for token in tokens:
-        buffer += token
-        stripped = buffer.strip()
+    buf = ""
+    clauses: list[str] = []
+    for tok in tokens:
+        buf += tok
+        stripped = buf.strip()
         if stripped.endswith((",", ".", "!", "?")):
-            flushed.append(stripped)
-            buffer = ""
+            clauses.append(stripped)
+            buf = ""
         elif len(stripped) >= max_chars:
-            # A soft limit: never cut an unfinished word at a token boundary.
-            split_at = buffer.rfind(" ", 0, max_chars + 1)
-            if split_at > 0:
-                flushed.append(buffer[:split_at].strip())
-                buffer = buffer[split_at + 1:]
-
-    if buffer.strip():
-        flushed.append(buffer.strip())
-
-    return flushed
+            cut = buf.rfind(" ", 0, max_chars + 1)
+            if cut > 0:
+                clauses.append(buf[:cut].strip())
+                buf = buf[cut + 1:]
+    if buf.strip():
+        clauses.append(buf.strip())
+    return clauses
 
 tokens = [
     "Incident ", "4219 ", "is ", "still ", "open, ",
     "severity ", "is ", "sev-two. ",
-    "I ", "can ", "text ", "the ", "incident ", "link."
+    "I ", "can ", "text ", "the ", "incident ", "link.",
 ]
-
-print(json.dumps(flush_speakable_clauses(tokens), indent=2))
+for i, clause in enumerate(flush_speakable_clauses(tokens), 1):
+    print(f"clause {i}: {clause}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[
-  "Incident 4219 is still open,",
-  "severity is sev-two.",
-  "I can text the incident link."
-]
+clause 1: Incident 4219 is still open,
+clause 2: severity is sev-two.
+clause 3: I can text the incident link.
 ```
 <!-- leetllm: output:end -->
 
-This punctuation heuristic is deliberately small. It doesn't understand decimal numbers, abbreviations, code-switching, or prosody, and its size limit is soft. A real adapter needs provider-specific chunking, cancellation, and a bounded queue. If synthesis outruns playback, stop or pause production before queued audio creates a long interruption tail. Measure audio generation rate against playback duration as well as first-chunk latency.
+Cap the downstream TTS audio queue as well: if synthesis runs much faster than real-time playback and buffers ten seconds of audio ahead of the speaker, an interruption has to drain or discard a large backlog.
 
 ### How parallel execution reduces latency
 
-The end-to-end target starts at acoustic speech end. The internal target starts at turn commit. Those clocks only close if stages overlap:
+Stacking every stage serially pushes our incident query to 510 ms. Overlapping them hits 380 ms:
 
-- **VAD runs continuously**, watching frames as they arrive and contributing a speech-end signal to endpointing.
-- **Streaming STT is already running during speech.** Silence doesn't start recognition; it helps the endpoint policy decide when the current turn may commit.
-- **Reversible LLM preparation can start from stable STT partials.** Spoken or side-effecting work still waits for turn commitment.
-- **TTS begins synthesizing** as soon as the committed response has a stable speakable clause, which may be well before the LLM finishes.
-- **Audio playback begins** as soon as the first TTS chunk is ready.
-
-On the incident trace, first audio is 380ms after speech end. If the same span durations ran one after another, first audio would be 510ms. The gain comes from schedule overlap: STT works during speech, and TTS starts while the LLM is still finishing its clause.
+1. **VAD** monitors frames continuously without blocking audio flow.
+2. **Streaming STT** decodes speech before `0 ms`, leaving only a short finalization tail.
+3. **LLM** begins generating the committed reply at 60 ms and hands off the first speakable fragment at 210 ms.
+4. **TTS** synthesizes that opening fragment in parallel while the LLM finishes the rest of the sentence.
 
 <figure>
-  <img src="illustrations/_generated/pipeline_overlap_dark.png" alt="The same voice tasks on one 0–520 ms clock. Serial spans 0–60,60–160,160–340,340–475 and 475–510 ms finish at 510 ms. Overlapped spans 0–60,0–100,60–240,210–345 and 345–380 ms finish at 380 ms, saving 130 ms." />
-  <figcaption>The left schedule adds the same durations used in the Python trace and lands at 510ms. The right schedule is the overlapped incident path: TTS starts during the LLM clause, and first audio plays at 380ms.</figcaption>
+  <img src="illustrations/_generated/pipeline_overlap_dark.png" alt="Comparison on a 0 to 520 ms clock: serial execution finishes at 510 ms, while overlapping STT finalization, LLM clause streaming, and TTS synthesis delivers first audio at 380 ms, saving 130 ms." />
+  <figcaption>Running the exact same stage durations serially lands at 510 ms; overlapping STT, clause streaming, and TTS lands first audio at 380 ms.</figcaption>
 </figure>
-
-```checkpoint
-Why synthesize clauses instead of individual tokens or full paragraphs?
----
-Token-level TTS sounds choppy, while paragraph-level TTS adds seconds. Clause buffering gives natural phrasing while keeping first audio fast.
-```
 
 ## When the user interrupts: barge-in handling
 
-When the user speaks over the agent ("barge-in"), the system must react immediately. A caller asks about an incident, the agent begins explaining mitigation, and the caller cuts in with "Wait, page the owner." The agent must halt audio output, cancel in-flight generation, and retain only what the caller actually heard. Treat this as a state transition rather than a simple client-side mute: the next conversation turn must resume from the heard boundary.
+Suppose the agent starts explaining mitigation for incident 4219 and the caller cuts in at 650 ms with "Wait, page the owner." Barge-in is a three-step state transition, not just a speaker mute:
 
-Local VAD fires the mute. Server endpointing still decides when the new user turn is committed. Those signals form one control loop: fast local action first, authoritative transcript boundary second.
-
-1. **Stop Playback:** Halt the audio output. A support product might begin with a p95 mute target below 100ms, then tune against measured paths.
-2. **Cancel Generation:** Abort in-flight TTS and LLM requests to save cost and compute.
-3. **State Reconciliation:** Update conversation context to reflect *only* what the user heard.
+1. **Stop playback immediately:** Local VAD mutes the audio sink (target: under 100 ms p95).
+2. **Cancel in-flight work:** Abort upstream LLM and TTS streams for the superseded `response_id`.
+3. **Reconcile conversation history:** Keep only the assistant text confirmed played by the client's latest playback acknowledgement cursor.
 
 <figure>
-  <img src="illustrations/_generated/barge_in_state_dark.png" alt="The client confirms playout only through 520 ms. Barge-in arrives at 650 ms, while generated output extends to 1120 ms. History retains Incident is open, the confirmed span, and discards the unconfirmed remainder because the database failover is still running." />
-  <figcaption>At 650ms the client acknowledgement cursor is 520ms, while the 860ms chunk is still unconfirmed. History keeps "Incident is open" and drops the unconfirmed mitigation clause.</figcaption>
+  <img src="illustrations/_generated/barge_in_state_dark.png" alt="Client confirms playout through 520 ms when barge-in occurs at 650 ms while generated audio reaches 1120 ms. History retains Incident is open and discards the unconfirmed database failover clause." />
+  <figcaption>At the 650 ms interruption, the client has confirmed playout through 520 ms. History keeps "Incident is open" and discards the unconfirmed remainder so the model never assumes the caller heard it.</figcaption>
 </figure>
 
-Stopping the speaker is only half of barge-in. Suppose the user interrupts at 650ms and the latest client playout acknowledgement reports a cursor of 520ms. The next model call should remember the clause through that cursor, not the mitigation text that was still buffered or in flight.
-
-Use conservative reconciliation at audio-chunk boundaries. When VAD detects fresh user speech during agent playback, stop playout, cancel in-flight generation, and truncate assistant text to the portion confirmed by the latest client playout acknowledgement. Finer timestamps can reduce the amount discarded, but they must still describe playout, not output arrival or generation.
+> **Key insight:** Tie every playout cursor and cancellation event to a unique `response_id`. A delayed 520 ms acknowledgement from canceled `reply-1` must never cancel or overwrite active `reply-2`, and once `reply-1` is canceled its heard cursor stays frozen.
 
 <!-- leetllm: test, output=show -->
 ```python title="when-the-user-interrupts-barge-in-handling.py"
 from dataclasses import dataclass
-import json
 
 @dataclass
 class PlayoutChunk:
     text: str
-    text_end_char: int  # Exclusive end offset in pending_text.
+    text_end_char: int
     playout_end_ms: int
 
-
 class InterruptionHandler:
-    def __init__(self, pending_text: str, playout_chunks: list[PlayoutChunk], response_id: str = "reply-1"):
-        if "".join(chunk.text for chunk in playout_chunks) != pending_text:
-            raise ValueError("chunks must reconstruct the pending text")
-        chars = previous_ms = 0
-        for chunk in playout_chunks:
-            if not chunk.text:
-                raise ValueError("playout chunks must contain text")
-            chars += len(chunk.text)
-            if (chunk.text_end_char is True or chunk.text_end_char is False or not isinstance(chunk.text_end_char, int)
-                    or chunk.playout_end_ms is True or chunk.playout_end_ms is False or not isinstance(chunk.playout_end_ms, int)
-                    or chunk.text_end_char != chars or chunk.playout_end_ms <= previous_ms):
-                raise ValueError("invalid text alignment or playout ordering")
-            previous_ms = chunk.playout_end_ms
+    def __init__(self, pending_text: str, chunks: list[PlayoutChunk], response_id: str = "reply-1"):
         self.pending_text = pending_text
-        self.playout_chunks = playout_chunks
+        self.chunks = chunks
         self.response_id = response_id
         self.cancelled = False
-        self.frozen_cursor = None
+        self.frozen_cursor: int | None = None
 
     def accept_audio(self, response_id: str) -> bool:
         return response_id == self.response_id and not self.cancelled
 
-    def reconcile(self, playout_cursor_ms: int, *, response_id: str) -> dict[str, object]:
+    def reconcile(self, playout_cursor_ms: int, *, response_id: str) -> dict[str, str]:
         if response_id != self.response_id:
-            raise ValueError("playback acknowledgement belongs to a different response")
-        duration = self.playout_chunks[-1].playout_end_ms if self.playout_chunks else 0
-        if playout_cursor_ms is True or playout_cursor_ms is False or not isinstance(playout_cursor_ms, int) or not (0 <= playout_cursor_ms <= duration):
-            raise ValueError("invalid response-local playout cursor")
+            raise ValueError("acknowledgement belongs to a different response")
         if self.frozen_cursor is None:
             self.frozen_cursor = playout_cursor_ms
         self.cancelled = True
-        playout_cursor_ms = self.frozen_cursor
-        heard_chars = self._chars_heard(playout_cursor_ms)
-        spoken_text = self.pending_text[:heard_chars].rstrip()
-        discarded_text = self.pending_text[heard_chars:].strip()
-        return {
-            "history_to_keep": [{"role": "assistant", "content": spoken_text}] if spoken_text else [],
-            "discarded_generated_text": discarded_text,
-        }
 
-    def _chars_heard(self, playout_cursor_ms: int) -> int:
         heard_chars = 0
-        for chunk in self.playout_chunks:
-            if chunk.playout_end_ms <= playout_cursor_ms:
+        for chunk in self.chunks:
+            if chunk.playout_end_ms <= self.frozen_cursor:
                 heard_chars = chunk.text_end_char
             else:
                 break
-        return heard_chars
+        return {
+            "kept": self.pending_text[:heard_chars].rstrip(),
+            "discarded": self.pending_text[heard_chars:].strip(),
+        }
 
 pending = "Incident is open because the database failover is still running."
 chunks = [
@@ -891,92 +495,61 @@ chunks = [
     PlayoutChunk(" failover is still running.", 64, 1120),
 ]
 
-# At the 650ms interrupt, the latest client acknowledgement is 520ms.
-handler = InterruptionHandler(pending, chunks)
-assert handler.accept_audio("reply-1") and not handler.accept_audio("old-reply")
-result = handler.reconcile(playout_cursor_ms=520, response_id="reply-1")
-assert not handler.accept_audio("reply-1")
-assert handler.reconcile(1120, response_id="reply-1") == result  # A late event cannot extend the cancelled reply.
+reply1 = InterruptionHandler(pending, chunks, response_id="reply-1")
+outcome = reply1.reconcile(playout_cursor_ms=520, response_id="reply-1")
+# Late ACK for reply-1 cannot unfreeze history; reply-2 rejects stale reply-1 ACKs.
+assert reply1.reconcile(1120, response_id="reply-1") == outcome
+reply2 = InterruptionHandler(pending, chunks, response_id="reply-2")
 try:
-    InterruptionHandler("Incident is open", [PlayoutChunk("Incident is open", 16.0, 520)])
-except ValueError:
-    pass
-else:
-    raise AssertionError("float text offset must be rejected before slicing")
-try:
-    InterruptionHandler("OK", [PlayoutChunk("", 0, 100), PlayoutChunk("OK", 2, 200)])
-except ValueError as error:
-    assert str(error) == "playout chunks must contain text"
-else:
-    raise AssertionError("empty chunks must be rejected before accumulating character offsets")
-new_reply = InterruptionHandler(pending, chunks, response_id="reply-2")
-try:
-    new_reply.reconcile(520, response_id="reply-1")
-except ValueError as error:
-    assert str(error) == "playback acknowledgement belongs to a different response"
-else:
-    raise AssertionError("old response ACK must not cancel the new reply")
-assert not new_reply.cancelled and new_reply.frozen_cursor is None
-print(json.dumps(result, indent=2))
+    reply2.reconcile(520, response_id="reply-1")
+except ValueError as err:
+    mismatch_err = str(err)
+
+print("kept:     ", repr(outcome["kept"]))
+print("discarded:", repr(outcome["discarded"]))
+print("late_audio_accepted:", reply1.accept_audio("reply-1"))
+print("cross_reply_guard:  ", mismatch_err)
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-{
-  "history_to_keep": [
-    {
-      "role": "assistant",
-      "content": "Incident is open"
-    }
-  ],
-  "discarded_generated_text": "because the database failover is still running."
-}
+kept:      'Incident is open'
+discarded: 'because the database failover is still running.'
+late_audio_accepted: False
+cross_reply_guard:   acknowledgement belongs to a different response
 ```
 <!-- leetllm: output:end -->
 
-The implementation verifies that nonempty chunk text reconstructs the 64-character reply and that integer offsets increase with integer playout time. A float offset such as `16.0` compares equal to 16 but cannot slice a Python string, so reject it during alignment validation. Offset 16 keeps `pending_text[:16]`, or `"Incident is open"`. Zero acknowledged audio produces no assistant-history entry. Cancellation freezes the cursor and rejects late audio for that response; each new reply needs a new ID and state object.
-
-A delayed `reply-1` acknowledgement can carry a valid 520ms cursor after `reply-2` starts. Checking the number alone would cancel the new reply and attach its words to the old playback event. The regression rejects that response mismatch before freezing any cursor or changing cancellation state. The adapter must also bind these events to the authenticated session.
-
-"Heard" here means client-confirmed playout. A muted speaker, lost acknowledgement, or partially played chunk can leave human perception uncertain, so the latest ACK is a conservative lower bound. A live interruption protocol can obtain a final cursor after stopping the audio sink; it must bind that cursor to the correct session and response before updating history. RTP packet arrival alone does not confirm audio playout. Keep tool execution records even when their spoken description is discarded.
-
-```checkpoint
-Why must barge-in history use "heard" text, not generated text?
----
-The user may interrupt before playback finishes. If history includes unheard generated text, the model assumes shared context that the user never received, causing confusing follow-ups.
-```
+RTP packet arrival does not confirm playout; only the client's playback sink knows which frames reached the speaker. Always keep completed tool execution records even if the spoken announcement was interrupted mid-sentence.
 
 ## Cascaded pipeline vs. native audio
 
-Design reviews often ask you to compare two families: cascaded `STT -> LLM -> TTS` pipelines and native speech-to-speech models. Early research systems such as AudioPaLM and SpeechGPT showed the idea was viable.[^rubenstein2023][^zhang2023a] Native audio is now a production API option. OpenAI's Realtime API supports live speech-to-speech sessions.[^openai2025gptrealtime] Google's Gemini Live API is a stateful WebSocket session with native audio, automatic voice-activity detection, barge-in, transcripts, and tool use.[^google2026geminilive]
+Native speech-to-speech APIs such as OpenAI's Realtime API[^openai2025gptrealtime] and Google's Gemini Live API[^google2026geminilive] stream audio directly into and out of a multimodal model over persistent sessions. They eliminate explicit STT and TTS handoffs and preserve prosody, tone, and hesitation that text transcripts strip away.
 
-Choose transport from where the audio lives: WebRTC for browser and mobile capture, a WebSocket session when your server already has PCM, and SIP when the caller is on the phone network. If the speech model only speaks WebSocket, terminate WebRTC at the media edge and forward PCM. Provider model catalogs change quickly, so verify current aliases when you implement the route.
-
-Native models reduce model handoffs and can retain prosodic signals that a text-only boundary loses. They don't remove transport, VAD, AEC, or state-management problems. Gemini's capabilities guide still labels Live API Preview when checked October 10, 2026.[^google2026geminiliveCapabilities] Check each provider's history semantics: Gemini documents retaining information already sent to the client after interruption, which may include buffered, unplayed output. That isn't this application's confirmed-playout rule. Stop queued playback and define how to reconcile future context.[^google2026geminiliveCapabilities] OpenAI cautions that asynchronous input transcription is guidance, not an exact account of what its audio model perceived.[^openai2026realtimeclientevents]
-
-Make the choice with a failure question: if a caller disputes what the agent said, can you inspect the transcript, tool decision, and exact played audio? Cascading exposes those boundaries and makes component swaps easier. Native audio may shorten the model path, but it still needs those side channels when policy, auditability, or deterministic tools matter.
+Yet native audio does not eliminate transport, AEC, barge-in, or state reconciliation. Providers differ in how they handle interrupted context: some retain audio already sent to the client buffer rather than audio confirmed played,[^google2026geminiliveCapabilities] while others expose explicit truncation events such as `conversation.item.truncate` with `audio_end_ms` (and caution that asynchronous input transcripts are approximate).[^openai2026realtimeclientevents]
 
 <figure>
-  <img src="illustrations/_generated/cascaded_vs_native_audio_dark.png" alt="Cascaded audio passes through STT, LLM and TTS, so transcript inspection and tool gates sit inline. A native speech model emits audio directly, with transcript, authorized tools and trace handled through side channels. Both paths require turn detection, interruption and a confirmed playout cursor." />
-  <figcaption>Cascaded audio keeps text checkpoints inline. Native audio removes model hops, but transcript, policy, tracing, VAD, and barge-in still sit outside the speech model.</figcaption>
+  <img src="illustrations/_generated/cascaded_vs_native_audio_dark.png" alt="Cascaded pipeline places transcript inspection and tool checks inline between STT, LLM, and TTS; native audio emits speech directly with transcript, tool authorization, and tracing handled on side channels. Both require turn detection, interruption, and a confirmed playout cursor." />
+  <figcaption>Cascaded pipelines expose text checkpoints directly inline. Native speech models cut handoffs, while transcripts, tool verification, VAD, and playout cursors move to parallel side channels.</figcaption>
 </figure>
 
-> **⚠️ Common mistake:** Treating a model's WebSocket connection as a complete browser-audio stack. Direct WebSocket designs are possible, but capture, echo control, playout, and buffering still need an owner. A WebRTC media edge is one way to provide that boundary, not a prerequisite imposed by the model API.
-
-Many commercial native-audio APIs use stateful sessions, not one-shot request/response calls. The client streams audio frames in, then receives incremental audio and transcript events back.
+> **Common mistake:** Treating a model's WebSocket endpoint as a complete browser audio stack. Even when the speech API uses WebSockets, browser capture, echo cancellation, jitter buffering, and playout tracking still need an explicit owner, typically a WebRTC media edge forwarding PCM to the model session.
 
 ### Session shape
 
-In this single-response simulation, `audio_delta` means output reached a client buffer, not a speaker. `playback_ack` is an invented application event emitted after the audio sink consumes a range; it isn't a provider event name. Both counters are response-local milliseconds. Real adapters must also track session, response, item, and audio-part IDs, plus duplicate events and cancellation.
+Stateful voice sessions multiplex audio chunks, partial transcripts, tool proposals, and client playout acknowledgements on one stream. Process every part of a multi-part server event rather than stopping after the audio branch,[^google2026geminiliveCapabilities] track received audio separately from confirmed playout, and never mistake a model's proposed `tool_call` event for execution permission.
 
-Gemini can return multiple output parts in one server message. Process every part and applicable control field; an `if`/`elif` parser that handles only audio can silently miss a transcript, interruption, or tool event.[^google2026geminiliveCapabilities]
+PCM format mismatches also silently corrupt playout cursors. Many voice sessions ingest 16 kHz mono 16-bit PCM and output 24 kHz mono 16-bit PCM.[^google2026geminilive] Duration follows directly from sample count and sample rate:
 
-OpenAI's `conversation.item.truncate` accepts an assistant `item_id`, `content_index` (currently documented as `0`), and `audio_end_ms`. The API documents deleting server-side transcript text when truncating audio, not returning a precisely word-aligned prefix. Wait for its acknowledgement and handle errors. The local text-alignment example above is a separate application handler, not a reproduction of this provider's internal state.[^openai2026realtimeclientevents]
+$$
+\text{duration (ms)} = \frac{\text{sample frames}}{\text{sample rate (Hz)}} \times 1000
+$$
+
+Relabeling a 24 kHz stream as 16 kHz without resampling stretches every 20 ms chunk (480 samples, 960 bytes) to 30 ms, slowing the voice by 50% and breaking interruption timestamps.
 
 <!-- leetllm: test, output=show -->
-```python title="session-shape.py"
-from collections import defaultdict
-import json
+```python title="session-and-pcm-accounting.py"
+from fractions import Fraction
 
 events = [
     {"type": "transcript_delta", "text": "Incident is"},
@@ -987,276 +560,163 @@ events = [
     {"type": "tool_call", "name": "send_incident_link"},
 ]
 
-state = defaultdict(list)
-received_audio_ms = 0
-confirmed_playout_ms = 0
+received_ms = confirmed_ms = 0
+transcript, tool_proposals = [], []
+for ev in events:
+    if ev["type"] == "audio_delta":
+        received_ms += ev["audio_ms"]
+    elif ev["type"] == "playback_ack":
+        confirmed_ms = ev["playout_cursor_ms"]
+    elif ev["type"] == "transcript_delta":
+        transcript.append(ev["text"])
+    elif ev["type"] == "tool_call":
+        tool_proposals.append(ev["name"])
 
-for event in events:
-    if event["type"] == "audio_delta":
-        if event["audio_ms"] is True or event["audio_ms"] is False or not isinstance(event["audio_ms"], int) or event["audio_ms"] <= 0:
-            raise ValueError("audio duration must be a positive integer")
-        received_audio_ms += event["audio_ms"]
-    elif event["type"] == "playback_ack":
-        cursor = event["playout_cursor_ms"]
-        if cursor is True or cursor is False or not isinstance(cursor, int) or cursor < confirmed_playout_ms or cursor > received_audio_ms:
-            raise ValueError("playback acknowledgement must be monotonic and <= received audio")
-        confirmed_playout_ms = cursor
-    elif event["type"] == "transcript_delta":
-        state["transcript"].append(event["text"])
-    elif event["type"] == "tool_call":
-        state["tool_calls"].append(event["name"])
+# 20 ms mono 16-bit PCM at 24 kHz output vs mislabeled 16 kHz playback.
+output_samples = 24_000 * 20 // 1000
+actual_ms = Fraction(output_samples * 1000, 24_000)
+mislabeled_ms = Fraction(output_samples * 1000, 16_000)
 
-print(json.dumps({
-    "transcript_side_channel": "".join(state["transcript"]),
-    "received_audio_ms": received_audio_ms,
-    "confirmed_playout_ms": confirmed_playout_ms,
-    "received_not_confirmed_ms": received_audio_ms - confirmed_playout_ms,
-    "tool_calls": state["tool_calls"],
-}, indent=2))
+print(f"transcript: {''.join(transcript)!r}, proposals: {tool_proposals}")
+print(f"received={received_ms}ms, confirmed={confirmed_ms}ms, unconfirmed={received_ms - confirmed_ms}ms")
+print(f"480 samples (960 B): {int(actual_ms)}ms at 24kHz vs {int(mislabeled_ms)}ms if mislabeled 16kHz")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-{
-  "transcript_side_channel": "Incident is still open.",
-  "received_audio_ms": 380,
-  "confirmed_playout_ms": 160,
-  "received_not_confirmed_ms": 220,
-  "tool_calls": [
-    "send_incident_link"
-  ]
-}
+transcript: 'Incident is still open.', proposals: ['send_incident_link']
+received=380ms, confirmed=160ms, unconfirmed=220ms
+480 samples (960 B): 20ms at 24kHz vs 30ms if mislabeled 16kHz
 ```
 <!-- leetllm: output:end -->
-
-The client received 380ms of output but confirmed only 160ms of playout. The remaining 220ms may be buffered, played but not yet acknowledged, or cancelled. This implementation conservatively excludes it. A tool-call event is only a proposal: collecting its name never authorizes execution. Keep provider credentials on a trusted server or use the provider's supported short-lived client credential flow; don't put a long-lived service key in a browser bundle. Scope session access and retention of recordings, transcripts, and identifiers to the call product's policy.
-
-Tool scheduling also depends on the selected model. The current Gemini guide lists nonblocking function calls for Gemini 3.8 Live and sequential calls for Gemini 3.1 Flash Live Preview.[^google2026geminiliveCapabilities] Cancellation can discard a pending proposal; it can't undo a page that your executor already submitted. Keep operation records independently of spoken context.
-
-### Sample rates and format negotiations
-
-Gemini's overview lists little-endian 16-bit PCM, native 16kHz input and 24kHz output.[^google2026geminilive] Its capabilities guide also accepts other input rates when correctly declared and resamples them.[^google2026geminiliveCapabilities] Decode any transport codec before a PCM handoff. A MIME label describes the actual samples; changing the label isn't resampling.
-
-How long is a 480-sample chunk? At 24kHz it is 20ms; at 16kHz it is 30ms. This matters both to playback and to the cursor used for interruption. The example counts mono sample frames and bytes, without generating or resampling speech:
-
-<!-- leetllm: test, output=show -->
-```python title="pcm-sample-rate-and-playout-duration.py"
-import json
-from fractions import Fraction
-
-chunk_ms = 20
-input_rate = 16_000
-output_rate = 24_000
-bytes_per_sample = 2  # Mono, 16-bit PCM; excludes protocol overhead.
-input_samples = input_rate * chunk_ms // 1000
-output_samples = output_rate * chunk_ms // 1000
-actual_output_ms = Fraction(output_samples * 1000, output_rate)
-mislabeled_output_ms = Fraction(output_samples * 1000, input_rate)
-
-assert input_samples == 320 and output_samples == 480
-assert actual_output_ms == 20 and mislabeled_output_ms == 30
-print(json.dumps({
-    "native_input_20ms_bytes": input_samples * bytes_per_sample,
-    "output_20ms_bytes": output_samples * bytes_per_sample,
-    "output_samples": output_samples,
-    "correct_output_duration_ms": int(actual_output_ms),
-    "duration_if_mislabeled_16khz_ms": int(mislabeled_output_ms),
-}, indent=2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-{
-  "native_input_20ms_bytes": 640,
-  "output_20ms_bytes": 960,
-  "output_samples": 480,
-  "correct_output_duration_ms": 20,
-  "duration_if_mislabeled_16khz_ms": 30
-}
-```
-<!-- leetllm: output:end -->
-
-At a wrong 16kHz playback setting, those output samples last 50% longer and the inferred cursor no longer matches intended time. Use the correct output rate or an actual resampler for the sink. Other channel counts and codecs need their own accounting; these byte counts describe this mono PCM calculation.
 
 ### Audio tokenization
 
-Published native-audio systems commonly avoid feeding raw PCM directly into a <span data-glossary="transformer">transformer</span>. AudioPaLM and SpeechGPT use discrete speech representations rather than modeling every waveform sample as its own sequence element.[^rubenstein2023][^zhang2023a] AudioPaLM's w2v-BERT variant produces 25 semantic-token positions per second; its separate acoustic stages generate SoundStream codec tokens and then waveform audio. Those 25 positions aren't PCM packets or a billing rule for current APIs.[^rubenstein2023]
-
-The model emits audio tokens or latents, acoustic decoding reconstructs waveform chunks, and the client plays them with a jitter buffer. Representation choice and voice conditioning determine which tone, pacing, and other paralinguistic cues survive; evaluate those cues after decoding at the target bitrate.
+Native speech models do not feed raw 16 kHz waveform samples directly into <span data-glossary="transformer">transformer</span> attention. Systems like AudioPaLM and SpeechGPT compress audio into discrete semantic and acoustic codec tokens (for instance, AudioPaLM's w2v-BERT encoder emits 25 semantic token positions per second, decoded back to waveforms via SoundStream tokens).[^rubenstein2023][^zhang2023a] The chosen codec bitrate and token layout determine how much pacing, emphasis, and emotional tone survive decoding.
 
 ### Trade-offs
 
-Native audio can avoid some model handoffs and retain paralinguistic features such as tone, hesitation, and emphasis that a strict text bottleneck removes. Benchmark latency and interaction quality on the target workload to measure its effect.
+| Dimension | Cascaded (`STT -> LLM -> TTS`) | Native speech-to-speech |
+| :--- | :--- | :--- |
+| **Latency** | Extra serialization hops; mitigated via streaming overlap | Fewer model hops; still needs VAD, AEC, and transport |
+| **Prosody and tone** | Text bottleneck drops acoustic nuance | Retains vocal tone, pacing, and hesitation |
+| **Debuggability and tools** | Clean text checkpoints and deterministic tool checks | Harder to inspect failures or align truncated audio |
+| **Modularity** | Swap STT, LLM, or TTS independently | Coupled to one provider session API |
 
-Native audio is also harder to debug and harder to control. Without a clean intermediate transcript, it's tougher to inspect failures, run deterministic tool policies, or align partially spoken output with conversation history. Modular pipelines are still easier to observe, test, and swap component by component.
-
-```checkpoint
-When should you prefer a cascaded STT-LLM-TTS pipeline over native audio?
----
-Prefer cascaded pipelines when observability, deterministic tool policy, component swaps, transcript inspection, or compliance logs matter more than maximum prosody and theoretical latency.
-```
+Choose cascaded pipelines when transcript inspection, deterministic tool verification, and component independence matter most; evaluate native audio when prosody and end-to-end conversational expressiveness are primary product goals.
 
 ## Moving audio across the internet
 
-When moving live audio across the internet, transport choice sets baseline latency and jitter. For browser and mobile voice agents, WebRTC prefers a media-timed UDP path when available, but ICE/TURN deployments need relay and TCP/TLS fallback paths for restricted networks ([RFC 8835](https://www.rfc-editor.org/rfc/rfc8835)).
-
-WebSockets remain useful for signaling, transcription-only streams, and server-to-server audio when the application owns media buffering. The comparison below uses WebSocket over TCP. [RFC 9220](https://www.rfc-editor.org/info/rfc9220/) also defines WebSocket over HTTP/3; verify the negotiated path instead of assuming every WebSocket uses TCP. Reliable ordering within its audio stream still differs from deadline-aware datagram delivery.
-
-TCP provides reliable, ordered byte delivery with sequence numbers, acknowledgments, and retransmission. That's great for text and file transfer, but it creates head-of-line blocking for live audio. If one segment is lost, later bytes wait behind recovery. In voice, that often shows up as stuttery playout or latency spikes.
-
-On a WebRTC UDP media path, loss handling is deadline-aware: the stream can keep moving while packet-loss concealment fills short gaps. For conversation, concealing a short lost frame may be preferable to delaying later audio for recovery; verify this trade-off under the network slices you serve.
+TCP delivers reliable, strictly ordered bytes. When one TCP segment drops, every later audio frame stalls behind retransmission, causing head-of-line blocking and audible stutter. WebRTC prefers UDP media paths with RTP/RTCP timing feedback ([RFC 8835](https://www.rfc-editor.org/rfc/rfc8835)), falling back to TURN relays or TCP/TLS only when firewalls block UDP.[^perkins2021] WebSockets over TCP fit signaling and server-to-server PCM links, while browser live media belongs on WebRTC (note that [RFC 9220](https://www.rfc-editor.org/info/rfc9220/) also defines WebSocket over HTTP/3, though ordered stream semantics still differ from deadline-aware media datagrams).
 
 <figure>
-  <img src="illustrations/_generated/transport_comparison_dark.png" alt="Four 20 ms audio packets illustrate one missing frame. WebRTC conceals the 60 ms gap and plays the 80 ms packet on time. A TCP WebSocket must recover the missing byte rangeC before later bytesD and E can be delivered to the application." />
-  <figcaption>These synthetic packets represent 20ms each. WebRTC can conceal the missing packet at the 60ms position and play the packet at 80ms; TCP must recover missing bytes before delivering later bytes.</figcaption>
+  <img src="illustrations/_generated/transport_comparison_dark.png" alt="Four 20 ms packets with one lost frame at 60 ms: WebRTC conceals the 60 ms gap and plays the 80 ms packet on schedule, while TCP WebSocket stalls later bytes behind retransmission." />
+  <figcaption>On a 20 ms packet cadence, WebRTC conceals a missing 60 ms frame and plays the 80 ms frame on time, whereas TCP blocks later audio until the lost byte range recovers.</figcaption>
 </figure>
-
-The deadline changes the protocol choice. RTP recovery helps only while a packet can still improve playout; TCP recovery must preserve byte order even if the voice moment has already passed. If a call is clean on wired networks but stutters on a mobile slice, compare packet arrival, buffer depth, concealment, and playout delay before blaming the model.
 
 ### Jitter buffers and packet loss concealment
 
-Network jitter is variation in packet delay and arrival spacing. A receiver's jitter buffer holds packets before playback. A team might begin experiments around 20-60ms, then measure the delay/underrun tradeoff on supported paths: a larger buffer can hide more arrival variation while increasing conversational delay.
+Network jitter causes packets sent every 20 ms to arrive unevenly. A jitter buffer delays playback by a small cushion (often starting around 20–60 ms) so late packets still meet their playout deadline:
 
-- Static Jitter Buffer: Fixed size (e.g., 50ms). Simple but risks underruns if jitter exceeds buffer size.
-- Adaptive Jitter Buffer: Dynamically resizes based on network conditions. Expands during congestion (adding latency) and shrinks during stability (reducing latency).
+$$
+\text{deadline} = \text{packet timestamp} + \text{buffer delay}
+$$
 
-Browser WebRTC stacks already include adaptive jitter buffers and packet loss concealment (PLC). NetEQ is a well-known WebRTC receiver implementation of this idea.[^chromiumNeteq] When packets arrive late or disappear, the receiver can stretch buffered audio, extrapolate from recent audio, or ask the decoder to synthesize concealment frames instead of stalling playout.
+A static buffer is simple but adds constant lag or starves under congestion; an **adaptive jitter buffer** such as WebRTC's NetEQ expands smoothly during bursts and shrinks when the network stabilizes.[^chromiumNeteq] When a packet misses its deadline completely, packet loss concealment (PLC) extrapolates or synthesizes a short fill frame rather than freezing playback.
 
 ### Protocol comparison: WebRTC vs. WebSocket
 
-| Feature | WebRTC Media (UDP Preferred, Fallbacks Possible) | WebSocket over TCP |
+| Feature | WebRTC Media (UDP preferred) | WebSocket over TCP |
 | :--- | :--- | :--- |
-| **Transport** | UDP preferred; relay or TCP/TLS fallback paths possible | TCP |
-| **Reliability Model** | **Media-timed** (may use NACK/FEC, but playout stays time-bounded) | **Byte-stream reliable** (lost bytes block later bytes) |
-| **Latency Behavior** | **Low and stable when tuned** | **Can spike under loss** |
-| **Congestion Control** | Media-aware adaptation via RTP/RTCP feedback (implementation-dependent) | Managed by the TCP stack, not by media playout deadlines |
-| **Encryption** | Mandatory media encryption via DTLS-SRTP | TLS for `wss://`; plain `ws://` isn't encrypted |
-| **Typical use here** | **Browser live media** | **Signaling or server PCM with application buffering** |
-
-WebRTC media is richer than "UDP means drop packets." On UDP media paths it layers RTP (Real-time Transport Protocol) / RTCP (RTP Control Protocol) feedback, jitter buffers, packet loss concealment (PLC), and sometimes NACK (Negative Acknowledgment) or FEC (Forward Error Correction).[^perkins2021] ICE and TURN can select relay or fallback paths when direct UDP is unavailable ([RFC 8835](https://www.rfc-editor.org/rfc/rfc8835)). The design goal is timeliness: recover loss when it can still help, otherwise keep audio moving.
-
-Using WebSockets as a drop-in replacement for WebRTC in browser live audio creates hidden work. You can ship with WebSockets, but you must own <span data-glossary="chunking">chunking</span>, playout buffering, <span data-glossary="backpressure">backpressure</span>, and worse behavior under packet loss.
-
-```checkpoint
-Why does WebRTC usually beat WebSockets for browser live audio?
----
-WebRTC uses media-timed transport with jitter buffers, RTP/RTCP feedback, packet loss concealment, and time-bounded playout. TCP WebSockets can stall later audio behind lost bytes.
-```
+| **Transport** | UDP preferred; ICE/TURN relay or TCP/TLS fallback | TCP |
+| **Loss handling** | Deadline-aware (PLC, optional NACK/FEC) | Reliable byte stream (head-of-line blocking) |
+| **Congestion control** | Media-aware via RTP/RTCP feedback | TCP congestion window, unaware of playout deadlines |
+| **Encryption** | Mandatory DTLS-SRTP | TLS (`wss://`) |
+| **Best fit** | Browser and mobile live voice | Signaling, server-to-server PCM |
 
 ## Scaling to thousands of conversations
 
-Suppose 10,000 callers connect during an incident drill. Connection count alone misses the work each session creates: media state, turn timing, model requests, and bursty <span data-glossary="gpu">GPU</span> demand. The ingress tier usually needs sticky routing or consistent hashing so packets for one conversation keep landing on the same media worker.
+WebRTC workers are stateful: each worker holds DTLS encryption keys, SRTP cryptographic counters, adaptive jitter buffers, and the live playout cursor for its active calls. Round-robin routing mid-call breaks decryption immediately. Pin every call to one media worker with consistent hashing or connection-aware routing, and let stateless STT, LLM, and TTS GPU pools scale independently behind the media tier.
 
 <figure>
-  <img src="illustrations/_generated/scale_sessions_dark.png" alt="Voice session packets hash to one sticky media worker that owns DTLS and media state. Its audio, turn, and text requests fan out to independently scalable STT, LLM, and TTS pools." />
-  <figcaption>Pin packet state to one media worker. Let STT, LLM, and TTS pools burst behind it, because their CPU and GPU profiles don't move together.</figcaption>
+  <img src="illustrations/_generated/scale_sessions_dark.png" alt="Voice packets hash to one sticky media worker holding DTLS and media state, fanning out audio and text work to independently scaled STT, LLM, and TTS pools." />
+  <figcaption>Pin stateful DTLS and jitter-buffer sessions to one media worker while letting CPU/GPU inference pools scale independently behind it.</figcaption>
 </figure>
 
-The media tier scales by active sessions and network state. Inference scales by model pressure, which is why separating these tiers usually beats one giant "voice server" process. The routing sketch uses a stable modulo hash only to show affinity with a fixed worker set. A production router should define what happens when workers join or fail, often with connection-aware routing or consistent hashing to limit remapping.
-
-Treat `10k+` as a load-test target. Declare the call mix: session duration, utterance and pause lengths, arrival bursts, output lengths, tool rate, codec, and network loss. Record media CPU, GPU queue time, active streams, reconnects, first-audio p50/p95, mute p95, and error rate. Set capacity where those SLOs hold with headroom; a session count alone does not define the operating point.
-
-WebRTC connections carry session state. A specific media worker holds Datagram Transport Layer Security (DTLS) keys, Secure Real-time Transport Protocol (SRTP) state, jitter-buffer state, and often the client playout cursor. If a naive round-robin load balancer routes packets to a different worker mid-session, decryption and timing state break immediately.
-
-Behind media workers, inference components should scale independently because their compute profiles differ. Turn detection and some STT stages often fit on CPU. Largest speech or LLM models usually need GPU. Independent scaling keeps GPU utilization high without overprovisioning lighter tiers. If one media worker dies, preserve the call's heard cursor and reconnect state where possible; otherwise make the recovery explicit, rebuild the session, and tell the caller what happened.
+Size concurrency from a realistic call mix (utterance length, silence ratio, barge-in frequency, tool rate, and network loss) rather than a bare session count, and define explicit worker-failover behavior: reconnect the client, restore confirmed history where available, and inform the caller cleanly.
 
 <!-- leetllm: test, output=show -->
 ```python title="keeping-media-sessions-affine.py"
 import hashlib
-import json
 
 workers = ["media-a", "media-b", "media-c"]
 
-def route(session_id: str) -> str:
+def assign_worker(session_id: str) -> str:
     digest = int(hashlib.sha256(session_id.encode()).hexdigest(), 16)
     return workers[digest % len(workers)]
 
-session_id = "call-session-4219"
-packet_routes = [route(session_id) for _ in range(4)]
-failed_worker = packet_routes[0]
+# Verify consistent affinity across packets and jitter deadline math.
+routes = [assign_worker("call-session-4219") for _ in range(4)]
+print("sticky_worker:", routes[0], "| consistent:", len(set(routes)) == 1)
 
-print(json.dumps({
-    "packet_routes": packet_routes,
-    "single_worker_during_session": len(set(packet_routes)) == 1,
-    "failed_worker": failed_worker,
-    "recovery": "reconnect_and_rebuild_session",
-}, indent=2))
+# Packet timestamp 40 ms arrives at 78 ms: compare 35 ms vs 45 ms jitter buffer.
+for buf_ms in (35, 45):
+    deadline = 40 + buf_ms
+    verdict = "play" if 78 <= deadline else "conceal"
+    print(f"buffer={buf_ms}ms -> deadline={deadline}ms -> arrival 78ms: {verdict}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-{
-  "packet_routes": [
-    "media-a",
-    "media-a",
-    "media-a",
-    "media-a"
-  ],
-  "single_worker_during_session": true,
-  "failed_worker": "media-a",
-  "recovery": "reconnect_and_rebuild_session"
-}
+sticky_worker: media-a | consistent: True
+buffer=35ms -> deadline=75ms -> arrival 78ms: conceal
+buffer=45ms -> deadline=85ms -> arrival 78ms: play
 ```
 <!-- leetllm: output:end -->
 
-```checkpoint
-Why do WebRTC sessions need sticky routing?
----
-A media worker holds DTLS keys, SRTP state, jitter buffers, and the client playout cursor. Moving packets to a different worker mid-session breaks decryption and timing state.
-```
-
-
-
 ## Review the voice design
 
-A tight first-audio objective depends on every handoff. A demo that answers incident 4219 once proves little: the design also needs an explicit response to jitter, interruptions, uncertain turn boundaries, and tools that can't finish inside the budget.
+A clean demo on wired Ethernet hides almost every real voice failure. Evaluate clean, interrupted, and lossy mobile traces together, counting timeouts and silent turns inside the TTFA denominator so a fast p95 on successful calls cannot mask dropped replies. Track time-to-acknowledgement separately from time-to-useful-answer.
 
-| Check | Pass when |
-| --- | --- |
-| Speech-end TTFA | p50 and p95 are measured on declared network slices, not inferred from one 380ms trace |
-| Commit-to-audio | Isolated from endpointing so LLM, TTS, and playout regressions are visible |
-| Turn detection | Local VAD mutes fast; server endpointing combines silence, stable words, and semantic completeness |
-| Transcript commit | Unstable partials may prefetch reads; they may not write history, speak facts, or fire side effects |
-| Slow tools | First audio is an honest acknowledgement; paging and closes wait for results or confirmation |
-| Barge-in | p95 mute meets the product target, and history keeps text through confirmed playout only |
-| Echo | AEC is tested on real devices, speaker volumes, and rooms |
-| Transport | The negotiated path and loss behavior are measured; WebRTC or the application owns capture, buffering, and playback |
-| Native audio | Chosen only after measuring latency, prosody, policy control, and the same confirmed-playout cursor rule |
-| Prefix cache | Stable policy/tool content and usable cache boundaries; write/read usage, costs, and latency are checked |
-
-Start with clean, interrupted, and degraded-network traces, then repeat over a declared workload. Include unsuccessful turns and timeouts in the attainment denominator. A p95 computed only over successful replies hides silence. Separate time to acknowledgement from time to useful answer so a fast filler phrase can't conceal a slow incident lookup. Compare endpoint false cutoffs, identifier accuracy, unauthorized tool attempts, mute latency, and task completion alongside speed.
-
-Speech-end time and commit time are different clocks, and history should keep only the audio the caller actually heard.
+| Check | Pass criterion |
+| :--- | :--- |
+| **Speech-end TTFA** | p50 and p95 measured on declared network slices, including timeouts in the denominator |
+| **Commit-to-audio** | Tracked separately from endpointing so LLM/TTS/playout regressions stay isolated |
+| **Turn detection** | Local VAD mutes fast; server semantic endpointing prevents mid-number cutoffs |
+| **Transcript safety** | Unstable partials may prefetch reads only; speech and side effects require boolean commit |
+| **Slow tools** | Honest acknowledgement before the deadline; executor verifies auth and idempotency |
+| **Barge-in** | Mute meets p95 target and history truncates to response-scoped confirmed playout |
+| **Echo and transport** | AEC tested on real speakerphones; WebRTC jitter and PLC tuned under packet loss |
 
 ### Follow-up questions
 
-- A 300ms silence rule precedes a 320ms post-commit path. What is speech-end TTFA, and which changes could bring it below 500ms?
-- A page succeeded, but the caller interrupted before hearing the acknowledgement. What survives in tool state and conversation history?
-- How would you reject a delayed audio chunk or playout acknowledgement from a previous response after reconnecting?
+- A 300 ms silence rule feeds a 320 ms post-commit path. What is speech-end TTFA, and which two changes bring it below 500 ms?
+- A page tool succeeded, but the caller barged in before hearing the spoken confirmation. What belongs in tool state versus conversation history?
+- After reconnecting a dropped WebRTC worker, how do you stop a stale audio chunk or playout ACK from mutating the new response?
 
 ### Evaluation rubric
 
-- Distinguishes acoustic speech end, accepted turn, stable transcript, and client playout clocks.
-- Calculates overlap without hiding endpointing, transport, failures, or the useful-answer delay.
-- Separates transcript confidence, caller authorization, action confirmation, and service outcome.
-- Reconciles interruptions with response-scoped playout state while preserving real tool effects.
-- Justifies transport, model architecture, and capacity from measured workload and failure cases.
+- Separates acoustic speech end, turn commit, stable transcript, and client playout clocks.
+- Overlaps STT, LLM clause streaming, and TTS without hiding endpointing, timeouts, or slow tool latency.
+- Distinguishes transcript confidence, caller authorization, user confirmation, and backend execution results.
+- Reconciles barge-in against response-scoped confirmed playout while keeping executed side effects intact.
+- Justifies WebRTC vs. WebSocket, cascaded vs. native audio, and sticky media vs. elastic inference tiers from measured workloads.
 
 ```mastery-quiz
 [
   {
-    "question": "A new call’s acoustic speech ends at 1,000 ms, its turn commits at 1,300 ms, and first audio plays at 1,640 ms. Point limits are 500 ms speech-end and 400 ms post-commit. Which paired diagnosis fits this trace?",
+    "question": "A call's acoustic speech ends at 1,000 ms, its turn commits at 1,300 ms, and first audio plays at 1,640 ms. Targets are 500 ms speech-end and 400 ms post-commit. Which diagnosis fits?",
     "options": [
-      "640 ms and 340 ms; the speech-end limit fails while the post-commit limit passes.",
-      "340 ms and 640 ms; the speech-end limit passes while the post-commit limit fails.",
-      "640 ms and 640 ms; both limits fail because first playback closes both timers.",
-      "340 ms and 340 ms; both limits pass because commitment replaces the acoustic origin."
+      "640 ms and 340 ms; speech-end fails while post-commit passes.",
+      "340 ms and 640 ms; speech-end passes while post-commit fails.",
+      "640 ms and 640 ms; both fail because first playback stops both timers.",
+      "340 ms and 340 ms; both pass because commit replaces speech end."
     ],
-    "answer": "640 ms and 340 ms; the speech-end limit fails while the post-commit limit passes.",
-    "explanation": "Subtract the appropriate origin: 1,640−1,000=640 and 1,640−1,300=340. The endpoint delay is 300 ms; it belongs to the speech-end clock but precedes the post-commit clock. An isolated trace represents a single point measurement rather than an aggregate population percentile."
+    "answer": "640 ms and 340 ms; speech-end fails while post-commit passes.",
+    "explanation": "Speech-end TTFA is 1,640 - 1,000 = 640 ms (over 500 ms), while post-commit latency is 1,640 - 1,300 = 340 ms (under 400 ms). The 300 ms endpointing delay belongs only to the speech-end clock."
   },
   {
-    "question": "A frame detector retains configured quiet pre-roll and removes trailing silence from retained utterance duration. Frames last 30 ms, required silence is 61 ms and pre-roll is 30 ms. Probabilities at frames 0 through 5 are [0.1, 0.7, 0.8, 0.2, 0.2, 0.2], with speech threshold 0.5. Which end event and retained duration result?",
+    "question": "A VAD retains quiet pre-roll and trims trailing silence. Frames are 30 ms, required silence is 61 ms, and pre-roll is 30 ms. Probabilities at frames 0 through 5 are [0.1, 0.7, 0.8, 0.2, 0.2, 0.2] with threshold 0.5. Which `speech_end` frame and retained duration result?",
     "options": [
       "Frame 4, 90 ms",
       "Frame 5, 90 ms",
@@ -1264,76 +724,65 @@ Speech-end time and commit time are different clocks, and history should keep on
       "Frame 4, 60 ms"
     ],
     "answer": "Frame 5, 90 ms",
-    "explanation": "At the end of frame 4, the detector has seen only 60 ms of trailing silence. Frame 5 brings that to 90 ms and meets the 61 ms requirement. The detector trims frames 3 through 5. It keeps frame 0 as pre-roll and frames 1 and 2 as speech, for 3 × 30 = 90 ms. Retaining 180 ms counts all six frames, including the trailing silence. Ending at frame 4 with 60 ms also drops the pre-roll and keeps only the two speech frames."
+    "explanation": "61 ms requires three 30 ms silence frames (90 ms), so speech ends at frame 5 (frames 3, 4, 5 are silent). Trimming those three trailing frames leaves frame 0 (pre-roll) plus frames 1 and 2 (speech) = 3 * 30 = 90 ms."
   },
   {
-    "question": "An interim transcript says Page incident 8316, then changes to Track incident 8316. Event A carries Boolean committed=false; event B carries the string committed=\"false\". Both reach the same typed gate. Which pair of actions is appropriate?",
+    "question": "An interim transcript reads `Page incident 8316`, then revises to `Track incident 8316`. Event A carries boolean `committed=False`; event B carries string `committed=\"false\"`. What should happen?",
     "options": [
-      "A may commit speech after a prefetch; B may perform the same actions after string conversion.",
-      "A may commit speech after a prefetch; B must be rejected before the gate branches.",
-      "A may classify and prefetch an authorized read; B must be rejected before the gate branches.",
-      "A may classify and prefetch an authorized read; B may commit speech because its flag is nonempty."
+      "A speaks after prefetch; B converts the string and speaks.",
+      "A speaks after prefetch; B is rejected.",
+      "A may classify and prefetch a read; B is rejected.",
+      "A may classify and prefetch a read; B commits speech because the string is nonempty."
     ],
-    "answer": "A may classify and prefetch an authorized read; B must be rejected before the gate branches.",
-    "explanation": "An uncommitted hypothesis permits discardable authorized preparation but not history or speech. A nonempty Python string is truthy, yet it is not the Boolean required by this adapter. The revised hypothesis also shows why repeating partial words cannot authorize a page."
+    "answer": "A may classify and prefetch a read; B is rejected.",
+    "explanation": "Uncommitted partials allow discardable read prefetching only, never speech or history writes. A nonempty string is truthy in Python and must be rejected rather than treated as a boolean flag."
   },
   {
-    "question": "Two fresh page traces arrive. In A, the authenticated caller confirmed page P47 and the paging service accepted it, but delivery status is unknown. In B, a committed turn and confirmation propose page P48 while the current executor permission check denies it. Which paired next step is justified?",
+    "question": "In case A, the caller confirmed page P47 and the paging service accepted it, though delivery is unknown. In case B, a committed turn and confirmation request page P48, but the executor permission check denies it. What is right?",
     "options": [
-      "A may report that the owner received the page; B may dispatch because confirmation and commitment are complete.",
-      "A may report service acceptance with delivery unconfirmed; B may dispatch because confirmation and commitment are complete.",
-      "A may report that the owner received the page; B must withhold dispatch under the current permission decision.",
-      "A may report service acceptance with delivery unconfirmed; B must withhold dispatch under the current permission decision."
+      "A reports the owner received the page; B dispatches because confirmation passed.",
+      "A reports service acceptance without claiming delivery; B dispatches.",
+      "A reports the owner received the page; B blocks dispatch.",
+      "A reports service acceptance without claiming delivery; B blocks dispatch."
     ],
-    "answer": "A may report service acceptance with delivery unconfirmed; B must withhold dispatch under the current permission decision.",
-    "explanation": "An accepted acknowledgment confirms message intake rather than recipient delivery or human reading. In B, turn acceptance and caller confirmation do not override the executor’s current authorization check. Speech state, authorization, execution and downstream outcome must remain distinct."
+    "answer": "A reports service acceptance without claiming delivery; B blocks dispatch.",
+    "explanation": "Service acceptance does not confirm human delivery. In B, caller confirmation never overrides the executor's active permission check."
   },
   {
-    "question": "Reply A consists of Owner is (offset 8, end 180 ms), paged. (offset 15, end 410 ms), ETA is (offset 22, end 650 ms), and five minutes. (offset 36, end 900 ms); leading spaces are included after the first chunk. It is cancelled with ACK 450 ms. A later ACK 900 ms is labeled Reply A after Reply B starts. Which history and mutation result follow the response-scoped state machine?",
+    "question": "Reply A chunks are `Owner is` (end char 8, 180 ms), ` paged.` (15, 410 ms), ` ETA is` (22, 650 ms), and ` five minutes.` (36, 900 ms). Reply A cancels at ACK 450 ms. Later, after Reply B starts, a late ACK 900 ms arrives labeled Reply A. What happens?",
     "options": [
-      "Keep Owner is paged.; leave Reply B untouched and leave Reply A’s history frozen.",
-      "Keep Owner is paged. ETA is; leave Reply B untouched and leave Reply A’s history frozen.",
-      "Keep Owner is paged.; cancel Reply B and extend Reply A to its full 36 characters.",
-      "Keep Owner is paged. ETA is; cancel Reply B and extend Reply A to its full 36 characters."
+      "Keep `Owner is paged.`; leave Reply B untouched and Reply A frozen.",
+      "Keep `Owner is paged. ETA is`; leave Reply B untouched.",
+      "Keep `Owner is paged.`; cancel Reply B and extend Reply A.",
+      "Keep `Owner is paged. ETA is`; cancel Reply B and extend Reply A."
     ],
-    "answer": "Keep Owner is paged.; leave Reply B untouched and leave Reply A’s history frozen.",
-    "explanation": "The last complete chunk by 450 ms ends at 410 ms/offset 15. The 650 ms chunk is not complete. A cancelled reply cannot expand from a late ACK, and a response A event cannot mutate active response B. The chunk offsets include spaces."
+    "answer": "Keep `Owner is paged.`; leave Reply B untouched and Reply A frozen.",
+    "explanation": "At 450 ms, the last fully confirmed chunk ends at 410 ms (offset 15). Cancellation freezes Reply A permanently, and a stale Reply A event must never affect Reply B."
   },
   {
-    "question": "A mono 16-bit PCM chunk has 960 sample frames produced for 48 kHz playback. The sink instead consumes it at 24 kHz without resampling. Which duration and payload tuple is correct, excluding protocol overhead?",
+    "question": "A mono 16-bit PCM chunk has 960 sample frames produced at 48 kHz, but the sink plays it at 24 kHz without resampling. What are its intended duration, played duration, and raw byte size?",
     "options": [
-      "Intended 40 ms; interpreted 20 ms; payload 960 bytes.",
-      "Intended 20 ms; interpreted 40 ms; payload 960 bytes.",
-      "Intended 40 ms; interpreted 20 ms; payload 1,920 bytes.",
-      "Intended 20 ms; interpreted 40 ms; payload 1,920 bytes."
+      "Intended 40 ms; played 20 ms; 960 bytes.",
+      "Intended 20 ms; played 40 ms; 960 bytes.",
+      "Intended 40 ms; played 20 ms; 1,920 bytes.",
+      "Intended 20 ms; played 40 ms; 1,920 bytes."
     ],
-    "answer": "Intended 20 ms; interpreted 40 ms; payload 1,920 bytes.",
-    "explanation": "Duration=sample frames/rate: 960/48,000=20 ms and 960/24,000=40 ms. Sixteen bits is two bytes per mono frame, so 960×2=1,920 bytes. Neither relabeling nor receiving a packet changes its samples."
+    "answer": "Intended 20 ms; played 40 ms; 1,920 bytes.",
+    "explanation": "960 / 48,000 = 20 ms intended; 960 / 24,000 = 40 ms played. At 2 bytes per 16-bit mono sample, 960 * 2 = 1,920 bytes."
   },
   {
-    "question": "A media packet has timestamp 40 ms and arrives at 78 ms. Compare fixed buffers 35 ms and 45 ms using deadline=timestamp+buffer. Which disposition pair and extra delay result?",
+    "question": "A media packet with timestamp 40 ms arrives at 78 ms. Compare fixed jitter buffers of 35 ms and 45 ms using `deadline = timestamp + buffer`. What happens?",
     "options": [
-      "Play with 35 ms; play with 45 ms; later slots gain 10 ms.",
-      "Conceal with 35 ms; play with 45 ms; every slot gains 10 ms.",
-      "Conceal with 35 ms; conceal with 45 ms; every slot gains 45 ms.",
-      "Play with 35 ms; conceal with 45 ms; only this slot gains 10 ms."
+      "Play at 35 ms; play at 45 ms; later packets gain 10 ms.",
+      "Conceal at 35 ms; play at 45 ms; every packet gains 10 ms delay.",
+      "Conceal at 35 ms; conceal at 45 ms; every packet gains 45 ms delay.",
+      "Play at 35 ms; conceal at 45 ms; only this packet gains 10 ms."
     ],
-    "answer": "Conceal with 35 ms; play with 45 ms; every slot gains 10 ms.",
-    "explanation": "The deadlines are 75 ms and 85 ms. Arrival 78 misses 75 but meets 85. Increasing a fixed buffer by 10 ms shifts every playback deadline by 10 ms; it is not a free repair restricted to the lost packet."
+    "answer": "Conceal at 35 ms; play at 45 ms; every packet gains 10 ms delay.",
+    "explanation": "Deadlines are 75 ms and 85 ms, so arrival at 78 ms misses 35 ms (concealed) and meets 45 ms (played). Raising a fixed buffer by 10 ms shifts every packet's playout deadline by 10 ms."
   },
   {
-    "question": "In a fresh response-local session trace, audio 120 ms arrives, ACK 120 ms follows, another 180 ms arrives, then ACK 210 ms and a tool-call proposal arrive. Which accounting and action tuple is justified?",
-    "options": [
-      "Received 300 ms; confirmed 210 ms; unconfirmed 90 ms; the proposal still needs executor authorization.",
-      "Received 300 ms; confirmed 300 ms; unconfirmed 0 ms; the proposal still needs executor authorization.",
-      "Received 300 ms; confirmed 210 ms; unconfirmed 90 ms; the tool event itself authorizes execution.",
-      "Received 210 ms; confirmed 210 ms; unconfirmed 0 ms; the tool event itself authorizes execution."
-    ],
-    "answer": "Received 300 ms; confirmed 210 ms; unconfirmed 90 ms; the proposal still needs executor authorization.",
-    "explanation": "Audio deltas sum 120+180=300 ms. The monotonic response-local cursor is 210 ms, so 90 ms remains unconfirmed. A proposed tool name is not an authenticated execution permit. Receipt and playback cannot be merged into one counter."
-  },
-  {
-    "question": "A route reports disjoint input buckets: 2,000 cached-read tokens, 600 cache-write tokens and 400 ordinary tokens. List prices per million are $0.20, $1.25 and $1.00 respectively. What is this input subtotal before output or audio charges?",
+    "question": "A prompt splits into 2,000 cached-read tokens ($0.20/M), 600 cache-write tokens ($1.25/M), and 400 ordinary tokens ($1.00/M). What is the input subtotal?",
     "options": [
       "$0.00092",
       "$0.00140",
@@ -1341,18 +790,18 @@ Speech-end time and commit time are different clocks, and history should keep on
       "$0.00215"
     ],
     "answer": "$0.00155",
-    "explanation": "Multiply each token count by its price per million, then divide by a million. The reads cost $0.00040, the writes cost $0.00075, and ordinary input costs $0.00040, for a total of $0.00155. Pricing the writes as reads gives $0.00092. Using the ordinary rate for the writes gives $0.00140. Charging the same 600 writes at both the write and ordinary rates adds $0.00060 to the correct subtotal and gives $0.00215."
+    "explanation": "Reads: 2000 * 0.20 / 1e6 = $0.00040. Writes: 600 * 1.25 / 1e6 = $0.00075. Ordinary: 400 * 1.00 / 1e6 = $0.00040. Sum = $0.00155."
   },
   {
-    "question": "A declared network slice has 100 eligible attempted calls: 96 produce audio and 92 of those start within 500 ms; four calls time out. The release condition requires at least 95% of attempted calls inside 500 ms. Which report and point decision are sound?",
+    "question": "Out of 100 attempted calls on a mobile slice, 96 produce audio, 92 start audio within 500 ms, and 4 time out silently. The SLO requires at least 95% of attempted calls within 500 ms. Which report is accurate?",
     "options": [
-      "92/96=95.83% attainment; pass this condition while tracking timeouts separately.",
-      "96/100=96% attainment; pass this condition because receiving audio is the deadline event.",
-      "92/100=92% attainment; pass this condition because the successful-only fraction exceeds 95%.",
-      "92/100=92% attainment; hold this condition despite the larger successful-only fraction."
+      "92/96 = 95.8%; pass while tracking timeouts separately.",
+      "96/100 = 96.0%; pass because audio eventually arrived.",
+      "92/100 = 92.0%; pass because successful calls beat 95%.",
+      "92/100 = 92.0%; fail the 95% target."
     ],
-    "answer": "92/100=92% attainment; hold this condition despite the larger successful-only fraction.",
-    "explanation": "The declared denominator is all 100 attempted calls and the numerator is 92 deadline successes. Removing the four silent calls produces a different 95.83% statistic. Delayed audio arrival fails to satisfy the 500 ms requirement; a production rollout requires comprehensive quality, safety, and interruption evidence."
+    "answer": "92/100 = 92.0%; fail the 95% target.",
+    "explanation": "All 100 attempted calls belong in the denominator; dropping four silent timeouts inflates attainment to 95.8% and hides failed calls."
   }
 ]
 ```
