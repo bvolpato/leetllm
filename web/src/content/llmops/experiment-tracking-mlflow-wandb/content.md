@@ -360,6 +360,7 @@ wb_tmp = tempfile.TemporaryDirectory()
 os.environ["HOME"] = wb_tmp.name
 os.environ["WANDB_MODE"] = "offline"
 os.environ["WANDB_SILENT"] = "true"
+os.environ["WEAVE_DISABLED"] = "true"
 
 import numpy as np
 import wandb
