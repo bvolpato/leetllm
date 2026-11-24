@@ -638,7 +638,7 @@ It reports the latest CUDA version supported by the installed driver (CUDA UMD V
 
 ## Carry shape, device, and timing forward
 
-A CUDA training step depends on three invariants:
+A CUDA training step depends on three checks:
 
 - **Shape:** each axis still means what the model expects.
 - **Device:** every tensor used together lives on a compatible device.
@@ -694,7 +694,7 @@ The Mac lesson keeps those checks but changes the hardware picture: Apple silico
       "2,000,000 bytes; unchanged dtype settles accuracy."
     ],
     "answer": "4,000,000 bytes; output tolerance needs validation.",
-    "explanation": "TF32 changes eligible internal arithmetic, not this tensor’s float32 storage, so it remains 4 million bytes. Reduced internal input precision can change numerical results; matching storage dtype does not guarantee identical output or task quality."
+    "explanation": "TF32 changes eligible internal arithmetic, not this tensor’s float32 storage, so it remains 4 million bytes. Reduced internal input precision can change numerical results, so matching storage dtype still requires output tolerance checks."
   },
   {
     "question": "A model has 300 million parameters. Count 4 bytes of weights, 4 of gradients and 8 of Adam moments per parameter. The device has 6 GiB. What conclusion follows before activations and workspaces?",
@@ -864,7 +864,7 @@ So the GPU in our opening was never close. Weights fit, and then weights plus gr
 
 Serving needs none of the training extras. It holds the weights and some memory for each request, which Part 5 takes apart. This is why a model that you can serve on one GPU can take several to train, and why Part 3 spends a chapter on LoRA, which avoids training most of the parameters at all.
 
-Activations are the term you cannot read off a parameter count, because they depend on your data. One activation tensor has shape $B \times T \times d$, and a deep model keeps many of them alive until the backward pass. Then there is the score grid from Chapter 2, $XX^T$. It compares every token with every other token, so for a batch it holds $B \times T \times T$ numbers, and attention builds grids like this inside each layer. Attention that stores this grid is called eager attention, and it keeps one per head in every layer, so the formula below is the floor for that path. (A head is one of several attention calculations that run side by side, as Part 1 explains.) As of late 2026, PyTorch's `scaled_dot_product_attention` function, which Hugging Face's Transformers library uses by default, usually avoids storing the grid on a CUDA GPU,[^pytorchSdpaDocs2026][^transformers2026attentionBackends] and activations then grow about linearly with length.[^dao2022] Find out which path you are on before you trust either number. Two common calls keep it: Transformers' `output_attentions=True` works only on the eager path, and PyTorch's own `nn.MultiheadAttention` takes that path unless you pass `need_weights=False`.[^pytorchMhaMasks2026] Here is what the grid costs when it is stored:
+Activations are the term you cannot read off a parameter count, because they depend on your data. One activation tensor has shape $B \times T \times d$, and a deep model keeps many of them alive until the backward pass. Then there is the score grid from Chapter 2, $XX^T$. It compares every token with every other token, so for a batch it holds $B \times T \times T$ numbers, and attention builds grids like this inside each layer. Attention that stores this grid is called eager attention, and it keeps one per head in every layer, so the formula below is the floor for that path. (A head is one of several attention calculations that run side by side, as Part 1 explains.) PyTorch's `scaled_dot_product_attention` function, which Hugging Face's Transformers library uses by default, usually avoids storing the grid on a CUDA GPU,[^pytorchSdpaDocs2026][^transformers2026attentionBackends] and activations then grow about linearly with length.[^dao2022] Find out which path you are on before you trust either number. Two common calls keep it: Transformers' `output_attentions=True` works only on the eager path, and PyTorch's own `nn.MultiheadAttention` takes that path unless you pass `need_weights=False`.[^pytorchMhaMasks2026] Here is what the grid costs when it is stored:
 
 <!-- leetllm: test, output=show, id=reader-gpu-memory-budget -->
 ```python title="memory-budget.py"
@@ -966,12 +966,10 @@ timer read after waiting:  200 ms
 On a real GPU, the wait is `torch.cuda.synchronize()`. Wait once before you start the clock, so that earlier queued work is not billed to you, and once before you stop it. Run the operation a few times first as well, because the first calls can include setup work. This version also runs on a CPU, where the waits simply do nothing.
 
 ```text title="Install first"
-pip install torch==2.14.1 numpy==2.5.4
+pip install torch numpy
 ```
 
-These are the same versions as Chapter 5. Use Python 3.12 to 3.14, because this PyTorch has no build for 3.15.
-
-<!-- leetllm: test, output=show, id=reader-gpu-honest-timer, deps=torch==2.14.1,numpy==2.5.4 -->
+<!-- leetllm: test, output=show, id=reader-gpu-honest-timer, deps=torch,numpy -->
 ```python title="honest-timer.py"
 import time
 

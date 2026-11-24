@@ -621,7 +621,9 @@ Trees also make constant predictions outside their outermost splits. A petal wid
 
 The chapter's models all start from the same question: can petal measurements distinguish two species? A stump creates one useful partition. A deeper tree divides mixed regions further. A forest combines different fitted partitions, while boosting keeps adding corrections to its current prediction.
 
-Change `min_samples_leaf` in the forest from 2 to 10 and inspect the probabilities as well as accuracy. Larger leaves pool more flowers, so fewer predictions will come from very small, nearly pure groups. Then change the booster's learning rate from 0.1 to 0.05 while keeping 50 rounds. Explain the smaller update before checking whether it helps validation loss.
+> **Key insight:** Mean decrease in impurity (MDI) rewards high-cardinality noise features that split the training set finely; **permutation importance** on held-out data measures what the fitted model actually relies on to generalize.
+
+Change `min_samples_leaf` in the forest from 2 to 10 and inspect both probabilities and accuracy. Larger leaves pool more flowers, smoothing away extreme predictions from tiny leaves. Then lower the booster's learning rate from 0.1 to 0.05 at 50 rounds and see how the slower shrinkage shifts training and validation log loss.
 
 ```checkpoint
 A node contains eight versicolor flowers and two virginica flowers. What probability does its leaf assign to virginica, and what is its Gini impurity?

@@ -14,31 +14,27 @@
 }
 ---
 
-In [feature engineering](/learn/feature-engineering-production-ml), we saw why training rows must capture only signals that were observable when the prediction was made. Now follow an online fraud and risk model scoring account `A-409` at `09:00 UTC` on May 1, 2026. One predictive feature measures how many hours have elapsed since the account's most recent verified security check. During a network partition, verification event `E2` happens at `08:30 UTC` but does not reach the broker until `11:00 UTC`. Tomorrow, a historical lakehouse query reads the `08:30` event and computes a feature age of `0.5` hours, whereas at `09:00` the live scoring service saw only the `01:00` check (`E1`) and computed `8.0` hours.
+At `09:00 UTC` on May 1, a fraud model scores account `A-409` using one key feature: hours since the last verified security check. During a network blip, verification event `E2` happens at `08:30 UTC` but does not reach the message broker until `11:00 UTC`. Live serving at `09:00` only saw the earlier `01:00` check (`E1`) and fed the model `8.0` hours. The next day, a naive warehouse query reads `E2`'s `08:30` timestamp and writes `0.5` hours into the training row for that exact `09:00` score.
 
-Which feature value belongs in the labeled training example for that `09:00` score? Train on the `8.0`-hour value that live inference actually received. Tomorrow's retrospective visibility changes what an analyst knows later, not what the production model saw when it acted. The mismatch between `0.5` and `8.0` signals an arrival delay, yet neither age by itself shows whether the account is fraudulent or whether packet delivery failed downstream. Feeding `0.5` hours into offline training leaks future knowledge into the classifier and makes offline validation metrics look artificially strong.
-
-**Batch processing** operates over bounded slices of history, such as daily partitions archived in object storage. **Streaming processing** updates materialized state continuously as records arrive from an unbounded log. Both architectures experience latency shaped by input skew, batch intervals, and broker throughput, and a faithful **historical replay** depends on keeping raw event logs, publication timestamps, transformation versions, and routing rules intact so training data mirrors what online serving could read at every cutoff.
+Training on `0.5` hours leaks future knowledge into the model and inflates offline metrics while live inference still sees `8.0` hours. Building reliable ML pipelines means keeping **batch processing** (bounded historical slices in object storage) and **streaming processing** (continuous stateful updates from an unbounded log) locked to the exact same temporal semantics. Following on from [feature engineering](/learn/feature-engineering-production-ml), we will trace how dual-clock timestamps, point-in-time joins, dual feature stores, watermarks, idempotent updates, and paired parity checks keep training and serving in lockstep.
 
 ## Dual-clock time semantics: event time versus ingestion time
 
-Reproducing an inference vector accurately requires distinguishing when an event occurred from when the pipeline received it and when the model scored the entity. These three clocks govern historical replay and live serving alike:
+Reproducing an online feature vector requires three separate clocks:
 
 | Field | Example | Meaning |
 | --- | --- | --- |
-| `event_time` | May 1, 08:30 UTC | When the source service generated the verification event |
-| `ingested_at` | May 1, 11:00 UTC | When the message broker or lakehouse sink registered the record |
-| `prediction_time` | May 1, 09:00 UTC | When the scoring service evaluated features for account `A-409` |
+| `event_time` | May 1, 08:30 UTC | When the source service generated the event |
+| `ingested_at` | May 1, 11:00 UTC | When the broker or lakehouse sink received it |
+| `prediction_time` | May 1, 09:00 UTC | When the model scored account `A-409` |
 
-Event `E2` carries an <span data-glossary="event-time">event time</span> 30 minutes ahead of the `09:00` decision, yet its two-hour transport delay keeps it invisible until `11:00`. Reading raw storage tomorrow without checking broker arrival time pulls `E2` into the past, creating target leakage during training. **Throughout this first simulation, assume an accepted record becomes readable immediately at `ingested_at`.** Under that assumption, eligibility for cutoff $t_p$ requires both timestamps to satisfy:
+Event `E2` carries an <span data-glossary="event-time">event time</span> 30 minutes before `09:00`, yet its two-hour network delay kept it invisible at decision time. Assuming an accepted record becomes readable immediately at `ingested_at`, eligibility at <span data-glossary="prediction-timestamp">prediction timestamp</span> $t_p$ requires both clocks to clear the cutoff:
 
 $$
-t_{\mathrm{event}} \le t_p \quad\text{and}\quad t_{\mathrm{ingested}} \le t_p
+t_{\mathrm{event}} \le t_p \quad\text{and}\quad t_{\mathrm{ingested}} \le t_p.
 $$
 
-Here $t_{\mathrm{event}}$ is the source timestamp, $t_{\mathrm{ingested}}$ is pipeline arrival time, and $t_p$ is the <span data-glossary="prediction-timestamp">prediction timestamp</span>. Filtering by $t_{\mathrm{event}} \le t_p$ prevents future-dated clocks from polluting history, while $t_{\mathrm{ingested}} \le t_p$ excludes delayed deliveries that were still in transit at inference time. Both predicates remain preconditions rather than guarantees of visibility, because downstream windowed aggregates or quarantine filters can still hold an ingested event out of online state.
-
-Event and ingestion clocks still leave open the exact moment a computed value enters the low-latency serving table. When a broker receives a message at `08:58` and the stream processor finishes writing to Redis at `09:02`, a `09:00` inference call cannot observe that update. Reproducing that distinction in historical backfill requires either recording an explicit **feature availability timestamp** ($t_{\mathrm{available}} \le t_p$) or logging published feature snapshots directly. Notice also that including equality ($\le$) covers exact-second matches, so coarse timestamps in real workloads need deterministic sequence keys or version counters to break ties cleanly.
+If stream processing also takes time between broker ingestion (`08:58`) and Redis publication (`09:02`), track an explicit **feature availability timestamp** ($t_{\mathrm{available}} \le t_p$) or log the served feature vector directly at inference time.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Dual-clock timeline plotting event time (top lane) and broker arrival time (bottom lane) against decision cutoffs at 09:00, 12:00, and 16:00 UTC. Event E1 (01:00 to 01:02) satisfies both clocks by 09:00 (age 8.0h); E2 (08:30 to 11:00) crosses the 09:00 cutoff and appears at 12:00 (age 3.5h); E3 (12:00 to 12:01) appears at 16:00 (age 4.0h)." />
@@ -53,7 +49,7 @@ No. Reproducing what live inference saw requires both `event_time <= prediction_
 
 ## Rebuilding what live serving knew at decision time
 
-The opening script defines three verification events for account `A-409`: on-time event `E1`, delayed event `E2`, and later afternoon event `E3`. Numbered code blocks below execute sequentially inside one stateful Python session so shared helper functions remain in memory. All naive timestamps are normalized to UTC using Python's `datetime` timezone utilities, and NumPy computes ingestion lag in minutes.[^python_datetime]
+Let's simulate three verification events for `A-409` across one stateful Python session, normalizing timestamps to UTC with `datetime` and measuring arrival lag in NumPy.[^python_datetime]
 
 <!-- leetllm: test, output=show, id=pipeline-lab -->
 ```python title="01-inspect-event-clocks.py"
@@ -111,7 +107,7 @@ E3 occurred=12:00 arrived=12:01 lag=1m
 ```
 <!-- leetllm: output:end -->
 
-Filtering strictly by event time accepts both `E1` and `E2`. Running that naive filter first makes the resulting temporal leakage explicit so we can compare it directly against faithful serving behavior. Notice how easily a clean-looking SQL query over `event_time` introduces this `0.5`-hour distortion without raising any runtime error.
+Filtering by `event_time <= prediction_time` alone silently pulls `E2` into the `09:00` feature row (`0.5h`):
 
 <!-- leetllm: test, output=show, continue=pipeline-lab, id=event-time-only -->
 ```python title="02-expose-event-time-only-bug.py"
@@ -144,7 +140,7 @@ leaked late verification: True
 ```
 <!-- leetllm: output:end -->
 
-Adding the arrival check `ingested_at <= prediction_time` drops `E2` immediately. Only `E1` remains visible to the `09:00` request, restoring the exact `8.0`-hour age observed online. Reconstructing that cut reliably requires persisting broker arrival times alongside source timestamps for every ingested event.
+Adding `ingested_at <= prediction_time` excludes `E2` and recovers the `8.0h` age live serving actually computed:
 
 <!-- leetllm: test, output=show, continue=event-time-only, id=decision-time-replay -->
 ```python title="03-filter-by-decision-time.py"
@@ -174,7 +170,7 @@ late verification excluded: True
 ```
 <!-- leetllm: output:end -->
 
-Across multiple inference timestamps, the historical training table evaluates the most recent visible verification timestamp at each decision cutoff separately. Storing the underlying verification timestamp rather than caching a static age lets serving compute exact elapsed hours (`09:00 -> 8.0h`, `12:00 -> 3.5h`, `16:00 -> 4.0h`) without updating the store every minute. Each cutoff reuses the exact same visibility filter while updating the elapsed duration relative to the request clock.
+To handle revisions at the same timestamp, rank visible events by `(event_time, source_version)` and quarantine any equal-key records with conflicting payloads rather than letting arrival order pick a winner:
 
 <!-- leetllm: test, output=show, continue=decision-time-replay, id=as-of-rows -->
 ```python title="04-build-as-of-rows.py"
@@ -216,17 +212,13 @@ for requested_at in [
 ```
 <!-- leetllm: output:end -->
 
-Ordering by `(event_time, source_version)` ranks timestamp freshness first and breaks same-timestamp revisions monotonically. When multiple records share the exact same `(event_time, source_version)` key with conflicting `risk_tier` values, the lookup quarantines the result instead of letting ingestion timing break the tie arbitrarily. Production feature pipelines extend that conflict detector across all materialized columns or a canonical hash of the payload.
-
-Keep compliance audits separate from ML training tables. An operational audit asking which events actually transpired before `09:00` deliberately incorporates late arrivals such as `E2`, whereas a decision-time model training dataset must omit `E2` because live inference never received it. Even forensic audits still trust source clocks and upstream event payloads unless external telemetry verifies them.
+> **Key insight:** Keep retrospective analytics tables separate from ML training tables. An analyst reconstructing what actually happened before `09:00` wants late event `E2` included; an ML training set wants `E2` excluded because the model did not see it at `09:00`.
 
 ## Per-entity temporal cutoffs: point-in-time joins versus table time travel
 
-Enforcing two-clock filters still leaks future information if a batch pipeline joins all labeled rows against a single global table snapshot. Lakehouse **time travel** restores a historical table commit at a chosen batch snapshot timestamp, which measures storage commit time rather than per-example prediction cutoffs.[^databricks2026pit][^icebergMaintenance2026] A <span data-glossary="point-in-time-join">point-in-time join</span> evaluates a different cutoff $t_p$ for every row in the label table. Retaining historical commits allows storage engines to keep older versions, yet reading one shared snapshot does not isolate per-row event horizons.
+Lakehouse **time travel** queries a single historical table commit for the whole table.[^databricks2026pit][^icebergMaintenance2026] A <span data-glossary="point-in-time-join">point-in-time join</span> evaluates a *different* cutoff $t_p$ for every row.
 
-In fraud scoring, every training label carries its own prediction timestamp $t_p$, even though chargeback confirmation arrives weeks later. Account `A-401` might be evaluated at `09:00` while account `A-402` is evaluated at `09:30`. A point-in-time join matches each row independently against the latest feature update at or before its own $t_p$. Pulling each account's latest value from a single `09:30` table snapshot gets `A-402` right while accidentally giving `A-401` its `09:15` dispute update, leaking fifteen minutes of future state into `A-401`.
-
-To isolate per-row timestamp cutoffs from arrival delays, the comparison below lets feature updates become readable immediately at `time` and runs an as-of lookup alongside a global `09:30` snapshot lookup.
+Suppose `A-401` is scored at `09:00` and `A-402` at `09:30`. Reading one `09:30` table snapshot gets `A-402` right, yet leaks `A-401`'s `09:15` dispute spike (`12`) backward into its `09:00` training row (where the true value was `5`):
 
 <!-- leetllm: test, output=show, id=pit-vs-snapshot -->
 ```python title="pit-vs-snapshot-join.py"
@@ -308,7 +300,7 @@ A-402 09:30 disputes=8
 ```
 <!-- leetllm: output:end -->
 
-In production tabular pipelines, <span data-glossary="pandas">pandas</span> vectorizes this lookup through `pd.merge_asof`. Both <span data-glossary="dataframe">DataFrames</span> must be sorted globally on the join timestamp before matching within each entity key (`by="account"`). With `direction="backward"`, exact timestamp matches stay eligible and `A-401` correctly retrieves `5` instead of the leaky snapshot value `12`.[^pandas2026mergeasof]
+In <span data-glossary="pandas">pandas</span>, `pd.merge_asof(..., direction="backward")` vectorizes this join across sorted <span data-glossary="dataframe">DataFrames</span>:[^pandas2026mergeasof]
 
 <!-- leetllm: test, output=show, id=pit-merge-asof -->
 ```python title="pandas-merge-asof-pit.py"
@@ -355,37 +347,29 @@ A-402 09:30 disputes=8
 ```
 <!-- leetllm: output:end -->
 
-An unbounded backward search creates another subtlety when an inactive account receives no events for months. Specifying `tolerance=pd.Timedelta("24h")` caps how far backward `merge_asof` may scan while still leaving arrival-time filtering to a separate availability predicate.[^pandas2026mergeasof] Feature platforms frequently express that maximum scan window as a <span data-glossary="ttl-deadline">time-to-live (TTL)</span> lookback alongside storage retention. Keep those concepts distinct: dropping expired rows physically deletes history, whereas capping a feature join's lookback changes how silence is represented (for example, turning a multi-day quiet spell into a null rather than an explicit elapsed age).
-
-In Feast, the default offline join constrains event time relative to each entity row timestamp, which can still pull in backdated corrections created later. Passing `filter_by_created_timestamp=True` enables an additional creation-time constraint on supported offline stores, requiring non-null creation timestamps that faithfully record when serving actually saw each row rather than an arbitrary warehouse load time.[^feast2026pit] Even with an exact point-in-time join for batch training, live scoring needs sub-10ms reads for a single account rather than multi-terabyte scans, raising the question of how to serve fast lookups while keeping feature semantics identical.
+Pass `tolerance=pd.Timedelta("24h")` to bound how far backward the join looks (a <span data-glossary="ttl-deadline">TTL</span> lookback). In Feast, pair event-time joins with `filter_by_created_timestamp=True` when supported so backdated corrections do not slip into earlier training rows.[^feast2026pit]
 
 ## Dual-store architecture: offline lakehouses and low-latency online stores
 
-Serving and training impose opposite access requirements, so production teams separate storage engines while preserving shared feature logic. Model training scans months of aligned history across millions of entities, whereas real-time fraud scoring needs one account's latest state within a tight latency SLA. Offline-only batch scoring pipelines can read columnar tables directly without standing up an online store at all.
+Training scans months of history across millions of accounts; live fraud scoring needs one account's state in under 10 ms. A <span data-glossary="feature-store">feature store</span> separates the two storage engines behind shared feature definitions:[^feast2026online][^google2026mlops]
 
 <figure>
   <img src="illustrations/_generated/dual_storage_reconciliation_dark.png" alt="Dual-store feature pipeline splitting a shared Kafka event stream into a streaming online updater (Redis key-value state) and an append-only offline archive (Parquet lakehouse). At the 09:00 cutoff both paths select event E1 from 01:00, compute 8.0 hours age, and verify parity in a paired audit joined by request ID." />
-  <figcaption>Dual-store topology comparing real-time serving against historical point-in-time replay. Routing events through a common message bus aligns inputs, yet paired audits logged by request ID remain essential to catch write lag, serialization drift, or ordering bugs between stores.</figcaption>
+  <figcaption>Dual-store topology comparing real-time serving against historical point-in-time replay. Routing events through a common message bus aligns inputs, and paired request-ID checks catch write lag, serialization drift, or ordering bugs between stores.</figcaption>
 </figure>
 
 | System attribute | Offline feature store | Online feature store |
 | --- | --- | --- |
-| Example technology | Iceberg or Delta tables over columnar Parquet files | Redis, DynamoDB, or another entity-keyed store |
-| Access pattern | Historical full-range scans and temporal joins | Single-key lookups by entity ID (`account_id`) |
-| Latency and throughput focus | Batch scan cost and backfill build time | Tail lookup latency (p99) and serving availability |
-| Temporal depth | Full append-only revision history across retention windows | Latest materialized feature row per entity key |
-| Core ML workload | Per-row point-in-time training dataset construction | Live inference lookup and freshness inspection |
+| Storage engine | Iceberg or Delta over Parquet | Redis, DynamoDB, or entity-keyed store |
+| Access pattern | Full-range scans and point-in-time joins | Single-key lookup by `account_id` |
+| Temporal depth | Append-only revision history | Latest materialized row per entity |
+| Primary workload | Training dataset construction | Low-latency inference and freshness checks |
 
-A shared event backbone such as Apache Kafka fans out each incoming record to two independent consumers, letting low-latency inference and full historical replay evolve without blocking one another:
+A shared Kafka topic fans each event to both paths: a stream processor (such as Apache Flink) maintains latest state in the online store, while a lakehouse sink archives raw payloads plus arrival timestamps for offline replay.
 
-1. **Streaming path**: An incremental engine such as Apache Flink consumes incoming verification events, maintains stateful windows or latest-state aggregators, and upserts the current feature values into the online store.
-2. **Batch archive path**: A lakehouse sink preserves raw event payloads alongside ingestion and availability metadata in append-only tables so offline jobs can replay exact historical cutoffs later.
+> **Common mistake:** Never materialize a static elapsed-age float like `hours_since_last_verification = 0.03` in Redis. Store the source `event_time` timestamp instead and compute `(requested_at - event_time)` at request time so elapsed age stays accurate even when an account goes quiet for hours.
 
-Feast's online store explicitly tracks only the latest value per entity key to guarantee constant-time point lookups rather than scanning historical arrays at request time.[^feast2026online] Google Cloud's MLOps reference architecture likewise defines a <span data-glossary="feature-store">feature store</span> as a central metadata and storage layer uniting batch training generation with low-latency inference retrieval under canonical definitions.[^google2026mlops] Keeping both stores synchronized begins with deciding which timestamp values get persisted in the low-latency table.
-
-Because inference timestamps advance continuously even when no account event arrives, store the source `event_time` of the latest verification event instead of materializing a static elapsed-hour float. If a stream consumer writes `hours_since_last_verification = 0.03` at `01:02` and no check follows, a `09:00` prediction must compute `8.0` hours dynamically from the stored timestamp. Precomputed elapsed ages require scheduled periodic refreshes whose staleness interval must be accounted for in downstream model calibration.
-
-Out-of-order deliveries and retries can also overwrite fresher online values unless writes follow a strict monotonic rule. Ordering updates by `(event_time, source_version)` lets a version `2` correction overwrite version `1` at the same `event_time`, while preventing a delayed retry of version `1` from regressing current state backward. Notice that distributed writers in production require atomic compare-and-set updates plus clock sanity checks so a misconfigured client stamp far in the future cannot lock out legitimate state updates.
+To stop out-of-order deliveries or retries from overwriting fresher online state, compare `(event_time, source_version)` monotonically and quarantine equal-key payload conflicts:
 
 <!-- leetllm: test, output=show, continue=as-of-rows, id=online-state -->
 ```python title="05-protect-latest-online-state.py"
@@ -483,7 +467,7 @@ E1-retry: ignored stale event
 ```
 <!-- leetllm: output:end -->
 
-An online key storing only current state cannot answer arbitrary historical requests once later records arrive. Logging the served feature vector at prediction time gives you an exact audit record, while `online_age_hours` explicitly raises an error if asked to backfill a cutoff older than the stored state rather than returning a negative age or leaking future values backward. Keeping that check strict catches inadvertent offline queries routed to online key-value tables during evaluation.
+Because an online key holds only current state, `online_age_hours` rejects any historical query older than its stored timestamp rather than leaking future values backward.
 
 ```checkpoint
 A version-2 correction and a later retry of version 1 share the same event timestamp. Which state should stay in the online store?
@@ -493,27 +477,19 @@ Version 2. Comparing `(event_time, source_version)` prevents a delayed retry fro
 
 ## Stream windowing, watermarks, and out-of-order event routing
 
-Aggregated behavioral features such as hourly authentication failures or rolling dispute rates require partitioning an unbounded event stream into finite intervals. Without fixed buckets, running counts grow forever and cannot be joined cleanly to decision cutoffs. Stream engines define three canonical window shapes to group arriving records consistently:[^flinkWindows2026]
+Rolling behavioral aggregates (like hourly failed logins) partition an unbounded stream into finite windows: **tumbling** (non-overlapping fixed buckets), **sliding** (overlapping buckets advancing on a slide step), or **session** (activity bursts closed after an inactivity gap).[^flinkWindows2026]
 
-1. **Tumbling windows**: Fixed-width, non-overlapping buckets such as `[08:00, 09:00)` and `[09:00, 10:00)`. Every event maps cleanly to a single hourly bucket.
-2. **Sliding windows**: Fixed-width buckets advancing by a smaller slide step, such as a 60-minute count recomputed every 5 minutes, so a single event can contribute to twelve consecutive windows.
-3. **Session windows**: Variable-length bursts grouped by activity gaps, closing only once an account stays quiet past an inactivity threshold such as 30 minutes.
-
-Clock semantics dictate when those buckets close and emit. Processing-time windows slice events by machine arrival clock, which distorts features during consumer restarts or network bursts. Event-time windows group records by source timestamps and rely on a **<span data-glossary="watermark">watermark</span>** to track input completeness, recognizing that a watermark estimates stream progress rather than guaranteeing zero stragglers will arrive later.[^beam2026watermarks][^flinkWindows2026]
-
-Under bounded out-of-orderness progress tracking, the watermark trails the highest observed source timestamp by a fixed delay parameter $\Delta_{\mathrm{delay}}$:
+Event-time windows rely on a **<span data-glossary="watermark">watermark</span>** to decide when a bucket is ready to emit.[^beam2026watermarks][^flinkWindows2026] Under bounded out-of-orderness, the watermark trails the highest observed event timestamp by a delay budget $\Delta_{\mathrm{delay}}$:
 
 $$
-W(t) = \max_{e \in S}(e.t_{\mathrm{event}}) - \Delta_{\mathrm{delay}}
+W(t) = \max_{e \in S}(e.t_{\mathrm{event}}) - \Delta_{\mathrm{delay}}.
 $$
 
-Here $\Delta_{\mathrm{delay}}$ is an operational latency budget tuned against observed network jitter, not a physical invariant. Engine details matter when reproducing behavior exactly: Apache Flink's periodic bounded-out-of-orderness watermark generator subtracts one extra millisecond beyond this expression so window ends are strictly passed before firing.[^flinkBoundedWatermarks2026] Downstream operators receiving multiple partitions advance using the minimum watermark across all active inputs, meaning one idle shard stalls emission unless partition idleness timeouts are enabled (which in turn risks marking resumed shard records as late).[^flinkWatermarks2026]
+In Apache Flink, the periodic bounded watermark generator subtracts one extra millisecond so window ends pass strictly before firing, and multi-partition operators take the minimum watermark across active shards (so an idle partition needs an idleness timeout to avoid stalling downstream emission).[^flinkBoundedWatermarks2026][^flinkWatermarks2026]
 
-**Allowed lateness is anchored to each window's end timestamp.** When Flink's default event-time trigger detects the watermark crossing window end, it fires the initial window calculation; keeping a nonzero allowed-lateness horizon retains window state in memory so subsequent late updates can trigger revised outputs or be routed to a side output for batch reconciliation.[^flinkWindows2026]
+Keep **record lag** (how far behind the watermark an event is) distinct from **window allowed lateness** (how long a window keeps state past its end timestamp):[^flinkWindows2026]
 
-In practice, streaming pipelines separate record-level routing lag from per-window state expiration. The next function routes individual arriving events cleanly across three streams: timestamps ahead of the watermark take the on-time path, events within a 45-minute lag budget trigger incremental late updates, and older events go to a replay queue. Separating record lag from bucket expiration clarifies which late arrivals still patch active online windows.
-
-<!-- leetllm: test, output=show, continue=online-state, id=lateness-policy -->
+<!-- leetllm: test, output=show, continue=online-state, id=lateness-rule -->
 ```python title="06-classify-late-events.py"
 def late_event_action(event_time, watermark, max_behind):
     if max_behind < timedelta(0):
@@ -549,9 +525,9 @@ for event_time in [
 ```
 <!-- leetllm: output:end -->
 
-Contrast that record-lag policy with window-retention policy. Consider an `11:05` verification event belonging to the hourly window `[11:00, 12:00)` when the watermark sits at `12:20` and the window holds state for `30` minutes past closure. Even though the `11:05` event trails the watermark by 75 minutes (triggering the 45-minute quarantine route above), the `[11:00, 12:00)` bucket itself remains active until `12:30`. Keep those two budgets cleanly aligned or downstream consumers will fail to reconcile updates across windows.
+An `11:05` event can trail a `12:20` watermark by 75 minutes (exceeding a 45-minute record lag limit) even while its hourly `[11:00, 12:00)` window still retains state under a 30-minute post-closure allowance:
 
-<!-- leetllm: test, output=show, continue=lateness-policy, id=window-budget -->
+<!-- leetllm: test, output=show, continue=lateness-rule, id=window-budget -->
 ```python title="07-contrast-window-and-record-budgets.py"
 window_start = dt("2026-05-01T11:00:00")
 window_end = dt("2026-05-01T12:00:00")
@@ -574,7 +550,7 @@ window still within lateness allowance: True
 ```
 <!-- leetllm: output:end -->
 
-When a window fires a revised aggregate after a late arrival, downstream sinks must treat emission units carefully.[^flinkWindows2026] If window `[11:00, 12:00)` first emits a whole-window total of `2` and later emits a revised total of `3`, adding those messages produces `5` instead of `3`. Keying the materialized sink by `(account, window_start, window_end)` and overwriting only when `revision` strictly increases replaces `2` with `3` while ignoring stale retries; incremental `+1` deltas follow a completely different additive convention that cannot be mixed with full-window totals, and merging session windows additionally requires retracting retired window keys before writing replacements.
+When a window re-emits a revised **whole-window total** (`2`, then `3`), the sink must *replace* the keyed window row on strictly higher revisions rather than adding them together (`2 + 3 = 5`):[^flinkWindows2026]
 
 <!-- leetllm: test, output=show -->
 ```python title="replace-revised-window-count.py"
@@ -602,11 +578,9 @@ materialized window count: 3
 ```
 <!-- leetllm: output:end -->
 
-Logging late routing and window revision metadata ensures offline backfill matches online behavior. When streaming routes a late event to replay while batch blindly includes it inside historical scans, offline metrics silently diverge from online feature quality even though every timestamp passes the primary filter.
-
 ## Idempotency, deduplication ledgers, and atomic state mutations
 
-Replacing latest-value rows handles overwrites, whereas cumulative aggregates such as active open disputes require <span data-glossary="idempotency">idempotency</span> so broker redeliveries never double-count. Without deduplication, replaying message `D1` with delta `+3` increments `open_dispute_count` to `6` instead of `3`. Here we apply source-ordered dispute deltas per account while preserving rejected states across duplicate retries; if deltas arrive out of order across partitions, buffer or version-order them before validating invariants like nonnegativity.
+Cumulative counters like `open_dispute_count` cannot rely on last-write-wins: redelivering event `D1` (`+3`) doubles the count to `6` unless updates are <span data-glossary="idempotency">idempotent</span>. Recording each event ID, delta, and outcome (including rejected events so a later retry cannot unexpectedly take effect) keeps retries safe:
 
 <!-- leetllm: test, output=show, continue=window-budget, id=idempotent-updates -->
 ```python title="08-deduplicate-aggregate-updates.py"
@@ -649,22 +623,18 @@ D3: blocked negative dispute count; open_dispute_count=2
 ```
 <!-- leetllm: output:end -->
 
-An in-memory dictionary demonstrates retry semantics without crash durability. Production consumers commit the deduplication entry, payload fingerprint, outcome status, and updated counter inside one atomic database transaction or compare-and-set operation, otherwise a worker crash between updating the aggregate and recording the ID leaves room for lost or duplicated updates on restart. Retaining rejected outcomes prevents a subsequent retry of `D3` from unexpectedly succeeding once later positive additions raise the total. Set ledger retention TTLs longer than your maximum broker redelivery and replay horizon, because Kafka transactional commits coordinate Kafka offsets and topics without making external Redis writes atomic on their own.[^kafkaDeliverySemantics2026]
+In production, commit the deduplication record and counter update inside **one atomic database transaction** (with retention TTL longer than your maximum broker replay window), because Kafka transactions coordinate offsets and topics without making external Redis writes atomic.[^kafkaDeliverySemantics2026]
 
 ## Freshness SLAs, degraded mode fallbacks, and silent feature staleness
 
-An idempotent consumer can still feed a model hours-old state if an upstream connector stalls silently while the online key stays readable. Retrieval latency measures cache health rather than data freshness, so inference services track **source progress** (`feature_as_of`) separately from database write timestamps (`last_updated_at`). Overwriting an unchanged row with a periodic no-op refresh updates `last_updated_at` even when upstream partitions stopped advancing.
+A healthy Redis lookup can still return hours-old data if an upstream connector stalls. Track **source progress** (`feature_as_of`) separately from cache write timestamps (`last_updated_at`), and branch on exact `timedelta` lag before formatting:
 
-Using an explicit lag schedule keeps degraded behavior predictable and auditable across traffic spikes and upstream slowdowns:
+- **Normal (`<= 15m`):** Score with the primary streaming model.
+- **Fallback (`15m < lag <= 45m`):** Switch to a validated fallback model that excludes stale streaming inputs and log degraded mode in the <span data-glossary="tracing">trace</span>.
+- **Abstain (`> 45m`):** Withhold automated risk scoring and route to deterministic rules or manual review.
 
-- **Normal scoring**: lag at most 15 minutes. Serve predictions from the primary model.
-- **Degraded fallback**: lag strictly above 15 minutes and at most 45 minutes. Log degraded mode and invoke a validated fallback model that excludes stale streaming inputs.
-- **Abstention**: lag above 45 minutes. Withhold automated risk scoring and escalate to deterministic rules or human review.
-
-Always evaluate exact `timedelta` comparisons prior to human-readable formatting, because truncating `15m 30s` down to `15m` silently classifies stale state as normal and masking negative future timestamps hides upstream clock drift. Recording <span data-glossary="feature-freshness">freshness lag</span> in every inference <span data-glossary="tracing">trace</span> separates degraded inputs from true model drift during post-incident analysis. Notice too that a fallback model cannot recover signal if it reads from the same stalled broker topic.
-
-<!-- leetllm: test, output=show, continue=idempotent-updates, id=freshness-policy -->
-```python title="09-apply-serving-freshness-policy.py"
+<!-- leetllm: test, output=show, continue=idempotent-updates, id=freshness-tiers -->
+```python title="09-apply-serving-freshness-tiers.py"
 def serving_mode(feature_as_of, requested_at):
     if feature_as_of is None:
         return "abstain: unknown feature freshness"
@@ -695,24 +665,13 @@ for feature_as_of in [
 ```
 <!-- leetllm: output:end -->
 
+Recording <span data-glossary="feature-freshness">feature freshness</span> on every inference log separates upstream pipeline lag from genuine model drift.
+
 ## Automated reconciliation pipelines and training-serving skew detection
 
-Running separate offline and online engines works cleanly as long as both compute identical feature values for identical inputs. Computing a 7-day rolling mean offline while reading a 1-hour counter online under the same column name creates <span data-glossary="training-serving-skew">training-serving skew</span>, invalidating offline validation metrics before deployment. Detecting that drift automatically requires logging live inference inputs and comparing them against point-in-time batch replay.
+<span data-glossary="training-serving-skew">Training-serving skew</span> arises either from **implementation skew** (SQL/Spark diverging from streaming code on nulls, edges, or timezones) or **temporal data skew** (backfills seeing late records that live inference missed). Catch both by logging served feature vectors with `request_id` and running **paired row reconciliation** against offline point-in-time replay:
 
-Two distinct failure modes cause most production skew, spanning both code semantics and arrival timing:
-
-1. **Implementation skew**: SQL or Spark batch jobs diverge from streaming Java/Python logic in null handling, edge inclusion rules, timezone truncation, or floating-point rounding.
-2. **Temporal data skew**: Offline backfills see late arrivals or corrected records that were not yet present when online inference scored the live request.
-
-Three practices keep offline and online paths synchronized:
-
-- **Versioned canonical definitions**: Publish shared transformation specs covering window spans, units, tie-breaking order, and null semantics, verifying engine equivalence through cross-runtime tests.
-- **Serving vector logging**: Persist the live feature vector alongside `request_id`, `prediction_time`, feature version, and freshness lag as an immutable log distinct from shadow inference runs.
-- **Paired row reconciliation**: Recompute features for sampled logged requests using offline replay and compare field-by-field on `(request_id, prediction_time)`. Marginal distribution checks such as Population Stability Index (PSI) or two-sample Kolmogorov-Smirnov (KS) tests monitor aggregate drift, yet they cannot verify row-level parity.
-
-When comparing paired records, enforce exact type and equality checks for categoricals and booleans (`False == 0` is true in Python value comparisons even though boolean vs. integer schemas differ) and distinguish missing keys from explicit nulls, reserving numeric tolerances strictly for finite floating-point calculations.
-
-<!-- leetllm: test, output=show, continue=freshness-policy, id=parity-sample -->
+<!-- leetllm: test, output=show, continue=freshness-tiers, id=parity-sample -->
 ```python title="10-check-offline-online-parity.py"
 def mismatches(left, right):
     keys = sorted(left.keys() | right.keys())
@@ -806,9 +765,7 @@ mismatches: {}
 ```
 <!-- leetllm: output:end -->
 
-Replaying dispute updates from an empty ledger confirms that batch backfill reproduces the online count `2` deterministically without peeking at live store state. While sharing helper logic reduces implementation skew, parity tests alone cannot reveal an arithmetic bug shared identically across both engines, which is why asserting known expected outputs alongside parity checks matters.
-
-To see why marginal checks are insufficient on their own, swap the dispute counts between accounts `A-401` and `A-402` while running SciPy's two-sample Kolmogorov-Smirnov test alongside a paired entity comparison. Notice how aggregate distribution summaries can report perfect agreement even when individual accounts receive inverted features.
+Why aren't marginal distribution checks like two-sample KS enough? Swap the feature values of `A-401` and `A-402` and `ks_2samp` reports `0.000` distance (`p = 1.000`) while 100% of accounts receive the wrong value:
 
 <!-- leetllm: test, output=show, continue=parity-sample, id=parity-swap -->
 ```python title="11-expose-distribution-only-parity.py"
@@ -834,9 +791,7 @@ wrong entities: 2
 ```
 <!-- leetllm: output:end -->
 
-Both samples produce the exact same empirical distribution (`[5, 18]`), so `ks_2samp` yields a test statistic of `0.000` even though every account received the wrong number. Joining rows by `request_id` or entity key catches the permutation immediately. That distinction explains why paired row checks act as a release gate whereas distribution tests serve mainly as coarse monitoring.
-
-Simulating a stale precomputed age (`0.03` hours written at `01:02` instead of request-time age `4.0`) triggers an explicit parity failure that blocks deployment. Comparing field-by-field values flags the cached float immediately so broken updates never slip into model promotion.
+Paired comparison also catches a stale cached float (`0.03h` vs `4.0h`) immediately before a broken feature change reaches production:
 
 <!-- leetllm: test, output=show, continue=parity-swap, id=parity-failure -->
 ```python title="12-detect-stale-online-state.py"
@@ -856,7 +811,7 @@ parity check passed: False
 ```
 <!-- leetllm: output:end -->
 
-The final summary records our verified invariants across three matching cases and two deliberate failure modes. In production CI and continuous monitoring, attach comparable metadata to versioned dataset manifests, retained raw logs, and captured serving vectors before promoting a feature change.
+Finally, assert all five verification cases together and emit the versioned feature summary:
 
 <!-- leetllm: test, output=show, continue=parity-failure -->
 ```python title="13-inspect-replay-summary.py"
@@ -865,10 +820,10 @@ replay_summary = {
     "availability_rule": "event_time <= prediction_time and ingested_at <= prediction_time",
     "offline_online_ordering": "(event_time, source_version); equal-key conflicts quarantine",
     "age_rule": "store last verification timestamp; compute hours at request time",
-    "aggregate_updates": "require atomic ID/outcome ledger; demo uses in-memory state",
+    "aggregate_updates": "atomic ID/outcome deduplication store; lab uses in-memory dict",
     "dataset_id": "fraud-pipeline-lab-2026-05-01",
     "paired_cases": 5,
-    "freshness_policy": "risk-freshness-v1",
+    "freshness_schedule": "risk-freshness-v1",
 }
 
 assert as_of_hours(events, "A-409", dt("2026-05-01T09:00:00")) == 8.0
@@ -888,10 +843,10 @@ feature_definition=fraud_risk_features_v1
 availability_rule=event_time <= prediction_time and ingested_at <= prediction_time
 offline_online_ordering=(event_time, source_version); equal-key conflicts quarantine
 age_rule=store last verification timestamp; compute hours at request time
-aggregate_updates=require atomic ID/outcome ledger; demo uses in-memory state
+aggregate_updates=atomic ID/outcome deduplication store; lab uses in-memory dict
 dataset_id=fraud-pipeline-lab-2026-05-01
 paired_cases=5
-freshness_policy=risk-freshness-v1
+freshness_schedule=risk-freshness-v1
 ```
 <!-- leetllm: output:end -->
 
@@ -903,27 +858,26 @@ No. The mismatch reveals that offline replay and online serving disagree on time
 
 ## Diagnostic guide: symptoms, root causes, and production remediation
 
-When paired replay and serving logs diverge, isolate the broken clock, join key, or state transition before tuning model hyperparameters.
-
-| Observed symptom | Check before assigning a cause | Response if confirmed |
+| Observed symptom | What to check first | Fix once confirmed |
 | --- | --- | --- |
-| Offline AUC exceeds live production AUC | Inspect paired rows for post-cutoff arrivals alongside label or population drift | Enforce availability cutoffs and rerun offline evaluation |
-| Verification age stays near zero while events stall | Compare stored source timestamp, cached age float, and request clock units | Compute elapsed age at request time from the stored verification timestamp |
-| Entity state reverts after consumer retry | Inspect source revisions and concurrent write interleaving | Enforce monotonic `(event_time, source_version)` ordering atomically and quarantine conflicts |
-| Dispute counts double during broker blips | Trace event IDs, redeliveries, and sink offset commits | Persist idempotent ledger entries atomically alongside counter updates |
-| Live score distribution shifts during stream lag | Audit partition watermarks, mode selection, and fallback triggers | Route lagging entities via validated lag policy and monitor fallback shares |
-| Stream window counts diverge from batch | Compare window assignment, duplicate suppression, triggers, and publication cutoffs | Align window configuration and side-output routing across both runtimes |
+| Offline AUC exceeds live AUC | Paired rows for post-cutoff arrivals vs label/population drift | Enforce availability cutoffs and rerun offline evaluation |
+| Verification age stays near zero during stalls | Stored timestamp vs cached age float and clock units | Compute elapsed age at request time from stored `event_time` |
+| Entity state reverts after consumer retry | Source revisions and concurrent write interleaving | Enforce monotonic `(event_time, source_version)` atomically and quarantine conflicts |
+| Dispute counts double during broker blips | Event IDs, redeliveries, and sink commit boundaries | Persist deduplication IDs and outcomes atomically with counter updates |
+| Live score distribution shifts during lag | Partition watermarks, freshness mode, and fallback shares | Route lagging entities to validated fallback models |
+| Stream window counts diverge from batch | Window boundaries, duplicate suppression, and emission mode | Align window configs and side-output routing across both runtimes |
 
 ## Edge-case test scenarios
 
-Before declaring a pipeline production-ready, vary one condition at a time and assert both return values and side-effect state:
+<details>
+<summary>Four targeted boundary tests to run on your pipeline before shipping</summary>
 
-1. **Exact lag thresholds**: Call `serving_mode` at `15:00`, `15:01`, `45:00`, and `45:01` minutes of lag, plus a timestamp one second ahead of `requested_at`. Expect normal scoring at `15:00`, fallback from `15:01` through `45:00`, abstention at `45:01`, and a `ValueError` for future progress.
-2. **Equal-key payload conflicts**: Submit conflicting `E5-a` and `E5-b` revisions in both arrival orders. Neither ordering may pick a silent winner; both orders must lock the account in `"quarantined"` status.
-3. **Persistent rejections and ID reuse**: After `D3` (`-5`) is blocked, apply `D4` (`+10`) so total disputes reach `12`, then retry `D3` and also reuse `D1` with a different delta. Total disputes must remain `12` on the `D3` retry, and mutating `D1`'s delta must raise `ValueError`.
-4. **Delayed cache publication**: Keep `E2`'s broker ingestion at `08:59` while delaying Redis publication until `09:02`. The `09:00` request still cannot see `E2`, requiring an explicit `feature_available_at <= prediction_time` predicate (or snapshot capture replay) because raw broker arrival time misses store write lag.
+1. **Exact lag thresholds:** Call `serving_mode` at `15:00`, `15:01`, `45:00`, and `45:01` minutes of lag, plus 1 second in the future (expect normal, fallback, fallback, abstain, and `ValueError`).
+2. **Equal-key payload conflicts:** Submit conflicting `E5-a` and `E5-b` revisions in both arrival orders and assert both orders end in `"quarantined"`.
+3. **Persistent rejections and ID reuse:** After `D3` (`-5`) is blocked, apply `D4` (`+10`) to reach `12`, then retry `D3` (count must stay `12`) and reuse `D1` with a new delta (must raise `ValueError`).
+4. **Delayed cache publication:** Keep `E2`'s broker ingestion at `08:59` while delaying Redis publication to `09:02`; verify `feature_available_at <= prediction_time` excludes `E2` at `09:00`.
 
-Holding these invariants steady across offline joins and online lookups ensures that model improvements translate directly into live scoring gains rather than disappearing into silent training-serving skew.
+</details>
 
 ```mastery-quiz
 [
@@ -983,7 +937,7 @@ Holding these invariants steady across offline joins and online lookups ensures 
     "explanation": "Whole-window revisions replace earlier aggregates rather than accumulating like incremental deltas. Revision 2 replaces 4 with 7, and the stale revision 1 retry cannot revert or double-count the window."
   },
   {
-    "question": "A SQLite writer uses a ledger of event IDs and outcomes to suppress retries. Current dispute count is 4. For a +5 event, the writer inserts the ledger entry inside a transaction, then exits before updating the counter or committing. After reopening, it retries and commits both writes. The broker acknowledgment drops, so the event arrives again. What sequence of dispute counts occurs?",
+    "question": "A SQLite writer uses a deduplication table of event IDs and outcomes to suppress retries. Current dispute count is 4. For a +5 event, the writer inserts the ID row inside a transaction, then exits before updating the counter or committing. After reopening, it retries and commits both writes. The broker acknowledgment drops, so the event arrives again. What sequence of dispute counts occurs?",
     "options": [
       "Reopen 4; after first retry 9; after lost-ack retry 14.",
       "Reopen 4; after first retry 4; after lost-ack retry 4.",
@@ -991,7 +945,7 @@ Holding these invariants steady across offline joins and online lookups ensures 
       "Reopen 4; after first retry 9; after lost-ack retry 9."
     ],
     "answer": "Reopen 4; after first retry 9; after lost-ack retry 9.",
-    "explanation": "On reopen, SQLite has rolled back the uncommitted ledger insert and the counter stays at 4. The first retry finds no ledger entry, increments the counter to 9, and commits both writes atomically. When the lost-ack retry arrives, the committed ledger entry deduplicates it and leaves the count at 9."
+    "explanation": "On reopen, SQLite has rolled back the uncommitted ID insert and the counter stays at 4. The first retry finds no matching ID, increments the counter to 9, and commits both writes atomically. When the lost-ack retry arrives, the committed ID entry deduplicates it and leaves the count at 9."
   },
   {
     "question": "A source-ordered aggregate starts at 3. Event E1 with delta -7 is durably rejected. Event E2 with delta +8 is then applied. Next, the exact E1 payload is retried. Under persistent-outcome idempotency, what state and outcome follow?",
@@ -1005,7 +959,7 @@ Holding these invariants steady across offline joins and online lookups ensures 
     "explanation": "E2 raises the count from 3 to 11. Retrying E1 replays its persisted rejection so redeliveries remain idempotent rather than unexpectedly taking effect after unrelated updates; fixing a prior rejection requires an explicit correction event or replay."
   },
   {
-    "question": "At 14:00, a feature row was touched at 13:59 yet covers source progress only through 13:44:50. A second row reports source progress of 14:00:20. Under an exact-duration policy allowing normal scoring through 15 minutes, degraded fallback through 45 minutes, and flagging future progress as invalid, how should both rows be classified?",
+    "question": "At 14:00, a feature row was touched at 13:59 yet covers source progress only through 13:44:50. A second row reports source progress of 14:00:20. Under an exact-duration freshness rule allowing normal scoring through 15 minutes, degraded fallback through 45 minutes, and flagging future progress as invalid, how should both rows be classified?",
     "options": [
       "First normal using the recent write; second normal after truncating its future 20 seconds toward zero.",
       "First normal using the recent write; second invalid because its source progress is in the future.",

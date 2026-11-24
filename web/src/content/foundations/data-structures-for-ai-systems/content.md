@@ -113,7 +113,7 @@ The index maps each term to its **posting list**. A posting records a matching d
 
 ### Build the index by hand
 
-Split each document into terms and store the matching document IDs. Notice which rows match `red` before checking the full table:
+Split each document into terms and record which document IDs contain each word:
 
 | term | document IDs |
 |---|---|
@@ -357,9 +357,9 @@ A queue is the behavior: first in, first out (FIFO). Python's <span data-glossar
 
 Why does `list.pop(0)` hurt? A standard Python list stores item references in a single contiguous array. Calling `pop(0)` removes the head element, which forces CPython to shift every subsequent reference left by one slot. If 50,000 document ingestion jobs or token chunks sit in a queue, draining them item by item incurs quadratic $O(n^2)$ total work.
 
-FIFO ordering doesn't require one particular layout. For example, vLLM's first-come, first-served request queue uses a deque.[^vllm2026requestqueue] Another implementation is a **circular ring buffer**: a fixed-size array whose read and write positions advance modulo capacity (`(tail + 1) % capacity`). Appends and pops update offsets without shifting existing elements. A full buffer still needs a policy: wait, reject the new item, or overwrite an old one.
+FIFO ordering doesn't require one particular layout. For example, vLLM's first-come, first-served request queue uses a deque.[^vllm2026requestqueue] Another implementation is a **circular ring buffer**: a fixed-size array whose read and write positions advance modulo capacity (`(tail + 1) % capacity`). Appends and pops update offsets without shifting existing elements. A full buffer still needs an explicit overflow rule: wait, reject the new item, or overwrite an old one.
 
-Which policy would you choose for an embedding job queue? Overwriting can be useful for a recent-token history, but silently dropping the oldest unprocessed document loses work. Python's `deque(maxlen=...)` discards items from the opposite end when an append fills a bounded deque, so adding `maxlen` isn't a safe job-queue capacity limit by itself.[^python2026collections]
+Which overflow behavior fits an embedding job queue? Overwriting works for a recent-token history, but silently dropping the oldest unprocessed document loses work. Python's `deque(maxlen=...)` discards items from the opposite end when full, so adding `maxlen` is unsafe as a job-queue capacity limit on its own.[^python2026collections]
 
 Trace the state from left (oldest) to right (newest) to follow which job sits at the head after each operation:
 
@@ -472,7 +472,7 @@ no work available at the moment of claim
 
 If users ask the same question repeatedly, recomputing retrieval results per request wastes work. A cache can remove that repeated computation, but only if its hit is still valid.
 
-A retrieval cache stores prior ranked document IDs so the system can reuse them. A cache isn't one primitive structure. It combines a mapping from key to value with policies for freshness and eviction. The mapping finds a candidate result; policies decide whether keeping that result stays safe.
+A retrieval cache stores prior ranked document IDs for fast reuse, combining a key-value map with freshness and eviction rules.
 
 <!-- leetllm: test, continue=retriever, id=cache-demo, output=show -->
 ```python title="caches-for-repeated-queries.py"
@@ -533,7 +533,7 @@ If document 2 changes to `fox sleeps`, its score falls to 1. It now ties with do
 
 Every input that can change the result belongs in the key or in an invalidation rule. Our lab fixes the scoring rule and has no user-specific documents. A shared service must also separate permission scopes and invalidate results when scoring or normalization changes. Two people sending identical text aren't necessarily allowed to retrieve the same notes.
 
-The demo dictionary can grow without limit. A long-running service also needs a bound such as a maximum entry count or byte budget, plus an eviction policy. **Least recently used (LRU)** discards the entry that hasn't been accessed for the longest time. With two cache slots, the order changes even on a hit:
+The demo dictionary can grow without limit. A long-running service also needs a size bound (maximum entry count or byte budget) plus an eviction strategy. **Least recently used (LRU)** discards the entry untouched for the longest time. With two cache slots, the order changes even on a hit:
 
 | request | least recent to most recent | action |
 |---|---|---|
@@ -577,7 +577,7 @@ rebuilt index ranking [0, 2]
 ```
 <!-- leetllm: output:end -->
 
-The miss only triggers a computation; it does not guarantee that computation used current postings. In a shared service, build a replacement corpus/index snapshot, then publish it together with its version under the service's synchronization rule. Each query must use one matching snapshot and version throughout. Updating the version first and the index later exposes a window where a stale ranking can be stored under the new key.
+> **Common mistake:** Bumping `corpus_version` before publishing the rebuilt index creates a race window where a cache miss recomputes against stale postings and stores the wrong ranking under the new version key. Always publish the new index snapshot and its version key together atomically.
 
 ```checkpoint
 Why should a retrieval-cache key include `corpus_version` as well as the query text?
@@ -697,7 +697,7 @@ The first working loop often feels good enough, so it stays even after it become
 | query gets slower as documents grow | the code still scans the whole list per query | build an index keyed by the query field |
 | same document appears more than once | a list was used where uniqueness matters | store posting lists as sets |
 | FIFO worker slows as queue grows | code repeatedly calls `list.pop(0)` | use `deque.append()` with `deque.popleft()` |
-| heap output looks partly out of order | code assumes every heap position is sorted | trust the root invariant or explicitly sort final winners |
+| heap output looks partly out of order | code assumes every heap position is sorted | rely on the root minimum property or explicitly sort final winners |
 | old jobs starve | work is being popped in the wrong order | use a FIFO queue and test the order explicitly |
 | cached result looks right until documents change | cache has no version or invalidation rule | tie the cache key to corpus updates |
 | cache memory keeps growing | dictionary has no size or byte bound | add an eviction budget and measure it |
@@ -772,7 +772,7 @@ Each test checks one promise:
 
 ## Trace operations on paper
 
-Work through each trace below before checking the solution sketches, naming the structure that keeps the step cheap or safe:
+Work through each trace on paper, naming the structure that keeps the step cheap or safe:
 
 1. Add a fourth document with `docs.append("red fox runs")`, then rebuild with `index = build_index(docs)`.
 2. Trace `sorted(index["red"])`.
@@ -782,9 +782,8 @@ Work through each trace below before checking the solution sketches, naming the 
 6. Choose a structure for each new requirement: autocomplete the prefix `fo`; represent notes with several cross-links; process oldest upload first.
 7. Explain why a min-heap isn't a sorted list and why a heap isn't a binary search tree.
 
-### Solution sketches
-
-Use these to check your reasoning, not to skip the exercise.
+<details>
+<summary>Check solution sketches</summary>
 
 | Practice item | What a good answer should show |
 |---|---|
@@ -795,6 +794,8 @@ Use these to check your reasoning, not to skip the exercise.
 | Change document 2 | Rebuild the affected posting lists and advance the corpus version used in cache keys. Remove obsolete entries through cleanup or eviction. |
 | Prefix, cross-links, oldest upload | Use a trie, graph, and deque, respectively. Each requirement asks for a different path or order. |
 | Heap distinctions | Only heap root satisfies the global minimum rule. A binary search tree instead orders left and right subtrees to support arbitrary key search. |
+
+</details>
 
 If an answer is hard to check, go back to the score table and trace the exact work each operation performs before code hides it.
 
@@ -892,7 +893,7 @@ A list is for position, a hash map for identity, a deque for oldest work, a heap
       "Invalid min-heap / invalid BST."
     ],
     "answer": "Valid min-heap / invalid BST.",
-    "explanation": "The parent 1 is no greater than either child, so the min-heap invariant holds. BST ordering fails because left child 7 is greater than root 1. Sibling order 7 then 3 need not be sorted in a heap."
+    "explanation": "The parent 1 is no greater than either child, so the min-heap ordering property holds. BST ordering fails because left child 7 is greater than root 1. Sibling order 7 then 3 need not be sorted in a heap."
   },
   {
     "question": "Two distinct query-term posting sets contain 4 and 5 document IDs, with 3 IDs in both. Scoring visits each posting and keeps one score counter per distinct document. Before top-k selection, which posting-visits/counter-count pair follows?",

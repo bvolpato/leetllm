@@ -76,7 +76,7 @@ chunks = [
     {"id": "auth-fixture", "text": "auth tests fail when fixture expires"},
     {"id": "ci-timeout", "text": "ci job timeout after slow integration test"},
     {"id": "cli-flag", "text": "readme documents old command line flag"},
-    {"id": "deploy-runbook", "text": "rollback service after canary error"},
+    {"id": "deploy-notes", "text": "restart worker after config error"},
 ]
 
 def lexical_scan(question: str, allowed_chunks: list[dict]) -> tuple[list[tuple[int, str]], int]:
@@ -122,7 +122,7 @@ base_chunks = [
     {"id": "auth-fixture", "text": "auth fixture expired"},
     {"id": "ci-timeout", "text": "ci timeout"},
     {"id": "cli-flag", "text": "old cli flag"},
-    {"id": "deploy-runbook", "text": "canary rollback"},
+    {"id": "deploy-notes", "text": "worker restart"},
 ]
 
 def count_checks(question: str, allowed_chunks: list[dict]) -> int:
@@ -439,7 +439,7 @@ In [Data Structures for AI](/learn/data-structures-for-ai-systems) you already u
 
 Python's <span data-glossary="heapq">heapq</span> helpers implement that structure in the lab. Tuples compare left to right, so `(score, id)` breaks a score tie using the ID: this code favors the lexicographically larger string. Change the key if your requirement differs; for integer IDs, `(score, -doc_id)` makes smaller IDs win ties.
 
-Here's the invariant that lets us trust the heap: after each input, it contains the strongest `k` items seen so far, or all the items if fewer than `k` have arrived. Once it's full, a candidate no stronger than the root can't displace a winner. A stronger candidate replaces the weakest winner, and the heap is repaired. The condition `item > heap[0]` matters because `heapreplace` replaces the root even when the incoming item is worse.[^python2026heapq]
+Here is the loop property that makes the heap work: after each input, it holds the strongest `k` items seen so far (or all items if fewer than `k` have arrived). Once full, a candidate weaker than `heap[0]` is skipped, while a stronger candidate replaces `heap[0]` via `heapreplace` and re-balances in $O(\log k)$ steps.[^python2026heapq]
 
 For `2 <= k <= n`, maintaining the heap costs O(n log k) after scoring, with O(k) selection memory. Sorting the final winners adds O(k log k), still within that bound. For `k = 1`, one running maximum gives O(n) selection; for `k > n`, there are only `n` items to retain.[^cormen2009]
 
@@ -702,7 +702,7 @@ A later option is <span data-glossary="hnsw">HNSW</span>, a hierarchical proximi
 Operation counts tell us how work grows. To enforce a wall-clock budget in production, we also need to learn where the time goes:
 
 - **Look beyond the median:** The mean and p50 are different statistics, and neither describes the slowest requests. A serving endpoint can easily show a 20 ms median alongside an 800 ms p99. Measure the percentiles and deadlines your users need, then include queue time as well as computation in the budget.
-- **Profile Python collection:** CPython uses reference counting plus a cyclic garbage collector. Collection can contribute pauses, but their duration depends on the object graph and runtime. Measure collection activity before changing it. `gc.disable()` stops automatic cyclic collection. Reference counting continues, and unreachable cycles can accumulate without a deliberate collection policy.[^python2026gc]
+- **Profile Python collection:** CPython uses reference counting plus a cyclic garbage collector. Measure collection pauses before touching it; `gc.disable()` stops automatic cyclic sweeps, so unreachable reference cycles accumulate unless you run scheduled manual collections.[^python2026gc]
 - **Bound batch formation time:** A rule that waits for exactly eight arrivals can leave a low-traffic request waiting. Ray Serve's `batch_wait_timeout_s` limits how long it tries to fill a batch after the first request; Triton has its own `max_queue_delay_microseconds` setting. These settings don't cap total request latency when execution is already busy.[^ray2026dynamicbatch][^triton2026DynamicBatcher]
 - **Measure preprocessing separately:** Tokenization or cleaning can leave an accelerator waiting for input. Worker pools and overlapping preparation with execution can help, but they add scheduling, memory, and transfer costs. Compare the measured pipeline before and after rather than assuming more workers keep the GPU busy.
 
@@ -882,9 +882,11 @@ The first call stays within budget, scores three allowed vectors, and returns tw
 
 For this lab, vectors contain finite numbers and must have the query's dimension. `zip(..., strict=True)` detects a mismatched dimension instead of silently dropping coordinates. Compare any optimized retriever against this exact ranking on the same allowed rows, with the same tie rule.
 
+> **Key insight:** A bounded top-k heap trims selection from $O(n \log n)$ to $O(n \log k)$ and selection memory to $\Theta(k)$, yet exact scoring still costs $\Theta(n \cdot d)$ dot products. Speeding up the tail never fixes an expensive upstream scan.
+
 ## Check the growth by hand
 
-You've seen these counts in code. Try each one without code now: write down the input that grows, the operation you're counting, and your expected result before checking the sketches.
+Work out each scaling count by hand, naming the growing input and the repeated operation:
 
 1. A project has `n = 2,500` authorized chunks, each with `d = 384` coordinates. How many coordinate multiplications does an exact dot-product scan perform?
 2. A full sort orders 10,000 scored results even though the assistant returns `k = 5`. Which part does a bounded heap reduce, and which part remains unchanged?
@@ -894,15 +896,18 @@ You've seen these counts in code. Try each one without code now: write down the 
 6. Three cached prompts share the first 6 tokens with a new 8-token request, then diverge. About how many token comparisons does a naive per-key scan do if each key stops at the first mismatch?
 7. A sorted catalog has 65,536 chunk IDs. What is the worst-case number of midpoint checks for binary search?
 
-### Solution sketches
+<details>
+<summary>Check solution sketches</summary>
 
 1. `2,500 * 384 = 960,000` coordinate multiplications.
-2. The heap reduces selecting the best five values from full-sort work to bounded top-k work. It doesn't remove the exact score pass that produced all 10,000 values.
+2. The heap reduces selecting the best five values from $O(n \log n)$ to $O(n \log k)$, while exact scoring of all 10,000 items stays unchanged.
 3. `200 * 199 / 2 = 19,900` comparisons.
-4. Token length grows by `1,024 / 256 = 4`, so square score-cell count grows by `4 * 4 = 16`.
-5. No. `4,000 * 256 = 1,024,000`, which exceeds the one-million budget.
-6. Each of the 3 keys compares 6 matches plus 1 mismatch, so about 21 comparisons. A radix-tree walk would scale with the prefix length, not with `n`.
-7. At most 17 midpoint checks. Although $2^{16} = 65{,}536$, this half-open binary search can spend a seventeenth comparison checking the final one-item interval. For example, searching for the first ID visits 17 midpoints.
+4. Token length grows by `1,024 / 256 = 4`, so the square score grid grows by `4 * 4 = 16`.
+5. No. `4,000 * 256 = 1,024,000`, exceeding the one-million budget.
+6. Each of the 3 keys compares 6 matches plus 1 mismatch (~21 comparisons); a radix-tree walk scales with prefix length `p`, not `n`.
+7. At most 17 midpoint checks. Although $2^{16} = 65{,}536$, this half-open binary search spends a seventeenth comparison checking the final one-item interval.
+
+</details>
 
 ## Which input grows which cost
 

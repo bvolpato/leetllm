@@ -23,11 +23,11 @@
 
 Delivery platforms do not just predict when a parcel will arrive; they use those predictions to decide whether to trigger customer delay notices, dispatch recovery couriers, or hold standard routing. Treating that problem as a single point-estimate regression misses three failure modes that break production systems. First, offline training tables frequently absorb telemetry written after the live decision clock, producing impressive validation scores that fail during dispatch. Second, point forecasts hide heteroscedastic weather uncertainty, leaving operators blind to whether an arrival window spans forty minutes or four hours. Third, triggering proactive recovery at a naive probability threshold of `0.50` ignores asymmetric SLA penalties where missing a late parcel costs far more than sending a spare alert.
 
-This capstone builds and verifies the complete pipeline over `720` chronological shipments in [the ETA modeling module](assets/eta_lab.py). You assemble dual-clock <span data-glossary="prediction-timestamp">point-in-time</span> features, separate training from calibration and policy validation with maturity windows, and compare linear and boosted ETA models. From those held-out residuals, you construct normalized <span data-glossary="conformal-prediction">split conformal intervals</span>, apply Platt <span data-glossary="probability-calibration">probability calibration</span>, and optimize an asymmetric operational threshold before locking one final holdout evaluation.
+This capstone builds and verifies the complete pipeline over `720` chronological shipments in [the ETA modeling module](assets/eta_lab.py). You assemble dual-clock <span data-glossary="prediction-timestamp">point-in-time</span> features, separate training from calibration and threshold validation with maturity windows, and compare linear and boosted ETA models. From those held-out residuals, you construct normalized <span data-glossary="conformal-prediction">split conformal intervals</span>, apply Platt <span data-glossary="probability-calibration">probability calibration</span>, and optimize an asymmetric operational threshold before locking one final holdout evaluation.
 
 <figure>
-<img src="illustrations/_generated/chapter_flow_dark.png" alt="End-to-end delivery ETA pipeline from dual-clock telemetry joins through regression, conformal quantiles, probability calibration, and policy alerting" />
-<figcaption>Dual-clock point-in-time feature assembly feeds parallel ETA regression and late-risk classification branches, each calibrated on a dedicated held-out split before policy gating.</figcaption>
+<img src="illustrations/_generated/chapter_flow_dark.png" alt="End-to-end delivery ETA pipeline from dual-clock telemetry joins through regression, conformal quantiles, probability calibration, and proactive alerting" />
+<figcaption>Dual-clock point-in-time feature assembly feeds parallel ETA regression and late-risk classification branches, each calibrated on a dedicated held-out split before thresholded alerting.</figcaption>
 </figure>
 
 ## Dual-Clock Telemetry and Chronological Maturity
@@ -230,7 +230,7 @@ $$
 t^*_{\text{Bayes}} = \frac{c_{\text{FP}}}{c_{\text{FP}} + c_{\text{FN}}} = \frac{3}{3 + 22} = 0.120.
 $$
 
-Unscaled classifier scores distort that cutoff and waste money. Let us fit a deep `HistGradientBoostingClassifier` on `train`, wrap it with Platt sigmoid calibration on `calibration` via `CalibratedClassifierCV(FrozenEstimator(...))` [^sklearnCalibration2026], compare <span data-glossary="brier-score">Brier score</span> and <span data-glossary="expected-calibration-error">ECE</span>, sweep thresholds on `validation` [^sklearnThresholdTuning2026], and evaluate the locked policy once on `test`.
+Unscaled classifier scores distort that cutoff and waste money. Let us fit a deep `HistGradientBoostingClassifier` on `train`, wrap it with Platt sigmoid calibration on `calibration` via `CalibratedClassifierCV(FrozenEstimator(...))` [^sklearnCalibration2026], compare <span data-glossary="brier-score">Brier score</span> and <span data-glossary="expected-calibration-error">ECE</span>, sweep thresholds on `validation` [^sklearnThresholdTuning2026], and evaluate the locked threshold once on `test`.
 
 <!-- leetllm: test, id=calib_cost, continue=conformal, output=show -->
 ```python title="Platt probability calibration and asymmetric dispatch threshold sweep"
@@ -288,7 +288,9 @@ Test [Naive 0.50 Default @ 0.50]: cost=$1.008/parcel | recall=0.889 | missed=4
 ```
 <!-- leetllm: output:end -->
 
-Platt calibration lowers test ECE from `0.1014` down to `0.0887` and turns an uncalibrated plateau into a well-defined validation cost basin at `t* = 0.26` (`$0.881/parcel`), as plotted below. Locking that <span data-glossary="decision-threshold">decision threshold</span> before inspecting the test split reduces missed late deliveries on untouched shipments from `4` down to `3` (raising recall from `0.889` to `0.917` and lowering cost from `$1.008` to `$0.976/parcel`). As a result, realized holdout cost drops below both the naive `0.50` default and any policy selected from raw tree probabilities.
+Platt calibration lowers test ECE from `0.1014` down to `0.0887` and turns an uncalibrated plateau into a well-defined validation cost basin at `t* = 0.26` (`$0.881/parcel`), as plotted below. Locking that <span data-glossary="decision-threshold">decision threshold</span> before inspecting the test split reduces missed late deliveries on untouched shipments from `4` down to `3` (raising recall from `0.889` to `0.917` and lowering cost from `$1.008` to `$0.976/parcel`). As a result, realized holdout cost drops below both the naive `0.50` default and any cutoff selected from raw tree probabilities.
+
+> **Key insight:** A Bayes cost cutoff such as $t^* = 3/(3+22) = 0.12$ assumes that predicted scores behave like true probabilities. When gradient-boosted trees push raw probabilities toward `0` and `1`, Platt calibration restores a smooth probability scale so validation threshold tuning actually lands on the low-cost basin.
 
 <figure>
 <img src="illustrations/_generated/holdout_cost_dark.png" alt="Validation cost per parcel across alert thresholds from 0.06 to 0.82 comparing calibrated and uncalibrated GBDT late-risk probabilities" />
@@ -317,18 +319,29 @@ Point-in-time model test MAE:      0.672 h
 ```
 <!-- leetllm: output:end -->
 
-In addition to point-in-time feature parity and serialization hygiene (`joblib` or versioned artifacts keeping preprocessors, model weights, conformal quantile, and policy threshold pinned together [^sklearn2026modelpersistence] [^google2026mlops]), production telemetry should <span data-glossary="tracing">trace</span> `event_hour`, `ingested_hour`, and loaded policy versions on every prediction. Feature freshness and `telemetry_missing` rates can be monitored immediately during live inference because both signals are observable at dispatch time. By contrast, realized SLA penalties, conformal coverage, and calibration drift must wait until deliveries complete and labels mature.
+In addition to point-in-time feature parity and serialization hygiene (`joblib` or versioned artifacts keeping preprocessors, model weights, conformal quantile, and alert threshold pinned together [^sklearn2026modelpersistence] [^google2026mlops]), production telemetry should <span data-glossary="tracing">trace</span> `event_hour`, `ingested_hour`, and loaded model and threshold versions on every prediction. Feature freshness and `telemetry_missing` rates can be monitored immediately during live inference because both signals are observable at dispatch time. By contrast, realized SLA penalties, conformal coverage, and calibration drift must wait until deliveries complete and labels mature.
 
 ## Checkpoints
 
-Verify your grasp of dual-clock joins, calibration isolation, and monitoring windows across these concrete failure scenarios before taking the final quiz. Working through each case tests whether you can diagnose subtle temporal leakage before it ships.
+Work through these three failure scenarios to test your grasp of dual-clock joins, calibration isolation, and monitoring windows.
 
 1. **Dual-clock staleness vs lookahead:** Suppose scan `A` was emitted 2 hours before dispatch and ingested 5 minutes later, while scan `B` was emitted 10 minutes before dispatch and ingested 40 minutes after dispatch. Which scan is visible during live scoring at dispatch time?
-   - **Check:** Scan `A` only, because scan `B` had not reached storage by `cutoff_hour` even though its `event_hour` preceded dispatch.
+<details>
+<summary>Check</summary>
+Scan `A` only, because scan `B` had not reached storage by `cutoff_hour` even though its `event_hour` preceded dispatch.
+</details>
+
 2. **Conformal calibration separation:** Why must $q_{\text{norm}}$ be computed on `calibration` (`n = 144`) using cross-fitted out-of-fold $\hat{\sigma}(x)$ fitted on `train` rather than fitting `gbdt_model` residuals directly on `train`?
-   - **Check:** Training residuals systematically underpredict out-of-sample error because `gbdt_model` overfits `train` points, which would shrink intervals and break finite-sample coverage on future parcels.
+<details>
+<summary>Check</summary>
+Training residuals systematically underpredict out-of-sample error because `gbdt_model` overfits `train` points, which would shrink intervals and break finite-sample coverage on future parcels.
+</details>
+
 3. **Monitoring timing:** Immediately after deploying version `v2`, operators observe `telemetry_missing` jumping from `2.8%` to `18%`, while delivered labels for those parcels are not yet back. Should monitoring wait for matured outcomes before raising a pipeline alert?
-   - **Check:** No. Feature missingness and scan lag exist at inference time and require immediate investigation, whereas realized SLA cost and coverage wait for label maturity.
+<details>
+<summary>Check</summary>
+No. Feature missingness and scan lag exist at inference time and require immediate investigation, whereas realized SLA cost and coverage wait for label maturity.
+</details>
 
 ## Mastery Quiz
 
@@ -390,7 +403,7 @@ Verify your grasp of dual-clock joins, calibration isolation, and monitoring win
     "explanation": "Scaling residuals by sigma(x) concentrates conformal margin where route uncertainty is highest (storm + long haul) without inflating calm urban prediction intervals."
   },
   {
-    "question": "In the operational policy setup, missing a late delivery costs $22 and sending a false proactive alert costs $3. What is the Bayes optimal decision threshold on well-calibrated probabilities?",
+    "question": "In this dispatch cost setup, missing a late delivery costs $22 and sending a false proactive alert costs $3. What is the Bayes optimal decision threshold on well-calibrated probabilities?",
     "options": [
       "0.500",
       "0.120",
@@ -409,9 +422,9 @@ Verify your grasp of dual-clock joins, calibration isolation, and monitoring win
       "Bayes optimal cutoffs diverge unpredictably once held-out precision or recall values climb past 0.90."
     ],
     "answer": "Scanning thresholds on test rows fits cutoffs to noise and yields optimistically biased cost numbers.",
-    "explanation": "Every discrete policy parameter tuned against a split consumes statistical degrees of freedom; keeping test untouched until t* is frozen preserves an unbiased estimate of live deployment cost."
+    "explanation": "Every decision threshold tuned against a split consumes statistical degrees of freedom; keeping test untouched until t* is frozen preserves an unbiased estimate of live deployment cost."
   }
 ]
 ```
 
-> **Next:** Continue to [Capstone: Product Ranking](/learn/capstone-product-ranking-recommendation). Delivery ETA modeling separates point-in-time telemetry, calibrated predictions, and asymmetric cost gates; product ranking introduces an additional feedback-loop hazard where logged positions shape what users click and what subsequent trainers treat as relevance truth.
+> **Next:** Continue to [Capstone: Product Ranking](/learn/capstone-product-ranking-recommendation). Delivery ETA modeling separates point-in-time telemetry, calibrated predictions, and asymmetric cost thresholds; product ranking introduces an additional feedback-loop hazard where logged positions shape what users click and what subsequent trainers treat as relevance truth.

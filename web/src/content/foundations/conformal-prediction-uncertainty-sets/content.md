@@ -83,7 +83,7 @@ $$
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="A frozen latency predictor supplies nine sorted calibration residuals: 2, 3, 3, 4, 5, 6, 7, 8, and 12 ms. For an 80% target, ceil((9 + 1) times 0.80) selects rank eight, so q is 8 ms. Of ten possible future-score ranks, the first eight meet q under distinct scores, giving at least 80% marginal coverage under exchangeability. A 40 ms prediction becomes [32, 48]; with nine residuals, a 95% target requires rank ten and an infinite threshold." />
-  <figcaption>Freeze the predictor, sort its held-out misses, and take the corrected order statistic. The threshold averages over exchangeable calibration and future draws; it doesn't certify one request.</figcaption>
+  <figcaption>Freeze the predictor, sort its held-out residuals, and pick the corrected order statistic rank ceil((n+1)(1-alpha)). Under exchangeability, this guarantees at least 80% marginal coverage.</figcaption>
 </figure>
 
 The next cell constructs the absolute errors from frozen predictions and outcomes. Its helper selects an observed order statistic directly, avoiding interpolation between two residuals. Python index `rank - 1` converts the one-based rank to a zero-based list position.
@@ -515,9 +515,9 @@ Return to the deadline question. `[32, 48]` sits below 50 ms, but the 80% margin
 
 For monitoring, retain the model and calibration versions, each interval, actual outcome, request group, and width. Inspect counts as well as percentages. A scorecard with two long requests cannot yield a reliable subgroup rate, and no finite log proves that future traffic will stay exchangeable.
 
-Nine held-out misses become a rank and a radius. That 80% claim still doesn't promise anything about one request, one prompt length, or the answers a router chose to send.
+> **Key insight:** Conformal prediction guarantees **marginal** coverage across the exchangeable population, never equal coverage inside every subgroup or every accepted subset. Always pair aggregate coverage with interval width, subgroup slices, and selective risk when routing decisions depend on set size.
 
-Try these changes to the cells before checking the expected result:
+Test your intuition with four quick perturbations to the cells above:
 
 | Experiment | Expected result and interpretation |
 |---|---|
@@ -551,15 +551,15 @@ Try these changes to the cells before checking the expected result:
     "explanation": "The corrected rank is ceil((14+1)×.90)=ceil(13.5)=14. The fourteenth observed residual is 14, so subtract and add it around 60. Flooring, halving the score or selecting an unavailable rank changes the rule."
   },
   {
-    "question": "Two audits use the same frozen predictor, score rule and coverage target. All requests are independent draws from one population. Audit A sets its radius once using 50 calibration requests. Audit B sets a new radius using 50 fresh calibration requests for each test request. As the audits collect more test requests, whose observed coverage converges in general to the probability in the ordinary split-conformal guarantee?",
+    "question": "Two evaluations use the same frozen predictor, score rule and coverage target. All requests are independent draws from one population. Evaluation A sets its radius once using 50 calibration requests. Evaluation B sets a new radius using 50 fresh calibration requests for each test request. As the evaluations collect more test requests, whose observed coverage converges in general to the probability in the ordinary split-conformal guarantee?",
     "options": [
-      "Audit A only.",
-      "Both audits.",
-      "Audit B only.",
-      "Neither audit."
+      "Evaluation A only.",
+      "Both evaluations.",
+      "Evaluation B only.",
+      "Neither evaluation."
     ],
-    "answer": "Audit B only.",
-    "explanation": "The guarantee averages over both the calibration sample and the next request. Audit B samples both on every trial. Audit A learns the coverage of the particular radius it selected. More test requests make that estimate more precise. The predictor can stay frozen in both audits because the guarantee applies after fitting."
+    "answer": "Evaluation B only.",
+    "explanation": "The guarantee averages over both the calibration sample and the next request. Evaluation B samples both on every trial. Evaluation A learns the coverage of the particular radius it selected. More test requests make that estimate more precise. The predictor can stay frozen in both evaluations because the guarantee applies after fitting."
   },
   {
     "question": "An evaluation slice has short-request coverage 95% and long-request coverage 65%. The short/long mix changes from 80/20 to 20/80, with both subgroup rates fixed. What are the old and new aggregate coverage rates?",

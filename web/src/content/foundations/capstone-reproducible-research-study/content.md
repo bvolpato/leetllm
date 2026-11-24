@@ -36,53 +36,52 @@
 }
 ---
 
-Two training curves can easily make an unchanged algorithm look like a breakthrough. One random run discovers the goal early and bootstraps from good fortune, while another spends most of its training budget wandering through unrewarded states. Henderson and colleagues documented how random seeds, hyperparameters, codebases, and implementation details can dominate comparisons of policy-gradient algorithms on continuous-control benchmarks.[^henderson2018] Reporting only the best curve hides precisely the variation a sound comparison has to measure.
+Two training curves can make an unchanged algorithm look like a breakthrough. One random run stumbles onto the goal early and bootstraps from good fortune; another wanders through unrewarded states until its training budget runs out. Henderson and colleagues showed that random seeds, hyperparameters, and small implementation details routinely swing reinforcement-learning benchmarks by more than the gap between competing algorithms.[^henderson2018] Plotting only the best curve hides the exact variation an honest experiment has to measure.
 
-Telling whether a change genuinely helped requires discipline up front: specify the exact comparison in advance, run every planned seed without early stopping, and report uncertainty alongside the average. Pairing two arms on identical random streams can reduce shared noise whenever their outcomes covary positively, though bootstrap intervals still carry sampling assumptions of their own. Moreover, cryptographic file hashes only verify that two byte sequences match; actual repeatability demands rerunning the workload under a pinned environment, and frameworks such as PyTorch can still diverge across releases or hardware platforms even with identical seeds.[^pytorchReproducibility2026]
+How do you tell whether an algorithmic change actually helped? Fix the question and decision rule before looking at confirmatory results, run every planned seed without early stopping, and report the full distribution alongside the mean. Pairing two arms on shared random draws cancels common noise whenever their outcomes covary positively, and pinning the environment makes reruns repeatable across machines (though frameworks like PyTorch can still diverge across releases or hardware even with identical seeds).[^pytorchReproducibility2026]
 
-In this capstone, you apply those principles to a compact reinforcement-learning study: does potential-based reward shaping accelerate early goal-reaching in a stochastic seven-state corridor while leaving final greedy success unchanged under the original environment reward? You will trace the mathematical claim from Ng, Harada, and Russell's theorem to a concrete simulator, run a paired 24-seed comparison, inspect five individual seeds that regressed despite a positive average, cross-check inference with SciPy, and assemble the complete artifact bundle an outside reviewer needs to audit every number. Putting code, statistical tests, and controls side by side turns an abstract claim into a repeatable scientific measurement.
+Our concrete test case is a classic reinforcement-learning theorem: Ng, Harada, and Russell's result on potential-based reward shaping.[^ng1999] Does adding a distance-based shaping bonus speed up early goal-reaching for tabular Q-learning in a stochastic seven-state corridor while leaving final greedy success unchanged under the original reward? We will derive the shaping math, run a paired 24-seed experiment locally on CPU with NumPy, inspect five individual seeds that regressed despite a positive average, cross-check the bootstrap interval with SciPy, and package a self-contained artifact another engineer can rerun.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Directed workflow showing each seed tape feeding sparse training (reward R), shaped training (reward R plus F), and a zero-potential control into frozen greedy evaluation and the paired decision rule." />
   <figcaption>Each seed delivers identical random draws to the sparse baseline, the shaped candidate, and a zero-potential sanity check during training. Frozen policies are then evaluated for 200 greedy episodes on original reward R, separating early learning speed from final-policy preservation.</figcaption>
 </figure>
 
-The study runs locally on a CPU using code-generated corridor transitions and NumPy, so it needs no private logs, live traffic, paid APIs, or accelerators. Both training arms share the same environment reward and indexed random inputs, differing only by the training shaping bonus $F$, while final evaluation scores both frozen policies strictly on original environment reward. Note that the 24-seed dataset embedded here is a worked run whose plan was not independently preregistered prior to execution; repeating seeds 0 through 23 tests repeatability, whereas a true confirmatory claim requires freezing your plan first and evaluating on a fresh, untouched seed range.
-
 ## Read the claim before building the simulator
 
-The first engineering judgment in a reproduction study is deciding whether a research paper states one claim crisp enough to test honestly. Start with Ng, Harada, and Russell's theorem on policy invariance under reward transformations, whose core statement translates cleanly into code: adding a potential-based shaping bonus guides exploration while leaving the optimal policy set invariant whenever the shaping function and terminal handling obey the theorem's assumptions.[^ng1999] Rather than attempting to implement every experiment in a paper at once, follow Keshav's three-pass reading method by classifying the paper's claims first, inspecting its evidence and edge conditions second, and finally reconstructing only the piece you intend to test.[^keshav2007] That discipline prevents an elegant equation from sprawling into an unfinishable reimplementation. Capture your notes in a structured triage card with explicit section pointers so any reviewer can audit how your test maps back to the source paper.
+Most reproduction attempts stall because they try to rebuild an entire paper at once. Start instead by isolating one crisp claim you can test end to end. Ng, Harada, and Russell proved that adding a potential-based shaping term $F(s,a,s') = \gamma \Phi(s') - \Phi(s)$ leaves the optimal policy set unchanged in a discounted Markov decision process.[^ng1999]
+
+Keshav's three-pass reading method keeps that triage fast: classify the claim on pass one, check equations and hidden assumptions on pass two, and reconstruct the smallest test from memory on pass three.[^keshav2007] Capture the mapping in a compact triage table so your own adaptations stay distinct from the source paper:
 
 | Triage field | Corridor-study note |
 | --- | --- |
-| problem | sparse rewards provide little learning signal before goal completion |
+| problem | sparse rewards give no learning signal until the agent reaches the goal |
 | paper claim | potential-based shaping preserves optimal policies under stated assumptions |
 | equation to implement | $F(s,a,s') = \gamma \Phi(s') - \Phi(s)$ |
 | smallest test | seven-state corridor with tabular Q-learning |
-| theorem assumptions to check | same discounted Markov decision process, finite potential, correct terminal handling |
-| measurement control | final evaluation uses original environment reward |
-| evidence you can reproduce | learning speed across fixed simulator seeds |
-| claim you can't make | the method improves deep RL or deployed agents |
+| theorem assumptions | same discounted MDP, finite potential, matching terminal handling |
+| measurement control | final evaluation uses original environment reward only |
+| what we test | early learning speed and final parity across 24 fixed seeds |
+| out of scope | deep RL function approximation or deployed agents |
 
-### First pass: classify the claim
+> **Key insight:** Never score a shaped agent on its shaped return at test time. Shaping is strictly a training signal; final evaluation must compare frozen policies under the original environment reward.
 
-Keshav's first pass is a rapid structural scan across the title, abstract, introduction, section headings, mathematical statements, conclusion, and bibliography, saving detailed plots for the second pass (note that Ng and colleagues' author-hosted manuscript also includes revisions from February 2016).[^ng1999][^keshav2007] Summarize the paper's problem, proposed mechanism, baseline comparison, and claimed guarantee in one clear sentence each; if those four sentences remain ambiguous, the study is not ready to code. For potential-based shaping, the method computes each step's bonus from a state potential difference, and the invariance theorem applies strictly to that form because arbitrary bonuses can alter which actions are optimal. Conclude this first pass with an explicit scope decision (reproduce, extend, or decline), which in this capstone narrows to testing one empirical implication in a small tabular environment with full uncertainty reporting.
+<details>
+<summary>Deep dive: Keshav's three-pass triage checklist</summary>
 
-### Second pass: inspect evidence and assumptions
+1. **First pass (classify):** Scan title, abstract, headings, theorems, and conclusion. Summarize the problem, mechanism, baseline, and theoretical claim in one sentence each, then decide whether to reproduce, extend, or stop.
+2. **Second pass (assumptions):** Record what stays constant across arms, what varies, and every unspecified detail you had to choose yourself (here: the seven-state corridor, 15% slip rate, Q-learning hyperparameters, 24-seed budget, and <span data-glossary="bootstrap-resampling">bootstrap</span> protocol).
+3. **Third pass (reconstruct):** Close the paper, write $F(s,a,s') = \gamma\Phi(s') - \Phi(s)$ from memory, and ask how a bug could mimic a win (extra steps, luckier random streams, or leaked shaping bonus at evaluation). Turn each threat into an automated control or ablation row.
 
-In the second pass, examine every axis, error bar, equation, and failure condition, writing down explicitly what stays constant across arms, what is allowed to vary, and which metric scores success. Never silently fill in an unspecified detail; record every missing assumption in a dedicated assumptions log. Pay particular attention to the evaluation reward, because a candidate trained with shaping will trivially appear stronger if scored on a return that still includes its extra training bonus instead of comparing frozen policies on the original reward. Record your own adaptations explicitly too, since the seven-state corridor, Q-learning hyperparameters, 15% slip rate, 24-seed budget, and <span data-glossary="bootstrap-resampling">bootstrap</span> protocol are capstone design choices rather than values lifted from the original paper.
-
-### Third pass: reconstruct the test
-
-Close the paper, write the shaping equation from memory, and design the minimal environment where moving closer to a goal changes state potential, stating your predictions about both early learning speed and final policy quality well before executing code. Next, interrogate your own design like a skeptical reviewer: could the candidate secretly receive extra steps, a luckier random stream, or a softer evaluation criterion, or could one favorable seed carry the entire average? Turn each plausible shortcut into an automated control, an explicit ablation row, or a documented limitation. Close out `paper_triage.md` by tagging every decision as `supported by source`, `study adaptation`, or `unresolved` so implementation choices are never misattributed to the original authors.
+</details>
 
 ## Turn curiosity into a testable specification
 
-The triage card connects a paper claim to a compact simulator, yet a serious hypothesis also names the exact observation that could refute it. A vague question such as "Does reward shaping help agents learn?" fails to specify the learner, environment dynamics, shaping rule, summary statistic, sample size, or decision threshold. Making a question falsifiable strengthens the engineering: every noun in the hypothesis translates directly into a configuration field, table column, or unit test. Frame the capstone around this exact question:
+"Does reward shaping help agents learn?" is too vague to falsify. Every phrase in a testable question should map to a number in code:
 
 > In a stochastic seven-state corridor, does potential-based shaping increase tabular Q-learning's first-30-episode goal-reaching rate versus sparse reward, while keeping final greedy-policy success unchanged under original reward?
 
-Lock the experimental specification in writing before inspecting confirmatory outputs so nobody can reshape the target after seeing the numbers. Every entry below binds a theoretical phrase in the question above to a concrete value, sample size, and decision rule in code. Changing any row after executing confirmatory runs automatically reclassifies the output as exploratory rather than confirmatory:
+Freeze the experimental specification before running confirmatory seeds so the target cannot move after seeing the data. In this walkthrough, seeds `0` through `23` form our worked dataset; for a fresh confirmatory study of your own, commit this table (or place it in a timestamped read-only registry like OSF) before running an untouched seed range.[^osf2026preregistration]
 
 | Specification field | Locked value |
 | --- | --- |
@@ -93,78 +92,67 @@ Lock the experimental specification in writing before inspecting confirmatory ou
 | uncertainty | 90% paired bootstrap interval over seed differences |
 | minimum useful effect | mean paired difference at least `+0.10` |
 | final-policy <span data-glossary="guardrail">guardrail</span> | observed mean and 90% paired interval stay within `[-0.02, +0.02]` |
-| worked sample | seeds 0 through 23; reserve new seeds for a new confirmatory study |
+| worked sample | seeds 0 through 23 (use fresh seeds for a new confirmatory run) |
 | stopping rule | run all 24 seed pairs |
 
-### State the expected result
+### Expected signature and rejection rule
 
-A clear prediction belongs on record before any confirmatory outputs exist. A distance-oriented potential provides dense intermediate feedback before the learner ever reaches the goal, making faster early progress a credible hypothesis. At the same time, policy-invariance theory concerns optimal policies rather than finite-sample Q-tables after just 80 episodes, leaving final parity as an empirical question that must be measured directly rather than assumed from the proof.[^ng1999] In a live confirmatory project, write that expected signature in `study_plan.md` and commit it before executing untouched confirmatory seeds, while treating seeds 0 through 23 here as an already-observed worked example. Keeping the frozen plan in version control makes every subsequent edit auditable, whereas true independent preregistration places hypotheses, variables, tests, exclusion rules, and decision thresholds in a timestamped read-only registry before any data is collected.[^osf2026preregistration] The signature recorded up front should specify four concrete items:
+Because a distance potential gives immediate directional feedback before the first goal visit, we expect a positive early paired difference whose 90% interval sits above zero. Because policy invariance applies to optimal policies rather than finite 80-episode Q-tables, final parity stays an empirical check rather than an assumption.[^ng1999]
 
-- positive early paired difference
-- interval above zero
-- near-zero final difference
-- timestamp and retained commit for the frozen plan
+Under our decision rule, the evidence supports the narrow claim only if all three conditions hold together:
 
-### Write the rejection rule
+1. Mean early paired difference is at least `+0.10`.
+2. Lower bound of its 90% paired bootstrap interval exceeds `0`.
+3. Both the final mean difference and its 90% interval lie inside `[-0.02, +0.02]`.
 
-Define exact pass and fail thresholds in advance so interpretation stays mechanical rather than persuasive. Under our rule, the study supports the narrow claim only if the mean early paired difference reaches at least `+0.10`, the lower endpoint of its 90% paired bootstrap interval clears `0`, and both the final mean difference and its 90% interval sit inside `[-0.02, +0.02]`. Support is withheld whenever any single condition misses: an early mean of `+0.09` falls below the practical threshold even with a positive interval, and an early gain of `+0.20` is disqualified if final original-reward performance drifts outside the guardrail. Likewise, claiming an effect of at least `+0.10` with 90% confidence requires the interval's lower bound itself to exceed `+0.10`, and whenever an interval spans both trivial and practically meaningful gains, report the evidence as inconclusive rather than claiming either "no effect" or "harm."
+If any single condition misses, withhold support. An early mean of `+0.09` fails the practical threshold even with a positive interval, and a `+0.20` early jump fails if final performance drifts outside `[-0.02, +0.02]`.
 
 ## Keep the study public-safe
 
-Even synthetic research needs clear scope limits around data, credentials, and licensing before artifacts leave a laptop. Generated transitions eliminate customer privacy concerns, yet public repositories routinely expose <span data-glossary="secrets-management">API credentials</span>, proprietary snippets, or local machine metadata if nobody checks what goes into the bundle. Because our corridor simulator computes transitions deterministically from a small configuration and integer seeds without external models, network calls, or private logs, it is completely safe for open release once audited. Document these inclusion and exclusion rules explicitly in the project README at the start:
+Generated corridor transitions contain no customer data, but public repositories still leak <span data-glossary="secrets-management">API credentials</span>, local usernames, or absolute home paths if you bundle files carelessly. Keep the scope boundary explicit in your README:
 
 | Surface | Included | Excluded |
 | --- | --- | --- |
-| data | generated corridor transitions | user messages, production logs, private datasets |
+| data | generated corridor transitions | user logs, private datasets |
 | compute | local CPU and NumPy | remote model APIs, paid accelerators |
-| actions | left/right in simulator | browser, shell, account, or network actions |
-| outputs | metrics, tables, plots, manifests | secrets, identifiers, raw third-party content |
-| claim | this simulator and implementation | human behavior, robotics, deployed-agent safety |
+| outputs | metrics, tables, plots, manifests | secrets, machine hostnames, local paths |
+| claim | this simulator and implementation | robotics or deployed-agent behavior |
 
-Before pushing a public tag, scan the repository for leaked secrets and remove any local environment tokens. Verify that manifest files contain no personal usernames, local machine hostnames, or home directory paths. Finally, attach an explicit open-source license covering only code and generated assets that you have full rights to redistribute.
+Before publishing a tag, scan for secrets, strip personal paths from manifests, and attach an open-source license covering the code and generated assets you have rights to share.
 
 ## Build the smallest controlled environment
 
-The corridor consists of integer states `0` through `6`. Every episode begins at state `0`, reaching goal state `6` delivers an environment reward of `1`, all other steps yield `0`, every intended move reverses with probability `0.15` before clamping at the endpoints, and each episode stops after at most `12` steps. Write down the full Markov decision process specification prior to coding the agent so subtle differences in reward timing, resets, or step caps cannot slip into one arm silently and masquerade as an algorithmic improvement.
+Our corridor has integer states `0` through `6`. Every episode starts at `0`, reaching goal state `6` pays environment reward `1` (all other steps pay `0`), every intended action reverses with probability `0.15` before clamping at the ends, and episodes stop after at most `12` steps.
 
 | Environment field | Locked specification |
 | --- | --- |
-| observation | integer state in `{0, 1, ..., 6}` |
-| actions | `0 = left`, `1 = right` |
-| reset | return state `0`; select pre-generated tape by seed |
-| transition | move one cell, clamp at endpoints, reverse intended move on a `0.15` slip |
-| reward | `1` on first arrival at state `6`; otherwise `0` |
-| terminated | agent reaches state `6` |
-| truncated | 12 steps elapse without reaching goal |
-| random inputs | exploration, action, tie-break, and slip draws indexed by seed, episode, and step |
-| logged output | state, intended action, realized move, environment reward, termination reason |
+| states & actions | states `{0, ..., 6}`; actions `0 = left`, `1 = right` |
+| transition | move one cell, reverse on `0.15` slip, clamp to `[0, 6]` |
+| reward | `1` on first arrival at state `6`; `0` otherwise |
+| terminated vs truncated | `terminated` at state `6`; `truncated` after 12 steps |
 
-Distinguish `terminated` (arriving at goal state `6`) from `truncated` (hitting the 12-step rollout limit). Because the underlying discounted control task has no intrinsic deadline, the Q-learning update still bootstraps next-state values at a 12-step timeout, whereas arriving at state `6` ends bootstrapping (`target = reward`), and our reported metric separately measures goal attainment within 12 steps. Treating a timeout as zero future value or bootstrapping across the true goal alters the Bellman target altogether, so never toggle between episodic formulations silently.[^gymnasiumTimeLimits2026] In a full study, save complete transition traces alongside aggregate row metrics so suspicious episodes can be inspected directly.
+Keep `terminated` and `truncated` strictly separate. Because the underlying discounted task has no intrinsic deadline, hitting the 12-step cap still bootstraps $\gamma \max_a Q(s', a)$, whereas reaching goal state `6` ends bootstrapping (`target = reward`). Confusing truncation with termination silently changes the Bellman equation.[^gymnasiumTimeLimits2026]
 
-[Tabular Q-learning](/learn/introduction-to-reinforcement-learning-fundamentals) maintains an explicit table of action values and updates each visited $(s, a)$ toward observed reward plus discounted maximum next-state value.[^sutton2018] On every step in our corridor, both baseline and candidate observe the same environment reward $R$ and experience identical paired slip rules. Candidate training alone adds a potential-based shaping term $F$, while final evaluation disables $F$ completely so both policies face the exact same objective. Define the distance potential $\Phi(s)$ and transition shaping term $F(s, a, s')$ as:
+[Tabular Q-learning](/learn/introduction-to-reinforcement-learning-fundamentals) updates each visited $(s, a)$ toward observed reward plus discounted best next-state value.[^sutton2018] Both arms receive identical environment reward $R$ and identical slip draws; only the candidate adds the training shaping bonus $F(s,a,s')$ derived from linear distance potential $\Phi(s)$:
 
 $$
-\Phi(s) = -\frac{6-s}{6}
+\Phi(s) = -\frac{6-s}{6}, \qquad F(s,a,s') = \gamma \Phi(s') - \Phi(s).
 $$
 
-$$
-F(s,a,s') = \gamma \Phi(s') - \Phi(s).
-$$
-
-With discount $\gamma = 0.95$, states nearer the goal hold higher (less negative) potential, so moving right typically creates a positive learning pulse while moving left creates a negative one. Specifically, $\Phi(0) = -1$ and $\Phi(1) = -5/6$, giving $F(0 \to 1) = 0.95(-5/6) - (-1) = +0.208$ toward the goal, $F(1 \to 0) = -0.117$ on a step away, and even a clamped self-loop $0 \to 0$ yields $F(0 \to 0) = (0.95 - 1)(-1) = +0.050$ despite zero motion. Checking those single-transition edge cases numerically in advance catches sign errors before running all 24 seeds.
+With $\gamma = 0.95$, states closer to the goal have less negative potential. Stepping forward from `0` to `1` yields $F(0 \to 1) = 0.95(-5/6) - (-1) = +0.208$; slipping back yields $F(1 \to 0) = -0.117$; even bumping the left wall yields $F(0 \to 0) = (0.95 - 1)(-1) = +0.050$.
 
 <figure>
   <img src="illustrations/_generated/corridor_potential_dark.png" alt="Line chart of linear potential Phi(s) = -(6-s)/6 across corridor states s0 through s6, paired with transition shaping rewards for moving toward the goal (+0.208), slipping back (-0.117), and a clamped self-loop (+0.050)." />
   <figcaption>The curve plots linear state potential Phi(s) = -(6 - s)/6 from start to goal, while the summary cards isolate environment reward R (zero prior to state 6) from the training-only shaping bonus F for goalward progress (+0.208), slip reversal (-0.117), and a clamped self-loop (+0.050).</figcaption>
 </figure>
 
-Potential-based shaping preserves the optimal policy in infinite-horizon discounted MDPs because consecutive terms telescope cleanly across any trajectory of length $T$. Expanding consecutive pairs collapses every intermediate state potential $\Phi(s_1), \dots, \Phi(s_{T-1})$, leaving only the start potential and discounted terminal potential. That algebraic cancellation is what guarantees invariant relative action values once discounting matches the underlying Bellman update:
+Why does potential-based shaping preserve optimal policies? Across any trajectory of length $T$, intermediate potentials cancel in a telescoping sum:
 
 $$
 \sum_{t=0}^{T-1}\gamma^t F(s_t,s_{t+1})=-\Phi(s_0)+\gamma^T\Phi(s_T).
 $$
 
-Because every completed path reaches goal state `6` where $\Phi(6) = 0$, the discounted sum of shaping terms equals $-\Phi(0) = +1$ regardless of path length. In the infinite-horizon limit, any bounded potential also forces the terminal factor $\gamma^T \Phi(s_T)$ to vanish cleanly. Under an artificial rollout truncation where $s_T \neq 6$, however, $\gamma^T \Phi(s_T)$ remains non-zero, demonstrating why terminal potential definitions and timeout bootstrapping must be verified in code rather than assumed from the equation alone.[^ng1999] Verify the arithmetic and path-invariance property directly in pure Python:
+For every path that reaches goal state `6` (where $\Phi(6) = 0$), the total discounted shaping bonus equals $-\Phi(0) = +1$, independent of path length! On truncated episodes ($s_T \neq 6$), $\gamma^T\Phi(s_T)$ stays nonzero, which is why terminal potential definitions and timeout bootstrapping matter in code.[^ng1999] Verify the single-step bonuses and path telescoping directly:
 
 <!-- leetllm: test, output=show -->
 
@@ -210,36 +198,27 @@ Completed-path discounted bonus: +1.000 for both paths
 ```
 <!-- leetllm: output:end -->
 
-Notice how even a clamped wall collision (`0 -> 0`) earns $F = +0.050$ without changing position, reinforcing why shaping is strictly an intermediate training signal rather than an evaluation score. Scoring final policies on $R + F$ would credit idle boundary steps instead of genuine goal completion. Summarizing shared versus differing components in one table confirms that states, action spaces, learning updates, and random tapes match bit-for-bit so automated controls can audit directly that nothing beyond the candidate's training reward differs in code:
-
-| Component | Sparse baseline | Shaped candidate |
-| --- | --- | --- |
-| states and actions | identical | identical |
-| slip tape | paired | paired |
-| Q-learning update | identical | identical |
-| environment reward | goal only | goal only |
-| training-only addition | none | $\gamma\Phi(s')-\Phi(s)$ |
-| final evaluation reward | goal only | goal only |
+Notice that bumping the left wall (`0 -> 0`) earns $+0.050$ even with zero progress. That single number illustrates why final evaluation must drop $F$ completely and score both policies on $R$ alone.
 
 ## Make randomness and controls explicit
 
-Reinforcement-learning outcomes are notoriously sensitive to random seeds, environment stochasticity, and minor implementation choices, to the point where two runs of the same method can look like completely separate algorithms.[^henderson2018] Treating pseudorandom streams as first-class experimental inputs rather than background noise turns variance from a mystery into a measurable quantity. How you structure those streams determines how much shared environment difficulty cancels out between baseline and candidate.
+In reinforcement learning, pseudorandom streams are part of the experimental apparatus.[^henderson2018] How you share those streams across arms directly affects how tightly you can estimate the difference between them.
 
-### The paired seed trial protocol
+### Paired seed trials and 2D random tapes
 
-If baseline arm $X_i$ and candidate arm $Y_j$ are run on independent streams of $n$ seeds each, their random disturbances never cancel across arms. Because independent arms have zero covariance, the variance of the difference between sample means equals the sum of their individual mean variances, forcing you to collect larger samples just to overcome unrelated draw luck:
+When baseline $X_i$ and candidate $Y_j$ draw from independent random streams, their mean-difference variance adds:
 
 $$
 \operatorname{Var}(\bar{Y} - \bar{X}) = \frac{\operatorname{Var}(Y) + \operatorname{Var}(X)}{n}.
 $$
 
-How many seeds an experiment needs depends on expected effect size, noise level, desired interval width, and whether draws are paired. In a **paired seed trial**, each seed $i$ delivers the exact same indexed random tape to both baseline and candidate, allowing shared difficult episodes to depress both arms together rather than biasing one arm arbitrarily. Even though differing learned actions can still send the two arms along different trajectories and transitions, evaluating each pair through its difference $\Delta_i = Y_i - X_i$ changes the variance expression to:
+In a **paired seed trial**, each seed $i$ supplies the same random stream to both arms, and we analyze per-seed differences $\Delta_i = Y_i - X_i$:
 
 $$
 \operatorname{Var}(\bar{\Delta}) = \frac{\operatorname{Var}(Y) + \operatorname{Var}(X) - 2\operatorname{Cov}(X, Y)}{n}.
 $$
 
-When shared randomness creates positive covariance $\operatorname{Cov}(X, Y) > 0$, pairing removes common-noise variance and tightens confidence intervals relative to unpaired arms with the same marginal spread. That improvement is not automatic, however: because reversing a left move pushes the agent forward while reversing a right move pushes it back, the same slip can help one policy and hurt another, potentially making covariance zero or negative. Run this small counterexample to observe how negative covariance doubles mean-difference variance under pairing:
+When hard episodes pull both arms down together ($\operatorname{Cov}(X, Y) > 0$), pairing cancels common noise and tightens the confidence interval. That variance reduction is not automatic, however: if the same slip helps one policy and hurts the other ($\operatorname{Cov}(X, Y) < 0$), pairing can widen variance instead:
 
 <!-- leetllm: test, output=show -->
 
@@ -266,81 +245,59 @@ Estimated mean variance, paired / independent: 0.1250 / 0.0625
 ```
 <!-- leetllm: output:end -->
 
-Even when pairing does not shrink variance, keeping seed $i$ as the paired experimental unit preserves clean alignment across configurations. You can still examine every individual seed difference directly, count how many seeds improved or regressed, and diagnose outliers against a shared random tape. Dropping the pairing altogether would force you to infer distributions from unrelated runs without per-seed attribution.
+> **Common mistake:** Drawing sequentially from a single flat RNG stream breaks pairing the moment one arm finishes episode 0 in 6 steps while the other takes 12. Episode 1 immediately starts at different RNG offsets for each arm.
 
-### Synchronizing randomness with a 2D tape
+Pre-generate four 2D arrays of shape `(TRAIN_EPISODES, MAX_STEPS)` indexed by `(episode, step)`: `explore` (for $\epsilon$-greedy checks), `action` (random action), `tie` (Q-value tie-breaks), and `slip` (15% move reversals). Now episode $e$, step $t$ sees identical draws regardless of how early previous episodes ended.
 
-Naive sequential random number generators drift out of alignment as soon as one arm solves an episode faster than the other. If the shaped agent solves episode 0 in 6 steps while the sparse agent takes all 12 steps, drawing sequentially from one flat stream leaves episode 1 starting at offset 6 for one arm and offset 12 for the other, and any conditional tie-break draws widen the offset further. Pre-generating a 2D random tape shaped `(TRAIN_EPISODES, MAX_STEPS)` for every stochastic decision prevents stream desynchronization completely. Indexing every draw by `(episode, step)` guarantees that both arms encounter identical exploration triggers and environment slip schedules on corresponding episodes, even when earlier episodes ended after 6 steps versus 12, without forcing both agents to pick identical actions:
+### Controls, pilot seeds, and ablations
 
-1. `explore`: continuous uniform float in $[0, 1)$ for $\epsilon$-greedy exploration checks.
-2. `action`: discrete uniform integer in $\{0, 1\}$ for random action draws.
-3. `tie`: discrete uniform integer in $\{0, 1\}$ for reproducible random Q-value tie-breaking.
-4. `slip`: continuous uniform float in $[0, 1)$ for the 15% environment action reversal.
+Keep debug seeds (`900`–`902`) completely separate from study seeds (`0`–`23`), and draw frozen greedy evaluation slips from independent seeds `10000 + seed`. Run all 24 pairs without peeking to stop early (sequential stopping requires dedicated tests covered in [Experiment Design and A/B Testing](/learn/experiment-design-ab-testing)).
 
-### Separate pilot and confirmatory seeds
-
-Reserve a small debug pool such as seeds `900`, `901`, and `902` for unit tests, figure debugging, and smoke runs, and never fold those seeds into confirmatory totals because observing them early makes inclusion dependent on outcomes. Here, integers `0` through `23` form our worked 24-seed dataset; in your own preregistered study, freeze the entire harness first and execute on an untouched seed range sized to your precision target. Final greedy evaluation draws independent slip streams seeded at `10000 + training_seed` with learning disabled so Q-tables remain frozen, and you should never tune hyperparameters on evaluation streams and then reuse those same evaluation seeds as an unbiased test. Run every planned pair cleanly without early stopping once ten seeds look encouraging, because sequential stopping requires dedicated sequential procedures covered in the [experiment-design lesson](/learn/experiment-design-ab-testing), and document any mechanical execution crash rules up front before inspecting aggregate metrics.
-
-### Add controls before interpretation
-
-Two sanity checks guard against implementation bugs masquerading as scientific findings. First, run a zero-potential control setting $\Phi(s) = 0$: under identical random tapes, every weight, transition, and score must match the sparse baseline bit-for-bit, or else the candidate path modified something beyond the reward calculation and analysis must stop immediately. Second, score final frozen policies strictly on original environment reward under paired evaluation tapes so shaping bonuses never inflate final performance. You may additionally run a sign-reversed potential $-\Phi(s)$ as an exploratory stress test after primary checks complete, while keeping its findings clearly separated from the confirmatory question.
-
-### Plan the ablation matrix
-
-An ablation table turns multi-factor exploration into a crisp single-change ledger where each row modifies one component and holds everything else fixed. Separating controls, primary runs, sensitivity checks, and exploratory probes in advance stops post-hoc story crafting before data runs start. Never retroactively present an unplanned hyperparameter grid search as a planned ablation after keeping only its strongest configuration; instead, log every run executed and tag post-result sweeps as exploratory:
+Before interpreting the main comparison, run a **zero-potential control** ($\Phi(s) = 0$). Under identical 2D tapes, every Q-table entry, step count, and score must match the sparse baseline bit-for-bit; any discrepancy reveals a code-path bug immediately. Organize all planned comparisons in one ablation table:
 
 | ID | Comparison | One changed factor | Purpose | Report class |
 | --- | --- | --- | --- | --- |
-| `E0` | sparse vs zero potential | shaping term fixed at zero | catch implementation drift | required control |
-| `E1` | sparse vs distance potential | training reward only | evaluate primary rule | worked run here; confirmatory with a fresh planned sample |
-| `E2` | paired vs independently resampled arms | resampling indices | inspect uncertainty when covariance is omitted | sensitivity analysis |
-| `E3` | distance vs reversed potential | potential sign | inspect learning sensitivity | exploratory |
+| `E0` | sparse vs zero potential | shaping term fixed at zero | catch code-path drift | required control |
+| `E1` | sparse vs distance potential | training reward only | evaluate primary rule | primary worked run |
+| `E2` | paired vs unpaired resampling | resampling indices | inspect covariance effect | sensitivity analysis |
+| `E3` | distance vs reversed potential | potential sign | probe learning sensitivity | exploratory |
 
 ## Define metrics and uncertainty
 
-Select the statistical estimand and uncertainty interval well in advance of looking at outcomes so the threshold never shifts to fit noisy numbers. For each seed $i \in \{0, \dots, 23\}$, let $p^{\text{shape}}_{i,30}$ and $p^{\text{sparse}}_{i,30}$ denote the fraction of the first 30 training episodes reaching goal state `6`, so each pair contributes difference $d_i = p^{\text{shape}}_{i,30} - p^{\text{sparse}}_{i,30}$. That formulation makes the primary estimate simply the sample mean across all 24 pairs:
+For each seed $i \in \{0, \dots, 23\}$, let $p^{\text{shape}}_{i,30}$ and $p^{\text{sparse}}_{i,30}$ be the goal-reaching rates over the first 30 training episodes, with paired difference $d_i = p^{\text{shape}}_{i,30} - p^{\text{sparse}}_{i,30}$ and sample mean
 
 $$
 \bar{d} = \frac{1}{24}\sum_{i=0}^{23}d_i.
 $$
 
-This mean estimates average early acceleration under the fixed trial generator without implying universal improvement on every run. A positive mean can easily coexist with several negative individual pairs whenever exploration dynamics shift unpredictably. That is why the final report also tracks all 24 individual seed differences, counts every regression explicitly, and evaluates uncertainty over the complete distribution rather than hiding behind a single headline figure.
-
-### Choose uncertainty at the seed-pair level
-
-Exact small-sample Student-$t$ intervals assume independent normally distributed differences, whereas early success proportions over 30 episodes lie on increments of $1/30$ with differences in $[-1, +1]$ and potential skew across only 24 pairs. Even though $t$-intervals often remain reasonably robust as approximations, resampling the observed seed pairs via a percentile bootstrap avoids Gaussian assumptions while still treating the 24 seeds as representative independent trials; rare edge behaviors absent from 24 runs cannot be invented by resampling alone. Agarwal and colleagues highlight confidence intervals over point-only means for finite-run reinforcement-learning evaluation, though this single-corridor interval is much simpler than their multi-task aggregated rliable estimators.[^agarwal2021rl]
-
-Treating the 24 observed pairs $\{d_0, d_1, \dots, d_{23}\}$ as empirical distribution $\hat{F}_n$, draw $B = 10{,}000$ resamples with replacement using fixed bootstrap seed `20260731`. Each replicate averages 24 draws sampled uniformly with replacement from the observed pair differences. Repeating that sampling ten thousand times produces an empirical sampling distribution for the paired mean without assuming normality:
+Because 30-episode success rates sit on discrete $1/30$ steps and can be skewed across 24 seeds, we compute a **percentile bootstrap** over seed pairs rather than assuming Gaussian differences (following the interval-first spirit of Agarwal et al.'s RL evaluation recommendations).[^agarwal2021rl] Draw $B = 10{,}000$ resamples of size 24 with replacement (using fixed bootstrap seed `20260731`):
 
 $$
-\mathbf{d}^{*(b)} = (d_1^{*(b)}, d_2^{*(b)}, \dots, d_{24}^{*(b)}), \quad b = 1, \dots, B
+\mathbf{d}^{*(b)} = (d_1^{*(b)}, \dots, d_{24}^{*(b)}), \qquad \bar{d}^{*(b)} = \frac{1}{24}\sum_{j=1}^{24} d_j^{*(b)}.
 $$
 
-$$
-\bar{d}^{*(b)} = \frac{1}{24}\sum_{j=1}^{24} d_j^{*(b)}.
-$$
+Take the 5th and 95th percentiles of those $10{,}000$ replicate means with NumPy's `method="linear"`, and cross-check against SciPy's bias-corrected accelerated (`BCa`) bootstrap and paired Wilcoxon signed-rank test.[^numpyQuantile2026][^scipyBootstrap2026] Remember that the unit of independence is the **seed pair**, not the 30 correlated episodes inside a single training run.
 
-Our primary script takes the 5th and 95th percentiles of those $10{,}000$ replicate means using NumPy's `method="linear"`, which linearly interpolates at zero-based index $q(B-1)$ rather than selecting raw order statistics.[^numpyQuantile2026] Alternative procedures such as bias-corrected and accelerated (`BCa`) bootstrap intervals and paired nonparametric hypothesis tests like Wilcoxon signed-rank are exposed directly in SciPy, though no small-sample method guarantees exact nominal coverage under heavy skew.[^scipyBootstrap2026] You should also keep the unit of independence clear: the 30 episodes inside a single run are correlated snapshots of one evolving Q-table rather than 30 independent samples, and a 90% confidence interval is a frequentist procedure targeting 90% long-run coverage rather than a 90% posterior probability on the hypothesis.
-
-### Keep a final-policy guardrail
-
-After 80 training episodes, freeze both policies and score each over 200 greedy episodes under original environment reward using paired evaluation slip tapes (`10000 + seed`). Require both the mean final difference and its 90% paired bootstrap interval to fall entirely within `[-0.02, +0.02]`. Even a `[+0.000, +0.000]` difference interval checks only similarity between two learned policies on observed evaluation draws rather than absolute competence, so inspect per-seed final rates individually too in case offsetting wins and losses mask localized regressions.
+For the **final-policy guardrail**, freeze both Q-tables after 80 episodes, evaluate each over 200 greedy episodes on original reward $R$ using paired evaluation tapes (`10000 + seed`), and verify that both the final mean difference and its 90% interval stay inside `[-0.02, +0.02]`.
 
 ## Plan the experiment table before running
 
-Maintain a declarative experiment table in `study_plan.md` mirrored inside `configs/study.json` and commit both alongside the hypothesis so notebook state never turns into improvised methodology. Track every run with one explicit status vocabulary (`planned`, `running`, `complete`, `mechanical_failure`, or `excluded_by_locked_rule`), rather than silently excluding a completed seed because its outcome looked disappointing. Logging pilot runs, required controls, primary studies, and exploratory probes in the same schema turns experimental discipline into machine-checkable structure:
+Mirror the locked experiment plan in `configs/study.json` and track each run with an explicit status (`planned`, `running`, `complete`, `mechanical_failure`, or `excluded_by_locked_rule`) so inconvenient runs can never disappear silently:
 
 | Run | Seeds | Episodes | Evaluation | Output | Decision role |
 | --- | ---: | ---: | ---: | --- | --- |
 | pilot smoke | 900-902 | 10 | 20 | console trace | debug only |
 | zero-potential control | 0-23 | 80 | 200 | exact-equality log | implementation check |
-| primary worked study | 0-23 | 80 | 200 | seed table + bootstrap | demonstrate declared decision rule |
-| unpaired sensitivity | same completed rows | none | none | interval comparison | planned sensitivity analysis |
+| primary worked study | 0-23 | 80 | 200 | seed table + bootstrap | evaluate declared rule |
+| unpaired sensitivity | same rows | none | none | interval comparison | planned sensitivity check |
 | reversed-potential stress | 0-23 | 80 | 200 | separate seed table | exploratory appendix |
 
 ## Package an exact repository
 
-Organizing files by role prevents locked hypotheses, simulator source, immutable run artifacts, reports, and presentation slides from tangling together. Clear directory boundaries stop stray helper notebooks or intermediate screenshots from polluting the official result tables. Alongside the executable core on this page, a portfolio-ready capstone follows a layout like this:
+Keep locked hypotheses, simulator code, immutable run outputs, and reports in separate directories so exploratory notebooks never overwrite official tables. Pin dependencies in `pyproject.toml` and `uv.lock`, and document one clean command such as `uv run corridor-study --config configs/study.json` following standard reproducibility checklists.[^reproducible_research_seeds]
+
+<details>
+<summary>Deep dive: Portfolio repository layout and manifest template</summary>
 
 ```text title="repository-tree.txt"
 reproducible-reward-shaping/
@@ -384,43 +341,6 @@ reproducible-reward-shaping/
     └── q-and-a.md
 ```
 
-### Pin environment and entrypoint
-
-Pin Python, NumPy, SciPy, and tooling dependencies inside `pyproject.toml` and `uv.lock`, and document one clean command such as `uv run corridor-study --config configs/study.json` in `README.md`. Execute confirmatory runs from a <span data-glossary="reproducible-environment">fresh clone</span> or container and capture operating system, CPU architecture, interpreter version, numerical library versions, commit hash, config digest, and runtime duration inside the manifest, scrubbing personal hostnames or user paths. Follow the Machine Learning Reproducibility Checklist by reporting seeds, hyperparameters, architectures, and exact execution commands alongside a <span data-glossary="dependency-lockfile">lockfile</span>, remembering that locked versions assist reproducibility without guaranteeing identical hardware instructions.[^reproducible_research_seeds]
-
-### Record data lineage
-
-Code-generated data still requires complete lineage documentation so another engineer can regenerate every row cleanly from source. Store the generator version, seed range, transition probabilities, state count, step cap, and source hashes inside `data/generated/README.md` alongside the exact command that produces each CSV file. If you later adapt the pipeline to an external dataset, retain original URL, version, retrieval timestamp, license, file <span data-glossary="checksum">checksum</span>, preprocessing script, and exclusion rules instead of relying on an undocumented local filename.
-
-### Create an artifact manifest
-
-A manifest inventories the software, configuration, and outputs tied to a reported run, connecting every published table back to the exact environment that ran. Keep in mind that byte digests, execution validity, and producer identity answer three distinct verification questions that no single hash can resolve alone. Recording commit revisions, dependency locks, platform metadata, frozen parameters, and output checksums separately keeps all three layers auditable:
-
-1. **Commit**: `git rev-parse HEAD` names the committed snapshot, so check and record working-tree cleanliness separately to catch uncommitted edits.
-2. **Executed source**: hash the source tree with deterministic filename sorting and UTF-8 encoding, comparing against an expected snapshot rather than trusting a self-reported digest alone.
-3. **Dependencies and interpreter**: archive `uv.lock` alongside exact Python patch version and package builds, recognizing that `==3.12.*` spans multiple patch releases.
-4. **Platform**: record OS, CPU architecture, and BLAS or accelerator runtime details, while remembering that identical coarse OS fields do not guarantee bitwise floating-point identity.
-5. **Configuration**: hash the frozen configuration file bytes and link that digest in the run record, noting that a hash recomputed post-hoc cannot prove when the configuration was frozen.
-6. **Outputs**: compute digests of the seed CSV and JSON summaries and store reference checksums separately so a later overwrite cannot mask divergence.
-
-<figure>
-  <img src="illustrations/_generated/artifact_evidence_chain_dark.png" alt="Verification flow separating SHA-256 byte integrity checks (all five bundle prefixes match the manifest) from cryptographic producer authentication (signature absent in the unsigned local bundle)." />
-  <figcaption>All five SHA-256 prefixes for study code, runner script, configuration, seed CSV, and summary JSON match the stored manifest, confirming unchanged file bytes while leaving producer identity unverified until signed with a trusted external key.</figcaption>
-</figure>
-
-The Mermaid flow below maps how the frozen specification gates inputs, controls, evaluation, and output digests into the final evidence ledger. Every arrow tracks an explicit handoff so regressions or missing controls cannot silently enter the summary tables. Together with the manifest schema below, it clarifies which fields are locked in advance versus populated once all 24 seeds finish:
-
-```mermaid
-flowchart LR
-  accDescr: End-to-end reproducibility pipeline connecting a frozen study specification, 2D synchronized seed tapes, paired sparse and shaped training, zero-potential control, greedy original-reward evaluation, and SHA-256 artifact ledger.
-  spec["1. Frozen Spec & Commit"]:::primary --> tape["2. Synchronized 2D Tapes"]:::secondary
-  tape --> train["3. Paired Q Training & E0 Control"]:::primary
-  train --> eval["4. Frozen 200-Ep R Eval"]:::warning
-  eval --> ledger["5. Complete CSV, CI & SHA-256 Ledger"]:::success
-```
-
-Before execution begins, pre-populate `study_id`, `confirmatory_seeds`, and `bootstrap_seed` in the template manifest below, leaving SHA-256 output digests empty until completion. At runtime, the script checks commit cleanliness, records Python and NumPy versions, and computes final file digests. Keeping those roles separate makes it obvious which inputs were locked beforehand versus computed from completed outputs:
-
 ```json title="artifacts/manifest.json"
 {
   "study_id": "corridor-reward-shaping-v1",
@@ -437,11 +357,31 @@ Before execution begins, pre-populate `study_id`, `confirmatory_seeds`, and `boo
     "primary_seed_rows.csv": "<sha256-hash>",
     "study_results.json": "<sha256-hash>"
   },
-  "status": "worked-run-not-preregistered"
+  "status": "worked-run"
 }
 ```
 
-State explicitly what comparison must succeed for a verification rerun. Under this pinned NumPy environment, rerunning the study targets exact byte reproduction of the CSV and JSON outputs, whereas cross-platform runs may require pre-declared numeric field tolerances (preserving both files and never widening tolerances post-hoc after seeing a mismatch). The bundle's `illustrations/run_study.py` script executes `reward_shaping_study.py` and writes the manifest, though as a local unsigned bundle it proves byte self-consistency rather than external authorship. Run the brief hash demonstration below to see why identical JSON payloads can produce distinct byte digests and why an unauthenticated script can wrap fabricated metrics in a valid self-consistent hash:
+</details>
+
+### Artifact manifests and what SHA-256 actually verifies
+
+A manifest ties every table and figure back to the exact Git commit (plus working-tree cleanliness), source hash, dependency lockfile, platform metadata, frozen config hash, and output SHA-256 digests. Include a `CITATION.cff` file so repositories render citation metadata cleanly and pair naturally with persistent Zenodo DOIs.[^githubCitationFiles]
+
+<figure>
+  <img src="illustrations/_generated/artifact_evidence_chain_dark.png" alt="Verification flow separating SHA-256 byte integrity checks (all five bundle prefixes match the manifest) from cryptographic producer authentication (signature absent in the unsigned local bundle)." />
+  <figcaption>All five SHA-256 prefixes for study code, runner script, configuration, seed CSV, and summary JSON match the stored manifest, confirming unchanged file bytes while leaving producer identity unverified until signed with a trusted external key.</figcaption>
+</figure>
+
+```mermaid
+flowchart LR
+  accDescr: End-to-end reproducibility pipeline connecting a frozen study specification, 2D synchronized seed tapes, paired sparse and shaped training, zero-potential control, greedy original-reward evaluation, and SHA-256 artifact archive.
+  spec["1. Frozen Spec & Commit"]:::primary --> tape["2. Synchronized 2D Tapes"]:::secondary
+  tape --> train["3. Paired Q Training & E0 Control"]:::primary
+  train --> eval["4. Frozen 200-Ep R Eval"]:::warning
+  eval --> archive["5. Complete CSV, CI & SHA-256 Archive"]:::success
+```
+
+Keep clear what a hash checks: SHA-256 verifies exact **bytes**, not semantic equality and not authorship. Formatting whitespace changes a JSON file's digest even when its values match, and anyone can hash a fabricated result into an unsigned self-reported manifest:
 
 <!-- leetllm: test, output=show -->
 
@@ -470,11 +410,11 @@ Invented output matches its own manifest: True
 ```
 <!-- leetllm: output:end -->
 
-A reviewer therefore needs either an independently stored reference digest or an explicit field-level numerical comparison rule, paired with origin tracking outside the self-reported file. Including a `CITATION.cff` file alongside the manifest gives both humans and automated tools standardized citation fields rendered directly in repository headers. Once archived in Zenodo or a similar long-term repository, you can attach a persistent DOI to that citation metadata.[^githubCitationFiles]
+For cross-platform reruns where floating-point formatting may differ slightly, declare field-level numeric tolerances in advance rather than widening them after seeing a mismatch.
 
 ## Run the miniature study
 
-The full study script builds paired 2D random tapes for seeds `0` through `23`, runs the sparse baseline and distance-shaped candidate, verifies exact bit-for-bit equality of the zero-potential control, evaluates both frozen policies over 200 greedy episodes on original reward, and prints both the paired and unpaired bootstrap confidence intervals. NumPy `2.2.6` is pinned for this worked run because random seeds alone do not freeze generator call behavior across library upgrades, builds, or ports.[^numpyRandomCompatibility2026] A translation using Python's standard `random` module, for instance, will generate different sequences and rows while leaving sample size and decision logic intact, so treat any library port as a new implementation rather than expecting byte parity. Inspect the key control points (`make_tape`, `train`, `evaluate`, and `bootstrap_interval`), then execute the study with `uv run reward_shaping_study.py`:
+Now we run all 24 paired seeds end to end. The script constructs the 2D random tapes, asserts bit-for-bit equality on the zero-potential control (`E0`), trains sparse and shaped Q-tables for 80 episodes, evaluates frozen policies over 200 greedy episodes on original reward $R$, and computes both paired and unpaired 90% bootstrap intervals. Pinning NumPy in the script header keeps the RNG stream exact across runs.[^numpyRandomCompatibility2026]
 
 <!-- leetllm: test, deps=numpy==2.2.6, output=show, id=corridor-study -->
 
@@ -685,18 +625,18 @@ guardrail: PASS
 
 ## Read the result without hiding variance
 
-Prior to trusting the headline mean, examine the full per-seed distribution. Our decision rule requires an average early improvement of at least +10 percentage points alongside a lower interval bound above zero, yet neither aggregate metric reveals whether the gain held consistently across individual seeds. Visualizing all 24 pairs alongside the confidence intervals exposes both the positive average and the individual regressions simultaneously.
+The headline mean is $+0.143$ (+14.3 percentage points), clearing our $+0.10$ bar, and the 90% paired bootstrap interval $[+0.061, +0.225]$ sits cleanly above zero (about 15% narrower than the unpaired interval $[+0.049, +0.236]$ thanks to positive covariance $\approx 0.0095$ across shared tapes). Final greedy success matches identically at `0.911` versus `0.911` (`[+0.000, +0.000]`).
+
+Yet plotting all 24 seed pairs immediately exposes something a bar chart would hide: **five seeds regressed** (`6, 11, 17, 19, 23`).
 
 <figure>
   <img src="illustrations/_generated/paired_seed_deltas_dark.png" alt="Scatter plot of all 24 paired early-success deltas highlights five regressed seeds (s6, s11, s17, s19, s23) in red, paired with an interval plot showing the +14.3 pp mean, the 90% paired interval (+6.1 to +22.5 pp), the wider unpaired interval (+4.9 to +23.6 pp), and the +0.0 pp final guardrail." />
   <figcaption>All 24 executed seed pairs appear in the scatter plot above, highlighting the five regressions (seeds 6, 11, 17, 19, and 23) in red despite the +14.3 pp mean gain. The paired 90% bootstrap interval (+6.1 to +22.5 pp) sits cleanly above zero and narrows the unpaired interval (+4.9 to +23.6 pp), while final original-reward parity holds at +0.0 pp.</figcaption>
 </figure>
 
-The worked mean equals $+0.143$ (+14.3 percentage points), clearing the declared $+0.10$ point-estimate bar, while its 90% paired percentile bootstrap interval spans $[+0.061, +0.225]$. Although this interval sits strictly above zero, its lower bound extends down to `+6.1` percentage points, meaning the run satisfies our pre-stated criterion (`mean >= +0.10` and `lower > 0`) without showing at 90% confidence that the true gain exceeds 10 percentage points. Independent arm resampling yields $[+0.049, +0.236]$, roughly 15% wider because positive covariance across paired early scores (about $0.009525$) reduces noise when pairs stay intact. Note that this sensitivity interval merely resamples the completed table; quantifying variation across fresh streams requires drawing new independent seed sets.
+### Why can goal-directed shaping hurt individual seeds?
 
-### The five regressions and exploratory traps
-
-Five out of 24 seeds scored lower with shaping ($\Delta_i < 0$): **6, 11, 17, 19, and 23**, whereas neighbors such as seeds 9, 13, and 21 gained substantially. Identifying regressions accurately requires inspecting the executed data directly rather than guessing plausible stories. Why can a goal-directed potential slow down early learning on specific seeds? Look at a single backward slip from state 1 to state 0: the transition delivers $F(1,0) = 0.95(-1.0) - (-5/6) = -0.117$ directly into $Q(1, \text{right})$, because Q-learning credits the starting state and **intended** action rather than the arrival state! When an unlucky early slip drives that right-action value negative, the greedy policy can temporarily avoid stepping right even though moving right is optimal. Run the small transition trace below to verify which table entry turns negative (noting this isolated transition check illustrates the update rule rather than reconstructing seed 6's trajectory):
+Trace a single unlucky slip from state `1` back to state `0` when the agent intended `right`. Q-learning credits the starting state and **intended** action:
 
 <!-- leetllm: test, output=show -->
 
@@ -720,13 +660,13 @@ Q(0, right) remains: +0.000
 ```
 <!-- leetllm: output:end -->
 
-Shaping alters finite-horizon exploration dynamics, yet aggregate seed totals cannot by themselves confirm which transition sequences drove a regression; pinning down the exact mechanism requires retaining full episode traces and testing that hypothesis in a new pre-registered run. Whatever story looks plausible in hindsight, deleting the five negative seeds would falsely jump the average from $+0.143$ to roughly $+0.239$, which is selection on the outcome rather than valid analysis. Report all 24 pairs unconditionally and tag post-hoc explanations as exploratory.
+One early backward slip pushes $Q(1, \text{right})$ to `-0.041`, making the greedy policy temporarily avoid stepping right even though right is optimal. Deleting those five regressed seeds would falsely inflate the mean from `+0.143` to `+0.239` (outcome-based selection). Always report every planned seed unconditionally.
 
-### Assess competence separately from equivalence
+### Competence is separate from equivalence
 
-Seed 18 exposes a separate diagnostic lesson: both baseline and shaped candidate reached only 45.5% greedy success (91 of 200 evaluation episodes), yielding a paired difference of `+0.000`. That tie satisfies the equivalence guardrail while revealing weak absolute performance, reminding us that equivalence does not imply high competence. Inspecting seed 18's frozen Q-tables explains why: both policies learned action `0` (left) at state `0`, relying on a 15% random slip to propel the agent rightward into state `1` before walking cleanly to the goal. Policy-invariance theory applies to true optimal policies, whereas our finite-run guardrail checks only whether two 80-episode runs landed at matching evaluation scores.
+Seed 18 reveals a second lesson: both sparse and shaped policies tied at only `0.455` greedy success (`+0.000` difference). Both learned to choose `left` at state `0`, relying on a 15% slip to bounce into state `1` before walking to the goal! The equivalence guardrail checks whether two finite runs ended at similar scores; inspecting per-seed rows reveals whether they actually solved the task.
 
-Inspecting individual failing or stalled seeds directly from the live run prevents misleading stories built from group averages alone. Running the script below extracts the five regressed seeds, measures the exact distortion from dropping them, exposes Seed 18's suboptimal frozen actions, and cross-checks our NumPy percentile bootstrap against SciPy's BCa interval and exact Wilcoxon signed-rank test at `N=24` versus underpowered `N=5`:
+Let's inspect the regressed seeds, Seed 18's frozen policy, and cross-check our NumPy percentile bootstrap against SciPy's BCa interval and exact Wilcoxon signed-rank test:
 
 <!-- leetllm: test, deps=numpy==2.2.6,scipy, output=show, continue=corridor-study -->
 
@@ -767,44 +707,30 @@ Min 2-sided Wilcoxon p at n=5 all-positive seeds: 0.0625
 ```
 <!-- leetllm: output:end -->
 
-SciPy's BCa interval (`[+0.058, +0.228]`) aligns closely with the NumPy percentile interval (`[+0.061, +0.225]`), confirming that mild skew leaves the conclusion stable. The small-sample comparison also explains why underpowered RL studies with just `N=5` seeds cannot reach formal two-sided Wilcoxon significance even when all five runs improve (`p = 0.0625 > 0.05`), whereas 24 paired seeds resolve the directional gain cleanly at $p = 0.0057$. Note as well that both arms consumed 80 training **episodes** rather than identical environment **steps** (`773.2` sparse transitions versus `754.7` shaped transitions on average because goal completion ends episodes early), meaning this design measures per-episode early learning speed rather than matched-step sample efficiency.
-
-### Separate experimental evidence from theory
-
-Potential-based shaping theory motivates candidate algorithms, while this empirical bundle tests one specific tabular implementation across 24 stochastic corridor seeds. Likewise, bootstrap confidence intervals measure sampling variability under this fixed simulator procedure without guaranteeing how the same change will behave under deep neural function approximation, different reward scales, longer horizons, or altered hyperparameters. Choose your reporting verbs carefully: prefer `observed`, `estimated`, `passed the declared rule`, or (when preregistered on fresh seeds) `supported under the preregistered rule`, and avoid sweeping overclaims like `proved`, `guaranteed`, `always`, or `production-ready`.
-
-### Preserve the complete seed table
-
-Your output ledger should store every planned seed with columns for `seed`, `early_sparse`, `early_shaped`, `early_delta`, `final_sparse`, `final_shaped`, and run status, ordered strictly by seed index rather than sorted by performance. If a mechanical failure occurs and your pre-locked rerun policy authorizes a replacement, preserve both the crashed record with its stack trace and the linked replacement run rather than silently overwriting the row. Always link aggregate summary tables to the row table's SHA-256 digest because a static screenshot cannot support independent reanalysis.
+SciPy's BCa interval (`[+0.058, +0.228]`) agrees closely with the NumPy percentile interval (`[+0.061, +0.225]`). Notice also the power lesson at the bottom: with only `N=5` seeds, even five unanimous positive runs can reach at best $p = 2 \times 0.5^5 = 0.0625 > 0.05$ on a two-sided Wilcoxon test, whereas 24 paired seeds resolve the gain at $p = 0.0057$. Also note the unit of compute: both arms ran 80 **episodes** (`773.2` sparse transitions vs `754.7` shaped transitions because solving faster ends episodes sooner), so this measures per-episode speed rather than matched-step sample efficiency.
 
 ## Treat negative results as artifacts
 
-A reproducibility capstone succeeds whenever it identifies cleanly which hypothesis claim the evidence supports or refutes, regardless of sign. Never alter metrics, drop inconvenient seeds, or disguise a failing comparison with celebratory framing; preserve the identical table structure and replace positive headlines with the exact observed effect, uncertainty interval, failure diagnosis, and discriminating follow-up experiment. Use this diagnostic lookup after locked analysis runs complete:
+A reproducibility study succeeds whenever it cleanly determines what the evidence supports or refutes, regardless of sign. Keep the exact same table and plot format when a run fails or lands inconclusive:
 
 | Symptom | Plausible cause | Honest response |
 | --- | --- | --- |
 | interval crosses zero | seed budget too small or effect unstable | report inconclusive result and wider interval |
-| mean below `+0.10` | effect smaller than useful threshold | reject practical claim even if sign is positive |
-| final guardrail fails | undertraining, stochastic variation, or an implementation error | withhold support; inspect updates and per-seed outcomes |
-| a few extreme seeds dominate | unstable exploration or environment interaction | show seed distribution and robust summary |
-| zero-potential control differs | code paths aren't identical | stop analysis and fix experiment harness |
-| clean clone can't run | missing dependency, data, or command | repair artifact before sharing report |
-
-Well-documented negative outcomes still drive scientific progress: a wide interval calibrates future sample-size power calculations, a crisp null eliminates an ineffective potential function, and a guardrail breach exposes subtle terminal shaping errors. When interpreting unexpected failures such as seed 6's drop, explicitly label post-hoc hypotheses as exploratory triggers for fresh diagnostic traces and a new preregistered run rather than conclusions proven by aggregate rows. Treating negative or inconclusive outcomes with the same artifact rigor keeps teams from repeating failed ablations unknowingly.
+| mean below `+0.10` | effect smaller than useful threshold | withhold practical claim even if sign is positive |
+| final guardrail fails | undertraining, stochastic variation, or bug | withhold support; inspect updates and per-seed outcomes |
+| a few extreme seeds dominate | unstable exploration dynamics | show full seed distribution alongside robust summary |
+| zero-potential control differs | code paths diverged | stop analysis and fix experiment harness |
+| clean clone fails to run | missing dependency or command | repair packaging before sharing report |
 
 ## Produce a figure, table, and report
 
-Every scientific artifact pairs three synchronized views derived from the exact same output file: an exact tabular record (`primary_seed_rows.csv`), a distribution-preserving figure showing every seed delta alongside summary intervals, and a concise report linking evidence back to the hypothesis. Never transcribe summary figures by hand across scripts, because manual edits allow reports and plots to drift silently away from actual runs. Inside this bundle, `illustrations/run_study.py` executes `reward_shaping_study.py` directly and exports `primary_seed_rows.csv`, `study_results.json`, and `artifact_manifest.json` so plots read machine-generated outputs directly:
+Generate the seed CSV, summary table, and figure from one command so numbers never drift through manual transcription. Inside this bundle, `illustrations/run_study.py` runs `reward_shaping_study.py` and writes `primary_seed_rows.csv`, `study_results.json`, and `artifact_manifest.json`:
 
 ```bash title="regenerate-study-artifacts.sh"
 uv run web/src/content/foundations/capstone-reproducible-research-study/illustrations/run_study.py
 ```
 
-Recall that checksum parity verifies unchanged bytes across repeats under the same environment, whereas independent code reimplementation is needed to catch shared logic bugs. When plotting negative and positive deltas, encode sign via spatial position, distinct labels, and accessible high-contrast colors rather than relying solely on red-green hues. Always regenerate both raster slides and summary tables from the exact artifact command above after any code change.
-
-### Required table
-
-`report/tables/primary_result.csv` summarizes both arms and their paired summary metrics directly from the locked 24-seed evaluation run. Presenting early speed, bootstrap uncertainty, win/tie/loss counts, and final original-reward parity in one compact ledger stops selective cherry-picking across tables. Every cell matches the live Python outputs printed earlier without manual rounding drift:
+The primary summary table presents early speed, uncertainty, win/tie/loss counts, and final parity side by side:
 
 | Metric | Sparse | Shaped | Paired difference |
 | --- | ---: | ---: | ---: |
@@ -813,107 +739,68 @@ Recall that checksum parity verifies unchanged bytes across repeats under the sa
 | improved/tied/regressed seeds | n/a | n/a | 19/0/5 |
 | final original-reward success | 0.911 | 0.911 | +0.000 |
 
-### Required figure
-
-Plot every individual seed difference along a shared zero reference line paired with the mean and confidence interval, avoiding summary-only bar charts that hide spread and regressions. Write an inference-driven caption naming the five negative seeds and explaining what the interval confirms and leaves open. Finally, export both vector SVG for reports and raster PNG for slides, recording every generating script path inside the artifact manifest.
-
-### Required report
-
-Structure the writeup cleanly so an outside reviewer can inspect every claim, control, negative result, and reproduction command in one sitting. Keep section headings aligned directly with the locked experiment ledger so claims trace cleanly back to saved files. Track any departure from the original specification in an explicit deviations table, claiming `none` only after verifying `git diff` between the frozen specification commit and the final experiment configuration:
-
-1. Abstract with scope and decision.
-2. Paper claim and study adaptation.
-3. Locked hypothesis, expected result, and rejection rule.
-4. Environment, baseline, candidate, controls, and seed plan.
-5. Primary table, figure, uncertainty, and negative seeds.
-6. Ablations and mechanical checks.
-7. Limitations, negative findings, and next study.
-8. Reproduction command, manifest, license, and citation.
+Pair that table with a per-seed scatter plot (never a summary-only bar chart) and a concise report linking hypothesis, controls, regressions, limitations, and exact reproduction command.
 
 ## Write limitations that constrain the claim
 
-Rather than writing boilerplate caveats, turn every limitation into a precise statement of what remains unsupported and what concrete experiment would test it next. Also distinguish theoretical validity from empirical testing: Ng and colleagues' theorem guarantees optimal policy invariance under exact infinite-horizon conditions, whereas finite Q-learning can diverge through undertraining, step truncation, or flawed terminal handling. Remember too that claims about real human workflows always require data collected from genuine tasks rather than simulator rollouts alone. At minimum, document these six constraints for this corridor study:
+Turn every limitation into a concrete boundary and a follow-up experiment:
 
 | Limitation | Unsupported inference | Useful next study |
 | --- | --- | --- |
-| one seven-state corridor | shaping helps other environments | add branching grid and delayed traps |
-| tabular Q-learning only | effect transfers to neural agents | preregister small function-approximation study |
-| one potential | any potential speeds learning | compare several locked potential families |
+| one seven-state corridor | shaping helps other environments | add branching grids and delayed traps |
+| tabular Q-learning only | effect transfers to neural agents | preregister a function-approximation study |
+| one potential function | any potential speeds learning | compare several locked potential families |
 | one hyperparameter set | result is tuning-robust | crossed seed-by-hyperparameter design |
-| 24 seeds | effect estimate is highly precise | plan seed count from target interval width |
-| synthetic task | deployed-agent value or safety | separate study on representative interaction logs |
+| 24 seeds | effect size is tightly pinned | size seed budget to target interval width |
+| synthetic task | deployed-agent value or safety | evaluate on representative interaction logs |
 
 ## Stage the evidence for review
 
-Structure your capstone delivery across four milestone checkpoints so each artifact layer is verified before building the next, keeping live confirmatory runs strictly on fresh untouched seeds. Track any pre-run specification amendments cleanly in `reviews/` or version history rather than editing figures silently. Dividing the submission into sequential review gates catches specification gaps long before computing final statistics:
+Build and verify the study in four clean checkpoints before touching fresh confirmatory seeds:
 
-### Milestone 1: paper and study specification
+<details>
+<summary>Deep dive: Four delivery milestones</summary>
 
-Deliver `paper_triage.md`, `study_plan.md`, citation links, falsifiable hypothesis, expected pattern, rejection rule, public-safety scope limits, and preliminary limitations table before touching any confirmatory seeds. Verify that each assumption lifted or adapted from Ng and colleagues is explicitly tagged so implementation choices are never confused with theorem statements. Ready to advance once another engineer can predict cleanly from your spec which outcomes pass, fail, or remain inconclusive.
+1. **Specification:** Commit `paper_triage.md`, `study_plan.md`, falsifiable hypothesis, rejection rule, and limitations table before executing confirmatory seeds.
+2. **Simulator and baseline:** Ship the repository tree, environment unit tests (endpoint clamping and step-12 truncation bootstrapping), pilot trace (`900`–`902`), zero-potential equality check, `uv.lock`, and single entrypoint command.
+3. **Confirmatory results:** Generate the complete seed CSV, bootstrap intervals, manifest, SHA-256 checksums, distribution plot, planned ablations, and deviations log directly from committed code.
+4. **Public package and defense:** Publish the concise report, clean-clone reproduction commands, license, `CITATION.cff`, and talk outline after scanning for leaked secrets or local paths.
 
-### Milestone 2: simulator and baseline
-
-Deliver the clean repository tree, environment unit tests, sparse baseline, pilot trace on seeds 900–902, zero-potential equality check, config schema, `uv.lock`, and clean entrypoint command. Exercise edge cases directly in unit tests, checking both endpoint clamping at states `0` and `6` and Q-learning target bootstrapping at step-12 truncations. Ready to advance once an independent run confirms transition dynamics, 12-step truncation, and bit-for-bit equality under zero potential.
-
-### Milestone 3: confirmatory evidence
-
-Deliver the complete paired seed table, bootstrap intervals, experiment ledger, manifest, checksums, primary distribution plot, planned ablations, and deviations table using immutable commits or release assets so earlier results remain verifiable. Lock every summary output to the row CSV digest so regenerated slides and tables cannot diverge from primary numbers. Ready to advance once headline metrics recompute cleanly from the retained CSV with zero manual transcription.
-
-### Milestone 4: public artifact and defense
-
-Deliver the concise technical report, exact clean-clone reproduction commands, license, `CITATION.cff`, slide outline, Q&A matrix, and audit checklist. Scan every archive file one final time to confirm zero leaked credentials, machine-specific user paths, or ambiguous rerun steps. Ready for final sign-off once an outside reviewer executes the study end-to-end from a fresh clone and clearly articulates both what the package demonstrates and where its evidence ends.
+</details>
 
 ## Prepare a ten-minute talk
 
-A ten-minute talk forces you to lead with scientific decisions and evidence rather than walking line by line through source directories. Fit the main talk into seven focused slides with at least two minutes reserved for questions, backed by appendix slides covering anticipated critiques. Leading immediately with the falsifiable hypothesis, paired seed scatter plot, and negative seeds signals serious experimental rigor right away:
+Lead a ten-minute research talk with the hypothesis, per-seed scatter plot, and negative seeds rather than walking file by file through the repo:
 
-| Time | Slide | Job |
+| Time | Slide | Focus |
 | ---: | --- | --- |
-| 0:00-0:45 | problem | sparse reward and narrow corridor question |
-| 0:45-1:45 | paper claim | potential-based shaping and assumption limits |
-| 1:45-3:00 | hypothesis | primary effect, expected pattern, rejection rule |
-| 3:00-4:30 | design | baseline, candidate, paired tapes, seeds, controls |
-| 4:30-6:15 | evidence | seed plot, interval, five regressions, final guardrail |
-| 6:15-7:15 | failure checks | zero potential, original-reward evaluation, deviations |
-| 7:15-8:00 | limitations | scope limits and next study |
-| 8:00-10:00 | Q&A | defend choices with artifact links |
+| 0:00-1:45 | problem & claim | sparse corridor question and potential-based shaping theorem |
+| 1:45-4:30 | hypothesis & design | locked rule, paired 2D tapes, zero-potential control |
+| 4:30-7:15 | evidence & checks | 24-seed scatter plot, CI, five regressions, Seed 18, final parity |
+| 7:15-8:00 | limitations | where the evidence stops and the next experiment |
+| 8:00-10:00 | Q&A | defend design choices with exact artifact links |
 
-### Build Q&A from attack surfaces
-
-Draft responses to likely technical challenges in advance, anchoring every reply to a specific file, test, or honest acknowledgement of remaining uncertainty rather than improvising new claims during Q&A. Notice especially that "collect more data" is not the universal answer; flawed measurement, unverified controls, or overbroad claims require structural fixes rather than larger sample sizes. Practicing exact answers against each common objection below prepares you for external critique:
+<details>
+<summary>Deep dive: Anticipated Q&A defense matrix</summary>
 
 | Question | Strong answer shape |
 | --- | --- |
-| Why 24 seeds? | bounded laptop budget; report interval width and seed-level variation; assess precision for the study question |
-| Why 90% interval? | worked analysis choice; document preregistration status separately; choose the level before a new study and label alternatives |
-| Why mean? | primary estimand was paired mean; whole distribution and regression count remain visible |
-| Did shaping change the task? | training rewards differed; final measurement used original reward; report the metric and guardrail outcome alongside the theorem assumptions |
-| Why can five seeds regress? | method changes learning dynamics; a positive paired mean can coexist with seed-level regressions |
-| Seed 18's finals are both 0.455. Did the guardrail fail? | the guardrail checks paired differences and their interval; seed 18 has equal final rates, which says little about competence on each seed |
-| What does the theorem demonstrate? | the theorem gives a result under stated assumptions; the artifact checks one finite implementation |
-| What evidence supports transfer to agents? | this study covers a corridor, tabular learner, and synthetic data; agent transfer needs its own evaluation |
-| What would falsify next idea? | preregister environment family and potential comparison with rejection thresholds |
+| Why 24 seeds? | Bounded laptop budget; full interval width and seed spread stay visible |
+| Why can five seeds regress? | Shaping changes finite-sample exploration; early slips can push $Q(1, \text{right})$ negative |
+| Seed 18 finished at 0.455 on both arms. Did the guardrail fail? | The guardrail tests parity between arms (`+0.000`); per-seed inspection catches low absolute competence separately |
+| Does this transfer to deep RL agents? | No; this study tests tabular Q-learning on a 7-state corridor and neural transfer needs its own preregistered run |
+
+</details>
 
 ## Review the artifact like an outsider
 
-ACM's artifact vocabulary separates three escalating verification standards: **repeatability** means the original team recovers the result with its own setup, **reproducibility** means an independent team recovers it using the authors' packaged artifacts, and **replicability** means an independent team recovers it using an independently built implementation.[^acm2020artifacts] This capstone guarantees repeatability directly and packages clean instructions, locked environments, and checksums to enable external reproducibility, aligning with ACM functional criteria (documented, consistent, complete, and exercisable) as well as FAIR metadata principles (findable, accessible, interoperable, and reusable, noting that FAIR supports controlled access when real datasets require authentication rather than demanding unrestricted public release).[^wilkinson2016] Checking your submission against every point below ensures nothing breaks when evaluated outside your own machine:
+ACM's artifact standard distinguishes three levels of verification: **repeatability** (same team, same setup), **reproducibility** (independent team, authors' packaged artifacts), and **replicability** (independent team, independently built code).[^acm2020artifacts] Combining a fresh-clone entrypoint, locked dependencies, and FAIR metadata (findable, accessible, interoperable, reusable) moves your package from local repeatability to external reproducibility.[^wilkinson2016]
 
-### Outsider checklist
-
-- Can a reviewer locate the hypothesis and the commit where it was frozen?
-- Can a reviewer install all pinned dependencies cleanly without global system packages?
-- Can a reviewer regenerate the simulator rows strictly from saved config and seeds?
-- Can a reviewer verify source, configuration, and output SHA-256 checksums?
-- Can a reviewer recompute every reported table metric and figure directly from the saved CSV?
-- Can a reviewer inspect failed mechanical runs and logged deviations?
-- Can a reviewer separate pre-planned checks from post-hoc exploratory slices?
-- Can a reviewer identify accurately where the study's claim stops?
-- Can a reviewer locate a valid open-source license and `CITATION.cff`?
-- Can a reviewer reproduce the primary decision cleanly from a fresh clone?
+Before sharing, verify from a fresh clone that an outside engineer can find the frozen hypothesis, install pinned dependencies cleanly, regenerate the CSV from config and seeds, verify SHA-256 checksums, recompute every reported table number from the CSV, and see clearly where the claim stops.
 
 ## Defend bounded evidence
 
-Every strong empirical study rests on three habits: turning a paper's mechanism into a falsifiable question over finite data, inspecting failure modes and full distributions alongside summary averages, and keeping every claim strictly smaller than the evidence supporting it. Paired tapes control shared simulator noise, bootstrap intervals and paired Wilcoxon tests expose sampling uncertainty, and original-reward evaluation prevents training tricks from distorting task metrics. Those exact habits carry directly into supervised model evaluation, retrieval ranking, LLM judges, and multi-step agent benchmarks, where every bundle you release earns trust precisely because its limits are stated as clearly as its code.
+Strong empirical engineering comes down to three habits: turn a claim into a falsifiable question over finite data, inspect the full seed distribution and regressions alongside averages, and keep your conclusions strictly smaller than your evidence. Paired 2D tapes remove shared simulator noise, bootstrap intervals and Wilcoxon tests quantify uncertainty, and original-reward evaluation keeps training tricks from distorting the objective. Those exact habits transfer directly to retrieval benchmarks, LLM judges, and agent evaluations.
 
 ```checkpoint
 Your shaped agent has higher shaped return but identical original-reward success. Which value belongs in final-policy guardrail?

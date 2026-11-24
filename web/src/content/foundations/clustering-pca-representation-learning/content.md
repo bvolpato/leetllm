@@ -14,12 +14,12 @@
     "Google",
     "Meta"
   ],
-  "shortDescription": "Inspect unlabeled developer-message embeddings with k-means and PCA, then stress-test whether apparent neighborhoods survive scale, metric, and compression choices.",
+  "shortDescription": "Inspect unlabeled technical-abstract embeddings with k-means and PCA, then stress-test whether apparent neighborhoods survive scale, metric, and compression choices.",
   "keyConceptsTested": [
     "unlabeled embeddings",
     "k-means",
     "centroids and inertia",
-    "cluster audit",
+    "cluster evaluation",
     "PCA and SVD",
     "explained variance",
     "feature scaling",
@@ -31,7 +31,7 @@
 
 Consider building semantic search over a corpus of technical abstracts spanning finance, computer vision, and GPU systems. An embedding model maps each abstract into a numeric vector, yet nobody has checked whether those vectors preserve topic structure. When someone queries an automated-trading abstract, will the nearest vector belong to another finance paper or an unrelated systems note?
 
-Without labeled query-document pairs, we cannot score retrieval relevance directly, so we begin by inspecting vector geometry directly. **<span data-glossary="k-means">k-means</span>** partitions nearby points into discrete groups, while <span data-glossary="pca">principal component analysis (PCA)</span> projects vectors onto fewer coordinates for visualization or compression. Neither algorithm reads text strings. In this lesson, we derive both update rules from scratch, use the resulting groups as coarse cells in an inverted vector index, and test whether nearest neighbors survive changes in feature scaling, similarity metrics, or linear dimensionality reduction.
+Without labeled query-document pairs, we inspect vector geometry directly. **<span data-glossary="k-means">k-means</span>** partitions nearby points into discrete groups, while <span data-glossary="pca">principal component analysis (PCA)</span> projects vectors onto fewer coordinates for visualization or compression. Neither algorithm reads text strings. We will derive both update rules from scratch, turn those clusters into coarse Voronoi cells for inverted vector search, and stress-test whether nearest neighbors survive changes in scaling, similarity metrics, or dimensionality reduction.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Three nearest-neighbor pairs in six two-dimensional embedding coordinates: finance abstracts fin_A and fin_B sit 0.82 apart, vision abstracts vis_A and vis_B sit 1.08 apart, and systems abstracts sys_A and sys_B sit 1.28 apart." />
@@ -59,7 +59,7 @@ $$
 
 Evaluating this formula measures separation in the representation we currently have. Run it before clustering. A sensible local neighborhood gives the later groups something concrete to explain.
 
-Our code computes all 36 pairwise distances. Broadcasting creates a `(6, 6, 2)` array of coordinate differences; `axis=2` reduces each coordinate pair to one distance. Setting the diagonal to infinity prevents each message from selecting itself. This all-pairs approach supports a small audit; large search indexes need a scalable neighbor-search method.
+Our code computes all 36 pairwise distances. Broadcasting creates a `(6, 6, 2)` array of coordinate differences; `axis=2` reduces each coordinate pair to one distance, and setting the diagonal to infinity prevents each abstract from selecting itself.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="nearest-document-neighbors.py"
@@ -280,7 +280,7 @@ sys_B      D(x)^2=64.64  P(selection)=0.411
 ```
 <!-- leetllm: output:end -->
 
-With `fin_A` fixed as the first seed, its neighbor `fin_B` receives less than a 0.5% chance of selection next, while the distant systems abstracts `sys_A` and `sys_B` draw over 72% of the total probability mass. Beyond seeding, note an important library nuance checked September 21, 2026: scikit-learn 1.9.1 defaults to *greedy* k-means++, which evaluates multiple candidates per step and keeps the lowest-inertia choice, and sets `n_init="auto"` to run a single initialization when `init="k-means++"`.[^sklearnKMeans2026] Set `n_init` explicitly whenever you want multiple independent restarts. The loop also exposes an arithmetic trap if an initialized centroid receives zero points: averaging an empty slice produces `nan` unless the implementation rejects empty groups or reseeds them explicitly.
+With `fin_A` fixed as the first seed, its neighbor `fin_B` receives less than a 0.5% chance of selection next, while the distant systems abstracts `sys_A` and `sys_B` draw over 72% of the total probability mass. Note that scikit-learn's `KMeans` defaults to *greedy* k-means++ (sampling multiple candidates per step and keeping the lowest-inertia pick) and runs a single restart under `n_init="auto"`, so pass an integer `n_init` whenever you want multiple independent restarts.[^sklearnKMeans2026] Watch out too for an arithmetic trap if an initialized centroid receives zero points: averaging an empty slice produces `nan` unless you reject or reseed empty clusters explicitly.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="empty-cluster-assignment.py"
@@ -481,7 +481,7 @@ Because $U^\top U = I_r$, the right singular vectors in columns of $V$ are the e
 
 1. **Small directions can disappear.** On the nonzero singular spectrum, forming $X_c^\top X_c$ squares the singular-value ratio $\sigma_{\max}/\sigma_{\min}$, raising the risk that small singular values fall beneath floating-point rounding relative to dominant directions. For full column rank, $\kappa_2(X_c^\top X_c) = \kappa_2(X_c)^2$; when $n \ll d$, the covariance matrix is rank deficient so its ordinary condition number is infinite.
 2. **Shape matters.** With 100 documents and 1536 embedding dimensions, computing covariance explicitly allocates a $1536\times1536$ matrix, whereas thin SVD operates directly on the $100\times1536$ matrix. Randomized SVD approximates leading components using matrix products whose runtime and precision depend on oversampling and power iterations, so $O(ndm)$ is not a universal bound across all exact solvers.[^sklearnRandomizedSVD2026]
-3. **Library solver selection varies with matrix shape.** Checked September 21, 2026, scikit-learn 1.9.1 `PCA` supports both direct SVD solvers and `covariance_eigh`, choosing covariance eigendecomposition automatically when $n \gg d$ and $d$ is small.[^sklearn2026pca] Pick a solver deliberately for your dimensions and floating-point precision needs rather than assuming every library computes SVD directly.
+3. **Library solver selection varies with matrix shape.** Scikit-learn's `PCA` supports both direct SVD solvers and `covariance_eigh`, choosing covariance eigendecomposition automatically when $n \gg d$ and $d$ is small.[^sklearn2026pca] Pick a solver deliberately for your dimensions and precision needs rather than assuming every library runs full SVD.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="svd-vs-covariance-equivalence.py"
@@ -626,7 +626,7 @@ With roughly equal posting lists, scanning $nprobe$ out of $K$ lists inspects ab
 
 <figure>
   <img src="illustrations/_generated/ivf_coarse_clustering_dark.png" alt="Three centroid cells partition six two-dimensional vectors. Query (2.8, 2.71) sits closer to C1 (2.134) than C0 (2.146), so probing one list misses nearest document fin_B (1.841) in C0, whereas nprobe=2 scans both C1 and C0 to recover it." />
-  <figcaption>Closest centroid does not guarantee closest document: at nprobe=1, probing C1 misses fin_B inside unprobed C0, whereas probing two cells recovers it at higher total distance count (3 centroid + 4 document checks vs. 6 flat).</figcaption>
+  <figcaption>At nprobe=1, probing the closest centroid (C1) misses true nearest neighbor fin_B inside unprobed C0; probing two cells recovers it at 7 total distance checks (3 centroids + 4 vectors) versus 6 for a flat scan.</figcaption>
 </figure>
 
 <!-- leetllm: test, deps=numpy, output=show -->
@@ -796,7 +796,7 @@ Still, do not apply blind standardization to pretrained embeddings whose coordin
 
 ## Failure test 2: let the similarity rule change neighbors
 
-Text retrieval typically ranks documents by <span data-glossary="cosine-similarity">cosine similarity</span>, whereas Euclidean k-means minimizes squared distance and <span data-glossary="dot-product">dot product</span> scores reward both vector length and angular alignment. Choosing a similarity rule without verifying vector norms creates silent mismatches between clustering and serving. As documented for OpenAI's embeddings (checked September 21, 2026), API embedding outputs arrive L2-normalized by default, including after `dimensions` truncation.[^openai2026EmbeddingFaq] On unit-norm vectors, cosine similarity matches dot product and squared Euclidean distance simplifies monotonically:
+Text retrieval typically ranks documents by <span data-glossary="cosine-similarity">cosine similarity</span>, whereas Euclidean k-means minimizes squared distance and <span data-glossary="dot-product">dot product</span> scores reward both vector length and angular alignment. Choosing a similarity rule without verifying vector norms creates silent mismatches between clustering and serving. Many modern API embeddings (such as OpenAI's) arrive L2-normalized by default, including after `dimensions` truncation.[^openai2026EmbeddingFaq] On unit-norm vectors, cosine similarity matches dot product and squared Euclidean distance simplifies monotonically:
 
 $$
 \|u - v\|_2^2 = \|u\|_2^2 + \|v\|_2^2 - 2 (u \cdot v) = 2 - 2 \cos(u, v)
@@ -992,7 +992,7 @@ An unsupervised projection earns its keep when it produces falsifiable checks ra
 Treat reviewed development examples strictly as a tuning set, keeping an untouched held-out benchmark separate for final retrieval evaluation. Recording purity and cluster balances programmatically helps turn spot-checks into repeatable diagnostics across runs. Applying this summary check to our six corpus abstracts verifies that every cluster recovers one consistent topic label:
 
 <!-- leetllm: test, deps=numpy, output=show -->
-```python title="write-a-cluster-audit-summary.py"
+```python title="cluster-purity-summary.py"
 import numpy as np
 
 names = np.array(["fin_A", "fin_B", "vis_A", "vis_B", "sys_A", "sys_B"])
@@ -1024,11 +1024,11 @@ cluster 2: proposed=systems  purity=1.00 members=['sys_A', 'sys_B']
 ```
 <!-- leetllm: output:end -->
 
-On this toy set, cluster purity reaches 1.00 solely because the coordinates sit in cleanly separated pairs and every row carries a known label. Purity by itself rewards over-fragmentation, reaching 1.00 trivially when every document gets its own cluster, so track cluster size distributions, per-topic coverage, mixed cells, and ambiguous abstracts together. Always evaluate clusters with downstream retrieval or held-out tasks rather than stopping at within-sample purity scores.
+> **Key insight:** Cluster purity reaches `1.00` trivially if every point gets its own cluster. Track cluster size distributions, per-topic coverage, and downstream retrieval metrics alongside purity rather than stopping at within-sample purity alone.
 
 ## Practice: try to break the representation
 
-Use the clean six-document run as a baseline, then perturb one architectural choice at a time to verify where the guarantees break. Testing edge cases directly in code reveals sensitivity to seeding, scale, Voronoi partitions, and variance-preserving compression before those failures happen silently on real data:
+Use the clean six-document run as a baseline, then perturb one choice at a time to see where geometry breaks:
 
 1. **Empty center repair.** Modify the initial seeds in `kmeans-from-scratch.py` so one cluster empties. Implement a reseed rule that restarts the orphaned centroid at the point having the highest current squared distance from any center.
 2. **K-means++ restart test.** Implement the full k-means++ selection loop. Compare the variance of final inertia across 50 random restarts between uniform random seeding and k-means++ seeding.
@@ -1036,13 +1036,16 @@ Use the clean six-document run as a baseline, then perturb one architectural cho
 4. **IVF recall edge case.** Reproduce the miss at $[2.8,2.71]$. The C0/C1 perpendicular bisector is $3.4q_x+2.6q_y=16.54$; verify the center-distance tie at $[2.8,2.7]$. Then move slightly to each side and compare center routing with exact document lookup. Count coarse and fine comparisons separately.
 5. **Lost query signal.** Retain both principal components in `compression-can-change-retrieval.py`. Confirm that the vision query recovers `vision_ViT`, and explain why high explained variance didn't prevent the rank-1 tie.
 
-### What to look for
+<details>
+<summary>Check what each experiment reveals</summary>
 
-- An empty `mean(axis=0)` produces an invalid center. Detect `members.shape[0] == 0` and trigger an explicit reseed rather than propagating `NaN`.
-- K-means++ changes a distribution over seeds. Compare inertia and iteration distributions across the same restart budget; don't expect every run to improve both. Greedy library seeding and the original single-candidate rule are different experiments.
-- When unscaled metadata dominates distance, clustering reflects units rather than semantics. Verify feature normalization before interpreting clusters.
-- One probe can miss an exact neighbor near a cell edge. Sweep $nprobe$ against flat-search ANN recall and measured latency; then evaluate semantic relevance separately.
-- PCA preserves global variance, not task labels. Evaluating downstream retrieval metrics on held-out pairs is mandatory before deploying compressed representations.
+- An empty `mean(axis=0)` produces `NaN`. Detect `members.shape[0] == 0` and trigger an explicit reseed rather than propagating `NaN`.
+- K-means++ changes the distribution over starting seeds. Compare inertia and iteration counts across the same restart budget.
+- When unscaled metadata dominates distance, clustering reflects units rather than semantics. Standardize mixed-unit features before interpreting clusters.
+- One probe can miss an exact neighbor near a cell edge. Sweep $nprobe$ against exact flat-search recall and measured latency.
+- PCA preserves global variance, not task labels. Evaluate downstream retrieval metrics on held-out pairs before deploying compressed embeddings.
+
+</details>
 
 ```mastery-quiz
 [

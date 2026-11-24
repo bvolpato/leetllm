@@ -14,7 +14,7 @@
     "Google",
     "Meta"
   ],
-  "shortDescription": "Build and calibrate an NLP text classifier with grouped temporal splits, PyTorch phrase modeling, DistilBERT fine-tuning recipes, temperature scaling, and threshold gating.",
+  "shortDescription": "Build and calibrate an NLP text classifier with grouped temporal splits, PyTorch phrase modeling, DistilBERT fine-tuning recipes, temperature scaling, and calibrated threshold routing.",
   "keyConceptsTested": [
     "grouped temporal evaluation split",
     "bag-of-words baseline",
@@ -38,7 +38,7 @@ Deploying a fine-tuned text classifier fails most often after training finishes 
 Reliable text classification requires four coupled engineering stages. First, we enforce a grouped chronological split so neither recurring customer vocabulary nor future drift leaks into training [^sklearn_groupkfold]. Second, we benchmark a fast TF-IDF baseline before stepping up to a neural model that resolves word order and negation. Third, we freeze weights at validation convergence, tune a post-hoc temperature parameter on disjoint validation logits [^guo2017], and choose an asymmetric paging cutoff from a validation precision-recall curve [^sklearnThresholdTuning2026]. Fourth, we serialize the model weights, vocabulary or <span data-glossary="tokenizer-artifact">tokenizer artifact</span>, temperature scalar, and checksum together so serving reproduces offline evaluation identically [^pytorch2026reproducibility].
 
 <figure>
-  <img src="illustrations/_generated/chapter_flow_dark.png" alt="Four-stage text classification pipeline from grouped temporal split to temperature-calibrated probability gating and human fallback triage." />
+  <img src="illustrations/_generated/chapter_flow_dark.png" alt="Four-stage text classification pipeline from grouped temporal split to temperature-calibrated probability routing and human fallback triage." />
   <figcaption>End-to-end classification architecture separating data splitting, neural logit extraction, post-hoc calibration, and thresholded routing across confidence bands.</figcaption>
 </figure>
 
@@ -220,6 +220,8 @@ Tracking both training and validation <span data-glossary="negative-log-likeliho
   <figcaption>Training NLL falls monotonically across 45 epochs while validation NLL bottoms near epoch 20 (0.150) and rises again (0.255) as weights inflate overconfident logits.</figcaption>
 </figure>
 
+> **Key insight:** Cross-entropy keeps rewarding larger logit norms on already-correct training rows long after validation accuracy plateaus. The classifier still predicts the same top class (94.8%), yet its errors become wildly overconfident, pushing validation NLL from `0.150` back up to `0.255`.
+
 The second runnable cell continues from `clf_data` and builds a vocabulary strictly from Months 1 and 2 training tokens so future terms map to `<unk>`. It then trains `PhraseCNN` for 45 epochs with `AdamW`, logs validation loss climbing after its mid-training minimum, and reports held-out Month 4 accuracy and macro-F1 relative to the unigram baseline.
 
 <!-- leetllm: test, id=clf_train, continue=clf_data, output=show, deps=torch,scikit-learn,numpy,scipy -->
@@ -368,7 +370,7 @@ trainer.train()
 val_logits = trainer.predict(val_ds).predictions
 ```
 
-Because `PhraseCNN` and `DistilBERT` both expose normalized or unnormalized `float32` logit vectors $\mathbf{z} \in \mathbb{R}^K$, swapping backbones does not alter downstream evaluation logic. Every calibration solver, threshold search, and bundle serializer built below consumes those validation logits without modification. That separation allows offline tuning and confidence routing policies to remain invariant across encoder upgrades.
+Because `PhraseCNN` and `DistilBERT` both expose normalized or unnormalized `float32` logit vectors $\mathbf{z} \in \mathbb{R}^K$, swapping backbones does not alter downstream evaluation logic. Every calibration solver, threshold search, and bundle serializer built below consumes those validation logits without modification. That separation allows offline tuning and confidence routing thresholds to work unchanged across encoder upgrades.
 
 ## Post-hoc temperature scaling, asymmetric thresholds, and artifact serialization
 
@@ -380,7 +382,7 @@ $$
 
 Values $T > 1$ soften overconfident extremes toward uniform uncertainty, whereas $T < 1$ sharpens underconfident distributions. Optimizing $T^*$ strictly on validation NLL via one-dimensional bounded minimization (`scipy.optimize.minimize_scalar`) yields $T^* = 1.620$. Applying that single learned scalar lowers validation Expected Calibration Error (ECE) while cutting held-out Month 4 test NLL by nearly 28% (`0.694` to `0.502`) [^niculescu2005]. Notice that once probabilities reflect empirical correctness frequency, two downstream routing choices can replace naive `argmax` across triage queues:
 
-| Stage or Policy | Validation Metric | Month 4 Held-Out Test Result | Operational Purpose |
+| Stage or Routing Rule | Validation Metric | Month 4 Held-Out Test Result | Operational Purpose |
 | :--- | :--- | :--- | :--- |
 | Unigram TF-IDF + Logistic Regression | Acc `0.750` | Acc `0.688`, Macro-F1 `0.675` | Fast grouped baseline; struggles with clause negation |
 | Raw `PhraseCNN` (Epoch 45) | Acc `0.948`, NLL `0.255`, ECE `0.035` | Acc `0.865`, NLL `0.694`, ECE `0.093` | Resolves word order; top bin confidence `0.984` vs `0.905` acc |
@@ -392,7 +394,7 @@ Choosing the paging threshold with $F_{0.5}$ rather than $F_1$ or fixed `0.50` r
 
 <figure>
   <img src="illustrations/_generated/threshold_routing_dark.png" alt="Left: validation and Month 4 test NLL drop after temperature scaling at T*=1.62. Right: confidence abstention curve rising from 86.2% to 90.6% test accuracy as coverage trades down from 97.9% to 88.5% at cutoff 0.65." />
-  <figcaption>Post-hoc calibration at T*=1.62 lowers Month 4 test NLL from 0.694 to 0.502 while confidence gating at 0.65 lifts automated test accuracy from 86.2% to 90.6% by abstaining on 11.5% borderline tickets.</figcaption>
+  <figcaption>Post-hoc calibration at T*=1.62 lowers Month 4 test NLL from 0.694 to 0.502 while confidence routing at 0.65 lifts automated test accuracy from 86.2% to 90.6% by abstaining on 11.5% borderline tickets.</figcaption>
 </figure>
 
 The final runnable cell optimizes scalar temperature $T^*$ exclusively on Month 3 validation logits, selects the `api_outage` $F_{0.5}$ escalation cutoff, and measures how calibrated abstention lifts test accuracy across operating points. It then serializes `weights.pt` alongside `bundle.json` containing the vocabulary, sequence length, temperature, cutoffs, and SHA-256 weight digest, reloads the package under `weights_only=True`, and tests empty and truncated edge inputs [^pytorchSavingLoading2026].
@@ -556,7 +558,7 @@ Confidence cutoff 0.85: coverage=0.781 (75/96), auto_acc=0.893
 ```
 <!-- leetllm: output:end -->
 
-Every safeguard tested above prevents a specific production failure. Saving `vocab`, `max_len`, `temperature`, `outage_threshold`, and `abstain_confidence` inside the same versioned directory as `weights.pt` prevents <span data-glossary="training-serving-skew">training-serving skew</span>, verifying the SHA-256 digest prevents silent partial uploads or weight mismatches, and edge inputs such as empty strings (`""`) or unknown tokens past `max_len` stay below `abstain_confidence` (`0.65`) and fall back cleanly to `human_review` rather than silently misrouting traffic.
+Every safeguard tested above addresses a concrete serving failure. Saving `vocab`, `max_len`, `temperature`, `outage_threshold`, and `abstain_confidence` inside the same versioned directory as `weights.pt` prevents <span data-glossary="training-serving-skew">training-serving skew</span>, verifying the SHA-256 digest catches partial uploads or mismatched weights, and empty inputs (`""`) drop cleanly to `0.339` confidence and route to `human_review`. Notice the fourth sample (`"unknown_symbol"` repeated 40 times): even after truncation to `MAX_LEN`, 22 `<unk>` embeddings still trigger a `0.786` `api_outage` score (`urgent_page`). That edge case illustrates why temperature scaling calibrates *in-distribution* logits rather than out-of-vocabulary inputs, and why production serving wrappers also route messages with high `<unk>` ratios directly to human review.
 
 ```mastery-quiz
 [

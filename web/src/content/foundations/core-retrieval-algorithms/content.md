@@ -31,7 +31,7 @@
 
 Ask `How do I rotate an API key?` and search might return the quota dashboard instead of the rotation steps. The model then writes a confident answer about daily rate limits. The prose is fluent. The evidence for rotation never reached the prompt.
 
-In [Clustering and PCA](/learn/clustering-pca-representation-learning), we examined geometry in vector spaces and compared cosine similarity with dot products. The [EM clustering walkthrough](/learn/probabilistic-generative-models-em) grouped unlabeled observations into latent Gaussian mixtures. Retrieval tackles an operational challenge: given millions of documentation chunks, which specific passages contain the factual evidence to answer an arbitrary developer query?
+In [Clustering and PCA](/learn/clustering-pca-representation-learning), we examined vector geometry and compared cosine similarity with dot products. Retrieval puts that geometry to work on a concrete problem: given millions of documentation chunks, find the exact passages that answer a developer's question.
 
 Four passages are small enough to check every ranking by hand. The quota page shares the words `API key`. The paraphrase that actually describes rotation does not. Before a score can prefer one of them, search has to decide which words count as a match.
 
@@ -313,22 +313,18 @@ Passage `d2` is relevant under our labels but absent from all three posting list
 
 Once candidate documents are identified from posting lists, how should we score them?
 
-In `d1`, `api` appears once and `key` three times. Using raw frequency in $TF \times IDF$ would triple that term's weight when its count triples, with IDF fixed. That's a scoring rule, not three times the relevance. TF-IDF has other variants, including logarithmic frequency and document normalization, so linear frequency isn't a defining property of every TF-IDF ranker.[^manning2008ir]
-
-Okapi BM25 combines term-frequency saturation with document-length normalization.[^robertson1994][^robertson2009] We'll use this common textbook form for the contribution of query term $t$ in document $d$:
+Okapi BM25 adds two essential refinements to term weighting: **term-frequency saturation** ($k_1 \ge 0$) and **document-length normalization** ($0 \le b \le 1$).[^manning2008ir][^robertson1994][^robertson2009] For query term $t$ in document $d$:
 
 $$
 \mathrm{Score}(t, d) = \mathrm{IDF}(t) \cdot \frac{f(t,d) \cdot (k_1 + 1)}{f(t,d) + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\mathrm{avgdl}}\right)}
 $$
 
-Here, $f(t, d)$ is the count of term $t$ in document $d$, $|d|$ is the token length of document $d$, and $\mathrm{avgdl}$ is the average document length across the corpus. The formula relies on two parameters:
+Here $f(t, d)$ is the term count in document $d$, $|d|$ is document token length, and $\mathrm{avgdl}$ is the corpus average length:
 
-1. **Term-frequency saturation ($k_1 \ge 0$):** With the length factor held fixed and positive, the fractional term tends to $k_1+1$ as frequency grows. Lower $k_1$ reduces the benefit of repetition. At $k_1=0$, a present term has weight 1; $k_1=0.5$ still rewards repetitions. Absent terms contribute zero.
-2. **Length normalization ($0 \le b \le 1$):** With frequency fixed, $b=0$ ignores length and $b=1$ uses $|d|/\mathrm{avgdl}$ as the length factor. This adjusts term frequency relative to document length; it doesn't judge comprehensiveness.
+1. **Term-frequency saturation ($k_1$):** Holding length fixed, the frequency factor saturates asymptotically at $k_1 + 1$, so repeating a word 20 times never earns 20x the score. Lower $k_1$ flattens repetition faster; at $k_1 = 0$, every present term receives weight 1.
+2. **Length normalization ($b$):** $b = 0$ disables length scaling, while $b = 1$ scales linearly by $|d|/\mathrm{avgdl}$ so long documents do not win merely by containing more words.
 
-Lucene 10.5.1 defaults to $k_1=1.2$ and $b=0.75$, checked September 21, 2026.[^lucene2026bm25] Our scores aren't exact Lucene outputs: that implementation omits the numerator's $k_1+1$ factor and encodes length norms. Omitting the factor alone preserves rankings when $k_1$ is shared, but changes raw scores by a factor of 2.2 here.[^lucene2026bm25Source]
-
-An IDF form associated with Robertson-Spärck Jones weighting, without known relevance-feedback counts, is $\log((N-\mathrm{df}+0.5)/(\mathrm{df}+0.5))$. It becomes negative when a term appears in more than half the documents. Lucene uses a positive variant:
+Standard search engines like Lucene default to $k_1 = 1.2$ and $b = 0.75$ (omitting the shared $(k_1+1)$ numerator constant, which scales raw scores by 2.2 without changing rankings).[^lucene2026bm25][^lucene2026bm25Source] For IDF, Lucene avoids negative weights on common words with the positive form:
 
 $$
 \mathrm{IDF}(t) = \ln\left(1 + \frac{N - \mathrm{df}(t) + 0.5}{\mathrm{df}(t) + 0.5}\right)
@@ -848,7 +844,7 @@ export default illustration.default
 
 ```
 
-The limit is membership: a reranker only orders the candidates it receives. Here we model a logistic cross-encoder head with `scipy.special.expit(features @ w + b)` over query-passage interaction features (`[lexical_overlap, semantic_paraphrase, off_topic_distractor]`). On the candidate set, `d2` scores `0.953`, `d1` scores `0.782`, and `d4` scores `0.068`, mirroring how joint token interaction rewards the paraphrase over the quota page:
+The limit is membership: a reranker only orders the candidates it receives. Here we model a logistic cross-encoder head with `scipy.special.expit(features @ w + b)` over query-passage interaction features (`[lexical_overlap, semantic_paraphrase, distractor_risk]`), scoring `d2` at `0.952`, `d1` at `0.810`, and `d4` at `0.071`:
 
 <!-- leetllm: test, output=show, deps=numpy,scipy -->
 ```python title="reranking-cannot-recover-a-missing-candidate.py"
@@ -889,9 +885,9 @@ hybrid top3     : top=d2 d2_first=True
 ```
 <!-- leetllm: output:end -->
 
-With `["d1","d4"]`, the reranker can only put `d1` first. With `d2` retained in the three-item shortlist, its score of `0.953` promotes it above `d1` (`0.782`) and `d4` (`0.068`). Expanding candidate recall makes both relevant documents available to the scorer. Measure precision over judged queries to confirm net gain.
+With `["d1","d4"]`, the reranker can only put `d1` first. Once `d2` survives into the three-item shortlist, its score (`0.952`) promotes it above `d1` (`0.810`) and `d4` (`0.071`).
 
-Candidate recall is useful for diagnosing missing evidence; MRR or nDCG can assess its placement after reranking. Those aren't exclusive stage requirements. Use metrics that match the task: finding one answer, covering several required sources, and avoiding irrelevant context are different objectives.
+> **Key insight:** A stronger reranker can never rescue a relevant passage that first-stage retrieval dropped. Tune first-stage candidate recall before investing more compute in reranking.
 
 ## Measure ranking before evaluating answers
 
@@ -1152,7 +1148,7 @@ nprobe=20 | Recall@10=1.000 | 1-Recall@10=1.000 | checks=1020.0 (102.0% flat)
 ```
 <!-- leetllm: output:end -->
 
-With `nprobe = 1`, probing a single Voronoi cell averages only `70.7` distance checks (`7.1%` of flat scan) yet drops `41.6%` of the true top-10 neighbors (`Recall@10 = 0.584`). Sweeping `8` cells lifts `Recall@10` to `0.974` and `1-Recall@10` to `0.990` at `41.7%` of exact scan work. Notice that setting `nprobe = 20` visits all 20 partitions and matches exact recall (`1.000`), while computing `1,020.0` distances (`1,000` vectors plus `20` coarse centroids), making exhaustive IVF slower than a direct flat scan. For a production audit, hold vectors, metric, eligible documents, filters, and tie rules fixed so you isolate index approximation error cleanly. When exact search finds relevant passages that ANN drops under those identical settings, tune `nprobe` or graph budget before changing embeddings.
+With `nprobe = 1`, probing a single Voronoi cell averages only `72.1` distance checks (`7.2%` of flat scan) yet drops almost a third of the true top-10 neighbors (`Recall@10 = 0.672`). Sweeping `8` cells lifts `Recall@10` to `0.978` and `1-Recall@10` to `1.000` at `41.7%` of exact scan work. Probing all 20 cells matches exact recall (`1.000`) while computing `1,020.0` distances (`1,000` vectors plus `20` coarse centroids), making full-probe IVF slower than a flat scan. When exact search finds relevant passages that ANN drops under identical vectors and filters, tune `nprobe` or graph budget before changing embeddings.
 
 ### A version filter changes the search problem
 
@@ -1195,41 +1191,39 @@ pre-filtered top 5 (v2):    [494, 482, 493, 480, 477]
 
 The empty result came from placing the cutoff before eligibility filtering, even with exact similarity scores. Define eligibility before the reference top-$K$ calculation. A serving engine can enforce a filter during search or fetch more candidates and continue until it has enough eligible results. A fixed overfetch count can still leave fewer than $K$ eligible results. Filter-aware ANN search also has its own accuracy and cost trade-offs.[^qdrantDenseIndex2026] Compare its results with an exact scan of the **eligible** corpus, and include selective filters in the evaluation set. Comparing against an unfiltered exact list measures a different search problem.
 
-### Put an exact-search gate around ANN settings
+### Benchmark ANN recall against exact search
 
-Before deploying an ANN index configuration, measure **ANN Recall@K** against an exact brute-force scan across a representative evaluation query set:
+Before deploying an ANN configuration, measure **ANN Recall@K** against an exact brute-force scan across a representative query set:
 
 $$
 \text{ANN Recall@K} = \frac{|\text{Top-}K_{\text{approx}} \cap \text{Top-}K_{\text{exact}}|}{K}
 $$
 
-Compute this per query, then average over the evaluation set, assuming at least $K$ eligible vectors. It measures how often two searches return the same neighbor IDs. Relevance requires judgments; duplicate or equal-distance vectors can have different IDs without worse distance, so document tie handling and inspect score differences too.
-
-Using the clustered IVF benchmark above, enforce an explicit `Recall@10 >= 0.95` release gate between a fast `nprobe = 2` setting and a tuned `nprobe = 8` configuration:
+On the clustered IVF benchmark above, compare a fast `nprobe = 2` setting against a tuned `nprobe = 8` setting under a `Recall@10 >= 0.95` target:
 
 <!-- leetllm: test, continue=ivf-benchmark, output=show, deps=numpy,scikit-learn -->
-```python title="audit-ann-recall-before-launch.py"
+```python title="check-ann-recall.py"
 import numpy as np
 
-recall_gate = 0.95
+recall_target = 0.95
 for label, nprobe in [("ann_fast (nprobe=2)", 2), ("ann_tuned (nprobe=8)", 8)]:
     recall_10, one_recall, avg_checks = eval_ivf(nprobe)
-    passed = recall_10 >= recall_gate
+    passed = recall_10 >= recall_target
     status = "PASS" if passed else "FAIL"
-    print(f"{label:22} | Recall@10={recall_10:.3f} | checks={avg_checks:5.1f} | gate({recall_gate:.2f})={status}")
+    print(f"{label:22} | Recall@10={recall_10:.3f} | checks={avg_checks:5.1f} | target({recall_target:.2f})={status}")
 
-assert eval_ivf(2)[0] < recall_gate
-assert eval_ivf(8)[0] >= recall_gate
+assert eval_ivf(2)[0] < recall_target
+assert eval_ivf(8)[0] >= recall_target
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-ann_fast (nprobe=2)    | Recall@10=0.809 | checks=121.5 | gate(0.95)=FAIL
-ann_tuned (nprobe=8)   | Recall@10=0.978 | checks=417.0 | gate(0.95)=PASS
+ann_fast (nprobe=2)    | Recall@10=0.809 | checks=121.5 | target(0.95)=FAIL
+ann_tuned (nprobe=8)   | Recall@10=0.978 | checks=417.0 | target(0.95)=PASS
 ```
 <!-- leetllm: output:end -->
 
-Setting `nprobe = 2` cuts distance checks to `121.9` per query, yet fails the `0.95` recall gate at `0.753` (`24.7%` neighbor loss). Increasing probes to `8` satisfies the gate (`0.974`) while still avoiding nearly `60%` of the flat distance evaluations. Measure recall and latency across actual production index configurations and representative filtered queries before selecting a serving operating point. Include tail latency, throughput, memory, build/update cost, and judged evidence quality. Choose a target from the application's tolerance for missed evidence rather than treating a universal 95–98% figure as proof of readiness, then validate the chosen setting on held-out queries.
+Setting `nprobe = 2` cuts checks to `121.5` per query yet misses the `0.95` target at `0.809` (`19.1%` neighbor loss). Raising `nprobe` to `8` reaches `0.978` while still skipping nearly `60%` of exact distance comparisons. Measure recall alongside p99 latency, memory, and filtered query performance to choose your operating point.
 
 ```checkpoint
 An approximate index lowers latency but drops candidate recall@20 from `0.94` to `0.81`. Can a stronger reranker recover the missing relevant documents?
@@ -1247,18 +1241,16 @@ A missing passage can start in different parts of the pipeline. Use these exampl
 - **Shortlist loss:** Measure what each lane and the fused cutoff omit before reranking.
 - **Approximation loss:** Compare ANN with exact scoring under the same metric, corpus, and filters.
 
-Before blaming an LLM for hallucinating, audit the retrieval stages systematically:
+Before blaming an LLM for hallucinating, inspect each retrieval stage systematically:
 
-| Stage | Diagnostic Question | Validation Artifact |
+| Stage | Diagnostic Question | What to Inspect |
 |---|---|---|
-| **Relevance Judgments** | Which applicable passages answer each question? | Held-out labels with explicit grading guidelines |
-| **Sparse BM25 Lane** | Do exact identifiers, error codes, and flags survive? | Lexical Top-K candidate audit report |
-| **Dense Bi-Encoder Lane** | Does the trained representation retrieve relevant paraphrases and preserve qualifiers? | Judged rankings and failures under the intended metric |
-| **Rank Fusion (RRF)** | Do both lanes contribute without scale distortions? | Fused candidate lists with lane attribution |
-| **Cross-Encoder Reranker** | Does the final context contain and prioritize the required evidence? | Ranking and evidence-coverage metrics at declared cutoffs |
+| **Relevance Judgments** | Which applicable passages answer each question? | Held-out labels with clear grading criteria |
+| **Sparse BM25 Lane** | Do exact identifiers, error codes, and flags survive? | Lexical Top-K candidate list |
+| **Dense Bi-Encoder Lane** | Does the embedding retrieve relevant paraphrases and preserve qualifiers? | Judged rankings and misses under the intended metric |
+| **Rank Fusion (RRF)** | Do both lanes contribute without scale distortions? | Fused candidate lists with per-lane attribution |
+| **Cross-Encoder Reranker** | Does the final context contain and prioritize the required evidence? | Ranking and coverage metrics at target cutoffs |
 | **ANN Index Tuning** | Did approximation settings drop true nearest neighbors? | ANN vs Exact Recall@K Pareto curve |
-
-This separation helps locate the failure when generated responses drift from grounded facts. Retrieved evidence can still be stale, inapplicable, misread, or ignored by the generator, so evaluate answer support and abstention separately after verifying candidate recall. Good neighbor agreement alone doesn't validate a RAG answer, because a miss can originate in the analyzer, the score scale, the fusion cutoff, or the approximate index rather than a generator that ignored a passage it received.
 
 ## Practice tasks
 
@@ -1269,12 +1261,15 @@ Using the four-document corpus and the IVF benchmark, alter one mechanism at a t
 3. Add a fourth question to `gold` and `run_b`, with one relevant passage appearing at rank 3. Recalculate Hit Rate@2, Relevance Recall@2, and MRR@3.
 4. In `ivf-probe-can-miss-a-neighbor.py`, explain why setting `nprobe = 20` on a 20-cell index reaches `1.000` recall yet performs `1,020` mean distance checks instead of matching the `1,000`-vector flat scan.
 
-### Practice guidance
+<details>
+<summary>Check practice solutions</summary>
 
 1. With 10 total documents, `rotate` appears once ($\mathrm{df} = 1$), while `api` appears in 8 documents ($\mathrm{df} = 8$). The positive IDF for `rotate` is $\ln(1 + (10 - 1 + 0.5) / (1 + 0.5)) \approx 1.992$, while `api` drops to $\ln(1 + (10 - 8 + 0.5) / (8 + 0.5)) \approx 0.258$. Rarity amplifies the discriminative power of `rotate`.
 2. Document `d5` receives $1 / (60 + 4) = 1/64 \approx 0.015625$ from dense retrieval and $0$ from BM25. It ranks behind `d1`, `d4`, and `d2`. With a top-3 cutoff, `d5` is dropped before reranking.
 3. With four queries and the fourth query's first relevant passage at rank 3, Hit Rate@2 and Recall@2 drop to $3/4 = 0.750$. MRR@3 becomes $(1.0 + 1.0 + 1.0 + 1/3) / 4 \approx 0.833$.
 4. Probing all 20 cells checks every point across all 20 inverted lists (`1,000` vector checks), guaranteeing exact neighbors, on top of comparing the query against all `20` coarse centroids (`1,020` total distance calculations). Full-probe IVF always exceeds flat-scan distance work by `nlist`.
+
+</details>
 
 ```mastery-quiz
 [
@@ -1364,7 +1359,7 @@ Using the four-document corpus and the IVF benchmark, alter one mechanism at a t
       "80"
     ],
     "answer": "36",
-    "explanation": "The graph receives a request for 36 neighbors, so 36 is the recommended minimum for query ef. Raising it to 15 covers only the display count. Leaving it at 10 falls below the guideline even though hnswlib v0.8.0 uses the larger of query ef and the requested count as its base-layer search width. The builder used 80 to choose links. Setting query ef to 80 would search those same links with a larger budget than required. At any width, returning 36 distinct passages requires at least 36 eligible passages."
+    "explanation": "The graph receives a request for 36 neighbors, so 36 is the recommended minimum for query ef. Raising it to 15 covers only the display count. Leaving it at 10 falls below the guideline even though hnswlib internally uses the larger of query ef and the requested count as its base-layer search width. The builder used 80 to choose links. Setting query ef to 80 would search those same links with a larger budget than required. At any width, returning 36 distinct passages requires at least 36 eligible passages."
   },
   {
     "question": "Five passages have descending similarity scores: a (version 4, 0.99), b (version 3, 0.98), c (version 4, 0.97), d (version 3, 0.96), e (version 4, 0.95). The request wants version 4 and K = 2. What results follow from taking unfiltered top two and then filtering, versus filtering eligibility before exact top-two selection?",

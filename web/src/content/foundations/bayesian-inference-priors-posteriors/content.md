@@ -23,7 +23,7 @@ We'll use those same eight passes and two failures throughout. Start with a mild
 
 ## Formulating the unknown success parameter
 
-Let $p$ mean the probability that this agent passes a randomly drawn task from the intended deployment population. Pin the agent's model, prompt, tools, retry budget, and pass criterion. One observation is one task evaluated under that fixed policy.
+Let $p$ mean the probability that this agent passes a randomly drawn task from the intended deployment population. Pin the agent's model, prompt, tools, retry budget, and pass criterion; each observation is one task evaluated under that fixed configuration.
 
 Our simple model treats the outcomes as independent **conditional on $p$**, with the same success probability for each draw. That means: if we knew $p$, knowing one result wouldn't change the probability of another. Tasks can differ in difficulty, but their sampling process must stay the same. Ten handpicked easy tasks won't support a claim about a different production mix.
 
@@ -270,7 +270,9 @@ P(rate > 0.7 | data): 0.579
 
 The interval is `[0.505, 0.887]`, while the posterior probability above 0.7 is `0.579`. Under this prior and model, the remaining 42.1% of posterior probability lies below the release bar. A mean above 0.7 doesn't say how much probability clears that bar.
 
-This interval reflects parameter uncertainty under the chosen prior and binomial model. Tasks themselves don't yield fractional outputs. Each run either succeeds or fails. A frequentist interval would instead be judged by long-run coverage under repeated sampling. That is a different claim, and this chapter does not make it. The question still open is what the same 80% rate does when the sample grows.
+> **Key insight:** A posterior mean above `0.70` does not mean `p > 0.70` is likely enough to ship. With `Beta(10, 4)`, the mean is `0.714`, yet 42.1% of the posterior mass still sits below `0.70`.
+
+This credible interval quantifies parameter uncertainty under our prior and binomial model (unlike a frequentist confidence interval, which targets long-run coverage across repeated samples). Now watch what happens when the same 80% observed pass rate comes from 100 tasks instead of 10.
 
 Another summary is the posterior <span data-glossary="standard-deviation">standard deviation</span>, which measures spread around the mean. Its square, the <span data-glossary="variance">variance</span>, has a closed form for Beta($a,b$):
 
@@ -321,7 +323,7 @@ P(rate > 0.7 | data): 0.981
 
 With one hundred tasks, the posterior mean moves to 0.788, and the 90% credible interval narrows to `[0.720, 0.851]`. Posterior probability above 0.7 rises from 57.9% to 98.1%. The observed fractions are both 80%, but the larger sample leaves less parameter uncertainty under the same model.
 
-For the figure, suppose an example release policy requires at least 95% posterior probability that $p>0.7$. This chosen rule illustrates one evidence threshold. Deployment safety also depends on the failure costs, traffic exposure, and remaining controls. Compare each tail probability with 0.95.
+Suppose our release rule requires at least 95% posterior probability that $p > 0.7$. Compare both tail probabilities against `0.95`:
 
 <figure>
   <img src="illustrations/_generated/posterior_intervals_dark.png" alt="Two 90% equal-tailed posterior intervals under the same Beta(2,2) prior. Eight passes out of ten gives interval 0.505 to 0.887, mean 0.714, and 57.9% posterior probability above 0.70. Eighty passes out of one hundred gives interval 0.720 to 0.851, mean 0.788, and 98.1% probability above 0.70. Only the larger sample meets the 95% posterior-evidence rule." />
@@ -336,7 +338,7 @@ Posterior spread and <span data-glossary="calibration">calibration</span> answer
 
 A frozen 0.714 forecast cannot verify calibration on the same ten tasks that produced it. Save forecasts *before* later outcomes arrive. Across enough predictions, group similar probabilities and compare each group's average forecast with its observed pass fraction.[^guo2017] With only one frozen forecast, this amounts to comparing that forecast with the pass fraction on a fresh batch.
 
-Small batches fluctuate, so investigate persistent discrepancies before changing the model. Check whether the task mix shifted, retries were counted as new tasks, or the agent's policy changed. More data can narrow a wrong model's posterior while leaving its predictions unreliable.
+Small batches fluctuate, so investigate persistent discrepancies before changing the model. Check whether the task mix shifted, retries were counted as new tasks, or the agent's configuration changed. More data can narrow a wrong model's posterior while leaving its predictions unreliable.
 
 ## Sampling failure modes that corrupt the posterior
 
@@ -347,7 +349,7 @@ The arithmetic can be correct while the inference is wrong.
 | Repeated retries of one task | Ten rows claim to represent ten independent tasks | Group retries by underlying task and sample distinct tasks |
 | Easy benchmark slice | Posterior looks strong while hard production tasks fail | Stratify by task family and compare deployment traffic |
 | Historical prior from another agent | Strong prior hides a real regression | Record the historical origin of the prior and run sensitivity checks |
-| Hidden prompt changes | Outcomes combine incompatible policies | Pin model, prompt, tools, and task definitions |
+| Hidden prompt changes | Outcomes combine incompatible configurations | Pin model, prompt, tools, and task definitions |
 | Selective release reporting | Only a favorable stopping point or chosen agent is disclosed | Record every evaluated agent, stopping rule, and release decision |
 
 Keep the collection and reporting process visible. Omitted runs, selected agents, or an undisclosed change of target population can make the reported analysis answer a different question from the one a reader assumes. Updating can't turn duplicated or biased rows into representative observations.
@@ -392,21 +394,22 @@ The intended parameter describes new tasks from the deployment population. Ten r
 
 ## Production release gates with posterior decision rules
 
-For this exercise, choose the rule *before* seeing results: increase traffic only if the posterior probability that $p>0.7$ is at least 95%. A real release policy should also account for the cost of failures, traffic exposure, and other safety checks.
+Choose the decision rule *before* running the evaluation: ship only if $P(p > 0.7 \mid D) \ge 0.95$ (accounting for failure costs and safety controls alongside the threshold).
 
-Under Beta(2, 2), the ten-task result doesn't pass this rule: `0.579 < 0.95`. The hundred-task result does: `0.981 > 0.95`, provided its tasks and policy satisfy the model assumptions. Neither decision follows from the raw 80% rate alone.
-
-Work through these checks on paper first, then compare with the notes below:
+Under `Beta(2, 2)`, the 10-task run misses (`0.579 < 0.95`) while the 100-task run clears (`0.981 > 0.95`), even though both observed an 80% raw pass rate. Work through three quick checks:
 
 1. One more comparable task fails after the original eight passes and two failures. What are the new posterior and next-task forecast?
-2. Apply the 95% evidence rule to the original ten outcomes with Beta(1, 1) and Beta(20, 20) priors. Use `beta.sf(0.7, a, b)`, not just the mean. Does either pass?
-3. Could the hundred-task result justify the same claim if every task came from an unusually easy benchmark family?
+2. Apply the 95% evidence rule to the original ten outcomes with `Beta(1, 1)` and `Beta(20, 20)` priors using `beta.sf(0.7, a, b)`. Does either pass?
+3. Could the 100-task result justify the same deployment claim if every task came from an unusually easy benchmark family?
 
-### Decision and sensitivity analysis checks
+<details>
+<summary>Check the three decision exercises</summary>
 
-1. Add the failure once: Beta(10, 5), with forecast $10/15\approx0.667$. Don't add the original ten observations again when starting from their posterior.
-2. Posteriors update to Beta(9, 3) and Beta(28, 22). Their probabilities above 0.7 evaluate to 0.687 and 0.019, respectively. Neither meets the 0.95 requirement. Although the estimates differ, all three priors produce the exact same rejection decision under this rule.
-3. No. That posterior describes the sampled task family. A narrow interval doesn't correct the mismatch with deployment traffic. Sample from the intended population or explicitly model and weight its task families.
+1. Add the failure once: `Beta(10, 5)`, giving a next-task forecast of $10/15 \approx 0.667$.
+2. Posteriors update to `Beta(9, 3)` (`P(p > 0.7) = 0.687`) and `Beta(28, 22)` (`P(p > 0.7) = 0.019`). Neither reaches `0.95`, so all three priors agree on waiting for more evidence.
+3. No. That posterior describes the easy benchmark slice; a narrow interval cannot correct a population mismatch. Sample from deployment traffic or weight task families explicitly.
+
+</details>
 
 Report the observations, prior justification, posterior interval, threshold probability, and decision rule together. If reasonable priors do lead to opposite decisions, make that dependence visible rather than choosing the most convenient prior.
 

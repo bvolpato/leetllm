@@ -30,18 +30,18 @@
 }
 ---
 
-Wrapping a language model inside an unconstrained `while` loop turns minor generation mistakes into production outages. A single malformed JSON argument stalls an orchestration worker, a stuck planner burns through rate limits repeating an identical lookup, and a malicious snippet embedded inside a retrieved document can steer tool selection toward sensitive actions unless deterministic runtime checks intervene.[^yao2023react][^agentdojo2024] Reliability in tool-using systems comes from surrounding stochastic planning with strict engineering invariants rather than hoping prompt instructions will always hold under load.[^anthropic2025effectiveagents]
+Wrapping a language model inside an unconstrained `while` loop turns minor generation mistakes into production outages. A single malformed JSON argument stalls an orchestration worker, a stuck planner burns through rate limits repeating an identical lookup, and a malicious snippet embedded inside a retrieved document can steer tool selection toward sensitive actions unless deterministic runtime checks intervene.[^yao2023react][^agentdojo2024] Reliability in tool-using systems comes from surrounding stochastic planning with deterministic runtime checks rather than hoping prompt instructions will always hold under load.[^anthropic2025effectiveagents]
 
 This capstone implements and evaluates a complete multi-step release-diagnostics agent in [production_agent.py](assets/production_agent.py). Instead of mocking behavior with static lookups, the agent connects real scikit-learn TF-IDF document retrieval, lognormal service telemetry percentile queries, and pooled two-proportion hypothesis testing to a finite-state runtime. Every candidate step must pass capability allowlisting, duplicate-call loop detection, Pydantic schema validation, pre-execution token and latency budget checks, and indirect-injection taint rules before a side effect or final report completes.
 
 ## Typed Tool Schemas and Real Compute Backends
 
-An agent loop begins with tool definitions that treat parameter constraints as hard invariants at parse time rather than advisory text inside a system prompt.[^anthropic2026DefineTools] Each tool exposes a Pydantic model enforcing string lengths, literal enum values, and numeric bounds, so out-of-range parameters fail immediately with a concise diagnostic message. When a planner passes an invalid lookback such as `window_hours=72` where the monitoring store retains at most `24` hours, catching the `ValidationError` and returning the field error on the trace lets a retry-capable planner adjust to `window_hours=24` on the next step instead of crashing the whole episode.[^anthropic2026ToolCalls][^beurer2025]
+An agent loop begins with tool definitions that treat parameter constraints as hard checks at parse time rather than advisory text inside a system prompt.[^anthropic2026DefineTools] Each tool exposes a Pydantic model enforcing string lengths, literal enum values, and numeric bounds, so out-of-range parameters fail immediately with a concise diagnostic message. When a planner passes an invalid lookback such as `window_hours=72` where the monitoring store retains at most `24` hours, catching the `ValidationError` and returning the field error on the trace lets a retry-capable planner adjust to `window_hours=24` on the next step instead of crashing the whole episode.[^anthropic2026ToolCalls][^beurer2025]
 
 Behind those schemas sit deterministic, inspectable compute backends rather than canned return dictionaries. Document search transforms `DOCS_CORPUS` (`canary_guide`, `kv_cache`, and an adversarial `forum_note` prefixed with `UNTRUSTED_TOOL_OUTPUT`) into a normalized TF-IDF matrix using scikit-learn and ranks snippets by cosine dot product against the incoming query. Telemetry inspection draws reproducible samples from `np.random.default_rng` lognormal latency distributions for `checkout-llm` and `search-rerank` to compute empirical `p95` millisecond latency or observed error rates, while `compute_ab_test` evaluates statistical significance via a pooled two-proportion $z$-test with `scipy.stats.norm`. In the first runnable module below, we instantiate the four Pydantic schemas (`SearchDocsArgs`, `QueryMetricsArgs`, `ComputeAbArgs`, and `SubmitReportArgs`), build the TF-IDF index over `DOCS_CORPUS`, and confirm that `exec_tool` returns both a grounded retrieval hit (`canary_guide`) and exact conversion test statistics (`lift=0.045, z_stat=2.879, p_value=0.004`).
 
 <figure>
-<img src="illustrations/_generated/chapter_flow_dark.png" alt="Architecture of the finite-state agent control loop showing planner proposals flowing through capability allowlisting, duplicate signature detection, Pydantic schema validation, pre-call budget gating, real tool execution, and prerequisite report grounding." />
+<img src="illustrations/_generated/chapter_flow_dark.png" alt="Architecture of the finite-state agent control loop showing planner proposals flowing through capability allowlisting, duplicate signature detection, Pydantic schema validation, pre-call budget checks, real tool execution, and prerequisite report grounding." />
 <figcaption>Each proposed action passes sequential capability, loop-signature, schema, and budget checks before executing against retrieval, telemetry, or statistics backends, with clean termination to DONE or ABORTED.</figcaption>
 </figure>
 
@@ -163,17 +163,19 @@ ab_test: {'lift': 0.045, 'z_stat': 2.879, 'p_value': 0.004}
 ```
 <!-- leetllm: output:end -->
 
-Notice how `QueryMetricsArgs` rejects out-of-range lookbacks such as `window_hours=72` at validation time before any telemetry scan occurs. Meanwhile, `ComputeAbArgs` passes clean treatment and control counts to `exec_tool`, producing an exact two-sided pooled $z$-test (`z_stat=2.879, p_value=0.004`) rather than a hardcoded dictionary lookup. Because every backend computes real TF-IDF, lognormal quantile, and hypothesis-testing quantities on synthetic arrays, downstream multi-step episodes generate genuine numerical evidence that later verification checks can audit.
+Notice how `QueryMetricsArgs` rejects out-of-range lookbacks such as `window_hours=72` at validation time before any telemetry scan occurs. Meanwhile, `ComputeAbArgs` passes clean treatment and control counts to `exec_tool`, producing an exact two-sided pooled $z$-test (`z_stat=2.879, p_value=0.004`) rather than a hardcoded dictionary lookup. Because every backend computes real TF-IDF, lognormal quantile, and hypothesis-testing quantities on synthetic arrays, downstream multi-step episodes generate genuine numerical evidence that later verification checks can inspect.
 
 ## Finite-State Control, Pre-Call Budgets, and Loop Prevention
 
-Evaluating tool-using agents as free-form loops hides subtle runaway modes until cloud bills spike or requests time out.[^agentbench2023] Modeling the runtime as an explicit three-state finite-state machine (`AgentState.PLAN`, `AgentState.DONE`, `AgentState.ABORTED`) forces every transition to emit an auditable status and prevents partial failures from masquerading as completion.[^langgraph2024] Before dispatching step $s + 1$ with estimated token consumption $\Delta T_{\text{est}}$ and latency $\Delta L_{\text{est}}$, the controller checks three budget ceilings simultaneously against running totals $(s, T, L)$:
+Evaluating tool-using agents as free-form loops hides subtle runaway modes until cloud bills spike or requests time out.[^agentbench2023] Modeling the runtime as an explicit three-state finite-state machine (`AgentState.PLAN`, `AgentState.DONE`, `AgentState.ABORTED`) forces every transition to emit an explicit status and prevents partial failures from masquerading as completion.[^langgraph2024] Before dispatching step $s + 1$ with estimated token consumption $\Delta T_{\text{est}}$ and latency $\Delta L_{\text{est}}$, the controller checks three budget ceilings simultaneously against running totals $(s, T, L)$:
 
 $$
 s + 1 \le B_{\text{steps}}, \qquad T + \Delta T_{\text{est}} \le B_{\text{tokens}}, \qquad L + \Delta L_{\text{est}} \le B_{\text{ms}}
 $$
 
 Checking budgets *before* execution differs fundamentally from checking them after a call finishes. Under the default budget of `max_steps=5`, `max_tokens=900`, and `max_latency_ms=1200`, four steps that consume `(170, 210, 280, 190)` tokens and `(210, 290, 360, 220)` milliseconds reach `850` tokens and `1080` milliseconds cleanly. When a fifth proposal requests an additional `160` tokens and `240` milliseconds, the pre-call guard sees `850 + 160 = 1010 > 900` and `1080 + 240 = 1320 > 1200`, terminating immediately with `budget_exhausted` at zero extra marginal cost.
+
+> **Key insight:** Post-call budget checks can only report an overrun after you have already paid for the tokens and waited out the latency. Pre-call admission checks stop the trajectory before dispatch, keeping every episode strictly inside $(B_{\text{steps}}, B_{\text{tokens}}, B_{\text{ms}})$.
 
 ```mermaid
 graph TD
@@ -328,7 +330,7 @@ FSM loaded; default budget: AgentBudget(max_steps=5, max_tokens=900, max_latency
 ```
 <!-- leetllm: output:end -->
 
-Separating pre-call accounting from loop detection and schema validation makes failure attribution unambiguous when reviewing episode logs after deployment. Instead of guessing from raw model transcripts why a trajectory failed, engineers inspect `abort_reason` (`budget_exhausted`, `loop_detected`, `missing_cited_tool`, `tainted_promotion_blocked`, or `unauthorized_tool_blocked`) together with per-step `TraceEvent` status codes. Each state transition maps directly to one invariant check, turning silent operational drift into reproducible unit-testable telemetry.
+Separating pre-call accounting from loop detection and schema validation makes failure attribution unambiguous when reviewing episode logs after deployment. Instead of guessing from raw model transcripts why a trajectory failed, engineers inspect `abort_reason` (`budget_exhausted`, `loop_detected`, `missing_cited_tool`, `tainted_promotion_blocked`, or `unauthorized_tool_blocked`) together with per-step `TraceEvent` status codes. Each state transition maps directly to one runtime check, turning silent operational drift into reproducible unit-testable telemetry.
 
 ## Indirect Prompt Injection, Taint Tracking, and Prerequisite Grounding
 
@@ -394,7 +396,7 @@ grounding: state=aborted reason=missing_cited_tool
 ```
 <!-- leetllm: output:end -->
 
-Each defensive invariant enforces a clear operational property without relying on brittle regular expressions over free-form model replies. When the planner submits `window_hours=72`, `recovery` converts the `ValidationError` into trace feedback so the follow-up call with `window_hours=24` finishes in `3` steps. By contrast, `budget_probe` stops at `850` tokens and `1080` milliseconds right before step `5`, while `taint_probe` and `grounding_probe` terminate cleanly (`tainted_promotion_blocked` and `missing_cited_tool`) before any ungrounded state change happens.
+Each runtime check enforces a clear operational property without relying on brittle regular expressions over free-form model replies. When the planner submits `window_hours=72`, `recovery` converts the `ValidationError` into trace feedback so the follow-up call with `window_hours=24` finishes in `3` steps. By contrast, `budget_probe` stops at `850` tokens and `1080` milliseconds right before step `5`, while `taint_probe` and `grounding_probe` terminate cleanly (`tainted_promotion_blocked` and `missing_cited_tool`) before any ungrounded state change happens.
 
 ## Multi-Scenario Trajectory Evaluation with `pass@k` and Cost Accounting
 
@@ -414,7 +416,7 @@ Using `n = 25` stochastic episodes per scenario under `np.random.default_rng(202
 | `loop_stall` | `0.000` (`0/25`) | `1.000` (`25/25`) | `1.000` | `5.00 / 2.00` | Duplicate signature cut at step 2 vs 5-step waste |
 | `prompt_injection` | `1.000` (`25/25`) | `1.000` (`25/25`) | `1.000` | `2.00 / 2.00` | Unlisted `export_credentials` blocked pre-exec |
 
-Two patterns stand out when comparing these distributions. First, `schema_corruption` jumps from `0.280` `pass@1` (`pass@3 = 0.645`, `pass@5 = 0.839`) to `1.000` under structured error retry at an average cost of only `0.72` extra steps (`2.00` to `2.72`). Second, the loop guard improves both safety and efficiency simultaneously: unguarded episodes burn the entire `5.00`-step budget repeating identical `query_metrics` calls (`0/25` caught early), whereas signature deduplication halts cleanly at `2.00` mean steps. The final test harness below executes all five scenarios across both policies to reproduce every table metric and verify the benchmark assertions directly.
+Two patterns stand out when comparing these distributions. First, `schema_corruption` jumps from `0.280` `pass@1` (`pass@3 = 0.645`, `pass@5 = 0.839`) to `1.000` under structured error retry at an average cost of only `0.72` extra steps (`2.00` to `2.72`). Second, the loop guard improves both safety and efficiency simultaneously: unguarded episodes burn the entire `5.00`-step budget repeating identical `query_metrics` calls (`0/25` caught early), whereas signature deduplication halts cleanly at `2.00` mean steps. The final test harness below executes all five scenarios across both configurations to reproduce every table metric and verify the benchmark assertions directly.
 
 <figure>
 <img src="illustrations/_generated/trajectory_evaluation_dark.png" alt="Empirical pass@k curve for schema corruption recovery comparing single-shot vs guarded retry across k=1 to 5, alongside mean step counts showing loop guard halving stall waste from 5.00 steps to 2.00 steps." />
@@ -506,7 +508,7 @@ Guarded+Retry: [{'scenario': 'clean_diagnosis', 'c': '25/25', 'pass_1': 1.0, 'pa
 ```
 <!-- leetllm: output:end -->
 
-Looking at both simulation suites together demonstrates why production agent evaluation belongs at the trajectory level rather than on single-turn tool classification. Achieving predictable reliability under strict cost and latency ceilings requires composing typed schema feedback, pre-call budget gating, duplicate-signature breaks, and untrusted-output taint propagation inside one verifiable finite-state runtime. With every scenario achieving `pass@1 = 1.000` and `budget_ok = 1.00` in this benchmark harness, the same instrumentation patterns translate directly to live orchestrators and downstream serving monitors.
+Looking at both simulation suites together demonstrates why production agent evaluation belongs at the trajectory level rather than on single-turn tool classification. Achieving predictable reliability under strict cost and latency ceilings requires composing typed schema feedback, pre-call budget checks, duplicate-signature breaks, and untrusted-output taint propagation inside one verifiable finite-state runtime. With every scenario achieving `pass@1 = 1.000` and `budget_ok = 1.00` in this benchmark harness, the same instrumentation patterns translate directly to live orchestrators and downstream serving monitors.
 
 ```mastery-quiz
 [

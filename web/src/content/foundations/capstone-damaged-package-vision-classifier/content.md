@@ -175,7 +175,7 @@ GroupShuffleSplit parcel overlap: 0
 
 `GroupShuffleSplit` demonstrates entity separation: the overlap is zero. It does not enforce chronological order. For training below, we instead use days `1..20`, validation days `21..25`, and test days `26..30`. Both views of every generated parcel share a day, so these time windows also keep parcel IDs separate. With parcels photographed across a boundary, assign the whole parcel to one window or remove boundary-crossing parcels before splitting.
 
-## Scale-Invariant Image Quality Gating
+## Scale-Invariant Image Quality Checks
 
 Camera exposure drops and conveyor motion blur break vision features in completely different ways, so image quality diagnostics must separate brightness from edge sharpness mathematically. Taking raw pixel luminance $Y = 0.299R + 0.587G + 0.114B$ on the box interior, the discrete 2D Laplacian operator[^opencvLaplacian2026] measures local second derivatives around each pixel:
 
@@ -189,7 +189,7 @@ $$
 \text{Var}\!\left(\nabla^2 (cY)\right) = c^2\,\text{Var}(\nabla^2 Y), \qquad R_{\text{sharp}}(Y) = \frac{\text{Var}(\nabla^2 Y)}{\text{Var}(Y) + \epsilon}
 $$
 
-The ratio cancels the exposure factor when $\epsilon=0$. With the small stabilizer used in code, it is approximately invariant when luminance variance is much larger than $\epsilon$: dividing numerator and denominator by $c^2$ leaves $\epsilon/c^2$ in the denominator. Thus, uniformly dimming a sharp image preserves its normalized edge structure while changing its brightness. We check both quantities separately, then compare interior brightness with the dark conveyor margin to check framing. Actual low-light sensor noise can change edge structure too, so the gate measures the captured pixels rather than inferring sharpness from exposure alone.
+The ratio cancels the exposure factor when $\epsilon=0$. With the small stabilizer used in code, it is approximately invariant when luminance variance is much larger than $\epsilon$: dividing numerator and denominator by $c^2$ leaves $\epsilon/c^2$ in the denominator. Thus, uniformly dimming a sharp image preserves its normalized edge structure while changing its brightness. We check both quantities separately, then compare interior brightness with the dark conveyor margin to check framing. Actual low-light sensor noise can change edge structure too, so the check measures the captured pixels rather than inferring sharpness from exposure alone.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="The same parcel image at full brightness, one-quarter brightness, and after blur, with measured brightness and normalized Laplacian sharpness." />
@@ -251,7 +251,9 @@ Pass rate -> clean: 1.000, dark: 0.000, blur: 0.000
 ```
 <!-- leetllm: output:end -->
 
-Every simulated dark frame and blurred frame fails the quality gate (`0.000` false acceptance), while sharp well-lit frames pass consistently (`1.000`). Multiplying the pixel tensor by `0.25` reduces raw Laplacian variance by exactly `16.00x`, yet the normalized sharpness ratio shifts by less than `0.1%`.
+Every simulated dark frame and blurred frame fails the quality check (`0.000` false acceptance), while sharp well-lit frames pass consistently (`1.000`). Multiplying the pixel tensor by `0.25` reduces raw Laplacian variance by exactly `16.00x`, yet the normalized sharpness ratio shifts by less than `0.1%`.
+
+> **Key insight:** Dividing Laplacian variance by luminance variance decouples focus from exposure. A dimmed sharp image still looks sharp in $R_{\text{sharp}}$ while failing the brightness check, so conveyor operators immediately know whether to adjust lighting or fix camera focus.
 
 ## From Sobel Edge Baselines to a PyTorch CNN
 
@@ -618,7 +620,7 @@ Compare the same test cohort on days 32 and 35. By day 32, every priority outcom
 
 ## References and Verification Notes
 
-The complete pipeline keeps its units aligned: the quality gate accepts frames, the CNN scores frames, the router combines views into parcel scores, and inspection metrics count parcels. Calibration and threshold selection use validation data; the later test window measures the finished system. The source bundle's `assets/figure_data.py` reruns these cells to generate the plotted predictions and image-quality measurements.
+The complete pipeline keeps its units aligned: the quality check accepts frames, the CNN scores frames, the router combines views into parcel scores, and inspection metrics count parcels. Calibration and threshold selection use validation data; the later test window measures the finished system. The source bundle's `assets/figure_data.py` reruns these cells to generate the plotted predictions and image-quality measurements.
 
 ```mastery-quiz
 [
@@ -671,10 +673,10 @@ The complete pipeline keeps its units aligned: the quality gate accepts frames, 
     "options": [
       "Send View 0 straight to priority review since maximum raw risk score across camera views rises past 0.90",
       "Arithmetic-average 0.91 and 0.14 into 0.525 prior to comparing risk against the calibrated decision threshold tau",
-      "Discard dark View 0 at gating, score clear View 1 (0.14 < tau) to standard_flow, using recapture with zero views",
+      "Discard dark View 0 at the quality check, score clear View 1 (0.14 < tau) to standard_flow, using recapture with zero views",
       "Discard the multi-angle parcel batch immediately for recapture as soon as one camera frame shows dim exposure"
     ],
-    "answer": "Discard dark View 0 at gating, score clear View 1 (0.14 < tau) to standard_flow, using recapture with zero views",
+    "answer": "Discard dark View 0 at the quality check, score clear View 1 (0.14 < tau) to standard_flow, using recapture with zero views",
     "explanation": "The quality check removes View 0 before scoring. The remaining usable view has score 0.14, below the selected threshold. Recapture is needed only when no usable view remains."
   },
   {

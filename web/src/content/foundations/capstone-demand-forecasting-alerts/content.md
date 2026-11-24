@@ -275,7 +275,7 @@ The holdout economics prove the Newsvendor derivation cleanly. Staffing to `Seas
 
 Standard tabular instinct reaches for randomized k-fold cross-validation whenever model scores fluctuate. On multi-horizon demand tables where Monday, Tuesday, and Wednesday share almost identical `rolling_7_mean`, `trend_day`, and target dates across `h=1,2,3`, shuffling rows randomly across folds leaks the future right next to every validation sample. Both adjacent neighbors share the same promotion wave and macro level, letting decision trees memorize near-exact day neighbors rather than forecasting ahead in time, creating a classic form of <span data-glossary="data-leakage">data leakage</span>.
 
-Let us measure that exact illusion side-by-side against our causal rolling-origin GBDT error, and observe how a production <span data-glossary="policy-gate">policy gate</span> paired with an output <span data-glossary="guardrail">guardrail</span> blocks leaky promotions before any model updates live shift logs via <span data-glossary="tracing">tracing</span>.
+Let us measure that exact illusion side by side against our causal rolling-origin GBDT error.
 
 <!-- leetllm: test, id=kfold_leakage, continue=newsvendor_policy, output=show -->
 ```python title="Shuffled K-fold leakage check against rolling-origin error"
@@ -312,24 +312,26 @@ Optimism gap ratio: 2.54x underestimate
 ```
 <!-- leetllm: output:end -->
 
-Random k-fold cross-validation advertises a deceptively tight `5.72` parcel MAE when honest causal rolling evaluation measures `14.49` MAE, representing a `2.54x` underestimate of live forecasting error! Deploying a staffing system tuned under shuffled folds narrows safety buffers, spikes `$72` overtime shortfalls, and breaks empirical conformal coverage on week one.
+Random k-fold cross-validation advertises a deceptively tight `5.72` parcel MAE when honest causal rolling evaluation measures `14.49` MAE, a `2.54x` underestimate of live forecasting error. Deploying a staffing system tuned under shuffled folds narrows safety buffers, spikes `$72` overtime shortfalls, and breaks empirical conformal coverage on week one.
+
+> **Common mistake:** Treating multi-horizon time-series rows as independent observations in `KFold(shuffle=True)`. Adjacent origins share rolling averages and overlapping target dates, so trees interpolate between neighboring days instead of forecasting ahead.
 
 <figure>
   <img src="illustrations/_generated/rolling_vs_kfold_dark.png" alt="Test MAE comparison in parcels showing leaky shuffled K-Fold cross-validation at 5.7 vs causal rolling Ridge at 9.3, rolling GBDT at 14.5, and seasonal naive at 30.2" />
   <figcaption>Holdout MAE comparison contrasting leaky shuffled 5-fold validation (5.7) against causal rolling Ridge (9.3), rolling GBDT (14.5), and seasonal naive (30.2).</figcaption>
 </figure>
 
-## Summary of pipeline validation and policy metrics
+## Summary of pipeline validation and staffing metrics
 
 | Stage / Estimator | Metric Evaluated | Holdout Result | Deployment Implication |
 | :--- | :--- | :--- | :--- |
-| **Notice Guard** | Masked post-hoc promos | `2` horizon rows gated | Keeps future unannounced promos invisible at origin |
+| **Notice Guard** | Masked post-hoc promos | `2` horizon rows masked | Keeps future unannounced promos invisible at origin |
 | **Seasonal Naive (`naive_s7`)** | Point MAE / RMSE / Cost | `30.16` / `40.68` / `$1,499.62/day` | Ignores trend drift and promo surges |
 | **Linear (`Ridge` + Fourier)** | Point MAE / RMSE | `9.27` / `10.85` (lowest point error) | Smooth weights extrapolate linear upward volume drift |
 | **Squared-Error GBDT** | Point MAE / RMSE | `14.49` / `17.52` | Tree leaves plateau on monotonic trend growth |
 | **Split Conformal (`90%`)** | Radius / Test coverage | `±30.06` / `90.6%` (`87/96`) | Matches distribution-free finite-sample coverage target |
 | **Critical Quantile (`q80`)** | Daily cost / Surge alerts | `$525.60/day` / `6` alerts | Optimal `tau*=0.80` saves `29%` vs median `q50` (`$736.82`) |
-| **Shuffled 5-Fold CV** | Leaky MAE illusion | `5.72` (`2.54x` optimistic) | Blocked by causal rolling-origin promotion gate |
+| **Shuffled 5-Fold CV** | Leaky MAE illusion | `5.72` (`2.54x` optimistic) | Caught by causal rolling-origin evaluation |
 
 ## Mastery verification quiz
 
@@ -415,4 +417,4 @@ Random k-fold cross-validation advertises a deceptively tight `5.72` parcel MAE 
 ]
 ```
 
-> **Next:** Continue to [Capstone: Image Damage Classifier](/learn/capstone-damaged-package-vision-classifier). You separated forecast-origin visibility from future target outcomes and matched staffing levels to asymmetric shortage costs. Next, apply disciplined data quality gates to package images before a vision classifier routes damaged claims.
+> **Next:** Continue to [Capstone: Image Damage Classifier](/learn/capstone-damaged-package-vision-classifier). You separated forecast-origin visibility from future target outcomes and matched staffing levels to asymmetric shortage costs. Next, apply disciplined image quality checks to package photos before a vision classifier routes damaged claims.

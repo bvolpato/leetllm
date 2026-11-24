@@ -782,7 +782,7 @@ after_reset_backward [-9.9, -3.925]
 
 The second backward pass doubles the stored numbers because it adds the same gradient again. A training loop normally calls `optimizer.zero_grad()` before the next batch, or sets buffers to `None`, unless accumulating across several batches is intentional.[^pytorch2026optimization]
 
-Adding contributions within one backward pass follows the chain rule. Keeping contributions across separate backward calls is a framework accumulation policy. Both use addition, but clearing `.grad` controls only the second behavior. Also notice that `backward()` hasn't updated `w`: an optimizer or explicit subtraction must apply the gradient afterward.
+Adding contributions within one backward pass follows the chain rule. Keeping contributions across separate backward calls is a framework accumulation default. Both use addition, but clearing `.grad` controls only the second behavior. Also notice that `backward()` hasn't updated `w`: an optimizer or explicit subtraction must apply the gradient afterward.
 
 ### What if the output isn't one number?
 

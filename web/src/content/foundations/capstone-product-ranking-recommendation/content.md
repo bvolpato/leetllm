@@ -9,7 +9,7 @@
   "order": 2,
   "coverImage": "social_banner.png",
   "companies": ["Amazon", "Netflix", "Spotify", "Instacart"],
-  "shortDescription": "Build an end-to-end learning-to-rank pipeline with hard eligibility gates, PyTorch pairwise RankNet, clipped Inverse Propensity Scoring click debiasing, MMR diversity reranking, and SRM rollout checks.",
+  "shortDescription": "Build an end-to-end learning-to-rank pipeline with hard eligibility filters, PyTorch pairwise RankNet, clipped Inverse Propensity Scoring click debiasing, MMR diversity reranking, and SRM rollout checks.",
   "keyConceptsTested": [
     "hard eligibility filtering",
     "pairwise learning to rank",
@@ -179,6 +179,8 @@ Clipped IPS Click Ranker:         NDCG@5=0.9455 | Recall@5=0.9167
 
 Reweighting observed clicks by inverse examination propensity recovers true item quality without reading any ground-truth editorial labels during fit: `NDCG@5` climbs by `+0.1347` (`0.8108 -> 0.9455`) and `Recall@5` improves from `0.8056` to `0.9167`. Upweighting rare bottom-of-list clicks lets strong but historically underexposed products surface near slot one. Clipping caps extreme single-click sample weights from `6.47` down to `5.00`, reducing gradient variance inflation when deep-slot impressions are noisy.
 
+> **Key insight:** Inverse propensity weighting turns a biased click log into an unbiased relevance signal, but only when you tame the tail weights. Without clipping, a single accidental click at slot 10 receives more gradient weight than seven top-slot clicks combined.
+
 <figure>
 <img src="illustrations/_generated/ips_ndcg_comparison_dark.png" alt="Holdout test NDCG at rank 5 across BM25 baseline, naive biased click ranker, pointwise GBDT, PyTorch RankNet, and clipped IPS click debiasing" />
 <figcaption>Holdout test NDCG@5 across all five ranking strategies. Unweighted click training mimics legacy ranker bias (0.811), whereas clipped IPS debiasing reaches 0.946.</figcaption>
@@ -266,14 +268,25 @@ With $\chi^2 = 18.41$ ($p = 1.78 \times 10^{-5} < 0.001$) and candidate `p95` la
 
 ## Checkpoints
 
-Work through these three ranking failure checks before attempting the final mastery quiz. Each scenario targets a recurring leak where offline metrics stay green while live search quality regresses. Verify your diagnosis against each concise check below.
+Work through these three ranking failure scenarios to see how each leak breaks live search quality while offline metrics stay green.
 
 1. **Eligibility vs score penalty:** Suppose an out-of-stock top match scores `0.97` on BM25 and historical CTR, while an eligible match scores `0.78`. Why does subtracting `0.15` fail where a hard filter succeeds?
-   - **Check:** The penalized score (`0.82`) still exceeds `0.78`, allowing an unorderable product onto the page, whereas a hard boolean gate guarantees zero ineligible impressions.
+<details>
+<summary>Check</summary>
+The penalized score (`0.82`) still exceeds `0.78`, allowing an unorderable product onto the page, whereas a hard boolean filter guarantees zero ineligible impressions.
+</details>
+
 2. **Unclipped vs clipped IPS variance:** Why cap inverse propensity weights at $M = 5.0$ when position `10` has examination probability $e_{10} = 10^{-0.85} \approx 0.141$?
-   - **Check:** Unclipped weights (`~7.1` to `8.5` or higher at deeper ranks) amplify stochastic clicks on irrelevant deep items into huge gradient steps, destabilizing the fitted model.
+<details>
+<summary>Check</summary>
+Unclipped weights (`~7.1` to `8.5` or higher at deeper ranks) amplify stochastic clicks on irrelevant deep items into huge gradient steps, destabilizing the fitted model.
+</details>
+
 3. **Logging before outcomes arrive:** What two fields must be logged synchronously when rendering slots `1..5` so offline IPS replay and SRM monitoring remain valid days later?
-   - **Check:** Every served item's displayed position (`logged_position`) and the logging policy's examination propensity $e_k$, alongside assigned experiment variant and response latency before outcome join.
+<details>
+<summary>Check</summary>
+Every served item's displayed position (`logged_position`) and the logging policy's examination propensity $e_k$, alongside assigned experiment variant and response latency before outcome join.
+</details>
 
 ## Mastery Quiz
 
