@@ -668,12 +668,12 @@ Counts plus a Wilson interval bound sampling uncertainty; the sampling design an
   {
     "question": "A preselected bucket forecasts 25% risk. A held-out sample finds 12/60 positives with Wilson interval about [11.8%, 31.8%]. What follows from this bucket?",
     "options": [
-      "The forecast remains compatible with these labels; one bucket cannot establish whole-model calibration.",
+      "The forecast remains compatible with these labels; one bucket leaves whole-model calibration unverified.",
       "The model is exactly calibrated across buckets; including 25% establishes the entire calibration curve.",
       "The bucket is miscalibrated from its 20% estimate; a five-point difference establishes a population gap.",
       "The labels are unnecessary for calibration; the configured forecast is the bucket’s measured outcome rate."
     ],
-    "answer": "The forecast remains compatible with these labels; one bucket cannot establish whole-model calibration.",
+    "answer": "The forecast remains compatible with these labels; one bucket leaves whole-model calibration unverified.",
     "explanation": "The Wilson interval includes 25%, so this bucket is compatible with 25% risk, while other bins still need their own held-out evaluation."
   },
   {
