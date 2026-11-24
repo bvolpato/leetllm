@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Geist, JetBrains_Mono } from "next/font/google";
+import { Geist } from "next/font/google";
 import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/theme-provider";
 import { GoogleAnalytics } from "@/components/google-analytics";
@@ -12,11 +12,37 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const jetBrainsMono = JetBrains_Mono({
+// MesloLGS NF (Apache 2.0 + MIT Nerd Fonts v2.3.3), subsetted to WOFF2.
+// Keeps the existing `--font-jetbrains-mono` CSS variable token consumed across
+// Tailwind `font-mono`, syntax-highlighted code blocks, and CodeMirror.
+const codeMono = localFont({
+  src: [
+    {
+      path: "../assets/fonts/meslo-lgs-nf/MesloLGSNF-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../assets/fonts/meslo-lgs-nf/MesloLGSNF-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+    {
+      path: "../assets/fonts/meslo-lgs-nf/MesloLGSNF-Italic.woff2",
+      weight: "400",
+      style: "italic",
+    },
+    {
+      path: "../assets/fonts/meslo-lgs-nf/MesloLGSNF-BoldItalic.woff2",
+      weight: "700",
+      style: "italic",
+    },
+  ],
   variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
+  fallback: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+  adjustFontFallback: false,
   preload: false,
-  display: "optional",
+  display: "swap",
 });
 // Adobe's Source Serif release 80d3f889; its OFL license ships with the font.
 const sourceSerif = localFont({
@@ -93,7 +119,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${jetBrainsMono.variable} ${sourceSerif.variable} antialiased`}
+        className={`${geistSans.variable} ${codeMono.variable} ${sourceSerif.variable} antialiased`}
       >
         <GoogleAnalytics />
         <ThemeProvider
