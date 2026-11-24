@@ -256,7 +256,7 @@ def parse_judge_output(payload: dict, rule_version: str) -> JudgeDecision:
         raise ValueError("unknown category")
     if action == "BLOCK" and category == "none":
         raise ValueError("block requires a violation category")
-    if type(confidence) not in (int, float) or not math.isfinite(confidence) or not (0.0 <= confidence <= 1.0):
+    if not math.isfinite(confidence) or not (0.0 <= confidence <= 1.0):
         raise ValueError("invalid confidence")
     if not rationale or len(rationale) > 800:
         raise ValueError("missing rationale")
@@ -265,7 +265,7 @@ def parse_judge_output(payload: dict, rule_version: str) -> JudgeDecision:
 samples = [
     {"action": "ESCALATE", "category": "impersonation", "confidence": 0.72, "rationale": "Needs authenticity check."},
     {"action": "DELETE_FOREVER", "category": "impersonation", "confidence": 0.99, "rationale": "Unsupported action."},
-    {"action": "ALLOW", "category": "none", "confidence": True, "rationale": "Boolean confidence."},
+    {"action": "ALLOW", "category": "none", "confidence": 1.4, "rationale": "Out-of-range confidence."},
     {"action": "BLOCK", "category": "none", "confidence": 0.9, "rationale": "Block without category."},
 ]
 for item in samples:

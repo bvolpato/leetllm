@@ -27,7 +27,7 @@
 ---
 
 <!-- leetllm: edition:reference:start -->
-A customer opens ticket `#48291` about invoice `#A10234`, reporting a duplicate $900 <span data-glossary="gpu">GPU</span> usage charge and asking for an immediate credit. Imagine the support bot replies, "I've credited \$900 back to your account!" when billing never approved or queued a dime. The customer now expects money that was never authorized, and your company just put an unapproved promise in writing.
+A customer opens ticket `#48291` about invoice `#A10234`, reporting a duplicate \$900 <span data-glossary="gpu">GPU</span> usage charge and asking for an immediate credit. Imagine the support bot replies, "I've credited \$900 back to your account!" when billing never approved or queued a dime. The customer now expects money that was never authorized, and your company just put an unapproved promise in writing.
 
 Preventing that single false sentence requires separating three responsibilities: a language model can infer intent, extract details, and draft a clear reply, while deterministic application code must verify account ownership, retrieve active rules, authorize writes, and escalate to a <span data-glossary="human-in-the-loop">human specialist</span> above the automated threshold. A model can propose a credit; application code decides whether one is allowed.
 
@@ -1101,7 +1101,7 @@ The whole interaction (including one full revision) cost **\$0.007** and stayed 
 ```checkpoint
 Sam asks for a 480 dollar credit on a verified 480 dollar duplicate on day 31 of the invoice. The primary lane times out at 940 ms, and a 1,100 ms fallback drafts "You're all set!" with no citation. Assume 2,000 input tokens per call, no warm prefix on the fallback, and 130 output tokens at the same rates. What happens at each step?
 ---
-Day 31 is outside the 30-day window, so the decision is human handoff regardless of confirmation. The fallback draft fails the citation check (and illustrates how a regex misses "You're all set!"). Because the timeout and fallback used both attempts, no revision runs; Sam gets the deterministic template once the review task is acknowledged. The credit queue stays empty, and total spend is $0.0095 reserved on the timed-out call plus $0.00695 on the fallback ($0.01645 total, within the $0.02 cap) at 2,230 ms of the 2,500 ms deadline.
+Day 31 is outside the 30-day window, so the decision is human handoff regardless of confirmation. The fallback draft fails the citation check (and illustrates how a regex misses "You're all set!"). Because the timeout and fallback used both attempts, no revision runs; Sam gets the deterministic template once the review task is acknowledged. The credit queue stays empty, and total spend is \$0.0095 reserved on the timed-out call plus \$0.00695 on the fallback (\$0.01645 total, within the \$0.02 cap) at 2,230 ms of the 2,500 ms deadline.
 ```
 
 ## Test what was written, not what was reported
