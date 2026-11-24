@@ -107,16 +107,7 @@ export function boostingFilm(theme: string) {
                 ),
                 noteArea,
             )
-            s.add([
-                heading,
-                graph,
-                xLabel,
-                yLabel,
-                initial,
-                ...targets,
-                ...predictions,
-                note,
-            ])
+            s.add([heading, graph, xLabel, yLabel, initial, ...targets, ...predictions, note])
             s.chapter('One prediction for every plant')
             s.caption(
                 'Start at the mean growth, thirty millimeters. The yellow measurements show where the current predictions miss.',
@@ -129,11 +120,11 @@ export function boostingFilm(theme: string) {
                     next = data.rounds[round + 1],
                     correction = data.corrections[round]
                 const residualLines = data.sunlight.map((hours, i) =>
-                    line(
-                        graph.world(hours, current[i]),
-                        graph.world(hours, data.growth[i]),
-                        { stroke: 'yellow', width: 3, dash: [7, 7] },
-                    ),
+                    line(graph.world(hours, current[i]), graph.world(hours, data.growth[i]), {
+                        stroke: 'yellow',
+                        width: 3,
+                        dash: [7, 7],
+                    }),
                 )
                 const nextNote = place(
                     column(
@@ -143,10 +134,10 @@ export function boostingFilm(theme: string) {
                                 color: 'blue',
                             }),
                             text('Fit the remaining errors', { size: 32 }),
-                            text(
-                                correction.map((v) => v.toFixed(1)).join(', '),
-                                { size: 37, color: 'yellow' },
-                            ),
+                            text(correction.map((v) => v.toFixed(1)).join(', '), {
+                                size: 37,
+                                color: 'yellow',
+                            }),
                             text('Apply learning rate 0.10', { size: 30 }),
                             text(next.map((v) => v.toFixed(2)).join(', '), {
                                 size: 37,
@@ -171,11 +162,7 @@ export function boostingFilm(theme: string) {
                 s.wait(1.3)
                 s.play(
                     ...predictions.map((point, i) =>
-                        to(point, (n) =>
-                            n
-                                .at(graph.world(data.sunlight[i], next[i]))
-                                .fill('teal'),
-                        ),
+                        to(point, (n) => n.at(graph.world(data.sunlight[i], next[i])).fill('teal')),
                     ),
                     { duration: 1.7 },
                 )

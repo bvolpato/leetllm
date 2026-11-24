@@ -134,8 +134,8 @@ function scoreField(text: string, phrase: string, terms: string[], phraseWeight:
     return { score, phraseIndex, matchedTerms }
 }
 
-function buildSnippet(text: string, phrase: string, terms: string[]): string {
-    const matchIndex = getEarliestMatchIndex(normalizeText(text), phrase, terms)
+function buildSnippet(text: string, normalizedText: string, phrase: string, terms: string[]): string {
+    const matchIndex = getEarliestMatchIndex(normalizedText, phrase, terms)
     if (matchIndex === -1) {
         return text.length <= 150 ? text : `${text.slice(0, 147).trimEnd()}...`
     }
@@ -180,7 +180,7 @@ function scoreDocument(doc: SearchDocument, phrase: string, terms: string[]): Sc
     const snippet =
         snippetSource === "shortDescription"
             ? doc.question.shortDescription
-            : buildSnippet(doc.plainContent, phrase, terms)
+            : buildSnippet(doc.plainContent, doc.plainContentLower, phrase, terms)
 
     return {
         id: doc.question.id,

@@ -175,6 +175,32 @@ def exported_dimension(source: str, name: str) -> int | None:
     return int(match.group(1))
 
 
+BATCH_PARAMETER_POSITIONS_JS = """
+import fs from 'node:fs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(process.argv[1]);
+const ts = require('typescript');
+const sources = JSON.parse(fs.readFileSync(0, 'utf8'));
+const results = sources.map((source) => {
+  const tree = ts.createSourceFile('illustration.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  if (tree.parseDiagnostics.length) {
+    throw new Error('Cannot classify layout markers in an invalid TypeScript illustration.');
+  }
+  const positions = [];
+  function visit(node) {
+    if (ts.isParameter(node) && node.type && ts.isIdentifier(node.name)) {
+      positions.push([...source.slice(0, node.name.getStart(tree))].length);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(tree);
+  return positions;
+});
+process.stdout.write(JSON.stringify(results));
+"""
+
+
 @lru_cache(maxsize=16)
 def typed_parameter_positions(source: str) -> frozenset[int]:
     """Classify ambiguous primitive type annotations with the actual TSX parser."""
@@ -185,11 +211,46 @@ def typed_parameter_positions(source: str) -> frozenset[int]:
     return frozenset(json.loads(result.stdout))
 
 
-def layout_risk_counts(source: str) -> dict[str, int]:
+def needs_typed_parameter_check(source: str) -> bool:
+    return any(
+        TYPED_PARAMETER_CANDIDATE_RE.search(match.group())
+        for match in MANUAL_EDGE_OFFSET_RE.finditer(source)
+    )
+
+
+def batch_typed_parameter_positions(sources: list[str]) -> dict[str, frozenset[int]]:
+    """Classify ambiguous primitive type annotations for many TSX sources in one Node invocation."""
+    candidates = list(dict.fromkeys(source for source in sources if needs_typed_parameter_check(source)))
+    if not candidates:
+        return {}
+    result = subprocess.run(
+        [
+            "node",
+            "--input-type=module",
+            "-e",
+            BATCH_PARAMETER_POSITIONS_JS,
+            str(REPO_ROOT / "web" / "package.json"),
+        ],
+        input=json.dumps(candidates),
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    parsed = json.loads(result.stdout)
+    return {
+        source: frozenset(positions)
+        for source, positions in zip(candidates, parsed, strict=True)
+    }
+
+
+def layout_risk_counts(
+    source: str,
+    parameter_positions: frozenset[int] | None = None,
+) -> dict[str, int]:
     """Count raw layout primitives that tend to produce brittle images."""
     edge_markers = list(MANUAL_EDGE_OFFSET_RE.finditer(source))
     if any(TYPED_PARAMETER_CANDIDATE_RE.search(match.group()) for match in edge_markers):
-        parameters = typed_parameter_positions(source)
+        parameters = typed_parameter_positions(source) if parameter_positions is None else parameter_positions
         edge_markers = [match for match in edge_markers if match.start() not in parameters]
     raw_svg_coordinate_count = sum(
         len(RAW_SVG_COORD_RE.findall(match.group(1)))
@@ -567,13 +628,16 @@ def main() -> int:
         scan_source_file(path, issues, warnings)
 
     article_count = 0
+    risk_entries: list[tuple[str, str]] = []
     for path in source_paths:
         source = path.read_text(encoding="utf-8")
-        width, height = scan_source_file(path, issues, warnings)
+        rel_parts = path.relative_to(CONTENT_DIR).parts if path.is_relative_to(CONTENT_DIR) else ()
+        is_article_illustration = "illustrations" in rel_parts and "_parts" not in rel_parts
+        width, height = scan_source(path, source, is_article_illustration, issues, warnings)
         if "illustrations" in path.parts and "_parts" not in path.parts:
             article_count += 1
             key = relative_key(path)
-            layout_risks[key] = merge_layout_risk(layout_risks.get(key), layout_risk_counts(source))
+            risk_entries.append((key, source))
             png_paths = tuple(png_paths_for_source(path, source))
             pending_png_validations[(path, png_paths, width, height)] = (path, source, width, height)
             expected_pngs.update(png_paths)
@@ -585,10 +649,17 @@ def main() -> int:
         width, height = scan_source(path, source, True, issues, warnings)
         article_count += 1
         key = relative_key(path)
-        layout_risks[key] = merge_layout_risk(layout_risks.get(key), layout_risk_counts(source))
+        risk_entries.append((key, source))
         png_paths = tuple(png_paths_for_source(path, source))
         pending_png_validations[(path, png_paths, width, height)] = (path, source, width, height)
         expected_pngs.update(png_paths)
+
+    precomputed_positions = batch_typed_parameter_positions([source for _, source in risk_entries])
+    for key, source in risk_entries:
+        layout_risks[key] = merge_layout_risk(
+            layout_risks.get(key),
+            layout_risk_counts(source, precomputed_positions.get(source)),
+        )
 
     worker_count = min(8, os.cpu_count() or 1)
     with ThreadPoolExecutor(max_workers=worker_count) as executor:

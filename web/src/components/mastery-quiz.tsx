@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react"
 import { trackEvent } from "@/lib/analytics"
 import { Award, Check, CircleAlert, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { InlineMarkdown } from "@/components/inline-markdown"
+import { GlossaryMarkdownSpan } from "@/components/glossary-markdown-span"
 import { useReadingProgress } from "@/lib/reading-progress"
 import { recordLocalQuizAttempt, removeLocalQuizAttempt, syncStudyAction, type QuizKind } from "@/lib/study-state"
 import {
@@ -14,6 +14,39 @@ import {
     MASTERY_PASS_PERCENT,
     type MasteryQuizQuestion,
 } from "@/lib/mastery-quiz"
+
+export interface RenderedMasteryQuestionNodes {
+    question: ReactNode
+    options: Record<string, ReactNode>
+    answer: ReactNode
+    explanation: ReactNode
+}
+
+const GLOSSARY_SPAN_PATTERN = /<span\s+data-glossary="([^"]+)">([^<]*)<\/span>/g
+
+function FallbackInlineText({ text }: { text: string }) {
+    if (!text.includes("data-glossary=")) {
+        return <>{text}</>
+    }
+    const parts: ReactNode[] = []
+    let lastIndex = 0
+    for (const match of text.matchAll(GLOSSARY_SPAN_PATTERN)) {
+        const matchIndex = match.index ?? 0
+        if (matchIndex > lastIndex) {
+            parts.push(<Fragment key={`t-${lastIndex}`}>{text.slice(lastIndex, matchIndex)}</Fragment>)
+        }
+        parts.push(
+            <GlossaryMarkdownSpan key={`g-${matchIndex}`} data-glossary={match[1]}>
+                {match[2]}
+            </GlossaryMarkdownSpan>,
+        )
+        lastIndex = matchIndex + match[0].length
+    }
+    if (lastIndex < text.length) {
+        parts.push(<Fragment key={`t-${lastIndex}`}>{text.slice(lastIndex)}</Fragment>)
+    }
+    return <>{parts}</>
+}
 
 const STORAGE_KEYS: Record<"mastery" | "section", string> = {
     mastery: "leetllm_mastery_quiz_scores",
@@ -73,14 +106,17 @@ function shuffledOptions(options: string[], seed: string): string[] {
 export function MasteryQuiz({
     slug,
     questions,
+    renderedQuestions,
 }: {
     slug: string
     questions: MasteryQuizQuestion[]
+    renderedQuestions?: RenderedMasteryQuestionNodes[]
 }) {
     return (
         <KnowledgeCheck
             slug={slug}
             questions={questions}
+            renderedQuestions={renderedQuestions}
             kind="mastery"
             eyebrow="Complete the lesson"
             title="Mastery Check"
@@ -95,6 +131,7 @@ type KnowledgeCheckQuestion = MasteryQuizQuestion & { section?: string }
 export function KnowledgeCheck({
     slug,
     questions,
+    renderedQuestions,
     kind,
     eyebrow,
     title,
@@ -103,6 +140,7 @@ export function KnowledgeCheck({
 }: {
     slug: string
     questions: KnowledgeCheckQuestion[]
+    renderedQuestions?: RenderedMasteryQuestionNodes[]
     kind: Extract<QuizKind, "mastery" | "section">
     eyebrow: string
     title: string
@@ -254,6 +292,8 @@ export function KnowledgeCheck({
                     )
                     const answeredCorrectly = checkedSelection === question.answer
 
+                    const rendered = renderedQuestions?.[questionIndex]
+
                     return (
                         <fieldset key={`${questionIndex}-${question.question}`} className="space-y-3">
                             <legend className="text-base font-semibold leading-relaxed [color:var(--reading-heading)]">
@@ -261,7 +301,7 @@ export function KnowledgeCheck({
                                     <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-primary">{question.section}</span>
                                 )}
                                 <span className="mr-2 text-primary">{questionIndex + 1}.</span>
-                                <InlineMarkdown>{question.question}</InlineMarkdown>
+                                {rendered?.question ?? <FallbackInlineText text={question.question} />}
                             </legend>
                             <div className="grid gap-2">
                                 {displayedOptions[questionIndex].map((option) => {
@@ -292,7 +332,7 @@ export function KnowledgeCheck({
                                                 }}
                                                 className="mt-1 h-4 w-4 accent-[var(--primary)]"
                                             />
-                                            <span><InlineMarkdown>{option}</InlineMarkdown></span>
+                                            <span>{rendered?.options[option] ?? <FallbackInlineText text={option} />}</span>
                                         </label>
                                     )
                                 })}
@@ -302,10 +342,10 @@ export function KnowledgeCheck({
                                 className="hidden rounded-lg border border-emerald-500/25 bg-emerald-500/[0.07] px-4 py-3 text-sm leading-relaxed"
                             >
                                 <p className="mb-1 font-semibold [color:var(--reading-heading)]">
-                                    Correct answer: <InlineMarkdown>{question.answer}</InlineMarkdown>
+                                    Correct answer: {rendered?.answer ?? <FallbackInlineText text={question.answer} />}
                                 </p>
                                 <p className="[color:var(--reading-muted)]">
-                                    <InlineMarkdown>{question.explanation}</InlineMarkdown>
+                                    {rendered?.explanation ?? <FallbackInlineText text={question.explanation} />}
                                 </p>
                             </div>
                             {result && (
@@ -321,13 +361,13 @@ export function KnowledgeCheck({
                                 >
                                     <p className="mb-1 font-semibold [color:var(--reading-heading)]">
                                         {changedSinceCheck
-                                            ? <>Changed since last check. Correct answer: <InlineMarkdown>{question.answer}</InlineMarkdown></>
+                                            ? <>Changed since last check. Correct answer: {rendered?.answer ?? <FallbackInlineText text={question.answer} />}</>
                                             : answeredCorrectly
                                                 ? "Correct"
-                                                : <>Correct answer: <InlineMarkdown>{question.answer}</InlineMarkdown></>}
+                                                : <>Correct answer: {rendered?.answer ?? <FallbackInlineText text={question.answer} />}</>}
                                     </p>
                                     <p className="[color:var(--reading-muted)]">
-                                        <InlineMarkdown>{question.explanation}</InlineMarkdown>
+                                        {rendered?.explanation ?? <FallbackInlineText text={question.explanation} />}
                                     </p>
                                 </div>
                             )}

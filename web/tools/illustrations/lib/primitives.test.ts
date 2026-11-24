@@ -170,16 +170,22 @@ describe('shared card and chip primitives', () => {
 
 describe('standard illustration helpers', () => {
     it('places line-chart endpoints and markers on their true axis values', () => {
-        const markup = renderToStaticMarkup(LineChart({
-            c: withDensity(getThemeColors('light'), 1.8),
-            series: [{ name: 'Accuracy', points: [-0.1, 0, 0.5, 1, 1.1] }],
-            min: 0,
-            max: 1,
-        }))
-        const ticks = [...markup.matchAll(/<line\b[^>]*\by1="([^"]+)"/g)].map(match => Number(match[1]))
+        const markup = renderToStaticMarkup(
+            LineChart({
+                c: withDensity(getThemeColors('light'), 1.8),
+                series: [{ name: 'Accuracy', points: [-0.1, 0, 0.5, 1, 1.1] }],
+                min: 0,
+                max: 1,
+            }),
+        )
+        const ticks = [...markup.matchAll(/<line\b[^>]*\by1="([^"]+)"/g)].map((match) =>
+            Number(match[1]),
+        )
         const top = Math.min(...ticks)
         const bottom = Math.max(...ticks)
-        const markers = [...markup.matchAll(/<circle\b[^>]*\bcy="([^"]+)"/g)].map(match => Number(match[1]))
+        const markers = [...markup.matchAll(/<circle\b[^>]*\bcy="([^"]+)"/g)].map((match) =>
+            Number(match[1]),
+        )
         expect(markers).toEqual([bottom, bottom, (bottom + top) / 2, top, top])
     })
 

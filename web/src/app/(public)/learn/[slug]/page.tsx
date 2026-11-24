@@ -22,7 +22,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { PersonalizedLessonContent } from "@/components/personalized-lesson-content"
+import { ServerMarkdownRenderer } from "@/components/server-markdown-renderer"
 import { MasteryQuiz } from "@/components/mastery-quiz"
+import { renderMasteryQuizNodes } from "@/components/server-inline-markdown"
 import { ArticlePageClient } from "./article-page-client"
 import { ArticleLayoutShell } from "./article-layout-shell"
 import { ArticleComments } from "@/components/article-comments"
@@ -307,11 +309,21 @@ export default async function LearnArticlePage({ params }: PageProps) {
 
                     {/* Main Content */}
                     <div itemProp="articleBody" className="max-w-none mb-10">
-                        <PersonalizedLessonContent key={slug} slug={slug} content={content} />
+                        <PersonalizedLessonContent
+                            key={slug}
+                            slug={slug}
+                            canonicalContent={
+                                <ServerMarkdownRenderer content={content} contentKey={slug} showTableOfContents />
+                            }
+                        />
                     </div>
 
                     {masteryQuestions && (
-                        <MasteryQuiz slug={slug} questions={masteryQuestions} />
+                        <MasteryQuiz
+                            slug={slug}
+                            questions={masteryQuestions}
+                            renderedQuestions={renderMasteryQuizNodes(masteryQuestions)}
+                        />
                     )}
 
                     {/* Completion + Next Article */}

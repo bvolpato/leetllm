@@ -9,8 +9,8 @@ vi.mock("@/lib/use-is-logged-in", () => ({
     useIsLoggedIn: () => ({ user: null, isLoggedIn: false, authLoaded: true }),
 }))
 
-vi.mock("@/components/markdown-renderer", () => ({
-    MarkdownRenderer: () => <div data-testid="markdown-body" />,
+vi.mock("@/components/server-markdown-renderer", () => ({
+    ServerMarkdownRenderer: () => <div data-testid="markdown-body" />,
 }))
 
 vi.mock("@/components/mastery-quiz", () => ({

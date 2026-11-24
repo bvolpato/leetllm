@@ -23,8 +23,60 @@ import {
     type StudyState,
 } from "@/lib/study-state"
 
+const STUDY_STATE_CACHE_TTL_MS = 60_000
+
+type StudyStateCacheEntry = {
+    userKey: string
+    fetchedAt: number
+    state: StudyState
+}
+
+let studyStateCache: StudyStateCacheEntry | null = null
+let studyStateInFlight: { userKey: string; promise: Promise<StudyState> } | null = null
+
+function invalidateStudyStateCache() {
+    studyStateCache = null
+    studyStateInFlight = null
+}
+
+function getCachedStudyState(userKey: string): Promise<StudyState> {
+    const now = Date.now()
+    if (
+        studyStateCache &&
+        studyStateCache.userKey === userKey &&
+        now - studyStateCache.fetchedAt < STUDY_STATE_CACHE_TTL_MS
+    ) {
+        return Promise.resolve(studyStateCache.state)
+    }
+
+    if (studyStateInFlight && studyStateInFlight.userKey === userKey) {
+        return studyStateInFlight.promise
+    }
+
+    const promise = fetch("/api/study-state")
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`Study state fetch failed: ${response.status}`)
+            }
+            return response.json() as Promise<StudyState>
+        })
+        .then((state) => {
+            studyStateCache = { userKey, fetchedAt: Date.now(), state }
+            return state
+        })
+        .finally(() => {
+            if (studyStateInFlight?.promise === promise) {
+                studyStateInFlight = null
+            }
+        })
+
+    studyStateInFlight = { userKey, promise }
+    return promise
+}
+
 export function LessonStudyTools({ slug, title }: { slug: string; title: string }) {
-    const { isLoggedIn, authLoaded } = useIsLoggedIn()
+    const { user, isLoggedIn, authLoaded } = useIsLoggedIn()
+    const userKey = user?.id ?? (isLoggedIn ? "__authenticated__" : null)
     const [bookmarked, setBookmarked] = useState(false)
     const [note, setNote] = useState("")
     const [draft, setDraft] = useState("")
@@ -32,23 +84,30 @@ export function LessonStudyTools({ slug, title }: { slug: string; title: string 
     const [saved, setSaved] = useState(false)
 
     useEffect(() => {
+        let cancelled = false
         const localBookmarkState = readLocalBookmarks().find((bookmark) => bookmark.slug === slug)
-        const localBookmark = localBookmarkState?.bookmarked ?? false
         const localNoteState = readLocalNotes().find((entry) => entry.slug === slug)
-        const localNote = localNoteState && !localNoteState.deleted ? localNoteState.body : ""
         queueMicrotask(() => {
-            if (localBookmark) setBookmarked(true)
-            if (localNote) {
-                setNote(localNote)
-                setDraft(localNote)
-            }
+            if (cancelled) return
+            const currentBookmarkState = readLocalBookmarks().find((bookmark) => bookmark.slug === slug)
+            const currentNoteState = readLocalNotes().find((entry) => entry.slug === slug)
+            const currentNote = currentNoteState && !currentNoteState.deleted ? currentNoteState.body : ""
+            setBookmarked(currentBookmarkState?.bookmarked ?? false)
+            setNote(currentNote)
+            setDraft(currentNote)
         })
 
-        if (!authLoaded || !isLoggedIn) return
+        if (!authLoaded) {
+            return () => { cancelled = true }
+        }
+        if (!isLoggedIn || !userKey) {
+            invalidateStudyStateCache()
+            return () => { cancelled = true }
+        }
 
-        fetch("/api/study-state")
-            .then((response) => response.json())
+        getCachedStudyState(userKey)
             .then((state: StudyState) => {
+                if (cancelled) return
                 const remoteBookmarkState = state.bookmarks.find((bookmark) => bookmark.slug === slug)
                 const bookmarkState = !remoteBookmarkState || (localBookmarkState && localBookmarkState.updatedAt > remoteBookmarkState.updatedAt)
                     ? localBookmarkState
@@ -60,6 +119,7 @@ export function LessonStudyTools({ slug, title }: { slug: string; title: string 
                         ...readLocalBookmarks().filter((bookmark) => bookmark.slug !== slug),
                     ])
                     if (bookmarkState === localBookmarkState) {
+                        invalidateStudyStateCache()
                         void syncStudyAction({ action: "bookmark", slug, bookmarked: bookmarkState.bookmarked }).catch(() => { })
                     }
                 }
@@ -77,12 +137,17 @@ export function LessonStudyTools({ slug, title }: { slug: string; title: string 
                         ...readLocalNotes().filter((entry) => entry.slug !== slug),
                     ])
                     if (noteState === localNoteState) {
+                        invalidateStudyStateCache()
                         void syncStudyAction({ action: "note", slug, body }).catch(() => { })
                     }
                 }
             })
             .catch(() => { })
-    }, [authLoaded, isLoggedIn, slug])
+
+        return () => {
+            cancelled = true
+        }
+    }, [authLoaded, isLoggedIn, userKey, slug])
 
     function toggleBookmark() {
         const next = !bookmarked
@@ -91,6 +156,7 @@ export function LessonStudyTools({ slug, title }: { slug: string; title: string 
         writeLocalBookmarks(bookmarks)
         setBookmarked(next)
         trackEvent("bookmark_toggled", { slug, bookmarked: next })
+        invalidateStudyStateCache()
         if (isLoggedIn) void syncStudyAction({ action: "bookmark", slug, bookmarked: next }).catch(() => { })
     }
 
@@ -103,6 +169,7 @@ export function LessonStudyTools({ slug, title }: { slug: string; title: string 
         setDraft(body)
         setSaved(true)
         trackEvent("lesson_note_saved", { slug, has_note: Boolean(body) })
+        invalidateStudyStateCache()
         if (isLoggedIn) void syncStudyAction({ action: "note", slug, body }).catch(() => { })
     }
 

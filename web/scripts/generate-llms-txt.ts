@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
 import { dirname, join } from "path"
 import { getBlogPosts } from "../src/lib/blog"
 import { getPracticeProblems } from "../src/lib/practice"
@@ -136,5 +136,10 @@ function renderLlmsTxt(): string {
 }
 
 mkdirSync(dirname(outputPath), { recursive: true })
-writeFileSync(outputPath, renderLlmsTxt())
-console.log(`Wrote ${outputPath}`)
+const content = renderLlmsTxt()
+if (existsSync(outputPath) && readFileSync(outputPath, "utf8") === content) {
+    console.log(`Unchanged ${outputPath}`)
+} else {
+    writeFileSync(outputPath, content)
+    console.log(`Wrote ${outputPath}`)
+}

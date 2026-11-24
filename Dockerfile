@@ -27,24 +27,40 @@ RUN pnpm build
 # Collect runtime content into a lean directory for production image.
 # Runtime content APIs and personalized visual rendering need markdown,
 # references, illustration sources, and generated assets after build.
-RUN mkdir -p /runtime-content && \
-    cd src/content && \
-    find . \( \
-      -name 'references.json' -o \
-      -name 'metadata.json' -o \
-      -name 'content.md' -o \
-      -name 'content-free.md' -o \
-      -name 'social_banner.png' -o \
-      -path './glossary/*.md' -o \
-      -name '*.tsx' -o \
-      -path '*/illustrations/*.ts' -o \
-      -path '*/illustrations/*.json' -o \
-      -path '*/illustrations/_generated/*' -o \
-      -path '*/diagrams/_generated/*' -o \
-      -path '*/assets/*' \
-    \) -type f -exec sh -c \
-      'mkdir -p "/runtime-content/$(dirname "$1")" && cp "$1" "/runtime-content/$1"' \
-      _ {} \;
+RUN node -e ' \
+  const fs = require("fs"); \
+  const path = require("path"); \
+  const src = path.resolve("src/content"); \
+  const dst = "/runtime-content"; \
+  const keep = (rel) => { \
+    const name = path.basename(rel); \
+    return name === "references.json" \
+      || name === "metadata.json" \
+      || name === "content.md" \
+      || name === "content-free.md" \
+      || name === "social_banner.png" \
+      || (rel.startsWith("glossary/") && rel.endsWith(".md")) \
+      || name.endsWith(".tsx") \
+      || (rel.includes("/illustrations/") && (name.endsWith(".ts") || name.endsWith(".json"))) \
+      || rel.includes("/illustrations/_generated/") \
+      || rel.includes("/diagrams/_generated/") \
+      || rel.includes("/assets/"); \
+  }; \
+  const walk = (dir) => { \
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) { \
+      const full = path.join(dir, entry.name); \
+      if (entry.isDirectory()) { walk(full); continue; } \
+      if (!entry.isFile()) continue; \
+      const rel = path.relative(src, full).split(path.sep).join("/"); \
+      if (!keep(rel)) continue; \
+      const target = path.join(dst, rel); \
+      fs.mkdirSync(path.dirname(target), { recursive: true }); \
+      fs.copyFileSync(full, target); \
+    } \
+  }; \
+  fs.mkdirSync(dst, { recursive: true }); \
+  walk(src); \
+'
 
 # Keep raw glossary routes and all relative content dependencies complete.
 RUN pnpm exec tsx scripts/validate-runtime-content.ts /runtime-content

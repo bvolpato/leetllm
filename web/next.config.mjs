@@ -8,6 +8,7 @@ const nextConfig = {
   experimental: {
     // Load route modules on demand to keep startup work off the first request.
     preloadEntriesOnStart: false,
+    optimizePackageImports: ["lucide-react", "radix-ui"],
   },
   output: "standalone",
   serverExternalPackages: ["vizmatic", "@resvg/resvg-js", "sharp"],
@@ -15,6 +16,7 @@ const nextConfig = {
     "/api/personalization/render-vizmatic": ["./node_modules/vizmatic/assets/**/*"],
   },
   outputFileTracingExcludes: {
+    "*": ["./src/content/**/*", "./secrets/**/*", "./tools/**/*"],
     "/api/personalization/lesson": ["./secrets/**/*"],
     "/api/personalization/profile": ["./secrets/**/*"],
   },
@@ -113,6 +115,36 @@ const nextConfig = {
       {
         // Practice listing + coding problems
         source: "/practice/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+          },
+        ],
+      },
+      {
+        // Glossary listing + individual terms
+        source: "/glossary/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+          },
+        ],
+      },
+      {
+        // Learning tracks listing + individual tracks
+        source: "/tracks/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=14400, stale-while-revalidate=3600, max-age=0",
+          },
+        ],
+      },
+      {
+        // Machine-readable LLM index files
+        source: "/(llms\\.txt|llms-full\\.txt)",
         headers: [
           {
             key: "Cache-Control",

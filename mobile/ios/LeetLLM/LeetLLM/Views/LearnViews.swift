@@ -221,6 +221,7 @@ struct LearnView: View {
 
     @ViewBuilder
     private var listContent: some View {
+        let filtered = filteredLessons
         if library == .all, query.isEmpty {
             learningHome
         }
@@ -229,9 +230,9 @@ struct LearnView: View {
         }
 
         if horizontalSizeClass == .regular {
-            searchSection
+            searchSection(filteredCount: filtered.count)
         }
-        lessonSections
+        lessonSections(lessons: filtered)
     }
 
     private func resumeSection(for route: LearnRoute) -> some View {
@@ -276,16 +277,16 @@ struct LearnView: View {
     }
 
     private var fullPageLearnList: some View {
-        List {
+        let lessons = filteredLessons
+        return List {
             if shouldShowResumeCard, let lastRoute = progressStore.lastViewedRoute {
                 resumeSection(for: lastRoute)
             }
 
             if horizontalSizeClass == .regular {
-                searchSection
+                searchSection(filteredCount: lessons.count)
             }
 
-            let lessons = filteredLessons
             ForEach(groupedSections(lessons), id: \.0) { section, items in
                 Section(section) {
                     ForEach(items) { lesson in
@@ -316,7 +317,7 @@ struct LearnView: View {
         .listStyle(.insetGrouped)
     }
 
-    private var searchSection: some View {
+    private func searchSection(filteredCount: Int) -> some View {
         Section {
             Picker("Library", selection: $library) {
                 ForEach(LessonLibrary.allCases) { item in
@@ -325,7 +326,7 @@ struct LearnView: View {
             }
             .accessibilityIdentifier("lesson-library")
 
-            Text("\(filteredLessons.count) \(filteredLessons.count == 1 ? "lesson" : "lessons") available offline")
+            Text("\(filteredCount) \(filteredCount == 1 ? "lesson" : "lessons") available offline")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -399,8 +400,7 @@ struct LearnView: View {
     }
 
     @ViewBuilder
-    private var lessonSections: some View {
-        let lessons = filteredLessons
+    private func lessonSections(lessons: [LessonIndexItem]) -> some View {
         if lessons.isEmpty {
             searchStatus
         } else {
@@ -493,16 +493,9 @@ struct LearnView: View {
         }
         guard !normalized.isEmpty else { return lessons }
         return lessons.filter { lesson in
-            let inMetadata = [
-                lesson.title,
-                lesson.section,
-                lesson.category,
-                lesson.difficulty,
-                lesson.shortDescription,
-                lesson.keyConceptsTested.joined(separator: " "),
-            ].joined(separator: " ").lowercased().contains(normalized)
-            
-            if inMetadata { return true }
+            if dataService.lessonMatchesMetadata(lesson, normalizedQuery: normalized) {
+                return true
+            }
             return contentSearchMatches.lessonSnippets[lesson.slug] != nil
         }
     }
@@ -569,14 +562,14 @@ struct LearnView: View {
     private func title(for route: LearnRoute) -> String {
         switch route {
         case .lesson(let slug):
-            return dataService.lessons.first { $0.slug == slug }?.title ?? "Lesson"
+            return dataService.lessonIndex(slug: slug)?.title ?? "Lesson"
         }
     }
 
     private func subtitle(for route: LearnRoute) -> String {
         switch route {
         case .lesson(let slug):
-            if let lesson = dataService.lessons.first(where: { $0.slug == slug }) {
+            if let lesson = dataService.lessonIndex(slug: slug) {
                 return "\(lesson.category) • \(lesson.timeEstimate)m read"
             }
             return "Lesson"
@@ -753,6 +746,10 @@ private func makeSearchSnippet(content: String, query: String) -> AttributedStri
     return attr
 }
 
+private final class LessonScrollPositionBox {
+    var id: String?
+}
+
 struct LessonDetailView: View {
     let slug: String
     @ObservedObject private var dataService = DataService.shared
@@ -761,14 +758,42 @@ struct LessonDetailView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var noteDraft = ""
     @State private var isReaderSettingsPresented = false
-    @State private var scrollPositionID: String? = nil
+    @State private var scrollPositionBox = LessonScrollPositionBox()
+    @State private var isScrolledPastHeader = false
+    @State private var scrollJumpToken = 0
     @State private var showingContents = false
     @State private var showingNotes = false
     @State private var didRestorePosition = false
 
+    private func jumpToScrollTarget(_ target: String?, lessonSlug: String) {
+        scrollPositionBox.id = target
+        let pastHeader = target != nil && target != "header"
+        if isScrolledPastHeader != pastHeader {
+            isScrolledPastHeader = pastHeader
+        }
+        if let target {
+            progressStore.saveScrollPosition(target, for: lessonSlug)
+        }
+        scrollJumpToken &+= 1
+    }
+
     var body: some View {
+        let _ = scrollJumpToken
         Group {
             if let lesson = dataService.lesson(slug: slug) {
+                let scrollPositionBinding = Binding<String?>(
+                    get: { scrollPositionBox.id },
+                    set: { newVal in
+                        scrollPositionBox.id = newVal
+                        let pastHeader = newVal != nil && newVal != "header"
+                        if isScrolledPastHeader != pastHeader {
+                            isScrolledPastHeader = pastHeader
+                        }
+                        if let newVal {
+                            progressStore.saveScrollPosition(newVal, for: lesson.slug)
+                        }
+                    }
+                )
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 14) {
                         VStack(alignment: .leading, spacing: 10) {
@@ -842,9 +867,9 @@ struct LessonDetailView: View {
                     .scrollTargetLayout()
                 }
                 .id(slug)
-                .scrollPosition(id: $scrollPositionID)
+                .scrollPosition(id: scrollPositionBinding)
                 #if !targetEnvironment(macCatalyst)
-                .navigationTitle(scrollPositionID == nil || scrollPositionID == "header" ? "" : lesson.title)
+                .navigationTitle(isScrolledPastHeader ? lesson.title : "")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -852,9 +877,13 @@ struct LessonDetailView: View {
                             Button("Contents", systemImage: "list.bullet") { showingContents = true }
                             Button("Notes", systemImage: "note.text") { showingNotes = true }
                             if !(lesson.masteryQuiz ?? []).isEmpty {
-                                Button("Mastery check", systemImage: "checkmark.seal") { scrollPositionID = "mastery" }
+                                Button("Mastery check", systemImage: "checkmark.seal") {
+                                    jumpToScrollTarget("mastery", lessonSlug: lesson.slug)
+                                }
                             }
-                            Button("Back to top", systemImage: "arrow.up.to.line") { scrollPositionID = "header" }
+                            Button("Back to top", systemImage: "arrow.up.to.line") {
+                                jumpToScrollTarget("header", lessonSlug: lesson.slug)
+                            }
                             ShareLink(item: URL(string: "https://leetllm.com/learn/\(lesson.slug)")!)
                         } label: {
                             Image(systemName: "ellipsis.circle")
@@ -882,7 +911,7 @@ struct LessonDetailView: View {
                 }
                 .sheet(isPresented: $showingContents) {
                     ReaderContentsView(markdown: lesson.content, prefix: "lesson") { anchor in
-                        scrollPositionID = anchor
+                        jumpToScrollTarget(anchor, lessonSlug: lesson.slug)
                     }
                 }
                 .sheet(isPresented: $showingNotes) {
@@ -911,13 +940,8 @@ struct LessonDetailView: View {
                     }
                     .environmentObject(progressStore)
                 }
-                .onChange(of: scrollPositionID) { _, newVal in
-                    if let newVal {
-                        progressStore.saveScrollPosition(newVal, for: lesson.slug)
-                    }
-                }
                 .onDisappear {
-                    progressStore.flushPendingScrollPosition()
+                    progressStore.flushPendingPersistence()
                 }
                 .onAppear {
                     guard !didRestorePosition else { return }
@@ -925,7 +949,9 @@ struct LessonDetailView: View {
                     noteDraft = progressStore.note(for: lesson.slug)
                     progressStore.trackViewedRoute(.lesson(lesson.slug))
                     
-                    scrollPositionID = progressStore.scrollPosition(for: lesson.slug)
+                    if let savedPosition = progressStore.scrollPosition(for: lesson.slug) {
+                        jumpToScrollTarget(savedPosition, lessonSlug: lesson.slug)
+                    }
                 }
             } else {
                 EmptyStateView(title: "Lesson Missing", message: slug, systemImage: "exclamationmark.triangle")
@@ -1016,7 +1042,7 @@ struct LessonDetailView: View {
     @ViewBuilder
     private func navigationButtons(for lesson: LessonDetail) -> some View {
         HStack(spacing: 16) {
-            if let prevSlug = lesson.previousSlug, let prev = dataService.lessons.first(where: { $0.slug == prevSlug }) {
+            if let prevSlug = lesson.previousSlug, let prev = dataService.lessonIndex(slug: prevSlug) {
                 Button {
                     NotificationCenter.default.post(name: Notification.Name("NavigateToRoute"), object: LearnRoute.lesson(prev.slug))
                 } label: {
@@ -1045,7 +1071,7 @@ struct LessonDetailView: View {
                 Spacer()
             }
             
-            if let nextSlug = lesson.nextSlug, let next = dataService.lessons.first(where: { $0.slug == nextSlug }) {
+            if let nextSlug = lesson.nextSlug, let next = dataService.lessonIndex(slug: nextSlug) {
                 Button {
                     NotificationCenter.default.post(name: Notification.Name("NavigateToRoute"), object: LearnRoute.lesson(next.slug))
                 } label: {
@@ -1116,7 +1142,10 @@ private struct LessonNoteEditor: View {
                 .padding(8)
                 .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
                 .onChange(of: noteDraft) { _, text in
-                    progressStore.saveNote(text, for: slug)
+                    progressStore.saveNote(text, for: slug, debounced: true)
+                }
+                .onDisappear {
+                    progressStore.flushPendingNote()
                 }
             Label("Saved automatically on this device", systemImage: "checkmark.circle")
                 .font(.caption)

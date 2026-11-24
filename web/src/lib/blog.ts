@@ -70,8 +70,8 @@ function contentImageAsset(src: string | undefined): { src: string; naturalWidth
         return undefined
     }
 
-    const filePath = join(CONTENT_DIR, ...segments)
-    if (!existsSync(filePath)) return undefined
+    const filePath = join(/* turbopackIgnore: true */ CONTENT_DIR, ...segments)
+    if (!existsSync(/* turbopackIgnore: true */ filePath)) return undefined
     return {
         src: contentImageUrl(filePath),
         naturalWidth: pngNaturalSize(filePath)?.w,
@@ -144,7 +144,8 @@ function loadBlogPost(postDir: string): BlogPost | null {
     const timeEstimate = estimateReadingTime(rawContent, "Medium", true)
 
     const socialBannerPath = join(postDir, "social_banner.png")
-    const socialImage = existsSync(socialBannerPath)
+    const hasSocialBanner = existsSync(/* turbopackIgnore: true */ socialBannerPath)
+    const socialImage = hasSocialBanner
         ? contentImageUrl(socialBannerPath)
         : undefined
 
@@ -154,7 +155,7 @@ function loadBlogPost(postDir: string): BlogPost | null {
         : normalizedCover ?? firstIllustrationImage(rawContent, postDir)
     const coverMetadata = coverImageMetadata(coverImage)
 
-    if (existsSync(socialBannerPath)) {
+    if (hasSocialBanner) {
         metadata.coverImage = coverImage
     } else if (!coverImage) {
         const firstImageMatch = content.match(/<img[^>]+src="([^">]+)"/)
@@ -177,9 +178,9 @@ function loadBlogPost(postDir: string): BlogPost | null {
 }
 
 function loadAllBlogPosts(): BlogPost[] {
-    if (!existsSync(BLOG_DIR)) return []
+    if (!existsSync(/* turbopackIgnore: true */ BLOG_DIR)) return []
 
-    const postDirs = readdirSync(BLOG_DIR, { withFileTypes: true })
+    const postDirs = readdirSync(/* turbopackIgnore: true */ BLOG_DIR, { withFileTypes: true })
         .filter((d) => d.isDirectory())
         .map((d) => d.name)
 
@@ -233,7 +234,7 @@ export function getBlogPostBySlug(slug: string): BlogPost | undefined {
     const route = getBlogRoute(slug)
     if (!route || route.draft || route.hidden) return undefined
 
-    const post = loadBlogPost(join(process.cwd(), "src", "content", route.directory))
+    const post = loadBlogPost(join(/* turbopackIgnore: true */ process.cwd(), "src", "content", /* turbopackIgnore: true */ route.directory))
     if (!post || post.slug !== route.canonicalSlug || post.slug !== slug || post.draft) return undefined
 
     _singleBlogCache.set(post.slug, post)

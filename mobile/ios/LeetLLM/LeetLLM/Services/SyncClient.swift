@@ -386,26 +386,30 @@ final class PersistentSyncClient: SyncClient, ObservableObject {
         }
 
         let token = try await validAccessToken()
-        let onlineLessons = try await fetchSlugs(endpoint: "/api/progress", token: token)
-        let onlineQuizzes = try await fetchSlugs(endpoint: "/api/practice/progress?kind=quiz", token: token)
-        let onlinePlan = try await fetchLearningPlan(token: token)
+        async let onlineLessonsTask = fetchSlugs(endpoint: "/api/progress", token: token)
+        async let onlineQuizzesTask = fetchSlugs(endpoint: "/api/practice/progress?kind=quiz", token: token)
+        async let onlinePlanTask = fetchLearningPlan(token: token)
+        let (onlineLessons, onlineQuizzes, onlinePlan) = try await (
+            onlineLessonsTask,
+            onlineQuizzesTask,
+            onlinePlanTask
+        )
         try Task.checkCancellation()
         let localLessons = progressStore.readLessonSlugs
         let localQuizzes = progressStore.passedTheoryQuizSlugs
 
-        var uploadedLessons = 0
-        for slug in localLessons.subtracting(onlineLessons).sorted() {
-            try Task.checkCancellation()
-            try await uploadProgress(endpoint: "/api/progress", body: ["slug": slug], token: token)
-            uploadedLessons += 1
-        }
+        let uploadedLessons = try await uploadSlugsConcurrently(
+            localLessons.subtracting(onlineLessons).sorted(),
+            endpoint: "/api/progress",
+            token: token
+        )
 
-        var uploadedQuizzes = 0
-        for slug in localQuizzes.subtracting(onlineQuizzes).sorted() {
-            try Task.checkCancellation()
-            try await uploadProgress(endpoint: "/api/practice/progress", body: ["slug": slug, "kind": "quiz"], token: token)
-            uploadedQuizzes += 1
-        }
+        let uploadedQuizzes = try await uploadSlugsConcurrently(
+            localQuizzes.subtracting(onlineQuizzes).sorted(),
+            endpoint: "/api/practice/progress",
+            extraFields: ["kind": "quiz"],
+            token: token
+        )
 
         var uploadedPlans = 0
         var mergedPlans = 0
@@ -510,13 +514,61 @@ final class PersistentSyncClient: SyncClient, ObservableObject {
         return Set(slugs)
     }
 
+    private func uploadSlugsConcurrently(
+        _ slugs: [String],
+        endpoint: String,
+        extraFields: [String: String] = [:],
+        token: String,
+        maxConcurrency: Int = 6
+    ) async throws -> Int {
+        guard !slugs.isEmpty else { return 0 }
+        return try await withThrowingTaskGroup(of: Void.self) { group in
+            var iterator = slugs.makeIterator()
+            var inFlight = 0
+            var completed = 0
+
+            while inFlight < maxConcurrency, let slug = iterator.next() {
+                try Task.checkCancellation()
+                var payload = extraFields
+                payload["slug"] = slug
+                let bodyData = try JSONSerialization.data(withJSONObject: payload)
+                group.addTask {
+                    try await self.uploadProgressData(endpoint: endpoint, bodyData: bodyData, token: token)
+                }
+                inFlight += 1
+            }
+
+            while try await group.next() != nil {
+                completed += 1
+                inFlight -= 1
+                if let slug = iterator.next() {
+                    try Task.checkCancellation()
+                    var payload = extraFields
+                    payload["slug"] = slug
+                    let bodyData = try JSONSerialization.data(withJSONObject: payload)
+                    group.addTask {
+                        try await self.uploadProgressData(endpoint: endpoint, bodyData: bodyData, token: token)
+                    }
+                    inFlight += 1
+                }
+            }
+
+            return completed
+        }
+    }
+
     private func uploadProgress(endpoint: String, body: [String: Any], token: String) async throws {
+        let bodyData = try JSONSerialization.data(withJSONObject: body)
+        try await uploadProgressData(endpoint: endpoint, bodyData: bodyData, token: token)
+    }
+
+    private func uploadProgressData(endpoint: String, bodyData: Data, token: String) async throws {
         let url = URL(string: "\(baseURL)\(endpoint)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        request.httpBody = bodyData
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -858,11 +910,11 @@ private final class KeychainSessionStore {
     }
 }
 
-private struct RemoteStudyState: Decodable {
+private struct RemoteStudyState: Decodable, Sendable {
     let plan: RemoteLearningPlan?
 }
 
-private struct RemoteLearningPlan: Decodable {
+private struct RemoteLearningPlan: Decodable, Sendable {
     let goal: String
     let level: String
     let weeklyHours: Int

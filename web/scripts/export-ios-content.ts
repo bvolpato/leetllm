@@ -1,15 +1,16 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "fs"
+import { constants, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "fs"
+import { copyFile, mkdir, rm, stat } from "fs/promises"
 import { basename, dirname, extname, join, relative, resolve } from "path"
-import { getBlogPosts } from "../src/lib/blog"
-import { extractMasteryQuiz } from "../src/lib/mastery-quiz"
-import { getPracticeProblems, toPracticeListItem } from "../src/lib/practice"
-import { getQuestions } from "../src/lib/questions"
+import { getBlogPosts, type BlogPost } from "../src/lib/blog"
+import { extractMasteryQuiz, type ExtractedMasteryQuiz } from "../src/lib/mastery-quiz"
+import { getPracticeProblems, toPracticeListItem, type PracticeProblem } from "../src/lib/practice"
+import { getQuestions, type Question } from "../src/lib/questions"
 import { GLOSSARY_ENTRIES_BY_IMPORTANCE } from "../src/generated/glossary"
 import { buildLearningPlan, learningPlanConfiguration } from "../src/lib/learning-plan"
 import { getLearningPlanTracks } from "../src/lib/learning-plan-server"
 import { buildSectionCheckQuestions } from "../src/lib/section-check"
 import { getTracks } from "../src/lib/tracks"
-import { getTheoryQuizzes } from "../src/lib/theory-quizzes"
+import { getTheoryQuizzes, type TheoryQuiz } from "../src/lib/theory-quizzes"
 import { glossaryPlainText } from "./ios-glossary-text"
 import { createPublicContentBundleFilter } from "./ios-content-visibility"
 
@@ -30,6 +31,22 @@ type ImageRef = {
     alt?: string
 }
 
+type ScannedFile = {
+    path: string
+    rel: string
+    size: number
+    mtimeMs: number
+}
+
+type CopyImagesStats = {
+    copiedImageCount: number
+    darkImages: number
+    lightImages: number
+    imageBytes: number
+}
+
+const COPY_CONCURRENCY = 16
+
 const webRoot = process.cwd()
 const repoRoot = resolve(webRoot, "..")
 const contentRoot = join(webRoot, "src", "content")
@@ -37,15 +54,33 @@ const outputDataDir = join(repoRoot, "mobile", "ios", "LeetLLM", "LeetLLM", "Res
 const imageOutputDir = join(outputDataDir, "images")
 const assetOutputDir = join(outputDataDir, "assets")
 const katexOutputDir = join(outputDataDir, "katex")
-const publicBlogSlugs = new Set(getBlogPosts().map((post) => post.slug))
+
+const ensuredSyncDirs = new Set<string>()
 
 function ensureDir(path: string) {
+    if (ensuredSyncDirs.has(path)) return
     mkdirSync(path, { recursive: true })
+    ensuredSyncDirs.add(path)
 }
 
-function writeJson(path: string, value: unknown) {
+async function ensureDirAsync(path: string, createdDirs: Set<string>) {
+    if (createdDirs.has(path)) return
+    await mkdir(path, { recursive: true })
+    createdDirs.add(path)
+}
+
+function writeTextIfChanged(path: string, content: string): boolean {
     ensureDir(dirname(path))
-    writeFileSync(path, `${JSON.stringify(value)}\n`)
+    if (existsSync(path)) {
+        const existing = readFileSync(path, "utf8")
+        if (existing === content) return false
+    }
+    writeFileSync(path, content)
+    return true
+}
+
+function writeJsonIfChanged(path: string, value: unknown): boolean {
+    return writeTextIfChanged(path, `${JSON.stringify(value)}\n`)
 }
 
 function walkFiles(root: string, predicate: (path: string) => boolean): string[] {
@@ -67,32 +102,145 @@ function walkFiles(root: string, predicate: (path: string) => boolean): string[]
     return result.sort()
 }
 
-function copyPreservingRoot(sourceRoot: string, sourcePath: string, targetRoot: string) {
-    const rel = relative(sourceRoot, sourcePath)
-    const targetPath = join(targetRoot, rel)
-    ensureDir(dirname(targetPath))
-    cpSync(sourcePath, targetPath)
+function pruneEmptyDirs(root: string, keepRoot = true) {
+    if (!existsSync(root)) return
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+            pruneEmptyDirs(join(root, entry.name), false)
+        }
+    }
+    if (!keepRoot && readdirSync(root).length === 0) {
+        rmSync(root, { recursive: true, force: true })
+    }
 }
 
-const belongsToPublicBundle = createPublicContentBundleFilter(contentRoot, publicBlogSlugs)
-
-function copyContentImages() {
-    const pngs = walkFiles(
-        contentRoot,
-        (path) => {
-            if (extname(path).toLowerCase() !== ".png" || !belongsToPublicBundle(path)) {
-                return false
+async function runWithConcurrency<T>(
+    items: readonly T[],
+    concurrency: number,
+    worker: (item: T) => Promise<void>,
+) {
+    let cursor = 0
+    const workerCount = Math.min(concurrency, items.length)
+    await Promise.all(
+        Array.from({ length: workerCount }, async () => {
+            while (cursor < items.length) {
+                const index = cursor
+                cursor += 1
+                await worker(items[index])
             }
-            const [section] = relative(contentRoot, path).split("/")
-            return section === "blog" || basename(path) !== "social_banner.png"
-        },
+        }),
     )
-    const expectedPaths = new Set(pngs.map((path) => relative(contentRoot, path)))
+}
 
-    for (const existing of walkFiles(imageOutputDir, (path) => extname(path).toLowerCase() === ".png")) {
-        if (!expectedPaths.has(relative(imageOutputDir, existing))) {
-            rmSync(existing)
+async function copyFileCloneOrFallback(sourcePath: string, targetPath: string) {
+    try {
+        await copyFile(sourcePath, targetPath, constants.COPYFILE_FICLONE)
+    } catch (error) {
+        const code = (error as NodeJS.ErrnoException)?.code
+        if (code === "ENOTSUP" || code === "ENOSYS" || code === "EXDEV" || code === "EPERM" || code === "EINVAL" || code === "EOPNOTSUPP") {
+            await copyFile(sourcePath, targetPath)
+            return
         }
+        throw error
+    }
+}
+
+async function copyFileIfChanged(
+    sourcePath: string,
+    targetPath: string,
+    sourceSize: number,
+    sourceMtimeMs: number,
+    createdDirs: Set<string>,
+) {
+    try {
+        const target = await stat(targetPath)
+        if (target.size === sourceSize && target.mtimeMs >= sourceMtimeMs) {
+            return
+        }
+    } catch {
+        // Destination does not exist yet.
+    }
+    await ensureDirAsync(dirname(targetPath), createdDirs)
+    await copyFileCloneOrFallback(sourcePath, targetPath)
+}
+
+function scanContentTree(belongsToPublicBundle: (path: string) => boolean) {
+    const availableImages = new Map<string, ScannedFile>()
+    const contentAssets: ScannedFile[] = []
+    let maxContentMtimeMs = 0
+
+    function visit(dir: string) {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const path = join(dir, entry.name)
+            if (entry.isDirectory()) {
+                visit(path)
+                continue
+            }
+            const fileStat = statSync(path)
+            if (fileStat.mtimeMs > maxContentMtimeMs) {
+                maxContentMtimeMs = fileStat.mtimeMs
+            }
+
+            const rel = relative(contentRoot, path)
+            const ext = extname(path).toLowerCase()
+            const segments = path.split("/")
+
+            if (ext === ".png") {
+                const [section] = rel.split("/")
+                if ((section === "blog" || basename(path) !== "social_banner.png") && belongsToPublicBundle(path)) {
+                    availableImages.set(`images/${rel}`, {
+                        path,
+                        rel,
+                        size: fileStat.size,
+                        mtimeMs: fileStat.mtimeMs,
+                    })
+                }
+            }
+
+            if (
+                segments.includes("assets")
+                && !segments.includes("__pycache__")
+                && !/\.py[co]$/i.test(path)
+                && belongsToPublicBundle(path)
+            ) {
+                contentAssets.push({
+                    path,
+                    rel,
+                    size: fileStat.size,
+                    mtimeMs: fileStat.mtimeMs,
+                })
+            }
+        }
+    }
+
+    if (existsSync(contentRoot)) {
+        visit(contentRoot)
+    }
+
+    contentAssets.sort((left, right) => left.rel.localeCompare(right.rel))
+
+    return { availableImages, contentAssets, maxContentMtimeMs }
+}
+
+async function copyReferencedImages(
+    availableImages: Map<string, ScannedFile>,
+    referencedImages: Set<string>,
+    publicBlogSlugs: ReadonlySet<string>,
+): Promise<CopyImagesStats> {
+    const selected: ScannedFile[] = []
+    const expectedRelPaths = new Set<string>()
+    let darkImages = 0
+    let lightImages = 0
+    let imageBytes = 0
+
+    for (const bundlePath of referencedImages) {
+        const scanned = availableImages.get(bundlePath)
+        if (!scanned) continue
+        selected.push(scanned)
+        expectedRelPaths.add(scanned.rel)
+        if (scanned.rel.endsWith("_dark.png")) darkImages += 1
+        if (scanned.rel.endsWith("_light.png")) lightImages += 1
+        imageBytes += scanned.size
     }
 
     const exportedBlogImages = join(imageOutputDir, "blog")
@@ -104,69 +252,94 @@ function copyContentImages() {
         }
     }
 
-    for (const png of pngs) {
-        const targetPath = join(imageOutputDir, relative(contentRoot, png))
-        if (existsSync(targetPath)) {
-            const source = statSync(png)
-            const target = statSync(targetPath)
-            if (source.size === target.size && target.mtimeMs >= source.mtimeMs) {
-                continue
-            }
-        }
-        copyPreservingRoot(contentRoot, png, imageOutputDir)
+    const staleImages = walkFiles(
+        imageOutputDir,
+        (path) => extname(path).toLowerCase() === ".png" && !expectedRelPaths.has(relative(imageOutputDir, path)),
+    )
+    await runWithConcurrency(staleImages, COPY_CONCURRENCY, async (stalePath) => {
+        await rm(stalePath, { force: true })
+    })
+
+    const createdDirs = new Set<string>()
+    await runWithConcurrency(selected, COPY_CONCURRENCY, async (image) => {
+        const targetPath = join(imageOutputDir, image.rel)
+        await copyFileIfChanged(image.path, targetPath, image.size, image.mtimeMs, createdDirs)
+    })
+
+    if (staleImages.length > 0) {
+        pruneEmptyDirs(imageOutputDir, true)
     }
-    return pngs.length
+
+    return {
+        copiedImageCount: selected.length,
+        darkImages,
+        lightImages,
+        imageBytes,
+    }
 }
 
-function copyContentAssets() {
-    rmSync(assetOutputDir, { recursive: true, force: true })
-    const assets = walkFiles(
-        contentRoot,
-        (path) => path.split("/").includes("assets")
-            && !path.split("/").includes("__pycache__")
-            && !/\.py[co]$/i.test(path)
-            && belongsToPublicBundle(path),
+async function copyContentAssets(assets: ScannedFile[]): Promise<number> {
+    const expectedRelPaths = new Set(assets.map((asset) => asset.rel))
+    const staleAssets = walkFiles(
+        assetOutputDir,
+        (path) => !expectedRelPaths.has(relative(assetOutputDir, path)),
     )
-    for (const asset of assets) {
-        const rel = relative(contentRoot, asset)
-        const targetPath = join(assetOutputDir, rel)
-        ensureDir(dirname(targetPath))
-        if (extname(asset).toLowerCase() === ".txt") {
-            const normalized = readFileSync(asset, "utf8")
+    await runWithConcurrency(staleAssets, COPY_CONCURRENCY, async (stalePath) => {
+        await rm(stalePath, { force: true })
+    })
+
+    const createdDirs = new Set<string>()
+    await runWithConcurrency(assets, COPY_CONCURRENCY, async (asset) => {
+        const targetPath = join(assetOutputDir, asset.rel)
+        if (extname(asset.path).toLowerCase() === ".txt") {
+            const normalized = readFileSync(asset.path, "utf8")
                 .replace(/[ \t]+$/gm, "")
                 .replace(/\n*$/, "\n")
-            writeFileSync(targetPath, normalized)
+            writeTextIfChanged(targetPath, normalized)
         } else {
-            cpSync(asset, targetPath)
+            await copyFileIfChanged(asset.path, targetPath, asset.size, asset.mtimeMs, createdDirs)
         }
+    })
+
+    if (staleAssets.length > 0) {
+        pruneEmptyDirs(assetOutputDir, true)
     }
+
     return assets.length
 }
 
-function copyKatexAssets() {
+async function copyKatexAssets() {
     const katexDist = join(webRoot, "node_modules", "katex", "dist")
-    const sourceFiles = [
+    const sourceFiles: [string, string][] = [
         [join(katexDist, "katex.min.css"), join(katexOutputDir, "katex.min.css")],
         [join(katexDist, "katex.min.js"), join(katexOutputDir, "katex.min.js")],
         [join(katexDist, "contrib", "auto-render.min.js"), join(katexOutputDir, "auto-render.min.js")],
     ]
 
-    for (const [source, target] of sourceFiles) {
-        ensureDir(dirname(target))
-        cpSync(source, target)
+    const fontsSourceDir = join(katexDist, "fonts")
+    const fontsDir = join(katexOutputDir, "fonts")
+    const fontFiles = walkFiles(fontsSourceDir, (path) => path.endsWith(".woff2"))
+    const expectedFonts = new Set(fontFiles.map((font) => relative(fontsSourceDir, font)))
+
+    for (const existingFont of walkFiles(fontsDir, () => true)) {
+        if (!expectedFonts.has(relative(fontsDir, existingFont))) {
+            rmSync(existingFont, { force: true })
+        }
     }
 
-    const fontsDir = join(katexOutputDir, "fonts")
-    rmSync(fontsDir, { recursive: true, force: true })
-    ensureDir(fontsDir)
-    for (const font of walkFiles(join(katexDist, "fonts"), (path) => path.endsWith(".woff2"))) {
-        cpSync(font, join(fontsDir, relative(join(katexDist, "fonts"), font)))
+    for (const font of fontFiles) {
+        sourceFiles.push([font, join(fontsDir, relative(fontsSourceDir, font))])
     }
+
+    const createdDirs = new Set<string>()
+    await runWithConcurrency(sourceFiles, COPY_CONCURRENCY, async ([source, target]) => {
+        const sourceStat = await stat(source)
+        await copyFileIfChanged(source, target, sourceStat.size, sourceStat.mtimeMs, createdDirs)
+    })
 }
 
-function latestIOSSourceTimestamp(): string {
-    const files = walkFiles(contentRoot, () => true)
-    files.push(
+function latestIOSSourceTimestamp(maxContentMtimeMs: number): string {
+    const extraFiles = [
         ...walkFiles(join(webRoot, "src", "lib"), (path) => [".ts", ".tsx", ".json"].includes(extname(path).toLowerCase())),
         join(webRoot, "src", "data", "theory-quizzes.json"),
         join(webRoot, "scripts", "generate-glossary.ts"),
@@ -174,8 +347,8 @@ function latestIOSSourceTimestamp(): string {
         join(webRoot, "scripts", "ios-glossary-text.ts"),
         join(webRoot, "scripts", "ios-content-visibility.ts"),
         join(webRoot, "scripts", "export-ios-content.ts"),
-    )
-    const latest = files.reduce((max, path) => Math.max(max, statSync(path).mtimeMs), 0)
+    ]
+    const latest = extraFiles.reduce((max, path) => Math.max(max, statSync(path).mtimeMs), maxContentMtimeMs)
     return new Date(latest).toISOString()
 }
 
@@ -203,35 +376,44 @@ function rewriteBundleLinks(markdown: string): string {
         })
 }
 
-function bundledPathExists(path: string | undefined): boolean {
-    if (!path) return false
-    return existsSync(join(outputDataDir, path))
-}
-
-function themePath(path: string | undefined, theme: "dark" | "light"): string | undefined {
+function themePath(
+    path: string | undefined,
+    theme: "dark" | "light",
+    availableImages: Map<string, ScannedFile>,
+): string | undefined {
     if (!path) return undefined
-    if (path.endsWith(`_${theme}.png`)) return bundledPathExists(path) ? path : undefined
+    if (path.endsWith(`_${theme}.png`)) return availableImages.has(path) ? path : undefined
     const opposite = theme === "dark" ? "light" : "dark"
     if (path.endsWith(`_${opposite}.png`)) {
         const candidate = path.replace(`_${opposite}.png`, `_${theme}.png`)
-        return bundledPathExists(candidate) ? candidate : undefined
+        return availableImages.has(candidate) ? candidate : undefined
     }
     const candidate = path.replace(/\.png$/, `_${theme}.png`)
-    return bundledPathExists(candidate) ? candidate : undefined
+    return availableImages.has(candidate) ? candidate : undefined
 }
 
-function imageBundle(path: string | undefined) {
+function imageBundle(
+    path: string | undefined,
+    availableImages: Map<string, ScannedFile>,
+    referencedImages: Set<string>,
+) {
     const image = contentImageUrlToBundlePath(path)
     if (!image) return {}
 
+    const coverImageDark = themePath(image, "dark", availableImages)
+    const coverImageLight = themePath(image, "light", availableImages)
+    if (image.startsWith("images/")) referencedImages.add(image)
+    if (coverImageDark?.startsWith("images/")) referencedImages.add(coverImageDark)
+    if (coverImageLight?.startsWith("images/")) referencedImages.add(coverImageLight)
+
     return {
         coverImage: image,
-        coverImageDark: themePath(image, "dark"),
-        coverImageLight: themePath(image, "light"),
+        coverImageDark,
+        coverImageLight,
     }
 }
 
-function extractImageRefs(markdown: string): ImageRef[] {
+function extractImageRefs(markdown: string, referencedImages?: Set<string>): ImageRef[] {
     const refs = new Map<string, ImageRef>()
 
     for (const match of markdown.matchAll(/<img\b([^>]*?)\bsrc="([^"]+)"([^>]*)>/g)) {
@@ -243,10 +425,16 @@ function extractImageRefs(markdown: string): ImageRef[] {
         const darkSrc = attributes.match(/\bdata-dark-src="([^"]+)"/)?.[1]
         const lightSrc = attributes.match(/\bdata-light-src="([^"]+)"/)?.[1]
         if (darkSrc || lightSrc) {
+            if (!darkSrc || !lightSrc) {
+                referencedImages?.add(src)
+            }
             for (const [themedSrc, theme] of [[darkSrc, "dark"], [lightSrc, "light"]] as const) {
                 if (!themedSrc) continue
                 const path = stripQuery(themedSrc)
-                if (path.startsWith("images/")) refs.set(path, { path, theme, alt })
+                if (path.startsWith("images/")) {
+                    refs.set(path, { path, theme, alt })
+                    referencedImages?.add(path)
+                }
             }
             continue
         }
@@ -257,11 +445,13 @@ function extractImageRefs(markdown: string): ImageRef[] {
                 ? "light"
                 : undefined
         refs.set(src, { path: src, theme, alt })
+        referencedImages?.add(src)
     }
 
     for (const match of markdown.matchAll(/!\[([^\]]*)]\((images\/[^)]+)\)/g)) {
         const src = stripQuery(match[2])
         refs.set(src, { path: src, alt: match[1] })
+        referencedImages?.add(src)
     }
 
     return [...refs.values()].sort((left, right) => left.path.localeCompare(right.path))
@@ -274,8 +464,27 @@ function referencesArray(references: Record<string, Omit<ReferenceRecord, "key">
     }))
 }
 
-function buildLessons() {
-    const lessons = getQuestions()
+function pruneStaleJsonFiles(dir: string, expectedFileNames: Set<string>) {
+    if (!existsSync(dir)) return
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (!entry.isFile()) {
+            rmSync(join(dir, entry.name), { recursive: true, force: true })
+            continue
+        }
+        if (!expectedFileNames.has(entry.name)) {
+            rmSync(join(dir, entry.name), { force: true })
+        }
+    }
+}
+
+function buildLessons(
+    lessons: Question[],
+    masteryQuizBySlug: Map<string, ExtractedMasteryQuiz>,
+    availableImages: Map<string, ScannedFile>,
+    referencedImages: Set<string>,
+) {
+    const lessonsDir = join(outputDataDir, "lessons")
+    const expectedFiles = new Set<string>(["index.json"])
 
     const lessonIndex = lessons.map((lesson, index) => ({
         id: lesson.id,
@@ -293,16 +502,19 @@ function buildLessons() {
         previousSlug: lessons[index - 1]?.slug,
         nextSlug: lessons[index + 1]?.slug,
         lastModified: lesson.lastModified,
-        ...imageBundle(lesson.coverImage),
+        ...imageBundle(lesson.coverImage, availableImages, referencedImages),
     }))
 
-    writeJson(join(outputDataDir, "lessons", "index.json"), lessonIndex)
+    writeJsonIfChanged(join(lessonsDir, "index.json"), lessonIndex)
 
     for (let position = 0; position < lessons.length; position += 1) {
         const lesson = lessons[position]
         const extracted = extractMasteryQuiz(lesson.content)
+        masteryQuizBySlug.set(lesson.slug, extracted)
         const content = rewriteBundleLinks(extracted.content)
-        writeJson(join(outputDataDir, "lessons", `${lesson.slug}.json`), {
+        const fileName = `${lesson.slug}.json`
+        expectedFiles.add(fileName)
+        writeJsonIfChanged(join(lessonsDir, fileName), {
             ...lessonIndex[position],
             content,
             rubricPoints: lesson.rubricPoints,
@@ -310,67 +522,89 @@ function buildLessons() {
             commonPitfalls: lesson.commonPitfalls,
             references: referencesArray(lesson.references),
             masteryQuiz: extracted.questions,
-            images: extractImageRefs(content),
+            images: extractImageRefs(content, referencedImages),
         })
     }
 
+    pruneStaleJsonFiles(lessonsDir, expectedFiles)
     return lessons.length
 }
 
-function buildBlogs() {
-    const posts = getBlogPosts()
-    const blogIndex = posts.map((post) => ({
-        id: post.id,
-        slug: post.slug,
-        title: post.title,
-        excerpt: post.excerpt,
-        author: post.author,
-        publishedAt: post.publishedAt,
-        updatedAt: post.updatedAt,
-        tags: post.tags,
-        timeEstimate: post.timeEstimate,
-        featured: post.featured ?? false,
-        ...imageBundle(post.coverImage),
-        socialImage: contentImageUrlToBundlePath(post.socialImage),
-    }))
+function buildBlogs(
+    posts: BlogPost[],
+    availableImages: Map<string, ScannedFile>,
+    referencedImages: Set<string>,
+) {
+    const blogsDir = join(outputDataDir, "blogs")
+    const expectedFiles = new Set<string>(["index.json"])
 
-    writeJson(join(outputDataDir, "blogs", "index.json"), blogIndex)
+    const blogIndex = posts.map((post) => {
+        const socialImage = contentImageUrlToBundlePath(post.socialImage)
+        if (socialImage?.startsWith("images/")) {
+            referencedImages.add(socialImage)
+        }
+        return {
+            id: post.id,
+            slug: post.slug,
+            title: post.title,
+            excerpt: post.excerpt,
+            author: post.author,
+            publishedAt: post.publishedAt,
+            updatedAt: post.updatedAt,
+            tags: post.tags,
+            timeEstimate: post.timeEstimate,
+            featured: post.featured ?? false,
+            ...imageBundle(post.coverImage, availableImages, referencedImages),
+            socialImage,
+        }
+    })
+
+    writeJsonIfChanged(join(blogsDir, "index.json"), blogIndex)
 
     for (let position = 0; position < posts.length; position += 1) {
         const post = posts[position]
         const content = rewriteBundleLinks(post.content)
-        writeJson(join(outputDataDir, "blogs", `${post.slug}.json`), {
+        const fileName = `${post.slug}.json`
+        expectedFiles.add(fileName)
+        writeJsonIfChanged(join(blogsDir, fileName), {
             ...blogIndex[position],
             content,
             references: referencesArray(post.references),
-            images: extractImageRefs(content),
+            images: extractImageRefs(content, referencedImages),
         })
     }
 
+    pruneStaleJsonFiles(blogsDir, expectedFiles)
     return posts.length
 }
 
-function buildTracks() {
-    const planTracks = new Map(getLearningPlanTracks().map(track => [track.slug, track]))
-    const tracks = getTracks().map((track) => ({
+function buildTracks(questions: Question[]) {
+    const planTracks = new Map(getLearningPlanTracks(questions).map((track) => [track.slug, track]))
+    const tracks = getTracks(questions).map((track) => ({
         ...track,
         ...planTracks.get(track.slug)!,
     }))
-    writeJson(join(outputDataDir, "tracks.json"), tracks)
+    writeJsonIfChanged(join(outputDataDir, "tracks.json"), tracks)
     return tracks
 }
 
-function buildLearningPlanConfiguration(tracks: ReturnType<typeof buildTracks>) {
-    const lessonsBySlug = new Map(getQuestions().map((lesson) => [lesson.slug, lesson]))
+function buildLearningPlanConfiguration(
+    tracks: ReturnType<typeof buildTracks>,
+    questions: Question[],
+    masteryQuizBySlug: Map<string, ExtractedMasteryQuiz>,
+    practiceProblems: PracticeProblem[],
+    theoryQuizzes: TheoryQuiz[],
+) {
+    const lessonsBySlug = new Map(questions.map((lesson) => [lesson.slug, lesson]))
     const catalog = {
-        practiceProblems: getPracticeProblems().map(toPracticeListItem).map((problem) => ({
+        practiceProblems: practiceProblems.map(toPracticeListItem).map((problem) => ({
             slug: problem.slug,
             title: problem.title,
             summary: problem.summary,
             difficulty: problem.difficulty,
             timeEstimateMinutes: problem.timeEstimateMinutes,
         })),
-        theoryQuizzes: getTheoryQuizzes().map((quiz) => ({
+        theoryQuizzes: theoryQuizzes.map((quiz) => ({
             slug: quiz.slug,
             title: quiz.title,
             description: quiz.description,
@@ -414,7 +648,7 @@ function buildLearningPlanConfiguration(tracks: ReturnType<typeof buildTracks>) 
                                 ? buildSectionCheckQuestions((activity.lessonSlugs ?? []).map((slug) => {
                                     const lesson = lessonsBySlug.get(slug)
                                     if (!lesson) throw new Error(`Missing section-check lesson for iOS export: ${slug}`)
-                                    const questions = extractMasteryQuiz(lesson.content).questions
+                                    const questions = masteryQuizBySlug.get(slug)?.questions ?? extractMasteryQuiz(lesson.content).questions
                                     if (!questions) throw new Error(`Missing section-check questions for iOS export: ${slug}`)
                                     return { slug, title: lesson.title, questions }
                                 }))
@@ -427,10 +661,10 @@ function buildLearningPlanConfiguration(tracks: ReturnType<typeof buildTracks>) 
                     practiceMinutesPerWeek: plan.practiceMinutesPerWeek,
                     foundationBridgeLessonCount: plan.foundationBridgeLessonCount,
                 }
-            })
-        )
+            }),
+        ),
     )
-    writeJson(join(outputDataDir, "learning-plan.json"), { ...learningPlanConfiguration, plans })
+    writeJsonIfChanged(join(outputDataDir, "learning-plan.json"), { ...learningPlanConfiguration, plans })
 }
 
 function rewriteGlossaryField(value: string | undefined): string | undefined {
@@ -438,7 +672,10 @@ function rewriteGlossaryField(value: string | undefined): string | undefined {
     return rewriteBundleLinks(value)
 }
 
-function rewriteGlossaryEntry<T extends Record<string, unknown>>(entry: T): T {
+function rewriteGlossaryEntry<T extends Record<string, unknown>>(
+    entry: T,
+    referencedImages: Set<string>,
+): T {
     const rewritten = { ...entry } as Record<string, unknown>
 
     if (typeof rewritten.definition === "string") {
@@ -489,7 +726,7 @@ function rewriteGlossaryEntry<T extends Record<string, unknown>>(entry: T): T {
         .filter((value): value is string => typeof value === "string")
         .join("\n")
 
-    const images = extractImageRefs(textBlob)
+    const images = extractImageRefs(textBlob, referencedImages)
     if (images.length > 0) {
         rewritten.images = images
     }
@@ -497,30 +734,35 @@ function rewriteGlossaryEntry<T extends Record<string, unknown>>(entry: T): T {
     return rewritten as T
 }
 
-function buildGlossary() {
-    const glossary = GLOSSARY_ENTRIES_BY_IMPORTANCE.map((entry) => rewriteGlossaryEntry(entry as Record<string, unknown>))
+function buildGlossary(referencedImages: Set<string>) {
+    const glossaryDir = join(outputDataDir, "glossary")
+    const glossary = GLOSSARY_ENTRIES_BY_IMPORTANCE.map((entry) =>
+        rewriteGlossaryEntry(entry as Record<string, unknown>, referencedImages),
+    )
 
-    writeJson(join(outputDataDir, "glossary", "index.json"), glossary)
+    writeJsonIfChanged(join(glossaryDir, "index.json"), glossary)
+    pruneStaleJsonFiles(glossaryDir, new Set(["index.json"]))
     return glossary.length
 }
 
-function buildPracticeMetadata() {
-    const practice = getPracticeProblems().map((problem) => ({
+function buildPracticeMetadata(practiceProblems: PracticeProblem[]) {
+    const practiceDir = join(outputDataDir, "practice")
+    const practice = practiceProblems.map((problem) => ({
         ...toPracticeListItem(problem),
         codingAvailableOnIOS: false,
     }))
-    writeJson(join(outputDataDir, "practice", "index.json"), practice)
+    writeJsonIfChanged(join(practiceDir, "index.json"), practice)
+    pruneStaleJsonFiles(practiceDir, new Set(["index.json"]))
     return practice.length
 }
 
-function buildTheoryQuizzes() {
-    const quizzes = getTheoryQuizzes()
-    writeJson(join(outputDataDir, "theory-quizzes.json"), quizzes)
+function buildTheoryQuizzes(quizzes: TheoryQuiz[]) {
+    writeJsonIfChanged(join(outputDataDir, "theory-quizzes.json"), quizzes)
     return quizzes.length
 }
 
 function writeReadme() {
-    writeFileSync(
+    writeTextIfChanged(
         join(outputDataDir, "README.md"),
         [
             "# Bundled LeetLLM Data",
@@ -529,49 +771,61 @@ function writeReadme() {
             "",
             "This folder is copied into the iOS app bundle. Lessons, blogs, tracks, learning-plan configuration, glossary entries, quizzes, practice metadata, assets, and PNG images are available offline after install.",
             "",
-        ].join("\n")
+        ].join("\n"),
     )
 }
 
-ensureDir(outputDataDir)
-for (const section of ["lessons", "blogs", "glossary", "practice"]) {
-    rmSync(join(outputDataDir, section), { recursive: true, force: true })
+async function main() {
+    ensureDir(outputDataDir)
+
+    const posts = getBlogPosts()
+    const publicBlogSlugs = new Set(posts.map((post) => post.slug))
+    const belongsToPublicBundle = createPublicContentBundleFilter(contentRoot, publicBlogSlugs)
+    const { availableImages, contentAssets, maxContentMtimeMs } = scanContentTree(belongsToPublicBundle)
+
+    const questions = getQuestions()
+    const practiceProblems = getPracticeProblems()
+    const theoryQuizzes = getTheoryQuizzes()
+    const masteryQuizBySlug = new Map<string, ExtractedMasteryQuiz>()
+    const referencedImages = new Set<string>()
+
+    const lessonCount = buildLessons(questions, masteryQuizBySlug, availableImages, referencedImages)
+    const blogCount = buildBlogs(posts, availableImages, referencedImages)
+    const tracks = buildTracks(questions)
+    const trackCount = tracks.length
+    buildLearningPlanConfiguration(tracks, questions, masteryQuizBySlug, practiceProblems, theoryQuizzes)
+    const glossaryCount = buildGlossary(referencedImages)
+    const theoryQuizCount = buildTheoryQuizzes(theoryQuizzes)
+    const practiceCount = buildPracticeMetadata(practiceProblems)
+    writeReadme()
+
+    const [imageStats, copiedAssetCount] = await Promise.all([
+        copyReferencedImages(availableImages, referencedImages, publicBlogSlugs),
+        copyContentAssets(contentAssets),
+        copyKatexAssets(),
+    ])
+
+    writeJsonIfChanged(join(outputDataDir, "manifest.json"), {
+        generatedAt: new Date().toISOString(),
+        sourceModifiedAt: latestIOSSourceTimestamp(maxContentMtimeMs),
+        lessonCount,
+        blogCount,
+        trackCount,
+        glossaryCount,
+        theoryQuizCount,
+        practiceCount,
+        copiedImageCount: imageStats.copiedImageCount,
+        copiedAssetCount,
+        darkImages: imageStats.darkImages,
+        lightImages: imageStats.lightImages,
+        imageBytes: imageStats.imageBytes,
+    })
+
+    console.log(`iOS export complete: ${lessonCount} lessons, ${blogCount} blogs, ${trackCount} tracks, ${glossaryCount} glossary entries`)
+    console.log(`Images copied: ${imageStats.copiedImageCount} PNGs (${imageStats.darkImages} dark, ${imageStats.lightImages} light)`)
 }
 
-copyContentImages()
-copyContentAssets()
-copyKatexAssets()
-const lessonCount = buildLessons()
-const blogCount = buildBlogs()
-const tracks = buildTracks()
-const trackCount = tracks.length
-buildLearningPlanConfiguration(tracks)
-const glossaryCount = buildGlossary()
-const theoryQuizCount = buildTheoryQuizzes()
-const practiceCount = buildPracticeMetadata()
-writeReadme()
-
-const imageFiles = walkFiles(imageOutputDir, (path) => extname(path).toLowerCase() === ".png")
-const assetFiles = walkFiles(assetOutputDir, () => true)
-const darkImages = imageFiles.filter((path) => path.endsWith("_dark.png")).length
-const lightImages = imageFiles.filter((path) => path.endsWith("_light.png")).length
-const bytes = imageFiles.reduce((sum, path) => sum + statSync(path).size, 0)
-
-writeJson(join(outputDataDir, "manifest.json"), {
-    generatedAt: new Date().toISOString(),
-    sourceModifiedAt: latestIOSSourceTimestamp(),
-    lessonCount,
-    blogCount,
-    trackCount,
-    glossaryCount,
-    theoryQuizCount,
-    practiceCount,
-    copiedImageCount: imageFiles.length,
-    copiedAssetCount: assetFiles.length,
-    darkImages,
-    lightImages,
-    imageBytes: bytes,
+main().catch((error) => {
+    console.error(error)
+    process.exitCode = 1
 })
-
-console.log(`iOS export complete: ${lessonCount} lessons, ${blogCount} blogs, ${trackCount} tracks, ${glossaryCount} glossary entries`)
-console.log(`Images copied: ${imageFiles.length} PNGs (${darkImages} dark, ${lightImages} light)`)

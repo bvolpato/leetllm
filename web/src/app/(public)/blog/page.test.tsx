@@ -22,11 +22,15 @@ test("blog listing renders public posts without social banners", () => {
     expect(bannerImages).toEqual([])
 
     const featuredSection = container.querySelector('section[aria-label="Featured blog post"]')
-    const featuredImages = featuredSection?.querySelectorAll("img") ?? []
+    const featuredImages = [...(featuredSection?.querySelectorAll("img") ?? [])]
     expect(featuredImages.length).toBeGreaterThan(0)
+    const eagerFeatured = featuredImages.filter((image) => image.getAttribute("loading") === "eager")
+    expect(eagerFeatured).toHaveLength(1)
+    expect(eagerFeatured[0].getAttribute("fetchpriority")).toBe("high")
     for (const image of featuredImages) {
-        expect(image.getAttribute("loading")).toBe("eager")
-        expect(image.getAttribute("fetchpriority")).toBe("high")
+        if (image === eagerFeatured[0]) continue
+        expect(image.getAttribute("loading")).toBe("lazy")
+        expect(image.getAttribute("fetchpriority")).toBe("auto")
     }
 
     for (const image of images) {

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs"
 import { dirname, join, resolve } from "path"
 import { fileURLToPath } from "url"
 import { loadContentBundle } from "../src/lib/content-bundle"
@@ -221,6 +221,18 @@ export function buildContentRouteIndex(sourceContentDir: string) {
     return buildContentRouteManifests(sourceContentDir).routes
 }
 
+function writeIfChanged(path: string, content: string): boolean {
+    if (existsSync(path)) {
+        try {
+            if (readFileSync(path, "utf8") === content) return false
+        } catch {
+            // Fall through and rewrite on read error
+        }
+    }
+    writeFileSync(path, content)
+    return true
+}
+
 export function writeContentRouteManifests(
     sourceContentDir: string,
     routesPath: string,
@@ -229,8 +241,8 @@ export function writeContentRouteManifests(
     const manifests = buildContentRouteManifests(sourceContentDir)
     mkdirSync(dirname(routesPath), { recursive: true })
     mkdirSync(dirname(aliasesPath), { recursive: true })
-    writeFileSync(routesPath, JSON.stringify(manifests.routes, null, 2) + "\n")
-    writeFileSync(aliasesPath, JSON.stringify(manifests.aliases, null, 2) + "\n")
+    writeIfChanged(routesPath, JSON.stringify(manifests.routes, null, 2) + "\n")
+    writeIfChanged(aliasesPath, JSON.stringify(manifests.aliases, null, 2) + "\n")
     return manifests
 }
 

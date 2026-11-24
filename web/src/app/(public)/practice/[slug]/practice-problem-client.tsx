@@ -2,23 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
-import CodeMirror from "@uiw/react-codemirror"
-import { indentWithTab } from "@codemirror/commands"
-import { java as javaLanguage } from "@codemirror/lang-java"
-import { python } from "@codemirror/lang-python"
-import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language"
-import { EditorState, RangeSetBuilder, type Extension } from "@codemirror/state"
-import { Decoration, type DecorationSet, EditorView, keymap, ViewPlugin, type ViewUpdate } from "@codemirror/view"
-import { tags } from "@lezer/highlight"
 import { useTheme } from "next-themes"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism"
+import type { SyntaxHighlighterProps } from "react-syntax-highlighter"
+import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-light"
+import pythonPrism from "react-syntax-highlighter/dist/esm/languages/prism/python"
+import javaPrism from "react-syntax-highlighter/dist/esm/languages/prism/java"
+import oneDark from "react-syntax-highlighter/dist/esm/styles/prism/one-dark"
+import oneLight from "react-syntax-highlighter/dist/esm/styles/prism/one-light"
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Code2, GripHorizontal, GripVertical, Loader2, MemoryStick, PanelBottomClose, PanelBottomOpen, PanelLeftClose, PanelLeftOpen, Play, RotateCcw, Send, TestTube2, X, XCircle } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MarkdownRenderer } from "@/components/markdown-renderer"
+import type { PracticeCodeEditorProps } from "@/components/practice/practice-code-editor"
 import { usePracticeProgress } from "@/components/practice/practice-progress"
 import {
     filterAndSortPracticeProblems,
@@ -34,181 +31,32 @@ import type { PracticeRunMode, PracticeRunResult } from "@/lib/practice-runner"
 import { cn } from "@/lib/utils"
 import { trackEvent } from "@/lib/analytics"
 
+SyntaxHighlighter.registerLanguage("python", pythonPrism)
+SyntaxHighlighter.registerLanguage("java", javaPrism)
+
+const PracticeCodeEditor = dynamic<PracticeCodeEditorProps>(
+    () => import("@/components/practice/practice-code-editor").then((mod) => mod.PracticeCodeEditor),
+    {
+        ssr: false,
+        loading: () => (
+            <div
+                role="status"
+                aria-label="Loading code editor"
+                className="flex h-full w-full flex-col gap-2.5 bg-background p-4 font-mono text-xs text-muted-foreground"
+            >
+                <div className="h-4 w-40 animate-pulse rounded bg-muted/60" />
+                <div className="h-4 w-64 animate-pulse rounded bg-muted/45" />
+                <div className="h-4 w-52 animate-pulse rounded bg-muted/35" />
+            </div>
+        ),
+    },
+)
+
 const difficultyClass: Record<PracticeDifficulty, string> = {
     Easy: "border-emerald-600/30 bg-emerald-500/10 text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300",
     Medium: "border-amber-600/30 bg-amber-500/10 text-amber-800 dark:border-amber-500/30 dark:text-amber-300",
     Hard: "border-red-600/30 bg-red-500/10 text-red-700 dark:border-red-500/30 dark:text-red-300",
 }
-
-const lightEditorHighlight = HighlightStyle.define([
-    { tag: tags.keyword, color: "#cf222e", fontWeight: "600" },
-    { tag: [tags.string, tags.special(tags.string)], color: "#0a3069" },
-    { tag: [tags.number, tags.bool, tags.null], color: "#0550ae" },
-    { tag: [tags.function(tags.variableName), tags.definition(tags.function(tags.variableName))], color: "#8250df" },
-    { tag: [tags.className, tags.definition(tags.className)], color: "#953800", fontWeight: "600" },
-    { tag: [tags.variableName, tags.propertyName], color: "#24292f" },
-    { tag: [tags.comment, tags.docComment], color: "#6e7781", fontStyle: "italic" },
-    { tag: tags.operator, color: "#0550ae" },
-])
-
-const darkEditorHighlight = HighlightStyle.define([
-    { tag: tags.keyword, color: "#ff7b72", fontWeight: "600" },
-    { tag: [tags.string, tags.special(tags.string)], color: "#a5d6ff" },
-    { tag: [tags.number, tags.bool, tags.null], color: "#79c0ff" },
-    { tag: [tags.function(tags.variableName), tags.definition(tags.function(tags.variableName))], color: "#d2a8ff" },
-    { tag: [tags.className, tags.definition(tags.className)], color: "#ffa657", fontWeight: "600" },
-    { tag: [tags.variableName, tags.propertyName], color: "#e6edf3" },
-    { tag: [tags.comment, tags.docComment], color: "#8b949e", fontStyle: "italic" },
-    { tag: tags.operator, color: "#79c0ff" },
-])
-
-const lightEditorTheme = EditorView.theme({
-    "&": {
-        height: "100%",
-        backgroundColor: "#ffffff",
-        color: "#24292f",
-    },
-    ".cm-scroller": {
-        fontFamily: "var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        fontSize: "0.875rem",
-        lineHeight: "1.5rem",
-    },
-    ".cm-content": {
-        minHeight: "100%",
-        padding: "1rem 0",
-        caretColor: "#7c3aed",
-        fontVariantLigatures: "none",
-        fontFeatureSettings: "\"liga\" 0, \"calt\" 0",
-    },
-    ".cm-line": {
-        padding: "0 1rem",
-    },
-    ".cm-gutters": {
-        backgroundColor: "#f6f8fa",
-        color: "#6e7781",
-        borderRight: "1px solid #d0d7de",
-    },
-    ".cm-activeLineGutter": {
-        backgroundColor: "#eef2ff",
-        color: "#4f46e5",
-    },
-    ".cm-activeLine": {
-        backgroundColor: "rgba(15, 23, 42, 0.035)",
-    },
-    ".cm-selectionLayer .cm-selectionBackground, &.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
-        backgroundColor: "#facc15a6",
-    },
-    ".cm-content ::selection, .cm-content *::selection": {
-        backgroundColor: "#facc15",
-        color: "#111827",
-        WebkitTextFillColor: "#111827",
-    },
-    ".cm-visible-space, .cm-visible-tab": {
-        position: "relative",
-    },
-    ".cm-visible-space::after, .cm-visible-tab::after": {
-        position: "absolute",
-        inset: "0",
-        color: "#57606a",
-        opacity: "0.45",
-        pointerEvents: "none",
-        textAlign: "center",
-    },
-    ".cm-visible-space::after": {
-        content: "\"·\"",
-    },
-    ".cm-visible-tab::after": {
-        content: "\"→\"",
-        textAlign: "left",
-    },
-    "&.cm-focused": {
-        outline: "none",
-    },
-    ".cm-cursor": {
-        borderLeftColor: "#7c3aed",
-    },
-    ".cm-matchingBracket": {
-        backgroundColor: "#dcfce7",
-        outline: "1px solid #86efac",
-    },
-    ".cm-tooltip": {
-        border: "1px solid #d0d7de",
-        backgroundColor: "#ffffff",
-        color: "#24292f",
-    },
-}, { dark: false })
-
-const darkEditorTheme = EditorView.theme({
-    "&": {
-        height: "100%",
-        backgroundColor: "#0d1117",
-        color: "#e6edf3",
-    },
-    ".cm-scroller": {
-        fontFamily: "var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        fontSize: "0.875rem",
-        lineHeight: "1.5rem",
-    },
-    ".cm-content": {
-        minHeight: "100%",
-        padding: "1rem 0",
-        caretColor: "#c4b5fd",
-        fontVariantLigatures: "none",
-        fontFeatureSettings: "\"liga\" 0, \"calt\" 0",
-    },
-    ".cm-line": {
-        padding: "0 1rem",
-    },
-    ".cm-gutters": {
-        backgroundColor: "#111827",
-        color: "#8b949e",
-        borderRight: "1px solid #30363d",
-    },
-    ".cm-activeLineGutter": {
-        backgroundColor: "#1f2937",
-        color: "#c4b5fd",
-    },
-    ".cm-activeLine": {
-        backgroundColor: "#161b22",
-    },
-    ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, .cm-content ::selection": {
-        backgroundColor: "#8b5cf680",
-        color: "#ffffff",
-    },
-    ".cm-visible-space, .cm-visible-tab": {
-        position: "relative",
-    },
-    ".cm-visible-space::after, .cm-visible-tab::after": {
-        position: "absolute",
-        inset: "0",
-        color: "#8b949e",
-        opacity: "0.5",
-        pointerEvents: "none",
-        textAlign: "center",
-    },
-    ".cm-visible-space::after": {
-        content: "\"·\"",
-    },
-    ".cm-visible-tab::after": {
-        content: "\"→\"",
-        textAlign: "left",
-    },
-    "&.cm-focused": {
-        outline: "none",
-    },
-    ".cm-cursor": {
-        borderLeftColor: "#c4b5fd",
-    },
-    ".cm-matchingBracket": {
-        backgroundColor: "#1f3a2d",
-        outline: "1px solid #238636",
-    },
-    ".cm-tooltip": {
-        border: "1px solid #30363d",
-        backgroundColor: "#161b22",
-        color: "#e6edf3",
-    },
-}, { dark: true })
 
 function solutionStorageKey(slug: string, language: PracticeLanguage) {
     return `leetllm_practice_solution_${slug}_${language}`
@@ -257,70 +105,8 @@ function readStoredSolution(slug: string, language: PracticeLanguage, starterCod
     return starterCode
 }
 
-function buildWhitespaceDecorations(view: EditorView): DecorationSet {
-    const builder = new RangeSetBuilder<Decoration>()
-
-    for (const { from, to } of view.visibleRanges) {
-        let position = from
-        while (position <= to) {
-            const line = view.state.doc.lineAt(position)
-            const lineStart = Math.max(from, line.from)
-            const lineEnd = Math.min(to, line.to)
-            const text = view.state.sliceDoc(lineStart, lineEnd)
-
-            for (let index = 0; index < text.length; index += 1) {
-                const char = text[index]
-                if (char === " ") {
-                    builder.add(lineStart + index, lineStart + index + 1, Decoration.mark({ class: "cm-visible-space" }))
-                } else if (char === "\t") {
-                    builder.add(lineStart + index, lineStart + index + 1, Decoration.mark({ class: "cm-visible-tab" }))
-                }
-            }
-
-            position = line.to + 1
-        }
-    }
-
-    return builder.finish()
-}
-
-const whitespaceMarkers = ViewPlugin.fromClass(class {
-    decorations: DecorationSet
-
-    constructor(view: EditorView) {
-        this.decorations = buildWhitespaceDecorations(view)
-    }
-
-    update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged) {
-            this.decorations = buildWhitespaceDecorations(update.view)
-        }
-    }
-}, {
-    decorations: (value) => value.decorations,
-})
-
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max)
-}
-
-function codeEditorExtensions(language: PracticeLanguage, label: string, isLightTheme: boolean): Extension[] {
-    return [
-        language === "java" ? javaLanguage() : python(),
-        EditorState.tabSize.of(4),
-        indentUnit.of("    "),
-        keymap.of([indentWithTab]),
-        EditorView.contentAttributes.of({
-            "aria-label": label,
-            autocapitalize: "off",
-            autocomplete: "off",
-            autocorrect: "off",
-            spellcheck: "false",
-        }),
-        isLightTheme ? lightEditorTheme : darkEditorTheme,
-        syntaxHighlighting(isLightTheme ? lightEditorHighlight : darkEditorHighlight),
-        whitespaceMarkers,
-    ]
 }
 
 const problemResizeHandleWidth = 10
@@ -346,10 +132,18 @@ export function PracticeProblemClient({
     problem,
     problems,
     initialSearch = "",
+    renderedBody,
+    renderedComplexityAnalysis,
+    renderedSolutionGuides,
+    renderedFollowUpGuide,
 }: {
     problem: PracticeClientProblem
     problems: PracticeListItem[]
     initialSearch?: string
+    renderedBody?: ReactNode
+    renderedComplexityAnalysis?: ReactNode
+    renderedSolutionGuides?: Partial<Record<PracticeLanguage, ReactNode>>
+    renderedFollowUpGuide?: ReactNode
 }) {
     const { resolvedTheme } = useTheme()
     const { isLearned, markAsLearned, markAsUnlearned } = usePracticeProgress()
@@ -395,14 +189,6 @@ export function PracticeProblemClient({
         "--problem-pane-width": `${problemPaneVisible ? problemPaneWidth : 0}px`,
         "--results-pane-height": `${resultsPaneVisible ? resultsPaneHeight : 0}px`,
     }), [problemPaneVisible, problemPaneWidth, resultsPaneHeight, resultsPaneVisible])
-    const editorExtensions = useMemo<Extension[]>(
-        () => codeEditorExtensions(selectedLanguage, editorLabel, isLightTheme),
-        [editorLabel, isLightTheme, selectedLanguage]
-    )
-    const customTestExtensions = useMemo<Extension[]>(
-        () => codeEditorExtensions(selectedLanguage, customTestLabel, isLightTheme),
-        [customTestLabel, isLightTheme, selectedLanguage]
-    )
 
     useEffect(() => {
         trackEvent("practice_problem_view", {
@@ -770,7 +556,7 @@ export function PracticeProblemClient({
 
                     <div className="min-h-0 space-y-6 overflow-y-auto p-5">
                         <div className="practice-markdown text-sm leading-7">
-                            <MarkdownRenderer content={problem.body} />
+                            {renderedBody ?? <div className="whitespace-pre-wrap">{problem.body}</div>}
                         </div>
 
                         <Accordion type="multiple" className="rounded-lg border border-border/50">
@@ -829,7 +615,7 @@ export function PracticeProblemClient({
                                     <AccordionTrigger>Complexity Analysis</AccordionTrigger>
                                     <AccordionContent>
                                         <div className="practice-markdown rounded-lg bg-background/60 p-4">
-                                            <MarkdownRenderer content={problem.complexityAnalysis} />
+                                            {renderedComplexityAnalysis ?? <div className="whitespace-pre-wrap">{problem.complexityAnalysis}</div>}
                                         </div>
                                     </AccordionContent>
                                 </AccordionItem>
@@ -863,7 +649,8 @@ export function PracticeProblemClient({
                                             })}
                                         </div>
                                         <div className="practice-markdown rounded-lg bg-background/60 p-4">
-                                            <MarkdownRenderer content={solutionGuideDetails?.solutionGuide ?? ""} />
+                                            {renderedSolutionGuides?.[solutionGuideLanguage]
+                                                ?? <div className="whitespace-pre-wrap">{solutionGuideDetails?.solutionGuide ?? ""}</div>}
                                         </div>
                                     </div>
                                 </AccordionContent>
@@ -877,7 +664,7 @@ export function PracticeProblemClient({
                                         </ul>
                                         {problem.followUpGuide && (
                                             <div className="practice-markdown rounded-lg bg-background/60 p-4">
-                                                <MarkdownRenderer content={problem.followUpGuide} />
+                                                {renderedFollowUpGuide ?? <div className="whitespace-pre-wrap">{problem.followUpGuide}</div>}
                                             </div>
                                         )}
                                     </div>
@@ -963,17 +750,12 @@ export function PracticeProblemClient({
                             </div>
                         </div>
                         <div className={cn("min-h-[55vh] flex-1 overflow-hidden bg-background md:min-h-0", !customTestPaneVisible && "rounded-b-lg")}>
-                            <CodeMirror
-                                aria-label={editorLabel}
+                            <PracticeCodeEditor
                                 value={code}
                                 onChange={setCode}
-                                extensions={editorExtensions}
-                                theme="none"
-                                indentWithTab={false}
-                                basicSetup
-                                height="100%"
-                                width="100%"
-                                className="h-full"
+                                language={selectedLanguage}
+                                label={editorLabel}
+                                isLightTheme={isLightTheme}
                             />
                         </div>
                         {customTestPaneVisible && <div className="shrink-0 border-t border-border/50 bg-background/70 p-3">
@@ -995,17 +777,12 @@ export function PracticeProblemClient({
                                 </Button>
                             </div>
                             <div className="h-24 overflow-hidden rounded-md border border-border/60 bg-card/70 md:h-28">
-                                <CodeMirror
-                                    aria-label={customTestLabel}
+                                <PracticeCodeEditor
                                     value={customTestCode}
                                     onChange={setCustomTestCode}
-                                    extensions={customTestExtensions}
-                                    theme="none"
-                                    indentWithTab={false}
-                                    basicSetup
-                                    height="100%"
-                                    width="100%"
-                                    className="h-full"
+                                    language={selectedLanguage}
+                                    label={customTestLabel}
+                                    isLightTheme={isLightTheme}
                                 />
                             </div>
                             <div className="mt-2 flex justify-end">
@@ -1292,19 +1069,21 @@ function TestCaseCodeBlock({
     language: PracticeLanguage
     isLightTheme: boolean
 }) {
+    const lineNumberStyle: SyntaxHighlighterProps["lineNumberStyle"] = {
+        minWidth: "2.25em",
+        paddingRight: "0.75em",
+        color: isLightTheme ? "rgba(15, 23, 42, 0.28)" : "rgba(255, 255, 255, 0.24)",
+        userSelect: "none",
+        fontSize: "0.75rem",
+    }
+
     return (
         <SyntaxHighlighter
             style={isLightTheme ? oneLight : oneDark}
             language={language === "java" ? "java" : "python"}
             PreTag="div"
             showLineNumbers
-            lineNumberStyle={{
-                minWidth: "2.25em",
-                paddingRight: "0.75em",
-                color: isLightTheme ? "rgba(15, 23, 42, 0.28)" : "rgba(255, 255, 255, 0.24)",
-                userSelect: "none",
-                fontSize: "0.75rem",
-            }}
+            lineNumberStyle={lineNumberStyle}
             customStyle={{
                 margin: 0,
                 maxHeight: "16rem",

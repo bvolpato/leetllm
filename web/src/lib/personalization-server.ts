@@ -12,9 +12,24 @@ export function getPersonalizableLessonSlug(slug: unknown) {
     return getCanonicalQuestionSlug(slug) ?? null
 }
 
+type PersonalizableLesson = {
+    slug: string
+    title: string
+    content: string
+    visuals: ReturnType<typeof extractPersonalizationVisuals>
+    sourceHash: string
+}
+
+const personalizableLessonCache = new Map<string, PersonalizableLesson>()
+
 export function getPersonalizableLesson(slug: unknown) {
     const canonicalSlug = getPersonalizableLessonSlug(slug)
     if (!canonicalSlug) return null
+    const isProd = process.env.NODE_ENV === "production"
+    if (isProd) {
+        const cached = personalizableLessonCache.get(canonicalSlug)
+        if (cached) return cached
+    }
     const question = getQuestionBySlug(canonicalSlug)
     if (!question) return null
     const { content } = extractLessonBody(question.content)
@@ -23,13 +38,19 @@ export function getPersonalizableLesson(slug: unknown) {
         `${visual.id}\u0000${visual.kind}\u0000${visual.name}\u0000${visual.source}`
     )).join("\u0001")
 
-    return {
+    const lesson: PersonalizableLesson = {
         slug: canonicalSlug,
         title: question.title,
         content,
         visuals,
         sourceHash: sha256(`${content}\u0002${visualHashInput}`),
     }
+
+    if (isProd) {
+        personalizableLessonCache.set(canonicalSlug, lesson)
+    }
+
+    return lesson
 }
 
 export function parseLessonPersonalizationRequest(value: unknown) {

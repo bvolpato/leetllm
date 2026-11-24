@@ -80,9 +80,38 @@ private actor ContentSearchStore {
     }
 }
 
+private struct GlossarySearchMeta: Sendable {
+    let lowercasedTitle: String
+    let lowercasedAliases: [String]
+}
+
+private struct HeavyBundlePayload: Sendable {
+    let learningPlan: LearningPlanConfiguration
+    let glossary: [GlossaryEntry]
+    let glossaryByID: [String: GlossaryEntry]
+    let glossarySearchTextByID: [String: String]
+    let glossarySearchMetaByID: [String: GlossarySearchMeta]
+}
+
+private final class LessonDetailCacheEntry {
+    let value: LessonDetail
+
+    init(_ value: LessonDetail) {
+        self.value = value
+    }
+}
+
+private final class BlogDetailCacheEntry {
+    let value: BlogDetail
+
+    init(_ value: BlogDetail) {
+        self.value = value
+    }
+}
+
 @MainActor
 final class DataService: ObservableObject {
-    static let shared = DataService()
+    static let shared = DataService(deferHeavyContent: true)
 
     @Published private(set) var manifest: ExportManifest?
     @Published private(set) var lessons: [LessonIndexItem] = []
@@ -92,6 +121,7 @@ final class DataService: ObservableObject {
     @Published private(set) var theoryQuizzes: [TheoryQuiz] = []
     @Published private(set) var glossary: [GlossaryEntry] = []
     @Published private(set) var practiceMetadata: [PracticeMetadata] = []
+    @Published private(set) var isInitialLoadComplete = false
     @Published private(set) var loadError: String?
     @Published private(set) var isLoadingPrivateBlogs = false
     @Published private(set) var privateBlogError: String?
@@ -99,77 +129,129 @@ final class DataService: ObservableObject {
 
     private let bundle: Bundle
     private let explicitDataRootURL: URL?
+    private let deferHeavyContent: Bool
     private let contentSearchStore = ContentSearchStore()
-    private var lessonCache: [String: LessonDetail] = [:]
-    private var blogCache: [String: BlogDetail] = [:]
+    private let lessonCache: NSCache<NSString, LessonDetailCacheEntry> = {
+        let cache = NSCache<NSString, LessonDetailCacheEntry>()
+        cache.countLimit = 16
+        return cache
+    }()
+    private let blogCache: NSCache<NSString, BlogDetailCacheEntry> = {
+        let cache = NSCache<NSString, BlogDetailCacheEntry>()
+        cache.countLimit = 16
+        return cache
+    }()
     private var bundledBlogs: [BlogIndexItem] = []
     private var privateBlogs: [String: BlogDetail] = [:]
     private var privateImages: [String: Data] = [:]
     private var privateRequestID = UUID()
+    private var heavyLoadTask: Task<Void, Never>?
+    private var loadGeneration = 0
     private var lessonIndexBySlug: [String: LessonIndexItem] = [:]
+    private var lessonSearchTextBySlug: [String: String] = [:]
     private var blogIndexBySlug: [String: BlogIndexItem] = [:]
     private var glossaryByID: [String: GlossaryEntry] = [:]
     private var glossarySearchTextByID: [String: String] = [:]
+    private var glossarySearchMetaByID: [String: GlossarySearchMeta] = [:]
 
-    init(bundle: Bundle = .main, dataRootURL: URL? = nil) {
+    init(bundle: Bundle = .main, dataRootURL: URL? = nil, deferHeavyContent: Bool = false) {
         self.bundle = bundle
         self.explicitDataRootURL = dataRootURL
+        self.deferHeavyContent = deferHeavyContent && dataRootURL == nil
         load()
     }
 
     func load() {
+        heavyLoadTask?.cancel()
+        heavyLoadTask = nil
+        loadGeneration &+= 1
+        let generation = loadGeneration
         clearPrivateBlogs()
         do {
-            let loadedManifest: ExportManifest = try decode("manifest.json")
-            let loadedLessons: [LessonIndexItem] = try decode("lessons/index.json")
-            let loadedBlogs: [BlogIndexItem] = try decode("blogs/index.json")
-            let loadedTracks: [LearningTrack] = try decode("tracks.json")
-            let loadedLearningPlan: LearningPlanConfiguration = try decode("learning-plan.json")
-            let loadedTheoryQuizzes: [TheoryQuiz] = try decode("theory-quizzes.json")
-            let loadedGlossary: [GlossaryEntry] = try decode("glossary/index.json")
-            let loadedPractice: [PracticeMetadata] = try decode("practice/index.json")
+            guard let root = dataRootURL() else {
+                throw DataServiceError.missingDataRoot
+            }
+            let loadedManifest: ExportManifest = try Self.decodeFile("manifest.json", root: root)
+            let loadedLessons: [LessonIndexItem] = try Self.decodeFile("lessons/index.json", root: root)
+            let loadedBlogs: [BlogIndexItem] = try Self.decodeFile("blogs/index.json", root: root)
+            let loadedTracks: [LearningTrack] = try Self.decodeFile("tracks.json", root: root)
+            let loadedTheoryQuizzes: [TheoryQuiz] = try Self.decodeFile("theory-quizzes.json", root: root)
+            let loadedPractice: [PracticeMetadata] = try Self.decodeFile("practice/index.json", root: root)
 
-            lessonCache.removeAll(keepingCapacity: true)
-            blogCache.removeAll(keepingCapacity: true)
+            lessonCache.removeAllObjects()
+            blogCache.removeAllObjects()
             lessonIndexBySlug = Dictionary(uniqueKeysWithValues: loadedLessons.map { ($0.slug, $0) })
-            blogIndexBySlug = Dictionary(uniqueKeysWithValues: loadedBlogs.map { ($0.slug, $0) })
-            glossaryByID = Dictionary(uniqueKeysWithValues: loadedGlossary.map { ($0.id, $0) })
-            glossarySearchTextByID = Dictionary(
-                uniqueKeysWithValues: loadedGlossary.map { ($0.id, $0.searchableText) }
+            lessonSearchTextBySlug = Dictionary(
+                uniqueKeysWithValues: loadedLessons.map { lesson in
+                    (lesson.slug, Self.lessonMetadataSearchText(for: lesson))
+                }
             )
+            blogIndexBySlug = Dictionary(uniqueKeysWithValues: loadedBlogs.map { ($0.slug, $0) })
 
             manifest = loadedManifest
             lessons = loadedLessons
             blogs = loadedBlogs
             bundledBlogs = loadedBlogs
             tracks = loadedTracks
-            learningPlanConfiguration = loadedLearningPlan
             theoryQuizzes = loadedTheoryQuizzes
-            glossary = loadedGlossary
             practiceMetadata = loadedPractice
             loadError = nil
+
+            if deferHeavyContent {
+                isInitialLoadComplete = true
+                heavyLoadTask = Task.detached(priority: .userInitiated) { [weak self] in
+                    do {
+                        let payload = try Self.loadHeavyPayload(root: root)
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run {
+                            guard let self, !Task.isCancelled, self.loadGeneration == generation else { return }
+                            self.applyHeavyPayload(payload)
+                        }
+                    } catch {
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run {
+                            guard let self, !Task.isCancelled, self.loadGeneration == generation else { return }
+                            self.loadError = error.localizedDescription
+                        }
+                    }
+                }
+            } else {
+                let payload = try Self.loadHeavyPayload(root: root)
+                applyHeavyPayload(payload)
+                isInitialLoadComplete = true
+            }
         } catch {
             loadError = error.localizedDescription
+            isInitialLoadComplete = true
         }
     }
 
     func lesson(slug: String) -> LessonDetail? {
-        if let cached = lessonCache[slug] { return cached }
+        let key = slug as NSString
+        if let cached = lessonCache.object(forKey: key) { return cached.value }
         guard let detail: LessonDetail = try? decode("lessons/\(slug).json") else { return nil }
-        lessonCache[slug] = detail
+        lessonCache.setObject(LessonDetailCacheEntry(detail), forKey: key)
         return detail
     }
 
     func blog(slug: String) -> BlogDetail? {
         if let detail = privateBlogs[slug] { return detail }
-        if let cached = blogCache[slug] { return cached }
+        let key = slug as NSString
+        if let cached = blogCache.object(forKey: key) { return cached.value }
         guard let detail: BlogDetail = try? decode("blogs/\(slug).json") else { return nil }
-        blogCache[slug] = detail
+        blogCache.setObject(BlogDetailCacheEntry(detail), forKey: key)
         return detail
     }
 
     func lessonIndex(slug: String) -> LessonIndexItem? {
         lessonIndexBySlug[slug]
+    }
+
+    func lessonMatchesMetadata(_ lesson: LessonIndexItem, normalizedQuery: String) -> Bool {
+        if let cached = lessonSearchTextBySlug[lesson.slug] {
+            return cached.contains(normalizedQuery)
+        }
+        return Self.lessonMetadataSearchText(for: lesson).contains(normalizedQuery)
     }
 
     func blogIndex(slug: String) -> BlogIndexItem? {
@@ -182,6 +264,27 @@ final class DataService: ObservableObject {
 
     func glossaryMatches(_ entry: GlossaryEntry, normalizedQuery: String) -> Bool {
         glossarySearchTextByID[entry.id]?.contains(normalizedQuery) == true
+    }
+
+    func glossarySearchPriority(_ entry: GlossaryEntry, normalizedQuery: String) -> Int {
+        let titleLower: String
+        let aliases: [String]
+        if let meta = glossarySearchMetaByID[entry.id] {
+            titleLower = meta.lowercasedTitle
+            aliases = meta.lowercasedAliases
+        } else {
+            titleLower = entry.title.lowercased()
+            aliases = (entry.aliases ?? []).map { $0.lowercased() }
+        }
+        if titleLower == normalizedQuery || aliases.contains(normalizedQuery) {
+            return 1
+        } else if titleLower.hasPrefix(normalizedQuery) || aliases.contains(where: { $0.hasPrefix(normalizedQuery) }) {
+            return 2
+        } else if titleLower.contains(normalizedQuery) {
+            return 3
+        } else {
+            return 4
+        }
     }
 
     func contentSearchMatches(normalizedQuery: String) async -> ContentSearchMatches {
@@ -254,13 +357,63 @@ final class DataService: ObservableObject {
         dataRootURL()?.appendingPathComponent(path)
     }
 
-    private func decode<T: Decodable>(_ relativePath: String) throws -> T {
-        guard let url = dataRootURL()?.appendingPathComponent(relativePath) else {
-            throw DataServiceError.missingDataRoot
+    private func applyHeavyPayload(_ payload: HeavyBundlePayload) {
+        glossaryByID = payload.glossaryByID
+        glossarySearchTextByID = payload.glossarySearchTextByID
+        glossarySearchMetaByID = payload.glossarySearchMetaByID
+        learningPlanConfiguration = payload.learningPlan
+        glossary = payload.glossary
+    }
+
+    nonisolated private static func loadHeavyPayload(root: URL) throws -> HeavyBundlePayload {
+        let loadedLearningPlan: LearningPlanConfiguration = try decodeFile("learning-plan.json", root: root)
+        let loadedGlossary: [GlossaryEntry] = try decodeFile("glossary/index.json", root: root)
+        var byID: [String: GlossaryEntry] = [:]
+        var searchTextByID: [String: String] = [:]
+        var searchMetaByID: [String: GlossarySearchMeta] = [:]
+        byID.reserveCapacity(loadedGlossary.count)
+        searchTextByID.reserveCapacity(loadedGlossary.count)
+        searchMetaByID.reserveCapacity(loadedGlossary.count)
+        for entry in loadedGlossary {
+            byID[entry.id] = entry
+            searchTextByID[entry.id] = entry.searchableText
+            searchMetaByID[entry.id] = GlossarySearchMeta(
+                lowercasedTitle: entry.title.lowercased(),
+                lowercasedAliases: (entry.aliases ?? []).map { $0.lowercased() }
+            )
         }
+        return HeavyBundlePayload(
+            learningPlan: loadedLearningPlan,
+            glossary: loadedGlossary,
+            glossaryByID: byID,
+            glossarySearchTextByID: searchTextByID,
+            glossarySearchMetaByID: searchMetaByID
+        )
+    }
+
+    nonisolated private static func lessonMetadataSearchText(for lesson: LessonIndexItem) -> String {
+        [
+            lesson.title,
+            lesson.section,
+            lesson.category,
+            lesson.difficulty,
+            lesson.shortDescription,
+            lesson.keyConceptsTested.joined(separator: " "),
+        ].joined(separator: " ").lowercased()
+    }
+
+    nonisolated private static func decodeFile<T: Decodable>(_ relativePath: String, root: URL) throws -> T {
+        let url = root.appendingPathComponent(relativePath)
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         return try decoder.decode(T.self, from: data)
+    }
+
+    private func decode<T: Decodable>(_ relativePath: String) throws -> T {
+        guard let root = dataRootURL() else {
+            throw DataServiceError.missingDataRoot
+        }
+        return try Self.decodeFile(relativePath, root: root)
     }
 
     private func dataRootURL() -> URL? {

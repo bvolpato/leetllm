@@ -62,7 +62,37 @@ type MathNode = {
     children?: MathNode[]
 }
 
+const katexValidationCache = new Map<string, string | null>()
+
+function validateKatexExpression(value: string, displayMode: boolean): string | null {
+    const cacheKey = `${displayMode ? "1" : "0"}:${value}`
+    const cached = katexValidationCache.get(cacheKey)
+    if (cached !== undefined) return cached
+    try {
+        katex.renderToString(value, {
+            displayMode,
+            throwOnError: true,
+            strict: "error",
+            trust: false,
+        })
+        katexValidationCache.set(cacheKey, null)
+        return null
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        katexValidationCache.set(cacheKey, message)
+        return message
+    }
+}
+
 function mathRenderingIssues(markdown: string, id: string): string[] {
+    if (
+        !markdown.includes("$")
+        && !markdown.includes("checkpoint")
+        && !markdown.includes("mastery-quiz")
+        && !markdown.includes("<figcaption")
+    ) {
+        return []
+    }
     const issues: string[] = []
     ReactMarkdown({
         children: markdown,
@@ -91,15 +121,9 @@ function mathRenderingIssues(markdown: string, id: string): string[] {
                     if (node.type === "inlineMath" && source.startsWith("$$")) {
                         issues.push(`${location}: double-dollar expression parsed as inline math`)
                     }
-                    try {
-                        katex.renderToString(node.value ?? "", {
-                            displayMode: node.type === "math",
-                            throwOnError: true,
-                            strict: "error",
-                            trust: false,
-                        })
-                    } catch (error) {
-                        issues.push(`${location}: ${error instanceof Error ? error.message : String(error)}`)
+                    const errorMessage = validateKatexExpression(node.value ?? "", node.type === "math")
+                    if (errorMessage !== null) {
+                        issues.push(`${location}: ${errorMessage}`)
                     }
                     return
                 }

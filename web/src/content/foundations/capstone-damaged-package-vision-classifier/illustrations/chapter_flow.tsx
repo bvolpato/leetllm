@@ -72,31 +72,12 @@ const illustration = defineIllustration((c) => {
                                 width: 152,
                                 height: 152,
                                 pixels: item.pixels.map((row) =>
-                                    row.map((pixel): RgbPixel => [
-                                        pixel[0],
-                                        pixel[1],
-                                        pixel[2],
-                                    ]),
+                                    row.map((pixel): RgbPixel => [pixel[0], pixel[1], pixel[2]]),
                                 ),
                             }),
                         }),
-                        text(
-                            c,
-                            x,
-                            211,
-                            184,
-                            `brightness ${item.brightness.toFixed(3)}`,
-                            20,
-                        ),
-                        text(
-                            c,
-                            x,
-                            244,
-                            184,
-                            `raw var ${item.raw.toFixed(3)}`,
-                            20,
-                            c.textSecondary,
-                        ),
+                        text(c, x, 211, 184, `brightness ${item.brightness.toFixed(3)}`, 20),
+                        text(c, x, 244, 184, `raw var ${item.raw.toFixed(3)}`, 20, c.textSecondary),
                         text(
                             c,
                             x,
@@ -108,16 +89,7 @@ const illustration = defineIllustration((c) => {
                         ),
                     ]
                 }),
-                text(
-                    c,
-                    14,
-                    326,
-                    590,
-                    'Normalized sharpness',
-                    25,
-                    c.textPrimary,
-                    'left',
-                ),
+                text(c, 14, 326, 590, 'Normalized sharpness', 25, c.textPrimary, 'left'),
                 CanvasItem({
                     x: 62,
                     y: 374,
@@ -163,7 +135,16 @@ const illustration = defineIllustration((c) => {
                         y: 534 - (item.sharpness / 11) * 160,
                         width: 42,
                         height: (item.sharpness / 11) * 160,
-                        children: <div style={{ display: 'flex', width: '100%', height: '100%', backgroundColor: colors[i] }} />,
+                        children: (
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    width: '100%',
+                                    height: '100%',
+                                    backgroundColor: colors[i],
+                                }}
+                            />
+                        ),
                     }),
                     text(
                         c,
@@ -174,15 +155,7 @@ const illustration = defineIllustration((c) => {
                         22,
                         colors[i],
                     ),
-                    text(
-                        c,
-                        62 + i * 175,
-                        548,
-                        175,
-                        ['Full', 'Quarter', 'Blur'][i],
-                        22,
-                        colors[i],
-                    ),
+                    text(c, 62 + i * 175, 548, 175, ['Full', 'Quarter', 'Blur'][i], 22, colors[i]),
                 ]),
             ],
         }),

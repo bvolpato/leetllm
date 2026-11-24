@@ -25,6 +25,9 @@ from content_audience import filter_content_for_audience
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTENT_DIR = REPO_ROOT / "web" / "src" / "content"
+CACHE_PATH = REPO_ROOT / ".review-logs" / "python-examples-cache.json"
+CACHE_SCHEMA_VERSION = 1
+DEFAULT_WORKERS = min(8, os.cpu_count() or 1)
 HTML_MARKER = "<!-- leetllm: test -->"
 HTML_MARKER_RE = re.compile(r"<!--\s*leetllm:\s*test(?P<options>.*?)-->", re.IGNORECASE | re.DOTALL)
 CODE_MARKER = "# leetllm: test"
@@ -628,6 +631,104 @@ def apply_output_blocks(examples: list[Example], outputs: dict[Example, str], wr
     return changed_paths
 
 
+def hash_assets_dir(assets_dir: Path) -> str:
+    if not assets_dir.is_dir():
+        return ""
+    digest = sha256()
+    for asset_path in sorted(path for path in assets_dir.rglob("*") if path.is_file()):
+        digest.update(asset_path.relative_to(assets_dir).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(asset_path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def existing_output_block_digest(run: ExampleRun, content_cache: dict[Path, str]) -> str:
+    blocks: list[str] = []
+    for example in run.examples:
+        if not example.output_mode:
+            blocks.append("")
+            continue
+        text = content_cache.get(example.path)
+        if text is None:
+            text = example.path.read_text(encoding="utf-8")
+            content_cache[example.path] = text
+        existing = GENERATED_OUTPUT_RE.match(text[example.fence_end:])
+        blocks.append(existing.group(0) if existing else "")
+    return sha256(json.dumps(blocks, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def run_cache_key(
+    run: ExampleRun,
+    base_dependencies: tuple[str, ...],
+    content_cache: dict[Path, str],
+    assets_cache: dict[Path, str],
+) -> str:
+    dependencies = tuple(
+        dict.fromkeys(
+            (
+                *base_dependencies,
+                *(dependency for example in run.examples for dependency in example.dependencies),
+            )
+        )
+    )
+    assets_dir = run.examples[0].path.parent / "assets"
+    assets_digest = assets_cache.get(assets_dir)
+    if assets_digest is None:
+        assets_digest = hash_assets_dir(assets_dir)
+        assets_cache[assets_dir] = assets_digest
+
+    payload = {
+        "schema": CACHE_SCHEMA_VERSION,
+        "harness": sha256(HARNESS.encode("utf-8")).hexdigest(),
+        "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "dependencies": list(dependencies),
+        "examples": [
+            {
+                "code": example.code,
+                "output_mode": example.output_mode,
+                "output_title": example.output_title,
+                "output_head": example.output_head,
+                "output_tail": example.output_tail,
+            }
+            for example in run.examples
+        ],
+        "assets": assets_digest,
+        "expected_outputs": existing_output_block_digest(run, content_cache),
+    }
+    return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def load_example_cache() -> dict[str, dict[str, list[str]]]:
+    if not CACHE_PATH.is_file():
+        return {}
+    try:
+        payload = json.loads(CACHE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, dict) or payload.get("version") != CACHE_SCHEMA_VERSION:
+        return {}
+    entries = payload.get("entries")
+    if not isinstance(entries, dict):
+        return {}
+    return {
+        str(key): value
+        for key, value in entries.items()
+        if isinstance(value, dict) and isinstance(value.get("outputs"), list)
+    }
+
+
+def save_example_cache(entries: dict[str, dict[str, list[str]]]) -> None:
+    CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    serialized = json.dumps(
+        {"version": CACHE_SCHEMA_VERSION, "entries": dict(sorted(entries.items()))},
+        indent=2,
+    ) + "\n"
+    tmp_path = CACHE_PATH.with_suffix(".json.tmp")
+    tmp_path.write_text(serialized, encoding="utf-8")
+    os.replace(tmp_path, CACHE_PATH)
+
+
 def confirm_stale_output_paths(paths: list[Path], audience: str = "website", edition: str = "reference", no_default_deps: bool = False) -> list[Path]:
     if not paths or os.environ.get("LEETLLM_SKIP_OUTPUT_RECHECK") == "1":
         return paths
@@ -638,7 +739,7 @@ def confirm_stale_output_paths(paths: list[Path], audience: str = "website", edi
     for path in paths:
         env = os.environ.copy()
         env["LEETLLM_SKIP_OUTPUT_RECHECK"] = "1"
-        command = ["uv", "run", str(script_path), "--article", path.parent.name, "--min-examples", "1"]
+        command = ["uv", "run", str(script_path), "--article", path.parent.name, "--min-examples", "1", "--no-cache"]
         if audience != "website" or edition != "reference":
             command.extend(["--audience", audience, "--edition", edition])
         if no_default_deps:
@@ -674,8 +775,13 @@ def main() -> int:
     parser.add_argument(
         "--workers",
         type=int,
-        default=1,
-        help="Number of independent example runs to execute concurrently (default: 1).",
+        default=DEFAULT_WORKERS,
+        help=f"Number of independent example runs to execute concurrently (default: {DEFAULT_WORKERS}).",
+    )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Bypass the incremental content-hash cache and re-execute every selected example.",
     )
     parser.add_argument(
         "--with",
@@ -725,28 +831,72 @@ def main() -> int:
         print(f"Python example validation failed: {exc}")
         return 1
 
-    def execute_run(run: ExampleRun) -> tuple[bool, dict[Example, str], int | None, str]:
-        return run_examples(run, args.timeout, dependencies)
+    use_cache = (
+        not args.no_cache
+        and not args.write_outputs
+        and os.environ.get("LEETLLM_SKIP_OUTPUT_RECHECK") != "1"
+    )
+    cache_entries = load_example_cache()
+    content_cache: dict[Path, str] = {}
+    assets_cache: dict[Path, str] = {}
+    run_keys = [run_cache_key(run, dependencies, content_cache, assets_cache) for run in example_runs]
 
-    def record_results(
-        run_results: Iterable[tuple[bool, dict[Example, str], int | None, str]],
-    ) -> None:
-        for run, result in zip(example_runs, run_results, strict=True):
-            ok, run_outputs, failure_index, failure_output = result
-            if ok:
-                outputs.update(run_outputs)
-                for example in run.examples:
-                    print(f"OK {example_label(example)}{example_notes(example)}")
-                continue
+    cached_results: dict[int, tuple[bool, dict[Example, str], int | None, str]] = {}
+    uncached_indices: list[int] = []
+    for index, (run, key) in enumerate(zip(example_runs, run_keys, strict=True)):
+        cached = cache_entries.get(key) if use_cache else None
+        if cached is not None and len(cached["outputs"]) == len(run.examples):
+            cached_results[index] = (
+                True,
+                {
+                    example: str(stdout)
+                    for example, stdout in zip(run.examples, cached["outputs"], strict=True)
+                },
+                None,
+                "",
+            )
+        else:
+            uncached_indices.append(index)
 
-            failed_example = run.examples[failure_index or 0]
-            failures.append(f"{example_label(failed_example)}{example_notes(failed_example)}\n{failure_output}")
+    def execute_run(index: int) -> tuple[bool, dict[Example, str], int | None, str]:
+        return run_examples(example_runs[index], args.timeout, dependencies)
 
-    if args.workers == 1:
-        record_results(map(execute_run, example_runs))
-    else:
-        with ThreadPoolExecutor(max_workers=args.workers) as executor:
-            record_results(executor.map(execute_run, example_runs))
+    executed_results: dict[int, tuple[bool, dict[Example, str], int | None, str]] = {}
+    if uncached_indices:
+        if args.workers == 1 or len(uncached_indices) == 1:
+            for index in uncached_indices:
+                executed_results[index] = execute_run(index)
+        else:
+            with ThreadPoolExecutor(max_workers=min(args.workers, len(uncached_indices))) as executor:
+                for index, result in zip(uncached_indices, executor.map(execute_run, uncached_indices), strict=True):
+                    executed_results[index] = result
+
+    cache_dirty = False
+    cached_example_count = 0
+    for index, (run, key) in enumerate(zip(example_runs, run_keys, strict=True)):
+        from_cache = index in cached_results
+        ok, run_outputs, failure_index, failure_output = (
+            cached_results[index] if from_cache else executed_results[index]
+        )
+        if ok:
+            outputs.update(run_outputs)
+            if from_cache:
+                cached_example_count += len(run.examples)
+            else:
+                new_entry = {"outputs": [run_outputs[example] for example in run.examples]}
+                if cache_entries.get(key) != new_entry:
+                    cache_entries[key] = new_entry
+                    cache_dirty = True
+            suffix = " [cached]" if from_cache else ""
+            for example in run.examples:
+                print(f"OK {example_label(example)}{example_notes(example)}{suffix}")
+            continue
+
+        failed_example = run.examples[failure_index or 0]
+        failures.append(f"{example_label(failed_example)}{example_notes(failed_example)}\n{failure_output}")
+
+    if cache_dirty and not args.no_cache:
+        save_example_cache(cache_entries)
 
     if failures:
         print("\nPython example validation failed:")
@@ -772,7 +922,11 @@ def main() -> int:
         for path in stale_output_paths:
             print(f"- {path.relative_to(REPO_ROOT)}")
 
-    print(f"\nOK python examples: {len(examples)} marked examples executed")
+    executed_example_count = len(examples) - cached_example_count
+    print(
+        f"\nOK python examples: {len(examples)} marked examples validated "
+        f"({executed_example_count} executed, {cached_example_count} cached)"
+    )
     return 0
 
 

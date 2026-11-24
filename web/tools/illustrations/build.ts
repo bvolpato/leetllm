@@ -14,10 +14,13 @@
  *   npx tsx tools/illustrations/build.ts --file path/to/illustration.tsx
  */
 
-import { readdir, stat, writeFile, readFile, mkdir, unlink } from 'fs/promises'
+import { readdir, stat, writeFile, readFile, mkdir, unlink, rename, rm } from 'fs/promises'
 import { join, relative, dirname, basename, resolve } from 'path'
 import { existsSync } from 'fs'
 import { parseArgs } from 'node:util'
+import { spawn } from 'node:child_process'
+import { availableParallelism, tmpdir } from 'node:os'
+import { mkdtemp } from 'fs/promises'
 import {
     renderAnimationGif,
     renderToPng,
@@ -47,6 +50,8 @@ const { values: args } = parseArgs({
         watermark: { type: 'boolean', default: false },
         'no-watermark': { type: 'boolean', default: false },
         'no-title': { type: 'boolean', default: true },
+        'worker-list': { type: 'string' },
+        'worker-result': { type: 'string' },
         help: { type: 'boolean', short: 'h', default: false },
     },
 })
@@ -54,6 +59,29 @@ const articleFilter = args.article
 const fileFilter = args.file
 const forceRebuild = args.force
 const outputRoot = args.output ? resolve(args.output) : undefined
+const workerListPath = args['worker-list']
+const workerResultPath = args['worker-result']
+
+async function renderToPngAtomic(
+    element: Parameters<typeof renderToPng>[0],
+    options: Parameters<typeof renderToPng>[1],
+    transparentCreateFn?: Parameters<typeof renderToPng>[2],
+    theme?: Parameters<typeof renderToPng>[3],
+) {
+    const finalPath = options.outputPath
+    if (!finalPath) {
+        return renderToPng(element, options, transparentCreateFn, theme)
+    }
+    const tmpPath = `${finalPath}.tmp.${process.pid}.${Math.random().toString(36).slice(2, 8)}.png`
+    await mkdir(dirname(finalPath), { recursive: true })
+    try {
+        await renderToPng(element, { ...options, outputPath: tmpPath }, transparentCreateFn, theme)
+        await rename(tmpPath, finalPath)
+    } catch (error) {
+        await unlink(tmpPath).catch(() => undefined)
+        throw error
+    }
+}
 
 function outputDirectory(file: string): string {
     const sourceDirectory = relative(CONTENT_DIR, resolve(dirname(file)))
@@ -235,7 +263,7 @@ async function renderIllustration(filePath: string): Promise<boolean> {
                         background: opaqueBackground ? 'theme' : 'transparent',
                         crop: 'both',
                     } satisfies Parameters<typeof renderToPng>[1]
-                    await renderToPng(
+                    await renderToPngAtomic(
                         prepareArticleFigure(
                             scene.element,
                             opaqueBackground,
@@ -377,7 +405,7 @@ async function renderIllustration(filePath: string): Promise<boolean> {
                 background: opaqueBackground ? 'theme' : 'transparent',
                 crop: 'both',
             } satisfies Parameters<typeof renderToPng>[1]
-            await renderToPng(
+            await renderToPngAtomic(
                 prepareArticleFigure(element, opaqueBackground, args['no-title'] ?? true),
                 renderOptions,
                 transparentCreateFn || undefined,
@@ -444,9 +472,108 @@ async function runConcurrent<T>(tasks: (() => Promise<T>)[], concurrency: number
     return results
 }
 
+interface WorkerResult {
+    built: string[]
+    failed: number
+    altEntries: Array<[string, Record<string, string>]>
+}
+
+async function runMultiProcessBuild(
+    filesToBuild: string[],
+    workerCount: number,
+): Promise<{
+    built: string[]
+    failed: number
+    altEntries: Array<[string, Record<string, string>]>
+}> {
+    const shards: string[][] = Array.from({ length: workerCount }, () => [])
+    filesToBuild.forEach((file, index) => {
+        shards[index % workerCount].push(file)
+    })
+
+    const activeShards = shards.filter((shard) => shard.length > 0)
+    const tempDir = await mkdtemp(join(tmpdir(), 'leetllm-illustrations-'))
+    const scriptPath = new URL(import.meta.url).pathname
+
+    const forwardedFlags: string[] = []
+    if (outputRoot) forwardedFlags.push('--output', outputRoot)
+    if (args.watermark) forwardedFlags.push('--watermark')
+    if (args['no-watermark']) forwardedFlags.push('--no-watermark')
+    if (args['no-title'] === false) forwardedFlags.push('--no-title=false')
+
+    try {
+        const results = await Promise.all(
+            activeShards.map(async (shard, index): Promise<WorkerResult> => {
+                const listFile = join(tempDir, `shard-${index}.json`)
+                const resultFile = join(tempDir, `result-${index}.json`)
+                await writeFile(listFile, JSON.stringify(shard))
+
+                await new Promise<void>((resolvePromise, rejectPromise) => {
+                    const child = spawn(
+                        process.execPath,
+                        [
+                            ...process.execArgv,
+                            scriptPath,
+                            ...forwardedFlags,
+                            '--worker-list',
+                            listFile,
+                            '--worker-result',
+                            resultFile,
+                        ],
+                        { stdio: 'inherit', env: process.env },
+                    )
+                    child.on('error', rejectPromise)
+                    child.on('exit', (code) => {
+                        if (code === 0 || existsSync(resultFile)) {
+                            resolvePromise()
+                        } else {
+                            rejectPromise(
+                                new Error(`Illustration worker ${index} exited with code ${code}`),
+                            )
+                        }
+                    })
+                })
+
+                return JSON.parse(await readFile(resultFile, 'utf-8')) as WorkerResult
+            }),
+        )
+
+        const built: string[] = []
+        let failed = 0
+        const altEntries: Array<[string, Record<string, string>]> = []
+        for (const result of results) {
+            built.push(...result.built)
+            failed += result.failed
+            altEntries.push(...result.altEntries)
+        }
+        return { built, failed, altEntries }
+    } finally {
+        await rm(tempDir, { recursive: true, force: true }).catch(() => undefined)
+    }
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+    if (workerListPath && workerResultPath) {
+        const shardFiles = JSON.parse(await readFile(workerListPath, 'utf-8')) as string[]
+        const built: string[] = []
+        let failed = 0
+        for (const file of shardFiles) {
+            const ok = await renderIllustration(file)
+            if (ok) built.push(file)
+            else failed++
+        }
+        const payload: WorkerResult = {
+            built,
+            failed,
+            altEntries: Array.from(altTextMap.entries()),
+        }
+        await writeFile(workerResultPath, JSON.stringify(payload))
+        if (failed > 0) process.exitCode = 1
+        return
+    }
+
     if (args.help) {
         console.log(
             'Usage: pnpm illustrations:build [--article <section/slug> | --file <path>] [--force] [--output <directory>]\n\n--output writes an isolated tree and bypasses the normal cache.\nWithout a filter, builds changed illustrations across all bundles.\n--help, -h  Show this help without rendering or changing files.',
@@ -542,18 +669,35 @@ async function main() {
         let successes = 0
         let failures = 0
 
-        // Parallelize with concurrency limit — Satori+Resvg is CPU-bound,
-        // cap at 8 to avoid OOM on machines with less RAM.
-        const CONCURRENCY = 8
-        const tasks = filesToBuild.map((file) => async () => {
-            const success = await renderIllustration(file)
-            if (success) cacheUpdater?.markBuilt(file)
-            return success
-        })
-        const results = await runConcurrent(tasks, CONCURRENCY)
-        for (const ok of results) {
-            if (ok) successes++
-            else failures++
+        const requestedWorkers = Number(process.env.ILLUSTRATION_WORKERS || '0')
+        const defaultWorkers = Math.min(Math.max(1, availableParallelism() - 1), 6)
+        const workerCount = requestedWorkers > 0 ? requestedWorkers : defaultWorkers
+
+        if (workerCount > 1 && filesToBuild.length >= 16) {
+            console.log(`  ⚡ Fanning out across ${workerCount} worker processes\n`)
+            const workerSummary = await runMultiProcessBuild(filesToBuild, workerCount)
+            for (const file of workerSummary.built) {
+                cacheUpdater?.markBuilt(file)
+            }
+            for (const [outputDir, entries] of workerSummary.altEntries) {
+                const existing = altTextMap.get(outputDir) || {}
+                altTextMap.set(outputDir, { ...existing, ...entries })
+            }
+            successes = workerSummary.built.length
+            failures = workerSummary.failed
+        } else {
+            // Small batches run in-process to avoid worker startup overhead.
+            const CONCURRENCY = 4
+            const tasks = filesToBuild.map((file) => async () => {
+                const success = await renderIllustration(file)
+                if (success) cacheUpdater?.markBuilt(file)
+                return success
+            })
+            const results = await runConcurrent(tasks, CONCURRENCY)
+            for (const ok of results) {
+                if (ok) successes++
+                else failures++
+            }
         }
 
         // Write alt text manifests for accessibility

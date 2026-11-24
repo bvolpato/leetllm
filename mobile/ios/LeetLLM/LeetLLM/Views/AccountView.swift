@@ -129,12 +129,13 @@ struct AccountView: View {
                 }
             }
             .task {
+                guard !syncClient.isAuthenticated && syncClient.availableSocialProviders.isEmpty else { return }
                 await syncClient.refreshProviderAvailability()
             }
             .onChange(of: syncClient.isOnline) { _, online in
                 if online && syncClient.isAuthenticated && !isSigningOut && !isDeletingAccount {
                     performSync()
-                } else if online {
+                } else if online && !syncClient.isAuthenticated && syncClient.availableSocialProviders.isEmpty {
                     Task { await syncClient.refreshProviderAvailability() }
                 }
             }
@@ -555,6 +556,9 @@ struct AccountView: View {
             progressStore.resetAll()
             successMessage = "Signed out and cleared local progress."
             isSigningOut = false
+            if syncClient.isOnline && syncClient.availableSocialProviders.isEmpty {
+                await syncClient.refreshProviderAvailability()
+            }
         }
     }
 

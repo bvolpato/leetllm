@@ -451,47 +451,42 @@ else
     echo "   Generating stable sitemap freshness hints..."
     uv run "$DIR/scripts/generate-content-lastmod.py"
 
-    # 2a. Validate all metadata.json against the schema
-    echo "   Validating metadata against schema..."
-    if ! uv run "$DIR/scripts/validate-metadata.py"; then
-        SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
-    fi
+    # Run independent read-only content smoke checks in parallel.
+    SMOKE_LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/leetllm-smoke.XXXXXX")
+    SMOKE_LABELS=(
+        "Validating metadata against schema"
+        "Checking derived reading-time estimates"
+        "Validating reference cross-references"
+        "Validating content structure"
+        "Validating 'Next' article callouts"
+        "Validating mastery quizzes"
+        "Validating runnable Python examples"
+    )
+    SMOKE_PIDS=()
 
-    # 2a1. Ensure reading times are derived from content length
-    echo "   Checking derived reading-time estimates..."
-    if ! uv run "$DIR/scripts/update-time-estimates.py" --check; then
-        SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
-    fi
+    (uv run "$DIR/scripts/validate-metadata.py") >"$SMOKE_LOG_DIR/0.log" 2>&1 &
+    SMOKE_PIDS+=($!)
+    (uv run "$DIR/scripts/update-time-estimates.py" --check) >"$SMOKE_LOG_DIR/1.log" 2>&1 &
+    SMOKE_PIDS+=($!)
+    (uv run "$DIR/scripts/validate-references.py" --skip-http) >"$SMOKE_LOG_DIR/2.log" 2>&1 &
+    SMOKE_PIDS+=($!)
+    (uv run "$DIR/scripts/validate-content-structure.py") >"$SMOKE_LOG_DIR/3.log" 2>&1 &
+    SMOKE_PIDS+=($!)
+    (python3 "$DIR/scripts/validate-next-callouts.py") >"$SMOKE_LOG_DIR/4.log" 2>&1 &
+    SMOKE_PIDS+=($!)
+    (uv run "$DIR/scripts/validate-mastery-quizzes.py") >"$SMOKE_LOG_DIR/5.log" 2>&1 &
+    SMOKE_PIDS+=($!)
+    (uv run "$DIR/scripts/validate-python-examples.py" --workers "${PYTHON_EXAMPLE_WORKERS:-8}") >"$SMOKE_LOG_DIR/6.log" 2>&1 &
+    SMOKE_PIDS+=($!)
 
-    # 2a2. Cross-check content [^ref] citations against references.json
-    echo "   Validating reference cross-references..."
-    if ! uv run "$DIR/scripts/validate-references.py" --skip-http; then
-        SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
-    fi
-
-    # 2a3. Check Markdown/MDX structures that can render incorrectly in production
-    echo "   Validating content structure..."
-    if ! uv run "$DIR/scripts/validate-content-structure.py"; then
-        SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
-    fi
-
-    # 2a3b. Enforce correct "Next" callouts matching the canonical curriculum order
-    echo "   Validating 'Next' article callouts..."
-    if ! python3 "$DIR/scripts/validate-next-callouts.py"; then
-        SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
-    fi
-
-    # 2a3c. Enforce scored end-of-lesson mastery quizzes
-    echo "   Validating mastery quizzes..."
-    if ! uv run "$DIR/scripts/validate-mastery-quizzes.py"; then
-        SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
-    fi
-
-    # 2a4. Execute copy-runnable Python examples marked in article code fences
-    echo "   Validating runnable Python examples..."
-    if ! uv run "$DIR/scripts/validate-python-examples.py"; then
-        SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
-    fi
+    for idx in "${!SMOKE_PIDS[@]}"; do
+        echo "   ${SMOKE_LABELS[$idx]}..."
+        if ! wait "${SMOKE_PIDS[$idx]}"; then
+            SMOKE_ERRORS=$((SMOKE_ERRORS + 1))
+        fi
+        cat "$SMOKE_LOG_DIR/${idx}.log"
+    done
+    rm -rf "$SMOKE_LOG_DIR"
 
     if [ "$SMOKE_ERRORS" -gt 0 ]; then
         echo ""
@@ -530,46 +525,45 @@ if ! pnpm illustrations:build; then
     exit 1
 fi
 
-# ── Step 3a: Validate generated illustration references ───────────────────────
+# ── Step 3a: Validate generated illustrations & cover images ─────────────────
 echo ""
 if [ "$FAST_DEPLOY" -eq 1 ]; then
-    echo "🖼️  Step 3a/8: Skipping illustration reference validation (--fast)"
+    echo "🖼️  Step 3a/8: Skipping illustration and coverImage validation (--fast)"
 else
-    echo "🖼️  Step 3a/8: Validating illustration references..."
-    if ! uv run "$DIR/scripts/validate-illustration-refs.py"; then
-        echo ""
-        echo "   ❌ Illustration reference validation failed. Fix the issues above before deploying."
-        exit 1
-    fi
-fi
-
-# ── Step 3a.1: Validate generated illustration quality ────────────────────────
-echo ""
-if [ "$FAST_DEPLOY" -eq 1 ]; then
-    echo "🖼️  Step 3a.1/8: Skipping illustration quality validation (--fast)"
-else
-    echo "🖼️  Step 3a.1/8: Validating illustration quality..."
+    echo "🖼️  Step 3a/8: Validating illustration quality (cleaning stale outputs)..."
     if ! uv run "$DIR/scripts/validate-illustration-quality.py" --clean-stale --fail-layout-warnings; then
         echo ""
         echo "   ❌ Illustration quality validation failed. Fix the issues above before deploying."
         exit 1
     fi
-    if ! uv run "$DIR/scripts/validate-illustration-density.py"; then
-        echo ""
-        echo "   ❌ Illustration density validation failed. Fix the issues above before deploying."
-        exit 1
-    fi
-fi
 
-# ── Step 3b: Validate coverImage files ─────────────────────────────────
-echo ""
-if [ "$FAST_DEPLOY" -eq 1 ]; then
-    echo "🖼️  Step 3b/8: Skipping coverImage validation (--fast)"
-else
-    echo "🖼️  Step 3b/8: Validating coverImage files..."
-    if ! uv run "$DIR/scripts/validate-coverimages.py"; then
+    echo "🖼️  Step 3b/8: Validating illustration refs, density, and coverImage files in parallel..."
+    ILLUS_LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/leetllm-illus-check.XXXXXX")
+    ILLUS_LABELS=(
+        "Illustration references"
+        "Illustration density"
+        "coverImage files"
+    )
+    ILLUS_PIDS=()
+    (uv run "$DIR/scripts/validate-illustration-refs.py") >"$ILLUS_LOG_DIR/0.log" 2>&1 &
+    ILLUS_PIDS+=($!)
+    (uv run "$DIR/scripts/validate-illustration-density.py") >"$ILLUS_LOG_DIR/1.log" 2>&1 &
+    ILLUS_PIDS+=($!)
+    (uv run "$DIR/scripts/validate-coverimages.py") >"$ILLUS_LOG_DIR/2.log" 2>&1 &
+    ILLUS_PIDS+=($!)
+
+    ILLUS_ERRORS=0
+    for idx in "${!ILLUS_PIDS[@]}"; do
+        if ! wait "${ILLUS_PIDS[$idx]}"; then
+            echo "   ❌ ${ILLUS_LABELS[$idx]} validation failed:"
+            ILLUS_ERRORS=$((ILLUS_ERRORS + 1))
+        fi
+        cat "$ILLUS_LOG_DIR/${idx}.log"
+    done
+    rm -rf "$ILLUS_LOG_DIR"
+    if [ "$ILLUS_ERRORS" -gt 0 ]; then
         echo ""
-        echo "   ❌ coverImage validation failed. Fix the issues above before deploying."
+        echo "   ❌ Visual validation failed with $ILLUS_ERRORS error(s). Fix the issues above before deploying."
         exit 1
     fi
 fi
@@ -619,7 +613,13 @@ if [ "$IMAGE_DIGEST" = "-" ]; then
     echo "   Cache: ${IMAGE_REPOSITORY}:buildcache"
 
     # Upload the frozen file set directly, without re-evaluating ignore rules.
-    tar -czf "$BUILD_CONTEXT_DIR/source.tgz" -C "$BUILD_CONTEXT_DIR/source" .
+    # Most payload bytes are already-compressed PNG/MP4 assets, so fast level-1
+    # compression (with pigz when available) cuts packaging time dramatically.
+    if command -v pigz >/dev/null 2>&1; then
+        tar -cf - -C "$BUILD_CONTEXT_DIR/source" . | pigz -1 > "$BUILD_CONTEXT_DIR/source.tgz"
+    else
+        tar -cf - -C "$BUILD_CONTEXT_DIR/source" . | gzip -1 > "$BUILD_CONTEXT_DIR/source.tgz"
+    fi
 
     # Build separately so Cloud Build can reuse a registry-backed BuildKit cache.
     set +e

@@ -20,25 +20,32 @@ export function getGlossaryEntry(id: string): GlossaryEntryWithId | undefined {
     return { id: id as GlossaryEntryId, ...GLOSSARY_ENTRIES[id as GlossaryEntryId] }
 }
 
-const searchEntries = Object.entries(GLOSSARY_ENTRIES).map(([id, value]) => {
-    const entry: GlossaryEntryWithId = { id: id as GlossaryEntryId, ...value }
-    const text = [
-        entry.title,
-        entry.aliases?.join(" "),
-        entry.definition,
-        entry.example,
-        entry.relevance,
-        entry.intuition,
-        entry.formula,
-        entry.decisionRule,
-        entry.pitfall,
-        entry.details?.map((detail) => `${detail.title} ${detail.content}`).join(" "),
-        entry.related?.map((related) => related.title).join(" "),
-    ].filter(Boolean).join(" ").toLowerCase()
-    return { id, text }
-})
+let searchEntries: Array<{ id: string; text: string }> | null = null
+
+function getSearchEntries(): Array<{ id: string; text: string }> {
+    if (!searchEntries) {
+        searchEntries = Object.entries(GLOSSARY_ENTRIES).map(([id, value]) => {
+            const entry: GlossaryEntryWithId = { id: id as GlossaryEntryId, ...value }
+            const text = [
+                entry.title,
+                entry.aliases?.join(" "),
+                entry.definition,
+                entry.example,
+                entry.relevance,
+                entry.intuition,
+                entry.formula,
+                entry.decisionRule,
+                entry.pitfall,
+                entry.details?.map((detail) => `${detail.title} ${detail.content}`).join(" "),
+                entry.related?.map((related) => related.title).join(" "),
+            ].filter(Boolean).join(" ").toLowerCase()
+            return { id, text }
+        })
+    }
+    return searchEntries
+}
 
 export function searchGlossary(query: string): string[] {
     const normalized = query.toLowerCase().trim()
-    return searchEntries.filter((entry) => entry.text.includes(normalized)).map((entry) => entry.id)
+    return getSearchEntries().filter((entry) => entry.text.includes(normalized)).map((entry) => entry.id)
 }

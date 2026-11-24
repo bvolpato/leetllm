@@ -124,6 +124,7 @@ export function BlogCoverImage({
                     className={`${baseImageClassName} ${images.light ? "hidden dark:block" : ""}`}
                     loading={priority ? "eager" : "lazy"}
                     fetchPriority={priority ? "high" : "auto"}
+                    decoding="async"
                 />
             )}
             {images.light && (
@@ -132,8 +133,9 @@ export function BlogCoverImage({
                     {...getResponsiveContentImageProps(images.light, post.coverImageNaturalWidths?.light, sizes)}
                     alt=""
                     className={`${baseImageClassName} block dark:hidden`}
-                    loading={priority ? "eager" : "lazy"}
-                    fetchPriority={priority ? "high" : "auto"}
+                    loading={priority && !images.dark ? "eager" : "lazy"}
+                    fetchPriority={priority && !images.dark ? "high" : "auto"}
+                    decoding="async"
                 />
             )}
         </div>

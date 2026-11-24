@@ -9,16 +9,18 @@ struct GlossaryView: View {
     @State private var selectedID: String?
 
     var body: some View {
+        let entries = visibleEntries
+        let activeEntry = selectedEntry(in: entries) ?? entries.first
         Group {
             if horizontalSizeClass == .regular {
                 #if targetEnvironment(macCatalyst)
                 MacSplitView(sidebarWidth: 300) {
                     VStack(spacing: 0) {
                         MacSidebarSearchBar(text: $query, placeholder: "Search terms and definitions")
-                        glossaryList
+                        glossaryList(entries: entries)
                     }
                 } detail: {
-                    if let entry = selectedVisibleEntry ?? visibleEntries.first {
+                    if let entry = activeEntry {
                         GlossaryDetailView(
                             entry: entry,
                             isSplitDetail: true,
@@ -33,12 +35,12 @@ struct GlossaryView: View {
                 }
                 #else
                 NavigationSplitView {
-                    glossaryList
+                    glossaryList(entries: entries)
                         .navigationTitle("Glossary")
                         .navigationBarTitleDisplayMode(.inline)
                         .navigationSplitViewColumnWidth(min: 240, ideal: 285, max: 340)
                 } detail: {
-                    if let entry = selectedVisibleEntry ?? visibleEntries.first {
+                    if let entry = activeEntry {
                         GlossaryDetailView(
                             entry: entry,
                             isSplitDetail: true,
@@ -54,7 +56,7 @@ struct GlossaryView: View {
                 #endif
             } else {
                 NavigationStack {
-                    glossaryList
+                    glossaryList(entries: entries)
                         .navigationTitle(horizontalSizeClass == .regular ? "Glossary" : "")
                         .navigationBarTitleDisplayMode(.inline)
                         .navigationDestination(for: String.self) { id in
@@ -67,22 +69,23 @@ struct GlossaryView: View {
         }
         .onAppear {
             if horizontalSizeClass == .regular, selectedID == nil {
-                selectedID = navigation.selectedGlossaryID ?? visibleEntries.first?.id
+                selectedID = navigation.selectedGlossaryID ?? entries.first?.id
             }
         }
         .onChange(of: selectedID) { _, id in
             if let id { navigation.selectedGlossaryID = id }
         }
         .onChange(of: query) { _, _ in
-            if selectedVisibleEntry == nil {
-                selectedID = visibleEntries.first?.id
+            let updatedEntries = visibleEntries
+            if selectedEntry(in: updatedEntries) == nil {
+                selectedID = updatedEntries.first?.id
             }
         }
     }
 
-    private var selectedVisibleEntry: GlossaryEntry? {
+    private func selectedEntry(in entries: [GlossaryEntry]) -> GlossaryEntry? {
         guard let selectedID else { return nil }
-        return visibleEntries.first { $0.id == selectedID }
+        return entries.first { $0.id == selectedID }
     }
 
     private var visibleEntries: [GlossaryEntry] {
@@ -93,33 +96,20 @@ struct GlossaryView: View {
         if normalized.isEmpty {
             return sortMode.sort(matches)
         } else {
-            return matches.sorted { left, right in
-                let pLeft = searchPriority(for: left, query: normalized)
-                let pRight = searchPriority(for: right, query: normalized)
-                if pLeft != pRight {
-                    return pLeft < pRight
-                }
-                return sortMode.compare(left, right)
+            let prioritized = matches.map { entry in
+                (entry, dataService.glossarySearchPriority(entry, normalizedQuery: normalized))
             }
+            return prioritized.sorted { left, right in
+                if left.1 != right.1 {
+                    return left.1 < right.1
+                }
+                return sortMode.compare(left.0, right.0)
+            }.map(\.0)
         }
     }
 
-    private func searchPriority(for entry: GlossaryEntry, query: String) -> Int {
-        let titleLower = entry.title.lowercased()
-        let aliases = (entry.aliases ?? []).map { $0.lowercased() }
-        if titleLower == query || aliases.contains(query) {
-            return 1
-        } else if titleLower.hasPrefix(query) || aliases.contains(where: { $0.hasPrefix(query) }) {
-            return 2
-        } else if titleLower.contains(query) {
-            return 3
-        } else {
-            return 4
-        }
-    }
-
-    private var visibleEntryGroups: [GlossaryEntryGroup] {
-        visibleEntries.reduce(into: [GlossaryEntryGroup]()) { groups, entry in
+    private func visibleEntryGroups(from entries: [GlossaryEntry]) -> [GlossaryEntryGroup] {
+        entries.reduce(into: [GlossaryEntryGroup]()) { groups, entry in
             if let index = groups.indices.last, groups[index].title == entry.importanceLevelTitle {
                 groups[index].entries.append(entry)
             } else {
@@ -128,8 +118,8 @@ struct GlossaryView: View {
         }
     }
 
-    private var alphabeticalEntryGroups: [GlossaryEntryGroup] {
-        visibleEntries.reduce(into: [GlossaryEntryGroup]()) { groups, entry in
+    private func alphabeticalEntryGroups(from entries: [GlossaryEntry]) -> [GlossaryEntryGroup] {
+        entries.reduce(into: [GlossaryEntryGroup]()) { groups, entry in
             let initial = entry.title.first.map { String($0).uppercased() } ?? "#"
             let title = initial.rangeOfCharacter(from: .letters) == nil ? "#" : initial
             if let index = groups.indices.last, groups[index].title == title {
@@ -141,24 +131,24 @@ struct GlossaryView: View {
     }
 
     @ViewBuilder
-    private var glossaryList: some View {
+    private func glossaryList(entries: [GlossaryEntry]) -> some View {
         if horizontalSizeClass == .regular {
             #if targetEnvironment(macCatalyst)
             List {
-                glossaryListContent(withSimultaneousGesture: true)
+                glossaryListContent(entries: entries, withSimultaneousGesture: true)
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             #else
             List(selection: $selectedID) {
-                glossaryListContent(withSimultaneousGesture: true)
+                glossaryListContent(entries: entries, withSimultaneousGesture: true)
             }
             .listStyle(.sidebar)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search terms and definitions")
             #endif
         } else {
             List {
-                glossaryListContent(withSimultaneousGesture: false)
+                glossaryListContent(entries: entries, withSimultaneousGesture: false)
             }
             .listStyle(.insetGrouped)
             .searchable(text: $query, prompt: "Search terms and definitions")
@@ -166,7 +156,7 @@ struct GlossaryView: View {
     }
 
     @ViewBuilder
-    private func glossaryListContent(withSimultaneousGesture: Bool) -> some View {
+    private func glossaryListContent(entries: [GlossaryEntry], withSimultaneousGesture: Bool) -> some View {
         Section {
             Picker("Sort glossary terms", selection: $sortMode) {
                 ForEach(GlossarySortMode.allCases) { mode in
@@ -180,7 +170,7 @@ struct GlossaryView: View {
             #endif
 
             HStack {
-                Label("\(visibleEntries.count) terms", systemImage: "text.book.closed")
+                Label("\(entries.count) terms", systemImage: "text.book.closed")
                 Spacer()
                 if !query.isEmpty {
                     Button("Clear") {
@@ -196,21 +186,21 @@ struct GlossaryView: View {
             #endif
         }
 
-        if visibleEntries.isEmpty {
+        if entries.isEmpty {
             ContentUnavailableView.search(text: query)
                 .listRowBackground(Color.clear)
         } else if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             Section("Results") {
-                glossaryRows(for: visibleEntries, withSimultaneousGesture: withSimultaneousGesture, showImportance: true)
+                glossaryRows(for: entries, withSimultaneousGesture: withSimultaneousGesture, showImportance: true)
             }
         } else if sortMode == .relevance {
-            ForEach(visibleEntryGroups) { group in
+            ForEach(visibleEntryGroups(from: entries)) { group in
                 Section("\(group.title) (\(group.entries.count))") {
                     glossaryRows(for: group.entries, withSimultaneousGesture: withSimultaneousGesture, showImportance: false)
                 }
             }
         } else {
-            ForEach(alphabeticalEntryGroups) { group in
+            ForEach(alphabeticalEntryGroups(from: entries)) { group in
                 Section(group.title) {
                     glossaryRows(for: group.entries, withSimultaneousGesture: withSimultaneousGesture, showImportance: true)
                 }
@@ -375,15 +365,31 @@ private extension GlossaryEntry {
     }
 }
 
+private final class GlossaryScrollPositionBox {
+    var id: String?
+}
+
 struct GlossaryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let entry: GlossaryEntry
     var isSplitDetail: Bool = false
     var onSelectRelatedTerm: ((GlossaryEntry) -> Void)? = nil
-    @State private var scrollPositionID: String? = nil
+    @State private var scrollPositionBox = GlossaryScrollPositionBox()
+    @State private var isScrolledPastHeader = false
 
     var body: some View {
+        let scrollPositionBinding = Binding<String?>(
+            get: { scrollPositionBox.id },
+            set: { newVal in
+                scrollPositionBox.id = newVal
+                guard !isSplitDetail else { return }
+                let pastHeader = newVal != nil && newVal != "header"
+                if isScrolledPastHeader != pastHeader {
+                    isScrolledPastHeader = pastHeader
+                }
+            }
+        )
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -491,8 +497,8 @@ struct GlossaryDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .scrollTargetLayout()
         }
-        .scrollPosition(id: $scrollPositionID)
-        .navigationTitle(isSplitDetail ? "" : (scrollPositionID == nil || scrollPositionID == "header" ? "" : entry.title))
+        .scrollPosition(id: scrollPositionBinding)
+        .navigationTitle(isSplitDetail || !isScrolledPastHeader ? "" : entry.title)
         .navigationBarTitleDisplayMode(.inline)
     }
 }

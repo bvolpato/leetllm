@@ -1,11 +1,22 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { LoaderCircle, RefreshCw, RotateCcw, Sparkles, Trash2, WandSparkles } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
-import { MarkdownRenderer } from "./markdown-renderer"
 import { useIsLoggedIn } from "@/lib/use-is-logged-in"
+
+const DynamicMarkdownRenderer = dynamic(
+    () => import("./markdown-renderer").then((mod) => mod.MarkdownRenderer),
+    {
+        loading: () => (
+            <div className="reader-prose-block py-6 text-sm [color:var(--reading-muted)]">
+                Loading personalized lesson...
+            </div>
+        ),
+    },
+)
 
 interface PersonalizedPayload {
     profileConfigured?: boolean
@@ -30,22 +41,43 @@ function presetLabel(preset?: PersonalizedPayload["preset"]) {
     return values.length > 0 ? values.join(" + ") : "your saved style"
 }
 
-export function PersonalizedLessonContent({ slug, content }: { slug: string; content: string }) {
+export function PersonalizedLessonContent({
+    slug,
+    content,
+    canonicalContent,
+    children,
+}: {
+    slug: string
+    content?: string
+    canonicalContent?: ReactNode
+    children?: ReactNode
+}) {
     const { user, isLoggedIn, authLoaded } = useIsLoggedIn()
     const userId = isLoggedIn ? user?.id ?? null : null
     const identityKey = userId ?? "anonymous"
 
-    return <PersonalizedLessonContentState key={`${identityKey}:${slug}`} slug={slug} content={content} userId={userId} authLoaded={authLoaded} />
+    return (
+        <PersonalizedLessonContentState
+            key={`${identityKey}:${slug}`}
+            slug={slug}
+            content={content}
+            canonicalContent={canonicalContent ?? children}
+            userId={userId}
+            authLoaded={authLoaded}
+        />
+    )
 }
 
 function PersonalizedLessonContentState({
     slug,
     content,
+    canonicalContent,
     userId,
     authLoaded,
 }: {
     slug: string
-    content: string
+    content?: string
+    canonicalContent?: ReactNode
     userId: string | null
     authLoaded: boolean
 }) {
@@ -144,9 +176,7 @@ function PersonalizedLessonContentState({
     }, [authLoaded, slug, userId])
 
     const visibleAuthStatus = !authLoaded ? "loading" : !userId ? "anonymous" : authStatus
-    const renderedContent = visibleAuthStatus === "authenticated" && mode === "personalized" && personalized
-        ? personalized
-        : content
+    const showPersonalized = visibleAuthStatus === "authenticated" && mode === "personalized" && Boolean(personalized)
     const loginHref = `/login?next=${encodeURIComponent(`/learn/${slug}`)}`
 
     return (
@@ -247,11 +277,20 @@ function PersonalizedLessonContentState({
                     </p>
                 )}
             </div>
-            <MarkdownRenderer
-                content={renderedContent}
-                showTableOfContents
-                personalizationSlug={visibleAuthStatus === "authenticated" && mode === "personalized" ? slug : undefined}
-            />
+            {showPersonalized && personalized ? (
+                <DynamicMarkdownRenderer
+                    content={personalized}
+                    showTableOfContents
+                    personalizationSlug={slug}
+                />
+            ) : canonicalContent !== undefined ? (
+                canonicalContent
+            ) : content !== undefined ? (
+                <DynamicMarkdownRenderer
+                    content={content}
+                    showTableOfContents
+                />
+            ) : null}
         </>
     )
 }

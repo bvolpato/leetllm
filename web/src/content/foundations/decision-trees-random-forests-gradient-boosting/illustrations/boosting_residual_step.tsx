@@ -30,24 +30,13 @@ export function create(mode: ThemeMode = 'dark') {
         color = c.textPrimary,
     ) => (
         <CanvasItem x={left} y={top} width={w} height={size * 1.5}>
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                color={color}
-                align="center"
-            />
+            <TextLabel c={c} text={text} width={w} fontSize={size} color={color} align="center" />
         </CanvasItem>
     )
     return (
         <Board c={c} width={width} height={height}>
             <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg
-                    width={width}
-                    height={height}
-                    viewBox={`0 0 ${width} ${height}`}
-                >
+                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
                     {[0, 10, 20, 30, 40, 50, 60, 70].map((v) => (
                         <line
                             key={v}
@@ -96,12 +85,7 @@ export function create(mode: ThemeMode = 'dark') {
                                 strokeWidth={2}
                                 strokeDasharray="5 6"
                             />
-                            <circle
-                                cx={x(hours)}
-                                cy={y(data.growth[i])}
-                                r={9}
-                                fill={warm}
-                            />
+                            <circle cx={x(hours)} cy={y(data.growth[i])} r={9} fill={warm} />
                             <circle
                                 cx={x(hours)}
                                 cy={y(30)}
@@ -126,19 +110,10 @@ export function create(mode: ThemeMode = 'dark') {
             {label('● target', 245, 66, 170, 24, warm)}
             {label('■ updated', 445, 66, 190, 24, green)}
             {label('Growth (mm)', 10, 108, 190, 23, c.textSecondary)}
-            {[0, 20, 40, 60].map((v) =>
-                label(String(v), 15, y(v) - 16, 42, 23, c.textSecondary),
-            )}
+            {[0, 20, 40, 60].map((v) => label(String(v), 15, y(v) - 16, 42, 23, c.textSecondary))}
             {data.sunlight.map((hours, i) => (
                 <React.Fragment key={i}>
-                    {label(
-                        String(hours),
-                        x(hours) - 30,
-                        460,
-                        60,
-                        24,
-                        c.textSecondary,
-                    )}
+                    {label(String(hours), x(hours) - 30, 460, 60, 24, c.textSecondary)}
                     {label(
                         data.rounds[1][i].toFixed(1),
                         x(hours) - 48,
@@ -149,14 +124,7 @@ export function create(mode: ThemeMode = 'dark') {
                     )}
                 </React.Fragment>
             ))}
-            {label(
-                'Sunlight (hours per day)',
-                140,
-                498,
-                400,
-                25,
-                c.textSecondary,
-            )}
+            {label('Sunlight (hours per day)', 140, 498, 400, 25, c.textSecondary)}
             {label('30 + 0.1 × (−15) = 28.5', 20, 552, 350, 25)}
             {label('30 + 0.1 × 30 = 33', 380, 552, 280, 25)}
         </Board>

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(payload, {
         headers: {
-            "Cache-Control": "no-store",
+            "Cache-Control": "public, max-age=60, s-maxage=3600, stale-while-revalidate=600",
         },
     })
 }

@@ -150,7 +150,7 @@ describe("PracticeProblemClient", () => {
         localStorage.setItem("leetllm_practice_solution_add-two", "def add(a, b):\n    return a + b")
         render(<PracticeProblemClient problem={problem} problems={[problem]} initialSearch="" />)
 
-        const editor = screen.getByRole("textbox", { name: "Add Two Python 3 solution editor" }) as HTMLTextAreaElement
+        const editor = await screen.findByRole("textbox", { name: "Add Two Python 3 solution editor" }) as HTMLTextAreaElement
         await waitFor(() => expect(editor.value).toBe("def add(a, b):\n    return a + b"))
 
         fireEvent.change(editor, { target: { value: "def add(a, b):\n    return a - b" } })
@@ -160,7 +160,7 @@ describe("PracticeProblemClient", () => {
     it("inserts spaces when Tab is pressed in editor", async () => {
         render(<PracticeProblemClient problem={problem} problems={[problem]} initialSearch="" />)
 
-        const editor = screen.getByRole("textbox", { name: "Add Two Python 3 solution editor" }) as HTMLTextAreaElement
+        const editor = await screen.findByRole("textbox", { name: "Add Two Python 3 solution editor" }) as HTMLTextAreaElement
         editor.setSelectionRange(0, 0)
         fireEvent.keyDown(editor, { key: "Tab" })
 
@@ -170,7 +170,7 @@ describe("PracticeProblemClient", () => {
     it("keeps Python indentation when Enter is pressed in the editor", async () => {
         render(<PracticeProblemClient problem={problem} problems={[problem]} initialSearch="" />)
 
-        const editor = screen.getByRole("textbox", { name: "Add Two Python 3 solution editor" }) as HTMLTextAreaElement
+        const editor = await screen.findByRole("textbox", { name: "Add Two Python 3 solution editor" }) as HTMLTextAreaElement
         fireEvent.change(editor, { target: { value: "def add(a, b):" } })
         editor.setSelectionRange(editor.value.length, editor.value.length)
         fireEvent.keyDown(editor, { key: "Enter" })

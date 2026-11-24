@@ -156,7 +156,7 @@ const VALID_DIFFICULTIES = new Set<string>(["Easy", "Medium", "Hard"])
 // pngDisplaySize) are now in content-utils.ts and shared with the blog system.
 
 function fallbackLastModified(paths: string[]): string {
-    return new Date(Math.max(...paths.map((path) => statSync(path).mtime.getTime()))).toISOString()
+    return new Date(Math.max(...paths.map((path) => statSync(/* turbopackIgnore: true */ path).mtime.getTime()))).toISOString()
 }
 
 function getQuestionLastModified(slug: string, paths: string[]): string {
@@ -205,7 +205,7 @@ function loadQuestion(questionDir: string, audience: ContentAudience, preloadedB
     const timeEstimate = estimateReadingTime(rawContent, metadata.difficulty, false)
 
     const socialBannerPath = join(questionDir, "social_banner.png")
-    const socialImage = existsSync(socialBannerPath)
+    const socialImage = existsSync(/* turbopackIgnore: true */ socialBannerPath)
         ? contentImageUrl(socialBannerPath)
         : undefined
 
@@ -589,15 +589,15 @@ function loadAllQuestions(audience: ContentAudience, edition: ContentEdition): Q
 
     // Walk each content folder containing article directories.
     for (const folderName of CONTENT_SECTION_FOLDERS) {
-        const sectionDir = join(CONTENT_DIR, folderName)
-        if (!existsSync(sectionDir)) continue
+        const sectionDir = join(/* turbopackIgnore: true */ CONTENT_DIR, /* turbopackIgnore: true */ folderName)
+        if (!existsSync(/* turbopackIgnore: true */ sectionDir)) continue
 
-        const articleDirs = readdirSync(sectionDir, { withFileTypes: true })
+        const articleDirs = readdirSync(/* turbopackIgnore: true */ sectionDir, { withFileTypes: true })
             .filter((d) => d.isDirectory())
             .map((d) => d.name)
 
         for (const slug of articleDirs) {
-            const questionDir = join(sectionDir, slug)
+            const questionDir = join(/* turbopackIgnore: true */ sectionDir, /* turbopackIgnore: true */ slug)
             const bundle = loadContentBundle(questionDir, audience, edition)
             if (!bundle) continue
             const metadata = bundle.metadata as QuestionMetadata
@@ -678,7 +678,7 @@ function loadQuestionByIndexedSlug(slug: string): Question | undefined {
     const route = getQuestionRoute(slug)
     if (!route || route.hidden) return undefined
 
-    const questionDir = join(CONTENT_DIR, route.directory)
+    const questionDir = join(/* turbopackIgnore: true */ CONTENT_DIR, /* turbopackIgnore: true */ route.directory)
     const bundle = loadContentBundle(questionDir, "website")
     if (!bundle || !isVisibleToAudience(bundle.metadata, "website")) return undefined
 

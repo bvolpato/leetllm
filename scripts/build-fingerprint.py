@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -30,40 +31,49 @@ CACHE_CONFIG = {
 }
 
 
+def _hash_and_snapshot(
+    root: Path, name: str, snapshot: Path | None
+) -> list[object]:
+    path = root / name
+    if Path(name).is_absolute() or ".." in Path(name).parts:
+        raise ValueError(f"Build input is outside the source directory: {name}")
+    if not path.resolve().is_relative_to(root):
+        raise ValueError(f"Build input links outside the source directory: {name}")
+    content_hash = hashlib.sha256()
+    with path.open("rb") as source:
+        info = path.stat()
+        executable = bool(info.st_mode & 0o111)
+        destination = None
+        if snapshot is not None:
+            target = snapshot / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            destination = target.open("wb")
+        try:
+            while chunk := source.read(1024 * 1024):
+                content_hash.update(chunk)
+                if destination is not None:
+                    destination.write(chunk)
+        finally:
+            if destination is not None:
+                destination.close()
+        if snapshot is not None:
+            target.chmod(0o755 if executable else 0o644)
+            os.utime(target, ns=(info.st_atime_ns, info.st_mtime_ns))
+    return [name, executable, content_hash.hexdigest()]
+
+
 def fingerprint(
     root: Path, files: list[str], base_image: str, snapshot: Path | None = None
 ) -> tuple[str, str]:
-    records = []
     root = root.resolve()
-    for name in sorted(set(files)):
-        path = root / name
-        if Path(name).is_absolute() or ".." in Path(name).parts:
-            raise ValueError(f"Build input is outside the source directory: {name}")
-        if not path.resolve().is_relative_to(root):
-            raise ValueError(f"Build input links outside the source directory: {name}")
-        content_hash = hashlib.sha256()
-        with path.open("rb") as source:
-            info = path.stat()
-            executable = bool(info.st_mode & 0o111)
-            destination = None
-            if snapshot is not None:
-                target = snapshot / name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                destination = target.open("wb")
-            try:
-                while chunk := source.read(1024 * 1024):
-                    content_hash.update(chunk)
-                    if destination is not None:
-                        destination.write(chunk)
-            finally:
-                if destination is not None:
-                    destination.close()
-            if snapshot is not None:
-                target.chmod(0o755 if executable else 0o644)
-                os.utime(target, ns=(info.st_atime_ns, info.st_mtime_ns))
-        records.append([name, executable, content_hash.hexdigest()])
-    if not records:
+    unique_files = sorted(set(files))
+    if not unique_files:
         raise ValueError("The production build context is empty")
+    workers = min(8, os.cpu_count() or 4, len(unique_files))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        records = list(
+            pool.map(lambda name: _hash_and_snapshot(root, name, snapshot), unique_files)
+        )
 
     def digest(selected: list) -> str:
         payload = ["leetllm-build-v1", PLATFORM, base_image, selected]

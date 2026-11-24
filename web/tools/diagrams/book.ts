@@ -115,8 +115,10 @@ export function resolveBookDiagram(contentRelativePath: string, requireExisting 
     return path
 }
 
+export { closeBrowser as closeBookDiagramBrowser }
+
 /** Build light, transparent SVG captures without modifying the website PNGs. */
-export async function ensureBookDiagrams(articleRelativePath: string, renderMissing = true, minimumLabelPt = 0, edition: ContentEdition = 'reference'): Promise<Record<string, number>> {
+export async function ensureBookDiagrams(articleRelativePath: string, renderMissing = true, minimumLabelPt = 0, edition: ContentEdition = 'reference', keepBrowserOpen = false): Promise<Record<string, number>> {
     const bundle = loadContentBundle(articleDirectory(articleRelativePath), 'book', edition)
     if (!bundle) throw new Error(`Content bundle missing for book diagrams: ${articleRelativePath}`)
     const entries = diagramsFor(bundle.body, bundle.sourceBody, edition)
@@ -171,6 +173,6 @@ export async function ensureBookDiagrams(articleRelativePath: string, renderMiss
         await rename(`${manifestPath}.tmp`, manifestPath)
         return displayWidths
     } finally {
-        await closeBrowser()
+        if (!keepBrowserOpen) await closeBrowser()
     }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { existsSync, readFileSync } from "fs"
+import { readFile } from "fs/promises"
+import { existsSync } from "fs"
 import { basename, extname, join } from "path"
 import { compressedResponse } from "@/lib/response-compression"
 
@@ -51,17 +52,17 @@ export async function GET(
         return NextResponse.json({ error: "Invalid path" }, { status: 400 })
     }
 
-    const filePath = join(CONTENT_DIR, ...pathSegments)
+    const filePath = join(/* turbopackIgnore: true */ CONTENT_DIR, ...pathSegments)
     if (!filePath.startsWith(CONTENT_DIR)) {
         return NextResponse.json({ error: "Invalid path" }, { status: 400 })
     }
 
-    if (!existsSync(filePath)) {
+    if (!existsSync(/* turbopackIgnore: true */ filePath)) {
         return NextResponse.json({ error: "Not found" }, { status: 404 })
     }
 
     try {
-        const buffer = readFileSync(filePath)
+        const buffer = await readFile(/* turbopackIgnore: true */ filePath)
         return compressedResponse(request, new Uint8Array(buffer), {
             status: 200,
             headers: {

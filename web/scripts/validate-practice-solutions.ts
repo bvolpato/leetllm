@@ -4,6 +4,22 @@ import { runPracticeCode, type PracticeCaseResult } from "../src/lib/practice-ru
 
 const requiredLanguages = Object.keys(PRACTICE_LANGUAGES) as PracticeLanguage[]
 const javaAssertionPattern = /\b(?:check|eq)\s*\(/
+const DEFAULT_CONCURRENCY = Math.max(1, Number(process.env.PRACTICE_VALIDATE_CONCURRENCY || "4"))
+
+async function runConcurrent<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
+    const results: T[] = new Array(tasks.length)
+    let index = 0
+
+    async function worker() {
+        while (index < tasks.length) {
+            const current = index++
+            results[current] = await tasks[current]()
+        }
+    }
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, tasks.length) }, worker))
+    return results
+}
 
 function extractSolution(problem: PracticeProblem, language: PracticeLanguage, bundle: PracticeProblemLanguageBundle): string {
     const fenceLanguage = PRACTICE_LANGUAGES[language].solutionFence
@@ -110,6 +126,15 @@ async function main() {
         }
     }
 
+    interface ValidationTask {
+        problem: PracticeProblem
+        language: PracticeLanguage
+        bundle: PracticeProblemLanguageBundle
+        code: string
+    }
+
+    const validationTasks: ValidationTask[] = []
+
     for (const problem of problems) {
         for (const language of requiredLanguages) {
             const bundle = getPracticeProblemLanguage(problem, language)
@@ -123,21 +148,45 @@ async function main() {
                 continue
             }
 
-            const result = await runPracticeCode({ problem, code, mode: "submit", language })
-            const sampleCount = bundle.testCases.filter((testCase) => testCase.visibility === "sample").length
-            const hiddenCount = bundle.testCases.filter((testCase) => testCase.visibility === "hidden").length
-            if (result.ok) {
-                console.log(`ok ${problem.slug} ${language} samples=${sampleCount} hidden=${hiddenCount} passed=${result.passed}/${result.total}`)
-                continue
-            }
+            validationTasks.push({ problem, language, bundle, code })
+        }
+    }
 
-            errors.push(`${problem.slug}: ${language} sample solution failed ${result.passed}/${result.total}`)
-            if (result.error) {
-                errors.push(`${problem.slug}: ${language} ${result.error}`)
-            }
-            for (const testResult of result.results.filter((testResult) => !testResult.passed)) {
-                errors.push(formatCaseFailure(problem, language, testResult))
-            }
+    const executeTask = async ({ problem, language, bundle, code }: ValidationTask) => {
+        const result = await runPracticeCode({ problem, code, mode: "submit", language })
+        return { problem, language, bundle, code, result }
+    }
+
+    const taskResults = await runConcurrent(
+        validationTasks.map((task) => () => executeTask(task)),
+        DEFAULT_CONCURRENCY,
+    )
+
+    // Retry any concurrent timeout once sequentially to rule out CPU contention flakes.
+    for (let i = 0; i < taskResults.length; i++) {
+        const entry = taskResults[i]
+        const timedOut = !entry.result.ok
+            && (entry.result.error?.includes("Timed out")
+                || entry.result.results.some((r) => !r.passed && r.error?.includes("Timed out")))
+        if (timedOut && DEFAULT_CONCURRENCY > 1) {
+            taskResults[i] = await executeTask(validationTasks[i])
+        }
+    }
+
+    for (const { problem, language, bundle, result } of taskResults) {
+        const sampleCount = bundle.testCases.filter((testCase) => testCase.visibility === "sample").length
+        const hiddenCount = bundle.testCases.filter((testCase) => testCase.visibility === "hidden").length
+        if (result.ok) {
+            console.log(`ok ${problem.slug} ${language} samples=${sampleCount} hidden=${hiddenCount} passed=${result.passed}/${result.total}`)
+            continue
+        }
+
+        errors.push(`${problem.slug}: ${language} sample solution failed ${result.passed}/${result.total}`)
+        if (result.error) {
+            errors.push(`${problem.slug}: ${language} ${result.error}`)
+        }
+        for (const testResult of result.results.filter((testResult) => !testResult.passed)) {
+            errors.push(formatCaseFailure(problem, language, testResult))
         }
     }
 

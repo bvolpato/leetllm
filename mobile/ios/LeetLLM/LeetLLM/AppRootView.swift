@@ -31,7 +31,9 @@ struct AppRootView: View {
     }
 
     @State private var showSplash: Bool
+    @State private var hasScheduledSplashDismissal = false
     @State private var selectedTab = 0
+    @State private var mountedTabs: Set<TabType> = [.learn]
     @State private var didSetInitialTab = false
     @ObservedObject private var navigation = AppNavigation.shared
     @ObservedObject private var readerSettings = ReaderSettings.shared
@@ -159,15 +161,34 @@ struct AppRootView: View {
             }
         }
         .onAppear {
-            scheduleSplashDismissal()
+            dismissSplashIfReady()
             guard !didSetInitialTab else { return }
             didSetInitialTab = true
             switch launchRoute {
-            case "practice": selectedTab = TabType.practice.rawValue
-            case "tracks": selectedTab = TabType.tracks.rawValue
-            case "glossary": selectedTab = TabType.glossary.rawValue
-            case "account", "settings": selectedTab = TabType.settings.rawValue
+            case "practice":
+                selectedTab = TabType.practice.rawValue
+                mountedTabs.insert(.practice)
+            case "tracks":
+                selectedTab = TabType.tracks.rawValue
+                mountedTabs.insert(.tracks)
+            case "glossary":
+                selectedTab = TabType.glossary.rawValue
+                mountedTabs.insert(.glossary)
+            case "account", "settings":
+                selectedTab = TabType.settings.rawValue
+                mountedTabs.insert(.settings)
             default: break
+            }
+        }
+        .onChange(of: dataService.isInitialLoadComplete) { _, _ in
+            dismissSplashIfReady()
+        }
+        .onChange(of: dataService.loadError) { _, _ in
+            dismissSplashIfReady()
+        }
+        .onChange(of: selectedTab) { _, newValue in
+            if let tab = TabType(rawValue: newValue) {
+                mountedTabs.insert(tab)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("NavigateToRoute"))) { notification in
@@ -190,12 +211,13 @@ struct AppRootView: View {
         .preferredColorScheme(readerSettings.currentColorScheme)
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
-                progressStore.flushPendingScrollPosition()
+                progressStore.flushPendingPersistence()
             }
         }
     }
 
     private func selectTab(_ tab: TabType) {
+        mountedTabs.insert(tab)
         if selectedTab == tab.rawValue, tab == .learn {
             NotificationCenter.default.post(name: Notification.Name("LearnTabDoubleTapped"), object: nil)
         } else {
@@ -209,31 +231,50 @@ struct AppRootView: View {
     @ViewBuilder
     private var mainNavigationContent: some View {
         #if targetEnvironment(macCatalyst)
+        let activeTab = TabType(rawValue: selectedTab) ?? .learn
         VStack(spacing: 0) {
             MacTopNavigationBar(
                 selectedTab: Binding(
-                    get: { TabType(rawValue: selectedTab) ?? .learn },
+                    get: { activeTab },
                     set: { selectTab($0) }
                 ),
                 completedLessons: dataService.lessons.filter { progressStore.isRead($0.slug) }.count,
                 totalLessons: dataService.lessons.count
             )
             Divider()
-            Group {
-                switch TabType(rawValue: selectedTab) ?? .learn {
-                case .learn:
+            ZStack {
+                if mountedTabs.contains(.learn) || activeTab == .learn {
                     LearnView()
                         .id(progressStore.resetGeneration)
-                case .practice:
+                        .opacity(activeTab == .learn ? 1 : 0)
+                        .allowsHitTesting(activeTab == .learn)
+                        .accessibilityHidden(activeTab != .learn)
+                }
+                if mountedTabs.contains(.practice) || activeTab == .practice {
                     PracticeView()
                         .id(progressStore.resetGeneration)
-                case .tracks:
+                        .opacity(activeTab == .practice ? 1 : 0)
+                        .allowsHitTesting(activeTab == .practice)
+                        .accessibilityHidden(activeTab != .practice)
+                }
+                if mountedTabs.contains(.tracks) || activeTab == .tracks {
                     TracksView()
                         .id(progressStore.resetGeneration)
-                case .glossary:
+                        .opacity(activeTab == .tracks ? 1 : 0)
+                        .allowsHitTesting(activeTab == .tracks)
+                        .accessibilityHidden(activeTab != .tracks)
+                }
+                if mountedTabs.contains(.glossary) || activeTab == .glossary {
                     GlossaryView()
-                case .settings:
+                        .opacity(activeTab == .glossary ? 1 : 0)
+                        .allowsHitTesting(activeTab == .glossary)
+                        .accessibilityHidden(activeTab != .glossary)
+                }
+                if mountedTabs.contains(.settings) || activeTab == .settings {
                     AccountView()
+                        .opacity(activeTab == .settings ? 1 : 0)
+                        .allowsHitTesting(activeTab == .settings)
+                        .accessibilityHidden(activeTab != .settings)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -327,16 +368,18 @@ struct AppRootView: View {
         return arguments[valueIndex]
     }
 
-    private func scheduleSplashDismissal() {
-        guard showSplash else { return }
+    private func dismissSplashIfReady() {
+        guard showSplash, !hasScheduledSplashDismissal else { return }
         let args = ProcessInfo.processInfo.arguments
         if args.contains("--no-splash") || args.contains("--ui-testing") {
             showSplash = false
             return
         }
+        guard dataService.isInitialLoadComplete || dataService.loadError != nil else { return }
+        hasScheduledSplashDismissal = true
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_600_000_000)
-            withAnimation(.easeInOut(duration: 0.45)) {
+            try? await Task.sleep(for: .milliseconds(200))
+            withAnimation(.easeOut(duration: 0.28)) {
                 showSplash = false
             }
         }
@@ -618,6 +661,14 @@ private struct MacTopNavigationBar: View {
 private struct ThemeCoordinator: UIViewRepresentable {
     let scheme: String
 
+    final class Coordinator {
+        var lastAppliedScheme: String?
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeUIView(context: Context) -> UIView {
         let view = UIView(frame: .zero)
         view.isHidden = true
@@ -626,6 +677,8 @@ private struct ThemeCoordinator: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
+        guard context.coordinator.lastAppliedScheme != scheme else { return }
+        context.coordinator.lastAppliedScheme = scheme
         let style: UIUserInterfaceStyle = {
             switch scheme {
             case "light": return .light

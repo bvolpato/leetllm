@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, BookOpen, Clock3 } from "lucide-react"
 import { KnowledgeCheck } from "@/components/mastery-quiz"
+import { renderMasteryQuizNodes } from "@/components/server-inline-markdown"
 import { Button } from "@/components/ui/button"
 import { isPlanAnswers, type PlanAnswers } from "@/lib/learning-plan"
 import { getSectionCheck } from "@/lib/learning-plan-server"
@@ -90,6 +91,7 @@ export default async function SectionCheckPage({ params }: PageProps) {
             <KnowledgeCheck
                 slug={check.slug}
                 questions={check.questions}
+                renderedQuestions={renderMasteryQuizNodes(check.questions)}
                 kind="section"
                 eyebrow={`Complete week ${check.week.number}`}
                 title="Section Check"

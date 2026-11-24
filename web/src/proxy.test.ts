@@ -37,9 +37,26 @@ describe("public lesson navigation", () => {
     })
 
     test.each([
+        ["GET", "/cdn/content-image/fundamentals/attention/illustrations/_generated/flow_dark.png"],
+        ["GET", "/api/study-state"],
+        ["POST", "/api/auth/signout"],
+        ["GET", "/api/search/learn?q=attention"],
+        ["GET", "/auth/callback?code=abc"],
+    ])("skips redundant proxy session refresh for self-authenticating or static route %s %s", async (method, pathname) => {
+        const request = new NextRequest(`https://leetllm.com${pathname}`, {
+            method,
+            headers: { cookie: "sb-project-auth-token.0=chunk-one" },
+        })
+
+        const response = await proxy(request)
+
+        expect(updateSession).not.toHaveBeenCalled()
+        expect(response.headers.get("x-middleware-next")).toBe("1")
+    })
+
+    test.each([
         ["GET", "/dashboard"],
         ["GET", "/settings/personalization"],
-        ["GET", "/api/user-study-state"],
         ["GET", "/login"],
         ["POST", "/learn/vectors-matrices-tensors"],
         ["GET", "/learn/vectors-matrices-tensors/account"],

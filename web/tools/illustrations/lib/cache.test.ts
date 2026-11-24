@@ -1,5 +1,15 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+    mkdtemp,
+    mkdir,
+    readFile,
+    realpath,
+    rm,
+    stat,
+    symlink,
+    utimes,
+    writeFile,
+} from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -30,6 +40,7 @@ async function createCacheFixture() {
     await mkdir(libraryDirectory, { recursive: true })
     await mkdir(illustrationsDirectory, { recursive: true })
     await mkdir(join(webRoot, 'tools/illustrations'), { recursive: true })
+    await mkdir(join(webRoot, 'patches'), { recursive: true })
     await symlink(join(webDirectory, 'node_modules'), join(webRoot, 'node_modules'), 'dir')
 
     const source = await readFile(cacheSourcePath, 'utf-8')
@@ -44,7 +55,28 @@ async function createCacheFixture() {
     }).outputText
     const runtimePath = join(libraryDirectory, 'cache.mjs')
     await writeFile(runtimePath, runtime)
-    await writeFile(join(webRoot, 'pnpm-lock.yaml'), 'fixture lockfile\n')
+    await writeFile(
+        join(webRoot, 'package.json'),
+        JSON.stringify({
+            name: 'web',
+            dependencies: {
+                react: '19.3.1',
+                sharp: '0.35.5',
+                vizmatic: '0.8.3',
+                next: '16.4.6',
+            },
+            devDependencies: {
+                '@resvg/resvg-js': '^2.6.2',
+                gifenc: '^1.0.3',
+                satori: '^0.63.2',
+            },
+        }),
+    )
+    await writeFile(
+        join(webRoot, 'pnpm-lock.yaml'),
+        ['packages:', '  vizmatic@0.8.3:', '  satori@0.63.2:', '  next@16.4.6:', ''].join('\n'),
+    )
+    await writeFile(join(webRoot, 'patches/vizmatic@0.8.3.patch'), 'patch v1\n')
     await writeFile(
         join(webRoot, 'tsconfig.json'),
         JSON.stringify({
@@ -57,6 +89,10 @@ async function createCacheFixture() {
             },
         }),
     )
+    await writeFile(join(libraryDirectory, 'presentation.ts'), 'export const p = 1\n')
+    await writeFile(join(libraryDirectory, 'print-typography.ts'), 'export const pt = 1\n')
+    await writeFile(join(libraryDirectory, 'svg-print.ts'), 'export const sp = 1\n')
+    await writeFile(join(libraryDirectory, 'sample.test.ts'), 'export const t = 1\n')
     await writeFile(join(webRoot, 'tools/illustrations/build.ts'), 'export {}\n')
     await writeFile(join(webRoot, 'tools/illustrations/discovery.ts'), 'export {}\n')
     await writeFile(join(webRoot, 'tools/illustrations/embedded.ts'), 'export {}\n')
@@ -98,6 +134,7 @@ async function createCacheFixture() {
         helperPath,
         articleDirectory,
         illustrationsDirectory,
+        libraryDirectory,
         webRoot,
     }
 }
@@ -153,31 +190,95 @@ describe('illustration build cache', () => {
         expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual([])
     })
 
-    it('keeps a changed framework invalidated after a failed full rebuild', async () => {
+    it('persists completed entries and keeps unbuilt siblings invalidated after a failed full rebuild', async () => {
         const fixture = await createCacheFixture()
         await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)
-        await writeFile(join(fixture.webRoot, 'pnpm-lock.yaml'), 'changed framework\n')
+        await writeFile(
+            join(fixture.webRoot, 'pnpm-lock.yaml'),
+            ['packages:', '  vizmatic@0.8.4:', '  satori@0.63.2:', '  next@16.4.6:', ''].join('\n'),
+        )
 
         expect(
             await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths, false, [
                 fixture.wrapperPaths[0],
             ]),
         ).toEqual(fixture.wrapperPaths)
-        expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual(
-            fixture.wrapperPaths,
-        )
+        expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual([
+            fixture.wrapperPaths[1],
+        ])
         expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual([])
     })
 
-    it('keeps a changed framework invalidated after a successful partial rebuild', async () => {
+    it('keeps unbuilt siblings invalidated after a successful partial rebuild on framework change', async () => {
         const fixture = await createCacheFixture()
         await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)
-        await writeFile(join(fixture.webRoot, 'pnpm-lock.yaml'), 'changed framework\n')
+        await writeFile(join(fixture.webRoot, 'patches/vizmatic@0.8.3.patch'), 'patch v2\n')
 
         await runCacheCheck(fixture.runtimePath, [fixture.wrapperPaths[0]], true)
+        expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual([
+            fixture.wrapperPaths[1],
+        ])
+        expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual([])
+    })
+
+    it('ignores unrelated lockfile, test, print-only, cache, and build script edits', async () => {
+        const fixture = await createCacheFixture()
+        await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)
+
+        await writeFile(
+            join(fixture.webRoot, 'pnpm-lock.yaml'),
+            [
+                'packages:',
+                '  vizmatic@0.8.3:',
+                '  satori@0.63.2:',
+                '  next@16.5.0:',
+                '  eslint@10.1.0:',
+                '',
+            ].join('\n'),
+        )
+        await writeFile(
+            join(fixture.webRoot, 'tools/illustrations/build.ts'),
+            'export const changed = true\n',
+        )
+        await writeFile(
+            join(fixture.libraryDirectory, 'print-typography.ts'),
+            'export const pt = 2\n',
+        )
+        await writeFile(join(fixture.libraryDirectory, 'svg-print.ts'), 'export const sp = 2\n')
+        await writeFile(join(fixture.libraryDirectory, 'sample.test.ts'), 'export const t = 2\n')
+        await writeFile(join(fixture.libraryDirectory, 'cache.ts'), '// comment edit\n')
+
+        expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual([])
+
+        await writeFile(join(fixture.libraryDirectory, 'presentation.ts'), 'export const p = 2\n')
         expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual(
             fixture.wrapperPaths,
         )
+    })
+
+    it('stores sorted web-relative keys and skips rewriting illustrations.json when unchanged', async () => {
+        const fixture = await createCacheFixture()
+        await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)
+
+        const cacheFile = join(fixture.webRoot, 'tools/illustrations/.cache/illustrations.json')
+        const parsed = JSON.parse(await readFile(cacheFile, 'utf-8')) as {
+            frameworkHash: string
+            files: Record<string, string>
+        }
+        expect(Object.keys(parsed.files)).toEqual([
+            'src/content/foundations/cache-fixture/illustrations/alias_wrapper.tsx',
+            'src/content/foundations/cache-fixture/illustrations/relative_wrapper.tsx',
+        ])
+        for (const value of Object.values(parsed.files)) {
+            expect(value.startsWith(`${parsed.frameworkHash}:`)).toBe(true)
+        }
+
+        const fixedTime = new Date(1_700_000_000_000)
+        await utimes(cacheFile, fixedTime, fixedTime)
+        const beforeMtime = (await stat(cacheFile)).mtimeMs
+
+        expect(await runCacheCheck(fixture.runtimePath, fixture.wrapperPaths)).toEqual([])
+        expect((await stat(cacheFile)).mtimeMs).toBe(beforeMtime)
     })
 
     it('rebuilds a film when either themed movie is missing', async () => {

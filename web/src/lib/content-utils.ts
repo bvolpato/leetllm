@@ -1,5 +1,5 @@
 import { createHash } from "crypto"
-import { existsSync, readFileSync } from "fs"
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from "fs"
 import { join, relative } from "path"
 import { decodeHTMLAttribute } from "entities"
 
@@ -80,8 +80,8 @@ let _globalRefsCache: Record<string, Reference> | null = null
 export function getGlobalReferences(): Record<string, Reference> {
     if (!_globalRefsCache) {
         const refsPath = join(CONTENT_DIR, "references.json")
-        if (existsSync(refsPath)) {
-            _globalRefsCache = sanitizeReferences(JSON.parse(readFileSync(refsPath, "utf-8")))
+        if (existsSync(/* turbopackIgnore: true */ refsPath)) {
+            _globalRefsCache = sanitizeReferences(JSON.parse(readFileSync(/* turbopackIgnore: true */ refsPath, "utf-8")))
         } else {
             _globalRefsCache = {}
         }
@@ -194,17 +194,46 @@ type PngDimensions = {
     display: { w: number; h: number }
 }
 
+const pngDimensionsCache = new Map<string, { sig: string; value: PngDimensions | null }>()
+const contentImageVersionCache = new Map<string, { sig: string; version: string }>()
+
+function isProductionEnv(): boolean {
+    return process.env.NODE_ENV === "production"
+}
+
 function pngDimensions(filePath: string): PngDimensions | null {
     try {
-        const buf = readFileSync(filePath)
-        // PNG IHDR: bytes 16-19 = width, 20-23 = height (big-endian uint32)
-        if (buf.length < 24) return null
-        const naturalW = buf.readUInt32BE(16)
-        const naturalH = buf.readUInt32BE(20)
-        return {
-            natural: { w: naturalW, h: naturalH },
-            display: { w: Math.round(naturalW / 2), h: Math.round(naturalH / 2) },
+        const isProd = isProductionEnv()
+        const cached = pngDimensionsCache.get(filePath)
+        let sig = ""
+        if (isProd) {
+            if (cached) return cached.value
+        } else {
+            const fileStat = statSync(/* turbopackIgnore: true */ filePath)
+            sig = `${fileStat.size}:${fileStat.mtimeMs}`
+            if (cached && cached.sig === sig) return cached.value
         }
+
+        const fd = openSync(/* turbopackIgnore: true */ filePath, "r")
+        let value: PngDimensions | null = null
+        try {
+            const buf = Buffer.allocUnsafe(24)
+            const bytesRead = readSync(fd, buf, 0, 24, 0)
+            // PNG IHDR: bytes 16-19 = width, 20-23 = height (big-endian uint32)
+            if (bytesRead >= 24) {
+                const naturalW = buf.readUInt32BE(16)
+                const naturalH = buf.readUInt32BE(20)
+                value = {
+                    natural: { w: naturalW, h: naturalH },
+                    display: { w: Math.round(naturalW / 2), h: Math.round(naturalH / 2) },
+                }
+            }
+        } finally {
+            closeSync(fd)
+        }
+
+        pngDimensionsCache.set(filePath, { sig, value })
+        return value
     } catch {
         return null
     }
@@ -234,7 +263,22 @@ export function contentImageUrl(absolutePath: string): string {
     const rel = relative(CONTENT_DIR, absolutePath)
     let version = "1"
     try {
-        version = createHash("sha256").update(readFileSync(absolutePath)).digest("hex").slice(0, 12)
+        const isProd = isProductionEnv()
+        const cached = contentImageVersionCache.get(absolutePath)
+        let sig = ""
+        if (isProd) {
+            if (cached) return `/cdn/content-image/${rel}?v=${cached.version}`
+        } else {
+            const fileStat = statSync(/* turbopackIgnore: true */ absolutePath)
+            sig = `${fileStat.size}:${fileStat.mtimeMs}`
+            if (cached && cached.sig === sig) return `/cdn/content-image/${rel}?v=${cached.version}`
+        }
+
+        version = createHash("sha256")
+            .update(readFileSync(/* turbopackIgnore: true */ absolutePath))
+            .digest("hex")
+            .slice(0, 12)
+        contentImageVersionCache.set(absolutePath, { sig, version })
     } catch { /* fall back to static version */ }
     return `/cdn/content-image/${rel}?v=${version}`
 }
@@ -276,9 +320,9 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
     // Load alt text manifest from build step (accessibility descriptions)
     const altManifestPath = join(contentDir, "illustrations", "_generated", "alt.json")
     let altManifest: Record<string, string> = {}
-    if (existsSync(altManifestPath)) {
+    if (existsSync(/* turbopackIgnore: true */ altManifestPath)) {
         try {
-            altManifest = JSON.parse(readFileSync(altManifestPath, 'utf-8'))
+            altManifest = JSON.parse(readFileSync(/* turbopackIgnore: true */ altManifestPath, 'utf-8'))
         } catch { /* ignore parse errors */ }
     }
 
@@ -299,8 +343,8 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
             [`${theme}Captions`, join(contentDir, "illustrations", "_generated", `${base}_${theme}.vtt`)],
             [`${theme}Fallback`, join(contentDir, "illustrations", "_generated", `${base}_${theme}.png`)],
         ]))
-        if (existsSync(filmManifest) && Object.values(filmFiles).every(path => existsSync(path))) {
-            const metadata = JSON.parse(readFileSync(filmManifest, 'utf-8'))
+        if (existsSync(/* turbopackIgnore: true */ filmManifest) && Object.values(filmFiles).every(path => existsSync(/* turbopackIgnore: true */ path))) {
+            const metadata = JSON.parse(readFileSync(/* turbopackIgnore: true */ filmManifest, 'utf-8'))
             const filmData = JSON.stringify({
                 kind: 'film',
                 alt: altManifest[base] || markdownAlt,
@@ -322,14 +366,14 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
         const darkFallback = join(contentDir, "illustrations", "_generated", `${base}_dark.png`)
         const lightFallback = join(contentDir, "illustrations", "_generated", `${base}_light.png`)
         if (
-            existsSync(animationManifest) &&
-            existsSync(darkGif) &&
-            existsSync(lightGif) &&
-            existsSync(darkFallback) &&
-            existsSync(lightFallback)
+            existsSync(/* turbopackIgnore: true */ animationManifest) &&
+            existsSync(/* turbopackIgnore: true */ darkGif) &&
+            existsSync(/* turbopackIgnore: true */ lightGif) &&
+            existsSync(/* turbopackIgnore: true */ darkFallback) &&
+            existsSync(/* turbopackIgnore: true */ lightFallback)
         ) {
             const rawAlt = altManifest[base] || markdownAlt
-            const metadata = JSON.parse(readFileSync(animationManifest, 'utf-8'))
+            const metadata = JSON.parse(readFileSync(/* turbopackIgnore: true */ animationManifest, 'utf-8'))
             const animationData = JSON.stringify({
                 kind: 'timeline',
                 alt: rawAlt,
@@ -349,11 +393,11 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
         // ─── Check for animated illustration (scene-based stepper) ───
         const darkManifest = join(contentDir, "illustrations", "_generated", `${base}_dark_manifest.json`)
         const lightManifest = join(contentDir, "illustrations", "_generated", `${base}_light_manifest.json`)
-        if (existsSync(darkManifest) && existsSync(lightManifest)) {
+        if (existsSync(/* turbopackIgnore: true */ darkManifest) && existsSync(/* turbopackIgnore: true */ lightManifest)) {
             const rawAlt = altManifest[base] || markdownAlt
             // Read manifests to get scene metadata
-            const darkData = JSON.parse(readFileSync(darkManifest, 'utf-8'))
-            const lightData = JSON.parse(readFileSync(lightManifest, 'utf-8'))
+            const darkData = JSON.parse(readFileSync(/* turbopackIgnore: true */ darkManifest, 'utf-8'))
+            const lightData = JSON.parse(readFileSync(/* turbopackIgnore: true */ lightManifest, 'utf-8'))
 
             // Build scene image URLs for both themes
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -387,9 +431,9 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
         const lightPath = join(contentDir, "illustrations", "_generated", `${base}_light.png`)
         const legacyPath = join(contentDir, "illustrations", "_generated", `${base}.png`)
 
-        const hasDark = existsSync(darkPath)
-        const hasLight = existsSync(lightPath)
-        const hasLegacy = existsSync(legacyPath)
+        const hasDark = existsSync(/* turbopackIgnore: true */ darkPath)
+        const hasLight = existsSync(/* turbopackIgnore: true */ lightPath)
+        const hasLegacy = existsSync(/* turbopackIgnore: true */ legacyPath)
 
         if (!hasDark && !hasLight && !hasLegacy) {
             console.warn(`  ⚠ Illustration not found: ${darkPath}`)
@@ -415,9 +459,9 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
         const initialSrc = darkSrc ?? lightSrc
         if (!initialSrc) return null
 
-        const initialDimensions = pngDimensions(hasDark ? darkPath : lightPath)
         const darkDimensions = hasDark ? pngDimensions(darkPath) : null
         const lightDimensions = hasLight ? pngDimensions(lightPath) : null
+        const initialDimensions = hasDark ? darkDimensions : lightDimensions
         const sizeAttrs = initialDimensions
             ? ` width="${initialDimensions.display.w}" height="${initialDimensions.display.h}" data-natural-width="${initialDimensions.natural.w}"`
             : ''
@@ -610,8 +654,8 @@ export function resolveDiagrams(markdown: string, contentDir: string, sourceFile
 
             diagramIndex++
 
-            const hasDark = existsSync(darkPath)
-            const hasLight = existsSync(lightPath)
+            const hasDark = existsSync(/* turbopackIgnore: true */ darkPath)
+            const hasLight = existsSync(/* turbopackIgnore: true */ lightPath)
 
             if (!hasDark && !hasLight) {
                 // No pre-rendered diagrams found — keep the original mermaid block
@@ -625,9 +669,9 @@ export function resolveDiagrams(markdown: string, contentDir: string, sourceFile
             const initialSrc = darkSrc ?? lightSrc
             if (!initialSrc) return match
 
-            const initialDimensions = pngDimensions(hasDark ? darkPath : lightPath)
             const darkDimensions = hasDark ? pngDimensions(darkPath) : null
             const lightDimensions = hasLight ? pngDimensions(lightPath) : null
+            const initialDimensions = hasDark ? darkDimensions : lightDimensions
             const sizeAttrs = initialDimensions
                 ? ` width="${initialDimensions.display.w}" height="${initialDimensions.display.h}" data-natural-width="${initialDimensions.natural.w}"`
                 : ''
@@ -656,7 +700,7 @@ export function resolveAssetLinks(markdown: string, contentDir: string): string 
         /\[([^\]]+)\]\((?:\.\/)?assets\/([^)]+)\)/g,
         (match, label: string, relativeAssetPath: string) => {
             const absolutePath = join(contentDir, "assets", relativeAssetPath)
-            if (!existsSync(absolutePath)) {
+            if (!existsSync(/* turbopackIgnore: true */ absolutePath)) {
                 console.warn(`  ⚠ Asset not found: ${absolutePath}`)
                 return match
             }
@@ -668,7 +712,7 @@ export function resolveAssetLinks(markdown: string, contentDir: string): string 
         /href="(?:\.\/)?assets\/([^"]+)"/g,
         (match, relativeAssetPath: string) => {
             const absolutePath = join(contentDir, "assets", relativeAssetPath)
-            if (!existsSync(absolutePath)) {
+            if (!existsSync(/* turbopackIgnore: true */ absolutePath)) {
                 console.warn(`  ⚠ Asset not found: ${absolutePath}`)
                 return match
             }

@@ -108,12 +108,15 @@ function GlossaryMermaidFigure({
                     <img
                         src={activeSrc}
                         alt="Glossary diagram"
+                        width={960}
+                        height={540}
                         data-glossary-image={entryId}
                         data-themed-image="true"
                         data-dark-src={darkSrc}
                         data-light-src={lightSrc}
-                        className="max-h-[360px] w-auto max-w-full"
+                        className="block aspect-[16/9] max-h-[360px] w-full max-w-full object-contain"
                         loading="lazy"
+                        decoding="async"
                     />
                 </picture>
             </figure>
@@ -509,6 +512,7 @@ export function GlossaryMarkdown({
                                         : "my-3 max-h-[320px] w-auto max-w-full rounded-lg border [border-color:var(--reading-border)]"
                                 }
                                 loading="lazy"
+                                decoding="async"
                             />
                         )
                         if (!isThemed) return image

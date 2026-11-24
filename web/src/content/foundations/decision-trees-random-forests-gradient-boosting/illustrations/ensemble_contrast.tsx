@@ -1,11 +1,5 @@
 import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    GraphDiagram,
-    TextLabel,
-    getThemeColors,
-} from 'vizmatic'
+import { Board, CanvasItem, GraphDiagram, TextLabel, getThemeColors } from 'vizmatic'
 import type { ThemeMode } from 'vizmatic'
 
 export const width = 680
@@ -16,13 +10,7 @@ export function create(mode: ThemeMode = 'dark') {
     const c = getThemeColors(mode)
     const title = (text: string, y: number) => (
         <CanvasItem x={10} y={y} width={660} height={45}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={29}
-                color={c.textPrimary}
-                align="center"
-            />
+            <TextLabel c={c} text={text} fontSize={29} color={c.textPrimary} align="center" />
         </CanvasItem>
     )
     return (

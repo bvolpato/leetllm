@@ -15,7 +15,7 @@ import { bookFontCss, bookFontPaths } from "./fonts"
 import { planRectoPads, REFLOW_SOURCE } from "./reflow"
 import { renderCoverArt, renderPartArt } from "./cover-art"
 import { ensureBookIllustrations } from "../illustrations/book"
-import { ensureBookDiagrams, resolveBookDiagram, resolveBookDiagramMarkdown } from "../diagrams/book"
+import { closeBookDiagramBrowser, ensureBookDiagrams, resolveBookDiagram, resolveBookDiagramMarkdown } from "../diagrams/book"
 import { planBook, type PlannedPart } from "./planner"
 import { loadChapterIntroduction } from "./introductions"
 import {
@@ -123,16 +123,20 @@ function indexTerms(): unknown[] {
 }
 
 async function prepareDiagramAssets(questions: Question[], renderMissing: boolean, minimumLabelPt: number, edition: ContentEdition): Promise<void> {
-  for (const question of questions) {
-    const route = getQuestionRoute(question.slug)
-    if (!route) throw new Error(`Content directory missing from route index: ${question.slug}`)
-    const directory = join(process.cwd(), "src", "content", route.directory)
-    const bundle = loadContentBundle(directory, "book", edition)
-    if (!bundle) throw new Error(`Content bundle missing: ${question.slug}`)
-    if (!/^```mermaid\n/m.test(bundle.body)) continue
-    const displayWidths = await ensureBookDiagrams(route.directory, renderMissing, minimumLabelPt, edition)
-    const body = resolveBookDiagramMarkdown(bundle.body, route.directory, bundle.sourceBody, displayWidths, edition)
-    question.content = resolveContent(body, directory, question.references, "content.md", bundle.sourceBody)
+  try {
+    for (const question of questions) {
+      const route = getQuestionRoute(question.slug)
+      if (!route) throw new Error(`Content directory missing from route index: ${question.slug}`)
+      const directory = join(process.cwd(), "src", "content", route.directory)
+      const bundle = loadContentBundle(directory, "book", edition)
+      if (!bundle) throw new Error(`Content bundle missing: ${question.slug}`)
+      if (!/^```mermaid\n/m.test(bundle.body)) continue
+      const displayWidths = await ensureBookDiagrams(route.directory, renderMissing, minimumLabelPt, edition, true)
+      const body = resolveBookDiagramMarkdown(bundle.body, route.directory, bundle.sourceBody, displayWidths, edition)
+      question.content = resolveContent(body, directory, question.references, "content.md", bundle.sourceBody)
+    }
+  } finally {
+    await closeBookDiagramBrowser()
   }
 }
 
@@ -169,7 +173,6 @@ function fingerprintBuild(config: BookConfig, parts: PlannedPart[]): string {
       }
     }
   }
-  hashSourceDirectory(join(process.cwd(), "tools", "book", "figures"))
   if (config.chapterIntroductions) hashSourceDirectory(join(process.cwd(), "tools", "book", "introductions"))
   for (const part of parts) {
     for (const chapter of part.chapters) {
@@ -452,13 +455,15 @@ async function main() {
     writeFileSync(termsPath, JSON.stringify(indexTerms()))
     execFileSync("uv", ["run", MERGE_SCRIPT, "--index-terms", termsPath, "--offsets", offsetsPath, "--manifest", manifestPath, "--output", indexPathJson, ...allPaths], { stdio: "inherit" })
     await renderIndexPdf(readJson<IndexEntry[]>(indexPathJson) ?? [])
+    execFileSync("uv", ["run", MERGE_SCRIPT, "--scan", "--manifest", manifestPath, "--output", offsetsPath, ...allPaths], { stdio: "inherit" })
+    let current = loadOffsets()!
     let converged = false
     for (let pass = 0; pass < 4; pass++) {
+      await renderToc(current)
       execFileSync("uv", ["run", MERGE_SCRIPT, "--scan", "--manifest", manifestPath, "--output", offsetsPath, ...allPaths], { stdio: "inherit" })
-      const before = loadOffsets()!
-      await renderToc(before)
-      execFileSync("uv", ["run", MERGE_SCRIPT, "--scan", "--manifest", manifestPath, "--output", offsetsPath, ...allPaths], { stdio: "inherit" })
-      if (JSON.stringify(before) === JSON.stringify(loadOffsets())) { converged = true; break }
+      const next = loadOffsets()!
+      if (JSON.stringify(current) === JSON.stringify(next)) { converged = true; break }
+      current = next
     }
     if (!converged) throw new Error("TOC pagination did not converge after four passes.")
     execFileSync("uv", ["run", MERGE_SCRIPT, "--manifest", manifestPath, "--offsets", offsetsPath, "--output", masterPath, ...allPaths], { stdio: "inherit" })

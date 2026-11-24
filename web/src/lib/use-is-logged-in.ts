@@ -19,17 +19,26 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
+function hasSupabaseAuthCookie(): boolean {
+    if (typeof document === "undefined") return false
+    return /(?:^|;\s*)sb-[^=;]+=/i.test(document.cookie)
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [authLoaded, setAuthLoaded] = useState(false)
 
     useEffect(() => {
         let cancelled = false
+        let started = false
         let unsubscribe: (() => void) | undefined
 
         async function loadAuth() {
+            if (started || cancelled) return
+            started = true
             try {
                 const { createClient } = await import("@/lib/supabase/client")
+                if (cancelled) return
                 const supabase = createClient()
 
                 const {
@@ -58,10 +67,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        void loadAuth()
+        function removeDeferredListeners() {
+            window.removeEventListener("focus", checkAuthCookie)
+            window.removeEventListener("storage", checkAuthCookie)
+            document.removeEventListener("visibilitychange", checkAuthCookie)
+        }
+
+        function checkAuthCookie() {
+            if (cancelled || started) return
+            if (!hasSupabaseAuthCookie()) return
+            removeDeferredListeners()
+            void loadAuth()
+        }
+
+        if (typeof document !== "undefined" && !hasSupabaseAuthCookie()) {
+            queueMicrotask(() => {
+                if (cancelled) return
+                setUser(null)
+                setAuthLoaded(true)
+            })
+            window.addEventListener("focus", checkAuthCookie)
+            window.addEventListener("storage", checkAuthCookie)
+            document.addEventListener("visibilitychange", checkAuthCookie)
+        } else {
+            void loadAuth()
+        }
 
         return () => {
             cancelled = true
+            removeDeferredListeners()
             unsubscribe?.()
         }
     }, [])

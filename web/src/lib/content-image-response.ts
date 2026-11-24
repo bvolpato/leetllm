@@ -1,6 +1,7 @@
 import "server-only"
 
-import { existsSync, readFileSync, realpathSync, statSync } from "fs"
+import { realpathSync } from "fs"
+import { open, readFile, realpath, stat } from "fs/promises"
 import { isAbsolute, join, relative, resolve } from "path"
 import sharp from "sharp"
 import { NextResponse } from "next/server"
@@ -15,8 +16,16 @@ const MAX_IMAGE_PIXELS = 12_000_000
 const MAX_IMAGE_EDGE = 6_000
 const MAX_ACTIVE_TRANSFORMS = 2
 const MAX_QUEUED_TRANSFORMS = 4
-const MAX_CACHE_ITEMS = 24
-const MAX_CACHE_BYTES = 24 * 1024 * 1024
+const MAX_CACHE_ENTRIES = 128
+const MAX_CACHE_BYTES = 64 * 1024 * 1024
+const DEFAULT_CONTENT_DIR = join(process.cwd(), "src", "content")
+
+let cachedDefaultContentDir: string | null = null
+try {
+    cachedDefaultContentDir = realpathSync(/* turbopackIgnore: true */ DEFAULT_CONTENT_DIR)
+} catch {
+    cachedDefaultContentDir = null
+}
 
 type ResponsiveVariant = {
     buffer: Buffer
@@ -24,7 +33,7 @@ type ResponsiveVariant = {
     height: number
 }
 
-type ResponsiveVariantResult = ResponsiveVariant | "original"
+type ResponsiveVariantResult = ResponsiveVariant | "original" | "saturated"
 
 type VariantCacheEntry = ResponsiveVariant & { byteLength: number }
 
@@ -55,14 +64,40 @@ function imageCacheHeaders(version: string | null): Record<string, string> {
     }
 }
 
-function uncachedOriginalImageResponse(filePath: string): NextResponse {
-    const buffer = readFileSync(filePath)
-    return new NextResponse(buffer, {
+function weakEtag(size: number, mtimeMs: number): string {
+    return `W/"${size}-${Math.trunc(mtimeMs)}"`
+}
+
+function matchesIfNoneMatch(ifNoneMatch: string | null, etag: string): boolean {
+    if (!ifNoneMatch) return false
+    const normalizedTarget = etag.startsWith("W/") ? etag.slice(2) : etag
+    return ifNoneMatch.split(",").some((candidate) => {
+        const trimmed = candidate.trim()
+        if (trimmed === "*") return true
+        const normalizedCandidate = trimmed.startsWith("W/") ? trimmed.slice(2) : trimmed
+        return normalizedCandidate === normalizedTarget
+    })
+}
+
+function toResponseBytes(buffer: Buffer): Uint8Array<ArrayBuffer> {
+    return buffer.buffer instanceof ArrayBuffer
+        ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+        : Uint8Array.from(buffer)
+}
+
+async function originalImageFallbackResponse(
+    filePath: string,
+    cacheControl: string,
+    etag: string,
+): Promise<NextResponse> {
+    const buffer = await readFile(/* turbopackIgnore: true */ filePath)
+    return new NextResponse(toResponseBytes(buffer), {
         status: 200,
         headers: {
-            "Cache-Control": "no-store",
-            "CDN-Cache-Control": "no-store",
-            "Cloudflare-CDN-Cache-Control": "no-store",
+            "Cache-Control": cacheControl,
+            "CDN-Cache-Control": cacheControl,
+            "Cloudflare-CDN-Cache-Control": cacheControl,
+            "ETag": etag,
             "Content-Type": "image/png",
             "Content-Length": buffer.length.toString(),
             "X-Content-Type-Options": "nosniff",
@@ -151,7 +186,7 @@ function rememberVariant(key: string, variant: ResponsiveVariant) {
     variantCache.set(key, entry)
     variantCacheBytes += entry.byteLength
 
-    while (variantCache.size > MAX_CACHE_ITEMS || variantCacheBytes > MAX_CACHE_BYTES) {
+    while (variantCache.size > MAX_CACHE_ENTRIES || variantCacheBytes > MAX_CACHE_BYTES) {
         const oldestKey = variantCache.keys().next().value as string | undefined
         if (!oldestKey) break
         const oldest = variantCache.get(oldestKey)
@@ -162,20 +197,20 @@ function rememberVariant(key: string, variant: ResponsiveVariant) {
 
 async function renderVariant(
     filePath: string,
+    fileSize: number,
     width: number,
     isDiagram: boolean,
     encoderVersion: string | null,
 ): Promise<ResponsiveVariantResult | null> {
     const hasSlot = await takeTransformSlot()
-    if (!hasSlot) return "original"
+    if (!hasSlot) return "saturated"
 
     try {
-        const fileStat = statSync(filePath)
-        if (!fileStat.isFile() || fileStat.size <= 0 || fileStat.size > MAX_SOURCE_BYTES) {
+        if (fileSize <= 0 || fileSize > MAX_SOURCE_BYTES) {
             return "original"
         }
 
-        const input = readFileSync(filePath)
+        const input = await readFile(/* turbopackIgnore: true */ filePath)
         const source = sharp(input, {
             failOn: "error",
             limitInputPixels: MAX_IMAGE_PIXELS,
@@ -192,19 +227,18 @@ async function renderVariant(
             return "original"
         }
 
-        const resize = () => sharp(input, {
-            failOn: "error",
-            limitInputPixels: MAX_IMAGE_PIXELS,
-            pages: 1,
-            animated: false,
-        }).resize({ width, fit: "inside", withoutEnlargement: true, kernel: "lanczos3" })
+        const resized = source
+            .clone()
+            .resize({ width, fit: "inside", withoutEnlargement: true, kernel: "lanczos3" })
 
-        let { data, info } = await resize()
+        let { data, info } = await resized
+            .clone()
             .webp(isDiagram ? { lossless: true, effort: 4 } : { quality: 90, effort: 4 })
             .toBuffer({ resolveWithObject: true })
 
-        if (isDiagram && encoderVersion === RESPONSIVE_ENCODER_VERSION && data.length > fileStat.size) {
-            const lossy = await resize()
+        if (isDiagram && encoderVersion === RESPONSIVE_ENCODER_VERSION && data.length > fileSize) {
+            const lossy = await resized
+                .clone()
                 .webp({ quality: 95, effort: 4 })
                 .toBuffer({ resolveWithObject: true })
             if (lossy.data.length < data.length) ({ data, info } = lossy)
@@ -220,6 +254,7 @@ async function renderVariant(
 
 async function getResponsiveVariant(
     filePath: string,
+    fileSize: number,
     cacheKey: string,
     width: number,
     isDiagram: boolean,
@@ -231,15 +266,36 @@ async function getResponsiveVariant(
     const pending = inFlightVariants.get(cacheKey)
     if (pending) return pending
 
-    const work = renderVariant(filePath, width, isDiagram, encoderVersion)
+    const work = renderVariant(filePath, fileSize, width, isDiagram, encoderVersion)
     inFlightVariants.set(cacheKey, work)
     try {
         const variant = await work
-        if (variant && variant !== "original") rememberVariant(cacheKey, variant)
+        if (variant && variant !== "original" && variant !== "saturated") rememberVariant(cacheKey, variant)
         return variant
     } finally {
         if (inFlightVariants.get(cacheKey) === work) inFlightVariants.delete(cacheKey)
     }
+}
+
+async function readFileSlice(filePath: string, start: number, length: number): Promise<Buffer> {
+    const slice = Buffer.allocUnsafe(length)
+    const handle = await open(/* turbopackIgnore: true */ filePath, "r")
+    let bytesRead = 0
+    try {
+        while (bytesRead < length) {
+            const result = await handle.read(slice, bytesRead, length - bytesRead, start + bytesRead)
+            if (result.bytesRead === 0) break
+            bytesRead += result.bytesRead
+        }
+    } finally {
+        await handle.close()
+    }
+    return bytesRead === length ? slice : slice.subarray(0, bytesRead)
+}
+
+function isNotFoundError(error: unknown): boolean {
+    const code = (error as NodeJS.ErrnoException | null)?.code
+    return code === "ENOENT" || code === "ENOTDIR"
 }
 
 /**
@@ -252,8 +308,9 @@ async function getResponsiveVariant(
 export async function serveContentImage(
     pathSegments: string[],
     requestUrl?: URL,
-    contentDirectory = join(process.cwd(), "src", "content"),
+    contentDirectory = DEFAULT_CONTENT_DIR,
     rangeHeader: string | null = null,
+    ifNoneMatch: string | null = null,
 ): Promise<NextResponse> {
     if (!Array.isArray(pathSegments) || pathSegments.length < 1 || pathSegments.length > 16
         || pathSegments.some((segment) => typeof segment !== "string"
@@ -281,42 +338,67 @@ export async function serveContentImage(
     const originalVersion = !responsiveRequest && requestUrl ? parseImageVersion(requestUrl) : null
     if (originalVersion === false) return invalidVariant()
 
-    const contentDir = realpathSync(/* turbopackIgnore: true */ contentDirectory)
+    const contentDir = contentDirectory === DEFAULT_CONTENT_DIR && cachedDefaultContentDir
+        ? cachedDefaultContentDir
+        : await realpath(/* turbopackIgnore: true */ contentDirectory)
     const unresolvedPath = resolve(contentDir, ...pathSegments)
     const unresolvedRelative = relative(contentDir, unresolvedPath)
     if (unresolvedRelative.startsWith("..") || isAbsolute(unresolvedRelative)) return invalidPath()
 
-    if (!existsSync(unresolvedPath)) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 })
+    let filePath: string
+    try {
+        filePath = await realpath(/* turbopackIgnore: true */ unresolvedPath)
+    } catch (error) {
+        if (isNotFoundError(error)) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 })
+        }
+        return NextResponse.json({ error: "Read error" }, { status: 500 })
     }
 
+    const resolvedRelative = relative(contentDir, filePath)
+    if (resolvedRelative.startsWith("..") || isAbsolute(resolvedRelative)) return invalidPath()
+
     try {
-        const filePath = realpathSync(unresolvedPath)
-        const resolvedRelative = relative(contentDir, filePath)
-        if (resolvedRelative.startsWith("..") || isAbsolute(resolvedRelative)) return invalidPath()
+        const fileStat = await stat(/* turbopackIgnore: true */ filePath)
+        if (!fileStat.isFile()) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 })
+        }
+
+        const etag = weakEtag(fileStat.size, fileStat.mtimeMs)
+        const version = responsiveRequest ? responsiveRequest.version : originalVersion
+        if (matchesIfNoneMatch(ifNoneMatch, etag)) {
+            return new NextResponse(null, {
+                status: 304,
+                headers: {
+                    ...imageCacheHeaders(version),
+                    "ETag": etag,
+                },
+            })
+        }
 
         if (responsiveRequest) {
-            const { width, version, encoderVersion } = responsiveRequest
-            const fileStat = statSync(filePath)
+            const { width, encoderVersion } = responsiveRequest
             const cacheKey = `${filePath}:${fileStat.size}:${fileStat.mtimeMs}?w=${width}&cv=${encoderVersion ?? "legacy"}`
             const variant = await getResponsiveVariant(
                 filePath,
+                fileStat.size,
                 cacheKey,
                 width,
                 pathSegments.includes("diagrams"),
                 encoderVersion,
             )
+            if (variant === "saturated") {
+                return await originalImageFallbackResponse(filePath, "public, max-age=60", etag)
+            }
             if (!variant || variant === "original") {
-                return uncachedOriginalImageResponse(filePath)
+                return await originalImageFallbackResponse(filePath, "no-store", etag)
             }
 
-            const imageBytes = variant.buffer.buffer instanceof ArrayBuffer
-                ? new Uint8Array(variant.buffer.buffer, variant.buffer.byteOffset, variant.buffer.byteLength)
-                : Uint8Array.from(variant.buffer)
-            return new NextResponse(imageBytes, {
+            return new NextResponse(toResponseBytes(variant.buffer), {
                 status: 200,
                 headers: {
                     ...imageCacheHeaders(version),
+                    "ETag": etag,
                     "Content-Type": "image/webp",
                     "Content-Length": variant.buffer.length.toString(),
                     "X-Image-Width": variant.width.toString(),
@@ -325,11 +407,10 @@ export async function serveContentImage(
             })
         }
 
-        const buffer = readFileSync(filePath)
         const contentType = isVideo ? "video/mp4" : isCaptions ? "text/vtt; charset=utf-8" : isGif ? "image/gif" : "image/png"
         if (isVideo && rangeHeader) {
             const match = rangeHeader.length <= 80 ? /^bytes=(\d*)-(\d*)$/.exec(rangeHeader) : null
-            const size = buffer.length
+            const size = fileStat.size
             let start = match?.[1] ? Number(match[1]) : 0
             let end = match?.[2] ? Number(match[2]) : size - 1
             if (match && !match[1] && match[2]) {
@@ -344,23 +425,28 @@ export async function serveContentImage(
                 })
             }
             end = Math.min(end, size - 1)
-            return new NextResponse(buffer.subarray(start, end + 1), {
+            const slice = await readFileSlice(filePath, start, end - start + 1)
+            return new NextResponse(toResponseBytes(slice), {
                 status: 206,
                 headers: {
                     ...imageCacheHeaders(originalVersion),
+                    "ETag": etag,
                     "Content-Type": contentType,
-                    "Content-Length": String(end - start + 1),
+                    "Content-Length": String(slice.length),
                     "Content-Range": `bytes ${start}-${end}/${size}`,
                     "Accept-Ranges": "bytes",
                 },
             })
         }
-        return new NextResponse(buffer, {
+
+        const buffer = await readFile(/* turbopackIgnore: true */ filePath)
+        return new NextResponse(toResponseBytes(buffer), {
             status: 200,
             headers: {
                 "Content-Type": contentType,
                 "Content-Length": buffer.length.toString(),
                 "Accept-Ranges": "bytes",
+                "ETag": etag,
                 ...imageCacheHeaders(originalVersion),
             },
         })

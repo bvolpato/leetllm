@@ -1,6 +1,6 @@
 import Foundation
 
-struct ExportManifest: Codable {
+struct ExportManifest: Codable, Sendable {
     let generatedAt: String
     let sourceModifiedAt: String?
     let lessonCount: Int
@@ -16,7 +16,7 @@ struct ExportManifest: Codable {
     let imageBytes: Int
 }
 
-struct ReferenceRecord: Codable, Identifiable, Hashable {
+struct ReferenceRecord: Codable, Identifiable, Hashable, Sendable {
     var id: String { key }
     let key: String
     let title: String
@@ -28,7 +28,7 @@ struct ReferenceRecord: Codable, Identifiable, Hashable {
     let note: String?
 }
 
-struct ContentImageRef: Codable, Hashable {
+struct ContentImageRef: Codable, Hashable, Sendable {
     let path: String
     let theme: String?
     let alt: String?
@@ -40,7 +40,7 @@ protocol CoverImageProviding {
     var coverImageLight: String? { get }
 }
 
-struct LessonIndexItem: Codable, Identifiable, Hashable, CoverImageProviding {
+struct LessonIndexItem: Codable, Identifiable, Hashable, CoverImageProviding, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -61,7 +61,7 @@ struct LessonIndexItem: Codable, Identifiable, Hashable, CoverImageProviding {
     let coverImageLight: String?
 }
 
-struct LessonDetail: Codable, Identifiable, Hashable, CoverImageProviding {
+struct LessonDetail: Codable, Identifiable, Hashable, CoverImageProviding, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -89,18 +89,18 @@ struct LessonDetail: Codable, Identifiable, Hashable, CoverImageProviding {
     let images: [ContentImageRef]
 }
 
-struct LessonFollowUp: Codable, Hashable {
+struct LessonFollowUp: Codable, Hashable, Sendable {
     let question: String
     let answer: String?
 }
 
-struct BlogAuthor: Codable, Hashable {
+struct BlogAuthor: Codable, Hashable, Sendable {
     let name: String
     let avatar: String?
     let url: String?
 }
 
-struct BlogIndexItem: Codable, Identifiable, Hashable, CoverImageProviding {
+struct BlogIndexItem: Codable, Identifiable, Hashable, CoverImageProviding, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -118,7 +118,7 @@ struct BlogIndexItem: Codable, Identifiable, Hashable, CoverImageProviding {
     let socialImage: String?
 }
 
-struct BlogDetail: Codable, Identifiable, Hashable, CoverImageProviding {
+struct BlogDetail: Codable, Identifiable, Hashable, CoverImageProviding, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -149,7 +149,7 @@ struct BlogDetail: Codable, Identifiable, Hashable, CoverImageProviding {
     }
 }
 
-struct PrivateBlogResponse: Decodable {
+struct PrivateBlogResponse: Decodable, Sendable {
     let blogs: [BlogDetail]
     let images: [String: Data]
 }
@@ -162,7 +162,7 @@ enum BlogAccess {
     }
 }
 
-struct LearningTrack: Codable, Identifiable, Hashable {
+struct LearningTrack: Codable, Identifiable, Hashable, Sendable {
     let slug: String
     var id: String { slug }
     let title: String
@@ -175,7 +175,7 @@ struct LearningTrack: Codable, Identifiable, Hashable {
     let lessons: [TrackLesson]
 }
 
-struct TrackLesson: Codable, Identifiable, Hashable {
+struct TrackLesson: Codable, Identifiable, Hashable, Sendable {
     let index: Int
     let title: String
     let slug: String
@@ -187,7 +187,7 @@ struct TrackLesson: Codable, Identifiable, Hashable {
     let shortDescription: String
 }
 
-struct LearningPlanConfiguration: Codable, Equatable {
+struct LearningPlanConfiguration: Codable, Equatable, Sendable {
     let schemaVersion: Int
     let foundationTrackSlug: String
     let goals: [LearningPlanGoal]
@@ -196,7 +196,7 @@ struct LearningPlanConfiguration: Codable, Equatable {
     let plans: [LearningPlanTemplate]
 }
 
-struct LearningPlanGoal: Codable, Identifiable, Equatable {
+struct LearningPlanGoal: Codable, Identifiable, Equatable, Sendable {
     let value: String
     let title: String
     let description: String
@@ -204,7 +204,7 @@ struct LearningPlanGoal: Codable, Identifiable, Equatable {
     var id: String { value }
 }
 
-struct LearningPlanLevel: Codable, Identifiable, Equatable {
+struct LearningPlanLevel: Codable, Identifiable, Equatable, Sendable {
     let value: String
     let title: String
     let description: String
@@ -214,14 +214,14 @@ struct LearningPlanLevel: Codable, Identifiable, Equatable {
     var id: String { value }
 }
 
-struct LearningPlanWeeklyHours: Codable, Identifiable, Equatable {
+struct LearningPlanWeeklyHours: Codable, Identifiable, Equatable, Sendable {
     let value: Int
     let title: String
     let description: String
     var id: Int { value }
 }
 
-struct LearningPlanTemplate: Codable, Equatable {
+struct LearningPlanTemplate: Codable, Equatable, Sendable {
     let trackSlug: String
     let level: String
     let weeklyHours: Int
@@ -233,7 +233,7 @@ struct LearningPlanTemplate: Codable, Equatable {
     let foundationBridgeLessonCount: Int
 }
 
-struct LearningPlanWeekTemplate: Codable, Equatable {
+struct LearningPlanWeekTemplate: Codable, Equatable, Sendable {
     let number: Int
     let title: String
     let focus: String
@@ -244,7 +244,7 @@ struct LearningPlanWeekTemplate: Codable, Equatable {
     let activities: [LearningPlanActivityTemplate]
 }
 
-struct LearningPlanActivityTemplate: Codable, Identifiable, Equatable {
+struct LearningPlanActivityTemplate: Codable, Identifiable, Equatable, Sendable {
     let id: String
     let kind: String
     let title: String
@@ -259,13 +259,13 @@ struct LearningPlanActivityTemplate: Codable, Identifiable, Equatable {
     let required: Bool
 }
 
-struct LearningPlanSelection: Codable, Equatable {
+struct LearningPlanSelection: Codable, Equatable, Sendable {
     let trackSlug: String
     let level: String
     let weeklyHours: Int
 }
 
-struct LearningPlanWeek: Identifiable, Equatable {
+struct LearningPlanWeek: Identifiable, Equatable, Sendable {
     let number: Int
     let title: String
     let focus: String
@@ -277,13 +277,13 @@ struct LearningPlanWeek: Identifiable, Equatable {
     var id: Int { number }
 }
 
-struct LearningPlanActivity: Identifiable, Equatable {
+struct LearningPlanActivity: Identifiable, Equatable, Sendable {
     let template: LearningPlanActivityTemplate
     let lesson: TrackLesson?
     var id: String { template.id }
 }
 
-struct GeneratedLearningPlan: Equatable {
+struct GeneratedLearningPlan: Equatable, Sendable {
     let selection: LearningPlanSelection
     let track: LearningTrack
     let lessons: [TrackLesson]
@@ -362,7 +362,7 @@ enum LearningPlanBuilder {
     }
 }
 
-struct TheoryQuiz: Codable, Identifiable, Hashable {
+struct TheoryQuiz: Codable, Identifiable, Hashable, Sendable {
     let slug: String
     var id: String { slug }
     let title: String
@@ -373,7 +373,7 @@ struct TheoryQuiz: Codable, Identifiable, Hashable {
     let questions: [TheoryQuizQuestion]
 }
 
-struct TheoryQuizQuestion: Codable, Hashable {
+struct TheoryQuizQuestion: Codable, Hashable, Sendable {
     let section: String
     let question: String
     let options: [String]
@@ -381,20 +381,20 @@ struct TheoryQuizQuestion: Codable, Hashable {
     let explanation: String
 }
 
-struct MasteryQuizQuestion: Codable, Hashable {
+struct MasteryQuizQuestion: Codable, Hashable, Sendable {
     let question: String
     let options: [String]
     let answer: String
     let explanation: String
 }
 
-struct GlossaryImageRef: Codable, Hashable {
+struct GlossaryImageRef: Codable, Hashable, Sendable {
     let path: String
     let theme: String?
     let alt: String?
 }
 
-struct GlossaryEntry: Codable, Identifiable, Hashable {
+struct GlossaryEntry: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let title: String
     let aliases: [String]?
@@ -437,17 +437,17 @@ struct GlossaryEntry: Codable, Identifiable, Hashable {
     }
 }
 
-struct GlossaryRelatedTerm: Codable, Identifiable, Hashable {
+struct GlossaryRelatedTerm: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let title: String
 }
 
-struct GlossaryDetailSection: Codable, Hashable {
+struct GlossaryDetailSection: Codable, Hashable, Sendable {
     let title: String
     let content: String
 }
 
-struct GlossaryUsage: Codable, Identifiable, Hashable {
+struct GlossaryUsage: Codable, Identifiable, Hashable, Sendable {
     let title: String
     let url: String
     let excerpt: String
@@ -455,13 +455,13 @@ struct GlossaryUsage: Codable, Identifiable, Hashable {
     var id: String { "\(url)\u{1F}\(excerpt)" }
 }
 
-struct GlossaryCodeExample: Codable, Hashable {
+struct GlossaryCodeExample: Codable, Hashable, Sendable {
     let language: String
     let title: String
     let source: String
 }
 
-struct PracticeMetadata: Codable, Identifiable, Hashable {
+struct PracticeMetadata: Codable, Identifiable, Hashable, Sendable {
     let slug: String
     var id: String { slug }
     let title: String
@@ -478,7 +478,7 @@ struct PracticeMetadata: Codable, Identifiable, Hashable {
     let codingAvailableOnIOS: Bool
 }
 
-struct QuizPrompt: Codable, Identifiable, Hashable {
+struct QuizPrompt: Codable, Identifiable, Hashable, Sendable {
     let id: Int
     let section: String?
     let question: String

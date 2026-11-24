@@ -378,18 +378,44 @@ function loadPracticeProblem(dirName: string): PracticeProblem | null {
     return problem
 }
 
-export function getPracticeProblems(): PracticeProblem[] {
-    if (!existsSync(practiceRoot)) return []
+let cachedProblems: PracticeProblem[] | null = null
+const cachedProblemBySlug = new Map<string, PracticeProblem>()
 
-    return readdirSync(practiceRoot, { withFileTypes: true })
+function isProductionEnv(): boolean {
+    return process.env.NODE_ENV === "production"
+}
+
+export function getPracticeProblems(): PracticeProblem[] {
+    if (isProductionEnv() && cachedProblems) return cachedProblems
+    if (!existsSync(/* turbopackIgnore: true */ practiceRoot)) return []
+
+    const problems = readdirSync(/* turbopackIgnore: true */ practiceRoot, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
         .map((entry) => loadPracticeProblem(entry.name))
         .filter((problem): problem is PracticeProblem => Boolean(problem))
         .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title))
+
+    if (isProductionEnv()) {
+        cachedProblems = problems
+        cachedProblemBySlug.clear()
+        for (const problem of problems) {
+            cachedProblemBySlug.set(problem.slug, problem)
+        }
+    }
+
+    return problems
 }
 
 export function getPracticeProblem(slug: string): PracticeProblem | null {
     if (!/^[a-z0-9-]+$/.test(slug)) return null
+    if (isProductionEnv()) {
+        const cached = cachedProblemBySlug.get(slug)
+        if (cached) return cached
+        if (cachedProblems) return null
+        const loaded = loadPracticeProblem(slug)
+        if (loaded) cachedProblemBySlug.set(slug, loaded)
+        return loaded
+    }
     return loadPracticeProblem(slug)
 }
 

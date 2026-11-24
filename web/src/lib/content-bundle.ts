@@ -86,11 +86,11 @@ export function loadContentBundle(articleDir: string, audience?: ContentAudience
     const contentPath = join(articleDir, "content.md")
     const metadataPath = join(articleDir, "metadata.json")
 
-    if (!existsSync(contentPath)) {
+    if (!existsSync(/* turbopackIgnore: true */ contentPath)) {
         return null
     }
 
-    const source = readFileSync(contentPath, "utf-8")
+    const source = readFileSync(/* turbopackIgnore: true */ contentPath, "utf-8")
     const parsed = parseJsonFrontmatter(contentPath, source)
     const body = audience
         ? filterContentForAudience(parsed.body, audience, contentPath, edition)
@@ -105,12 +105,12 @@ export function loadContentBundle(articleDir: string, audience?: ContentAudience
         }
     }
 
-    if (!existsSync(metadataPath)) {
+    if (!existsSync(/* turbopackIgnore: true */ metadataPath)) {
         return null
     }
 
     return {
-        metadata: JSON.parse(readFileSync(metadataPath, "utf-8")) as ContentBundleMetadata,
+        metadata: JSON.parse(readFileSync(/* turbopackIgnore: true */ metadataPath, "utf-8")) as ContentBundleMetadata,
         body: materializeEmbeddedIllustrationSources(body),
         sourceBody: parsed.body,
         contentPath,

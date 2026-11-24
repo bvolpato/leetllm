@@ -57,12 +57,13 @@ jobs:
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.13.4"
+          enable-cache: false
       - name: Audit video dependencies
         run: npm audit --audit-level=low
-      - name: Check timeline and rendering contracts
-        run: npm test
       - name: Verify concept catalog source coverage
         run: node atlas.mjs --check
+      - name: Check timeline and rendering contracts
+        run: npm test
       - name: Check editable package provenance
         run: uv run test/package_test.py
       - name: Check editorial score freshness and gallery publication
@@ -80,12 +81,28 @@ jobs:
               node render.mjs --stage --lesson "$id" --validate
             fi
           done
-      - name: Check collective text occlusion in every lesson
-        run: node audit-occlusion.mjs --all --validate
-      - name: Check unreachable text reveals in every lesson
-        run: node audit-reveals.mjs --all --validate --fail-on-warnings
-      - name: Check intersecting labels in every lesson
-        run: node audit-labels.mjs --all --validate --fail-on-warnings
+      - name: Check occlusion, reveals, and labels in parallel
+        shell: bash
+        run: |
+          set -euo pipefail
+          node audit-occlusion.mjs --all --validate >"$RUNNER_TEMP/audit-occlusion.log" 2>&1 &
+          p1=$!
+          node audit-reveals.mjs --all --validate --fail-on-warnings >"$RUNNER_TEMP/audit-reveals.log" 2>&1 &
+          p2=$!
+          node audit-labels.mjs --all --validate --fail-on-warnings >"$RUNNER_TEMP/audit-labels.log" 2>&1 &
+          p3=$!
+          rc=0
+          for pair in "$p1:audit-occlusion" "$p2:audit-reveals" "$p3:audit-labels"; do
+            pid="${pair%%:*}"
+            name="${pair##*:}"
+            if ! wait "$pid"; then
+              echo "::error::${name} failed"
+              rc=1
+            fi
+            echo "=== ${name} ==="
+            cat "$RUNNER_TEMP/${name}.log"
+          done
+          exit "$rc"
 
   videos-main:
     name: ${{ matrix.label }}
@@ -150,6 +167,10 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm audit --audit-level=low
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Build and audit the selected Vizmatic source
         working-directory: vizmatic
         run: |
@@ -216,6 +237,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          filter: blob:none
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
@@ -308,15 +330,23 @@ jobs:
             exit 0
           fi
 
+          ensure_ffmpeg() {
+            if ! command -v ffmpeg >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y --no-install-recommends ffmpeg
+            fi
+          }
+
           changed_files="$(git diff --name-only "${BASE_SHA}"...HEAD)"
           full_illustrations=false
           full_diagrams=false
 
-          if grep -q '^web/tools/illustrations/' <<< "${changed_files}"; then
+          if grep -E '^web/tools/illustrations/' <<< "${changed_files}" | grep -qvE '\.test\.tsx?$'; then
             full_illustrations=true
+            ensure_ffmpeg
             pnpm illustrations:build
           fi
-          if grep -q '^web/tools/diagrams/' <<< "${changed_files}"; then
+          if grep -E '^web/tools/diagrams/' <<< "${changed_files}" | grep -qvE '\.test\.tsx?$'; then
             full_diagrams=true
             pnpm diagrams:build
           fi
@@ -332,6 +362,7 @@ jobs:
 
           if (( ${#bundles[@]} > 24 )); then
             if [[ "${full_illustrations}" == "false" ]]; then
+              ensure_ffmpeg
               pnpm illustrations:build
             fi
             if [[ "${full_diagrams}" == "false" ]]; then
@@ -351,6 +382,9 @@ jobs:
               continue
             fi
             if [[ "${full_illustrations}" == "false" ]]; then
+              if grep -rq "createFilm" "src/content/${bundle}/illustrations" 2>/dev/null; then
+                ensure_ffmpeg
+              fi
               pnpm illustrations:build:article "${bundle}"
             fi
             if [[ "${full_diagrams}" == "false" ]]; then
@@ -392,6 +426,10 @@ jobs:
           fi
 
           for bundle in "${illustration_bundles[@]}"; do
+            if grep -rq "createFilm" "src/content/${bundle}/illustrations" 2>/dev/null && ! command -v ffmpeg >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y --no-install-recommends ffmpeg
+            fi
             pnpm illustrations:build:article "${bundle}"
           done
           for bundle in "${diagram_bundles[@]}"; do
@@ -403,13 +441,11 @@ jobs:
 
           pnpm ios:hydrate-images
 
-      - name: Rebuild stale illustration sources
-        run: pnpm illustrations:build
-
       - name: Setup uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.13.4"
+          cache-dependency-glob: "scripts/validate-illustration-quality.py"
 
       - name: Validate generated illustration quality
         run: uv run ../scripts/validate-illustration-quality.py --clean-stale --fail-layout-warnings
@@ -424,27 +460,47 @@ jobs:
             web/tools/diagrams/.cache
           key: generated-visuals-v1-${{ runner.os }}-${{ hashFiles('web/src/content/**/*.md', 'web/src/content/**/illustrations/*.tsx', 'web/tools/illustrations/**/*.ts', 'web/tools/diagrams/**/*.ts', 'web/scripts/hydrate-ios-images.ts', 'web/pnpm-lock.yaml') }}
 
-      - name: Generate glossary module
-        run: pnpm glossary:build
+      - name: Generate glossary and content route index
+        run: pnpm glossary:build && pnpm content-routes:build
 
       - name: Export iOS content
         run: pnpm exec tsx scripts/export-ios-content.ts
 
-      - name: Lint
-        run: pnpm lint
-
-      - name: Validate video JavaScript escapes
-        working-directory: videos
-        run: ../web/node_modules/.bin/eslint . --no-config-lookup --rule 'no-useless-escape:error' --max-warnings 0
+      - name: Lint, typecheck, and video escape checks (parallel)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec eslint >"$RUNNER_TEMP/ci-eslint.log" 2>&1 &
+          p1=$!
+          pnpm exec tsc --noEmit >"$RUNNER_TEMP/ci-tsc.log" 2>&1 &
+          p2=$!
+          (cd ../videos && ../web/node_modules/.bin/eslint . --no-config-lookup --rule 'no-useless-escape:error' --max-warnings 0) >"$RUNNER_TEMP/ci-video-eslint.log" 2>&1 &
+          p3=$!
+          rc=0
+          for pair in "$p1:ci-eslint" "$p2:ci-tsc" "$p3:ci-video-eslint"; do
+            pid="${pair%%:*}"
+            name="${pair##*:}"
+            if ! wait "$pid"; then
+              echo "::error::${name} failed"
+              rc=1
+            fi
+            cat "$RUNNER_TEMP/${name}.log"
+          done
+          exit "$rc"
 
       - name: Test
-        run: pnpm test --run --maxWorkers=2
+        run: pnpm exec vitest run
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Cache Next.js build
+        uses: actions/cache@v6
+        with:
+          path: web/.next/cache
+          key: nextjs-cache-v1-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/next.config.*', 'web/src/**/*.{ts,tsx,css}') }}
+          restore-keys: |
+            nextjs-cache-v1-${{ runner.os }}-
 
       - name: Build
-        run: pnpm build
+        run: pnpm llms:build && pnpm exec next build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-key

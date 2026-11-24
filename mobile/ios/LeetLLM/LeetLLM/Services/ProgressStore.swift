@@ -62,6 +62,7 @@ final class ProgressStore: ObservableObject {
     private let userDefaults: UserDefaults
     private let storageKey: String
     private var pendingScrollPersistence: Task<Void, Never>?
+    private var pendingNotePersistence: Task<Void, Never>?
 
     init(userDefaults: UserDefaults = .standard, namespace: String = "production") {
         self.userDefaults = userDefaults
@@ -135,7 +136,7 @@ final class ProgressStore: ObservableObject {
         notes[slug] ?? ""
     }
 
-    func saveNote(_ note: String, for slug: String) {
+    func saveNote(_ note: String, for slug: String, debounced: Bool = false) {
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (notes[slug] ?? "") != trimmed else { return }
         if trimmed.isEmpty {
@@ -143,6 +144,23 @@ final class ProgressStore: ObservableObject {
         } else {
             notes[slug] = trimmed
         }
+        if debounced {
+            pendingNotePersistence?.cancel()
+            pendingNotePersistence = Task { [weak self] in
+                try? await Task.sleep(for: .milliseconds(450))
+                guard !Task.isCancelled, let self else { return }
+                self.pendingNotePersistence = nil
+                self.persist()
+            }
+        } else {
+            persist()
+        }
+    }
+
+    func flushPendingNote() {
+        guard let pendingNotePersistence else { return }
+        pendingNotePersistence.cancel()
+        self.pendingNotePersistence = nil
         persist()
     }
 
@@ -243,6 +261,15 @@ final class ProgressStore: ObservableObject {
         persist()
     }
 
+    func flushPendingPersistence() {
+        guard pendingScrollPersistence != nil || pendingNotePersistence != nil else { return }
+        pendingScrollPersistence?.cancel()
+        pendingScrollPersistence = nil
+        pendingNotePersistence?.cancel()
+        pendingNotePersistence = nil
+        persist()
+    }
+
     func saveLearningPlan(_ selection: LearningPlanSelection) {
         learningPlanSelection = selection
         learningPlanNeedsSync = true
@@ -301,6 +328,8 @@ final class ProgressStore: ObservableObject {
     private func persist() {
         pendingScrollPersistence?.cancel()
         pendingScrollPersistence = nil
+        pendingNotePersistence?.cancel()
+        pendingNotePersistence = nil
         let state = StoredProgressState(
             readLessonSlugs: readLessonSlugs,
             bookmarkedLessonSlugs: bookmarkedLessonSlugs,

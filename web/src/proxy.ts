@@ -89,11 +89,26 @@ export async function proxy(request: NextRequest) {
         return response
     }
 
+    const pathname = request.nextUrl.pathname
+
+    // Immutable media CDN, OAuth callbacks, and Route Handlers under /api/*
+    // either serve public assets or authenticate and refresh cookies directly
+    // via createClient(). Skipping proxy updateSession() avoids double
+    // supabase.auth.getUser() round-trips on every API call.
+    if (
+        pathname.startsWith("/cdn/content-image/") ||
+        pathname.startsWith("/api/") ||
+        pathname === "/auth/callback" ||
+        pathname === "/auth/callback/ios"
+    ) {
+        return NextResponse.next()
+    }
+
     // Learn HTML and RSC are prebuilt public content. Account state and session
     // refresh resolve in AuthProvider, so navigation need not wait for Auth.
     if (
         (request.method === "GET" || request.method === "HEAD") &&
-        /^\/learn(?:\/[^/]+)?\/?$/.test(request.nextUrl.pathname)
+        /^\/learn(?:\/[^/]+)?\/?$/.test(pathname)
     ) {
         return NextResponse.next()
     }
@@ -123,8 +138,9 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
-         * - public assets (svg, png, jpg, etc.)
+         * - cdn/content-image/ (immutable media CDN route)
+         * - public assets (svg, png, jpg, mp4, vtt, avif, etc.)
          */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|cdn/content-image/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|vtt|avif)$).*)',
     ],
 }

@@ -95,13 +95,14 @@ private final class BundledImageLoader {
         cache.totalCostLimit = 96 * 1_024 * 1_024
     }
 
-    func image(for path: String) async -> UIImage? {
+    func image(for path: String, maxPixelSize: Int = 1_600) async -> UIImage? {
         let cleanPath = path.components(separatedBy: "?").first ?? path
-        let cacheKey = cleanPath as NSString
+        let cacheID = "\(cleanPath)@\(maxPixelSize)"
+        let cacheKey = cacheID as NSString
         if let image = cache.object(forKey: cacheKey) {
             return image
         }
-        if let existing = inFlight[cleanPath] {
+        if let existing = inFlight[cacheID] {
             return await existing.value
         }
         guard let url = Bundle.main.resourceURL?
@@ -120,7 +121,7 @@ private final class BundledImageLoader {
                     kCGImageSourceCreateThumbnailFromImageAlways: true,
                     kCGImageSourceCreateThumbnailWithTransform: true,
                     kCGImageSourceShouldCacheImmediately: true,
-                    kCGImageSourceThumbnailMaxPixelSize: 2_560,
+                    kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
                 ]
                 guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
                     return nil
@@ -128,9 +129,9 @@ private final class BundledImageLoader {
                 return UIImage(cgImage: image)
             }
         }
-        inFlight[cleanPath] = task
+        inFlight[cacheID] = task
         let image = await task.value
-        inFlight[cleanPath] = nil
+        inFlight[cacheID] = nil
         if let image {
             let bytes = image.cgImage.map { $0.bytesPerRow * $0.height } ?? 1
             cache.setObject(image, forKey: cacheKey, cost: bytes)
@@ -207,7 +208,11 @@ struct BundleImage: View {
                 .accessibilityLabel(alt ?? "Illustration")
                 .accessibilityHint("Opens a full-screen, zoomable image")
                 .fullScreenCover(isPresented: $isViewerPresented) {
-                    FullScreenImageViewer(uiImage: image, alt: alt)
+                    FullScreenImageViewer(
+                        uiImage: image,
+                        alt: alt,
+                        highResPath: path.hasPrefix("private-blog-images/") ? nil : path
+                    )
                 }
             } else {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -228,7 +233,10 @@ struct BundleImage: View {
         .task(id: key) {
             await loadState.load(key: key) {
                 if path.hasPrefix("private-blog-images/") {
-                    return dataService.privateImageData(path: path).flatMap { UIImage(data: $0) }
+                    guard let data = dataService.privateImageData(path: path) else { return nil }
+                    return await Task.detached(priority: .userInitiated) {
+                        UIImage(data: data)
+                    }.value
                 }
                 return await BundledImageLoader.shared.image(for: path)
             }
@@ -312,11 +320,7 @@ struct MarkdownContentView: View {
 
     private func normalizedImagePath(_ path: String) -> String {
         let cleanPath = path.components(separatedBy: "?").first ?? path
-        return cleanPath.replacingOccurrences(
-            of: #"_(light|dark)(?=\.[^.]+$)"#,
-            with: "",
-            options: .regularExpression
-        )
+        return replaceMatches(in: cleanPath, regex: RegexCache.themedImageSuffix, with: "")
     }
 
     @ViewBuilder
@@ -1165,7 +1169,7 @@ func parseBlocks(_ markdown: String) -> [MarkdownBlock] {
             continue
         }
 
-        if line.range(of: #"^(---+|___+|\*\*\*+)$"#, options: .regularExpression) != nil {
+        if hasRegexMatch(in: line, regex: RegexCache.dividerLine) {
             flushParagraph()
             flushList()
             flushQuote()
@@ -1201,8 +1205,8 @@ func parseBlocks(_ markdown: String) -> [MarkdownBlock] {
             continue
         }
 
-        let unorderedRange = rawLine.range(of: #"^\s*[-*+]\s+"#, options: .regularExpression)
-        let orderedRange = rawLine.range(of: #"^\s*([0-9]+)\.\s+"#, options: .regularExpression)
+        let unorderedRange = firstRegexMatchRange(in: rawLine, regex: RegexCache.unorderedListMarker)
+        let orderedRange = unorderedRange == nil ? firstRegexMatchRange(in: rawLine, regex: RegexCache.orderedListMarker) : nil
         if let markerRange = unorderedRange ?? orderedRange {
             flushParagraph()
             flushQuote()
@@ -1249,26 +1253,94 @@ private struct ExtractedDisclosure {
     let content: String
 }
 
+private enum RegexCache {
+    static let themedImageSuffix = compile(#"_(light|dark)(?=\.[^.]+$)"#)
+    static let dividerLine = compile(#"^(---+|___+|\*\*\*+)$"#)
+    static let unorderedListMarker = compile(#"^\s*[-*+]\s+"#)
+    static let orderedListMarker = compile(#"^\s*([0-9]+)\.\s+"#)
+    static let detailsBlock = compile(
+        #"<details\b[^>]*>\s*<summary\b[^>]*>(.*?)</summary>\s*(.*?)\s*</details>"#,
+        options: [.caseInsensitive, .dotMatchesLineSeparators]
+    )
+    static let disclosureCodePatterns: [NSRegularExpression] = [
+        compile(#"(?ms)^ {0,3}`{3,}[^\n]*\n.*?^ {0,3}`{3,}[ \t]*$"#),
+        compile(#"(?ms)^ {0,3}~{3,}[^\n]*\n.*?^ {0,3}~{3,}[ \t]*$"#),
+        compile(#"(?<!`)(`+)[^\n]*?\1(?!`)"#),
+    ]
+    static let inlineMath = compile(inlineMathPattern)
+    static let inlineCode = compile(#"`[^`\n]+`"#)
+    static let inlineCodeCapture = compile(#"`([^`\n]+)`"#)
+    static let glossarySpan = compile(#"<span\s+[^>]*data-glossary="([^"]+)"[^>]*>(.*?)</span>"#)
+    static let htmlCitation = compile(#"<sup><a\s+[^>]*href="([^"]+)"[^>]*>\[(\d+)\]</a></sup>"#)
+    static let supTag = compile(#"<sup>.*?</sup>"#)
+    static let figcaptionTag = compile(#"<figcaption>(.*?)</figcaption>"#)
+    static let brTag = compile(#"<br\s*/?>"#)
+    static let htmlTag = compile(#"<[^>]+>"#)
+    static let strongEmphasis = compile(#"\*\*([^*\n]+)\*\*|__([^_\n]+)__"#)
+    static let italicEmphasis = compile(#"(?<!\*)\*([^*\n]+)\*(?!\*)|(?<!_)_([^_\n]+)_(?!_)"#)
+    static let strikethrough = compile(#"~~([^~\n]+)~~"#)
+    static let normalizedCitation = compile(#"\[\\\[(\d+)\\\]\]\(<([^>\n]+)>\)"#)
+    static let legacyCitation = compile(#"\[\[(\d+)\]\]\(([^)\s]+)\)"#)
+    static let markdownLink = compile(#"\[([^\]\n]+)]\(([^)\s]+)\)"#)
+    static let tableSizingStrip = compile(#"[*_`~<>\[\]()]"#)
+    static let codeMeta = compile(#"([A-Za-z][A-Za-z0-9_-]*)(?:=(?:"([^"]*)"|'([^']*)'|([^\s]+)))?"#)
+
+    static let codeComments = compile(#"//.*$|/\*[\s\S]*?\*/|#.*$"#, options: [.anchorsMatchLines])
+    static let codeStrings = compile(#""[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|"""[\s\S]*?""""#, options: [.anchorsMatchLines])
+    static let codeNumbers = compile(#"\b\d+(\.\d+)?\b"#, options: [.anchorsMatchLines])
+    static let pythonKeywords = compile(
+        #"\b(def|class|return|import|from|as|if|else|elif|for|while|in|is|not|and|or|try|except|finally|with|assert|lambda|global|nonlocal|pass|break|continue|yield|None|True|False)\b"#,
+        options: [.anchorsMatchLines]
+    )
+    static let defaultKeywords = compile(
+        #"\b(function|const|let|var|class|return|import|export|from|default|if|else|for|while|in|of|try|catch|finally|async|await|null|undefined|true|false|interface|type|public|private|readonly)\b"#,
+        options: [.anchorsMatchLines]
+    )
+    static let builtinTypes = compile(
+        #"\b(int|float|str|bool|list|dict|set|tuple|number|string|boolean|any|void|object|self)\b"#,
+        options: [.anchorsMatchLines]
+    )
+    static let codeFunctions = compile(#"\b[a-zA-Z_][a-zA-Z0-9_]*(?=\()"#, options: [.anchorsMatchLines])
+
+    private static func compile(
+        _ pattern: String,
+        options: NSRegularExpression.Options = []
+    ) -> NSRegularExpression {
+        try! NSRegularExpression(pattern: pattern, options: options)
+    }
+}
+
+private func hasRegexMatch(in text: String, regex: NSRegularExpression) -> Bool {
+    let range = NSRange(text.startIndex..<text.endIndex, in: text)
+    return regex.firstMatch(in: text, options: [], range: range) != nil
+}
+
+private func firstRegexMatchRange(in text: String, regex: NSRegularExpression) -> Range<String.Index>? {
+    let range = NSRange(text.startIndex..<text.endIndex, in: text)
+    guard let match = regex.firstMatch(in: text, options: [], range: range) else { return nil }
+    return Range(match.range, in: text)
+}
+
+private func replaceMatches(in text: String, regex: NSRegularExpression, with template: String) -> String {
+    let range = NSRange(text.startIndex..<text.endIndex, in: text)
+    return regex.stringByReplacingMatches(in: text, options: [], range: range, withTemplate: template)
+}
+
 private func extractDisclosureBlocks(_ markdown: String) -> (markdown: String, disclosures: [ExtractedDisclosure]) {
-    let pattern = #"<details\b[^>]*>\s*<summary\b[^>]*>(.*?)</summary>\s*(.*?)\s*</details>"#
-    guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) else {
+    guard markdown.localizedCaseInsensitiveContains("<details") else {
         return (markdown, [])
     }
 
     let source = markdown as NSString
-    let codePatterns = [
-        #"(?ms)^ {0,3}`{3,}[^\n]*\n.*?^ {0,3}`{3,}[ \t]*$"#,
-        #"(?ms)^ {0,3}~{3,}[^\n]*\n.*?^ {0,3}~{3,}[ \t]*$"#,
-        #"(?<!`)(`+)[^\n]*?\1(?!`)"#,
-    ]
-    let codeRanges = codePatterns.flatMap { pattern in
-        (try? NSRegularExpression(pattern: pattern))?.matches(
-            in: markdown,
-            range: NSRange(location: 0, length: source.length)
-        ).map(\.range) ?? []
+    let fullRange = NSRange(location: 0, length: source.length)
+    let codeRanges = RegexCache.disclosureCodePatterns.flatMap { regex in
+        regex.matches(in: markdown, range: fullRange).map(\.range)
     }
-    let matches = regex.matches(in: markdown, range: NSRange(location: 0, length: source.length)).filter { match in
+    let matches = RegexCache.detailsBlock.matches(in: markdown, range: fullRange).filter { match in
         !codeRanges.contains { NSLocationInRange(match.range.location, $0) }
+    }
+    guard !matches.isEmpty else {
+        return (markdown, [])
     }
     let disclosures = matches.map { match in
         ExtractedDisclosure(
@@ -1480,42 +1552,45 @@ func normalizedInlineMarkdown(_ text: String) -> String {
     var result = text
     var fragments: [String] = []
 
-    func protect(pattern: String) {
-        result = replacingRegexMatches(in: result, pattern: pattern) { match, source in
+    func protect(regex: NSRegularExpression) {
+        result = replacingRegexMatches(in: result, regex: regex) { match, source in
             let token = "\u{E000}\(fragments.count)\u{E001}"
             fragments.append(regexCapture(match, index: 0, source: source) ?? "")
             return token
         }
     }
 
-    protect(pattern: #"`[^`\n]+`"#)
-    protect(pattern: inlineMathPattern)
-
-    result = result.replacingOccurrences(
-        of: #"<span\s+[^>]*data-glossary="([^"]+)"[^>]*>(.*?)</span>"#,
-        with: "[$2 ?](glossary://$1)",
-        options: .regularExpression
-    )
-    // Escape the visible brackets and wrap the destination in angle brackets so
-    // Foundation's Markdown parser handles citation labels and URLs containing parentheses.
-    let citationPattern = #"<sup><a\s+[^>]*href="([^"]+)"[^>]*>\[(\d+)\]</a></sup>"#
-    result = replacingRegexMatches(in: result, pattern: citationPattern) { match, source in
-        let token = "\u{E000}\(fragments.count)\u{E001}"
-        let url = (regexCapture(match, index: 1, source: source) ?? "")
-            .replacingOccurrences(of: "&amp;", with: "&")
-        let number = regexCapture(match, index: 2, source: source) ?? ""
-        fragments.append("[\\[\(number)\\]](<\(url)>)")
-        return token
+    if result.contains("`") {
+        protect(regex: RegexCache.inlineCode)
     }
-    result = result.replacingOccurrences(of: #"<sup>.*?</sup>"#, with: "", options: .regularExpression)
-    result = result.replacingOccurrences(of: #"<figcaption>(.*?)</figcaption>"#, with: "$1", options: .regularExpression)
-    result = result.replacingOccurrences(of: #"<br\s*/?>"#, with: "\n", options: .regularExpression)
-    result = result.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
-    result = result.replacingOccurrences(of: "&quot;", with: "\"")
-    result = result.replacingOccurrences(of: "&#39;", with: "'")
-    result = result.replacingOccurrences(of: "&amp;", with: "&")
-    result = result.replacingOccurrences(of: "&lt;", with: "<")
-    result = result.replacingOccurrences(of: "&gt;", with: ">")
+    if result.contains("$") {
+        protect(regex: RegexCache.inlineMath)
+    }
+
+    if result.contains("<") {
+        result = replaceMatches(in: result, regex: RegexCache.glossarySpan, with: "[$2 ?](glossary://$1)")
+        // Escape the visible brackets and wrap the destination in angle brackets so
+        // Foundation's Markdown parser handles citation labels and URLs containing parentheses.
+        result = replacingRegexMatches(in: result, regex: RegexCache.htmlCitation) { match, source in
+            let token = "\u{E000}\(fragments.count)\u{E001}"
+            let url = (regexCapture(match, index: 1, source: source) ?? "")
+                .replacingOccurrences(of: "&amp;", with: "&")
+            let number = regexCapture(match, index: 2, source: source) ?? ""
+            fragments.append("[\\[\(number)\\]](<\(url)>)")
+            return token
+        }
+        result = replaceMatches(in: result, regex: RegexCache.supTag, with: "")
+        result = replaceMatches(in: result, regex: RegexCache.figcaptionTag, with: "$1")
+        result = replaceMatches(in: result, regex: RegexCache.brTag, with: "\n")
+        result = replaceMatches(in: result, regex: RegexCache.htmlTag, with: " ")
+    }
+    if result.contains("&") {
+        result = result.replacingOccurrences(of: "&quot;", with: "\"")
+        result = result.replacingOccurrences(of: "&#39;", with: "'")
+        result = result.replacingOccurrences(of: "&amp;", with: "&")
+        result = result.replacingOccurrences(of: "&lt;", with: "<")
+        result = result.replacingOccurrences(of: "&gt;", with: ">")
+    }
     for index in fragments.indices.reversed() {
         result = result.replacingOccurrences(of: "\u{E000}\(index)\u{E001}", with: fragments[index])
     }
@@ -1523,9 +1598,11 @@ func normalizedInlineMarkdown(_ text: String) -> String {
 }
 
 func containsInlineMath(_ text: String) -> Bool {
-    guard let regex = try? NSRegularExpression(pattern: inlineMathPattern) else { return false }
-    let withoutCode = text.replacingOccurrences(of: #"`[^`\n]+`"#, with: "", options: .regularExpression)
-    return regex.firstMatch(in: withoutCode, range: NSRange(withoutCode.startIndex..<withoutCode.endIndex, in: withoutCode)) != nil
+    guard text.contains("$") else { return false }
+    let withoutCode = text.contains("`")
+        ? replaceMatches(in: text, regex: RegexCache.inlineCode, with: "")
+        : text
+    return hasRegexMatch(in: withoutCode, regex: RegexCache.inlineMath)
 }
 
 private func escapeHTML(_ text: String) -> String {
@@ -1547,11 +1624,11 @@ private func regexCapture(_ match: NSTextCheckingResult, index: Int, source: Str
 
 private func replacingRegexMatches(
     in source: String,
-    pattern: String,
+    regex: NSRegularExpression,
     transform: (NSTextCheckingResult, String) -> String
 ) -> String {
-    guard let regex = try? NSRegularExpression(pattern: pattern) else { return source }
     let matches = regex.matches(in: source, range: NSRange(source.startIndex..<source.endIndex, in: source))
+    guard !matches.isEmpty else { return source }
     var result = source
     for match in matches.reversed() {
         guard let range = Range(match.range, in: result) else { continue }
@@ -1561,16 +1638,21 @@ private func replacingRegexMatches(
 }
 
 private func renderEmphasisHTML(_ escapedText: String) -> String {
-    var result = replacingRegexMatches(in: escapedText, pattern: #"\*\*([^*\n]+)\*\*|__([^_\n]+)__"#) { match, source in
-        let content = regexCapture(match, index: 1, source: source) ?? regexCapture(match, index: 2, source: source) ?? ""
-        return "<strong>\(content)</strong>"
+    var result = escapedText
+    if result.contains("*") || result.contains("_") {
+        result = replacingRegexMatches(in: result, regex: RegexCache.strongEmphasis) { match, source in
+            let content = regexCapture(match, index: 1, source: source) ?? regexCapture(match, index: 2, source: source) ?? ""
+            return "<strong>\(content)</strong>"
+        }
+        result = replacingRegexMatches(in: result, regex: RegexCache.italicEmphasis) { match, source in
+            let content = regexCapture(match, index: 1, source: source) ?? regexCapture(match, index: 2, source: source) ?? ""
+            return "<em>\(content)</em>"
+        }
     }
-    result = replacingRegexMatches(in: result, pattern: #"(?<!\*)\*([^*\n]+)\*(?!\*)|(?<!_)_([^_\n]+)_(?!_)"#) { match, source in
-        let content = regexCapture(match, index: 1, source: source) ?? regexCapture(match, index: 2, source: source) ?? ""
-        return "<em>\(content)</em>"
-    }
-    result = replacingRegexMatches(in: result, pattern: #"~~([^~\n]+)~~"#) { match, source in
-        "<s>\(regexCapture(match, index: 1, source: source) ?? "")</s>"
+    if result.contains("~~") {
+        result = replacingRegexMatches(in: result, regex: RegexCache.strikethrough) { match, source in
+            "<s>\(regexCapture(match, index: 1, source: source) ?? "")</s>"
+        }
     }
     return result
 }
@@ -1579,47 +1661,53 @@ func renderInlineMarkdownHTML(_ markdown: String) -> String {
     var fragments: [String] = []
     var source = normalizedInlineMarkdown(markdown)
 
-    func protect(pattern: String, render: (NSTextCheckingResult, String) -> String) {
-        source = replacingRegexMatches(in: source, pattern: pattern) { match, currentSource in
+    func protect(regex: NSRegularExpression, render: (NSTextCheckingResult, String) -> String) {
+        source = replacingRegexMatches(in: source, regex: regex) { match, currentSource in
             let token = "\u{E000}\(fragments.count)\u{E001}"
             fragments.append(render(match, currentSource))
             return token
         }
     }
 
-    protect(pattern: #"`([^`\n]+)`"#) { match, currentSource in
-        let code = regexCapture(match, index: 1, source: currentSource) ?? ""
-        return "<code>\(escapeHTML(code))</code>"
+    if source.contains("`") {
+        protect(regex: RegexCache.inlineCodeCapture) { match, currentSource in
+            let code = regexCapture(match, index: 1, source: currentSource) ?? ""
+            return "<code>\(escapeHTML(code))</code>"
+        }
     }
-    protect(pattern: inlineMathPattern) { match, currentSource in
-        escapeHTML(regexCapture(match, index: 0, source: currentSource) ?? "")
+    if source.contains("$") {
+        protect(regex: RegexCache.inlineMath) { match, currentSource in
+            escapeHTML(regexCapture(match, index: 0, source: currentSource) ?? "")
+        }
     }
-    protect(pattern: #"\[\\\[(\d+)\\\]\]\(<([^>\n]+)>\)"#) { match, currentSource in
-        let number = regexCapture(match, index: 1, source: currentSource) ?? ""
-        let url = regexCapture(match, index: 2, source: currentSource) ?? ""
-        return "<sup class=\"reference-citation\"><a href=\"\(escapeHTML(url))\">[\(number)]</a></sup>"
-    }
-    // Preserve compatibility with content normalized by older app builds.
-    protect(pattern: #"\[\[(\d+)\]\]\(([^)\s]+)\)"#) { match, currentSource in
-        let number = regexCapture(match, index: 1, source: currentSource) ?? ""
-        let url = regexCapture(match, index: 2, source: currentSource) ?? ""
-        return "<sup class=\"reference-citation\"><a href=\"\(escapeHTML(url))\">[\(number)]</a></sup>"
-    }
-    protect(pattern: #"\[([^\]\n]+)]\(([^)\s]+)\)"#) { match, currentSource in
-        var label = regexCapture(match, index: 1, source: currentSource) ?? ""
-        let rawURL = regexCapture(match, index: 2, source: currentSource) ?? ""
-        let url = URL(string: rawURL).flatMap { externalContentURL(for: $0) }?.absoluteString ?? rawURL
-        if let parsedURL = URL(string: url), let entryID = glossaryEntryID(for: parsedURL) {
-            if label.hasSuffix(" ?") {
-                label.removeLast(2)
+    if source.contains("[") {
+        protect(regex: RegexCache.normalizedCitation) { match, currentSource in
+            let number = regexCapture(match, index: 1, source: currentSource) ?? ""
+            let url = regexCapture(match, index: 2, source: currentSource) ?? ""
+            return "<sup class=\"reference-citation\"><a href=\"\(escapeHTML(url))\">[\(number)]</a></sup>"
+        }
+        // Preserve compatibility with content normalized by older app builds.
+        protect(regex: RegexCache.legacyCitation) { match, currentSource in
+            let number = regexCapture(match, index: 1, source: currentSource) ?? ""
+            let url = regexCapture(match, index: 2, source: currentSource) ?? ""
+            return "<sup class=\"reference-citation\"><a href=\"\(escapeHTML(url))\">[\(number)]</a></sup>"
+        }
+        protect(regex: RegexCache.markdownLink) { match, currentSource in
+            var label = regexCapture(match, index: 1, source: currentSource) ?? ""
+            let rawURL = regexCapture(match, index: 2, source: currentSource) ?? ""
+            let url = URL(string: rawURL).flatMap { externalContentURL(for: $0) }?.absoluteString ?? rawURL
+            if let parsedURL = URL(string: url), let entryID = glossaryEntryID(for: parsedURL) {
+                if label.hasSuffix(" ?") {
+                    label.removeLast(2)
+                }
+                let escapedEntryID = escapeHTML(entryID)
+                return "<a href=\"glossary://\(escapedEntryID)\" data-glossary=\"\(escapedEntryID)\">\(renderEmphasisHTML(escapeHTML(label)))</a>"
             }
-            let escapedEntryID = escapeHTML(entryID)
-            return "<a href=\"glossary://\(escapedEntryID)\" data-glossary=\"\(escapedEntryID)\">\(renderEmphasisHTML(escapeHTML(label)))</a>"
+            if isReferenceCitationLabel(label) {
+                return "<sup class=\"reference-citation\"><a href=\"\(escapeHTML(url))\">\(escapeHTML(label))</a></sup>"
+            }
+            return "<a href=\"\(escapeHTML(url))\">\(renderEmphasisHTML(escapeHTML(label)))</a>"
         }
-        if isReferenceCitationLabel(label) {
-            return "<sup class=\"reference-citation\"><a href=\"\(escapeHTML(url))\">\(escapeHTML(label))</a></sup>"
-        }
-        return "<a href=\"\(escapeHTML(url))\">\(renderEmphasisHTML(escapeHTML(label)))</a>"
     }
 
     var html = renderEmphasisHTML(escapeHTML(source))
@@ -1730,13 +1818,15 @@ struct ZoomableImageView: UIViewRepresentable {
 struct FullScreenImageViewer: View {
     let uiImage: UIImage
     let alt: String?
+    var highResPath: String? = nil
     @Environment(\.dismiss) private var dismiss
+    @State private var displayedImage: UIImage?
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Color.black.ignoresSafeArea()
             
-            ZoomableImageView(uiImage: uiImage)
+            ZoomableImageView(uiImage: displayedImage ?? uiImage)
                 .ignoresSafeArea()
             
             Button(action: { dismiss() }) {
@@ -1752,59 +1842,81 @@ struct FullScreenImageViewer: View {
             .frame(minWidth: 44, minHeight: 44)
             .padding(.top, 10)
         }
+        .task(id: highResPath) {
+            guard let highResPath else { return }
+            if let fullRes = await BundledImageLoader.shared.image(for: highResPath, maxPixelSize: 2_560) {
+                displayedImage = fullRes
+            }
+        }
+    }
+}
+
+private final class HighlightedCodeEntry: @unchecked Sendable {
+    let code: String
+    let attributed: AttributedString
+
+    init(code: String, attributed: AttributedString) {
+        self.code = code
+        self.attributed = attributed
+    }
+}
+
+private final class CodeHighlightCache: @unchecked Sendable {
+    static let shared = CodeHighlightCache()
+
+    private let cache: NSCache<NSString, HighlightedCodeEntry> = {
+        let cache = NSCache<NSString, HighlightedCodeEntry>()
+        cache.countLimit = 128
+        return cache
+    }()
+
+    func highlighted(code: String, language: String, isDarkMode: Bool) -> AttributedString {
+        let normalizedLanguage = language.lowercased()
+        let key = "\(code.hashValue)_\(code.utf8.count)_\(normalizedLanguage)_\(isDarkMode ? 1 : 0)" as NSString
+        if let entry = cache.object(forKey: key), entry.code == code {
+            return entry.attributed
+        }
+
+        var attributed = AttributedString(code)
+        attributed.foregroundColor = isDarkMode ? .white : .black
+
+        let range = NSRange(code.startIndex..<code.endIndex, in: code)
+        let keywordRegex = normalizedLanguage == "python"
+            ? RegexCache.pythonKeywords
+            : RegexCache.defaultKeywords
+
+        let rules: [(regex: NSRegularExpression, color: Color)] = [
+            (RegexCache.codeComments, isDarkMode ? Color(red: 0.5, green: 0.6, blue: 0.5) : Color(red: 0.4, green: 0.5, blue: 0.4)),
+            (RegexCache.codeStrings, isDarkMode ? Color(red: 0.85, green: 0.65, blue: 0.45) : Color(red: 0.7, green: 0.45, blue: 0.2)),
+            (RegexCache.codeNumbers, isDarkMode ? Color(red: 0.6, green: 0.8, blue: 0.6) : Color(red: 0.3, green: 0.6, blue: 0.3)),
+            (keywordRegex, isDarkMode ? Color(red: 0.85, green: 0.45, blue: 0.65) : Color(red: 0.7, green: 0.2, blue: 0.5)),
+            (RegexCache.builtinTypes, isDarkMode ? Color(red: 0.4, green: 0.7, blue: 0.9) : Color(red: 0.1, green: 0.4, blue: 0.7)),
+            (RegexCache.codeFunctions, isDarkMode ? Color(red: 0.3, green: 0.7, blue: 0.9) : Color(red: 0.1, green: 0.5, blue: 0.7)),
+        ]
+
+        for (regex, color) in rules {
+            let matches = regex.matches(in: code, options: [], range: range)
+            for match in matches {
+                if let stringRange = Range(match.range, in: code),
+                   let start = AttributedString.Index(stringRange.lowerBound, within: attributed),
+                   let end = AttributedString.Index(stringRange.upperBound, within: attributed) {
+                    attributed[start..<end].foregroundColor = color
+                }
+            }
+        }
+
+        cache.setObject(HighlightedCodeEntry(code: code, attributed: attributed), forKey: key)
+        return attributed
     }
 }
 
 func highlightCode(_ code: String, language: String, isDarkMode: Bool, fontSize: CGFloat) -> AttributedString {
-    var attributed = AttributedString(code)
+    var attributed = CodeHighlightCache.shared.highlighted(
+        code: code,
+        language: language,
+        isDarkMode: isDarkMode
+    )
     attributed.font = .system(size: fontSize, weight: .regular, design: .monospaced)
-    attributed.foregroundColor = isDarkMode ? .white : .black
-    
-    let range = NSRange(code.startIndex..<code.endIndex, in: code)
-    var patterns: [(pattern: String, color: Color)] = []
-    
-    // Comments
-    patterns.append((#"//.*$|/\*[\s\S]*?\*/|#.*$"#, isDarkMode ? Color(red: 0.5, green: 0.6, blue: 0.5) : Color(red: 0.4, green: 0.5, blue: 0.4)))
-    
-    // Strings
-    patterns.append((#""[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|"""[\s\S]*?""""#, isDarkMode ? Color(red: 0.85, green: 0.65, blue: 0.45) : Color(red: 0.7, green: 0.45, blue: 0.2)))
-    
-    // Numbers
-    patterns.append((#"\b\d+(\.\d+)?\b"#, isDarkMode ? Color(red: 0.6, green: 0.8, blue: 0.6) : Color(red: 0.3, green: 0.6, blue: 0.3)))
-    
-    // Keywords
-    let keywords: [String]
-    if language.lowercased() == "python" {
-        keywords = ["def", "class", "return", "import", "from", "as", "if", "else", "elif", "for", "while", "in", "is", "not", "and", "or", "try", "except", "finally", "with", "assert", "lambda", "global", "nonlocal", "pass", "break", "continue", "yield", "None", "True", "False"]
-    } else {
-        keywords = ["function", "const", "let", "var", "class", "return", "import", "export", "from", "default", "if", "else", "for", "while", "in", "of", "try", "catch", "finally", "async", "await", "null", "undefined", "true", "false", "interface", "type", "public", "private", "readonly"]
-    }
-    
-    let keywordPattern = "\\b(" + keywords.joined(separator: "|") + ")\\b"
-    patterns.append((keywordPattern, isDarkMode ? Color(red: 0.85, green: 0.45, blue: 0.65) : Color(red: 0.7, green: 0.2, blue: 0.5)))
-    
-    // Builtin Types
-    let types = ["int", "float", "str", "bool", "list", "dict", "set", "tuple", "number", "string", "boolean", "any", "void", "object", "self"]
-    let typePattern = "\\b(" + types.joined(separator: "|") + ")\\b"
-    patterns.append((typePattern, isDarkMode ? Color(red: 0.4, green: 0.7, blue: 0.9) : Color(red: 0.1, green: 0.4, blue: 0.7)))
-    
-    // Function names / decorators
-    patterns.append((#"\b[a-zA-Z_][a-zA-Z0-9_]*(?=\()"#, isDarkMode ? Color(red: 0.3, green: 0.7, blue: 0.9) : Color(red: 0.1, green: 0.5, blue: 0.7)))
-    
-    for (pattern, color) in patterns {
-        if let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) {
-            let matches = regex.matches(in: code, options: [], range: range)
-            for match in matches {
-                if let stringRange = Range(match.range, in: code) {
-                    if let start = AttributedString.Index(stringRange.lowerBound, within: attributed),
-                       let end = AttributedString.Index(stringRange.upperBound, within: attributed) {
-                        attributed[start..<end].foregroundColor = color
-                    }
-                }
-            }
-        }
-    }
-    
     return attributed
 }
 
@@ -1961,8 +2073,7 @@ private func tableColumnProfile(for table: ParsedTable, columnIndex: Int) -> Tab
 }
 
 private func tableSizingText(_ value: String) -> String {
-    cleanInline(value)
-        .replacingOccurrences(of: #"[*_`~<>\[\]()]"#, with: "", options: .regularExpression)
+    replaceMatches(in: cleanInline(value), regex: RegexCache.tableSizingStrip, with: "")
         .trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
@@ -2242,6 +2353,16 @@ struct LaTeXWebView: UIViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    fileprivate struct RenderKey: Equatable {
+        let latex: String
+        let isBlock: Bool
+        let fontTheme: String
+        let fontSize: CGFloat
+        let isBold: Bool
+        let usesSecondaryColor: Bool
+        let isDark: Bool
+    }
+
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.userContentController.add(context.coordinator, name: "layout")
@@ -2259,21 +2380,34 @@ struct LaTeXWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        uiView.isUserInteractionEnabled = allowsTextSelection
-        let html = generateHTML()
-        if context.coordinator.lastLoadedHTML != html {
-            let isInitialLoad = context.coordinator.lastLoadedHTML == nil
-            context.coordinator.lastLoadedHTML = html
-            if isInitialLoad {
-                DispatchQueue.main.async {
-                    isReady = false
-                }
+        if uiView.isUserInteractionEnabled != allowsTextSelection {
+            uiView.isUserInteractionEnabled = allowsTextSelection
+        }
+        let fontSize = scaledReaderFontSize(readerSettings.fontSize) * fontScale
+        let isDark = readerSettings.readerColorScheme == "dark" ||
+            (readerSettings.readerColorScheme == "system" && colorScheme == .dark)
+        let renderKey = RenderKey(
+            latex: latex,
+            isBlock: isBlock,
+            fontTheme: readerSettings.fontTheme,
+            fontSize: fontSize,
+            isBold: isBold,
+            usesSecondaryColor: usesSecondaryColor,
+            isDark: isDark
+        )
+        guard context.coordinator.lastRenderKey != renderKey else { return }
+        let isInitialLoad = context.coordinator.lastRenderKey == nil
+        context.coordinator.lastRenderKey = renderKey
+        if isInitialLoad {
+            DispatchQueue.main.async {
+                isReady = false
             }
-            if let dataFolder = Bundle.main.resourceURL?.appendingPathComponent("data", isDirectory: true) {
-                uiView.loadHTMLString(html, baseURL: dataFolder)
-            } else {
-                uiView.loadHTMLString(html, baseURL: nil)
-            }
+        }
+        let html = generateHTML(fontSize: fontSize, isDark: isDark)
+        if let dataFolder = Bundle.main.resourceURL?.appendingPathComponent("data", isDirectory: true) {
+            uiView.loadHTMLString(html, baseURL: dataFolder)
+        } else {
+            uiView.loadHTMLString(html, baseURL: nil)
         }
     }
 
@@ -2292,7 +2426,7 @@ struct LaTeXWebView: UIViewRepresentable {
         var isReady: Binding<Bool>
         var selectedEntry: Binding<GlossaryEntry?>
         var selectedResource: Binding<BundledResource?>
-        var lastLoadedHTML: String? = nil
+        fileprivate var lastRenderKey: RenderKey? = nil
         private let tooltipPresenter = GlossaryHoverTooltipPresenter()
         private var hoverRequestID = 0
 
@@ -2352,9 +2486,14 @@ struct LaTeXWebView: UIViewRepresentable {
 
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             if message.name == "layout", let heightValue = message.body as? NSNumber {
+                let nextHeight = max(24, CGFloat(heightValue.doubleValue) + 4)
                 DispatchQueue.main.async {
-                    self.height.wrappedValue = max(24, CGFloat(heightValue.doubleValue) + 4)
-                    self.isReady.wrappedValue = true
+                    if abs(self.height.wrappedValue - nextHeight) > 0.5 {
+                        self.height.wrappedValue = nextHeight
+                    }
+                    if !self.isReady.wrappedValue {
+                        self.isReady.wrappedValue = true
+                    }
                 }
                 return
             }
@@ -2400,17 +2539,12 @@ struct LaTeXWebView: UIViewRepresentable {
         }
     }
 
-    private func generateHTML() -> String {
+    private func generateHTML(fontSize: CGFloat, isDark: Bool) -> String {
         let renderedContent = isBlock ? escapeHTML("$$\(latex)$$") : renderInlineMarkdownHTML(latex)
         
         let fontFamily = readerSettings.fontTheme == "serif" 
             ? "Georgia, Cambria, 'Times New Roman', serif" 
             : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-            
-        let fontSize = scaledReaderFontSize(readerSettings.fontSize) * fontScale
-        
-        let isDark = readerSettings.readerColorScheme == "dark" ||
-            (readerSettings.readerColorScheme == "system" && colorScheme == .dark)
             
         let textColor = usesSecondaryColor
             ? (isDark ? "#aeaeb2" : "#6e6e73")
@@ -2576,38 +2710,35 @@ func parseCodeMeta(_ rawLine: String) -> CodeBlockMeta {
         meta.isOutput = true
     }
     
-    let pattern = #"([A-Za-z][A-Za-z0-9_-]*)(?:=(?:"([^"]*)"|'([^']*)'|([^\s]+)))?"#
-    if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-        let nsString = trimmed as NSString
-        let matches = regex.matches(in: trimmed, options: [], range: NSRange(location: 0, length: nsString.length))
+    let nsString = trimmed as NSString
+    let matches = RegexCache.codeMeta.matches(in: trimmed, options: [], range: NSRange(location: 0, length: nsString.length))
+    
+    for match in matches {
+        guard match.numberOfRanges > 1 else { continue }
+        let key = nsString.substring(with: match.range(at: 1)).lowercased()
         
-        for match in matches {
-            guard match.numberOfRanges > 1 else { continue }
-            let key = nsString.substring(with: match.range(at: 1)).lowercased()
-            
-            var value: String? = nil
-            if match.range(at: 1).location == 0 {
-                continue // skip the language word itself
-            }
-            
-            if match.numberOfRanges > 2, match.range(at: 2).location != NSNotFound {
-                value = nsString.substring(with: match.range(at: 2))
-            } else if match.numberOfRanges > 3, match.range(at: 3).location != NSNotFound {
-                value = nsString.substring(with: match.range(at: 3))
-            } else if match.numberOfRanges > 4, match.range(at: 4).location != NSNotFound {
-                value = nsString.substring(with: match.range(at: 4))
-            }
-            
-            if key == "bare" || key == "noheader" {
-                meta.isBare = true
-            } else if key == "compact" {
-                meta.isCompact = true
-            } else if key == "output" {
-                meta.isOutput = true
-                meta.isCompact = true
-            } else if key == "title" || key == "filename" {
-                meta.title = value
-            }
+        var value: String? = nil
+        if match.range(at: 1).location == 0 {
+            continue // skip the language word itself
+        }
+        
+        if match.numberOfRanges > 2, match.range(at: 2).location != NSNotFound {
+            value = nsString.substring(with: match.range(at: 2))
+        } else if match.numberOfRanges > 3, match.range(at: 3).location != NSNotFound {
+            value = nsString.substring(with: match.range(at: 3))
+        } else if match.numberOfRanges > 4, match.range(at: 4).location != NSNotFound {
+            value = nsString.substring(with: match.range(at: 4))
+        }
+        
+        if key == "bare" || key == "noheader" {
+            meta.isBare = true
+        } else if key == "compact" {
+            meta.isCompact = true
+        } else if key == "output" {
+            meta.isOutput = true
+            meta.isCompact = true
+        } else if key == "title" || key == "filename" {
+            meta.title = value
         }
     }
     

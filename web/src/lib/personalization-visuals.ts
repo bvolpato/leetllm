@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { jsonrepair } from "jsonrepair"
 import { filterContentForAudience } from "./content-audience"
+import { getQuestionRoute } from "./content-route-index"
 
 export type PersonalizationVisualKind = "mermaid" | "vizmatic"
 
@@ -35,11 +36,17 @@ function stripFrontmatter(source: string) {
 }
 
 function lessonDirectory(slug: string) {
-    if (!/^[a-z0-9-]+$/.test(slug) || !existsSync(CONTENT_DIR)) return null
-    for (const section of readdirSync(CONTENT_DIR, { withFileTypes: true })) {
+    if (!/^[a-z0-9-]+$/.test(slug)) return null
+    const route = getQuestionRoute(slug)
+    if (route) {
+        const indexedDir = join(/* turbopackIgnore: true */ CONTENT_DIR, /* turbopackIgnore: true */ route.directory)
+        if (existsSync(/* turbopackIgnore: true */ join(indexedDir, "content.md"))) return indexedDir
+    }
+    if (!existsSync(/* turbopackIgnore: true */ CONTENT_DIR)) return null
+    for (const section of readdirSync(/* turbopackIgnore: true */ CONTENT_DIR, { withFileTypes: true })) {
         if (!section.isDirectory()) continue
-        const candidate = join(CONTENT_DIR, section.name, slug)
-        if (existsSync(join(candidate, "content.md"))) return candidate
+        const candidate = join(/* turbopackIgnore: true */ CONTENT_DIR, /* turbopackIgnore: true */ section.name, /* turbopackIgnore: true */ slug)
+        if (existsSync(/* turbopackIgnore: true */ join(candidate, "content.md"))) return candidate
     }
     return null
 }
@@ -131,7 +138,7 @@ function rawVisuals(rawBody: string, articleDir: string, sourceBody: string) {
         const name = illustrationName(match[1])
         if (seenIllustrations.has(name)) continue
         const sourcePath = join(articleDir, "illustrations", `${name}.tsx`)
-        if (!existsSync(sourcePath)) continue
+        if (!existsSync(/* turbopackIgnore: true */ sourcePath)) continue
         seenIllustrations.add(name)
         const surroundingFigure = rawBody.slice(0, match.index).lastIndexOf("<figure")
         const figureEnd = rawBody.indexOf("</figure>", match.index)
@@ -141,7 +148,7 @@ function rawVisuals(rawBody: string, articleDir: string, sourceBody: string) {
         visuals.push({
             kind: "vizmatic",
             name,
-            source: readFileSync(sourcePath, "utf8"),
+            source: readFileSync(/* turbopackIgnore: true */ sourcePath, "utf8"),
             index: match.index ?? 0,
             rawMarkup,
         })
@@ -165,7 +172,7 @@ export function extractPersonalizationVisuals(slug: string, resolvedMarkdown: st
     const articleDir = lessonDirectory(slug)
     if (!articleDir) return []
     const contentPath = join(articleDir, "content.md")
-    const sourceBody = stripFrontmatter(readFileSync(contentPath, "utf8"))
+    const sourceBody = stripFrontmatter(readFileSync(/* turbopackIgnore: true */ contentPath, "utf8"))
     const rawBody = filterContentForAudience(sourceBody, "website", contentPath)
     const figures = figureBlocks(resolvedMarkdown)
     const result: PersonalizationVisualSource[] = []

@@ -1,14 +1,16 @@
 /**
  * Illustration Build Cache
  *
- * Tracks content hashes for illustration source files and framework files.
+ * Tracks content hashes for illustration source files and shared rendering inputs.
  * Only rebuilds illustrations whose inputs have changed.
  *
- * Cache key per illustration = hash(illustration .tsx file and its local imports)
- * Framework hash = hash(all lib/*.ts and lib/*.tsx files)
+ * Cache key per illustration = web-relative POSIX path
+ * Cache value per illustration = `${frameworkHash}:${fileHash}`
  *
- * If the framework hash changes, ALL illustrations are rebuilt.
- * If an illustration or one of its local source imports changes, only affected figures are rebuilt.
+ * Framework hash covers only shared rendering helpers (excluding tests, build/cache
+ * orchestration, and print-only modules), rendering-relevant package versions, and
+ * Vizmatic patches. Per-file composite hashes let completed renders persist even
+ * when a rebuild is interrupted or partially fails.
  */
 
 import { existsSync, statSync } from 'fs'
@@ -22,10 +24,25 @@ const CACHE_FILE = join(CACHE_DIR, 'illustrations.json')
 const LIB_DIR = dirname(new URL(import.meta.url).pathname)
 const WEB_DIR = join(LIB_DIR, '..', '..', '..')
 
+const RENDERING_PACKAGES = [
+    'vizmatic',
+    'satori',
+    '@resvg/resvg-js',
+    'gifenc',
+    'sharp',
+    'react',
+] as const
+
+const EXCLUDED_LIB_FILES = new Set(['cache.ts', 'print-typography.ts', 'svg-print.ts'])
+
+const LOCKFILE_RENDERING_PKG_RE = new RegExp(
+    `^  ['"]?((?:${RENDERING_PACKAGES.map((pkg) => pkg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})@[^('":\\s]+)`,
+)
+
 interface CacheManifest {
-    /** Hash of all framework lib files — if this changes, rebuild everything */
+    /** Latest completed framework hash for full-run visibility */
     frameworkHash: string
-    /** Per-illustration hash: filePath → transitive local input hash */
+    /** Per-illustration composite hash: web-relative POSIX path -> `${frameworkHash}:${fileHash}` */
     files: Record<string, string>
 }
 
@@ -37,6 +54,14 @@ type ModuleSpecifierCache = Map<string, string[]>
 
 function hashContent(content: string): string {
     return createHash('sha256').update(content).digest('hex').slice(0, 16)
+}
+
+function isTestFile(filename: string): boolean {
+    return /\.test\.[cm]?[jt]sx?$/.test(filename)
+}
+
+function cacheKeyFor(filePath: string): string {
+    return relative(WEB_DIR, resolve(filePath)).split(sep).join('/')
 }
 
 function expectedOutputsExist(filePath: string, content: string): boolean {
@@ -78,19 +103,86 @@ function expectedOutputsExist(filePath: string, content: string): boolean {
     )
 }
 
+function extractRenderingLockfileVersions(lockfile: string): string[] {
+    const matches = new Set<string>()
+    for (const line of lockfile.split(/\r?\n/)) {
+        const match = LOCKFILE_RENDERING_PKG_RE.exec(line)
+        if (match) matches.add(match[1])
+    }
+    return [...matches].sort()
+}
+
 /**
- * Compute a combined hash of shared illustration inputs.
- * Any change to local shared helpers or the installed Vizmatic version forces a
- * full rebuild.
+ * Compute a combined hash of shared illustration rendering inputs.
+ * Covers rendering-relevant package versions, Vizmatic patches, and shared
+ * rendering helpers, excluding tests, cache/build orchestration, and print-only modules.
  */
 async function computeFrameworkHash(): Promise<string> {
     const entries = await readdir(LIB_DIR)
-    const tsFiles = entries.filter((f) => f.endsWith('.ts') || f.endsWith('.tsx')).sort()
+    const tsFiles = entries
+        .filter(
+            (f) =>
+                (f.endsWith('.ts') || f.endsWith('.tsx')) &&
+                !EXCLUDED_LIB_FILES.has(f) &&
+                !isTestFile(f),
+        )
+        .sort()
 
     const contents: string[] = []
-    contents.push(
-        `--- pnpm-lock.yaml ---\n${await readFile(join(WEB_DIR, 'pnpm-lock.yaml'), 'utf-8')}`,
-    )
+
+    try {
+        const rawPkg = await readFile(join(WEB_DIR, 'package.json'), 'utf-8')
+        const pkg = JSON.parse(rawPkg) as {
+            dependencies?: Record<string, string>
+            devDependencies?: Record<string, string>
+            pnpm?: { patchedDependencies?: Record<string, string> }
+        }
+        const specs = RENDERING_PACKAGES.map(
+            (name) =>
+                `${name}=${pkg.dependencies?.[name] ?? pkg.devDependencies?.[name] ?? 'missing'}`,
+        )
+        const patches = Object.entries(pkg.pnpm?.patchedDependencies ?? {})
+            .filter(([key]) => key === 'vizmatic' || key.startsWith('vizmatic@'))
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, value]) => `${key}=${value}`)
+        contents.push(`--- package.json ---\n${[...specs, ...patches].join('\n')}`)
+    } catch {
+        contents.push('--- package.json ---\nmissing')
+    }
+
+    try {
+        const lockfile = await readFile(join(WEB_DIR, 'pnpm-lock.yaml'), 'utf-8')
+        contents.push(
+            `--- pnpm-lock.yaml ---\n${extractRenderingLockfileVersions(lockfile).join('\n')}`,
+        )
+    } catch {
+        contents.push('--- pnpm-lock.yaml ---\nmissing')
+    }
+
+    for (const name of RENDERING_PACKAGES) {
+        try {
+            const raw = await readFile(
+                join(WEB_DIR, 'node_modules', ...name.split('/'), 'package.json'),
+                'utf-8',
+            )
+            const pkg = JSON.parse(raw) as { version?: string }
+            contents.push(`--- dependency:${name} ---\n${pkg.version ?? 'unknown'}`)
+        } catch {
+            contents.push(`--- dependency:${name} ---\nmissing`)
+        }
+    }
+
+    const patchesDir = join(WEB_DIR, 'patches')
+    if (existsSync(patchesDir)) {
+        const patchFiles = (await readdir(patchesDir))
+            .filter((name) => name.startsWith('vizmatic'))
+            .sort()
+        for (const patchFile of patchFiles) {
+            const content = await readFile(join(patchesDir, patchFile), 'utf-8')
+            contents.push(`--- patches/${patchFile} ---\n${content}`)
+        }
+    }
+
     for (const file of tsFiles) {
         const filePath = join(LIB_DIR, file)
         const content = await readFile(filePath, 'utf-8')
@@ -101,24 +193,6 @@ async function computeFrameworkHash(): Promise<string> {
         contents.push(
             '--- ' + name + ' ---\n' + (await readFile(join(LIB_DIR, '..', name), 'utf-8')),
         )
-    }
-
-    const buildScriptPath = join(LIB_DIR, '..', 'build.ts')
-    try {
-        contents.push(`--- build.ts ---\n${await readFile(buildScriptPath, 'utf-8')}`)
-    } catch {
-        contents.push('--- build.ts ---\nmissing')
-    }
-
-    try {
-        const raw = await readFile(
-            join(WEB_DIR, 'node_modules', 'vizmatic', 'package.json'),
-            'utf-8',
-        )
-        const pkg = JSON.parse(raw) as { version?: string }
-        contents.push(`--- dependency:vizmatic ---\n${pkg.version ?? 'unknown'}`)
-    } catch {
-        contents.push('--- dependency:vizmatic ---\nmissing')
     }
 
     return hashContent(contents.join('\n'))
@@ -318,18 +392,44 @@ async function hashIllustrationInputs(
 async function loadCache(): Promise<CacheManifest> {
     try {
         const raw = await readFile(CACHE_FILE, 'utf-8')
-        return JSON.parse(raw) as CacheManifest
+        const parsed = JSON.parse(raw) as Partial<CacheManifest>
+        return {
+            frameworkHash: typeof parsed.frameworkHash === 'string' ? parsed.frameworkHash : '',
+            files: parsed.files && typeof parsed.files === 'object' ? { ...parsed.files } : {},
+        }
     } catch {
         return { frameworkHash: '', files: {} }
     }
 }
 
 /**
- * Save the cache manifest to disk.
+ * Save the cache manifest to disk with deterministic key order, skipping writes
+ * when the serialized manifest is already identical on disk.
  */
 async function saveCache(manifest: CacheManifest): Promise<void> {
+    const sortedFiles: Record<string, string> = {}
+    for (const key of Object.keys(manifest.files).sort()) {
+        sortedFiles[key] = manifest.files[key]
+    }
+    const serialized =
+        JSON.stringify(
+            {
+                frameworkHash: manifest.frameworkHash,
+                files: sortedFiles,
+            },
+            null,
+            2,
+        ) + '\n'
+
+    try {
+        const existing = await readFile(CACHE_FILE, 'utf-8')
+        if (existing === serialized) return
+    } catch {
+        // Cache file does not exist yet
+    }
+
     await mkdir(CACHE_DIR, { recursive: true })
-    await writeFile(CACHE_FILE, JSON.stringify(manifest, null, 2) + '\n')
+    await writeFile(CACHE_FILE, serialized)
 }
 
 /**
@@ -349,7 +449,6 @@ export async function checkCache(
 }> {
     const [cache, frameworkHash] = await Promise.all([loadCache(), computeFrameworkHash()])
 
-    const frameworkChanged = cache.frameworkHash !== frameworkHash
     const newManifest: CacheManifest = {
         frameworkHash: cache.frameworkHash,
         files: { ...cache.files },
@@ -362,31 +461,29 @@ export async function checkCache(
     const compilerOptions = getTypeScriptCompilerOptions()
 
     for (const filePath of inputFiles) {
-        const content = await readFile(filePath, 'utf-8')
+        const key = cacheKeyFor(filePath)
+        const content = (await readSource(filePath, sourceContentCache)).toString('utf-8')
         const fileHash = await hashIllustrationInputs(
             filePath,
             compilerOptions,
             sourceContentCache,
             moduleSpecifierCache,
         )
+        const compositeHash = `${frameworkHash}:${fileHash}`
 
-        if (
-            frameworkChanged ||
-            cache.files[filePath] !== fileHash ||
-            !expectedOutputsExist(filePath, content)
-        ) {
+        if (cache.files[key] !== compositeHash || !expectedOutputsExist(filePath, content)) {
             filesToBuild.push(filePath)
-            pendingHashes.set(filePath, fileHash)
-            delete newManifest.files[filePath]
+            pendingHashes.set(key, compositeHash)
+            delete newManifest.files[key]
         }
     }
 
     // Only prune stale entries on full runs — partial runs (--article, --file)
     // should preserve cache entries for files not in the current scan.
     if (!opts?.partialRun) {
-        const inputSet = new Set(inputFiles)
+        const inputKeys = new Set(inputFiles.map(cacheKeyFor))
         for (const key of Object.keys(newManifest.files)) {
-            if (!inputSet.has(key)) {
+            if (!inputKeys.has(key)) {
                 delete newManifest.files[key]
             }
         }
@@ -410,15 +507,15 @@ class CacheUpdater {
     ) {}
 
     markBuilt(filePath: string): void {
-        const hash = this.pendingHashes.get(filePath)
+        const key = cacheKeyFor(filePath)
+        const hash = this.pendingHashes.get(key)
         if (hash === undefined) throw new Error(`Illustration is not pending: ${filePath}`)
-        this.manifest.files[filePath] = hash
-        this.pendingHashes.delete(filePath)
+        this.manifest.files[key] = hash
+        this.pendingHashes.delete(key)
     }
 
     /** Persist the cache to disk */
     async save(): Promise<void> {
-        // Only a complete, successful full run can validate shared rendering inputs.
         if (this.pendingHashes.size === 0 && this.completedFrameworkHash !== undefined) {
             this.manifest.frameworkHash = this.completedFrameworkHash
         }

@@ -32,14 +32,7 @@ const cornerLum: number[][] = [
 ]
 
 const cornerPixels: RgbPixel[][] = cornerLum.map((row) =>
-    row.map(
-        (v) =>
-            [
-                Math.round(v * 245),
-                Math.round(v * 198),
-                Math.round(v * 145),
-            ] as const,
-    ),
+    row.map((v) => [Math.round(v * 245), Math.round(v * 198), Math.round(v * 145)] as const),
 )
 
 const creaseKernel: number[][] = [
@@ -49,9 +42,7 @@ const creaseKernel: number[][] = [
 ]
 
 const rawConv = crossCorrelate2d(cornerLum, creaseKernel, { padding: 'valid' })
-const reluMap = rawConv.map((row) =>
-    row.map((val) => Number(Math.max(0, val).toFixed(1))),
-)
+const reluMap = rawConv.map((row) => row.map((val) => Number(Math.max(0, val).toFixed(1))))
 
 const illustration = defineIllustration((baseC) => {
     const c = withDensity(baseC, 1.9)
@@ -150,9 +141,7 @@ const illustration = defineIllustration((baseC) => {
                                 cellWidth: 54,
                                 cellHeight: 46,
                                 fontSize: 19,
-                                labels: reluMap.map((row) =>
-                                    row.map((val) => val.toFixed(1)),
-                                ),
+                                labels: reluMap.map((row) => row.map((val) => val.toFixed(1))),
                                 colorScale: 'heat',
                                 colorDomain: [0, 1.2],
                             }),

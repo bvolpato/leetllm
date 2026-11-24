@@ -31,14 +31,7 @@ const label = (
         width: w,
         height: size * 1.4,
         children: (
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                color={color}
-                align="center"
-            />
+            <TextLabel c={c} text={text} width={w} fontSize={size} color={color} align="center" />
         ),
     })
 
@@ -57,11 +50,7 @@ export function create(mode: ThemeMode = 'dark') {
                 width,
                 height,
                 children: (
-                    <svg
-                        width={width}
-                        height={height}
-                        viewBox={`0 0 ${width} ${height}`}
-                    >
+                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
                         <rect
                             x={72}
                             y={150}
@@ -138,13 +127,7 @@ export function create(mode: ThemeMode = 'dark') {
                             arrowSize: 5,
                         })}
                         <circle cx={125} cy={78} r={7} fill={blue} />
-                        <rect
-                            x={374}
-                            y={71}
-                            width={14}
-                            height={14}
-                            fill={purple}
-                        />
+                        <rect x={374} y={71} width={14} height={14} fill={purple} />
                     </svg>
                 ),
             }),

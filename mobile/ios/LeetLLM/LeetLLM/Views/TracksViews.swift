@@ -254,9 +254,9 @@ struct TrackDetailView: View {
         Group {
             if horizontalSizeClass == .regular {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    LazyVStack(alignment: .leading, spacing: 20) {
                         trackHeroCard
-                        VStack(alignment: .leading, spacing: 10) {
+                        LazyVStack(alignment: .leading, spacing: 10) {
                             Text("LESSONS (\(track.lessons.count))")
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(.secondary)

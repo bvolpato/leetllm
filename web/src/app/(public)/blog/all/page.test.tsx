@@ -11,12 +11,21 @@ test("blog archive prioritizes the first cover and lazy-loads the remaining cove
     const images = [...container.querySelectorAll("img")]
 
     expect(cards).toHaveLength(posts.length)
-    expect(cards[0].querySelectorAll("img").length).toBeGreaterThan(0)
+    const firstCardImages = [...cards[0].querySelectorAll("img")]
+    expect(firstCardImages.length).toBeGreaterThan(0)
+    const eagerFirstCard = firstCardImages.filter((image) => image.getAttribute("loading") === "eager")
+    expect(eagerFirstCard).toHaveLength(1)
+    expect(eagerFirstCard[0].getAttribute("fetchpriority")).toBe("high")
 
     for (const image of images) {
         const cardIndex = cards.findIndex((card) => card.contains(image))
         expect(cardIndex).toBeGreaterThanOrEqual(0)
-        expect(image.getAttribute("loading")).toBe(cardIndex === 0 ? "eager" : "lazy")
-        expect(image.getAttribute("fetchpriority")).toBe(cardIndex === 0 ? "high" : "auto")
+        if (cardIndex === 0 && image === eagerFirstCard[0]) {
+            expect(image.getAttribute("loading")).toBe("eager")
+            expect(image.getAttribute("fetchpriority")).toBe("high")
+        } else {
+            expect(image.getAttribute("loading")).toBe("lazy")
+            expect(image.getAttribute("fetchpriority")).toBe("auto")
+        }
     }
 })
