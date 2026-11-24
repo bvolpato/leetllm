@@ -16,6 +16,7 @@ const jetBrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
   preload: false,
+  display: "optional",
 });
 // Adobe's Source Serif release 80d3f889; its OFL license ships with the font.
 const sourceSerif = localFont({

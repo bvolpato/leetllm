@@ -1,4 +1,5 @@
-import { getQuestions, type Category, type Difficulty, type Question, type Section } from "./questions"
+import prebuiltSearchIndex from "@/generated/learn-search-index.json"
+import { getQuestions, type Category, type Difficulty, type Section } from "./questions"
 
 export interface LearnSearchResult {
     id: string
@@ -14,7 +15,14 @@ export interface LearnSearchResult {
 }
 
 interface SearchDocument {
-    question: Question
+    id: string
+    title: string
+    slug: string
+    section: Section
+    category: Category
+    difficulty: Difficulty
+    timeEstimate: number
+    shortDescription: string
     order: number
     titleLower: string
     shortDescriptionLower: string
@@ -30,6 +38,7 @@ interface ScoredSearchResult extends LearnSearchResult {
 
 const MIN_QUERY_LENGTH = 2
 const DEFAULT_LIMIT = 8
+const usePrebuiltIndex = process.env.NODE_ENV === "production"
 const isDev = process.env.NODE_ENV === "development"
 
 let searchDocsCache: SearchDocument[] | null = null
@@ -68,6 +77,16 @@ function tokenizeQuery(query: string): string[] {
 }
 
 function getSearchDocuments(): SearchDocument[] {
+    if (usePrebuiltIndex) {
+        if (!searchDocsCache) {
+            searchDocsCache = (prebuiltSearchIndex as Array<Omit<SearchDocument, "plainContentLower">>).map((doc) => ({
+                ...doc,
+                plainContentLower: normalizeText(doc.plainContent),
+            }))
+        }
+        return searchDocsCache
+    }
+
     if (isDev || !searchDocsCache) {
         searchDocsCache = getQuestions().map((question, order) => {
             const plainContent = stripMarkdownForSearch(question.content)
@@ -78,7 +97,14 @@ function getSearchDocuments(): SearchDocument[] {
             ].join(" ")
 
             return {
-                question,
+                id: question.id,
+                title: question.title,
+                slug: question.slug,
+                section: question.section,
+                category: question.category,
+                difficulty: question.difficulty,
+                timeEstimate: question.timeEstimate,
+                shortDescription: question.shortDescription,
                 order,
                 titleLower: normalizeText(question.title),
                 shortDescriptionLower: normalizeText(question.shortDescription),
@@ -179,18 +205,18 @@ function scoreDocument(doc: SearchDocument, phrase: string, terms: string[]): Sc
             : "content"
     const snippet =
         snippetSource === "shortDescription"
-            ? doc.question.shortDescription
+            ? doc.shortDescription
             : buildSnippet(doc.plainContent, doc.plainContentLower, phrase, terms)
 
     return {
-        id: doc.question.id,
-        title: doc.question.title,
-        slug: doc.question.slug,
-        section: doc.question.section,
-        category: doc.question.category,
-        difficulty: doc.question.difficulty,
-        timeEstimate: doc.question.timeEstimate,
-        shortDescription: doc.question.shortDescription,
+        id: doc.id,
+        title: doc.title,
+        slug: doc.slug,
+        section: doc.section,
+        category: doc.category,
+        difficulty: doc.difficulty,
+        timeEstimate: doc.timeEstimate,
+        shortDescription: doc.shortDescription,
         snippet,
         snippetSource,
         score,

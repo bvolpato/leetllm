@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { getPracticeProblems, toPracticeListItem } from "@/lib/practice"
 import { getTheoryQuizzes } from "@/lib/theory-quizzes"
+import { renderMasteryQuizNodes } from "@/components/server-inline-markdown"
 import { PracticePageClient } from "./practice-page-client"
 
 export const metadata: Metadata = {
@@ -11,6 +12,15 @@ export const metadata: Metadata = {
 export default function PracticePage() {
     const problems = getPracticeProblems().map(toPracticeListItem)
     const theoryQuizzes = getTheoryQuizzes()
+    const renderedQuizzes = Object.fromEntries(
+        theoryQuizzes.map((quiz) => [quiz.slug, renderMasteryQuizNodes(quiz.questions)])
+    )
 
-    return <PracticePageClient problems={problems} theoryQuizzes={theoryQuizzes} />
+    return (
+        <PracticePageClient
+            problems={problems}
+            theoryQuizzes={theoryQuizzes}
+            renderedQuizzes={renderedQuizzes}
+        />
+    )
 }

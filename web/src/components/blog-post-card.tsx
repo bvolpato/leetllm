@@ -159,6 +159,7 @@ export function BlogPostCard({
         return (
             <Link
                 href={`/blog/${post.slug}`}
+                prefetch={false}
                 className="group block"
             >
                 <article className="grid overflow-hidden rounded-lg border border-border/45 bg-card/45 transition-colors hover:border-primary/35 hover:bg-card/65 md:grid-cols-[minmax(0,1fr)_24rem]">
@@ -191,7 +192,7 @@ export function BlogPostCard({
     }
 
     return (
-        <Link href={`/blog/${post.slug}`} className="group block">
+        <Link href={`/blog/${post.slug}`} prefetch={false} className="group block">
             <article
                 className={
                     isCompact

@@ -405,12 +405,16 @@ export function LearnPageClient({
 
                     {/* Sections with Articles */}
                     <div className="space-y-14">
-                        {sectionsData.map((section) => {
+                        {sectionsData.map((section, sectionIndex) => {
                             return (
                                 <section
                                     key={section.name}
                                     id={section.name.toLowerCase().replace(/ /g, "-")}
-                                    className="scroll-mt-24"
+                                    className={
+                                        sectionIndex >= 2
+                                            ? "scroll-mt-24 [content-visibility:auto] [contain-intrinsic-size:auto_420px]"
+                                            : "scroll-mt-24"
+                                    }
                                 >
                                     {/* Section Header */}
                                     <div className="flex items-start gap-3 mb-4">

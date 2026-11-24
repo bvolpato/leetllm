@@ -49,10 +49,31 @@ jobs:
         run: node check-npm-release-age.mjs package-lock.json
       - name: Install video dependencies
         run: npm ci --ignore-scripts
+      - name: Cache CJK rendering fonts
+        id: cjk-fonts-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/share/fonts/noto-cjk
+          key: noto-cjk-fonts-v1-${{ runner.os }}
       - name: Install video tools and rendering fonts
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+          need_pkgs=()
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            need_pkgs+=(ffmpeg)
+          fi
+          if [[ -d "$HOME/.local/share/fonts/noto-cjk" ]] && ls "$HOME/.local/share/fonts/noto-cjk"/*.ttc >/dev/null 2>&1; then
+            fc-cache -f "$HOME/.local/share/fonts/noto-cjk"
+          elif ! fc-list :lang=zh | grep -q .; then
+            need_pkgs+=(fonts-noto-cjk)
+          fi
+          if (( ${#need_pkgs[@]} > 0 )); then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends "${need_pkgs[@]}"
+            if [[ -d /usr/share/fonts/opentype/noto ]]; then
+              mkdir -p "$HOME/.local/share/fonts/noto-cjk"
+              cp -n /usr/share/fonts/opentype/noto/NotoSansCJK-*.ttc "$HOME/.local/share/fonts/noto-cjk/" 2>/dev/null || true
+            fi
+          fi
       - name: Setup uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -167,10 +188,12 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm audit --audit-level=low
-      - name: Install ffmpeg
+      - name: Ensure ffmpeg is available
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
       - name: Build and audit the selected Vizmatic source
         working-directory: vizmatic
         run: |
@@ -460,8 +483,8 @@ jobs:
             web/tools/diagrams/.cache
           key: generated-visuals-v1-${{ runner.os }}-${{ hashFiles('web/src/content/**/*.md', 'web/src/content/**/illustrations/*.tsx', 'web/tools/illustrations/**/*.ts', 'web/tools/diagrams/**/*.ts', 'web/scripts/hydrate-ios-images.ts', 'web/pnpm-lock.yaml') }}
 
-      - name: Generate glossary and content route index
-        run: pnpm glossary:build && pnpm content-routes:build
+      - name: Generate glossary, route index, and search index
+        run: pnpm glossary:build && pnpm content-routes:build && pnpm search-index:build
 
       - name: Export iOS content
         run: pnpm exec tsx scripts/export-ios-content.ts

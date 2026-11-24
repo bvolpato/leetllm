@@ -32,6 +32,7 @@ export function SiteHeader() {
           </NavLink>
           <NavLink
             href="/learn"
+            prefetch={false}
             className="rounded-md px-2 py-2 transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Learn
@@ -51,6 +52,7 @@ export function SiteHeader() {
           </NavLink>
           <NavLink
             href="/practice"
+            prefetch={false}
             className="rounded-md px-2 py-2 transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Practice

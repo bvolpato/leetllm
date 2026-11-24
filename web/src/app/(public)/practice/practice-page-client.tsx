@@ -21,6 +21,7 @@ import { PRACTICE_LANGUAGES } from "@/lib/practice-languages"
 import type { PracticeDifficulty, PracticeListItem } from "@/lib/practice"
 import { usePracticeProgress } from "@/components/practice/practice-progress"
 import { TheoryQuizPanel } from "@/components/practice/theory-quiz-panel"
+import type { RenderedMasteryQuestionNodes } from "@/components/mastery-quiz"
 import type { TheoryQuiz } from "@/lib/theory-quizzes"
 import { cn } from "@/lib/utils"
 
@@ -36,10 +37,12 @@ type PracticeMode = "quizzes" | "coding"
 export function PracticePageClient({
     problems,
     theoryQuizzes,
+    renderedQuizzes,
     initialSearch = "",
 }: {
     problems: PracticeListItem[]
     theoryQuizzes: TheoryQuiz[]
+    renderedQuizzes?: Record<string, RenderedMasteryQuestionNodes[]>
     initialSearch?: string
 }) {
     const router = useRouter()
@@ -170,7 +173,12 @@ export function PracticePageClient({
             </header>
 
             {mode === "quizzes" ? (
-                <TheoryQuizPanel key={selectedQuizSlug ?? "quiz-list"} quizzes={theoryQuizzes} initialQuizSlug={selectedQuizSlug} />
+                <TheoryQuizPanel
+                    key={selectedQuizSlug ?? "quiz-list"}
+                    quizzes={theoryQuizzes}
+                    renderedQuizzes={renderedQuizzes}
+                    initialQuizSlug={selectedQuizSlug}
+                />
             ) : (
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
                     <section className="min-w-0">

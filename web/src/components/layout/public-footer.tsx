@@ -24,12 +24,12 @@ export function PublicFooter() {
                     <div>
                         <h3 className="mb-3 text-sm font-semibold">Product</h3>
                         <ul className="space-y-1 text-sm text-muted-foreground">
-                            <li><Link href="/learn" className="inline-block py-1.5 transition-colors hover:text-foreground">Learn</Link></li>
+                            <li><Link href="/learn" prefetch={false} className="inline-block py-1.5 transition-colors hover:text-foreground">Learn</Link></li>
                             <li><Link href="/glossary" prefetch={false} className="inline-block py-1.5 transition-colors hover:text-foreground">Glossary</Link></li>
-                            <li><Link href="/tracks" className="inline-block py-1.5 transition-colors hover:text-foreground">Tracks</Link></li>
-                            <li><Link href="/practice" className="inline-block py-1.5 transition-colors hover:text-foreground">Practice</Link></li>
+                            <li><Link href="/tracks" prefetch={false} className="inline-block py-1.5 transition-colors hover:text-foreground">Tracks</Link></li>
+                            <li><Link href="/practice" prefetch={false} className="inline-block py-1.5 transition-colors hover:text-foreground">Practice</Link></li>
                             <li><Link href="/blog" prefetch={false} className="inline-block py-1.5 transition-colors hover:text-foreground">Blog</Link></li>
-                            <li><Link href="/blog/rss.xml" className="inline-block py-1.5 transition-colors hover:text-foreground">RSS</Link></li>
+                            <li><Link href="/blog/rss.xml" prefetch={false} className="inline-block py-1.5 transition-colors hover:text-foreground">RSS</Link></li>
                         </ul>
                     </div>
                     <div>

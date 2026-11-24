@@ -1,14 +1,41 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react"
 import { ArrowLeft, Award, Check, CheckCircle2, CircleAlert, Clock3, ListChecks, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { InlineMarkdown } from "@/components/inline-markdown"
+import { GlossaryMarkdownSpan } from "@/components/glossary-markdown-span"
+import type { RenderedMasteryQuestionNodes } from "@/components/mastery-quiz"
 import { cn } from "@/lib/utils"
 import type { TheoryQuiz, TheoryQuizLevel } from "@/lib/theory-quizzes"
 import { trackEvent } from "@/lib/analytics"
 import { recordLocalQuizAttempt, removeLocalQuizAttempt, syncStudyAction } from "@/lib/study-state"
 import { isPassingQuizScore, QUIZ_PASS_PERCENT } from "@/lib/mastery-quiz"
+
+const GLOSSARY_SPAN_PATTERN = /<span\s+data-glossary="([^"]+)">([^<]*)<\/span>/g
+
+function FallbackInlineText({ text }: { text: string }) {
+    if (!text.includes("data-glossary=")) {
+        return <>{text}</>
+    }
+    const parts: ReactNode[] = []
+    let lastIndex = 0
+    for (const match of text.matchAll(GLOSSARY_SPAN_PATTERN)) {
+        const matchIndex = match.index ?? 0
+        if (matchIndex > lastIndex) {
+            parts.push(<Fragment key={`t-${lastIndex}`}>{text.slice(lastIndex, matchIndex)}</Fragment>)
+        }
+        parts.push(
+            <GlossaryMarkdownSpan key={`g-${matchIndex}`} data-glossary={match[1]}>
+                {match[2]}
+            </GlossaryMarkdownSpan>,
+        )
+        lastIndex = matchIndex + match[0].length
+    }
+    if (lastIndex < text.length) {
+        parts.push(<Fragment key={`t-${lastIndex}`}>{text.slice(lastIndex)}</Fragment>)
+    }
+    return <>{parts}</>
+}
 
 const SCORE_KEY = "leetllm_theory_quiz_scores"
 const SCORE_EVENT = "leetllm_theory_quiz_scores_changed"
@@ -189,9 +216,11 @@ function scorePercent(correct: number, total: number) {
 
 export function TheoryQuizPanel({
     quizzes,
+    renderedQuizzes,
     initialQuizSlug,
 }: {
     quizzes: TheoryQuiz[]
+    renderedQuizzes?: Record<string, RenderedMasteryQuestionNodes[]>
     initialQuizSlug?: string | null
 }) {
     const panelRef = useRef<HTMLDivElement>(null)
@@ -333,6 +362,7 @@ export function TheoryQuizPanel({
                 <ActiveTheoryQuiz
                     key={selectedQuiz.slug}
                     quiz={selectedQuiz}
+                    renderedQuestions={renderedQuizzes?.[selectedQuiz.slug]}
                     bestResult={bestResult}
                     titleRef={quizTitleRef}
                     onBackToList={mobileView === "quiz" ? showQuizList : undefined}
@@ -345,12 +375,14 @@ export function TheoryQuizPanel({
 
 function ActiveTheoryQuiz({
     quiz,
+    renderedQuestions,
     bestResult,
     titleRef,
     onBackToList,
     onResult,
 }: {
     quiz: TheoryQuiz
+    renderedQuestions?: RenderedMasteryQuestionNodes[]
     bestResult?: TheoryQuizResult
     titleRef: RefObject<HTMLHeadingElement | null>
     onBackToList?: () => void
@@ -458,11 +490,13 @@ function ActiveTheoryQuiz({
                         const correctOption = question.answer
                         const hasResult = Boolean(result)
 
+                        const rendered = renderedQuestions?.[questionIndex]
+
                         return (
                             <fieldset key={`${quiz.slug}-${questionIndex}`} className="space-y-3">
                                 <legend className="text-base font-semibold leading-relaxed">
                                     <span className="mr-2 text-primary">{questionIndex + 1}.</span>
-                                    <InlineMarkdown>{question.question}</InlineMarkdown>
+                                    {rendered?.question ?? <FallbackInlineText text={question.question} />}
                                 </legend>
                                 <div className="grid gap-2">
                                     {displayedOptions[questionIndex].map((option) => {
@@ -498,7 +532,7 @@ function ActiveTheoryQuiz({
                                                     }}
                                                     className="mt-1 h-4 w-4 accent-[var(--primary)]"
                                                 />
-                                                <span><InlineMarkdown>{option}</InlineMarkdown></span>
+                                                <span>{rendered?.options[option] ?? <FallbackInlineText text={option} />}</span>
                                             </label>
                                         )
                                     })}
@@ -515,9 +549,11 @@ function ActiveTheoryQuiz({
                                         <p className="mb-1 font-semibold">
                                             {checked === correctOption
                                                 ? "Correct"
-                                                : <>Correct answer: <InlineMarkdown>{correctOption}</InlineMarkdown></>}
+                                                : <>Correct answer: {rendered?.answer ?? <FallbackInlineText text={correctOption} />}</>}
                                         </p>
-                                        <p className="text-muted-foreground"><InlineMarkdown>{question.explanation}</InlineMarkdown></p>
+                                        <p className="text-muted-foreground">
+                                            {rendered?.explanation ?? <FallbackInlineText text={question.explanation} />}
+                                        </p>
                                     </div>
                                 )}
                             </fieldset>
