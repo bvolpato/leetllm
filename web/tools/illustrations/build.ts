@@ -21,6 +21,7 @@ import { parseArgs } from 'node:util'
 import { spawn } from 'node:child_process'
 import { availableParallelism, tmpdir } from 'node:os'
 import { mkdtemp } from 'fs/promises'
+import sharp from 'sharp'
 import {
     renderAnimationGif,
     renderToPng,
@@ -76,6 +77,13 @@ async function renderToPngAtomic(
     await mkdir(dirname(finalPath), { recursive: true })
     try {
         await renderToPng(element, { ...options, outputPath: tmpPath }, transparentCreateFn, theme)
+        const rawPng = await readFile(tmpPath)
+        const optimizedPng = await sharp(rawPng)
+            .png({ compressionLevel: 9, adaptiveFiltering: true, effort: 8 })
+            .toBuffer()
+        if (optimizedPng.byteLength < rawPng.byteLength) {
+            await writeFile(tmpPath, optimizedPng)
+        }
         await rename(tmpPath, finalPath)
     } catch (error) {
         await unlink(tmpPath).catch(() => undefined)

@@ -7,7 +7,19 @@ const cache = getCompileCacheDir();
 if (!cache) throw new Error('Set NODE_COMPILE_CACHE before preparing the production cache.');
 
 const port = 8080;
-const routes = ['/', '/learn', '/learn/vectors-matrices-tensors'];
+const routes = [
+  '/',
+  '/learn',
+  '/learn/vectors-matrices-tensors',
+  '/blog',
+  '/blog/how-we-built-leetllm',
+  '/practice',
+  '/practice/stack-trace-reconstructor',
+  '/glossary',
+  '/tracks',
+  '/api/search/learn?q=attention',
+  '/cdn/content-image/foundations/vectors-matrices-tensors/illustrations/_generated/chapter_flow_dark.png',
+];
 const server = spawn(process.execPath, ['server.js'], {
   env: { ...process.env, HOSTNAME: '127.0.0.1', PORT: String(port) },
   stdio: ['ignore', 'ignore', 'pipe'],

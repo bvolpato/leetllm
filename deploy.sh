@@ -318,8 +318,8 @@ if [ -f "$DIR/web/.env.local" ]; then
             CLOUDFLARE_CACHE_PURGER="${line#CLOUDFLARE_CACHE_PURGER=}"
             continue
         fi
-        # Server credentials stay in Secret Manager, never in generated env file.
-        if [[ "$line" == GEMINI_API_KEY=* || "$line" == SUPABASE_SERVICE_ROLE_KEY=* || "$line" == RESEND_API_KEY=* || "$line" == CODEX_AUTH_JSON_B64=* || "$line" == PRACTICE_RUNNER_URL=* || "$line" == PRACTICE_RUNNER_REQUIRE_REMOTE=* ]]; then
+        # Server credentials and local-only ADC overrides stay out of Cloud Run env.
+        if [[ "$line" == GEMINI_API_KEY=* || "$line" == SUPABASE_SERVICE_ROLE_KEY=* || "$line" == RESEND_API_KEY=* || "$line" == CODEX_AUTH_JSON_B64=* || "$line" == PRACTICE_RUNNER_URL=* || "$line" == PRACTICE_RUNNER_REQUIRE_REMOTE=* || "$line" == GOOGLE_APPLICATION_CREDENTIALS=* ]]; then
             continue
         fi
         key="${line%%=*}"

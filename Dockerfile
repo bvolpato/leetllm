@@ -86,14 +86,32 @@ ENV VIZMATIC_FONT_DIR=/tmp/vizmatic-fonts
 
 # Practice code execution runs in the separate zero-secret `leetllm-sandbox`
 # Cloud Run service, so this runtime image intentionally omits Python and JDK.
+# Prune headless-unused Codex sub-binaries (voice/GStreamer, zsh, code-mode-host,
+# rg, bwrap) and package managers (npm/yarn/corepack) in the same layer to shrink
+# the runtime image and tighten the container attack surface.
 RUN npm install --global @openai/codex@0.156.1 \
       --before="$(node -e 'process.stdout.write(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())')" && \
-    npm cache clean --force
-
-# Don't run as root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-RUN mkdir -p /app/.node-compile-cache && chown nextjs:nodejs /app/.node-compile-cache
+    npm cache clean --force && \
+    CODEX_VENDOR="/usr/local/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl" && \
+    rm -rf \
+      "${CODEX_VENDOR}/codex-resources/voice" \
+      "${CODEX_VENDOR}/codex-resources/zsh" \
+      "${CODEX_VENDOR}/codex-resources/bwrap" \
+      "${CODEX_VENDOR}/codex-path" \
+      "${CODEX_VENDOR}/bin/codex-code-mode-host" \
+      /usr/local/lib/node_modules/npm \
+      /usr/local/lib/node_modules/corepack \
+      /opt/yarn-* \
+      /usr/local/bin/npm \
+      /usr/local/bin/npx \
+      /usr/local/bin/yarn \
+      /usr/local/bin/yarnpkg \
+      /usr/local/bin/corepack && \
+    codex --version && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs && \
+    mkdir -p /app/.node-compile-cache && \
+    chown nextjs:nodejs /app/.node-compile-cache
 
 # Copy standalone output with runtime ownership.
 COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./

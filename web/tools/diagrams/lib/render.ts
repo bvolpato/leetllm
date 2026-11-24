@@ -13,7 +13,8 @@
  */
 
 import puppeteer, { type Browser } from 'puppeteer-core'
-import { mkdir, readFile, readdir } from 'fs/promises'
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'fs/promises'
+import sharp from 'sharp'
 import { dirname, extname, join, resolve, sep } from 'path'
 import { existsSync } from 'fs'
 import { createRequire } from 'module'
@@ -695,8 +696,7 @@ export async function renderDiagram(
                 if (!boundingBox) throw new Error('Could not determine resized container dimensions')
             }
         }
-        await page.screenshot({
-            path: outputPath,
+        const rawScreenshot = await page.screenshot({
             type: 'png',
             omitBackground: true,
             clip: {
@@ -706,6 +706,19 @@ export async function renderDiagram(
                 height: boundingBox.height + pad * 2,
             },
         })
+        const rawBuf = Buffer.from(rawScreenshot)
+        const optimizedBuf = await sharp(rawBuf)
+            .png({ compressionLevel: 9, adaptiveFiltering: true, effort: 8 })
+            .toBuffer()
+        const finalBuf = optimizedBuf.byteLength < rawBuf.byteLength ? optimizedBuf : rawBuf
+        const tmpOutput = `${outputPath}.tmp.${process.pid}.${Math.random().toString(36).slice(2, 8)}.png`
+        try {
+            await writeFile(tmpOutput, finalBuf)
+            await rename(tmpOutput, outputPath)
+        } catch (err) {
+            await unlink(tmpOutput).catch(() => undefined)
+            throw err
+        }
 
         const textLabels = book || options.measureLabels ? await container.evaluate(element => Array.from(element.querySelectorAll('text, .nodeLabel, .edgeLabel')).flatMap(label => {
             const text = label.textContent?.replace(/\s+/g, ' ').trim()
