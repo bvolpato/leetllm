@@ -32,9 +32,9 @@
 ---
 <!-- leetllm: edition:reference:start -->
 
-Modern embedding tables and attention layers store millions of numbers inside dense matrices, yet most rows concentrate their energy along a small family of shared directions. Compressing those representations saves memory and cuts matrix-multiply cost, provided you understand which directions carry the signal and what structure disappears when you truncate a weaker direction. Take three short technical documents represented by two binary indicators recording whether each document contains `code` and whether it contains `prose`. Row `kernel` marks code only, row `essay` marks prose only, and row `note` mixes both. Intuitively, the shared code-plus-prose axis collects signal from every row, while the contrast axis between code-only and prose-only separates `kernel` from `essay`. Discard that weaker contrast axis at rank one and `kernel` collapses onto the exact same coordinates as `essay`, leaving a downstream search index unable to tell them apart.
+Take three short technical documents described by two numbers: whether each contains `code` and whether it contains `prose`. `kernel` is `[1, 0]`, `essay` is `[0, 1]`, and `note` is `[1, 1]`. Compress that tiny table to rank 1, keeping 75% of its total energy, and `kernel` collapses onto the exact same coordinates as `essay`. A search index can no longer tell a kernel guide apart from a prose essay.
 
-<span data-glossary="svd">Singular value decomposition</span> (SVD) turns that geometric intuition into exact accounting. It decomposes any matrix into perpendicular input directions paired with non-negative output strengths, while showing how every row participates in each direction. On an uncentered table, those strengths measure alignment and magnitude relative to zero rather than variation around the average row. Three rows and two features are enough to work every step of SVD, Gram eigendecomposition, least squares, and conditioning by hand before scaling the same tools up to structured <span data-glossary="pytorch">PyTorch</span> weight matrices. Building on the [vectors, matrices, and tensors lesson](/learn/vectors-matrices-tensors), we now turn dot products and matrix multiplication into factorizations and numerical diagnostics.
+That 3x2 table captures the central geometric tradeoff behind embedding compression, PCA, LoRA, and least squares. <span data-glossary="svd">Singular value decomposition</span> (SVD) breaks any matrix into perpendicular input directions paired with nonnegative output strengths, showing exactly which patterns carry energy and which distinctions vanish when you truncate. Building on [vectors, matrices, and tensors](/learn/vectors-matrices-tensors), we will work through SVD, Gram eigendecomposition, least squares, and conditioning by hand on these three rows, then scale the same machinery to <span data-glossary="pytorch">PyTorch</span> weight matrices.
 
 ## A matrix can hide repeated directions
 
@@ -860,7 +860,7 @@ The geometry of our 3×2 document table ties the entire chapter together: droppi
       "Neither (A 30%, B 35%)."
     ],
     "answer": "B only (A 50%, B 75%).",
-    "explanation": "Mean Recall@10 averages per-query recall: for A, (0/4 + 6/6)/2 = 50%; for B, (4/4 + 3/6)/2 = 75%, clearing 70%. Pooling hits divides total hits by 10 (60% and 70%), while dividing by 20 returned slots computes precision (30% and 35%). Matrix energy alone does not measure query relevance."
+    "explanation": "Mean Recall@10 averages per-query recall: for A, (0/4 + 6/6)/2 = 50%; for B, (4/4 + 3/6)/2 = 75%, clearing 70%. Pooling hits divides total hits by 10 (60% and 70%), while dividing by 20 returned slots computes precision (30% and 35%). Matrix energy tracks reconstruction fidelity, whereas retrieval quality depends on query relevance."
   },
   {
     "question": "A whitening transform divides projected coordinates by singular values [12, 3, 0.0003]. What condition number and numerical hazard apply?",

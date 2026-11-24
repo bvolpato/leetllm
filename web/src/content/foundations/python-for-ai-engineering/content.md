@@ -21,7 +21,7 @@
     "Constant-memory JSONL streaming with yield generators",
     "Deterministic seeded shuffling and ragged-to-rectangular batch padding",
     "Memory profiling, array('f') layout, and zero-copy NumPy buffers",
-    "Floating-point serialization drift and pytest numerical invariants"
+    "Floating-point serialization drift and pytest numerical checks"
   ],
   "prerequisites": [
     "git-shell-linux-reproducible-ai",
@@ -34,20 +34,22 @@
 }
 ---
 
-Every language model training run and evaluation harness sits on top of two worlds at once. Inside the inner loop, compiled C++, CUDA, and Metal kernels multiply dense rectangular arrays at hardware speed. Everything wrapping that inner loop runs in Python: reading sharded <a href="/glossary/jsonl" data-glossary="jsonl">JSONL</a> corpora from disk, filtering noisy records, shuffling examples cleanly across restarts, padding variable-length sequences into uniform batches, and writing experiment checkpoints.
+A training job can crash before gradient step one without touching a single GPU kernel. One careless `json.load` over a two-gigabyte shard blows past host RAM. One unseeded global `random.shuffle` makes yesterday's run irreproducible. One shallow `.copy()` on a cached sample silently appends padding zeros into your source dataset mid-epoch.
 
-That division of labor creates a distinct style of Python engineering. Standard web tutorials treat Python dictionaries, nested lists, and dynamic loops as interchangeable conveniences because request payloads are tiny. In AI systems, a careless `json.load` over a two-gigabyte shard exhausts host memory before training step one, an unseeded global random call breaks reproducibility across runs, and a list of boxed Python `float` objects wastes eight times more memory than a contiguous `float32` buffer ready for NumPy or PyTorch.
+Modern AI systems split work cleanly across two worlds. Compiled C++, CUDA, and Metal kernels execute dense matrix math inside the inner loop, while Python runs everything around it: reading sharded <a href="/glossary/jsonl" data-glossary="jsonl">JSONL</a> corpora, filtering records, shuffling deterministically across restarts, padding ragged token sequences into uniform grids, and packing raw numbers into contiguous buffers for NumPy or PyTorch. Standard web tutorials treat nested dictionaries and dynamic lists as interchangeable conveniences because request payloads are tiny. At ML scale, container overhead and hidden mutations decide whether a pipeline stays fast and reproducible.
 
-The diagram below traces the pipeline this lesson builds from end to end. Typed configuration enters a lazy streaming iterator, passes through a seeded batcher that pads ragged token sequences with an explicit mask, and lands in packed C-contiguous memory with zero redundant Python object headers.
+The figure below traces the four-stage pipeline we will build end to end: immutable configuration, lazy record streaming, deterministic rectangular batching, and zero-copy handoff to contiguous C floats.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Four-stage Python data preparation flow from a frozen dataclass RunConfig to a lazy JSONL yield generator, into a seeded batcher and padder emitting B by L grids, and finally into a contiguous array of C floats shared with NumPy." />
-  <figcaption>The four stages of an AI-engineering Python data pipeline: immutable experiment configuration, constant-memory record streaming, deterministic rectangular batching, and contiguous buffer handoff.</figcaption>
+  <figcaption>The four stages of an AI data pipeline: immutable experiment configuration, constant-memory record streaming, deterministic rectangular batching, and contiguous buffer handoff.</figcaption>
 </figure>
 
 ## Reproducible Python Environments with `uv`
 
-Machine learning libraries upgrade rapidly, and small numerical shifts across releases can invalidate days of training comparisons. Pinning Python `3.12`, NumPy, and test tooling inside an isolated <a href="/glossary/virtual-environment" data-glossary="virtual-environment">virtual environment</a> backed by a <a href="/glossary/dependency-lockfile" data-glossary="dependency-lockfile">lockfile</a> makes every notebook, script, and container build resolve the exact same package graph[^uv2026sync]. A plain `requirements.txt` with unpinned ranges installs whichever wheel happened to be published that morning, whereas `uv sync --locked` hashes exact transitive dependencies and fails immediately if `pyproject.toml` and `uv.lock` drift out of sync. Once synchronized, `uv run` executes scripts and `pytest` inside that locked environment without manual shell activation or accidental fallback to global system packages.
+ML packages evolve quickly, and minor dependency upgrades can shift tokenization or numerical behavior between runs. Pinning Python `3.12`, NumPy, and `pytest` inside an isolated <a href="/glossary/virtual-environment" data-glossary="virtual-environment">virtual environment</a> backed by a <a href="/glossary/dependency-lockfile" data-glossary="dependency-lockfile">lockfile</a> keeps every laptop, script, and CI runner on the exact same dependency graph[^uv2026sync].
+
+Unlike a loose `requirements.txt` with version ranges, `uv sync --locked` verifies exact hashes for every transitive dependency and exits immediately if `pyproject.toml` and `uv.lock` fall out of sync. Running commands through `uv run` executes them inside that locked environment without manual shell activation or accidental fallback to global packages.
 
 ```bash title="Initialize and verify a reproducible ML Python environment with uv"
 uv init --python 3.12 ml-data-prep
@@ -59,9 +61,9 @@ uv run python -c "import sys, numpy as np; print(sys.version.split()[0], np.__ve
 
 ## Structured Configs, Serialization, and Aliasing Bugs
 
-Unstructured nested dictionaries turn subtle typos into silent bugs during long experiments. Misspelling `lr` as `learning_rate` or mutating a shared dictionary key mid-epoch leaves no trace until a metric stalls hours later. Using `@dataclass(frozen=True, slots=True)` turns experiment hyperparameters into immutable, self-documenting Python objects whose attributes cannot be reassigned after startup[^python_docs]. Setting `frozen=True` prevents accidental in-place edits to configuration fields, `slots=True` eliminates per-instance `__dict__` hash tables across thousands of metadata records, and `dataclasses.asdict` converts any config cleanly into JSON for logging or checkpoint metadata[^pythonJson2026].
+Untyped nested dictionaries turn small typos into silent bugs. Writing `cfg["learning_rate"] = 1e-4` when the trainer reads `cfg["lr"]`, or mutating a shared config key mid-epoch, leaves no traceback until validation stalls hours later. Decorating a config class with `@dataclass(frozen=True, slots=True)` turns hyperparameters into immutable, self-documenting objects[^python_docs]: `frozen=True` blocks attribute reassignment after startup, `slots=True` removes per-instance `__dict__` hash tables across large metadata collections, and `dataclasses.asdict` serializes the config cleanly to JSON for checkpoint logs[^pythonJson2026].
 
-Immutable top-level wrappers still leave one notorious Python trap open when batch records carry nested lists or dictionaries. Calling `.copy()` or `dict(sample)` performs only a shallow copy: outer dictionary keys move to a new container, yet `batch["token_ids"]` still aliases the exact same inner list object in memory, so padding that list in place silently mutates cached inputs. Isolating nested structures with `copy.deepcopy` prevents that corruption completely, though in hot data loops pure functions (`tokens[:max_len] + [pad_id] * pad_count`) that construct fresh output lists are even cleaner because they preserve source inputs with zero deep-copy overhead.
+Immutability at the outer layer still leaves a classic Python trap when records contain nested lists or dictionaries. Calling `.copy()` or `dict(sample)` performs a **shallow copy**: it allocates a new outer dictionary, yet `batch["token_ids"]` still points to the same inner list object. Appending a pad token in place quietly corrupts the cached original. `copy.deepcopy` breaks that link, and in hot loops pure functions (`tokens[:max_len] + [pad_id] * pad_count`) are even better because they build fresh output lists without deep-copy overhead.
 
 <!-- leetllm: test, id=config-copy, output=show -->
 ```python title="Frozen dataclass configuration and shallow vs. deep batch aliasing"
@@ -102,6 +104,8 @@ After mutating deep copy, cached_record['token_ids']:    [12, 84, 39, 2]
 ```
 <!-- leetllm: output:end -->
 
+> **Common mistake:** `frozen=True` blocks attribute rebinding (`cfg.lr = ...`), not in-place mutation of a mutable list stored inside an attribute. Use `tuple` fields in configs or copy nested containers before mutating them.
+
 ```checkpoint
 Why does mutating a shallow copy of a cached dataset record alter the original record's token list?
 ---
@@ -110,20 +114,20 @@ A shallow dictionary copy creates a new top-level container, but nested mutable 
 
 ## Streaming Large JSONL Datasets in Constant Memory
 
-Training corpora and evaluation logs rarely fit comfortably inside RAM as one monolithic JSON array. Loading a single `[...]` array with `json.load` requires parsing the entire file at once and holding every string, dictionary, and integer object alive simultaneously in Python heap memory. JSON Lines (<a href="/glossary/jsonl" data-glossary="jsonl">JSONL</a>) avoids that bottleneck by storing one self-contained JSON <a href="/glossary/dataset-record" data-glossary="dataset-record">dataset record</a> per line. Pairing JSONL with a Python generator using `yield` turns disk reads into a pull-based stream where each record is parsed, transformed, and reclaimed immediately so peak memory remains flat across corpora of any size.
+Training corpora rarely fit inside RAM as a single JSON `[...]` array. Calling `json.load` on a giant array forces Python to parse the entire file upfront and keep every string, integer, and dictionary alive on the heap at once. JSON Lines (<a href="/glossary/jsonl" data-glossary="jsonl">JSONL</a>) stores one self-contained <a href="/glossary/dataset-record" data-glossary="dataset-record">dataset record</a> per line. Pairing JSONL with a `yield` generator turns disk I/O into a pull-based stream: each record is parsed, processed, and freed immediately, keeping peak RAM flat regardless of corpus size.
 
 ### Lazy Generators and Deterministic Sequence Batching
 
-Writing `def stream_jsonl(path):` with `yield json.loads(line)` returns a single-pass iterator rather than an in-memory list. Composing every filter, tokenizer call, and batcher as another generator creates a pipeline where the ten millionth record stays untouched on disk until batch ten million minus one finishes training. Because an exhausted generator yields nothing on a second loop and raises `TypeError` on `len(gen)`, wrap streaming corpora inside an iterable class whose `__iter__` builds a fresh generator at the start of each epoch.
+Writing `def stream_jsonl(path):` with `yield json.loads(line)` produces a single-pass iterator. Chaining filtering, tokenization, and batching as generators keeps line ten million untouched on disk until earlier batches finish. Because a generator is exhausted after one pass and has no `len()`, wrap multi-epoch datasets in an iterable class whose `__iter__` returns a fresh generator each epoch.
 
-Pure sequential streaming creates a subtle statistical skew whenever records on disk are sorted by source domain or sequence length, because correlated mini-batches bias gradient descent. Loading the full dataset into memory just to call `random.shuffle` would erase every streaming benefit, so scalable Python loaders maintain a bounded sliding reservoir (`buffer_size`) sampled by an explicit `random.Random(seed)` object[^pythonRandom2026]. Keeping RNG state inside a local `Random(seed)` instance isolates batch ordering from global `random.seed(...)` side effects elsewhere in your codebase. Once `batch_size` ragged sequences leave that shuffled stream, `pad_batch` extends shorter rows to a uniform rectangular `[B, L]` matrix alongside a binary `[B, L]` attention mask marking real tokens with `1` and padding columns with `0`.
+Pure sequential reads introduce statistical skew whenever shards are grouped by domain or sequence length, because correlated mini-batches bias gradient updates. Rather than loading the whole file to call `random.shuffle`, maintain a bounded sliding shuffle buffer (`buffer_size`) driven by a private `random.Random(seed)` instance[^pythonRandom2026]. A local RNG object keeps batch ordering reproducible even if another library touches global `random.seed(...)`. Once `batch_size` ragged sequences exit the shuffler, `pad_batch` right-pads shorter rows into a uniform `[B, L]` matrix alongside a binary `[B, L]` attention mask marking real tokens `1` and padding `0`.
 
 <figure>
   <img src="illustrations/_generated/runtime_validation_contract_dark.png" alt="Four variable-length token sequences streamed from JSONL (lengths 4, 2, 5, and 3) are right-padded with pad_id 0 into a uniform 4 by 5 token ID matrix alongside a binary 4 by 5 attention mask marking real tokens with 1 and padding positions with 0." />
-  <figcaption>Batch collation turns a ragged JSONL stream into a uniform [4 × 5] token matrix paired with an explicit [4 × 5] attention mask so padding tokens never distort loss or attention weights.</figcaption>
+  <figcaption>Batch collation turns a ragged JSONL stream into a uniform [4 × 5] token matrix paired with a [4 × 5] attention mask so padding tokens never distort loss or attention weights.</figcaption>
 </figure>
 
-Let's assemble that complete streaming generator, `tracemalloc` memory comparison, local-RNG reservoir shuffle, and batch padder in Python, and watch peak heap allocations drop dramatically when records stream lazily rather than materializing in a list.
+The script below runs all three pieces together and uses `tracemalloc` to measure the real memory gap between materializing 20,000 JSONL records in a list versus streaming them lazily.
 
 <!-- leetllm: test, id=stream-batch, output=show -->
 ```python title="Constant-memory JSONL generator, local RNG shuffle buffer, and batch padder"
@@ -217,20 +221,20 @@ Batch Mask: [[1, 1, 0, 0, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 0], [1, 1, 1, 0, 0]]
 ```
 <!-- leetllm: output:end -->
 
-Look closely at that `tracemalloc` gap: materializing 20,000 small records into a Python list exceeds 5 MiB of traced heap allocations, whereas streaming all 70,000 tokens one record at a time stays under 32 KiB, more than 100x smaller. Scaling that same ratio up to a 10-million-line corpus prevents out-of-memory crashes on training hosts before a single gradient step begins. Keep the same memory model in mind once JSON lines are parsed into numeric arrays, because per-object overhead remains expensive inside plain Python lists.
+Materializing 20,000 tiny records takes over 5 MiB of traced heap memory, while streaming all 70,000 tokens stays below 32 KiB: more than a 100× reduction. Even after you stream records cleanly, per-object overhead still dominates whenever numbers stay inside plain Python lists.
 
 ## Memory Layout, Profiling, and Zero-Copy Handoff to NumPy
 
-Knowing why Python lists bloat in memory unlocks a critical rule for performance engineering. Every element in a standard Python `list[float]` requires an 8-byte pointer in the container array plus an independently heap-allocated `PyFloatObject` header and reference count (24 bytes in CPython on 64-bit Linux). Storing records as `list[dict]` adds per-dictionary hash tables on top of every field value, scattering numbers across the heap where CPU cache prefetchers cannot stream them sequentially. The standard library module `array` removes those object wrappers completely: `array('f', values)` stores raw 4-byte IEEE-754 `float32` scalars contiguously in RAM (`400,000` bytes for `100,000` numbers instead of `3.2 MB` for `list[float]` or `19.2 MB` for containers and dicts alone)[^python2026collections], while `struct` packs and unpacks binary shard files using the exact same byte layout[^python2026struct].
+Every slot in a Python `list[float]` holds an 8-byte pointer to a separate 24-byte heap-allocated `PyFloatObject` (on 64-bit CPython). Wrapping each item in a dictionary adds a per-row hash table and scatters numbers across RAM, defeating CPU cache prefetching. By contrast, `array.array('f', values)` packs raw 4-byte IEEE-754 `float32` scalars contiguously: `400 KB` for 100,000 floats compared to `3.2 MB` for `list[float]` and `19.2 MB` for `list[dict]`[^python2026collections]. The `struct` module packs and unpacks binary shards using the same byte layout[^python2026struct].
 
-Wait before rewriting a slow loop to use `array('f')` by itself, because memory layout and interpreter dispatch are two separate bottlenecks. Even when numbers sit contiguously in `array('f')`, running a Python `for` loop (`sum(x * 1.5 for x in arr)`) still forces CPython's virtual machine to unbox each raw C float into a temporary Python `float` object on every iteration, run dynamic bytecode multiplication, and discard the temporary object. True acceleration happens when Python hands that contiguous buffer pointer directly to C-compiled vectorized code via `np.frombuffer(arr, dtype=np.float32)` without copying a single byte[^numpy2020]. As the benchmark below shows, combining `array('f')` storage with `np.frombuffer` cuts RAM by 8× and speeds up the reduction by roughly 75×.
+Contiguous storage alone does not speed up a Python `for` loop. Running `sum(x * 1.5 for x in arr)` still boxes each C float into a temporary Python object on every iteration. The real speedup comes from handing that raw buffer directly to C-compiled vectorized routines with `np.frombuffer(arr, dtype=np.float32)` without copying a byte[^numpy2020]. Together, `array('f')` and `np.frombuffer` cut memory by 8× and accelerate the scaled sum by roughly 75×.
 
 <figure>
   <img src="illustrations/_generated/ml_eval_safety_net_dark.png" alt="Two bar charts comparing 100,000 float32 records in Python. Memory drops from 19.2 MB for list of dicts and 3.2 MB for list of floats to 0.4 MB for contiguous array('f'). Scaled sum time stays near 1.20 to 1.48 ms in Python loops, then drops to 0.016 ms with zero-copy np.frombuffer." />
-  <figcaption>Contiguous storage compresses 100,000 float32 values by 8× relative to a list of floats, while handing that raw buffer directly to NumPy eliminates Python bytecode loop overhead for a ~75× speedup.</figcaption>
+  <figcaption>Contiguous storage compresses 100,000 float32 values by 8× over a Python list of floats, while handing the buffer directly to NumPy removes bytecode loop overhead for a ~75× speedup.</figcaption>
 </figure>
 
-Let's measure both the exact container footprints and timed `time.perf_counter()` loops on 100,000 values, verify `np.shares_memory(vec, buf)` with `cProfile` hotspot accounting[^python_docs], and observe how aliasing cuts both ways once zero-copy sharing is active.
+The benchmark below measures container sizes, verifies zero-copy sharing with `np.shares_memory(vec, buf)`, and uses `cProfile` to expose the 100,001 Python generator frames hidden inside a naive normalization loop[^python_docs].
 
 <!-- leetllm: test, id=layout-bench, output=show -->
 ```python title="Memory layout comparison, zero-copy np.frombuffer, and profiling"
@@ -302,17 +306,21 @@ cProfile generator calls in slow_norm: 100001
 ```
 <!-- leetllm: output:end -->
 
+> **Key insight:** Zero-copy sharing cuts both ways. Because `np.shares_memory(vec, buf)` is `True`, writing to `buf[0]` mutates `vec[0]` immediately. Always `.copy()` a view before handing a reusable buffer to an async worker.
+
+Notice why profiling before optimizing pays off: `slow_norm` burns 100,001 Python generator calls to center and square 100k floats. Moving that reduction into a contiguous NumPy buffer runs in compiled C loops outside the <a href="/glossary/global-interpreter-lock" data-glossary="global-interpreter-lock">GIL</a> and saturates <a href="/glossary/memory-bandwidth" data-glossary="memory-bandwidth">memory bandwidth</a>.
+
 ```checkpoint
 Why does wrapping an `array.array('f', ...)` with `np.frombuffer` avoid copying data into NumPy?
 ---
 `np.frombuffer` exposes Python's buffer protocol directly, pointing a NumPy array view at the existing C-contiguous memory block without allocating or copying raw bytes. Writing to either `buf` or the view mutates that single shared block in place.
 ```
 
-Look closely at the `cProfile` count and container footprints together: profiling before optimizing reveals where time actually goes, because `slow_norm` executes 100,001 Python generator frames just to center and square a 100k-element vector. Keeping inputs contiguous lets C loops inside NumPy execute the reduction in microseconds while holding the <a href="/glossary/global-interpreter-lock" data-glossary="global-interpreter-lock">GIL</a> out of the inner arithmetic loop and keeping <a href="/glossary/memory-bandwidth" data-glossary="memory-bandwidth">memory bandwidth</a> saturated. Notice also one subtle engineering consequence of `np.shares_memory(vec, buf) == True`: mutating `buf[0]` immediately updates `vec[0]` and vice versa, so always copy out or freeze views before handing reusable buffers to asynchronous workers.
-
 ## Numeric Precision and Serialization Drift
 
-Every JSON hyperparameter file, <a href="/glossary/dtype" data-glossary="dtype">dtype</a> downcast, and metric log passes through floating-point arithmetic. Python's built-in `float` uses IEEE-754 binary64 (`float64`), which represents decimal fractions like `0.1` and `0.2` only approximately, so `0.1 + 0.2 == 0.3` evaluates to `False`[^python2026floatingpoint]. Downcasting features or weights into 4-byte `float32` (`array('f')`) introduces roughly seven decimal digits of rounding precision on top of binary representation error. Whenever Python code compares computed losses, probabilities, or serialized checkpoint hyperparameters, replace exact `==` checks with `math.isclose(actual, expected, rel_tol=..., abs_tol=...)` tuned to your working precision (`1e-6` for `float32`, `1e-9` for `float64`)[^pythonMath2026] while keeping discrete counts (`correct_tokens`, `total_tokens`) as exact integers rather than pre-rounded ratios.
+Python's built-in `float` is IEEE-754 binary64 (`float64`), which represents decimal fractions such as `0.1` and `0.2` approximately, so `0.1 + 0.2 == 0.3` evaluates to `False`[^python2026floatingpoint]. Packing features or weights into 4-byte `float32` (`array('f')`) narrows precision to roughly seven decimal digits.
+
+Whenever you compare losses, probabilities, or round-tripped hyperparameters across JSON or <a href="/glossary/dtype" data-glossary="dtype">dtype</a> casts, use `math.isclose(actual, expected, rel_tol=..., abs_tol=...)` matched to your working precision (`1e-6` for `float32`, `1e-9` for `float64`)[^pythonMath2026]. Keep discrete totals (`exact_matches`, `total_examples`) as exact integers and divide only at display time.
 
 <!-- leetllm: test, id=float-json, output=show -->
 ```python title="Quantization drift from float64 JSON into float32 packed buffers"
@@ -344,14 +352,16 @@ Passes f32 tol:  True
 ```
 <!-- leetllm: output:end -->
 
-Checking tolerances explicitly prevents silent false alarms when loading `float32` weights or metrics stored in JSON, while still catching genuine regressions where a normalization step drops a factor of `len(batch)` or leaves stale padding values inside a mean. Keep exact integer counts separated from floating ratios so evaluation aggregations never drift under repeated serialization.
+Explicit tolerances prevent spurious failures on legitimate `float32` rounding while still catching real bugs like dropping a `len(batch)` divisor or letting padding zeros leak into a mean.
 
 ## Writing Fast `pytest` Regression Checks for Data Code
 
-Silent data pipeline bugs rarely crash training with a Python traceback; instead they corrupt batch padding, break determinism across seeds, or leak target columns while training drifts smoothly toward worse perplexity. A small `pytest` suite running directly inside your `uv` environment catches shape, mask, conservation, and numerical tolerance invariants in milliseconds[^pytest_docs]. Notice what good data tests assert: structural batch invariants (`len(tokens) == len(mask)` and uniform row widths), conservation laws (mask sum equals original clipped sequence length), seed determinism (identical seed produces identical batch order across independent calls), and floating-point checks using `pytest.approx`. Writing those tests once turns every refactor of your dataset loader, batch collator, or feature serializer into a verified change rather than guesswork.
+Data bugs rarely crash with a traceback; they corrupt masks, break seed reproducibility, or quietly degrade perplexity. A fast `pytest` suite running inside your locked `uv` environment catches those failures in milliseconds[^pytest_docs].
+
+Focus data tests on four concrete properties: rectangular shape agreement (`len(tokens) == len(mask)` and uniform row widths), mask conservation (`sum(mask[i])` equals the clipped sequence length), RNG isolation (same seed produces the same order even after `random.seed(999)` mutates global state), and floating-point checks using `pytest.approx`.
 
 <!-- leetllm: test, id=pytest-suite, output=show -->
-```python title="Self-contained pytest suite verifying batch invariants, determinism, and tolerances"
+```python title="Self-contained pytest suite verifying batch shapes, determinism, and tolerances"
 import contextlib
 import io
 import json
@@ -420,20 +430,20 @@ pytest exit code: 0
 ```
 <!-- leetllm: output:end -->
 
-Three focused invariants finish in milliseconds inside the locked environment. Run that suite via `uv run pytest` before starting multi-hour training jobs or containerizing your code, because catching a masking off-by-one or an aliasing mutation locally saves every downstream GPU hour. Check all invariants again after changing sequence lengths, padding rules, or numerical serialization dtypes so downstream array code receives clean inputs.
+Running `uv run pytest` before launching a GPU training job catches padding off-by-ones and aliasing bugs locally in milliseconds instead of wasting accelerator hours.
 
 ## Putting It Together
 
-Reproducible AI engineering in Python relies on separating flexible orchestration from high-throughput numeric storage cleanly. Lock dependencies with `uv`, hold experiment parameters in `@dataclass(frozen=True, slots=True)`, stream large JSONL corpora with `yield` generators rather than materializing full lists in memory, pass explicit local `random.Random(seed)` objects to shufflers, pack numeric buffers contiguously so NumPy or PyTorch can wrap them without copying, and guard batch invariants with `pytest` and explicit tolerances.
+Clean AI engineering in Python separates flexible orchestration from compact numeric storage. Lock packages with `uv`, hold experiment settings in `@dataclass(frozen=True, slots=True)`, stream JSONL files with `yield` generators, isolate shuffle randomness inside a local `random.Random(seed)`, pack flat numeric buffers for zero-copy NumPy handoff, and guard padding, determinism, and tolerances with `pytest`.
 
 <details>
 <summary>Quick reference: Python AI data engineering checklist</summary>
 
-1. Lock Python and numeric packages with `uv sync --locked` and run every script inside `uv run`.
-2. Store hyperparameters in `@dataclass(frozen=True, slots=True)` and never share mutable inner containers without pure list reconstruction or `copy.deepcopy`.
-3. Stream JSONL files one record at a time with `yield`, using a bounded shuffle buffer driven by an explicit `random.Random(seed)`.
-4. Pad ragged token sequences into uniform `[B, L]` matrices paired with a binary `[B, L]` attention mask so filler IDs never contribute to loss or attention.
-5. Profile hotspots with `cProfile` and `time.perf_counter`, store flat numeric streams in `array('f')` or contiguous NumPy arrays, and verify invariants with `pytest` and `math.isclose`.
+1. Lock Python and numeric packages with `uv sync --locked` and run scripts via `uv run`.
+2. Store hyperparameters in `@dataclass(frozen=True, slots=True)` and avoid mutating shared nested containers.
+3. Stream JSONL files one record at a time with `yield`, shuffling through a bounded reservoir backed by `random.Random(seed)`.
+4. Pad ragged token sequences into uniform `[B, L]` matrices paired with a binary `[B, L]` attention mask.
+5. Profile hotspots with `cProfile` and `time.perf_counter`, store flat numeric streams in `array('f')` or contiguous NumPy arrays, and verify batch rules with `pytest` and `math.isclose`.
 
 </details>
 

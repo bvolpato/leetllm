@@ -540,7 +540,7 @@ Adam plus coupled L2 first step 9.9
 
 The penalty has entered both Adam buffers in the coupled version. In <span data-glossary="adamw">AdamW</span>, it enters neither: the parameter shrinks by the separate factor `1 - lr * weight_decay`. Decoupled doesn't mean independent of the schedule, because `lr` still multiplies the decay. In PyTorch, a zero gradient tensor also differs from `grad=None`: the optimizer skips parameters with no gradient, including their decay. [AdamW API](https://docs.pytorch.org/docs/stable/generated/torch.optim.AdamW.html)
 
-In PyTorch 2.14, `torch.optim.Adam(..., decoupled_weight_decay=True)` also selects AdamW behavior. The default is `False`, so the `weight_decay` argument alone still selects coupled L2. Inspect the actual constructor rather than inferring the rule from the optimizer's name. [Adam API](https://docs.pytorch.org/docs/2.14/generated/torch.optim.Adam.html)
+PyTorch's `torch.optim.Adam(..., decoupled_weight_decay=True)` also enables AdamW behavior, whereas its default `False` keeps coupled L2. Check the constructor arguments rather than assuming behavior from the class name alone. [Adam API](https://docs.pytorch.org/docs/stable/generated/torch.optim.Adam.html)
 
 ```checkpoint
 Two independent PyTorch AdamW runs start weight 8 with zero moments, rate 0.05 and decay 0.02. One has an explicit zero gradient tensor; the other has grad=None. What weights follow one step?
@@ -684,7 +684,7 @@ Clipping limits the optimizer's gradient input rather than capping the full Adam
 
 ## Build it: optimize the valley with AdamW
 
-Implement AdamW from the equations above and run it alongside SGD on the same quadratic surface, logging both the final loss and individual coordinate errors. Because adaptive normalization alters step scaling, the two runs use different peak learning rates and shouldn't be read as a general optimizer ranking. Checking that every loss stays finite and both coordinate errors shrink from `1.0` gives a solid sanity check on the implementation, rather than proving general convergence. Even convexity alone doesn't guarantee Adam's convergence: Reddi, Kale, and Kumar constructed a convex counterexample and showed how a non-decreasing maximum second moment in AMSGrad restores convergence under stated assumptions.[^reddi2018adam] On real workloads, evaluate both training progress and held-out loss at a fixed compute budget.
+Implement AdamW from the equations above and compare it with SGD on the same 100-to-1 valley, logging both the final loss and individual coordinate errors. Because adaptive scaling changes effective step size, each optimizer uses its own peak learning rate. Even on convex problems, plain Adam can diverge on pathological gradient sequences, which motivated variants like AMSGrad that keep a non-decreasing maximum second moment.[^reddi2018adam] In practice, compare full training recipes on held-out loss at a fixed compute budget.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="build-adamw-on-the-valley.py"
@@ -849,7 +849,7 @@ The deep copy freezes the in-memory checkpoint before the original run continues
 
 Because this CPU test sequence is deterministic, it needs no random-generator or data-loader state. A production resume also stores the update counter, dataset cursor, RNG states, and AMP scaler state when used, and later training chapters add those pieces alongside validation data and distributed state.
 
-AdamW isn't the endpoint of optimizer research. For example, PyTorch 2.14 provides [Muon](https://docs.pytorch.org/docs/2.14/generated/torch.optim.Muon.html), which treats two-dimensional hidden-layer weight matrices as matrices rather than independent coordinates. Its documentation recommends a method such as AdamW for other parameters, including biases and embeddings. A model can therefore use different optimizers for different parameter groups; compare the whole recipe under the same training budget and validation metric.
+AdamW isn't the endpoint of optimizer research. For example, PyTorch provides [Muon](https://docs.pytorch.org/docs/stable/generated/torch.optim.Muon.html), which treats two-dimensional hidden-layer weight matrices as matrices rather than independent coordinates while pairing with AdamW for biases and embeddings. A single model can assign different optimizers to different parameter groups; compare the complete recipe under the same compute budget and validation metric.
 
 ```checkpoint
 In the PyTorch loop, why must gradient clipping happen after `loss.backward()` but before `optimizer.step()`?
@@ -912,7 +912,7 @@ Two forty-update trials share the same objective, initialization, data, and held
 ---
 Select SGD by held-out loss; the comparison evaluates these complete configurations at this step budget.
 
-The held-out losses favor the tested SGD recipe, 0.28 versus 0.35, despite AdamW’s lower training loss. Different learning rates mean this comparison evaluates complete recipes at the chosen budget; it does not isolate optimizer family or prove longer-run convergence. Choosing by training loss would answer a different question.
+The held-out losses favor the tested SGD recipe, 0.28 versus 0.35, despite AdamW’s lower training loss. Different learning rates mean this comparison evaluates complete recipes at this step budget rather than isolating optimizer family. Choosing by training loss would answer a different question.
 ```
 
 ```checkpoint

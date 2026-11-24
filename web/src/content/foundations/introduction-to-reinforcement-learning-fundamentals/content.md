@@ -189,6 +189,8 @@ $$
 
 Meanwhile, stepping `Up` into `(0,1)` keeps both perpendicular slips horizontal without risking `(2,1)`, earning $Q^*((1,1), \text{Up}) \approx 6.31$. One risky action value plunges by `12.71` points, flipping greedy control from the cliff shortcut to the upper ridge.
 
+> **Key insight:** A Bellman backup turns a multi-step planning problem into a one-step lookahead. Once neighbor values reflect their optimal futures, choosing the best action at `(1,1)` requires only summing immediate rewards and discounted next-state values.
+
 ## Solving known MDPs with dynamic programming
 
 We computed a backup using neighboring values, but where do those values come from? **Value iteration** begins with zeros everywhere and repeatedly updates the whole map. On the first sweep, only immediate rewards are visible: `(1,3)` discovers the beacon's `20`, while most other cells see `-1`. On the second sweep, `(1,2)` reads the previous sweep's `20` and becomes `17`. The third brings `14.3` to `(1,1)`, and the fourth brings `11.87` to the start. Each sweep extends the planning horizon by one move.
@@ -415,9 +417,11 @@ SARSA      row1 policy: ['^', '^', '>', 'v'], Q(1,0)=[5.24, 3.97, -50.0, 1.32]
 ```
 <!-- leetllm: output:end -->
 
-Q-learning recovers the shortcut's `11.87` start value. In this seeded run, SARSA prefers `Up` at the start, estimating `5.24` for it versus `3.97` for `Right`. Its learned row is not uniformly `Up`: finite training with a constant step size keeps reacting to recent experiences. The main distinction is visible at the start, where accounting for exploratory moves makes extra distance from the cliff attractive.
+Q-learning recovers the shortcut's `11.87` start value. In this seeded run, SARSA prefers `Up` at the start, estimating `5.24` for it versus `3.97` for `Right`. Because SARSA updates toward the exploratory actions it actually executes, the `5%` chance of slipping off the cliff during exploration pushes it away from the edge.
 
-Training and evaluation answer different questions. Turning exploration off evaluates the learned greedy route. Keeping it on evaluates the behavior used during training. To compare crash rates or mean returns, run episodes in the mode you intend to use and measure them directly. Reducing $\epsilon$ gradually makes SARSA's sampled next action increasingly greedy; convergence to optimal tabular values also requires continued state-action coverage and suitable decreasing step sizes.[^sutton2018][^watkins1992qlearning]
+> **Key insight:** Q-learning optimizes the greedy target policy while exploring with a separate behavior policy (off-policy). SARSA optimizes the exploratory policy it is actually running (on-policy).
+
+Keep training and evaluation distinct: turning exploration off measures the greedy policy, while keeping $\epsilon > 0$ measures online behavior during learning. Gradually annealing $\epsilon \to 0$ with suitable decreasing step sizes brings SARSA's target into agreement with Q-learning's, so both converge to optimal tabular values given sufficient state-action coverage.[^sutton2018][^watkins1992qlearning]
 
 ```checkpoint
 If you anneal exploration $\epsilon \to 0$ gradually over training in a deterministic cliff gridworld, do Q-learning and SARSA remain apart forever?
@@ -450,7 +454,9 @@ truncated backup target (keep bootstrap): 14.3
 ```
 <!-- leetllm: output:end -->
 
-Masking strictly on `terminated` leaves the truncated bootstrap target at `14.3` instead of collapsing it to `-1.0`. Confusing timeouts with true terminal states introduces a `15.3`-point value error near time horizons and teaches policies to act myopically right before a step limit expires.
+Masking strictly on `terminated` leaves the truncated bootstrap target at `14.3` instead of collapsing it to `-1.0`.
+
+> **Common mistake:** Treating time-limit `truncated` flags as terminal states introduces a `15.3`-point value drop at the step boundary and teaches the agent to act myopically right before the clock runs out.
 
 ## Exploration, reward design, and positive loops
 
@@ -490,7 +496,7 @@ $$
 \sum_{t=0}^{T-1}\gamma^t F(S_t,S_{t+1})=-\Phi(S_0)+\gamma^T\Phi(S_T).
 $$
 
-Set terminal potentials to zero. Every completed trip from the same start then receives the same total adjustment, $-\Phi(S_0)$, so policy rankings stay unchanged. For a continuing discounted task with bounded potentials, the final term tends to zero. A single discounted cycle need not have zero shaping sum; the preservation argument comes from this complete-return identity.[^ng1999]
+Set terminal potentials to zero. Every completed trip from the same start then receives the exact same total adjustment, $-\Phi(S_0)$, so policy rankings stay unchanged.[^ng1999] For a continuing discounted task with bounded potentials, $\gamma^T\Phi(S_T) \to 0$ as $T \to \infty$, preserving the same invariance.
 
 ## Policy gradients, REINFORCE, and baselines
 
@@ -599,7 +605,7 @@ learned P(a | (1,0)):  [0.997, 0.001, 0.0, 0.002]
 ```
 <!-- leetllm: output:end -->
 
-The gradient check agrees: raising the `Up` logit helps most, while raising `Down` hurts expected return. The training loop then learns from complete trips without reading transition probabilities. Its final start-state probabilities concentrate on `Up`, the move that first takes the rover away from the cliff. The reported recent mean measures sampled training episodes, while value iteration computes an expectation from the full model.
+The gradient check agrees: raising the `Up` logit helps most, while raising `Down` hurts expected return. Without ever reading the transition table, REINFORCE learns from complete trips and concentrates `99.7%` of its start-state probability on `Up`, moving away from the cliff. Its recent training average (`2.872`) sits below the exact value-iteration optimum (`4.284`) because the policy is still stochastic across downstream cells during finite training.
 
 ### From rover moves to language-model tokens
 
@@ -647,7 +653,9 @@ unsupported target actions: ['Up']
 
 The ratio is `3.4` per move, giving $3.4^6\approx1544.80$ for the complete path. One rare recorded trip can therefore contribute a large amount to the estimate. Long products can make estimates very noisy even when the estimator is unbiased. Weighted importance sampling reduces some of that instability by normalizing weights, at the cost of finite-sample bias.
 
-Zero probability is a different problem. If the behavior policy never chooses `Up`, collecting more trips from that policy still provides no samples of choosing `Up`. Reweighting changes how much observed experience counts; it cannot create missing experience. When `Up` has a small positive probability, coverage exists in principle, but a finite dataset may still contain too few examples to estimate its consequences well.
+Zero probability is a structural barrier rather than a sample-size problem. If the behavior policy never chooses `Up`, collecting more trips still yields zero samples of `Up`. Reweighting can only adjust how observed trajectories count; it cannot invent unobserved branches. Even when `Up` has small positive probability, finite datasets often carry too few examples to bound its return accurately.
+
+> **Key insight:** Importance sampling requires **support coverage** ($\pi_e(a \mid s) > 0 \implies \pi_b(a \mid s) > 0$) and pays an exponential variance price as trajectory length grows.
 
 ```checkpoint
 A logged dataset comes from a deterministic policy that always moved `Right` from start `(1,0)`. Can importance sampling estimate the expected return of a new policy that picks `Up` 90% of the time?

@@ -36,17 +36,11 @@
 }
 ---
 
-A teammate clones `prompt-eval`, finds the three <span data-glossary="eval-row">evaluation cases</span> in `eval/eval_cases.jsonl` alongside `scripts/score_eval.py`, and still cannot reprint `0.667`. Their Python version, OS packages, or filesystem permissions differ from yours. Git carried the files. It didn't pin how they run.
+A teammate clones `prompt-eval`, sees `scripts/score_eval.py` and `eval/eval_cases.jsonl` sitting right where Git put them, and still cannot reprint `0.667`. Their laptop runs a different Python version, different Debian libraries, or different filesystem permissions. Git shipped the source files, not the runtime beneath them.
 
-The evaluation script compares each predicted label against its reference label. Two matches out of three give `2/3`, displayed as `0.667`. Nothing about that calculation should depend on a teammate's Python setup.
+<span data-glossary="docker">Docker</span> closes that gap. `docker build` packages Python, its dependencies, and your application files into a layered <span data-glossary="container-image">container image</span>. `docker run` launches an isolated <span data-glossary="container">container</span> from that image, executes the scorer, and with `--rm` deletes the stopped container and its writable layer while keeping the image ready for reuse.
 
-<span data-glossary="docker">Docker</span> packages Python, its dependencies, and application files in a <span data-glossary="container-image">container image</span>, the stored artifact produced by `docker build`. Its filesystem is assembled from reusable layers. A <span data-glossary="container">container</span> is an isolated instance of that image, created by `docker run`. Ours runs one scorer process; other applications may start child processes too.
-
-When the scorer exits, `--rm` removes the stopped container and its writable layer. The image remains available for another run.
-
-The **kernel** is the operating system component that manages processes, memory, and devices. A Linux image packages application code and user-space tools, including Python and Debian libraries, but no kernel. Containers share the Linux kernel of the machine running Docker Engine. With Docker Desktop's Linux containers, that machine is a Linux virtual machine (VM), so a Mac container uses the VM's Linux kernel.[^docker2026bindmounts]
-
-Build on the `prompt-eval/` repository layout from [Git, Shell, and Linux for Reproducible AI](/learn/git-shell-linux-reproducible-ai). Run the commands in a Bash-compatible terminal with Docker Engine running, or Docker Desktop set to Linux containers. On Windows, use a WSL terminal. `docker version` should show both a client and a server; a client alone can't build or run an image.
+Unlike a full virtual machine, a Linux container image ships user-space files (Python, Debian libraries, your code) and shares the host's Linux **kernel** (or Docker Desktop's Linux VM kernel on macOS and Windows WSL).[^docker2026bindmounts] Build on the `prompt-eval/` repo from [Git, Shell, and Linux for Reproducible AI](/learn/git-shell-linux-reproducible-ai), with Docker Engine or Docker Desktop running so `docker version` shows both client and server.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Four read-only container image layers (python:3.12-slim base, /opt/venv packages, scripts/score_eval.py, and eval/eval_cases.jsonl, with no Linux kernel inside the image) launch via docker run --rm into a non-root appuser container sharing the host or Desktop VM Linux kernel to print accuracy 0.667." />
@@ -55,35 +49,29 @@ Build on the `prompt-eval/` repository layout from [Git, Shell, and Linux for Re
 
 ## Where each input lives
 
-The scorer needs Python and its own files every time. The eval data may change between runs, and future API keys shouldn't travel with the image at all. A **Dockerfile** is the build recipe; it chooses which inputs become part of the image. The rest arrive when a container starts:
+Not every file belongs inside `COPY`. A **Dockerfile** decides which stable inputs become immutable image layers; everything else arrives at runtime:
 
 | Channel | Question | Repo choice |
 |---|---|---|
-| Base image | Which Python, OS, and CPU architecture run the code? | A version-constrained <span data-glossary="container-image">base image</span> such as `python:3.12-slim-trixie`; add a digest and an explicit target platform when a release needs a fixed artifact |
-| Dependencies | Which packages are installed? | A checked-in lock or fully pinned, hashed requirements file copied before application code |
-| Build context | Which files may the builder read? | `.dockerignore` that excludes secrets, caches, model weights, and virtualenvs |
-| Runtime user | Which identity runs the process? | A non-root user; add a named volume or temporary filesystem only when it must write |
-| Data | Where does eval data live? | Small starter sets can be copied into the image; changing host datasets use a bind mount, and container-managed caches use named volumes |
-| Secrets | How does an API key arrive? | A runtime secret file or platform secret manager, never `ARG`, `ENV`, or `COPY .env` |
+| Base image | Which Python, OS, and CPU architecture run the code? | `python:3.12-slim-trixie` (pin by `sha256` digest and `--platform` for releases) |
+| Dependencies | Which packages are installed? | Pinned, hashed `requirements.txt` (or lockfile export) copied before app code |
+| Build context | Which files may the builder see? | `.dockerignore` excluding secrets, caches, weights, and virtualenvs |
+| Runtime user | Which identity runs the process? | Non-root `appuser`; add writable volumes only when needed |
+| Data | Where does eval data live? | Small starter set baked in; changing host datasets via **bind mount**; container caches via **named volume** |
+| Secrets | How do API keys arrive? | Runtime secret file or secret manager, never `ARG`, `ENV`, or `COPY .env` |
 
-Don't solve every placement with `COPY`. A **bind mount** exposes a specific host path inside a container. A **named volume** is storage Docker manages, which suits caches or state that should outlive one container without depending on a teammate's directory layout.
-
-Build-time and run-time inputs also have different lifetimes. Stable inputs become image layers. Run-specific data and configuration join only when a container starts, and Docker can reuse an earlier layer when its inputs didn't change.[^docker2026build]
-
-Suppose you fix a line in the scorer but leave its packages alone. Docker should reuse the installed packages and rebuild only the application-dependent steps. That reuse is the **build cache**:
+Separating stable inputs from changing code unlocks Docker's **build cache**.[^docker2026build] Because each Dockerfile step hashes its inputs, copying `requirements.txt` and installing packages *before* copying `scripts/score_eval.py` lets every code edit reuse the cached dependency layer in milliseconds.
 
 <figure>
   <img src="illustrations/_generated/cache_invalidation_dark.png" alt="Comparison of Dockerfile build cache reuse when editing either score_eval.py or requirements.txt. Copying and installing requirements before application code keeps the first two steps cached during code edits, whereas editing requirements.txt invalidates the installation step and all later steps." />
-  <figcaption>Both traces start from the same base image. For the scorer edit, Docker can reuse the cached dependency installation. For the requirements edit shown here, the builder has no cached result for the new inputs, so it installs the packages again and rebuilds the dependent steps.</figcaption>
+  <figcaption>Editing the scorer reuses the cached dependency layer. Editing <code>requirements.txt</code> invalidates the install step and every layer below it.</figcaption>
 </figure>
-
-Copy `requirements.txt` before the scorer so a code edit can reuse the package installation. An edit to the requirements changes the installation key. If you later restore an earlier file and its other inputs, Docker can reuse the matching cached result. The Dockerfile below separates installation and execution into stages while preserving that dependency order.
 
 ## Start with `.dockerignore`
 
-The build context is the first filter before any `COPY` step runs. If `prompt-eval/` holds a model cache, a local vector index, and `.env`, `docker build .` passes all of those paths to the builder unless you exclude them explicitly.
+Before running a single `COPY`, Docker sends the **build context** (files in `.`) to the builder. Without `.dockerignore`, a local `.env`, model checkpoints, `.git/`, or `.venv/` become eligible to enter the builder or get swept up by a broad `COPY . /app`.[^docker2026build]
 
-Create `.dockerignore` at the root of `prompt-eval/`, next to `.gitignore`:
+Create `.dockerignore` at the root of `prompt-eval/`:
 
 ```gitignore title=".dockerignore"
 # .dockerignore - keep the build context tiny and secret-free
@@ -115,17 +103,11 @@ mlruns/
 *.swp
 ```
 
-Docker removes matching paths before it sends the build context to the builder. Without that filter, `.env`, cached model files, local indexes, notebooks, and virtualenvs can reach a local or remote builder even when the Dockerfile never meant to copy them. A later broad `COPY . /app` can also bake them into a layer.[^docker2026build]
-
-Build context and image contents aren't the same thing. Context is everything the builder is allowed to read; `COPY` and `ADD` decide which of those files become layers. If a path matches `.dockerignore`, it never enters the context. Now choose which of the remaining files the scorer actually needs.
+> **Common mistake:** `.gitignore` and `.dockerignore` protect completely different paths. Excluding `.env` from Git does not stop Docker from including it in the build context.
 
 ## Reuse the scorer you already tested
 
-The previous chapter committed `scripts/score_eval.py` and `eval/eval_cases.jsonl`. Package those same files so container output matches your host run directly. A second scorer would add another possible cause of a changed result.
-
-The evaluation script falls back to `assets/eval_cases.jsonl` when `eval/` is missing. Copying `eval/` into the image is enough for the primary path, so you don't need `assets/` in the image. `requirements.txt` can stay empty until the scorer gains third-party packages.
-
-Check that you're in the project root, create the empty dependency file if needed, and run the scorer once outside Docker:
+Keep the exact `scripts/score_eval.py` and `eval/eval_cases.jsonl` committed in the previous lesson so host and container outputs compare one-to-one. Verify your baseline outside Docker first:
 
 ```bash title="terminal"
 test -f scripts/score_eval.py
@@ -140,15 +122,9 @@ Exact-match accuracy: 0.667 (2/3)
 Eval status: pass (>= 2/3 threshold)
 ```
 
-That output is the baseline the image must reproduce. Both the evaluation script and starter cases stay unchanged. The image has to pin which Python actually runs them, so a teammate's laptop stops being part of the result.
-
 ## Give the scorer its own Python environment
 
-Start with a CPU image. The three-row scorer doesn't need a <span data-glossary="gpu">GPU</span>, so verify the container workflow on a standard CPU machine before adding NVIDIA runtime setup.
-
-Each `FROM` starts a **build stage**, a separate filesystem based on the named image. The first stage installs packages into a **virtual environment**, a directory containing a Python environment isolated from other packages. The second copies that environment and runs the scorer. This two-stage pattern becomes useful when installation needs compilers or other tools that the running application doesn't need. Our empty dependency file doesn't need those tools yet, so two stages aren't inherently smaller here.
-
-Create this `Dockerfile`:
+Start with a portable CPU image using a **two-stage Dockerfile**. Each `FROM` begins a clean stage: `builder` installs packages into `/opt/venv`, and `runtime` starts fresh from `python:3.12-slim-trixie` and copies only `/opt/venv`, the scorer, and the starter eval set. Once your project adds compiled dependencies, compilers stay in `builder` instead of bloating `runtime`.
 
 ```dockerfile title="Dockerfile"
 # syntax=docker/dockerfile:1
@@ -188,35 +164,25 @@ USER appuser
 ENTRYPOINT ["python", "scripts/score_eval.py"]
 ```
 
-Read the runtime stage from top to bottom. `WORKDIR /app` sets the directory for later relative paths. `COPY --from=builder` transfers the installed environment, while the next two `COPY` instructions bring in the evaluation script and starter dataset. `USER appuser` selects the identity for the running process. `ENTRYPOINT` supplies its default command, so `docker run` doesn't need to repeat the Python filename.
+Notice three deliberate choices in `runtime`:
 
-Both stages use the same base image and `/opt/venv` path to keep the copied environment compatible. If later packages need shared OS libraries, those libraries must also exist in the runtime stage. Copying a virtual environment alone doesn't copy every system dependency.
+- Because `runtime` starts from `python:3.12-slim-trixie` rather than `FROM builder`, it declares its own `ENV` settings and inherits only the files explicitly listed in `COPY --from=builder`. (If later packages need shared OS libraries, install them in `runtime` too.)
+- `COPY --chown=appuser:appuser` gives the non-root process explicit ownership rather than defaulting to `root`.
+- `ENTRYPOINT` sets the default command so `docker run` launches the scorer directly.
 
-Here the runtime stage starts from `python:3.12-slim-trixie`, so it declares its own `PATH`, bytecode, and buffering settings. It doesn't inherit the builder's `ENV` settings. A stage based on `FROM builder` would inherit them. Likewise, installing a compiler in this builder doesn't install it in this runtime. `COPY --from=builder` transfers only the selected files.
+<details>
+<summary>Deep dive: Pinning base digests, platforms, and hashed dependencies</summary>
 
-`COPY` defaults to root ownership. Root-owned files with world-readable permissions can still be read by `appuser`, but `COPY --chown=appuser:appuser` makes ownership explicit and avoids permission failures when files have restrictive modes or the application later needs to write its own files.
-
-| Dockerfile section | Purpose |
-|---|---|
-| `builder` stage | installs packages once into a reusable virtualenv |
-| `runtime` stage | runs only the existing evaluation script, starter dataset, and installed environment |
-
-The official Python image manifest maps `python:3.12-slim-trixie` to the Python 3.12 line on Debian 13 (`trixie`).[^pythonimage2026][^debian2025trixie] That constrains the Python minor line and Debian release, but it doesn't pin exact bytes. Image tags are mutable, so a later rebuild can pick up a new Python patch or rebuilt OS packages.[^docker2026build]
-
-Dependency pins need the same care. `package==1.2.3` fixes a version, but an installer may still choose among wheels (prebuilt packages) and source archives. A hash identifies an allowed downloaded artifact. For a release, export all dependencies, including dependencies of dependencies, with hashes and keep `--require-hashes`. Alternatively, use a package-manager <span data-glossary="dependency-lockfile">lockfile</span> with its frozen install command. An empty `requirements.txt` passes because there are no packages to verify. When this install command downloads a wheel or source archive, pip checks its hash against the approved list. An already installed package can satisfy a requirement without a download or hash check. Account for preinstalled packages when you verify a release environment.[^pip2026secureinstalls]
-
-A lockfile affects this image only if its install step consumes it. Merely copying a future `uv.lock` into the context won't change this pip command. Keep one reviewed dependency source for the image, or explicitly export the lock to the hashed requirements this Dockerfile reads. Hashing a source archive also doesn't lock the tools that compile it. For a wheel-only release, `--only-binary=:all:` rejects source builds, but it will fail when no compatible wheel exists for the target platform.[^pip2026secureinstalls]
-
-`python:3.12-slim-trixie` is a multi-platform tag. Docker normally selects the variant that matches the host. An Apple Silicon laptop can build `linux/arm64` while an x86 CI worker builds `linux/amd64`. Those are compatible recipes, not identical image bytes. Check which CPU architecture your target server uses, inspect the available image manifests, and pass `--platform` when building for another host:
+`python:3.12-slim-trixie` selects Python 3.12 on Debian 13 (`trixie`),[^pythonimage2026][^debian2025trixie] yet tags are mutable and multi-platform: an Apple Silicon laptop pulls `linux/arm64` while an x86 CI runner pulls `linux/amd64`.[^docker2026build] For a fixed release, inspect the manifest and pin both `FROM` lines to a verified `sha256:...` digest alongside `--platform`:[^docker2026platforms]
 
 ```bash title="terminal-platform"
 docker buildx imagetools inspect python:3.12-slim-trixie
 docker build --platform linux/amd64 -t prompt-eval:local .
 ```
 
-For a fixed release, copy a verified `sha256:...` digest from the inspection into both `FROM` lines. A **digest** identifies content, unlike a tag that can be reassigned. A multi-platform index digest fixes a set of platform variants; a platform manifest digest fixes one variant. Keep `--platform` in the build command to select the intended architecture. Emulating `linux/amd64` on an Arm laptop can be much slower than a native build, especially when packages compile code.[^docker2026platforms]
+Similarly, once packages enter `requirements.txt`, pin every direct and transitive dependency with artifact hashes so `--require-hashes` verifies every downloaded wheel or sdist (add `--only-binary=:all:` if you want to reject source builds).[^pip2026secureinstalls] If you manage packages with `uv`, export `uv.lock` to hashed requirements or run `uv sync --locked` inside the Dockerfile so the lockfile actually drives the install step.
 
-Once that target is explicit, cache behavior becomes easier to reason about. A change to `requirements.txt` gives Docker a different dependency cache key. It checks for a matching result prior to executing the installation. Editing only `scripts/score_eval.py` leaves the dependency cache key intact because the Dockerfile installs requirements first.
+</details>
 
 ```checkpoint
 Why does the Dockerfile copy `requirements.txt` before the scorer source?
@@ -226,22 +192,18 @@ Dependency installation stays in an earlier cacheable layer. Editing scorer code
 
 ## Build, run, and inspect the artifact
 
-From the project root, check the Dockerfile and then build the artifact. The first command reports Dockerfile findings without producing an image; the second creates the tagged image. The final `.` selects the current directory as the build context, and `-t` gives the image its local name.
+Run Docker's static Dockerfile checks first, then build the image (`--check` turns Dockerfile warnings into nonzero errors):[^docker2026buildchecks]
 
 ```bash title="terminal-3"
 docker build --check .
 docker build -t prompt-eval:local .
 ```
 
-`docker build --check` exits nonzero when a check reports a finding. A regular build can report those findings as warnings, so running the check separately makes the policy explicit.[^docker2026buildchecks]
-
-Run the image without any host mount first. Because the evaluator only reads its input file and the Dockerfile disables `.pyc` writes via `PYTHONDONTWRITEBYTECODE=1`, passing `--read-only` works without errors and preserves the same output:
+Run the image with `--read-only`. Because `PYTHONDONTWRITEBYTECODE=1` stops Python from writing `.pyc` files and the scorer only reads its dataset, it runs cleanly on an immutable root filesystem:
 
 ```bash title="terminal-4"
 docker run --rm --read-only prompt-eval:local
 ```
-
-Expected output:
 
 ```text title="Output" output compact
 Eval cases: 3
@@ -249,26 +211,17 @@ Exact-match accuracy: 0.667 (2/3)
 Eval status: pass (>= 2/3 threshold)
 ```
 
-Inspect the artifact as well as its stdout:
+Inspect both the image metadata and the running process UID (expect `uid=10001(appuser)`):
 
 ```bash title="terminal-inspect-image"
 docker image inspect prompt-eval:local \
   --format 'platform={{.Os}}/{{.Architecture}} user={{json .Config.User}} entrypoint={{json .Config.Entrypoint}}'
-```
-
-The platform should match the build target, the configured user should be `appuser`, and the entrypoint should name the scorer. A successful `--read-only` run shows that this execution can finish without writing to its root filesystem. Different inputs or a later workload may require writable storage. `PYTHONDONTWRITEBYTECODE=1` keeps Python from trying to write `.pyc` files when that filesystem is read-only.
-
-Inspect the process identity separately from the host user who launches Docker. Overriding the entrypoint lets us run one diagnostic command without changing the image:
-
-```bash title="terminal-inspect-user"
 docker run --rm --read-only --entrypoint id prompt-eval:local
 ```
 
-Expect `uid=10001(appuser)`. The group number is chosen when `useradd` creates the group, so don't assume it also equals 10001. On a normal Linux Engine without user-namespace remapping, numeric ownership controls access to bind-mounted files. Rootless engines and Docker Desktop can map identities differently. The mounted-path check belongs to that host setup.
+Remember that `USER appuser` limits the process inside the container, whereas anyone with access to a rootful Docker daemon still controls the host; never mount the Docker socket or unneeded host paths.[^dockerSecurity2026]
 
-`USER appuser` constrains the Python process inside the container, not anyone who controls the Docker daemon itself. Access to a rootful daemon still grants host-level privileges, and a writable bind mount can modify whichever host files UID permissions allow. Keep the Docker socket and unrelated host paths unmounted; container user isolation, daemon access, and mount permissions operate as independent layers.[^dockerSecurity2026]
-
-Printed accuracy rounds to three decimals, whereas the pass check uses exact integer cross-multiplication (`matches * 3 >= total * 2`) rather than float equality against `0.667`:
+The scorer displays `0.667` rounded to three decimals, while checking the pass threshold with exact integer cross-multiplication (`matches * 3 >= total * 2`) so float rounding never flips a boundary case:
 
 <!-- leetllm: test, output=show -->
 ```python title="check_score_threshold.py"
@@ -293,9 +246,7 @@ threshold_met: True
 
 ## A bind mount obscures the copied eval
 
-A passing run confirms that the image reads its copied starter dataset cleanly. Editing the host's `eval/` won't change those copied files: they're a snapshot from build time. A bind mount lets us supply new data without rebuilding the scorer.
-
-Run the image against host data:
+The baked `eval/` directory is a build-time snapshot. To score a new host dataset without rebuilding the image, attach it with a read-only **bind mount**:
 
 ```bash title="terminal-5"
 docker run --rm \
@@ -304,15 +255,13 @@ docker run --rm \
   prompt-eval:local
 ```
 
-A bind mount at `/app/eval` obscures the image's copied files for that run. Docker doesn't merge the two directories. `--mount` is the better default here because it fails when the host source path is missing. `-v` can silently create a missing source as an empty directory. If the score changes, compare the mounted evaluation file with the committed starter set before changing the image.[^docker2026bindmounts]
+> **Key insight:** A bind mount at `/app/eval` completely *replaces* the image's `/app/eval` for that run rather than merging files. Prefer `--mount` over `-v`: `--mount` fails immediately if the host directory is missing, whereas `-v` silently creates an empty host directory that hides your baked data.[^docker2026bindmounts]
 
-The source path must exist where the Docker daemon runs. Docker Desktop handles sharing your local project into its Linux virtual machine. With a remote daemon or another VM setup, a path that exists in your terminal may still be unavailable to Docker; check file sharing before changing the scorer.
-
-The mount is read-only from inside the container, but file permissions still apply. `appuser` must have execute permission on parent directories and read permission on the evaluation file. For writable data, a named volume removes the dependency on a particular host path, not the need for correct ownership. Initialize its directory for the application's user, or document the numeric user and group IDs (UID/GID) required on a bind-mounted path. Switching to root hides that setup problem.[^docker2026volumes]
+On Linux Engine without user-namespace remapping, numeric UID/GID permissions still apply to mounted paths: `appuser` (UID `10001`) needs execute permission on parent directories and read permission on the eval file. For container-managed writable caches, use a **named volume** and initialize its ownership for `appuser` rather than falling back to `root`.[^docker2026volumes]
 
 ## Watch an empty bind mount hide the image dataset
 
-You can test mount shadowing safely without modifying any committed files by mounting an empty scratch directory over `/app/eval`. Because the mount completely shadows the image directory rather than merging with it, Python will no longer see the copied dataset:
+Verify mount shadowing safely by mounting an empty scratch directory over `/app/eval`:
 
 ```bash title="terminal-empty-mount"
 mkdir -p .docker-lab/empty-eval
@@ -321,36 +270,30 @@ docker run --rm --read-only \
   prompt-eval:local
 ```
 
-The scorer should fail with a missing-file error and a nonzero exit status. Because the source directory exists, Docker can create the mount. Python then looks for `eval_cases.jsonl` inside the empty mount and cannot see the baked copy underneath it. The image doesn't contain the scorer's `assets/` fallback either. Rerun without the mount and `0.667 (2/3)` should return without rebuilding anything.
-
-The error names the fallback path because the script checks `assets/` after failing to find `eval/eval_cases.jsonl`:
+Because the host directory exists, Docker mounts it, hiding the baked `eval_cases.jsonl`. The scorer checks its `assets/` fallback, finds neither file, and exits nonzero:
 
 ```text title="Expected failure" output compact
 ERROR: assets/eval_cases.jsonl missing; restore or mount the eval dataset
 ```
 
+Rerun without the mount and `0.667 (2/3)` returns immediately without rebuilding.
+
 <figure>
   <img src="illustrations/_generated/container_boundaries_dark.png" alt="Container runtime filesystem layout showing four storage channels: read-only baked image layers for code and /opt/venv, a read-only bind mount at /app/eval that shadows baked data with host batches, a writable named volume for cached model weights, and an ephemeral runtime secret file at /run/secrets/eval_api_key excluded from image layers." />
-  <figcaption>Each category of runtime state belongs on its own storage channel: immutable application layers in the image, swappable evaluation sets on a read-only bind mount, persistent caches in a named volume, and API tokens in ephemeral runtime secrets.</figcaption>
+  <figcaption>Separate runtime state by lifetime: immutable code in image layers, swappable eval sets in a read-only bind mount, persistent caches in a named volume, and credentials in runtime secret files.</figcaption>
 </figure>
-
-Compare that failure with other small changes:
 
 | Change | Outcome | Why |
 |---|---|---|
-| Rename `eval/eval_cases.jsonl` on the host | mounted run fails with a missing file | the read-only mount replaces the image's `/app/eval` directory |
-| Rename the host `eval/` directory | `--mount` rejects the missing source path | explicit bind mounts don't create missing host directories by default |
-| Remove `requirements.txt` from the build context | build fails at the `COPY requirements.txt` step | Docker can copy only files that exist in the context |
-| Add `env_file: .env` to Compose before creating `.env` | Compose reports the missing env file | `env_file` entries are required unless marked optional |
-| Run on a machine without Docker Compose | `docker compose version` is unknown | Docker Engine and the Compose CLI plugin are separate on some Linux installs |
-
-The distinction saves a rebuild: a missing host path is a mount problem, while a missing file inside an existing mount is an input-data problem.
+| Rename `eval/eval_cases.jsonl` on the host | scorer fails with missing file | read-only mount shadows the image's `/app/eval` |
+| Rename the host `eval/` directory | `--mount` fails before startup | explicit `--mount` refuses to create missing host paths |
+| Remove `requirements.txt` from context | `docker build` fails at `COPY` | builder can copy only files present in the build context |
+| Add `env_file: .env` before creating `.env` | Compose fails at startup | `env_file` entries are required unless marked optional |
+| Run on Linux without Compose plugin | `docker compose` unknown | Engine and `docker-compose-plugin` install separately |
 
 ## Check in one Compose file
 
-For one service, `docker run` is enough. As soon as the project adds a <span data-glossary="vector">vector</span> database, API, worker, or model cache, one checked-in Compose file gives each engineer the same starting command and mount policy. Add only the scorer that exists today.
-
-Start with a runnable `compose.yaml` for the scorer:
+Once your stack grows beyond one container (say adding a <span data-glossary="vector">vector</span> store or <span data-glossary="rag">RAG</span> API), checking in `compose.yaml` gives every teammate the same build and mount configuration. Start with the scorer alone (omit the obsolete top-level `version:` key):
 
 ```yaml title="compose.yaml"
 services:
@@ -369,9 +312,7 @@ services:
           create_host_path: false
 ```
 
-`create_host_path: false` preserves the missing-directory failure we chose with `docker run --mount`. Compose otherwise creates a missing bind source directory by default. `read_only: true` on the service protects its root filesystem; the second `read_only` protects the separate data mount.[^docker2026composeservices]
-
-Validate the file prior to executing it:
+`create_host_path: false` matches `--mount`'s refusal to auto-create a missing host directory, while `read_only: true` locks down both the root filesystem and the mounted dataset.[^docker2026composeservices] Validate the YAML and run with `--build` so source edits rebuild the image instead of reusing a stale tag:
 
 ```bash title="terminal-6"
 if docker compose version >/dev/null 2>&1; then
@@ -382,38 +323,22 @@ else
 fi
 ```
 
-Docker Desktop includes Compose. Some Linux Engine installs need the `docker-compose-plugin` package first; follow Docker's [plugin installation instructions](https://docs.docker.com/compose/install/linux/). If `docker compose version` is unknown, the Dockerfile still works through `docker run`, but the Compose workflow isn't installed yet.
-
-Omit the obsolete top-level [`version:` field](https://docs.docker.com/reference/compose-file/version-and-name/). Docker's [Compose file reference](https://docs.docker.com/compose/intro/compose-application-model/#the-compose-file) names `compose.yaml` as the preferred filename and retains `docker-compose.yml` for compatibility. Use the current `docker compose` command.
-
-`docker compose config --quiet` validates and resolves configuration without starting a container; it doesn't prove the scorer works or that its mount is readable. `docker compose run --build --rm scorer` first builds the service image, then creates a one-off container. `--build` matters after a source edit because an existing tag may still point at an older image. `--rm` removes the container after the scorer exits, while the image remains available.
-
-As the <span data-glossary="rag">RAG</span> stack gains real services, add their images, commands, and mounts to this same file. Until then, keep the scorer as the only service so another engineer can run the file as written.
-
 ## Keep credentials out of image layers
 
-The scorer doesn't need an API key yet, so don't give it one. <span data-glossary="least-privilege">Least privilege</span> starts by attaching no secret to a process that doesn't use it. When a future build needs private-package access, separate that short build lifetime from the runtime secret a process reads later.
-
-When a build must authenticate to a private package index, don't pass the credential with `ARG` or `ENV`. `ARG` isn't copied into the running container the way `ENV` is, but it still isn't safe. The [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#arg) warns that build-arg values appear in `docker history` and detailed image build metadata.
-
-This bad pattern puts the <span data-glossary="token">token</span> in a build argument. Don't run it with a real credential:
+<span data-glossary="least-privilege">Least privilege</span> starts with passing zero secrets to a scorer that does not call an API. When a future build needs a private package index, never pass the <span data-glossary="token">token</span> with `ARG` or `ENV`: `ENV` persists into runtime config, and `ARG` values still show up in `docker history` and build metadata.
 
 ```dockerfile title="Dockerfile-2"
-# BAD: ARG values can appear in image history and build attestations
+# BAD: ARG values appear in image history and build attestations
 ARG PRIVATE_INDEX_TOKEN
 RUN python -m pip install --index-url "https://token:${PRIVATE_INDEX_TOKEN}@packages.example.invalid/simple" private-package
 ```
 
-BuildKit, Docker's build engine, has a separate secret-mount channel. The mounted file is available only for that `RUN` instruction and isn't committed to its layer. Commands can still leak it by copying its contents elsewhere or printing them, so the channel doesn't replace careful handling.[^docker2026buildsecrets]
-
-If `requirements.txt` later needs a private index, replace its install instruction in the builder stage with this fragment. When this `RUN` executes, `required=true` makes it fail if the selected secret is missing. A cache hit can skip the instruction and its secret check. To test delivery, force the builder stage to execute with `--no-cache-filter builder`. Use this mount on the install instruction:
+Instead, use a BuildKit **secret mount**, which exposes the credential file only during that single `RUN` step and never commits it to the layer (still keep commands from echoing or copying it elsewhere):[^docker2026buildsecrets]
 
 ```dockerfile title="Dockerfile (builder-stage fragment)"
 RUN --mount=type=secret,id=pip_config,target=/etc/pip.conf,required=true \
     python -m pip install --require-hashes -r /tmp/requirements.txt
 ```
-
-Supply that temporary file from the build command:
 
 ```bash title="terminal-7"
 docker build \
@@ -421,9 +346,7 @@ docker build \
   -t prompt-eval:private .
 ```
 
-Runtime secrets use a separate channel. Docker's Compose guidance warns against putting passwords or API keys in <span data-glossary="environment-variable">environment variables</span>, because container configuration and diagnostic tooling can expose them. When the scorer later calls an API, mount a Compose secret as `/run/secrets/eval_api_key` or use the deployment platform's secret manager, then have the process read that file. Keep `env_file` for non-sensitive settings such as log level or feature mode.[^docker2026composesecrets]
-
-Once the scorer reads that file, extend the existing Compose model with this fragment:
+For runtime API keys, avoid ordinary <span data-glossary="environment-variable">environment variables</span> (which leak easily into `docker inspect` and crash logs). Mount a Compose secret file at `/run/secrets/eval_api_key` locally (or use your cloud platform's secret manager in production) and keep `secrets/` and `.env*` in both `.gitignore` and `.dockerignore`:[^docker2026composesecrets]
 
 ```yaml title="compose-secret-fragment.yaml"
 services:
@@ -436,10 +359,6 @@ secrets:
     file: ./secrets/eval_api_key.txt
 ```
 
-Don't add this fragment before the process consumes the file. Local Compose mounts a host file; it doesn't encrypt that file or remove host-access risks. Keep it out of Git, restrict its host permissions, and verify that `appuser` can read the mounted secret without granting unrelated users access.
-
-Keep `secrets/` and `.env*` in both `.gitignore` and `.dockerignore`. Those exclusions protect two different routes out of your machine. Explicit build-secret and runtime-secret mounts deliver the selected file without copying it into ordinary image layers.
-
 ```checkpoint
 Why shouldn't an API key enter through `COPY`, `ARG`, `ENV`, or an ordinary runtime environment variable?
 ---
@@ -448,51 +367,36 @@ Why shouldn't an API key enter through `COPY`, `ARG`, `ENV`, or an ordinary runt
 
 ## When the GPU enters the story
 
-The CPU-first image is the right base here. It works through Docker Engine or Docker Desktop on common Linux, macOS, and Windows development machines. For the Linux Docker Engine path below, a <span data-glossary="cuda">CUDA</span> workload needs a compatible NVIDIA GPU, an installed host driver, and NVIDIA Container Toolkit configuration that exposes selected devices to the container. The image supplies the framework and its application CUDA runtime libraries. The configured container runtime exposes host driver libraries and utilities according to the requested capabilities. The kernel driver stays on the host.[^nvidiaContainerToolkit2026]
-
-Windows also has a supported GPU path: Docker Desktop with its WSL2 backend and a compatible NVIDIA Windows driver can expose the GPU to Linux containers. Use Docker's Windows-specific setup and validation instructions for that path; the `systemctl` and Linux driver commands below configure a Linux Engine host.[^docker2026desktopgpu]
-
-When the same scorer later becomes a GPU workload, don't start by swapping Python packages. Check each layer in sequence to see where visibility breaks: the host driver, the container runtime, or the PyTorch build inside the image.
-
-After installing the toolkit on a systemd-managed Docker Engine host, configure its runtime and restart the daemon:
-
-```bash title="terminal"
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-Rootless Docker uses a user-scoped daemon configuration and restart command, so follow NVIDIA's rootless instructions instead of copying the system-wide commands.
-
-When a later <span data-glossary="pytorch">PyTorch</span> or inference chapter needs GPU acceleration, keep the same habits and change only the platform-specific pieces:
+Keep the CPU image for everyday local development across Linux, macOS, and Windows. When a later <span data-glossary="pytorch">PyTorch</span> workload needs NVIDIA <span data-glossary="cuda">CUDA</span> inside Linux Docker Engine, the host keeps the kernel driver, the NVIDIA Container Toolkit exposes driver libraries and devices to the container, and the image supplies the framework and CUDA runtime libraries.[^nvidiaContainerToolkit2026]
 
 | Dimension | CPU evaluator now | GPU workload later |
 |---|---|---|
-| Base image | `python:3.12-slim-trixie` | official PyTorch CUDA image or NVIDIA CUDA runtime image matched to the torch wheel |
-| Runtime check | scorer returns `0.667` | `python -c "import torch; assert torch.cuda.is_available()"` |
-| Run command | `docker run prompt-eval:local` | `docker run --gpus all ...`; add shared memory only when the workload needs it |
-| Portability claim | same Python runtime on normal machines | compatible NVIDIA platform, driver, and container runtime |
+| Base image | `python:3.12-slim-trixie` | official PyTorch CUDA or NVIDIA CUDA runtime image matched to your torch wheel |
+| Runtime check | scorer prints `0.667` | `python -c "import torch; assert torch.cuda.is_available()"` |
+| Run command | `docker run prompt-eval:local` | `docker run --gpus all ...` (add `--shm-size` if DataLoader workers need it) |
+| Host requirement | Docker Engine or Desktop | NVIDIA GPU + host driver + NVIDIA Container Toolkit (or WSL2 GPU on Windows[^docker2026desktopgpu]) |
 
-Don't promise that one CUDA image gives Apple Silicon and NVIDIA parity. Docker Desktop on Apple Silicon can run this Linux CPU image, but it doesn't turn the Mac GPU into an NVIDIA CUDA device. Use the later Metal/MPS path for native Mac PyTorch, and test production CUDA images on compatible Linux NVIDIA hosts.
-
-Notice what this <span data-glossary="smoke-test">smoke test</span> actually checks: GPU device visibility inside Docker, not compatibility with a specific PyTorch wheel. NVIDIA uses a plain `ubuntu` image so the toolkit can expose `nvidia-smi` without coupling the check to a CUDA application image.[^nvidiaSampleWorkload2026]
+On a systemd Linux host, configure the runtime and run NVIDIA's minimal `ubuntu` <span data-glossary="smoke-test">smoke test</span> to check device visibility independently of any PyTorch image:[^nvidiaSampleWorkload2026]
 
 ```bash title="terminal-8"
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
 sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
 ```
 
-Read GPU failures in layers:
+Diagnose GPU failures top-down in three layers:
 
-| Observation | Component to inspect next |
+| Observation | Component to check next |
 |---|---|
-| `nvidia-smi` fails on host | install or repair host NVIDIA driver first |
-| host command works, container smoke test fails | inspect Container Toolkit installation, Docker runtime configuration, and requested devices |
-| smoke test works, but `torch.cuda.is_available()` is false | inspect application image, installed PyTorch build, visible-device settings, and driver/runtime compatibility |
+| `nvidia-smi` fails on host | host NVIDIA driver |
+| Host `nvidia-smi` works, container smoke test fails | NVIDIA Container Toolkit and Docker runtime config |
+| Container `nvidia-smi` works, `torch.cuda.is_available()` is false | PyTorch wheel CUDA version, driver minimum version, or `CUDA_VISIBLE_DEVICES` |
 
-The smoke test checks device visibility; it does not verify wheel or CUDA compatibility for a specific PyTorch image. Read the table from top to bottom: fix the host first, then the container runtime, then the application image. For a real workload, select an official framework or CUDA image whose architecture and CUDA runtime match the locked Python packages. Verify its documented minimum driver requirement, then pin that application image for the release as you pinned the CPU base.
+Note that Docker Desktop on Apple Silicon runs Linux CPU containers, not NVIDIA CUDA; use the native Metal/MPS path on Mac and test CUDA containers on Linux NVIDIA hosts.
 
 ## Combine the checks in a CI script
 
-Once the container runs cleanly by hand, combine the static check, build, and both dataset paths into a single Bash check script for local verification or continuous integration (CI). Running both paths ensures a working host mount does not mask a broken baked dataset. Save this as `scripts/check_container.sh` and run it from the project root with `bash scripts/check_container.sh`:
+Bundle the static check, build, image-ID capture, and both baked and mounted dataset runs into `scripts/check_container.sh` so local verification and CI run the exact same command:
 
 ```bash title="terminal-9"
 #!/usr/bin/env bash
@@ -524,38 +428,28 @@ printf '%s\n' "$baked_report" "Verified local image: $image_id"
 if docker compose version >/dev/null 2>&1; then
   docker compose config --quiet
 else
-  echo "Docker Compose plugin missing. Install docker-compose-plugin before enabling the compose gate."
+  echo "Docker Compose plugin missing. Install docker-compose-plugin before enabling the Compose check."
 fi
 ```
 
-`set -euo pipefail` stops this script when a mandatory command fails. A missing Compose plugin is deliberately reported and skipped; an installed plugin with invalid configuration fails the script. On an older Docker release without `docker build --check`, upgrade or temporarily omit only that static check. Neither static check substitutes for running the image.
+Running both the baked and mounted paths ensures a valid host file never masks a broken image copy. Pinning both runs to the captured `$image_id` prevents a concurrent re-tag of `prompt-eval:check` from changing which image gets tested. Before deploying to production, push the tested image and promote its registry-reported `repository@sha256:...` digest rather than reconstructing a reference from a local image ID.[^dockerImageIdentity2026]
 
-The evaluation script exits zero whenever accuracy reaches at least two-thirds (`3/3` passes as well as `2/3`). The exact string comparison checks whether output matches the current starter cases; intentionally editing `eval/eval_cases.jsonl` means updating the expected output block alongside it. A threshold check and an exact regression check answer different questions.
-
-Try updating the third host case so all three match, then rerun the script after rebuilding. Even though `3/3` passes the two-thirds rule, the exact string check reports `ERROR: baked eval report changed`. Restore the original case prior to moving on. This failure distinguishes changed input from a broken container runtime.
-
-Keep `prompt-eval:check` on the image you built until the following inspection returns its ID. Both test commands use that captured ID, so a later tag change cannot redirect either run. If other jobs share the tag, the build’s `--iidfile` option can record its output ID directly. A local identity doesn't prove the image exists in a deployment registry. Before deployment, record and promote the registry's verified `repository@sha256:...` reference for the tested image. Don't construct that reference by attaching a local ID to a registry URL. Docker distinguishes image IDs from repository digests, and its push or pull output reports the registry digest.[^dockerImageIdentity2026]
+Notice the difference between the scorer's pass rule (`>= 2/3`, so `3/3` also exits `0`) and the script's exact string check (`expected_report`): if you deliberately improve a prediction in `eval/eval_cases.jsonl`, update `expected_report` alongside it.
 
 ## Failures you'll see first
 
-| Symptom | Possible cause | Fix that belongs in the repo |
+| Symptom | Likely cause | Fix that belongs in the repo |
 |---|---|---|
-| `ModuleNotFoundError` inside the container | dependency missing from `requirements.txt` | add it to `requirements.txt`, rebuild, and keep dependency install before `COPY scripts/` |
-| `.env` appears in the image context | `.dockerignore` forgot `.env*` | add `.env*`, rotate any exposed credential, rebuild, and inspect image history before pushing |
-| `Permission denied` on a mounted directory | `appuser` lacks the required access | check file modes and UID/GID; initialize writable volume ownership rather than assuming Docker grants access |
-| each code edit reinstalls dependencies | `COPY . /app` happens before dependency install | copy `requirements.txt` first, install dependencies, then copy application code |
-| `could not select device driver with capabilities: [[gpu]]` | Docker's configured runtime can't provide the requested GPU | check the platform's GPU setup and keep the CPU scorer path working |
-| Cloud Run starts but can't read config | local file or environment setup was assumed to exist in production | declare non-secret configuration and use Secret Manager for credentials |
-
-Document the diagnosis, command, and prevention in the repo so the next clone can reproduce the fix without rediscovering it.
+| `ModuleNotFoundError` in container | package missing from `requirements.txt` | add pinned hash to `requirements.txt`, rebuild |
+| `.env` enters build context | `.dockerignore` omitted `.env*` | add `.env*`, rotate exposed key, rebuild and inspect history |
+| `Permission denied` on mounted dir | `appuser` lacks UID/GID access | fix host file mode or initialize named volume ownership |
+| Every code edit reinstalls packages | `COPY . /app` precedes `pip install` | copy `requirements.txt` and install before copying app code |
+| `could not select device driver with capabilities: [[gpu]]` | runtime lacks NVIDIA GPU support | check Container Toolkit config; keep CPU scorer working |
+| Cloud Run starts without config | relied on local `.env` file | declare non-secret env vars and bind Secret Manager for keys |
 
 ## What survives a fresh clone
 
-Commit `Dockerfile`, `.dockerignore`, `requirements.txt`, `compose.yaml`, and `scripts/check_container.sh` alongside `scripts/score_eval.py` and `eval/eval_cases.jsonl`. Repeat the previous lesson's temporary-clone check after committing these files, then run `bash scripts/check_container.sh` inside that clone. The builder should see only committed project inputs. Another engineer should be able to run both baked and mounted dataset paths and reproduce the empty-mount error without borrowing your virtual environment or API keys.
-
-Before publishing a release image, pin the base digest and deployment platform, lock any dependencies, and record the image identity with the successful run output. These controls constrain the inputs; they don't guarantee bit-for-bit identical rebuilds or identical GPU numerical results. For deployment, promoting one tested image by digest is a stronger guarantee than rebuilding the same recipe on every machine.
-
-Separate the files that belong in the image from the files that arrive on a mount, and expect a known failure when the eval directory is missing. The scorer is still a command that prints `0.667`. Follow that command through one row: how it parses a field, compares a label, and decides the gate.
+Commit `Dockerfile`, `.dockerignore`, `requirements.txt`, `compose.yaml`, and `scripts/check_container.sh` alongside `scripts/score_eval.py` and `eval/eval_cases.jsonl`, then run `bash scripts/check_container.sh` inside a fresh temporary clone. When promoting a release image, pin base digests and target platform, lock dependencies, and promote the single tested registry digest rather than rebuilding on every machine.
 
 ```mastery-quiz
 [
@@ -590,7 +484,7 @@ Separate the files that belong in the image from the files that arrive on a moun
       "Eligible context includes secret: no; selected COPY bakes secret: yes."
     ],
     "answer": "Eligible context includes secret: yes; selected COPY bakes secret: no.",
-    "explanation": "Git exclusions do not provide Docker context exclusions. The secret remains eligible to the builder, but the selected COPY instructions omit it. BuildKit can avoid transferring unused files, so eligibility does not prove that this unread secret’s bytes were transmitted. An explicit .dockerignore rule narrows the permitted context itself."
+    "explanation": "Git exclusions do not provide Docker context exclusions. The secret remains eligible to the builder, but the selected COPY instructions omit it. BuildKit can avoid transferring unused files, so eligibility does not mean this unread secret’s bytes were transmitted. An explicit .dockerignore rule narrows the permitted context itself."
   },
   {
     "question": "An unchanged install command consumes requirements.txt with --require-hashes. A developer edits only an unused lockfile. In a separate clean install with --no-cache-dir and --require-hashes, pip downloads a wheel directly from the package index. Its version matches the pin, but its hash is absent from the approved list. Which paired interpretation is correct?",
@@ -604,7 +498,7 @@ Separate the files that belong in the image from the files that arrive on a moun
     "explanation": "The command reads requirements.txt rather than the unused lockfile. Version equality does not make a downloaded artifact’s bytes an approved hash. A reviewed export or a frozen lock-aware install must connect a lock to the actual dependency operation."
   },
   {
-    "question": "Two read paths use one image ID and the exact two-thirds threshold. The first batch has 6 matches among 8 rows; the second has 5 among 8. Which threshold results follow from the integer gate?",
+    "question": "Two read paths use one image ID and the exact two-thirds threshold. The first batch has 6 matches among 8 rows; the second has 5 among 8. Which threshold results follow from the integer check?",
     "options": [
       "First fails; second passes.",
       "First passes; second fails.",
@@ -626,7 +520,7 @@ Separate the files that belong in the image from the files that arrive on a moun
     "explanation": "The -v bind form creates the absent source as an empty host directory. It hides the baked eval file, so the first run fails. Removing that container does not delete the host directory. The later explicit --mount therefore sees an existing empty source, launches, and reaches the same scorer-level missing-file failure."
   },
   {
-    "question": "A Compose service named `audit` has `build: .`, `read_only: true`, and `volumes: [\"./batches:/input\"]`. It runs `/app/audit.py`, which the Dockerfile copies into the image. You edit the script after the last build. Host permissions let the service user read the batch and create files in `./batches`. After `docker compose config --quiet` succeeds, which run will test the edit, and does the mount permit the script to create `/input/checked`?",
+    "question": "A Compose service named `checker` has `build: .`, `read_only: true`, and `volumes: [\"./batches:/input\"]`. It runs `/app/check.py`, which the Dockerfile copies into the image. You edit the script after the last build. Host permissions let the service user read the batch and create files in `./batches`. After `docker compose config --quiet` succeeds, which run will test the edit, and does the mount permit the script to create `/input/checked`?",
     "options": [
       "Rebuild and run the service. The mount permits the write.",
       "Run the existing image. The mount blocks the write.",
@@ -634,7 +528,7 @@ Separate the files that belong in the image from the files that arrive on a moun
       "Rebuild and run the service. The mount blocks the write."
     ],
     "answer": "Rebuild and run the service. The mount permits the write.",
-    "explanation": "The existing image still holds the old script. Compose validated the configuration. Run `docker compose run --build --rm audit` to copy the edit into the image and exercise it on the batch. The service setting protects the root filesystem. The bind at `/input` defaults to read-write because its entry omits `:ro`. The host permissions allow the script to create the file there."
+    "explanation": "The existing image still holds the old script. Compose validated the configuration. Run `docker compose run --build --rm checker` to copy the edit into the image and exercise it on the batch. The service setting protects the root filesystem. The bind at `/input` defaults to read-write because its entry omits `:ro`. The host permissions allow the script to create the file there."
   },
   {
     "question": "A build uses a temporary secret mount, but its command copies the secret into /app/debug.txt before the step finishes. A later layer deletes debug.txt. Which credential and output conclusions follow?",
@@ -659,7 +553,7 @@ Separate the files that belong in the image from the files that arrive on a moun
     "explanation": "The bind hides the image's `/out` directory. Mode 0755 grants write access to the owner, UID 1700. UID 4200 can enter that host directory but needs write access there to create the report. The host sees the GPU, but Docker cannot start the Ubuntu probe with the requested device. Check the NVIDIA Container Toolkit and Docker runtime configuration. The worker's PyTorch package plays no part in that probe."
   },
   {
-    "question": "A gate captures local image ID L and passes L to both run commands. The baked and mounted runs each print the expected report. The mutable tag later points elsewhere, and no verified repository digest has been recorded. What has actually been tested, and what is still needed for deployment?",
+    "question": "A CI script captures local image ID L and passes L to both run commands. The baked and mounted runs each print the expected report. The mutable tag later points elsewhere, and no verified repository digest has been recorded. What has actually been tested, and what is still needed for deployment?",
     "options": [
       "Both runs exercised the later tag target; deploy that tag because its reassignment preserves the captured test identity.",
       "Both runs exercised L; construct repository@L from the local ID because local success confirms that registry location.",

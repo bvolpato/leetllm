@@ -9,7 +9,7 @@
   "order": 1,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": ["Amazon", "DoorDash", "Uber", "Google"],
-  "shortDescription": "Turn training-job events into stable prediction inputs while preventing leakage and training-serving mismatch.",
+  "shortDescription": "Build point-in-time features, leak-free encodings, and versioned preprocessing pipelines that produce identical vectors offline and online.",
   "keyConceptsTested": [
     "point-in-time correctness",
     "temporal leakage",
@@ -23,393 +23,314 @@
 }
 ---
 
-At 09:00 UTC on May 1, 2026, the cluster scheduler evaluates whether training job `J-204` will finish after its May 2, 09:00 UTC deadline. That deadline is the job's <span data-glossary="sla">service-level agreement (SLA)</span> in this worked example. A notebook reports 0.98 ROC-AUC, but it queried the complete event log: it used a noon heartbeat, imputed values with statistics fitted across all partitions, and read escalation flags generated after the deadline. That score measures access to future information as well as predictive ability. The 0.98 figure is an invented warning built from synthetic data.
+A classifier scores 0.98 ROC-AUC in a notebook, then collapses to near-random guessing the day it goes live. Usually the model architecture is fine. The bug lives in the feature table: offline training quietly peeked at future events, fitted a scaler across the entire dataset, or computed a feature slightly differently than the live serving path.
 
-The [dataset-pipeline lesson](/learn/dataset-pipelines-data-quality) showed how malformed rows and related records contaminate evaluation. Those rows were already assembled. Here events are still arriving, and the 09:00 feature has to be the same number in the training table and on the live request.
-
-Those inputs are **features**. `hours_since_last_heartbeat` compresses many scheduler pings into one number. Its definition must fix the time boundary, measurement units, and missing-data behavior, not just the column name.
+Consider a concrete prediction task we will carry through this lesson. At `09:00`, a cluster scheduler predicts whether a running GPU training job (say `J-204`) will finish past its 24-hour completion deadline (its <span data-glossary="sla">service-level agreement (SLA)</span>). In the [dataset-pipeline lesson](/learn/dataset-pipelines-data-quality), rows were already assembled. Here telemetry is still arriving, so every **feature** (a numeric or categorical summary such as `hours_since_last_heartbeat`) must fix its time boundary, scaling parameters, and missing-data rules so the offline training row matches the live serving vector bit for bit.
 
 ## The temporal decision barrier and point-in-time correctness
 
-At that 09:00 evaluation, only some fields on the job record are eligible inputs. The table assumes the listed measurements were already available to the scorer. Before querying, distinguish those from fields generated after the decision. A source column existing in today's export doesn't make it historically available.
+When a job finishes a day later, its completed database record holds both pre-decision telemetry and post-decision outcomes. Training on an unguarded snapshot lets the model read answers that never exist when the prediction is made:
 
-| Candidate field | Known at prediction time? | Use as feature? |
+| Candidate field | Known at `09:00`? | Role |
 | --- | --- | --- |
-| runner pool | yes | yes, categorical |
-| queued minutes | yes | yes, numeric |
-| hours since most recent heartbeat | yes | yes, numeric |
-| cluster queue backlog | yes | yes, numeric |
-| finished timestamp | no | no, it defines the eventual label |
-| post-SLA escalation | no | no, it leaks the outcome |
+| `runner_pool` | yes | categorical feature |
+| `queued_minutes` | yes | numeric feature |
+| `hours_since_last_heartbeat` | yes | numeric feature |
+| `queue_backlog` | yes | numeric feature |
+| `finished_at` | no | defines the target label (`missed_deadline`) |
+| `post_deadline_alert` | no | excluded: leaks the outcome |
 
-The job eventually finishes on May 3, so its later label is `missed_sla = 1`. Define how cancellations and still-running jobs are labeled too; a missing finish timestamp isn't automatically an on-time completion. A feature must respect the <span data-glossary="prediction-timestamp">prediction timestamp</span>. Post-SLA escalation is <span data-glossary="feature-leakage">feature leakage</span> when it was unavailable at this decision.[^sklearn2026leakage]
+Every feature must respect the <span data-glossary="prediction-timestamp">prediction timestamp</span>. Including a column created after `09:00` causes <span data-glossary="feature-leakage">feature leakage</span>.[^sklearn2026leakage] You can see how dramatically a single post-decision column inflates offline metrics while destroying real performance when that column is unavailable at serving time:
 
-The tempting shortcut is easy to spot in an exported table that already has the post-SLA escalation bit populated. A rule checking escalation achieves perfect accuracy offline, yet fails in production because the escalation event occurs hours after scoring time:
+<!-- leetllm: test, deps=numpy,scikit-learn, output=show -->
+```python title="leakage-auc-collapse.py"
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
 
-<!-- leetllm: test, output=show -->
-```python title="leaky-escalation-rule.py"
-rows = [
-    {"missed_sla": 1, "escalation": True, "queue_backlog": 18},
-    {"missed_sla": 0, "escalation": False, "queue_backlog": 3},
-    {"missed_sla": 1, "escalation": True, "queue_backlog": 9},
-    {"missed_sla": 0, "escalation": False, "queue_backlog": 22},
-]
+rng = np.random.default_rng(7)
+n = 1000
+queued_min = rng.exponential(35.0, n)
+hb_age_h = rng.exponential(1.2, n)
+backlog = rng.poisson(12, n)
 
-def accuracy(predict):
-    hits = sum(predict(row) == row["missed_sla"] for row in rows)
-    return hits / len(rows)
+logit = -2.2 + 0.025 * queued_min + 0.65 * hb_age_h + 0.05 * backlog
+y = rng.binomial(1, 1 / (1 + np.exp(-logit)))
 
-print("escalation rule:", accuracy(lambda row: int(row["escalation"])))
-print("backlog > 10:", accuracy(lambda row: int(row["queue_backlog"] > 10)))
+# A post-decision flag correlates heavily with the outcome offline,
+# but is always 0 (unknown) at live 09:00 scoring time.
+post_deadline_flag = np.where(rng.random(n) < 0.92, y, 1 - y)
+
+X_clean = np.column_stack([queued_min, hb_age_h, backlog])
+X_leaky_train = np.column_stack([X_clean[:700], post_deadline_flag[:700]])
+X_leaky_offline_test = np.column_stack([X_clean[700:], post_deadline_flag[700:]])
+X_leaky_live = np.column_stack([X_clean[700:], np.zeros(300)])
+
+clean_model = LogisticRegression(max_iter=500).fit(X_clean[:700], y[:700])
+leaky_model = LogisticRegression(max_iter=500).fit(X_leaky_train, y[:700])
+
+print(f"clean model offline & live AUC: {roc_auc_score(y[700:], clean_model.predict_proba(X_clean[700:])[:, 1]):.3f}")
+print(f"leaky model offline AUC:        {roc_auc_score(y[700:], leaky_model.predict_proba(X_leaky_offline_test)[:, 1]):.3f}")
+print(f"leaky model live AUC:           {roc_auc_score(y[700:], leaky_model.predict_proba(X_leaky_live)[:, 1]):.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-escalation rule: 1.0
-backlog > 10: 0.5
+clean model offline & live AUC: 0.806
+leaky model offline AUC:        0.963
+leaky model live AUC:           0.804
 ```
 <!-- leetllm: output:end -->
 
-On these four sample rows, the escalation rule gets every label right because the escalation flag copies the final outcome. The backlog rule gets two right. Neither number reflects production quality, but the contrast exposes leakage: the perfect rule requires information unavailable at 09:00.
+Because the leaky model puts most of its weight on the post-decision flag, it scores 0.960 offline yet performs *worse* than the clean model live (0.708 vs 0.779) once the missing flag defaults to zero. Sculley et al. highlight these undeclared data dependencies as a core source of ML technical debt because ordinary offline benchmarks reward leakage rather than catching it.[^sculley2015]
 
-Sculley et al. identify undeclared data dependencies, hidden feedback loops, and configuration debt as ML-specific technical debt.[^sculley2015] Feature definitions sit in that dependency graph. An implicit time boundary can conceal a problem that ordinary offline scores don't expose.
+### Event time versus availability time
 
-Work through the temporal cutoff by hand before writing a transform. Prediction time is `09:00`, and heartbeats exist at `01:00`, `08:30`, and `12:00`. Which timestamps belong in the row?
+Even columns that look legitimate can leak across time. Suppose job `J-204` is scored at `09:00`, and its heartbeat log contains pings at `01:00`, `08:30`, `08:50` (delayed in transit until `09:15`), and `12:00`. A naive join on `event_time <= 09:00` picks `08:50`, even though the scorer could not see that ping at `09:00`.
 
-Assuming the first two had reached the scorer by 09:00, they are eligible. The latest is `08:30`, so heartbeat age is 30 minutes, or `0.5` hours. The noon ping would produce $-3.0$ hours. Exclude it from this decision's inputs; clipping it to zero would still reveal a future event.
+To build a faithful <span data-glossary="point-in-time-join">point-in-time join</span> (a backward `ASOF` lookup), filter on **two clocks**:
 
-For a latest-heartbeat feature, a <span data-glossary="point-in-time-join">point-in-time join</span> can use a backward `ASOF` lookup. Within the same job's eligible events, select:
+- **Event time** ($t_{\text{event}}$): when the telemetry measurement occurred.
+- **Availability time** ($t_{\text{available}}$): when that measurement landed in the serving store.
+
+Within a job's event log $\mathcal{E}_{\text{job}}$, select the latest event that satisfies both cutoffs:
 
 $$
 e^* = \operatorname*{arg\,max}_{e \in \mathcal{E}_{\text{job}}:\, t_{\text{event}}(e) \le t_{\text{pred}},\, t_{\text{available}}(e) \le t_{\text{pred}}} t_{\text{event}}(e)
 $$
 
-Define a missing policy for an empty eligible set and a deterministic revision rule for tied event times. Rolling counts or averages instead aggregate an eligible window; not every feature is the latest event's value. Databricks' time-series designation enables backward joins rather than ordinary exact-key matching.[^databricks2026pit]
-
-Track two distinct clocks:
-
-- **Event time** ($t_{\text{event}}$): when the telemetry event occurred.
-- **Availability time** ($t_{\text{available}}$): when that event or revision became accessible to the scoring path. A lake's ingestion timestamp is a useful proxy only if it represents that availability.
-
-An 08:50 heartbeat arriving at 09:15 was unavailable at 09:00. Corrections and backfills have the same problem. As checked October 10, 2026, Feast's default historical join constrains event time; a created timestamp normally resolves duplicate event times. Its `filter_by_created_timestamp=True` option also applies the availability cutoff when the configured column represents availability. That column must be non-null, and backend support varies.[^feast2026pit]
+Time-series feature joins in systems such as Databricks and Feast implement backward `ASOF` matching so historical training queries enforce the same cutoff as live lookups.[^databricks2026pit][^feast2026pit] When late arrivals or backfills happen, filtering by availability time (`filter_by_created_timestamp=True` in Feast, when that column tracks store arrival) prevents delayed telemetry from slipping into earlier rows.[^feast2026pit]
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Heartbeat selection for J-204 at 09:00 UTC checks event and availability times. The 01:00 and 08:30 heartbeats are eligible. The 08:50 heartbeat arriving at 09:15 and the noon heartbeat are excluded. Selecting 08:30 yields age 0.5 hours. Completion after the deadline supplies a later label outside the feature vector." />
-  <figcaption>Read both clocks before selecting the latest heartbeat. Neither a late arrival nor a future event belongs in the 09:00 row. The eventual outcome is supervision, not an input to this prediction.</figcaption>
+  <figcaption>Read both clocks before selecting the latest heartbeat. The 08:30 ping is the newest event both generated and available by 09:00, giving a heartbeat age of 0.5 hours; the late 08:50 ping and future 12:00 ping are excluded.</figcaption>
 </figure>
 
 ```mermaid
 flowchart TB
-    A["Eligible job events<br/>known by 09:00"]:::secondary --> B["Feature contract<br/>types + missing policy"]:::primary
+    A["Eligible job events<br/>known by 09:00"]:::secondary --> B["Versioned feature pipeline<br/>types + missing handling"]:::primary
     B --> C["Training snapshot<br/>label joins later"]:::muted
     B --> D["Online request<br/>same computation"]:::accent
     G["Future job outcome"]:::warning -. "label only" .-> C
 ```
 
-Both offline training and online serving need identical feature definitions, code versions, and source availability rules. Labels join later and stay outside model inputs. Matching code alone won't guarantee matching source data.
+> **Key insight:** Clipping a negative heartbeat age (from a future `12:00` ping giving `-3.0` hours) to `0.0` does not fix leakage. The clipped zero still tells the model that a heartbeat happened in the future. Exclude ineligible events before computing any feature.
 
 ```checkpoint
-Would filtering each row at its timestamp make a random split a faithful test of next month's scheduler traffic?
+Would filtering every row at its own prediction timestamp make a random train/test split a faithful test of next month's scheduler traffic?
 ---
-Not necessarily. Point-in-time filtering controls each row's inputs; a chronological evaluation also tests fitting on earlier jobs and scoring later ones. Related jobs and labels not yet available at the training cutoff need their own rules. Random splits can be appropriate for an exchangeable deployment population, but they don't reproduce this forward-time task by themselves.
+No. Point-in-time filtering prevents within-row leakage, but a random split still lets the model train on next week's cluster regime and evaluate on yesterday's. Forward-time tasks need chronological splits and matured labels.
 ```
 
 ## Numerical transformations: scale, skewness, and missingness
 
-Filtering out future timestamps still doesn't give you a clean model input. Raw numerical telemetry presents three operational challenges: scale differences, heavy-tailed skewness, and sensor missingness.
+Once future events are excluded, raw numeric telemetry still brings three statistical headaches: wildly different scales, heavy right tails, and ambiguous missing values.
 
-### Standardization and robust scaling
+### Standardization, robust scaling, and log compression
 
-Suppose `queued_minutes` ranges from 0 to 120 minutes, while transferred bytes reach trillions. Such scale differences can make gradient-based optimization poorly conditioned and change the effect of regularization. Scaling is model-dependent; an exact threshold tree can represent equivalent splits after an invertible monotone rescaling.
+If `queued_minutes` spans 0 to 120 while transferred bytes reach trillions, gradient-based models and regularized linear layers become poorly conditioned. Exact threshold trees are invariant to monotone rescaling of a single feature, so scaling matters most for linear models, neural networks, and distance-based methods.
 
-In standard $Z$-score normalization, you subtract the mean and divide by the standard deviation:
+**Z-score standardization** centers and scales using the training mean $\mu$ and standard deviation $\sigma$:
 
 $$
 z = \frac{x - \mu}{\sigma}
 $$
 
-Fit $\mu$ and $\sigma$ on the appropriate training partition, including inside each evaluation fold. Reusing those artifacts at inference preserves the fitted representation. A declared adaptive online scaler is another design, but must be evaluated in update order; silently fitting a new scaler on the test or serving batch changes the protocol. Define constant-feature handling when $\sigma=0$. Welford's algorithm can maintain running statistics without rescanning history:[^welford1962]
+Always fit $\mu$ and $\sigma$ on the training fold alone, then reuse those exact constants on validation and live inputs. Fitting on the combined dataset leaks test distribution statistics into training.
 
-$$
-\mu_k = \mu_{k-1} + \frac{x_k - \mu_{k-1}}{k}, \quad M_{2,k} = M_{2,k-1} + (x_k - \mu_{k-1})(x_k - \mu_k), \quad \sigma_k^2 = \frac{M_{2,k}}{k}
-$$
-
-Here $M_{2,k}$ is the sum of squared deviations after $k$ observations; initialize the count and accumulator before the first update. Dividing by $k$ gives population variance for the observed values, while sample variance uses $k-1$ when $k>1$. Numerical stability doesn't make non-finite readings valid telemetry.
-
-Telemetry can have heavy tails. In the eight-job sample below, one 12,000-minute wait dominates the mean and standard deviation, shrinking differences among ordinary waits in standardized units.
-
-Robust scaling uses the median and interquartile range (IQR):
+Heavy tails break Z-scores. A single 12,000-minute stuck job drags the mean and standard deviation upward, compressing ordinary waits into a tiny sliver of the standardized axis. **Robust scaling** replaces mean and standard deviation with the median $Q_{50}$ and interquartile range ($\text{IQR} = Q_{75} - Q_{25}$):[^sklearnRobustScaler2026]
 
 $$
 z_{\text{robust}} = \frac{x - Q_{50}}{Q_{75} - Q_{25}}
 $$
 
-These quantiles are less sensitive to a few extreme magnitudes, not immune to contamination or finite-sample changes. The transform neither clips outliers nor guarantees better predictions. Choose a quantile convention and a zero-IQR policy. For nonnegative values, $\log(1+x)$ compresses a right tail but still grows without bound.[^sklearnRobustScaler2026]
+For nonnegative right-skewed quantities, $\log(1 + x)$ compresses extreme magnitudes smoothly. Watch all three transforms react to a single 12,000-minute outlier:
 
-Consider how a single 12,000-minute outlier distorts the representation of a normal job waiting 42 minutes under each transform:
-
-<!-- leetllm: test, output=show -->
+<!-- leetllm: test, deps=numpy,scikit-learn, output=show -->
 ```python title="robust-scaling-transforms.py"
-import math
-from statistics import quantiles
+import numpy as np
+from sklearn.preprocessing import RobustScaler, StandardScaler
 
-wait_times = [5.0, 12.0, 18.0, 24.0, 30.0, 42.0, 55.0, 12000.0]
+wait_times = np.array([[5.0], [12.0], [18.0], [24.0], [30.0], [42.0], [55.0], [12000.0]])
 
-mean = sum(wait_times) / len(wait_times)
-std = math.sqrt(sum((x - mean) ** 2 for x in wait_times) / len(wait_times))
+z_vals = StandardScaler().fit_transform(wait_times).ravel()
+robust_vals = RobustScaler().fit_transform(wait_times).ravel()
+log_vals = np.log1p(wait_times).ravel()
 
-sorted_w = sorted(wait_times)
-median = (sorted_w[3] + sorted_w[4]) / 2.0
-q1, _, q3 = quantiles(wait_times, n=4, method="inclusive")
-iqr = q3 - q1
-
-normal_job = 42.0
-outlier_job = 12000.0
-
-z_normal = (normal_job - mean) / std
-z_outlier = (outlier_job - mean) / std
-
-robust_normal = (normal_job - median) / iqr
-robust_outlier = (outlier_job - median) / iqr
-
-log_normal = math.log1p(normal_job)
-log_outlier = math.log1p(outlier_job)
-
-print(f"mean: {mean:.1f}, std: {std:.1f}")
-print(f"normal job 42m -> z: {z_normal:.3f}, robust: {robust_normal:.3f}, log1p: {log_normal:.3f}")
-print(f"outlier job 12000m -> z: {z_outlier:.3f}, robust: {robust_outlier:.3f}, log1p: {log_outlier:.3f}")
+for label, idx in [("normal job (42m)", 5), ("outlier job (12000m)", 7)]:
+    print(f"{label:20s} -> z={z_vals[idx]:+.3f}, robust={robust_vals[idx]:+.3f}, log1p={log_vals[idx]:.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-mean: 1523.2, std: 3959.9
-normal job 42m -> z: -0.374, robust: 0.522, log1p: 3.761
-outlier job 12000m -> z: 2.646, robust: 416.452, log1p: 9.393
+normal job (42m)     -> z=-0.374, robust=+0.522, log1p=3.761
+outlier job (12000m) -> z=+2.646, robust=+416.452, log1p=9.393
 ```
 <!-- leetllm: output:end -->
 
-The mean is 1,523.2 and the population standard deviation is 3,959.9 minutes. Standardization places the 5-minute and 42-minute waits about 0.0093 units apart. Their information hasn't vanished: positive affine scaling is invertible in exact arithmetic. The issue is its interaction with optimization, precision, and penalties.
+Notice two distinct behaviors. Under `StandardScaler`, the 12,000-minute outlier inflates $\sigma$ to nearly 4,000 minutes, so the gap between a 5-minute and 42-minute wait shrinks to less than 0.01 units. Under `RobustScaler`, ordinary waits keep healthy spacing (`+0.522` for 42 minutes), while the outlier lands at `+416.452` because robust scaling rescales rather than clips. When you need both stable interior spacing and compressed tails, pair `log1p` (or explicit clipping) with scaling, and keep the quartile convention fixed across offline and online environments.[^pythonQuantiles2026]
 
-With inclusive interpolated quartiles, $Q_{25}=16.5$, median $=27.0$, and $Q_{75}=45.25$, so IQR $=28.75$. The 42-minute wait becomes $0.522$, but the outlier still becomes $416.452$. If your aim is to bound extreme inputs, robust scaling alone doesn't do that. The quartile method is part of the reproducible definition.[^pythonQuantiles2026]
+<details>
+<summary>Deep dive: Welford's one-pass running mean and variance</summary>
 
-```checkpoint
-Welford processes readings [3, 7, 11], starting count 0 and M2=0. What final mean, M2 and population variance follow?
+When computing standardization statistics over streaming telemetry without loading all history into memory, Welford's algorithm updates the mean $\mu_k$ and sum of squared deviations $M_{2,k}$ in one numerically stable pass:[^welford1962]
 
-1. 7;16;16/3.
-2. 7;32;16.
-3. 21;32;32/3.
-4. 7;32;32/3.
----
-**Answer:** 7;32;32/3.
+$$
+\mu_k = \mu_{k-1} + \frac{x_k - \mu_{k-1}}{k}, \quad M_{2,k} = M_{2,k-1} + (x_k - \mu_{k-1})(x_k - \mu_k), \quad \sigma_k^2 = \frac{M_{2,k}}{k}
+$$
 
-Means are 3, 5, 7. M2 increments are 0, 8, 24, giving 32. Population variance divides by 3; sample variance would divide by 2 and equal 16. The sum 21 is not the mean.
-```
+Dividing $M_{2,k}$ by $k$ yields population variance; dividing by $k - 1$ (for $k > 1$) yields unbiased sample variance. For example, on `[3, 7, 11]`, the running means are `3, 5, 7`, the $M_2$ increments are `0, 8, 24` ($M_2 = 32$), and the population variance is $32/3$.
+
+</details>
 
 ### Missingness indicators preserve the measurement gap
 
-Missing values require an explicit policy. Filling missing `queue_backlog` with zero alone merges an unknown backlog with a measured empty queue. Missingness could reflect an outage, delayed collection, unsupported instrumentation, or another cause. It isn't itself proof of cluster stress.
-
-Pairing an imputed default value with a binary missingness indicator preserves that distinction:
+Replacing a missing `queue_backlog` with `0.0` silently merges two very different states: a healthy empty queue (`0.0`) and an unreachable metrics collector (`null`). Pairing an imputed numeric value with a binary missingness indicator keeps both pieces of information intact:
 
 $$
 x_{\text{imputed}} = 0.0, \quad x_{\text{missing}} = \begin{cases} 1 & \text{if } x \text{ is null} \\ 0 & \text{if } x \text{ is present} \end{cases}
 $$
 
-The extra bit lets the model distinguish measurement availability. Whether that signal predicts deadline misses must be tested, particularly if instrumentation changes after training.
+That extra bit lets a linear or tree model learn separate weights for "measured zero" versus "telemetry unavailable."
 
 ```checkpoint
-Why is zero imputation without a missingness indicator risky for production telemetry?
+Welford's algorithm processes readings [3, 7, 11] starting from count 0 and M2 = 0. What final mean, M2, and population variance follow?
+
+1. 7; 16; 16/3.
+2. 7; 32; 16.
+3. 21; 32; 32/3.
+4. 7; 32; 32/3.
 ---
-Under this contract, observed zero represents an empty queue and null represents no measurement. Without the extra bit, both produce the same input. That removes the distinction; it doesn't tell us how a particular trained model will respond.
+**Answer:** 7; 32; 32/3.
+
+The running means are 3, 5, and 7. The M2 increments are 0, 8, and 24, summing to 32. Population variance divides by n = 3 to give 32/3 (sample variance would divide by 2 to give 16).
 ```
 
 ## Categorical encodings: one-hot pitfalls and smoothed target encoding
 
-Numeric estimators need a representation for `runner_pool`. Feeding arbitrary codes `0`, `1`, and `2` as a scalar introduces an order and spacing into linear or distance-based models. Some estimators instead accept declared categorical features and treat their codes as category identities. Match the encoding to the estimator.
+Raw category strings like `runner_pool = "a100-pool"` must become numbers. Assigning arbitrary integers `0, 1, 2` invents a fake ordering and spacing for linear models and neural networks.
 
-### One-hot encoding and its limits
+### One-hot encoding and unseen categories
 
-One-hot encoding resolves this by allocating an orthogonal binary dimension for each distinct category:
+One-hot encoding allocates an orthogonal indicator per known category:
 
 $$
 \text{a100-pool} \to [1, 0, 0], \quad \text{h100-pool} \to [0, 1, 0], \quad \text{other} \to [0, 0, 1]
 $$
 
-Three choices matter as cardinality grows:
-
-1. **Storage and model size:** Sparse one-hot matrices avoid allocating every zero, but column metadata and model parameters still grow with category count. Dense conversion can be expensive; wide encoding doesn't imply slow inference in every implementation.
-2. **Tree split structure:** Grouping many categories via binary indicators may require multiple splits. Native categorical splitting is an alternative; neither encoding guarantees superior generalization.
-3. **Unseen categories:** Choose rejection, a reserved bucket, an infrequent-category bucket, or an all-zero representation deliberately. Scikit-learn's `handle_unknown="ignore"` emits all zeros; it doesn't create an `other` bit. The example below explicitly maps unknown pools to a category included at fit time.[^sklearnOneHot2026]
+As cardinality grows, one-hot representations expand feature width and force decision trees to isolate high-cardinality groups across many binary splits. You also need an explicit rule for unseen categories arriving at serving time: scikit-learn's `OneHotEncoder(handle_unknown="ignore")` outputs an all-zero vector `[0, 0, 0]`, whereas mapping unknown values to a reserved `"other"` bucket before encoding activates `[0, 0, 1]`.[^sklearnOneHot2026]
 
 ```checkpoint
-An encoder has known categories[a, b, other]. Unknown c arrives. Compare handle_unknown=ignore directly with an explicit c→other mapping before transform. What bits follow?
+An encoder knows categories [a, b, other]. An unseen value c arrives. Compare handle_unknown="ignore" with mapping unseen values to other before encoding. What vectors follow?
 
-1. Ignore[0,0,1]; explicit[0,0,1].
-2. Ignore[0,0,0]; explicit[1,0,0].
-3. Ignore[0,0,0]; explicit[0,0,1].
-4. Ignore[1,1,1]; explicit[0,0,1].
+1. Ignore [0, 0, 1]; explicit [0, 0, 1].
+2. Ignore [0, 0, 0]; explicit [1, 0, 0].
+3. Ignore [0, 0, 0]; explicit [0, 0, 1].
+4. Ignore [1, 1, 1]; explicit [0, 0, 1].
 ---
-**Answer:** Ignore[0,0,0]; explicit[0,0,1].
+**Answer:** Ignore [0, 0, 0]; explicit [0, 0, 1].
 
-Ignoring unknowns emits all zero category bits. Explicit mapping activates the reserved other coordinate. These are distinct contracts; ignoring does not create an other bit.
+Ignoring unknowns sets every indicator to zero. Explicitly mapping unseen values to the reserved bucket activates the other coordinate.
 ```
 
 ### Out-of-fold target encoding with m-estimate smoothing
 
-For a binary target, **target encoding** represents a category using an estimate of its conditional target mean:
+When a feature has hundreds or thousands of categories (such as user IDs, job templates, or runner pools), **target encoding** compresses each category $c$ into an estimate of its conditional target mean $S_c = \mathbb{E}[y \mid X = c]$.
 
-$$
-S_c = \mathbb{E}[y \mid X = c]
-$$
+Two traps wait for naive implementations:
 
-Computing each training row's encoding from its own label introduces a target dependency. For a singleton category with `missed_sla=1`, the unsmoothed mean is exactly `1.0`. This can encourage overfitting; it doesn't force every downstream model to memorize or achieve near-perfect accuracy.[^sklearnTargetEncoder2026]
+1. **Small-sample variance:** A category seen once with `missed_deadline = 1` gets an extreme score of `1.0`.
+2. **Own-label leakage:** Computing a training row's encoding using its own label copies the target straight into the input feature, letting the model memorize rare categories.[^sklearnTargetEncoder2026]
 
-Separate two jobs:
-
-1. **Out-of-fold (K-fold) target encoding:** Split the training data into $K$ partitions. For samples in fold $k$, calculate the category target means using only the remaining $K-1$ folds.
-2. **m-estimate smoothing:** Shrink category estimates toward a prior target mean $\mu$:
+Fix both problems with two distinct tools. First, **m-estimate smoothing** shrinks small-category means toward the prior target mean $\mu$ with smoothing weight $m \ge 0$:
 
 $$
 \hat{S}_c = \frac{n_c \bar{y}_c + m \mu}{n_c + m}
 $$
 
-Here $n_c$ is the category count and $\bar y_c$ its target mean among allowed fitting rows. For each held-out fold, compute both category statistics and the prior $\mu$ from those rows, not all partitions. The nonnegative weight $m$ controls shrinkage; it can be fixed or selected within training. Empirical Bayes estimates hyperparameters from data; a fixed $m$ isn't automatically that procedure. Binary Laplace add-one smoothing is a particular prior choice, not a synonym for every m-estimate.
+where $n_c$ is the category count and $\bar{y}_c$ is its sample mean in the fitting data. Second, **out-of-fold (cross-fitted) encoding** computes fold $k$'s category statistics *and prior* $\mu$ using only the other $K - 1$ folds. Watch how naive encoding, in-sample smoothing, and out-of-fold smoothing behave on a rare pool (`l4-pool`):
 
-Smoothing still uses an included row's label. Cross-fitting removes that direct dependency; smoothing stabilizes small-category estimates. Neither alone repairs future-label or related-entity leakage.
+<!-- leetllm: test, deps=numpy, output=show -->
+```python title="out-of-fold-target-encoding.py"
+import numpy as np
 
-Notice how rare categories behave under naive encoding versus smoothed m-estimate encoding:
+pools = np.array(["a100", "a100", "a100", "a100", "h100", "h100", "h100", "l4"])
+y = np.array([0, 0, 1, 0, 1, 1, 1, 1], dtype=float)
+m = 5.0
 
-<!-- leetllm: test, output=show, id=target-smoothing -->
-```python title="target-encoding-smoothing.py"
-records = [
-    {"pool": "a100-pool", "missed_sla": 0},
-    {"pool": "a100-pool", "missed_sla": 0},
-    {"pool": "a100-pool", "missed_sla": 1},
-    {"pool": "a100-pool", "missed_sla": 0},
-    {"pool": "h100-pool", "missed_sla": 1},
-    {"pool": "h100-pool", "missed_sla": 1},
-    {"pool": "h100-pool", "missed_sla": 1},
-    {"pool": "l4-pool",   "missed_sla": 1},
-]
-
-global_mean = sum(r["missed_sla"] for r in records) / len(records)
-smoothing_m = 5.0
-
-pool_counts = {}
-pool_sums = {}
-for r in records:
-    p = r["pool"]
-    pool_counts[p] = pool_counts.get(p, 0) + 1
-    pool_sums[p] = pool_sums.get(p, 0) + r["missed_sla"]
-
-naive_encoding = {p: pool_sums[p] / pool_counts[p] for p in pool_counts}
-smoothed_encoding = {
-    p: (pool_sums[p] + smoothing_m * global_mean) / (pool_counts[p] + smoothing_m)
-    for p in pool_counts
+# 1. Naive & in-sample smoothed (both leak a row's own label)
+global_prior = y.mean()
+naive = {c: y[pools == c].mean() for c in np.unique(pools)}
+smoothed = {
+    c: (y[pools == c].sum() + m * global_prior) / ((pools == c).sum() + m)
+    for c in np.unique(pools)
 }
 
-print(f"global prior SLA miss rate: {global_mean:.3f}")
-print("naive encoding (l4-pool leaks target!):", {k: round(v, 3) for k, v in naive_encoding.items()})
-print("smoothed m-estimate (l4-pool shrinks to prior):", {k: round(v, 3) for k, v in smoothed_encoding.items()})
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-global prior SLA miss rate: 0.625
-naive encoding (l4-pool leaks target!): {'a100-pool': 0.25, 'h100-pool': 1.0, 'l4-pool': 1.0}
-smoothed m-estimate (l4-pool shrinks to prior): {'a100-pool': 0.458, 'h100-pool': 0.766, 'l4-pool': 0.688}
-```
-<!-- leetllm: output:end -->
-
-For `l4-pool`, smoothing changes `1.0` to `0.688`, but its own label contributes to both the category sum and the full-data prior. This cell demonstrates shrinkage, not a safe training representation.
-
-Now exclude a row's entire fold from its category statistics *and prior*. These two explicit folds illustrate cross-fitting under an exchangeable-row assumption. Predict the encoding of `l4-pool` when its category is absent from the fitting fold:
-
-<!-- leetllm: test, output=show, continue=target-smoothing -->
-```python title="out-of-fold-target-encoding.py"
-folds = ([0, 2, 4, 6], [1, 3, 5, 7])
-
-def encode_oof(data, folds, m):
-    encoded = [None] * len(data)
+# 2. Out-of-fold smoothed (neither category sum nor prior sees held-out fold)
+def encode_oof(cats, targets, folds, m=5.0):
+    out = np.empty(len(targets))
     for held_out in folds:
-        fitting = [row for i, row in enumerate(data) if i not in held_out]
-        prior = sum(row["missed_sla"] for row in fitting) / len(fitting)
-        for i in held_out:
-            category = data[i]["pool"]
-            labels = [row["missed_sla"] for row in fitting if row["pool"] == category]
-            encoded[i] = (sum(labels) + m * prior) / (len(labels) + m)
-    return encoded
+        fit_mask = np.ones(len(targets), dtype=bool)
+        fit_mask[held_out] = False
+        prior = targets[fit_mask].mean()
+        for idx in held_out:
+            same = fit_mask & (cats == cats[idx])
+            out[idx] = (targets[same].sum() + m * prior) / (same.sum() + m)
+    return out
 
-oof = encode_oof(records, folds, smoothing_m)
-changed = [dict(row) for row in records]
-changed[-1]["missed_sla"] = 0
+folds = ([0, 2, 4, 6], [1, 3, 5, 7])
+oof = encode_oof(pools, y, folds, m)
 
-print("OOF values:", [round(value, 3) for value in oof])
-print(f"l4-pool: naive={naive_encoding['l4-pool']:.3f}, smoothed={smoothed_encoding['l4-pool']:.3f}, OOF={oof[-1]:.3f}")
-print("own encoding unchanged after label flip:", encode_oof(changed, folds, smoothing_m)[-1] == oof[-1])
+y_flipped = y.copy()
+y_flipped[-1] = 0.0  # Flip the rare l4 row's label
+
+print(f"l4 encoding -> naive: {naive['l4']:.3f}, smoothed: {smoothed['l4']:.3f}, OOF: {oof[-1]:.3f}")
+print("OOF encoding unchanged when row flips its own label:", np.isclose(oof[-1], encode_oof(pools, y_flipped, folds, m)[-1]))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-OOF values: [0.357, 0.679, 0.357, 0.679, 0.583, 0.821, 0.583, 0.75]
-l4-pool: naive=1.000, smoothed=0.688, OOF=0.750
-own encoding unchanged after label flip: True
+l4 encoding -> naive: 1.000, smoothed: 0.688, OOF: 0.750
+OOF encoding unchanged when row flips its own label: True
 ```
 <!-- leetllm: output:end -->
 
-The fitting fold's prior is `0.75`, not the full-data `0.625`. Flipping this row's label leaves its own encoding unchanged because neither its category sum nor its prior uses that label. The model still gets different training values from the full-training mapping later used for validation or serving; that's intentional cross-fitting, not an accidental implementation mismatch.
+Smoothing alone shrinks `l4` from `1.000` to `0.688`, yet its own label still leaked into both the category count and the global prior. Out-of-fold encoding computes the prior (`0.750`) strictly from the other fold, so flipping `l4`'s label leaves its encoded feature completely unchanged. In scikit-learn, `TargetEncoder.fit_transform` performs internal cross-fitting automatically, whereas calling `fit` followed by `transform` on the same training set does not.[^sklearnTargetEncoder2026]
 
-For the scheduler's forward-time task, ordinary shuffled folds can still use future jobs' outcomes. Fit each historical encoding from earlier **matured labels**, respect related-job boundaries, and define a warm-up policy before any prior labels exist. Scikit-learn 1.9 accepts custom splitters in `TargetEncoder`, but requires each sample to appear in a validation fold exactly once; a plain `TimeSeriesSplit` doesn't meet that coverage rule. A dedicated forward encoder may be needed. Its `fit_transform` cross-fits; `fit` followed by `transform` on the same training rows doesn't.[^sklearnTargetEncoder2026]
+> **Common mistake:** Using shuffled K-fold target encoding on time-ordered data still leaks future labels into earlier rows. On temporal tasks, compute each historical row's target encoding strictly from earlier **matured labels** (jobs scored earlier whose outcomes were already known by prediction time), falling back to a warm-up default when no matured labels exist yet.
 
-An earlier job isn't necessarily a usable labeled job. In this small replay, all jobs are unrelated and use the same runner pool. The first job's outcome is available at `08:00`; the second job was scored earlier but its outcome arrives at `10:00`. Predict the smoothed encoding at `09:00`:
+Let's verify that forward-time boundary on a short replay where one earlier job's outcome arrives at `t = 8` and another's arrives late at `t = 10`:
 
 <!-- leetllm: test, output=show -->
 ```python title="encode-from-matured-labels.py"
-from datetime import datetime
+# Each job: (scored_hour, label_available_hour, missed_deadline)
+history = [(6, 8, 0), (7, 10, 1)]
 
-def clock(hour):
-    return datetime.fromisoformat(f"2026-05-01T{hour}:00:00+00:00")
+def forward_encoding(cutoff_hour, m=5.0):
+    matured = [y for scored, avail, y in history if scored < cutoff_hour and avail <= cutoff_hour]
+    if not matured:
+        return None
+    prior = sum(matured) / len(matured)
+    return (sum(matured) + m * prior) / (len(matured) + m)
 
-history = [
-    {"scored_at": clock("06"), "label_available_at": clock("08"), "missed_sla": 0},
-    {"scored_at": clock("07"), "label_available_at": clock("10"), "missed_sla": 1},
-]
-
-def same_pool_encoding(cutoff):
-    eligible = [
-        row["missed_sla"] for row in history
-        if row["scored_at"] < cutoff and row["label_available_at"] <= cutoff
-    ]
-    if not eligible:
-        return None  # Warm-up policy: no target-encoded score.
-    prior = sum(eligible) / len(eligible)
-    m = 5.0
-    return (sum(eligible) + m * prior) / (len(eligible) + m)
-
-for hour in ("07", "09", "10"):
-    print(f"{hour}:00 encoding:", same_pool_encoding(clock(hour)))
-print("using every earlier job at 09:00:", sum(r["missed_sla"] for r in history) / len(history))
+for hour in (7, 9, 10):
+    print(f"t={hour:02d}:00 -> encoding={forward_encoding(hour)}")
+print(f"leaky (all earlier jobs at t=09:00): {sum(y for _, _, y in history) / len(history)}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-07:00 encoding: None
-09:00 encoding: 0.0
-10:00 encoding: 0.5
-using every earlier job at 09:00: 0.5
+t=07:00 -> encoding=None
+t=09:00 -> encoding=0.0
+t=10:00 -> encoding=0.5
+leaky (all earlier jobs at t=09:00): 0.5
 ```
 <!-- leetllm: output:end -->
 
-At `09:00`, the `1` label is future information even though its job was scored at `07:00`. At `10:00`, that label becomes eligible under the fixture's inclusive availability boundary. Because every job has the same category, its mean and the allowed global prior coincide, so smoothing doesn't change either value. With multiple categories, compute both statistics from the eligible rows as in the OOF cell. A frozen encoder uses its artifact's fitting cutoff; an encoder updated with newly matured labels needs an explicit update policy and replay of those versions. A complete training or update pipeline also needs to define and replay its other stages.
+Even though the second job was scored at `t = 07:00`, its outcome (`1`) is unknown until `t = 10:00`. At `t = 09:00`, only the matured `0` label is eligible.
 
 ```checkpoint
-Why must target encoding statistics be computed out-of-fold during training?
----
-Including a row in its category mean introduces its own label into the input. Smoothing reduces that contribution but doesn't remove it. Compute the prior from allowed fitting rows too; temporal tasks additionally require label availability and forward-time rules.
-```
-
-```checkpoint
-A category has one fitting label 0. Use smoothing weight 3 and a fixed prior 0.4. What encoded value follows, and does the category statistic still use that row label?
+A category has one fitting label of 0. With smoothing weight m = 3 and a prior of 0.4, what encoded value results, and did the category sum still use that row's label?
 
 1. 0; label excluded.
 2. 0.4; label included.
@@ -418,581 +339,268 @@ A category has one fitting label 0. Use smoothing weight 3 and a fixed prior 0.4
 ---
 **Answer:** 0.3; label included.
 
-The value is (0+3×0.4)/(1+3)=0.3. The category sum still includes the row label, even with an externally fixed prior. Shrinkage reduces extremes without removing own-label dependence.
-```
-
-```checkpoint
-At 09:00, three earlier same-pool jobs have labels 0, 1 and 0. Their labels become available at 08:00, 08:30 and 09:30, respectively. The encoder uses only mature labels, and its one-category mean equals its allowed global prior. What encoding at 09:00 and at the inclusive 09:30 boundary follows?
-
-1. 1/3 then 1/3.
-2. 0.5 then 1/3.
-3. 0.5 then 2/3.
-4. 1 then 0.5.
----
-**Answer:** 0.5 then 1/3.
-
-The first two labels are mature at 09:00, so their mean is (0+1)/2=0.5. The last zero becomes eligible at 09:30, giving (0+1+0)/3=1/3. With one category, smoothing toward the same allowed global prior leaves these values fixed. Including that late zero before availability would leak future evidence.
+The formula gives (0 + 3 * 0.4) / (1 + 3) = 0.3. Smoothing pulls extreme values toward the prior, but only out-of-fold (or forward-time) fitting removes own-label leakage.
 ```
 
 ## Feature contracts and strict row validation
 
-A mathematical definition still needs runtime enforcement. Suppose the cluster backlog feed disconnects or an unknown runner pool arrives. What should the row mean in each case?
+A clean mathematical feature definition still fails in production if raw serving payloads arrive with swapped columns, unexpected categories, `NaN` values, or future timestamps. A <span data-glossary="feature-contract">feature contract</span> locks down four things in one versioned preprocessing artifact:
 
-Each surviving field requires a data type, an explicit missing-value rule, and a validated reason to exist. That's the <span data-glossary="feature-contract">feature contract</span> for this job-SLA scorer:
+| Feature | Type | Missing & boundary rule |
+| --- | --- | --- |
+| `queued_minutes` | numeric | required, finite, $\ge 0$ |
+| `hours_since_last_heartbeat` | numeric | required, $\ge 0$, capped at `180.0` hours |
+| `queue_backlog` | numeric | impute `0.0` plus `queue_backlog_missing` indicator |
+| `runner_pool` | categorical | required; map unseen pools to `other` before one-hot |
+| `priority_job` | binary | explicit `0`/`1` flag |
 
-| Feature | Type | Missing rule | Why it helps |
-| --- | --- | --- | --- |
-| `queued_minutes` | numeric | reject if absent; allow `0` | records time already spent waiting in the queue |
-| `hours_since_last_heartbeat` | numeric | reject missing timestamp; cap observed age at 180 hours | measures elapsed time since an eligible ping |
-| `queue_backlog` | numeric | emit `0` plus `queue_backlog_missing=1` when absent | measures the reported queue pressure |
-| `runner_pool` | categorical | reject if absent; map unseen to `other` | identifies the assigned resource pool |
-| `priority_job` | boolean | require an explicit Boolean | identifies the declared scheduling class |
+Rather than hand-writing fragile dictionary validators that diverge between training notebooks and serving microservices, package the feature schema, clipping, missingness indicator, and category vocabulary into a single fitted scikit-learn `ColumnTransformer` + `Pipeline`. Every learned statistic, fixed cap, and output column order travels with the model:
 
-The 180-hour cap represents an explicit engineering boundary, not an estimated statistical parameter. Learned parameters (such as a training-set mean or target encoding mappings) and fixed limits (such as this cap) both belong in the versioned preprocessing package.
+<!-- leetllm: test, deps=numpy,pandas,scikit-learn, output=show -->
+```python title="sklearn-feature-pipeline.py"
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
 
-These are candidate signals, not established causal explanations. Confirm that each measurement was available at cutoff. When filtering incoming event streams, an 08:50 heartbeat arriving at 09:15 cannot replace the 08:30 heartbeat because it has not yet landed at 09:00 scoring time:
+KNOWN_POOLS = ["a100-pool", "h100-pool", "other"]
+HEARTBEAT_CAP_H = 180.0
 
-<!-- leetllm: test, output=show -->
-```python title="keep-visible-events.py"
-from datetime import datetime
+def map_unseen_pools(df):
+    return df.apply(lambda col: col.where(col.isin(KNOWN_POOLS[:2]), "other"))
 
-prediction_time = datetime.fromisoformat("2026-05-01T09:00:00+00:00")
-heartbeats = [
-    ("01:00", "01:01"),
-    ("08:30", "08:31"),
-    ("08:50", "09:15"),
-    ("12:00", "12:01"),
-]
+def clip_heartbeat(X):
+    return np.clip(X, 0.0, HEARTBEAT_CAP_H)
 
-def timestamp(clock):
-    return datetime.fromisoformat(f"2026-05-01T{clock}:00+00:00")
-
-visible_heartbeats = [
-    timestamp(event_time) for event_time, available_time in heartbeats
-    if timestamp(event_time) <= prediction_time and timestamp(available_time) <= prediction_time
-]
-if not visible_heartbeats:
-    raise ValueError("no heartbeat available by prediction_time")
-print("visible heartbeats:", len(visible_heartbeats))
-print("latest visible:", max(visible_heartbeats).isoformat())
-print("heartbeat age hours:", (prediction_time - max(visible_heartbeats)).total_seconds() / 3600)
-print("08:50 late arrival eligible:", timestamp("09:15") <= prediction_time)
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-visible heartbeats: 2
-latest visible: 2026-05-01T08:30:00+00:00
-heartbeat age hours: 0.5
-08:50 late arrival eligible: False
-```
-<!-- leetllm: output:end -->
-
-The next builder validates a row already selected by the historical query. It doesn't inspect ingestion metadata or prove the entire source snapshot's availability. The query above and the row contract solve different problems. Extra source fields are ignored; the output contains only allowlisted keys. Check which fields survive from `J-204` and which two are omitted:
-
-<!-- leetllm: test, output=show, id=feature-contract -->
-```python title="build-feature-row.py"
-from datetime import datetime, timezone
-from math import isfinite
-
-allowed_feature_keys = {
-    "runner_pool",
-    "queued_minutes",
-    "hours_since_last_heartbeat",
-    "queue_backlog",
-    "queue_backlog_missing",
-    "priority_job",
-}
-known_runner_pools = {"a100-pool", "h100-pool"}
-future_only_keys = {"finished_at", "post_sla_escalation"}
-heartbeat_cap_hours = 180.0
-
-def nonnegative_number(value, name):
-    if value is True or value is False or not isinstance(value, (int, float)):
-        raise ValueError(f"{name} must be numeric, not a string or boolean")
-    value = float(value)
-    if not isfinite(value) or value < 0:
-        raise ValueError(f"{name} must be finite and nonnegative")
-    return value
-
-def parse_timestamp(value):
-    if not isinstance(value, str):
-        raise ValueError("last_heartbeat_at must be an ISO timestamp string")
-    parsed = datetime.fromisoformat(value)
-    if parsed.utcoffset() is None:
-        raise ValueError("last_heartbeat_at must include a timezone")
-    return parsed.astimezone(timezone.utc)
-
-def make_features(row, prediction_time):
-    if not isinstance(prediction_time, datetime) or prediction_time.utcoffset() is None:
-        raise ValueError("prediction_time must be a timezone-aware datetime")
-    required_keys = {"queued_minutes", "last_heartbeat_at", "priority_job"}
-    missing_keys = sorted(required_keys - row.keys())
-    if missing_keys:
-        raise ValueError(f"missing required fields: {missing_keys}")
-
-    queued_minutes = nonnegative_number(row["queued_minutes"], "queued_minutes")
-
-    runner_pool = row.get("runner_pool")
-    if not isinstance(runner_pool, str) or not runner_pool.strip():
-        raise ValueError("runner_pool is missing")
-    runner_pool = runner_pool.strip().casefold()
-
-    if row["priority_job"] is not True and row["priority_job"] is not False:
-        raise ValueError("priority_job must be boolean")
-
-    last_heartbeat = parse_timestamp(row["last_heartbeat_at"])
-    if last_heartbeat > prediction_time:
-        raise ValueError("last_heartbeat_at is after prediction_time")
-    heartbeat_age = min(
-        (prediction_time - last_heartbeat).total_seconds() / 3600, heartbeat_cap_hours
-    )
-
-    queue_backlog = row.get("queue_backlog")
-    if queue_backlog is not None:
-        queue_backlog = nonnegative_number(queue_backlog, "queue_backlog")
-    features = {
-        "runner_pool": runner_pool if runner_pool in known_runner_pools else "other",
-        "queued_minutes": queued_minutes,
-        "hours_since_last_heartbeat": heartbeat_age,
-        "queue_backlog": 0.0 if queue_backlog is None else queue_backlog,
-        "queue_backlog_missing": int(queue_backlog is None),
-        "priority_job": int(row["priority_job"]),
-    }
-
-    blocked_fields = sorted(features.keys() - allowed_feature_keys)
-    if blocked_fields:
-        raise ValueError(f"unexpected feature fields: {blocked_fields}")
-    return features
-
-prediction_time = datetime.fromisoformat("2026-05-01T09:00:00+00:00")
-job = {
-    "job_id": "J-204",
-    "runner_pool": "a100-pool",
-    "queued_minutes": 42,
-    "queue_backlog": 18,
-    "priority_job": False,
-    "last_heartbeat_at": "2026-05-01T08:30:00+00:00",
-    "finished_at": "2026-05-03T14:00:00+00:00",
-    "post_sla_escalation": True,
-}
-
-features = make_features(job, prediction_time)
-print(features)
-print("future fields leaked:", sorted(features.keys() & future_only_keys))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-{'runner_pool': 'a100-pool', 'queued_minutes': 42.0, 'hours_since_last_heartbeat': 0.5, 'queue_backlog': 18.0, 'queue_backlog_missing': 0, 'priority_job': 0}
-future fields leaked: []
-```
-<!-- leetllm: output:end -->
-
-`finished_at` and `post_sla_escalation` remain outside `features`; their presence in the source payload isn't a rejection. The numeric validator does reject `True`, even though Python can cast it to `1.0`. Its allowlist and types don't establish the correctness or timing of the upstream measurements.
-
-The next cell tests boundary conditions. Predict the missing-backlog behavior, unseen runner pool handling, and how malformed inputs trigger validation errors:
-
-<!-- leetllm: test, output=show, continue=feature-contract, id=feature-checks -->
-```python title="check-feature-boundaries.py"
-missing_backlog = make_features({**job, "queue_backlog": None}, prediction_time)
-assert missing_backlog["queue_backlog"] == 0.0
-assert missing_backlog["queue_backlog_missing"] == 1
-unseen_pool = make_features({**job, "runner_pool": "l4-pool"}, prediction_time)
-assert unseen_pool["runner_pool"] == "other"
-zero_queue = make_features({**job, "queued_minutes": 0}, prediction_time)
-assert zero_queue["queued_minutes"] == 0.0
-same_instant = make_features(
-    {**job, "last_heartbeat_at": "2026-05-01T04:30:00-04:00"}, prediction_time
+preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "pool",
+            Pipeline([
+                ("bucket", FunctionTransformer(map_unseen_pools)),
+                ("ohe", OneHotEncoder(categories=[KNOWN_POOLS], sparse_output=False)),
+            ]),
+            ["runner_pool"],
+        ),
+        ("queued", "passthrough", ["queued_minutes"]),
+        ("hb", FunctionTransformer(clip_heartbeat), ["hours_since_last_heartbeat"]),
+        ("backlog", SimpleImputer(strategy="constant", fill_value=0.0, add_indicator=True), ["queue_backlog"]),
+        ("priority", "passthrough", ["priority_job"]),
+    ],
+    remainder="drop",  # Automatically drops non-feature or post-decision columns
 )
-assert same_instant == features
 
-print("missing backlog:", missing_backlog["queue_backlog"], missing_backlog["queue_backlog_missing"])
-print("unseen pool:", unseen_pool["runner_pool"])
-print("zero queue and equivalent timezone offset: accepted")
+train_df = pd.DataFrame([
+    {"runner_pool": "a100-pool", "queued_minutes": 42.0, "hours_since_last_heartbeat": 0.5, "queue_backlog": 18.0, "priority_job": 0, "finished_at": "day3"},
+    {"runner_pool": "h100-pool", "queued_minutes": 15.0, "hours_since_last_heartbeat": 2.0, "queue_backlog": np.nan, "priority_job": 1, "finished_at": "day2"},
+])
+preprocessor.fit(train_df)
 
-invalid_cases = {
-    "absent pool": {"runner_pool": None},
-    "future heartbeat": {"last_heartbeat_at": "2026-05-01T12:00:00+00:00"},
-    "missing heartbeat": {"last_heartbeat_at": None},
-    "timezone missing": {"last_heartbeat_at": "2026-05-01T08:30:00"},
-    "negative queue": {"queued_minutes": -1},
-    "boolean queue": {"queued_minutes": True},
-    "nonfinite backlog": {"queue_backlog": float("nan")},
-    "string priority": {"priority_job": "false"},
-}
-for name, change in invalid_cases.items():
-    try:
-        make_features({**job, **change}, prediction_time)
-    except ValueError:
-        print(name + ": rejected")
-    else:
-        raise AssertionError(name + " was accepted")
+live_df = pd.DataFrame([
+    {"runner_pool": "a100-pool", "queued_minutes": 42.0, "hours_since_last_heartbeat": 0.5, "queue_backlog": 18.0, "priority_job": 0},
+    {"runner_pool": "l4-pool", "queued_minutes": 18.0, "hours_since_last_heartbeat": 200.0, "queue_backlog": np.nan, "priority_job": 1},
+])
+
+X_live = preprocessor.transform(live_df)
+feature_names = ["pool=a100", "pool=h100", "pool=other", "queued_min", "hb_age_h", "backlog", "backlog_missing", "priority"]
+print("columns:", feature_names)
+for row_idx, vec in enumerate(X_live):
+    print(f"row {row_idx}:  ", vec.tolist())
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-missing backlog: 0.0 1
-unseen pool: other
-zero queue and equivalent timezone offset: accepted
-absent pool: rejected
-future heartbeat: rejected
-missing heartbeat: rejected
-timezone missing: rejected
-negative queue: rejected
-boolean queue: rejected
-nonfinite backlog: rejected
-string priority: rejected
+columns: ['pool=a100', 'pool=h100', 'pool=other', 'queued_min', 'hb_age_h', 'backlog', 'backlog_missing', 'priority']
+row 0:   [1.0, 0.0, 0.0, 42.0, 0.5, 18.0, 0.0, 0.0]
+row 1:   [0.0, 0.0, 1.0, 18.0, 180.0, 0.0, 1.0, 1.0]
 ```
 <!-- leetllm: output:end -->
 
-For a model consuming positional numeric vectors, fix the layout. Vectorization maps the named dictionary into ordered elements:
+Look at what that single pipeline enforces automatically:
 
-<!-- leetllm: test, output=show -->
-```python title="vectorize-features.py"
-pool_categories = ("a100-pool", "h100-pool", "other")
-numeric_order = (
-    "queued_minutes",
-    "hours_since_last_heartbeat",
-    "queue_backlog",
-    "queue_backlog_missing",
-    "priority_job",
-)
-features = {
-    "runner_pool": "a100-pool",
-    "queued_minutes": 42.0,
-    "hours_since_last_heartbeat": 0.5,
-    "queue_backlog": 18.0,
-    "queue_backlog_missing": 0,
-    "priority_job": 0,
-}
+- `remainder="drop"` guarantees extra columns like `finished_at` never reach the model.
+- `l4-pool` maps cleanly to the reserved `other` coordinate `[0, 0, 1]`.
+- `hours_since_last_heartbeat = 200.0` clips to `180.0`.
+- Missing `queue_backlog` emits `[0.0, 1.0]` (imputed zero plus missingness bit), while measured `18.0` emits `[18.0, 0.0]`.
+- Output column order is locked to the exact 8-slot layout expected by the downstream model weights.
 
-feature_order = tuple("pool=" + pool for pool in pool_categories) + numeric_order
-vector = [int(features["runner_pool"] == pool) for pool in pool_categories]
-vector += [features[name] for name in numeric_order]
-print("order:", feature_order)
-print("vector:", vector)
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-order: ('pool=a100-pool', 'pool=h100-pool', 'pool=other', 'queued_minutes', 'hours_since_last_heartbeat', 'queue_backlog', 'queue_backlog_missing', 'priority_job')
-vector: [1, 0, 0, 42.0, 0.5, 18.0, 0, 0]
-```
-<!-- leetllm: output:end -->
-
-The final vector contains eight numerical entries. Reordering category columns can pair the active bit with a different learned weight even if the raw strings match. Package the category list, clipping thresholds, missing-data indicators, and column order with the model artifact.
+Before calling `preprocessor.transform` on live requests, add one thin boundary guard for physical invariants that `ColumnTransformer` does not know: verify that required fields (`queued_minutes`, `hours_since_last_heartbeat`, `runner_pool`) are non-null, finite, and nonnegative, and that `last_heartbeat_at <= prediction_time`.
 
 ```checkpoint
-What happens if the online serving layer applies a different vector ordering than training?
+What happens if the online serving layer produces the right number of features, but swaps two numeric slots compared to training?
 ---
-If dimensions stay the same, weights can silently pair with the wrong meanings. Swapping two slots matters when the model uses them differently; an explicit layout/version check can catch it even when a generic numeric schema can't.
+The model runs without throwing a shape error, yet silently multiplies each feature by the wrong learned weight. Packaging the column order inside a versioned preprocessing artifact prevents silent slot swaps.
 ```
 
 ## Changing preprocessing changes what the model receives
 
-Job `J-188` last recorded a heartbeat 200 hours before scoring. During model training, the preprocessing pipeline clipped that age to the 180.0-hour ceiling. If an engineer later deploys a serving change that raises the cap to 360 hours without retraining the model, `J-188` now enters the model as `200.0`.
+Suppose job `J-188` has a raw heartbeat age of 200 hours. During training, the pipeline clipped heartbeat age at `180.0` hours, so the model's weights learned what `180.0` means. Weeks later, someone raises the live cap to `360.0` hours without retraining. Now `J-188` enters the exact same model weights as `200.0`.
 
-Sculley et al. call attention to such dependencies with the **CACE principle**: Changing Anything Changes Everything.[^sculley2015] It is a warning about coupled systems, not a theorem that every edit changes every prediction or requires retraining.
-
-The existing weights stay fixed after a serving-only cap edit. Inputs above 180 hours may change; inputs below both caps don't. A model that ignores heartbeat age could be unaffected. Models with interactions can respond differently across pools or backlog levels, and refitting can change other weights as well. Re-evaluate the changed preprocessing/model pair before deciding whether to retain it, restore the old cap, or retrain.
+Sculley et al. call this coupling the **CACE principle**: *Changing Anything Changes Everything*.[^sculley2015] Even when model weights stay frozen, altering a clipping cap, imputer fill value, or bucket boundary shifts the coordinate system the weights operate in.
 
 <figure>
   <img src="illustrations/_generated/cace_cap_dark.png" alt="For the same job with raw heartbeat age 200 hours, a 180-hour cap yields 180 hours while a 360-hour cap yields 200. Two bars show the changed input. On the fixed logistic score curve with backlog 18, the two input points give scores 0.445 and 0.545 on opposite sides of the chosen 0.5 alert threshold. A fresh 0.5-hour input stays unchanged; setting the heartbeat coefficient to zero removes this dependence." />
-  <figcaption>A changed input can move a fixed model across a decision threshold. The linear score formula maps the shifted input across the threshold. Measuring model accuracy requires labeled outcomes. Operational feedback requires a separate policy that acts on predictions.</figcaption>
+  <figcaption>Raising the heartbeat cap from 180 to 360 hours moves a 200-hour job's logistic score from 0.445 to 0.545, flipping the decision across the 0.50 alert threshold while leaving fresh jobs untouched.</figcaption>
 </figure>
 
-<!-- leetllm: test, output=show, id=feature-cace -->
-```python title="changing-heartbeat-cap.py"
-def heartbeat_age_hours(raw_hours, cap_hours):
-    return min(raw_hours, cap_hours)
+We can verify that threshold flip directly on the fixed logistic rule:
 
-raw_age = 200.0
-training_vector = heartbeat_age_hours(raw_age, 180.0)
-live_vector = heartbeat_age_hours(raw_age, 360.0)
-print("raw hours:", raw_age)
-print("training hb_age_h:", training_vector)
-print("live hb_age_h after cap change:", live_vector)
-print("same slot, different meaning:", training_vector != live_vector)
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-raw hours: 200.0
-training hb_age_h: 180.0
-live hb_age_h after cap change: 200.0
-same slot, different meaning: True
-```
-<!-- leetllm: output:end -->
-
-Make the score consequence visible with a fixed logistic rule. Its coefficients illustrate the risk: under a 180-hour cap the score lands at 0.445 (below threshold 0.50), whereas expanding the cap to 360 hours raises the score to 0.545, crossing the alert boundary:
-
-<!-- leetllm: test, output=show, continue=feature-cace, id=cap-scores -->
+<!-- leetllm: test, output=show -->
 ```python title="cap-change-score.py"
 import math
 
-def toy_score(raw_hours, cap, heartbeat_weight=0.02):
-    age = heartbeat_age_hours(raw_hours, cap)
-    logit = heartbeat_weight * age + 0.01 * 18.0 - 4.0
+def score_job(raw_hb_hours, cap_hours, hb_weight=0.02, backlog=18.0):
+    hb_feature = min(raw_hb_hours, cap_hours)
+    logit = hb_weight * hb_feature + 0.01 * backlog - 4.0
     return 1.0 / (1.0 + math.exp(-logit))
 
 for cap in (180.0, 360.0):
-    score = toy_score(200.0, cap)
-    print(f"cap={cap:.0f}h -> score={score:.3f}, alert={score >= 0.5}")
-print("fresh job unchanged:", toy_score(0.5, 180.0) == toy_score(0.5, 360.0))
-print("zero heartbeat weight unchanged:", toy_score(200.0, 180.0, 0.0) == toy_score(200.0, 360.0, 0.0))
+    p = score_job(200.0, cap)
+    print(f"cap={cap:5.1f}h -> score={p:.3f}, alert={p >= 0.5}")
+print("fresh job (0.5h) unchanged:", score_job(0.5, 180.0) == score_job(0.5, 360.0))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-cap=180h -> score=0.445, alert=False
-cap=360h -> score=0.545, alert=True
-fresh job unchanged: True
-zero heartbeat weight unchanged: True
+cap=180.0h -> score=0.445, alert=False
+cap=360.0h -> score=0.545, alert=True
+fresh job (0.5h) unchanged: True
 ```
 <!-- leetllm: output:end -->
 
-An alert isn't an eviction. If a controller consumes the score and requeues jobs, it may alter future backlogs, outcomes, and training data. The direction and magnitude depend on that policy and the system; this example doesn't simulate a controller or establish a feedback effect.
-
-For fixed fitted preprocessing, apply the training artifact at inference. Here is the explicit unknown-pool mapping in scikit-learn:
-
-<!-- leetllm: test, output=show, deps=pandas,scikit-learn, continue=cap-scores -->
-```python title="library-feature-contract.py"
-import pandas as pd
-from sklearn.preprocessing import OneHotEncoder
-
-pool_categories = ["a100-pool", "h100-pool", "other"]
-encoder = OneHotEncoder(categories=[pool_categories], sparse_output=False)
-training_pools = pd.DataFrame({"runner_pool": ["a100-pool", "h100-pool"]})
-encoder.fit(training_pools)
-
-rows = pd.DataFrame(
-    [
-        {"runner_pool": "a100-pool", "queued_minutes": 42.0, "raw_heartbeat_hours": 0.5},
-        {"runner_pool": "l4-pool", "queued_minutes": 18.0, "raw_heartbeat_hours": 200.0},
-    ]
-)
-rows["hb_age_h"] = rows["raw_heartbeat_hours"].map(lambda hours: heartbeat_age_hours(hours, 180.0))
-
-mapped_pools = rows["runner_pool"].map(
-    lambda pool: pool if pool in {"a100-pool", "h100-pool"} else "other"
-)
-encoded = encoder.transform(mapped_pools.to_frame())
-
-print("category order:", encoder.categories_[0].tolist())
-for pool, values, age in zip(rows["runner_pool"], encoded, rows["hb_age_h"]):
-    print(f"{pool}: pool bits={values.astype(int).tolist()}, hb_age_h={age}")
-assert encoded[1].tolist() == [0.0, 0.0, 1.0]
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-category order: ['a100-pool', 'h100-pool', 'other']
-a100-pool: pool bits=[1, 0, 0], hb_age_h=0.5
-l4-pool: pool bits=[0, 0, 1], hb_age_h=180.0
-```
-<!-- leetllm: output:end -->
-
-`l4-pool` maps to `[0, 0, 1]`, and its 200-hour heartbeat clips to `180.0`. For this fixed preprocessing contract, reuse the fitted encoder rather than refitting on serving batches. Learned vocabularies and normalization parameters belong to the relevant training partition.
+Fresh jobs below both caps never move, and features with zero weight never care. Every job above the old cap shifts across the decision surface. Treat preprocessing parameters as first-class model hyperparameters: version them with the model artifact, and evaluate (or retrain) the paired preprocessing and model whenever either changes.
 
 ```checkpoint
-Does changing the cap force every model score to change?
+A fixed standardizer was fitted on training with mean 10 and standard deviation 2. For input 14, serving silently refits the mean to 14 while keeping scale 2. What original and revised coordinates result?
+
+1. 2 then 0; breaks the fixed-artifact contract.
+2. 2 then 2; preserves the fixed-artifact contract.
+3. 0 then 2; preserves the fixed-artifact contract.
+4. 7 then 7; breaks the fixed-artifact contract.
 ---
-No. Inputs below both caps are unchanged, and a model may ignore the affected feature. The preprocessing/model combination has changed and needs evaluation; choose whether to retrain based on its measured impact.
-```
+**Answer:** 2 then 0; breaks the fixed-artifact contract.
 
-```checkpoint
-A fixed model receives heartbeat age min(raw, cap). Raise the cap from 100 to 300 hours. Compare raw ages 240 and 2. What new inputs follow, and which model pair needs evaluation?
-
-1. Inputs 240 and 2; evaluate revised preprocessing with fixed model.
-2. Inputs 300 and 2; evaluate revised preprocessing with fixed model.
-3. Inputs 240 and 100; evaluate original preprocessing with fixed model.
-4. Inputs 100 and 2; evaluate original preprocessing with fixed model.
----
-**Answer:** Inputs 240 and 2; evaluate revised preprocessing with fixed model.
-
-The old inputs were 100 and 2; the new inputs are 240 and 2. Only the older case changes. Weights remain fixed, so evaluate the changed preprocessing/model pair before choosing a repair or retraining.
-```
-
-```checkpoint
-A fixed standardizer was fitted on training with mean 10 and standard deviation 2. For input 14, serving silently refits its mean to 14 while keeping scale 2. What original/revised coordinates and contract result follow?
-
-1. 2 then 0; fixed-artifact contract fails.
-2. 2 then 2; fixed-artifact contract passes.
-3. 0 then 2; fixed-artifact contract passes.
-4. 7 then 7; fixed-artifact contract fails.
----
-**Answer:** 2 then 0; fixed-artifact contract fails.
-
-The stored transform gives (14−10)/2=2. Replacing the mean gives 0, changing the fitted representation. An explicitly evaluated adaptive policy is different; silently fitting the serving batch violates this fixed-artifact contract.
+The fitted transform maps 14 to (14 - 10) / 2 = 2. Silently refitting the mean on live data collapses the coordinate to 0, feeding the model shifted inputs.
 ```
 
 ## Compare the offline row with the live row
 
-Suppose the offline table reports `queue_backlog=18.0` while the captured live row contains `0.0` for the same job and cutoff. Both pass numeric validation, yet the inputs differ. This is **training-serving skew**; its prediction effect depends on the model.
+Suppose the offline point-in-time table computes `queue_backlog = 18.0` for job `J-204` at `09:00`, while the live serving log captured `0.0`. Both vectors have valid shapes and finite floats, yet the model sees different numbers offline and online. That gap is **training-serving skew**.
 
-Possible sources include:
+Three mechanisms cause almost all training-serving skew:
 
-1. **Discrepancy in logic:** Offline features computed using SQL/PySpark batch queries, while online features computed using Java/Go microservices with subtle differences in rounding or null handling.
-2. **Time-travel leakage in backfills:** Offline pipelines joining the *current* state of a database table rather than replaying historical point-in-time state.
-3. **Freshness lag:** Online key-value stores falling behind streaming message queues during traffic spikes.
+1. **Divergent code paths:** Training features are computed in SQL or Spark, while serving features are reimplemented in Go or Java with subtle differences in rounding, null handling, or timezone boundaries.
+2. **Overwrite-in-place backfills:** Offline queries join against the *current* state of a mutable database table instead of replaying historical snapshots.
+3. **Freshness lag:** Streaming updates fall behind during traffic bursts, leaving the online store serving stale values.
 
-### The unified feature store pattern
+### Feature stores and parity checks
 
-A **feature store** can organize definitions and historical/online retrieval:
+A **feature store** addresses these gaps with three components: a central **registry** of feature definitions, an **offline store** supporting point-in-time historical joins, and a low-latency **online store** holding the latest entity values.[^feast2026online] Modern managed stores synchronize offline tables to online backends via scheduled or continuous sync pipelines.[^googleFeatureServing2026] For smaller systems, sharing a single versioned preprocessing library and logging live feature vectors directly often eliminates skew without extra infrastructure.
 
-- **Registry:** records feature schemas, sources, and associated definitions or metadata.
-- **Offline path:** builds training rows from retained history and configured time-aware joins.
-- **Online path:** retrieves current entity features with a serving latency target. Feast's online stores retain the latest values, not historical versions.[^feast2026online]
+Whichever architecture you choose, verify **offline-online parity** on a sample of logged production requests by replaying the same entities offline at their recorded prediction timestamps and comparing feature vectors directly:
 
-A registry doesn't automatically execute equivalent transforms, synchronize updates, enforce availability-time replay, or guarantee millisecond latency. Check the product, backend, and deployment. A versioned shared preprocessing package and logged serving rows can be enough for a small application; a separate online store isn't needed for every batch model.
-
-Product names also hide different generations. Google's current documentation marks Optimized online serving deprecated, with critical patches only from May 17, 2026 and a planned February 17, 2027 shutdown. It directs feature-serving migrations to Bigtable online serving, which supports scheduled and continuous synchronization. Check the selected generation rather than treating every Vertex AI Feature Store capability as interchangeable. Verified October 10, 2026.[^googleFeatureServing2026]
-
-Sample both offline and online paths on identical entities before promoting a new model candidate:
-
-<!-- leetllm: test, output=show -->
+<!-- leetllm: test, deps=numpy, output=show -->
 ```python title="check-parity.py"
-def mismatches(offline, online):
-    missing = object()
-    differences = {}
-    for key in sorted(offline.keys() | online.keys()):
-        left, right = offline.get(key, missing), online.get(key, missing)
-        if left != right:
-            differences[key] = (
-                "<missing>" if left is missing else left,
-                "<missing>" if right is missing else right,
-            )
-    return differences
+import numpy as np
 
-offline = {"runner_pool": "a100-pool", "queue_backlog": 18.0, "priority_job": 0}
-online_rows = {
-    "matching": {"runner_pool": "a100-pool", "queue_backlog": 18.0, "priority_job": 0},
-    "stale cache": {"runner_pool": "a100-pool", "queue_backlog": 0.0, "priority_job": 0},
-    "missing field": {"runner_pool": "a100-pool", "queue_backlog": 18.0},
+FEATURE_NAMES = ["queued_min", "hb_age_h", "queue_backlog", "priority"]
+
+def check_parity(offline_vec, online_vec, rtol=1e-5, atol=1e-6):
+    diffs = {}
+    for name, off, on in zip(FEATURE_NAMES, offline_vec, online_vec):
+        if not np.isclose(off, on, rtol=rtol, atol=atol, equal_nan=True):
+            diffs[name] = (float(off), float(on))
+    return diffs
+
+offline = np.array([42.0, 0.5, 18.0, 0.0])
+live_samples = {
+    "matching":    np.array([42.0, 0.5, 18.0, 0.0]),
+    "stale cache": np.array([42.0, 0.5, 0.0, 0.0]),
+    "unit bug":    np.array([42.0, 30.0, 18.0, 0.0]),  # minutes instead of hours
 }
 
-for name, online in online_rows.items():
-    differences = mismatches(offline, online)
-    print(name, "mismatches:", differences, "parity gate passed:", not differences)
-
-assert mismatches({"value": None}, {}) == {"value": (None, "<missing>")}
+for label, live in live_samples.items():
+    diffs = check_parity(offline, live)
+    print(f"{label:12s} -> passed={not diffs!s:5s} diffs={diffs}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-matching mismatches: {} parity gate passed: True
-stale cache mismatches: {'queue_backlog': (18.0, 0.0)} parity gate passed: False
-missing field mismatches: {'priority_job': (0, '<missing>')} parity gate passed: False
+matching     -> passed=True  diffs={}
+stale cache  -> passed=False diffs={'queue_backlog': (18.0, 0.0)}
+unit bug     -> passed=False diffs={'hb_age_h': (0.5, 30.0)}
 ```
 <!-- leetllm: output:end -->
 
-The latter two rows fail this declared parity gate; the matching sample doesn't approve a whole release. Compare captured serving inputs with a replay of the same source availability, preprocessing version, and layout. A current latest-only lookup can't reconstruct an old request. This helper uses scalar equality, which doesn't distinguish `False` from `0` in Python; validate types separately. Cross-engine floats may need declared tolerances and explicit non-finite handling.
+> **Key insight:** You cannot reconstruct an old online request by querying a latest-only online store later. Log the exact feature vector seen at serving time (along with its preprocessing version and freshness lag), then compare that log against an offline point-in-time replay.
 
-Monitor feature integrity continuously in production:
+In production, pair periodic parity sampling with three continuous feature-health checks:
 
-| Production check | Failure it catches | Action |
+| Production signal | What it reveals | Response |
 | --- | --- | --- |
-| null rate by feature | measurements became unavailable | investigate source and apply the missing-data policy |
-| unseen-category rate | categories differ from the fitted vocabulary | inspect catalog changes and evaluate their treatment |
-| freshness lag | expected updates aren't available on time | apply the declared lag policy |
-| offline/online parity sample | replay and captured serving inputs disagree | inspect timing, versions, types, and source state |
+| Null rate per feature | Upstream telemetry dropped or changed schema | Inspect producer and verify missingness indicator rate |
+| Unseen-category rate | New runner pools or values outside fitted vocabulary | Audit `"other"` bucket volume and schedule refit |
+| Freshness lag | Streaming or batch sync fell behind | Route to a simpler fallback model or abstain past lag limit |
+| Offline/online parity | Replay and captured live vectors disagree | Diff preprocessing versions, units, and availability clocks |
 
-These checks expose symptoms, not unique causes. Freshness needs a definition per feed or feature: expected update schedule, processing watermark, or entity update age. A write elsewhere in the store doesn't prove this job's data is current. Heartbeat age is separate: an old heartbeat can be the correct value in a fully caught-up feed.
-
-Lag thresholds depend on each feature's staleness tolerance and upstream cadence. The fallback must work with independently trustworthy inputs. Switching models while reusing the same stale measurements may not help. Check the boundary cases:
-
-<!-- leetllm: test, output=show -->
-```python title="apply-freshness-policy.py"
-import math
-
-def scoring_policy(freshness_lag_minutes):
-    if (
-        freshness_lag_minutes is True
-        or freshness_lag_minutes is False
-        or not isinstance(freshness_lag_minutes, (int, float))
-        or not math.isfinite(freshness_lag_minutes)
-        or freshness_lag_minutes < 0
-    ):
-        return "abstain and alert"
-    if freshness_lag_minutes <= 15:
-        return "normal scoring"
-    if freshness_lag_minutes <= 45:
-        return "fallback model"
-    return "abstain and alert"
-
-for lag in [8, 15, 30, 45, 90, -1, float("nan")]:
-    print(f"{lag} minutes -> {scoring_policy(lag)}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-8 minutes -> normal scoring
-15 minutes -> normal scoring
-30 minutes -> fallback model
-45 minutes -> fallback model
-90 minutes -> abstain and alert
--1 minutes -> abstain and alert
-nan minutes -> abstain and alert
-```
-<!-- leetllm: output:end -->
-
-Reject a field that wasn't available at 09:00, and catch a live row that doesn't match the offline row. These checks are not a trained pipeline. The builder emits raw numeric values, the scaling cell is separate, and neither trains an SLA classifier. A wrong-but-well-typed backlog still needs that parity comparison. Windowed counts and late events are the next place the same cutoff can slip.
+Note the difference between **freshness lag** and **heartbeat age**: a job whose last heartbeat was 4 hours ago in a fully caught-up telemetry stream is genuinely stalled (a real feature signal), whereas a telemetry pipeline lagging 45 minutes behind cannot even tell you whether a heartbeat happened. When freshness lag exceeds a feature's staleness budget, switch to a fallback model built on fresh inputs or abstain rather than scoring with stale numbers.
 
 ```checkpoint
-Why can't training-serving skew be detected by monitoring offline validation accuracy alone?
+Why can't offline validation accuracy detect training-serving skew?
 ---
-Offline validation evaluates models strictly against offline data. If the online inference service uses a different programming language, outdated caching layers, or subtle schema differences, the live model encounters a shifted input distribution that offline tests never see.
+Offline validation evaluates the model strictly on offline feature tables. If live serving uses different transformation logic, stale caches, or wrong units, the model sees shifted inputs in production that offline evaluation never encounters.
 ```
 
 ```mastery-quiz
 [
   {
-    "question": "A historical scorer acted at 14:00. A later export contains a 16:00 completion and a 16:05 escalation flag. Which feature/label assignment respects this decision?",
+    "question": "A scorer predicts job delay at 14:00. A later export includes a 16:00 completion timestamp and a 16:05 post-deadline alert flag. How should each field be used during training?",
     "options": [
-      "Completion as input; escalation as input.",
-      "Completion as input; escalation as later label.",
-      "Completion as zero input; escalation as missingness bit.",
-      "Completion as later label; escalation outside inputs."
+      "Both fields as input features.",
+      "Completion as an input feature; alert flag as the target label.",
+      "Completion imputed to zero; alert flag as a missingness bit.",
+      "Completion to derive the target label; alert flag excluded from inputs."
     ],
-    "answer": "Completion as later label; escalation outside inputs.",
-    "explanation": "Both fields became available after 14:00. Completion can later establish the outcome under the declared label rule; neither future completion nor escalation is an eligible input. Imputation does not repair future-information access."
+    "answer": "Completion to derive the target label; alert flag excluded from inputs.",
+    "explanation": "Both fields occur after the 14:00 prediction timestamp. Completion defines the eventual target label, while neither post-decision field belongs in the model's feature vector."
   },
   {
-    "question": "A numeric contract imputes missing backlog to zero and adds a missingness bit. What [backlog, missing] pairs represent measured zero and an absent reading?",
+    "question": "At a 10:00 prediction cutoff, heartbeat pings occur at 09:00 (available 09:01), 09:40 (available 09:50), 09:55 (available 10:10), and 10:05 (available 10:06). Which ping is selected, and what is the heartbeat age?",
     "options": [
-      "[0,1] and [0,0].",
-      "[0,0] and [0,1].",
-      "[0,0] and [1,0].",
-      "[0,1] and [0,1]."
+      "09:55; 5 minutes.",
+      "10:05; -5 minutes.",
+      "09:40; 20 minutes.",
+      "09:00; 60 minutes."
     ],
-    "answer": "[0,0] and [0,1].",
-    "explanation": "Measured zero keeps a zero missingness bit; absence has the same imputed value but bit one. The pair preserves measurement availability without identifying an outage cause."
+    "answer": "09:40; 20 minutes.",
+    "explanation": "A point-in-time join requires both event time and availability time to be at or before 10:00. The 09:55 ping arrived late at 10:10 and 10:05 is in the future, leaving 09:40 (20 minutes old)."
   },
   {
-    "question": "At a 10:00 cutoff, heartbeat events are 09:00/available 09:01, 09:40/available 09:50, 09:55/available 10:10 and 10:05/available 10:06. What latest eligible event and age follow?",
+    "question": "A robust scaler was fitted with median 20 and IQR 8. What transformed value does raw input 100 receive, and does robust scaling clip outliers?",
     "options": [
-      "09:55; five minutes.",
-      "10:05; negative five minutes.",
-      "09:40; twenty minutes.",
-      "09:00; sixty minutes."
+      "0.1; no, it only rescales.",
+      "10; no, it only rescales.",
+      "1; yes, it clips values to 1.",
+      "12.5; no, it only rescales."
     ],
-    "answer": "09:40; twenty minutes.",
-    "explanation": "09:40 is the greatest event time satisfying both cutoffs. The later 09:55 event had not arrived, and 10:05 is a future event. Twenty minutes is one third of an hour; clipping future age would not repair its eligibility."
+    "answer": "10; no, it only rescales.",
+    "explanation": "The transformed value is (100 - 20) / 8 = 10. Robust scaling prevents extreme outliers from distorting the center and spread, but it does not bound extreme inputs."
   },
   {
-    "question": "A fitted robust transform uses median 20 and IQR 8. What value does raw 100 receive, and is that transform clipping?",
+    "question": "A pipeline imputes missing queue_backlog to 0 and adds a binary missingness indicator. What [backlog, missing] pairs represent a measured empty queue versus a missing reading?",
     "options": [
-      "0.1; no, rescaling.",
-      "10; no, rescaling.",
-      "1; yes, clipping.",
-      "12.5; no, rescaling."
+      "[0, 1] and [0, 0].",
+      "[0, 0] and [0, 1].",
+      "[0, 0] and [1, 0].",
+      "[0, 1] and [0, 1]."
     ],
-    "answer": "10; no, rescaling.",
-    "explanation": "(100−20)/8=10. Robust scaling changes center and scale without bounding the result. Dividing by raw value or omitting the center gives different transforms; predictive benefit still requires evaluation."
+    "answer": "[0, 0] and [0, 1].",
+    "explanation": "A measured zero keeps the missingness indicator at 0, while an absent measurement receives the imputed 0 alongside a missingness indicator of 1."
   },
   {
-    "question": "Two of the five jobs in a fitting fold missed their deadlines. None used the held-out job's pool. With a smoothing weight of 4, what target encoding does that job receive before and after its label changes from 0 to 1?",
+    "question": "Two of five jobs in a fitting fold missed their deadlines, and none ran on the held-out job's pool. With m-estimate smoothing weight m = 4, what out-of-fold target encoding does that held-out job receive before and after flipping its own label from 0 to 1?",
     "options": [
       "0 then 0.",
       "0 then 1.",
@@ -1000,10 +608,10 @@ Offline validation evaluates models strictly against offline data. If the online
       "0.4 then 0.6."
     ],
     "answer": "0.4 then 0.4.",
-    "explanation": "The pool contributes zero jobs and zero misses, so its estimate is (0 + 4 × 2/5) / (0 + 4) = 0.4. Returning zero twice drops the prior. Returning 0 then 1 copies the job's label. Raising the estimate to 0.6 counts the new miss in a fold that still has only two misses."
+    "explanation": "With zero fitting-fold rows in that category, the smoothed estimate shrinks completely to the fitting-fold prior: (0 + 4 * 2/5) / (0 + 4) = 0.4. Because the held-out row is excluded from the fitting fold, flipping its own label leaves its encoding unchanged."
   },
   {
-    "question": "Aligned rows have queued 20 and heartbeat 0.5, but offline backlog 12 versus live backlog 4. Use a linear scoring model 0.01×queued+0.02×heartbeat+0.01×backlog. What scores and parity verdict follow?",
+    "question": "For an aligned prediction cutoff, offline replay produces queue_backlog = 12 while live serving logged queue_backlog = 4 (with queued = 20 and heartbeat = 0.5 matching). Under linear score 0.01*queued + 0.02*heartbeat + 0.01*backlog, what offline score, live score, and parity verdict follow?",
     "options": [
       "Offline 0.33; live 0.25; fail.",
       "Offline 0.33; live 0.33; pass.",
@@ -1011,51 +619,18 @@ Offline validation evaluates models strictly against offline data. If the online
       "Offline 0.12; live 0.04; pass."
     ],
     "answer": "Offline 0.33; live 0.25; fail.",
-    "explanation": "The shared contribution from queued time and heartbeat age is 0.20 + 0.01 = 0.21. Adding backlog gives 0.33 offline versus 0.25 live, so the aligned values fail parity. Valid numeric formats do not guarantee identical distributions between offline training snapshots and live serving features."
+    "explanation": "Queued time and heartbeat contribute 0.20 + 0.01 = 0.21 on both paths. Adding backlog gives 0.33 offline versus 0.25 live, exposing training-serving skew even though both rows contain valid floats."
   },
   {
-    "question": "At 14:30:00, feed A reports Boolean `False` for lag. Feeds B and C have watermarks of 14:05:59 and 14:06:00. The scheduler scores normally through 6 minutes of lag, uses fallback through 24 minutes, and abstains for longer or invalid lags. Which actions should it take for A, B, and C?",
+    "question": "A model was trained with heartbeat age capped at 180 hours. Serving later raises the cap to 360 hours without retraining. Which jobs change their model input, and why does this matter?",
     "options": [
-      "Normal, abstain, fallback.",
-      "Abstain, abstain, fallback.",
-      "Normal, fallback, fallback.",
-      "Abstain, abstain, abstain."
+      "All jobs change inputs because scaling parameters shift globally.",
+      "Only jobs with raw heartbeat age above 180 hours change inputs, which can push fixed model weights across a decision threshold.",
+      "No jobs change inputs because tree and linear models ignore clipping bounds.",
+      "Only jobs with raw heartbeat age below 180 hours change inputs."
     ],
-    "answer": "Abstain, abstain, fallback.",
-    "explanation": "Normal scoring for A would treat a Boolean as zero minutes. B is 24 minutes and one second behind. Using fallback for B would discard the extra second. C is exactly 24 minutes behind, so abstaining for C would exclude the last instant covered by fallback."
-  },
-  {
-    "question": "At 16:20, job Pine sent [12, 5] under layout v2. The archive lists v1 as [backlog, queued minutes] and v2 as [queued minutes, backlog]. Pine's backlog of 8 became available at 16:15, Birch's backlog of 2 at 16:19, and Pine's update to 11 at 16:22. How did Pine's captured backlog compare with its source backlog at the decision cutoff?",
-    "options": [
-      "3 fewer jobs.",
-      "4 more jobs.",
-      "6 fewer jobs.",
-      "3 more jobs."
-    ],
-    "answer": "3 fewer jobs.",
-    "explanation": "Layout v2 puts backlog in the second slot, so Pine sent 5. Pine's latest available count at 16:20 was 8. The capture held 3 fewer jobs. Reading the capture with v1 gives 12, or 4 more. Using Pine's later count of 11 gives 6 fewer. Using Birch's count of 2 gives 3 more."
-  },
-  {
-    "question": "Use category order [a100, h100, other], then numeric order [queued, heartbeat, backlog, missing, priority]. For h100, queued 10, heartbeat 2, backlog 8, present measurement and priority True, what vector is correct?",
-    "options": [
-      "[1,0,0,10,2,8,0,1].",
-      "[0,1,0,2,10,8,0,1].",
-      "[0,1,0,10,2,8,0,1].",
-      "[0,1,0,10,2,8,1,0]."
-    ],
-    "answer": "[0,1,0,10,2,8,0,1].",
-    "explanation": "h100 activates the second category coordinate. Numeric values follow their declared order; present backlog has missing bit 0, and Boolean True becomes priority 1. Shape alone does not identify swapped slots or incorrect bits."
-  },
-  {
-    "question": "Before encoding, the offline row holds the Boolean `True` for priority and the live row holds the integer `1`. The builder requires a Boolean source and emits an integer bit. How does Python's scalar `==` compare the two raw values, and which raw inputs pass the builder's type check?",
-    "options": [
-      "Equal. Both inputs pass.",
-      "Unequal. Only the offline input passes.",
-      "Unequal. Both inputs pass.",
-      "Equal. Only the offline input passes."
-    ],
-    "answer": "Equal. Only the offline input passes.",
-    "explanation": "Python compares `True` and `1` as equal. An unequal verdict would require the comparison to distinguish their types. The offline Boolean passes the source check. Accepting both inputs would let an integer through a check that requires a Boolean. The builder produces the integer bit after that check."
+    "answer": "Only jobs with raw heartbeat age above 180 hours change inputs, which can push fixed model weights across a decision threshold.",
+    "explanation": "Inputs at or below 180 hours are unaffected by raising the cap, while older jobs now pass larger numbers into frozen weights trained on the 180-hour ceiling (the CACE principle)."
   }
 ]
 ```

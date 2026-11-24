@@ -38,18 +38,22 @@
 }
 ---
 
-Two short text snippets contain three words each: "the red fox" and "a blue bird." Suppose we represent each word with four numbers. We have 24 numbers in total, yet the total count alone never tells us which slice of numbers belongs to which word or which snippet. The previous [Python for AI Engineering](/learn/python-for-ai-engineering) lesson scored JSONL rows one at a time: parse a line, inspect its fields, and compare a predicted class with the expected label. Here, the same kind of data arrives as one numeric array holding many rows together, so a single array operation processes the entire batch in one step.
+Twenty-four numbers in RAM can represent two 3-word snippets with four features per word, or two 4-feature grids across three words, or a flat list of 24 scalars. NumPy will happily reshape, broadcast, or average the wrong layout without raising a single error, turning real token representations into silent nonsense.
+
+In [Python for AI Engineering](/learn/python-for-ai-engineering), we packed raw floats into contiguous buffers. Now we give those buffers structure: explicit axis names, broadcasting rules, axis reductions, memory strides, and batched matrix multiplication.
 
 ## Two text snippets, one array
 
-An **array** arranges values along numbered **axes**, such as rows and columns. NumPy calls its array object an <span data-glossary="numpy-array">ndarray</span>. In machine-learning code, you'll also see the word <span data-glossary="tensor">tensor</span> for an array with zero, one, or several axes.
+An **array** organizes numbers along numbered **axes**. NumPy calls it an <span data-glossary="numpy-array">ndarray</span>; deep-learning frameworks call the same object a <span data-glossary="tensor">tensor</span>.
+
+Take two 3-<span data-glossary="token">token</span> snippets:
 
 | Batch item | Tokens (words) |
 |---|---|
 | 0 | `["the", "red", "fox"]` |
 | 1 | `["a", "blue", "bird"]` |
 
-A <span data-glossary="token">token</span> is a piece of text a model processes; here we choose one word per token, and a feature <span data-glossary="vector">vector</span> is the list of numbers representing one token. The numbers below count sequentially from 0 rather than encoding learned word meanings, which makes every value easy to track as we slice, broadcast, and reshape the array. Give each token four features and fill them in order so every coordinate holds a distinct value:
+Give each token a 4-number feature <span data-glossary="vector">vector</span> filled sequentially from `0` through `23` so every coordinate carries a unique, easy-to-trace value:
 
 ```text
 x =
@@ -64,52 +68,45 @@ x =
 ]
 ```
 
-There are two snippets, three token rows per snippet, and four values per row. Because each axis captures one nested grouping level from outer batch down to individual features, the tensor shape reads naturally from left to right as `(B, T, D) = (2, 3, 4)`:
+Reading from outermost grouping to innermost gives shape `(B, T, D) = (2, 3, 4)`:
 
 | Axis | Meaning | Size |
 |---|---|---:|
-| `B` | batch, how many snippets | 2 |
-| `T` | token positions per snippet | 3 |
-| `D` | numbers per token | 4 |
+| `B` (axis 0) | batch: how many snippets | 2 |
+| `T` (axis 1) | token positions per snippet | 3 |
+| `D` (axis 2 / `-1`) | features per token | 4 |
 
-If you can say that sentence, you can usually debug the next operation. The first axis picks a snippet, the second picks a word, and the third holds that word's four numbers. `x[0, 1]` selects the row labeled `red` and returns its four-feature vector.
+Once you name the axes, every index reads like English: `x[0, 1]` selects snippet 0, token 1 (`red`), returning its four features `[4, 5, 6, 7]`.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="The figure shows snippet 0 from x with shape (2, 3, 4): a 3 by 4 grid whose rows are the [0, 1, 2, 3], red [4, 5, 6, 7], and fox [8, 9, 10, 11]. The red row is highlighted. Selecting x[0, 1] returns [4, 5, 6, 7] with shape (4,)." />
-  <figcaption>`x[0, 1]` selects snippet 0, then its highlighted `red` row. Both integer indices remove an axis: only the four features `[4, 5, 6, 7]` remain, with shape `(4,)`.</figcaption>
+  <figcaption>`x[0, 1]` selects snippet 0, then its highlighted `red` row. Both integer indices remove an axis, leaving `[4, 5, 6, 7]` with shape `(4,)`.</figcaption>
 </figure>
 
 ## Rank, shape, and dtype
 
-Finding one value takes three indices, and the shape says how many choices exist at each position. The number of axes is the array's **rank**, exposed as `x.ndim`, so this array has rank 3. Axis numbers start at zero: batch is axis `0`, tokens are axis `1`, and features are axis `2`, while negative axis numbers count backward, making `-1` another name for the feature axis.
+An array's **rank** (`x.ndim`) counts its axes. Negative axis indices count backward from the end, so axis `-1` is always the trailing feature axis.
 
 | Term | Shape | What it holds |
 |---|---|---|
-| **scalar** | `()` | one number, no axes |
-| **vector** | `(4,)` | 4 numbers along one axis, with no row or column orientation |
-| **matrix** | `(3, 4)` | 3 rows, each with 4 numbers |
-| **3-D tensor** | `(2, 3, 4)` | three axes, generalizing the same idea |
+| **scalar** | `()` | one number, zero axes |
+| **vector** | `(4,)` | 4 numbers along one axis (no row/column orientation) |
+| **matrix** | `(3, 4)` | 3 rows × 4 columns |
+| **3-D tensor** | `(2, 3, 4)` | 3 axes generalizing the same grid |
 
-The comma in `(4,)` is Python's notation for a one-item tuple, because an array's `shape` is always a tuple even when it contains just one axis length. Leaving off the comma turns `(4)` into an ordinary integer in parentheses, which trips beginners writing shape tuples by hand. Shape alone only describes how coordinates map to entries, however; every NumPy array also carries one <span data-glossary="dtype">data type, or dtype</span>, that determines how each element is stored and interpreted in memory.
-
-Our examples use `float32`, a 32-bit floating-point type standard for model inputs and activations. Calling `np.arange(24)` without a `dtype` argument defaults to integers, whereas passing `dtype=np.float32` keeps later arithmetic aligned with neural network code. At a model interface, check shape and dtype separately: an array with shape `(2, 3, 4)` and dtype `int64` passes a shape check yet still fails an operation that requires `float32`.
+Notice the trailing comma in `(4,)`: `shape` is always a Python tuple, and omitting the comma turns `(4)` into a plain integer. Alongside shape, every array carries a single <span data-glossary="dtype">dtype</span> controlling how its bytes are interpreted. Neural network inputs typically use `float32`; `np.arange(24)` defaults to integers, so pass `dtype=np.float32` explicitly and validate shape and dtype as two separate checks.
 
 ## Indexing: which axes stay and which disappear
 
-Because every coordinate points directly to a token vector, indexing lets you pull out either a single word, a full snippet, or the same position across the entire batch. Look at `x[:, 1]`: the colon keeps the batch axis, the integer `1` selects token position 1 and drops the token axis, and all four features remain, giving shape `(2, 4)`. By contrast, `x[:, :, 0]` keeps both batch and token axes while collapsing the feature axis down to a single slot per word, giving shape `(2, 3)`.
+Read indices left to right: an **integer** selects one entry and *removes* that axis, while a **colon or slice** (`:`, `0:1`) *keeps* the axis.
 
 | Expression | Plain-English meaning | Result shape |
 |---|---|---|
 | `x[0]` | snippet 0, all tokens, all features | `(3, 4)` |
+| `x[0:1]` | snippet 0, keeping the leading batch axis | `(1, 3, 4)` |
 | `x[0, 1]` | token 1 in snippet 0 | `(4,)` |
-| `x[:, 1]` | token 1 from each snippet | `(2, 4)` |
-| `x[:, :, 0]` | feature 0 from each token in each snippet | `(2, 3)` |
-
-Read an index from left to right. A single integer such as `0` or `1` chooses one item and removes that axis, while a colon keeps the entire axis intact. A slice such as `0:1` also keeps the axis, selecting only its first item: `x[0:1]` has shape `(1, 3, 4)` rather than `(3, 4)` from `x[0]`, which matters whenever downstream code expects a leading batch axis.
-
-### Inspect the batch
-
-Run the script below to check both values and shapes. `np.arange(24)` creates the numbers from 0 through 23, and `reshape(B, T, D)` groups them into the nested layout above; with `uv` from the Python lesson, you can save any runnable snippet as a `.py` file and execute `uv run --with numpy filename.py`.
+| `x[:, 1]` | token 1 from every snippet | `(2, 4)` |
+| `x[:, :, 0]` | feature 0 from every token in every snippet | `(2, 3)` |
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="code-lab-inspect-one-batch.py"
@@ -138,45 +135,35 @@ x[:,1]
 ```
 <!-- leetllm: output:end -->
 
-Selecting the token `red` gave us four features. Adding the same four offsets to every token should preserve those feature positions, without writing a loop over snippets and tokens.
-
 ## Broadcasting: reuse one feature bias
 
-A **bias** is an additive offset. Suppose we want to add the same four offsets, one per feature, to every token vector in the batch without writing nested Python loops over snippets and positions. Because `bias = [100, 200, 300, 400]` has shape `(4,)`, it matches the trailing feature axis of `x` and adds cleanly to each token vector:
+Suppose you want to add the same four feature offsets `bias = [100, 200, 300, 400]` to every token vector in `x`:
 
 ```text
-x[0, 1]     = [  4,   5,   6,   7]
-bias        = [100, 200, 300, 400]
-result      = [104, 205, 306, 407]
+x[0, 1] = [  4,   5,   6,   7]
+bias    = [100, 200, 300, 400]
+result  = [104, 205, 306, 407]
 ```
 
-NumPy applies that addition across every token in every snippet automatically through <span data-glossary="broadcasting">broadcasting</span>. Conceptually, the bias vector repeats across the batch and token axes to yield a `(2, 3, 4)` output, without materializing an expanded copy of `bias` in memory first. The addition itself still allocates the full `(2, 3, 4)` output array, so broadcasting saves memory on the smaller operand rather than making large results free.[^numpyBroadcasting2026]
+NumPy's <span data-glossary="broadcasting">broadcasting</span> stretches `bias` conceptually across the batch and token axes without materializing an expanded copy of `bias` first (the output array itself is still `(2, 3, 4)`).[^numpyBroadcasting2026]
 
-The alignment rule proceeds strictly from right to left:
+The alignment rule works strictly **right to left**:
 
-1. Line both shapes up at their trailing dimensions.
-2. Two aligned axes are compatible if their sizes are equal or one of them is `1`.
-3. Missing leading axes in the smaller array behave as size `1`.
-4. If any aligned pair breaks this rule, NumPy raises a `ValueError`.
+1. Line both shapes up on their trailing (rightmost) axis.
+2. Two aligned axes match if they are equal or one of them is `1`.
+3. Missing leading axes behave as size `1`.
+4. Any mismatch raises `ValueError`.
 
-For `x.shape == (2, 3, 4)`:
-
-| Smaller shape | What NumPy does | Meaning |
+| Smaller shape vs. `(2, 3, 4)` | Aligned shape | Outcome |
 |---|---|---|
-| `(4,)` | aligns with the feature axis and expands across batch and token positions | one bias per feature |
-| `(3, 1)` | aligns with the token axis and expands across batch and features | one scalar per token position |
-| `(3,)` | raises an error | no feature axis matches that `3` |
-
-Each column in the diagram below represents one axis slot (`B`, `T`, `D`), with cyan cells showing size-1 dimensions including implicit leading ones. Notice why the bare `(3,)` array fails: lining shapes up from the right places `3` under `D=4` rather than under `T=3`. Placing a trailing size-1 axis on `(3, 1)` shifts `3` left into the token column so `D=1` broadcasts safely across features.
+| `(4,)` | `(1, 1, 4)` | adds one bias per feature |
+| `(3, 1)` | `(1, 3, 1)` | adds one scalar per token position |
+| `(3,)` | `(1, 1, 3)` | `ValueError`: `3 != 4` on trailing axis `D` |
 
 <figure>
   <img src="illustrations/_generated/broadcast_alignment_dark.png" alt="Left: a 3-by-4 slice x[0] shows token rows the, red, and fox with feature columns d0 through d3, adding green feature bias [100, 200, 300, 400] to the red row [4, 5, 6, 7] to produce [104, 205, 306, 407]. Right: right-aligned shape lanes against (2, 3, 4) show feature bias (1, 1, 4) and token bias (1, 3, 1) succeeding, while bare (3,) becomes (1, 1, 3) and collides at D because 3 does not equal 4." />
-  <figcaption>Broadcasting starts at the trailing edge. Equal sizes or size-1 axes align cleanly, while a bare `(3,)` collides with `D=4` unless you insert a trailing size-1 axis to place `3` on `T`.</figcaption>
+  <figcaption>Broadcasting aligns from the trailing edge. Equal sizes or size-1 axes pair cleanly, while a bare `(3,)` collides with `D=4` unless a trailing `1` shifts `3` onto `T`.</figcaption>
 </figure>
-
-### Add the feature bias
-
-Run the next snippet to add `bias` to `x` and confirm both the shifted `red` row `[104, 205, 306, 407]` and the preserved `(2, 3, 4)` output shape.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="code-lab-broadcast-one-feature-bias.py"
@@ -198,7 +185,7 @@ shifted[0,1] [104. 205. 306. 407.]
 ```
 <!-- leetllm: output:end -->
 
-If you pass `np.array([10, 20, 30])` by mistake, NumPy catches the incompatible trailing axis immediately with `ValueError: operands could not be broadcast together with shapes (2,3,4) (3,)`. That error message is helpful because it reveals that the trailing feature dimension did not match the array you supplied as a bias. Rather than waiting for such mismatches in a larger pipeline, you can test the failure condition explicitly:
+Passing a token-length vector `(3,)` directly fails immediately because `3` lands under `D=4`:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="broadcast-shape-error.py"
@@ -223,7 +210,7 @@ operands could not be broadcast together with shapes (2,3,4) (3,)
 
 ### When broadcasting succeeds with the wrong meaning
 
-A 1-D array with shape `(3,)` has no row or column orientation on its own, so broadcasting always lines its single axis up with the trailing dimension of the larger array. When you need an array to align along an earlier axis instead, insert a size-1 axis explicitly using `None` inside an index: `v[:, None]` has shape `(3, 1)` to broadcast across columns, whereas `v[None, :]` has shape `(1, 3)` to broadcast down rows. Checking these two 2-D shapes before adding avoids relying on accidental shape compatibility.
+A 1-D vector `(3,)` has no row or column orientation; insert size-1 axes explicitly with `None`: `v[:, None]` has shape `(3, 1)` (column vector) and `v[None, :]` has shape `(1, 3)` (row vector).
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="the-n-vs-n-1-trap.py"
@@ -243,7 +230,7 @@ v[None, :] shape (1, 3)
 ```
 <!-- leetllm: output:end -->
 
-The risk becomes clear when two axes happen to share the same length. Take only the first three features of snippet 0 so its shape becomes `(3, 3)`, matching token count and feature count. NumPy accepts a bare `(3,)` token bias without raising an error, yet it applies the three offsets across features instead of down tokens:
+> **Common mistake:** When two axes happen to share the same length (like a `(3, 3)` square slice), NumPy silently broadcasts a bare `(3,)` token bias across *features* instead of down *tokens*. Both `wrong` and `right` below have shape `(3, 3)`, so only inspecting a concrete row catches the bug.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="silent-broadcast-error.py"
@@ -270,20 +257,9 @@ right first token [10. 11. 12.]
 ```
 <!-- leetllm: output:end -->
 
-The intended offset for token 0 is `10`, applied uniformly across all three features of that token. Instead, bare `token_bias` shifts features differently, producing `[10, 21, 32]` on token 0 while `token_bias[:, None]` yields the expected `[10, 11, 12]`. Notice that both `wrong` and `right` produce shape `(3, 3)`, proving that a passing execution and matching output shape never guarantee the axes were aligned as intended; checking values on a concrete row catches the mistake.
-
 ## Reductions: collapsing the right axis
 
-Every reduction answers a single design question: which axis are you summarizing away, and which axes must remain? Suppose you want one summary vector per snippet rather than one vector per token. Keeping the batch and feature axes while averaging across the token axis (`x.mean(axis=1)`) gives shape `(B, D) = (2, 4)`. Using the same values from 0 through 23 for snippet 0, each feature column averages across its three token rows:
-
-```text
-token 0 = [ 0,  1,  2,  3]
-token 1 = [ 4,  5,  6,  7]
-token 2 = [ 8,  9, 10, 11]
-mean    = [ 4,  5,  6,  7]
-```
-
-Now contrast `x.mean(axis=1)` with `x.mean(axis=-1)`, which collapses the trailing feature axis instead of the token axis. Reducing axis `-1` leaves the batch and token axes intact, turning shape `(2, 3, 4)` into `(B, T) = (2, 3)`: one scalar summary per token rather than one feature vector per snippet. Run the next comparison to verify both output shapes (`(2, 4)` for token pooling and `(2, 3)` for feature means) alongside the first-row numbers we computed by hand.
+Every reduction removes the axis you pass to `axis=...` and keeps the rest. To average the three token vectors in each snippet into one 4-feature summary vector per snippet, collapse `axis=1` (`T`): `(2, 3, 4)` becomes `(2, 4)`, and snippet 0's average of `[0,1,2,3]`, `[4,5,6,7]`, `[8,9,10,11]` is `[4, 5, 6, 7]`. Passing `axis=-1` collapses features (`D`) instead, producing `(2, 3)`: one scalar per token.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="code-lab-compare-two-reductions.py"
@@ -311,9 +287,10 @@ feature_means[0] [1.5 5.5 9.5]
 ```
 <!-- leetllm: output:end -->
 
-Before writing a reduction, state its target axes out loud: "I want one vector per snippet, so I'm reducing the token axis." That phrasing tells you immediately which axis disappears and which two must remain.
+<details>
+<summary>Deep dive: Accumulation precision in <code>mean()</code></summary>
 
-Also pay attention to accumulation precision. A `float32` input returns a `float32` mean, whereas integer inputs use `float64` accumulation and output by default, and `float16` accumulates in `float32` before returning `float16`.[^numpyMean2026] When summing many values or combining magnitudes that differ sharply, `float32` accumulation can lose small terms, so passing `dtype=np.float64` protects precision whenever downstream code can accept a `float64` result. Even three values expose the effect: for `[16777216, 1, -16777216]`, the exact sum is `1` and the exact mean is `1/3`, yet `float32` drops the `1` when adding it to `16777216` because the spacing between adjacent `float32` numbers there exceeds `1`. Compare both accumulators on the same `float32` input:
+`float32` reductions accumulate in `float32` by default, while `float16` accumulates in `float32` and integer arrays accumulate in `float64`.[^numpyMean2026] When summing values with large magnitude gaps, `float32` can drop small terms entirely; pass `dtype=np.float64` when you need a wider accumulator:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="mean-accumulator-precision.py"
@@ -336,11 +313,11 @@ float64 mean 0.3333333333333333
 ```
 <!-- leetllm: output:end -->
 
-All three inputs are exactly representable in `float32`; the unit is lost solely during accumulation, so a wider accumulator recovers it without altering the input array (whereas our running batch values `0` through `23` sit well inside exact integer range).[^numpyMean2026]
+</details>
 
 ### Subtract a mean without losing its position
 
-By default, a reduction deletes the collapsed axis, which breaks subsequent broadcasting back against the original array. Collapsing `axis=1` on `(2, 3, 4)` produces `(2, 4)`, so right-aligned broadcasting tries to pair batch length `2` with token length `3` and either raises a `ValueError` or, worse, mixes axes silently when lengths happen to match. Keeping the reduced axis as size `1` with `keepdims=True` produces `(2, 1, 4)` so every mean subtracts cleanly across all tokens in its own snippet:
+Collapsing `axis=1` turns `(2, 3, 4)` into `(2, 4)`. Right-aligning `(2, 4)` back against `(2, 3, 4)` pits `2` against `3` and crashes (or silently subtracts the wrong snippet's mean whenever `B == T`). Passing `keepdims=True` retains a size-1 placeholder `(2, 1, 4)` so `x - mean_kept` broadcasts cleanly over every token in its own snippet:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="why-keepdims-true-is-a-safety-switch.py"
@@ -373,18 +350,14 @@ centered snippet 0
 ```
 <!-- leetllm: output:end -->
 
-Passing `keepdims=True` retains the collapsed axis as a placeholder of size `1`, preserving all axis positions so the mean broadcasts cleanly across every token in `x`. After centering, the first feature column across tokens becomes `[-4, 0, 4]`, whose mean is zero within floating-point tolerance (`np.allclose`). Just like the square-array bias trap, if batch size happened to match token count (`B == T`), omitting `keepdims=True` would run without error and subtract the wrong snippet's mean!
-
-The diagram below shows both the arithmetic on snippet 0 and the shape alignment side by side. Without `keepdims`, `(2, 4)` right-aligns so the batch dimension `2` collides with `T=3`; with `keepdims`, a cyan size-1 slot holds `T`'s place and broadcasts across all three tokens.
-
 <figure>
   <img src="illustrations/_generated/keepdims_broadcast_guard_dark.png" alt="Left: snippet 0 of x has three token rows and four features, whose token mean [4, 5, 6, 7] subtracts from each row to give [-4, -4, -4, -4], [0, 0, 0, 0], and [4, 4, 4, 4]. Right: right-aligning against (2, 3, 4) puts the unkept mean shape (2, 4) as (1, 2, 4) with 2 colliding against T=3, whereas keepdims=True returns (2, 1, 4) with a size-1 token slot." />
-  <figcaption>`keepdims=True` leaves a size-1 placeholder where the token reduction happened, keeping `B` and `D` in their original slots so the mean subtracts cleanly back into `x`.</figcaption>
+  <figcaption>`keepdims=True` keeps a size-1 placeholder where the token axis collapsed, so `B` and `D` stay aligned and the mean subtracts cleanly back into `x`.</figcaption>
 </figure>
 
 ## Reshape vs. transpose: regrouping or reordering
 
-Suppose `x` still has axes `(batch, tokens, features) = (2, 3, 4)`, and a downstream operation asks for shape `(2, 4, 3)`. Does it want the same 24 numbers re-chunked into four groups of three, or does it want the token and feature axes swapped? Run both operations on `x` to see how identical values land in completely different slots:
+Turning `(2, 3, 4)` into `(2, 4, 3)` can be done with `reshape` or `transpose`. Both yield the exact same shape, yet their contents disagree completely:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="reshape-vs-transpose.py"
@@ -421,21 +394,19 @@ transposed[0]
 ```
 <!-- leetllm: output:end -->
 
-Both results have shape `(2, 4, 3)`, yet they answer entirely different questions. Trace where the highlighted `3` lands while staying attached to token `the`, feature `d3`: `reshape` walks the flat stream in C-order and parks `3` beside `4` (the first feature of token `red`), whereas `transpose` permutes the axes so `3` stays at feature `d3` of `the` in a feature-by-token grid. Even identical dimensions can hide an axis scramble unless you inspect where individual token values move.
-
-The figure below also reveals how those values sit in memory. Each `float32` occupies four bytes, so in `x[0]` moving one feature advances 4 bytes and moving one token advances `4 × 4 = 16` bytes, giving <span data-glossary="array-stride">strides</span> of `(16, 4)`. Our original array is **C-contiguous** because its final axis steps across adjacent memory addresses; reshaping to `(4, 3)` shortens each row to three values with strides `(12, 4)`, whereas transposing swaps the existing strides to `(4, 16)` so stepping across a row jumps 16 bytes in the unchanged buffer.[^numpyStrides2026]
+Follow element `3` (feature `d3` of token `the`). `reshape` walks the flat C-order memory stream and slices it into chunks of three, parking `3` next to `4` (feature `d0` of `red`). `transpose` permutes the axes by swapping <span data-glossary="array-stride">strides</span> from `(16, 4)` to `(4, 16)` bytes so `3` stays attached to token `the` and feature `d3`.[^numpyStrides2026]
 
 <figure>
   <img src="illustrations/_generated/reshape_vs_transpose_dark.png" alt="Snippet 0 has rows the [0, 1, 2, 3], red [4, 5, 6, 7], and fox [8, 9, 10, 11]. Reshape to (4, 3) chunks the C-order stream, placing 3 beside 4. Transpose swaps strides from (16, 4) to (4, 16) bytes and keeps 3 at feature d3 of token the." />
-  <figcaption>Same twelve numbers, two layouts. `reshape` walks the flat stream, so `3` and `4` become neighbors. `transpose` swaps axes, so `3` stays feature `d3` of token `the`.</figcaption>
+  <figcaption>Same twelve numbers, two meanings. `reshape` re-chunks the flat stream, making `3` and `4` neighbors; `transpose` swaps axes, keeping `3` as feature `d3` of token `the`.</figcaption>
 </figure>
 
 | Operation | What it does | When to use it |
 |---|---|---|
-| `reshape` | reads values in the requested index order (C-order by default) and groups them into a new shape | when the flat order is correct and you want new grouping |
-| `transpose` | permutes the axes | when the same values are attached to the wrong axis order |
+| `reshape` | regroups flat elements (C-order by default); one `-1` dimension is inferred | merging or splitting adjacent axes while keeping element order[^numpyReshape2026] |
+| `transpose` | permutes axis order via strides | moving named axes (e.g. `(B, T, D)` to `(B, D, T)`) |
 
-Whenever your goal is turning `(B, T, D)` into `(B, D, T)`, you are reordering axes rather than re-chunking a stream, so `transpose` is the right tool. Reshaping is reserved for regrouping elements while preserving their count (`2 * 3 * 4 == 2 * 4 * 3 == 24`), where one dimension may be `-1` so NumPy infers it automatically (for instance, `x.reshape(-1, 4)` merges batch and token axes into `(6, 4)` while keeping each four-feature token vector intact).[^numpyReshape2026] Watch for one quiet edge case with 1-D vectors: because a 1-D array has only one axis, `.T` leaves its shape unchanged, so explicit row or column vectors still require `v[None, :]` or `v[:, None]`:
+Note one quick gotcha: on a 1-D array `v` of shape `(3,)`, `v.T` still has shape `(3,)` because there is only one axis to permute.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="vector-transpose-stays-1d.py"
@@ -455,7 +426,7 @@ print(v.T.shape)
 
 ### Views and copies: who shares memory
 
-An ndarray pairs a contiguous or strided memory buffer with metadata describing shape, dtype, and strides. A **view** reuses the underlying buffer with new metadata, so writing through a view mutates the original array, whereas a **copy** allocates an independent buffer. Basic slicing (`x[:, 1, :]`) and `np.transpose` return views whenever strides can represent the new indexing, while **advanced indexing** using integer lists or boolean masks always returns a copy, and `reshape` copies only if the array is non-contiguous.[^numpyCopiesViews2026] Test that distinction directly in the next snippet: editing the slice mutates `x`, while editing the advanced-index selection leaves `x` unchanged.
+An ndarray pairs a raw memory buffer with metadata (shape, dtype, strides). Basic slices (`x[:, 1, :]`) and `transpose` return **views** sharing that buffer, so mutating a slice mutates `x`. **Advanced indexing** with integer lists or boolean masks returns an independent **copy**.[^numpyCopiesViews2026] Call `.copy()` before mutating a slice you want isolated, and inspect `np.shares_memory(a, b)` whenever buffer ownership matters.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="views-vs-copies.py"
@@ -479,11 +450,10 @@ after editing an advanced-index copy, x[0, 0, 0] = 0.0
 ```
 <!-- leetllm: output:end -->
 
-If you need to mutate a slice without touching the source, call `.copy()` first (`x[:, 1, :].copy()`), and check `np.shares_memory(a, b)` whenever buffer ownership is unclear. Note also that retrieving an advanced-index expression (`picked = x[[0, 1]]`) allocates a copy, whereas assigning into one (`x[[0, 1]] = 0`) still writes directly into `x`.[^numpyCopiesViews2026]
+<details>
+<summary>Deep dive: Why <code>transpose().reshape()</code> triggers a copy</summary>
 
-### A transpose can make the next reshape copy
-
-Because a transpose reorders strides without moving memory, its result is usually non-contiguous, forcing a subsequent `reshape` to allocate a new buffer in logical index order rather than original physical order. The next snippet checks strides, memory sharing, and contiguity across both operations:
+Because `transpose` swaps strides without moving bytes, its output is non-contiguous (`C_CONTIGUOUS == False`). A subsequent `reshape` walks the transposed logical order (`[0, 4, 8, ...]`) and allocates a fresh contiguous copy rather than reusing the original buffer:[^numpyReshape2026]
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="transpose-then-reshape-copy.py"
@@ -514,21 +484,21 @@ reshaped snippet 0 [ 0.  4.  8.  1.  5.  9.  2.  6. 10.  3.  7. 11.]
 ```
 <!-- leetllm: output:end -->
 
-Prefer `reshape` only when the flat index order is already what you want, and call `np.ascontiguousarray(t)` explicitly when downstream code requires a contiguous C-order buffer. Notice that `reshaped[0]` begins `[0, 4, 8]` rather than `[0, 1, 2]` because `reshape` follows logical C-index order of `t`, forcing a copy that preserves the transposed axis semantics rather than reverting to the original buffer layout.[^numpyReshape2026] Keep in mind too that axis positions are conventions rather than self-describing names: vision libraries variously expect `(batch, channels, height, width)` or `(batch, height, width, channels)`, so always write the axis order explicitly.
+Use `np.ascontiguousarray(t)` when downstream code explicitly requires a C-contiguous buffer.
+
+</details>
 
 ## Matrix multiplication: compare every pair of tokens
 
-Addition pairs features at matching positions and `mean` collapses an axis, while **matrix multiplication** (`@`) compares every token vector against every other token vector via row-by-column dot products. Token `the` (`[0, 1, 2, 3]`) and token `red` (`[4, 5, 6, 7]`) have <span data-glossary="dot-product">dot product</span> $0\times4 + 1\times5 + 2\times6 + 3\times7 = 38$, and `@` computes all nine token-pair scores at once by contracting the shared feature axis `D`: multiplying `(3, 4) @ (4, 3)` produces `(3, 3)`.[^numpyMatmul2026]
+**Matrix multiplication** (`@`) computes all pairwise <span data-glossary="dot-product">dot products</span> at once by contracting the inner axis. Token `the` (`[0, 1, 2, 3]`) dotted with token `red` (`[4, 5, 6, 7]`) gives $0\times4 + 1\times5 + 2\times6 + 3\times7 = 38$.
 
-This pairwise comparison forms the core of **attention** in a <span data-glossary="transformer">Transformer</span>, where each token projects into a **query** vector (asking for context) and a **key** vector (advertising what it contains).[^vaswani2017] Using learned weight <span data-glossary="matrix">matrices</span> of shape `(D, D)` (set to identity matrices here so values stay identical to `x`), both `q` and `k` have shape `(B, T, D)`. For arrays with more than two axes, `@` treats the final two dimensions as matrices and broadcasts leading axes as a batch stack, so swapping the last two axes of `k` to `(B, D, T)` lets `(B, T, D) @ (B, D, T)` produce `(B, T, T)` unscaled attention scores.[^numpyMatmul2026]
+This exact operation powers <span data-glossary="transformer">Transformer</span> **attention**: each token projects via `(D, D)` <span data-glossary="matrix">matrices</span> into a **query** `q` and a **key** `k` of shape `(B, T, D)`.[^vaswani2017] For 3-D+ tensors, `@` treats the last two axes as matrices and batches over leading axes.[^numpyMatmul2026] Swapping the last two axes of `k` to `(B, D, T)` aligns `D` in the middle so `(B, T, D) @ (B, D, T)` yields `(B, T, T)` unscaled attention scores.
 
 ```mermaid
 flowchart LR
   Q["q (B, T, D)"]:::primary --> S["scores (B, T, T)"]:::success
   K["k (B, T, D)"]:::secondary --> KT["k as (B, D, T)"]:::accent --> S
 ```
-
-Swapping the last two axes of `k` lines up the inner dimension `D` across `q` and `k`, contracting `D` away so each entry `scores[b, i, j]` compares query token `i` with key token `j` in snippet `b`. Run the verification cell below to watch `q @ k` fail on mismatched inner axes `(4 != 3)` and then verify `unscaled_scores[0, 0, 0] == 14.0` ($0^2 + 1^2 + 2^2 + 3^2$) and `unscaled_scores[0, 0, 1] == 38.0`.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="code-lab-check-attention-scores.py"
@@ -570,11 +540,11 @@ token 'the' against token 'red' 38.0
 ```
 <!-- leetllm: output:end -->
 
-These are raw comparison scores rather than normalized weights or final attention outputs; later lessons scale them, pass them through softmax, and combine value vectors. For now, the shape invariant is what matters: `unscaled_scores[b, i, j]` scores token `i` against token `j` in snippet `b` across all four features.
+Every entry `unscaled_scores[b, i, j]` scores query token `i` against key token `j` in snippet `b` ($0^2+1^2+2^2+3^2 = 14$ and $0\cdot4+1\cdot5+2\cdot6+3\cdot7 = 38$).
 
 ### Split each token's features, then move the new axis
 
-Transformers run several attention comparisons in parallel across separate **heads** by splitting each `D`-dimensional vector into `H` chunks of size `head_dim = D // H`.[^vaswani2017] Exposing those heads requires two distinct operations: first `reshape` `(B, T, D)` into `(B, T, H, D // H)` so each token's feature vector splits cleanly into head-sized slices, and then `transpose(0, 2, 1, 3)` to move the head axis next to the batch axis as `(B, H, T, D // H)`. Calling `reshape(B, H, T, head_dim)` directly yields the exact same shape while silently mixing features across tokens and heads:
+Multi-head attention splits each `D`-dimensional token vector into `H` **heads** of width `head_dim = D // H`.[^vaswani2017] Always do this in two steps: first `reshape(B, T, H, head_dim)` to split each token's features, then `transpose(0, 2, 1, 3)` to move `H` next to `B`. Reshaping directly to `(B, H, T, head_dim)` passes every shape check while scrambling tokens across heads:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="split-attention-heads.py"
@@ -607,11 +577,11 @@ direct reshape, same index [2. 3.]
 ```
 <!-- leetllm: output:end -->
 
-Both arrays have shape `(2, 2, 3, 2)`, so a shape check alone would pass. But head 0 for token `red` must contain `[4, 5]`, not the last two features of token `the`. The value assertion catches what the shape assertion can't.
+> **Key insight:** Both arrays have shape `(2, 2, 3, 2)`, yet head 0 for token `red` must be `[4, 5]`, not `[2, 3]` (the tail of token `the`). Pair every complex reshape/transpose with one traced value assertion.
 
 ## Transfer: the same rule on images
 
-The trailing-axis rule works identically on image tensors. In a computer-vision pipeline holding 32 RGB satellite tiles of height 224 and width 224, the batch shape is `(32, 224, 224, 3)` with color channels on the final axis. Scaling pixel intensities to `[0, 1]` and subtracting a three-channel dataset mean `[0.52, 0.48, 0.44]` broadcasts right-aligned across every pixel location and image in the batch without a Python loop:
+The same trailing-axis rule governs vision tensors. A batch of 32 RGB tiles of size `224 × 224` has shape `(B, H, W, C) = (32, 224, 224, 3)`. Subtracting a 3-channel dataset mean `[0.52, 0.48, 0.44]` broadcasts right-aligned across every pixel and tile automatically:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="normalize-satellite-tiles.py"
@@ -632,29 +602,24 @@ one centered pixel [0.48 0.52 0.56]
 ```
 <!-- leetllm: output:end -->
 
-Because the trailing channel count `3` matches on both operands, NumPy automatically expands the missing leading dimensions `(1, 1, 1, 3)` over all 32 tiles and `224 × 224` pixels. Notice the exact parallel to token features: `(B, H, W, C)` plays the same structural role here as `(B, T, D)` played for language snippets. Whenever you subtract a vector along the trailing feature or channel axis, right-aligned broadcasting shares one dataset statistic across every example and spatial or sequence position.
+Watch for framework conventions: channels-last `(B, H, W, C)` puts channels on axis `-1`, while PyTorch vision models expect channels-first `(B, C, H, W)`, which calls for `transpose(0, 3, 1, 2)` rather than `reshape`.
 
 ## Common shape bugs: symptoms and fixes
 
-Shape bugs become straightforward to diagnose once you pair the error symptom with the axis alignment that caused it.
-
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `ValueError: operands could not be broadcast together with shapes (2,3,4) (3,)` | you tried to match a token-sized vector with the feature axis | decide whether the smaller array should be `(D,)`, `(T, 1)`, or something else |
-| output has shape `(2, 3)` after `mean`, but you expected `(2, 4)` | you reduced the feature axis instead of the token axis | say the axis name before calling `mean`, then verify the kept axes |
-| code works with `x[0]` but breaks on real batches | you dropped the batch axis during indexing | keep tiny batch examples in scripts and assertions |
-| `v.T` still has shape `(4,)` | a 1-D vector has a single axis | make the row or column explicit with `v[None, :]` or `v[:, None]` |
-| `reshape` gave a legal array, but token meaning changed | axis order was wrong, but you regrouped values instead of permuting axes | use `transpose` when the axis names must move |
-| `q @ k` raises a matrix-multiply mismatch | the last axis of `q` doesn't line up with the second-to-last axis of `k` | swap the last two axes of `k` before the multiply |
-| subtracting a mean gives `(32, 224, 224, 3)` but colors look wrong | `(224, 224, 3)` subtracts a different mean at each pixel location | require `(3,)` when the goal is one mean per channel, shared across all locations |
-| editing a slice silently changes the original array | basic slices are views that share memory, not copies | call `.copy()` when you need an independent array |
-| split heads have the right shape but attention output is garbage | you reshaped straight to `(B, H, T, D // H)` instead of reshaping then transposing | reshape to `(B, T, H, D // H)` first, then `transpose(0, 2, 1, 3)` |
-
-Whenever a shape error appears, write out the intended axis names before changing any code, then confirm that every operation preserves them.
+| `ValueError: operands could not be broadcast together with shapes (2,3,4) (3,)` | token-sized vector collided with feature axis `D=4` | reshape to `(3, 1)` for tokens or `(4,)` for features |
+| `mean` gives `(2, 3)` instead of `(2, 4)` | collapsed feature axis `-1` instead of token axis `1` | name the kept axes before choosing `axis=` |
+| Works on `x[0]` but breaks on batches | integer index dropped the batch axis | slice `x[0:1]` or add `single[None, :, :]` |
+| `v.T` stays `(4,)` | 1-D array has one axis | use `v[None, :]` or `v[:, None]` |
+| `reshape` succeeds but values scramble | re-chunked flat stream instead of permuting axes | use `transpose` when moving named axes |
+| `q @ k` raises shape mismatch | inner axes `D` and `T` do not match | `q @ np.swapaxes(k, -1, -2)` |
+| Editing a slice mutates the source | basic slices return views | call `.copy()` before mutating |
+| Multi-head output is garbage despite valid shape | direct `reshape(B, H, T, head_dim)` | `reshape(B, T, H, head_dim).transpose(0, 2, 1, 3)` |
 
 ## Build a shape guard script
 
-Turn the running example into a small validation script with explicit input and output checks. Starting from `x = np.arange(24).reshape(2, 3, 4)`, wrap `add_feature_bias(x, bias)` (preserving `(2, 3, 4)`), `pool_tokens(x)` (reducing to `(2, 4)`), and `unscaled_attention_scores(x, wq, wk)` (producing `(2, 3, 3)`), and reject invalid shapes with explicit `ValueError` exceptions because Python strips `assert` statements under `-O` optimization. Notice that these guards validate shapes only; add dtype checks separately whenever an interface requires `float32`. Try sketching the three functions on your own before comparing against the reference implementation below:
+Wrap the three core operations into functions that validate inputs with explicit `ValueError` exceptions (unlike `assert`, `ValueError` stays active under `python -O`) and check output shapes plus traced values:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="build-a-shape-guard-script.py"
@@ -735,15 +700,13 @@ caught: expected bias shape (4,), got (3,)
 ```
 <!-- leetllm: output:end -->
 
-When extending these checks, use both unequal axis sizes and equal ones. Unequal sizes exposed the earlier broadcasting error, but equal sizes can hide a misplaced axis. Pair shape checks with a known-value assertion, as the head-splitting example did for token `red`.
-
 ```checkpoint
 Your loader now returns one snippet as shape `(3, 4)`. The shape guard rejects it. How can you add a batch axis without changing which values belong to each token?
 ---
 For `single.shape == (3, 4)`, use `single[None, :, :]` to get `(1, 3, 4)`. The new leading axis says there's one snippet. If you're selecting from the original batch instead, `x[0:1]` preserves that leading axis directly, whereas `x[0]` removes it.
 ```
 
-On a 24-number array, name the axis for snippets, the axis for tokens, and the axis for features. A reduction or reshape can keep the count and still drop the meaning. `(B, T, D)` records how many snippets, how many positions in each snippet, and how many numbers describe each position. Preserve those axis meanings alongside the element count. A useful check pairs the expected shape with one value you can trace back to its original token.
+Write out `(B, T, D)` before every tensor expression, test with both unequal and equal axis lengths, and trace one concrete token value through the output.
 
 ```mastery-quiz
 [
@@ -850,12 +813,12 @@ On a 24-number array, name the axis for snippets, the axis for tokens, and the a
     "question": "Which guard belongs inside `add_feature_bias(x, bias)` when the function promises to add one feature bias to a `(B, T, D)` tensor and return the same shape?",
     "options": [
       "Check `bias.ndim == 1` only, because any 1-D vector will broadcast to the intended feature axis.",
-      "Raise `ValueError` unless `x.ndim == 3` and `bias.shape == (x.shape[-1],)`, then assert the internal invariant `out.shape == x.shape`.",
+      "Raise `ValueError` unless `x.ndim == 3` and `bias.shape == (x.shape[-1],)`, then assert `out.shape == x.shape`.",
       "Require `x.shape[1] == bias.shape[0]`, because a feature bias should match the middle token axis.",
       "Check only that `out.size == x.size`, because preserving element count proves the axis meaning is unchanged."
     ],
-    "answer": "Raise `ValueError` unless `x.ndim == 3` and `bias.shape == (x.shape[-1],)`, then assert the internal invariant `out.shape == x.shape`.",
-    "explanation": "A feature bias for `(B, T, D)` must match the final feature dimension exactly, so the bias shape should be `(D,)`, not any 1-D length. Explicit exceptions remain active at input boundaries even when Python optimization disables assertions; the output assertion documents an internal invariant."
+    "answer": "Raise `ValueError` unless `x.ndim == 3` and `bias.shape == (x.shape[-1],)`, then assert `out.shape == x.shape`.",
+    "explanation": "A feature bias for `(B, T, D)` must match the final feature dimension exactly, so the bias shape should be `(D,)`, not any 1-D length. Explicit exceptions remain active at input boundaries even when Python optimization disables assertions; the output assertion checks the expected result shape."
   }
 ]
 ```

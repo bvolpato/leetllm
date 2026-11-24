@@ -357,7 +357,7 @@ Notice why rejecting `all_flags == 0` matters: if a detector never flags any acc
 
 Continuous risk scores let an engineering team tune its operating point by raising or lowering the decision threshold. On a fixed set of scored accounts, raising the threshold only removes items from the queue, so neither recall nor false-positive rate can rise, though precision can move in either direction depending on the score distribution near the cutoff. Comparing broad review (`TPR = 0.95`, `FPR = 0.05`) against strict review (`TPR = 0.80`, `FPR = 0.01`) at a 1 percent base rate makes this **<span data-glossary="precision-recall">precision-recall tradeoff</span>** concrete: out of 10,000 signups, broad review flags 590 cases (`16.1%` abusive, missing 5 abusive signups), while strict review shrinks the queue to 179 cases (`44.7%` abusive) at the cost of missing 20 abusive signups.
 
-| Threshold policy | $P(\text{flagged} \mid \text{abuse})$ | $P(\text{flagged} \mid \text{clean})$ |
+| Threshold setting | $P(\text{flagged} \mid \text{abuse})$ | $P(\text{flagged} \mid \text{clean})$ |
 |---|---:|---:|
 | broad review | 0.95 | 0.05 |
 | stricter review | 0.80 | 0.01 |
@@ -750,7 +750,7 @@ Notice what the exponential does to gaps. Adding a constant to every logit chang
 
 A probability of 0.618 does not mean the model "believes" anything in the way you might. It means that if you draw tokens from this distribution over and over, `result` comes up about 62 percent of the time. The model hands you the distribution, and something else has to choose.
 
-The simplest policy is to always take the top token, which is called **greedy** decoding. The other common policy is to **sample**, drawing at random according to the probabilities. Sampling is the main reason the same prompt can produce different answers, and that fact has consequences throughout this book, for testing and for caching alike.
+The simplest strategy is to always take the top token, which is called **greedy** decoding. The other common choice is to **sample**, drawing at random according to the probabilities. Sampling is the main reason the same prompt can produce different answers, and that fact has consequences throughout this book, for testing and for caching alike.
 
 <!-- leetllm: test, output=show, id=reader-probability-sample -->
 ```python title="draw-next-tokens.py"

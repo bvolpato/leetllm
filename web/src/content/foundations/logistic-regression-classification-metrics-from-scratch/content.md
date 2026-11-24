@@ -36,9 +36,9 @@
 }
 ---
 
-An assistant drafts a reply using retrieved passages. Some replies are well supported; others contain a claim worth checking. We want a model that looks at the reply and its evidence, estimates how likely it is to contain an unsupported claim, and helps us decide which replies to verify.
+An assistant drafts replies from retrieved passages. Most are well grounded, yet some slip in an unsupported claim. Suppose only 4% of replies need checking: a model that predicts "safe" on every single reply scores 96% accuracy while catching zero bad claims.
 
-This is a classification problem. The target is `y = 1` for an unsupported claim and `y = 0` for a supported reply. Instead of predicting a duration as in [linear regression](/learn/linear-regression-from-scratch), **logistic regression** predicts a probability. We will build that prediction, derive how it learns, and train it on eight responses. Then we will use eight new responses to understand what precision, recall, AUC, and calibration measure.[^hastie2009]
+That failure is why classification needs probabilities, cross-entropy, and metrics that separate ranking from thresholding. Instead of predicting a continuous number as in [linear regression](/learn/linear-regression-from-scratch), **logistic regression** outputs a probability that an example belongs to the positive class (`y = 1` for an unsupported claim, `y = 0` for a supported reply). We will build the model from scratch in NumPy, derive its loss and gradient, and follow the exact same predictions through thresholds, precision, recall, ROC-AUC, and calibration.[^hastie2009]
 
 ## From two features to one probability
 
@@ -712,7 +712,7 @@ y = np.array([0, 0, 1, 0, 1, 0, 1, 1])
 positive = p[y == 1]
 negative = p[y == 0]
 
-def audit(labels: np.ndarray, scores: np.ndarray) -> tuple[float, float, float]:
+def evaluate_slice(labels: np.ndarray, scores: np.ndarray) -> tuple[float, float, float]:
     pos = scores[labels == 1]
     neg = scores[labels == 0]
     pairs = (pos[:, None] > neg[None, :]) + 0.5 * (pos[:, None] == neg[None, :])
@@ -730,7 +730,7 @@ for name, labels, scores in (
     ("same-negative-mix", same_mix_y, same_mix_p),
     ("extra-easy-negatives", easy_y, easy_p),
 ):
-    fpr, auc, precision = audit(labels, scores)
+    fpr, auc, precision = evaluate_slice(labels, scores)
     print(name, "fpr", round(fpr, 4), "auc", round(auc, 4), "precision", round(precision, 4))
 ```
 
@@ -742,7 +742,9 @@ extra-easy-negatives fpr 0.0192 auc 0.9928 precision 0.6667
 ```
 <!-- leetllm: output:end -->
 
-Repeating the negative mix leaves AUC at $0.8125$ but gives 50 false positives alongside four true positives, so precision falls to $4/54\approx0.0741$. Adding easy negatives raises AUC to $0.9928$ while leaving the selected set, its precision, and its mistakes unchanged. A metric describes the population it was measured on; the composition of that population belongs in the interpretation.
+Repeating the negative mix leaves AUC at $0.8125$ while creating 50 false positives alongside four true positives, dropping precision to $4/54\approx0.0741$. Appending 100 easy zero-score negatives lifts AUC to $0.9928$ without changing the selected set or its mistakes at all.
+
+> **Key insight:** ROC-AUC measures ranking within fixed class score distributions; precision-recall reflects the real false-alarm burden when positives are rare. Always read classification metrics alongside class prevalence.
 
 ## Calibration: does 0.8 mean about eight in ten?
 

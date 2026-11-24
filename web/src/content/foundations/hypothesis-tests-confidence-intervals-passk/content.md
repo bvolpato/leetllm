@@ -31,18 +31,18 @@
 }
 ---
 
-When Model B passes one extra coding task over Model A on a small benchmark, raw accuracy counts leave the central question unanswered: does that lead reflect a genuine model upgrade or ordinary sampling noise? Across six platform-helper tasks covering timestamp windows, permission fallbacks, retry budgets, event deduplication, quota rounding, and cache invalidation, both checkpoints answer the same prompts and face the same <span data-glossary="hidden-tests">hidden tests</span> under binary pass/fail scoring, keeping every calculation small enough to verify by hand.
+Model B passes 4 of 6 coding tasks while Model A passes 3. On a dashboard, `+16.7` percentage points looks like a clear win. Look at the rows, though: five tasks tied, and only one single task separated the two checkpoints. Is that lead a real improvement or a coin flip?
 
-The [estimation lesson](/learn/statistics-estimation-uncertainty) bounded uncertainty around a single rate, while [sampling and simulation](/learn/distributions-sampling-simulation) showed how repeated draws scatter an estimate. Here the target shifts to the difference between two systems evaluated side by side. The Python examples use NumPy and SciPy to test, resample, and score paired coding benchmarks, starting from a simple observation: when five tasks tie and one favors Model B, only that disagreement carries directional evidence.
+In [Statistics and Uncertainty](/learn/statistics-estimation-uncertainty) we bounded uncertainty around a single rate, and in [Distributions and Sampling](/learn/distributions-sampling-simulation) we watched repeated binomial draws wobble around a fixed probability. Now we shift to comparing two models head to head: exact paired hypothesis tests, paired variance reduction, bootstrap lift intervals, and the unbiased `pass@k` estimator for multi-attempt code generation. All six example tasks test small coding utilities against the same <span data-glossary="hidden-tests">hidden tests</span> under binary pass/fail scoring, small enough to verify every calculation by hand.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Six coding-helper tasks are paired across Model A and Model B. Five rows tie. On permission fallback, A fails and B passes, so the row difference is plus one for B. A difference chart counts five ties, one B-only win, and zero A-only wins." />
-  <figcaption>Each row pairs the same task and tests. Five task differences are zero; the permission task is +1 for B. Those five ties still set the aggregate rates, while the one disagreement determines the sign-test win count.</figcaption>
+  <figcaption>Each row pairs the same task and hidden tests across both models. Five task differences are zero; task 2 is +1 for Model B, supplying the only discordant pair for the sign test.</figcaption>
 </figure>
 
 ## Start with paired pass or fail outcomes
 
-Both models receive the exact same prompt and face the exact same hidden unit tests. That pairing anchors the benchmark design: if prompts, test harnesses, or decoding parameters also change, the comparison measures those complete configurations rather than isolating the checkpoint change. Treat each task as a single paired observation rather than two disconnected scores, keeping one prompt fanning out to two completions before evaluating the identical unit tests and computing each task difference.
+Both models receive the identical prompt and face the identical hidden unit tests. Keeping prompts, decoding settings, and test harnesses matched isolates the model difference rather than confounding it with harness changes. Treat each task as a single paired observation:
 
 ```mermaid
 flowchart TB
@@ -53,7 +53,7 @@ flowchart TB
   T --> D["Paired B minus A"]:::primary
 ```
 
-Now inspect the six task outcomes, watching for rows where the two result columns disagree:
+Inspect the six outcomes and spot where the two columns disagree:
 
 | Task | Hidden-test requirement | Model A | Model B |
 |---|---|---:|---:|
@@ -64,7 +64,7 @@ Now inspect the six task outcomes, watching for rows where the two result column
 | 5 | <span data-glossary="quota">quota</span> rounding is deterministic | pass | pass |
 | 6 | cache invalidation skips expired keys | fail | fail |
 
-Convert `pass` to `1` and `fail` to `0` to compute the per-model solve rates directly. Model A solves `3 / 6 = 0.500`, Model B solves `4 / 6 = 0.667`, and the observed lift is `1 / 6 = +0.167`, or `+16.7` percentage points. The snippet below reproduces those three summaries alongside the raw task arrays.
+Encode `pass` as `1` and `fail` as `0`. Model A solves `3/6 = 0.500`, Model B solves `4/6 = 0.667`, and the observed lift is `+1/6 = +0.167` (`+16.7` percentage points):
 
 <!-- leetllm: test, output=show -->
 ```python title="paired-pass-rates.py"
@@ -126,29 +126,27 @@ directional evidence comes from disagreements: 1
 ```
 <!-- leetllm: output:end -->
 
-Matching lengths alone do not guarantee pairing: real evaluation records must be joined by task ID, not their completion order. A missing model result must be resolved under the declared timeout or failure policy before comparing the same tasks.
-
-A one-task lead exists in this sample. If both models are equally capable, count how often a fair comparison produces at least this many wins for Model B.
+Always join evaluation logs by `task_id` rather than completion order, and apply a consistent timeout/failure rule so missing rows stay paired. Now ask how surprising that single B win really is.
 
 ## How surprising is one B win?
 
-Only one row disagreed, and Model B won it. If the two models were equally strong, that row could have fallen either way. The <span data-glossary="null-hypothesis">null hypothesis</span> ($H_0$) sets that baseline: on disagreement tasks, Model A and Model B are equally likely to win ($p = 0.5$). The directional alternative hypothesis ($H_1$) states that Model B wins more frequently ($p > 0.5$).
+Only one task disagreed, and Model B won it. Under the <span data-glossary="null-hypothesis">null hypothesis</span> ($H_0$), both models are equally likely to win any disagreement ($p = 0.5$). Under the preplanned directional alternative ($H_1$), Model B wins more often ($p > 0.5$).
 
-Drop the ties and treat each remaining pair as a fair coin toss under the null: Model B wins or Model A wins. That is the exact sign test on disagreements. Dixon and Mood presented the sign test in 1946.[^dixonmood1946] For paired binary outcomes, this conditional binomial calculation also underlies the exact McNemar test of equal marginal pass probabilities; its usual two-sided form asks about either direction.[^statsmodelsMcNemar2026]
+Conditioning on the $d$ independent disagreements turns each one into a fair coin flip: this is the exact **sign test** (and for paired binary outcomes, the exact **McNemar test**, whose standard two-sided form checks either direction).[^dixonmood1946][^statsmodelsMcNemar2026] When tasks are grouped by repository or template rather than independent, use a cluster-level analysis instead.
 
-This calculation assumes independent task pairs drawn from the task distribution you want to evaluate. Twenty near-duplicate prompts aren't twenty independent pieces of evidence. For related tasks derived from the same repository or template, use a cluster-level analysis instead of treating each variant as an independent observation.
-
-Our six-task benchmark has one disagreement, and Model B won it. A one-sided <span data-glossary="p-value">p-value</span> for the planned claim "Model B is better" asks how often random chance hands Model B at least this many wins when both models are equally strong. Under $d = 1$ disagreement and $b = 1$ win, a single win cannot look rare because a fair coin has only two outcomes; formally, with $d$ disagreements and $b$ wins for Model B, the one-sided right-tail probability sums every outcome at least as favorable to Model B as the observed result:
+For $d$ disagreements and $b$ wins by Model B, the one-sided <span data-glossary="p-value">p-value</span> sums the null probability of observing at least $b$ wins:
 
 $$
 p = \sum_{w=b}^{d} \binom{d}{w} \left(\frac{1}{2}\right)^d
 $$
 
-A p-value is this tail probability calculated under the null hypothesis, rather than the probability that $H_0$ is true or that Model B is genuinely better.[^asaPValues2016] With a single disagreement, Model B wins with probability $0.5$, leaving no surprise under chance variation; by contrast, a 16-disagreement batch with 13 B wins lands in a rare tail totaling 0.0106 under $H_0$. The next function evaluates that exact tail with `scipy.stats.binomtest` for both cases:
+With $d = 1$ and $b = 1$, a fair coin lands heads with probability `0.500`: completely unremarkable. By contrast, winning `13` of `16` disagreements lands in a rare tail of `0.0106`.
+
+> **Common mistake:** A p-value is the probability of seeing data at least this extreme *assuming $H_0$ holds*, not the probability that $H_0$ is true or that Model B is better.[^asaPValues2016]
 
 <figure>
   <img src="illustrations/_generated/paired_test_rule_dark.png" alt="Under the fair-coin null, one disagreement gives equal probability to zero or one B win, so one observed win has a right-tail probability of 0.50. With sixteen disagreements, a binomial distribution peaks at eight wins; the highlighted tail from thirteen to sixteen wins sums to 0.0106." />
-  <figcaption>With one discordant task, the two fair-coin outcomes each have probability 0.50. For 16 disagreements, the exact right-tail mass from 13 through 16 B wins is 0.0106 under H₀.</figcaption>
+  <figcaption>With one discordant task, each fair-coin outcome has probability 0.50. With 16 disagreements, the exact right-tail mass from 13 through 16 B wins totals 0.0106 under H₀.</figcaption>
 </figure>
 
 <!-- leetllm: test, deps=scipy, output=show -->
@@ -212,27 +210,19 @@ The minimum possible tail is 2^(−d). At 5 it is 0.03125>.025; at 6 it is 0.015
 
 ## Type I errors, Type II errors, and statistical power
 
-Every model-review decision is a choice made under uncertainty. In statistical evaluation, two distinct mistakes can occur:
+Every hypothesis test balances two complementary mistakes:
 
 | Reality \ Decision | Don't reject $H_0$ | Reject $H_0$ |
 |---|---|---|
-| **$H_0$ is true** | Correct non-rejection (probability at least $1 - \alpha$ for a valid level-$\alpha$ test) | **Type I error**: falsely conclude B is better (probability at most $\alpha$) |
-| **$H_1$ is true** (B is genuinely better) | **Type II error** ($\beta$): miss the improvement | **Statistical power** ($1 - \beta$): detect the improvement |
+| **$H_0$ is true** | Correct non-rejection (probability $\ge 1 - \alpha$) | **Type I error**: false positive (probability $\le \alpha$) |
+| **$H_1$ is true** (B is genuinely better) | **Type II error** ($\beta$): missed improvement | **Statistical power** ($1 - \beta$): detected improvement |
 
-A **Type I error** is a false positive: rejecting a true null hypothesis. The fair-coin calculation uses equality as the threshold of the directional null that B wins no more often than A. A valid, preplanned level-$\alpha$ test controls its false-rejection probability at or below $\alpha$ under its assumptions. For our discrete exact test, the achievable probability can be smaller than the chosen threshold. Rejecting this statistical null is evidence about pass rates, not an automatic instruction to deploy.
+- **Type I error ($\alpha$):** falsely concluding Model B is better when it is not. A preplanned level-$\alpha$ test bounds this false-positive rate at or below $\alpha$.
+- **Type II error ($\beta$) and power ($1 - \beta$):** failing to detect a real gain of size $\delta$. Power grows with larger effect size $\delta$, larger task count $N$, lower task variance $\sigma^2$, and less stringent significance threshold $\alpha$.
 
-A **Type II error** ($\beta$) is a false negative: failing to reject the null hypothesis when Model B is genuinely superior. An engineer trains a refined checkpoint that produces a real 3 percentage point lift, but the evaluation suite contains too few tasks to confirm it, so the model gets shelved.
+Notice why tiny benchmarks starve power: with $d$ disagreements, the smallest possible one-sided sign-test p-value is $2^{-d}$, so even a clean sweep needs at least `5` disagreements to dip below $\alpha = 0.05$ (`1/32 = 0.03125`).
 
-**Statistical power** ($1 - \beta$) measures the probability of detecting a real improvement of a specific effect size $\delta$. Power depends directly on four interacting variables:
-
-1. **Effect size ($\delta$):** At the same noise level, larger improvements are easier to detect; a one- or two-percentage-point gain may need many more tasks.
-2. **Sample size ($N$):** Larger task suites provide more chances to observe disagreements and narrow the sampling error.
-3. **Variance ($\sigma^2$):** Noisy prompts obscure the underlying difference.
-4. **Significance threshold ($\alpha$):** Stricter false-positive gates (like $\alpha = 0.01$) demand stronger evidence, which lowers power unless sample size increases.
-
-Conditional on observing just one disagreement, neither possible outcome can reject at the one-sided 5% threshold: even a B win has $p = 0.50$. More generally, the smallest possible one-sided p-value with $d$ disagreements is $2^{-d}$, so at least five disagreements are needed even if B wins every one. That's a limitation of the conditional test, not a power calculation for every possible six-task experiment. Power must average over future outcomes under a specified alternative, including how many disagreements arise.
-
-A result with $p > 0.05$ does not prove that the models are identical. It may reflect a small effect, limited power, or no improvement. To show that differences are smaller than a useful tolerance, plan an equivalence analysis around that tolerance rather than interpreting non-rejection as equality.
+> **Common mistake:** A high p-value ($p > 0.05$) is absence of evidence, not evidence of equality. Proving two models perform within a small tolerance requires an explicit equivalence test, not a non-significant difference test.
 
 ```checkpoint
 A simulator is configured with a real advantage for B. A valid planned test fails to reject H₀ in one run. Which classification and interpretation fit that run?
@@ -263,31 +253,31 @@ Repeatedly inspecting the same benchmark and halting execution the moment $p < 0
 
 ## When pairing reduces variance
 
-Pairing removes a change in prompt mix from the comparison, and its effect on precision depends on the covariance between the two models' outcomes. Let $X_i \in \{0, 1\}$ represent Model A's pass/fail outcome on task $i$, and let $Y_i \in \{0, 1\}$ represent Model B's outcome. If you evaluate Model A on $N$ independent prompts and Model B on a separate, unpaired batch of $N$ prompts, the variance of the estimated difference between the two sample means adds their individual variances:
+Evaluating Model A and Model B on the exact same prompts removes prompt-difficulty noise whenever both models tend to find the same tasks easy or hard. Let $X_i, Y_i \in \{0, 1\}$ denote Model A's and Model B's outcomes on task $i$. On two separate, unpaired batches of size $N$, the variance of the difference in sample means adds their variances:
 
 $$
 \text{Var}(\bar{Y} - \bar{X}) = \frac{\sigma_X^2 + \sigma_Y^2}{N}
 $$
 
-For example, both models might solve the timestamp helper and both might miss a cache-invalidation edge case, producing positive shared covariance. Specialized models can instead succeed on different tasks, so positive covariance and a particular correlation aren't guaranteed. In a paired design, the estimator takes the sample mean of the row-by-row differences $D_i = Y_i - X_i$, so the paired analysis must preserve the covariance actually present in the outcomes:[^pennStatePairedBinary2026]
+On $N$ paired tasks, averaging the row differences $D_i = Y_i - X_i$ subtracts twice their covariance:[^pennStatePairedBinary2026]
 
 $$
 \text{Var}(\bar{D}) = \frac{\text{Var}(Y_i - X_i)}{N} = \frac{\sigma_X^2 + \sigma_Y^2 - 2\text{Cov}(X, Y)}{N}
 $$
 
-Positive covariance reduces this variance, zero covariance leaves it unchanged, and negative covariance increases it relative to independent batches with the same marginal outcome distributions. Consider a task population where 45% of tasks produce two passes, 45% two failures, 5% a B-only pass, and 5% an A-only pass. Both marginal pass rates are 50%, giving $\sigma_X^2 = \sigma_Y^2 = 0.25$, covariance $E[XY] - E[X]E[Y] = 0.45 - 0.25 = 0.20$, and correlation $\rho = 0.80$. Under an unpaired test with $N = 40$ observations per model, the variance is $\text{Var}(\bar{Y} - \bar{X}) = (0.25 + 0.25)/40 = 0.0125$.
+Whenever $\text{Cov}(X, Y) > 0$, pairing shrinks variance (zero covariance leaves it unchanged; negative covariance increases it). Suppose 45% of tasks are shared passes, 45% shared failures, 5% B-only passes, and 5% A-only passes. Both models have 50% marginal pass rates ($\sigma_X^2 = \sigma_Y^2 = 0.25$), covariance $\text{Cov}(X, Y) = 0.45 - 0.25 = 0.20$, and correlation $\rho = 0.80$.
 
-That variance corresponds to a standard error of $\sqrt{0.0125} \approx 0.1118$ (11.2 percentage points) and a nominal normal-approximation margin ($\pm 1.96 \times \text{SE}$) of $\pm 21.9$ percentage points. Both reference bands in the figure center at zero true lift purely to compare spread, rather than computing intervals from observed task rows. Under a paired design on the same population, the covariance term activates and drops the variance by a factor of five:
+At $N = 40$, unpaired evaluation has variance $(0.25 + 0.25)/40 = 0.0125$ ($\text{SE} = 0.1118$, normal margin $\pm 21.9$ points). Pairing drops variance by $5\times$:
 
 $$
-\text{Var}(\bar{D}) = \frac{0.25 + 0.25 - 2(0.20)}{40} = \frac{0.50 - 0.40}{40} = \frac{0.10}{40} = 0.0025
+\text{Var}(\bar{D}) = \frac{0.25 + 0.25 - 2(0.20)}{40} = \frac{0.10}{40} = 0.0025
 $$
 
-The standard error shrinks to $\sqrt{0.0025} = 0.050$ (5.0 percentage points), giving a nominal normal margin of $\pm 9.8$ points. With only four expected disagreements in this population, normal coverage remains rough, so the exact variance reduction doesn't make the normal interval exact. Under these chosen parameters, 200 independent observations per model would match the variance of 40 paired observations, though statistical power still depends on the test, effect size, and decision threshold.
+The standard error falls to `0.050` (normal margin $\pm 9.8$ points): you would need `200` unpaired tasks per model to match the precision of `40` paired tasks.
 
 <figure>
   <img src="illustrations/_generated/paired_variance_reduction_dark.png" alt="Two task-difference distributions share a 0-to-100-percent scale. With independent prompts and 50-percent pass rates, B minus A is minus one on 25 percent of tasks, zero on 50 percent, and plus one on 25 percent. Under the paired example, those probabilities are 5, 90, and 5 percent. At 40 rows, the variance of the mean difference falls from 0.0125 to 0.0025; nominal normal margins shrink from 21.9 to 9.8 percentage points." />
-  <figcaption>Both distributions have 50% marginal pass rates. Positive shared-task covariance concentrates paired differences at zero, reducing mean-difference variance from 0.0125 to 0.0025 at N = 40. The normal margins are rough references for four expected disagreements, not exact coverage.</figcaption>
+  <figcaption>Both designs have 50% marginal pass rates, but positive shared-task covariance (ρ = 0.80) concentrates paired differences at zero, cutting mean-difference variance by 5x at N = 40.</figcaption>
 </figure>
 
 ```checkpoint
@@ -305,11 +295,9 @@ The declared independent unit is repository. Resampling whole clusters retains w
 
 ## An interval for B minus A
 
-A <span data-glossary="confidence-interval">confidence interval</span> should target the quantity behind the decision. When the question is "How much better is Model B than Model A on this task suite?", comparing two separate pass-rate intervals hides the pairing, so the evaluation report needs a single interval for the row-by-row paired lift $B - A$.
+Comparing two separate pass-rate intervals hides the pairing; instead, build a single <span data-glossary="confidence-interval">confidence interval</span> for the paired lift $B - A$. Remember that a 95% confidence level describes long-run coverage across repeated experiments, and unlike a single-proportion Wilson interval, paired differences are cleanly bounded by <span data-glossary="bootstrap-resampling">bootstrap</span> resampling whole task rows with replacement.[^nistConfidenceIntervals2026][^nistBinomialIntervals2026][^efron1979][^scipyBootstrap2026]
 
-The 95% label describes the intended long-run coverage of the interval procedure over repeated experiments rather than claiming a 95% probability for one realized interval.[^nistConfidenceIntervals2026] A common shortcut, the Wald interval $\hat{p} \pm 1.96\sqrt{\hat{p}(1-\hat{p})/N}$, uses a symmetric normal approximation that can produce impossible bounds outside $[0, 1]$ or collapse to zero width on uniform batches; the estimation chapter used Wilson intervals for one proportion, whereas paired differences call for resampling whole task rows.[^nistBinomialIntervals2026] Just as <span data-glossary="bootstrap-resampling">bootstrap</span> resampling handled single metrics earlier, keeping Model A's outcome beside Model B's in each resampled row preserves pairing and maps out sampling variation via the 2.5th and 97.5th percentiles.[^efron1979][^scipyBootstrap2026]
-
-Six tasks build intuition, but six rows are too few for a stable interval. Consider a larger 40-task evaluation suite where only 13 tasks disagree (`17` shared passes, `10` shared failures, `8` B-only passes, `5` A-only passes), giving an observed lift of $(8 - 5) / 40 = +0.075$, or $+7.5$ percentage points; let us resample those 40 paired differences to check whether that lead stays strictly positive:
+Move from 6 tasks to a 40-task suite with `17` shared passes, `10` shared failures, `8` B-only wins, and `5` A-only wins (observed lift `+3/40 = +7.5` percentage points), and resample all 40 paired differences:
 
 <!-- leetllm: test, output=show -->
 ```python title="paired-bootstrap-interval.py"
@@ -339,18 +327,16 @@ share of resamples with lift <= 0: 24%
 ```
 <!-- leetllm: output:end -->
 
-Resampling the `differences` array is equivalent to resampling complete rows for this binary example because each row contributes one difference. With richer multi-metric evals, keep the full row together so the analysis preserves the pairing. The task row, not an isolated model score, remains the fundamental unit of resampling.
+Always resample whole task rows so multi-metric evaluations keep both models paired.
 
-The printed 24% is a fraction of bootstrap resamples, not a p-value and not a Bayesian posterior probability that Model B is worse. These resamples center around the observed sample lift; they weren't generated under the zero-lift null hypothesis.
+> **Common mistake:** The printed `24%` share of resamples at or below zero is a bootstrap resample frequency around the observed `+7.5`-point lift, not a null-hypothesis p-value and not a Bayesian posterior probability that Model B is worse.
 
 <figure>
   <img src="illustrations/_generated/interval_overlap_dark.png" alt="Forty paired task differences produce an observed lift of plus 7.5 percentage points. The exact task-bootstrap distribution has a central 95 percent percentile interval from minus 10 to plus 25 points, crossing zero. Its histogram shows possible resampled lifts under the observed row frequencies." />
-  <figcaption>Resampling the 40 paired rows gives a central 95% percentile interval from −10 to +25 points around the observed +7.5-point lift. The histogram summarizes variability across bootstrap resamples; the true lift remains unknown.</figcaption>
+  <figcaption>Bootstrap resampling the 40 paired rows gives a 95% interval of −10 to +25 percentage points around the +7.5-point observed lift, spanning both losses and gains.</figcaption>
 </figure>
 
-Bootstrap intervals are approximate, especially with small or discrete samples. For instance, resampling six observed ties produces only zero lifts and a `[0, 0]` interval, even though six ties don't prove the models are identical on future tasks. Running more bootstrap iterations can't conjure missing evidence out of thin air. For this 40-task suite, the actionable conclusion is: "Model B gained 7.5 points in this paired sample, but the approximate interval spans losses as well as gains."
-
-Set a minimum useful lift threshold before examining results. If deploying Model B requires at least two percentage points of improvement to justify higher hosting costs, an interval of `[+1, +14]` points excludes zero but does not meet the required threshold. The next function formalizes those decisions:
+Bootstrap intervals remain approximate on tiny or degenerate samples (for instance, six ties always resample to `[0, 0]`). Even when an interval excludes zero, practical value requires clearing a pre-declared **minimum useful lift**: if hosting Model B requires at least `+2` percentage points to pay for extra compute, an interval of `[+1, +14]` points shows positive lift without yet confirming useful size. The helper below separates those three verdicts:
 
 <!-- leetllm: test, output=show -->
 ```python title="language-from-lift-interval.py"
@@ -481,13 +467,13 @@ When a task has `n=10` candidates and `c=2` correct, what is HumanEval-style pas
 
 ## Derive the HumanEval estimator by hand
 
-Suppose the assistant generates $n = 10$ candidate implementations for a function, and hidden tests accept $c = 2$ of them. Counting all-failing subsets avoids summing overlapping winning subsets: since $10 - 2 = 8$ candidates fail, there are $\binom{10}{5} = 252$ total five-candidate groups and $\binom{8}{5} = 56$ all-failing groups, leaving $1 - 56 / 252 = 0.778$ for `pass@5`. In general notation:
+Suppose a model generates $n = 10$ independent candidate solutions for one problem, and hidden tests pass $c = 2$ of them. To estimate `pass@5` (the chance that a random 5-candidate draw contains at least one solution), count the complement: how many 5-candidate subsets fail completely? With $n - c = 8$ failures, there are $\binom{10}{5} = 252$ total subsets and $\binom{8}{5} = 56$ all-failing subsets, giving $1 - 56/252 = 0.778$:
 
 $$
 \text{pass@k} = 1 - \frac{\binom{n-c}{k}}{\binom{n}{k}}
 $$
 
-The target parameter is the generative probability $1 - (1-p)^k$ that at least one of $k$ independent completions passes, and this combinatorial formula is its **unbiased minimum-variance estimator** across all $k$-subsets of the $n$ draws.[^chen2021] Notice why averaging subsets stays unbiased without raising sample size: every fixed subset of `k` positions has expectation $1-(1-p)^k$, yet subsets overlap and share completions. Because **i.i.d.** assumes a fixed pool size $n$ drawn from one unchanged policy, halting early on a pass or feeding error traces back into subsequent completions shifts the target to an iterative agent harness rather than this single-turn estimator; moreover, hidden tests credit pools containing a solution without measuring whether a production reranker can select it. Run `scipy.special.comb` below to confirm the hand counts:
+Averaged over all $k$-subsets of $n$ i.i.d. draws from a fixed decoder, this combinatorial formula is the **unbiased minimum-variance estimator** of the true probability $1 - (1 - p)^k$.[^chen2021] Note that stopping early on the first pass or feeding compiler errors back into later attempts breaks the i.i.d. pool assumption and measures an iterative agent loop instead; also remember that hidden-test `pass@k` credits any pool containing a solution without testing whether a ranker can pick it. Verify the hand counts with `scipy.special.comb`:
 
 <!-- leetllm: test, deps=scipy, output=show, id=pass-at-k-hand-calculation -->
 ```python title="pass-at-k-hand-calculation.py"
@@ -515,34 +501,30 @@ pass@5: 0.778
 
 ## How the naive plug-in underestimates pass@k
 
-A tempting shortcut calculates the empirical success rate and substitutes it into the generative formula:
+Substituting the observed rate $\hat{p} = c / n$ directly into $1 - (1 - \hat{p})^k$ is a **downward-biased** estimator of $1 - (1 - p)^k$ for every $k > 1$.[^chen2021] Intuitively, $(1 - c/n)^k$ models drawing $k$ candidates *with replacement* from the finite pool, whereas without replacement each failing candidate you draw shrinks the remaining failure pool and increases the chance of hitting a pass next.
+
+<details>
+<summary>Deep dive: Jensen's inequality proof of the downward bias</summary>
+
+For $k > 1$ and $p \in (0, 1)$, $g(p) = 1 - (1 - p)^k$ has strictly negative second derivative:
 
 $$
-\text{pass@k}_{\text{naive}} = 1 - (1 - \hat{p})^k
+g''(p) = -k(k - 1)(1 - p)^{k - 2} < 0
 $$
 
-where $\hat{p} = c / n$ is the observed single-sample pass rate. Chen and colleagues demonstrated that $1 - (1 - \hat{p})^k$ is a **biased underestimate** of the generative pass@k probability $1 - (1 - p)^k$.[^chen2021]
+Because $g$ is strictly concave, Jensen's inequality forces:
 
-Two distinct mathematical principles explain this shortfall:
+$$
+\mathbb{E}\left[1 - (1 - \hat{p})^k\right] < 1 - \left(1 - \mathbb{E}[\hat{p}]\right)^k = 1 - (1 - p)^k
+$$
 
-1. **Jensen's inequality on concave functions:**
-   Consider the function $g(p) = 1 - (1 - p)^k$. For $k > 1$ and $p \in (0, 1)$, the second derivative with respect to $p$ is strictly negative:
-   $$
-   g''(p) = -k(k - 1)(1 - p)^{k - 2} < 0
-   $$
-   Because $g(p)$ is strictly concave, Jensen's inequality guarantees that the expected value of the plug-in estimator is strictly smaller than the true function evaluated at the mean:
-   $$
-   \mathbb{E}\left[1 - (1 - \hat{p})^k\right] < 1 - \left(1 - \mathbb{E}[\hat{p}]\right)^k = 1 - (1 - p)^k
-   $$
-   Plugging a noisy empirical proportion into a concave curve inevitably pushes the estimate downward.
-2. **Sampling with replacement versus without replacement:**
-   The plug-in expression $(1 - c/n)^k$ represents drawing $k$ samples *with replacement* from the finite pool of $n$ completions. Each draw assumes an unchanged failure rate of $(n - c) / n$. But in an actual without-replacement draw, pulling a failing completion removes that failure from the denominator. The proportion of successes among the remaining candidates rises from $c/n$ to $c / (n - 1)$. Drawing without replacement depletes the failure pool, making a success more probable on subsequent picks.
+Plugging a noisy empirical proportion into a concave curve pulls the expectation strictly downward.
 
-For $0 < c < n$ and $k > 1$, the naive plug-in is strictly smaller than the unbiased combinatorial estimate on the same $(n, c, k)$.
+</details>
 
 <figure>
   <img src="illustrations/_generated/passk_estimation_dark.png" alt="For a pool of ten candidates with two passes, pass@k rises as the attempt budget grows. At k=1 both estimates are 0.200. At k=5, the finite-pool estimate is 0.778 and the with-replacement plug-in is 0.672, a 10.6-percentage-point gap. The curves compare estimators; the true pass@5 remains unknown." />
-  <figcaption>The pool contains two passing candidates among ten. At k = 5, the finite-pool estimator is 77.8% and the plug-in estimate is 67.2%. The gap compares estimators under these counts; the unknown true pass@5 remains outside the figure.</figcaption>
+  <figcaption>With 2 passing candidates out of 10, the unbiased combinatorial estimator gives 77.8% at k = 5, while the naive plug-in underestimates it at 67.2%, a 10.6-percentage-point shortfall.</figcaption>
 </figure>
 
 For $n = 10$, $c = 2$, and $k = 5$, compare both calculations directly:
@@ -662,11 +644,9 @@ Notice that `pass@5` climbs to $0.563$ while `pass@1` sits at $0.175$. That extr
 
 ## Changed protocols create fake wins
 
-To compare models fairly under a fixed sampling policy, keep the task suite, unit tests, candidate budget $k$, and decoding rules matched. Record token cutoffs, execution timeouts, and candidate selection rules. A timeout shouldn't quietly vanish from the denominator.
+A fair `pass@k` comparison holds the task suite, unit tests, attempt budget $k$, decoding settings, token limits, and timeout rules fixed (timeouts count as failures in the denominator, never dropped rows). Keep $n$ distinct from $k$: two studies with different predeclared pool sizes $n \ge k$ estimate the same underlying `pass@k`, though larger $n$ lowers variance.[^humanEvalEstimator2026]
 
-Record $n$ as well, but don't confuse it with $k$. Two independently sampled pools with different predeclared $n \ge k$ estimate the same underlying `pass@k`; their precision can differ. Matching $n$ is a convenient balanced setup, not a mathematical necessity for a valid fixed-$k$ benchmark. Don't omit challenging tasks simply because they generated fewer completions than requested: finish the protocol or report that the score can't be computed.[^humanEvalEstimator2026]
-
-A deterministic decoder illustrates the risk. If every generated candidate is identical, extra sampling slots can't uncover an alternative correct solution. For a fixed deterministic decoding pipeline, `pass@5` equals `pass@1`. A temperature-zero setting alone does not guarantee reproducibility of the whole serving pipeline.
+Deterministic decoding shows why search diversity matters: when every completion is identical, extra attempts add zero search capacity, so `pass@5` equals `pass@1`.
 
 <!-- leetllm: test, output=show, continue=passk-macro, id=passk-det -->
 ```python title="deterministic-candidates-add-no-search.py"
@@ -688,17 +668,11 @@ same passing candidate pass@1=1.0 pass@5=1.0
 ```
 <!-- leetllm: output:end -->
 
-Serving engines can introduce nondeterminism from external system factors, so record the exact runtime flags. A degenerate deterministic output distribution remains compatible with independent draws: every draw returns the identical completion. Duplicate completions alone don't prove a protocol violation. They remain in $n$ and $c$. A larger $k$ represents a larger compute expenditure, not an unearned model upgrade.
-
-Another risk is subtler: code that passes basic unit tests can still harbor edge-case bugs or malicious side effects. Unit-test evaluation verifies functional correctness under that specific suite. It does not authorize executing untrusted code directly on host infrastructure.
-
-HumanEval's authors described an isolated <span data-glossary="sandbox">sandbox</span> using gVisor and network restrictions.[^chen2021] The released harness isn't that complete isolation environment: its README requires users to provide a robust security sandbox. Treat functional correctness testing and execution isolation as separate layers.[^humanEvalRepository2026]
+Duplicate completions remain in $n$ and $c$ as valid draws from the decoder. Remember also to isolate untrusted generated code: unit tests verify functional behavior on a test suite, whereas running model-generated code safely requires an isolated <span data-glossary="sandbox">sandbox</span> (HumanEval's authors used gVisor and network isolation, and the open-source harness expects you to supply that sandbox yourself).[^chen2021][^humanEvalRepository2026]
 
 ## Build an evaluation report
 
-A model review needs one scorecard, not two disconnected headlines. The 40-task paired suite evaluates single-attempt lift. A separate four-task pool evaluates Model B's multi-candidate search behavior. Both require reported uncertainty and a documented protocol. The second pool isn't a direct comparison with Model A.
-
-This self-contained script runs the calculations and reports each result alongside its protocol metadata:
+Combine the 40-task paired `pass@1` comparison and the 4-task `pass@5` candidate pool into a single scorecard that reports intervals alongside the exact evaluation protocol:
 
 <!-- leetllm: test, output=show -->
 ```python title="evaluation-report.py"
@@ -766,35 +740,23 @@ scope: 40 paired tasks + 4 pool tasks
 ```
 <!-- leetllm: output:end -->
 
-For $k > 1$, `pass@k` is a nonlinear function of task-level completion counts, which is subsequently averaged across tasks. Resampling tasks and recalculating macro `pass@k` models task-sampling uncertainty. Comparing Model A and Model B at the same $k$ requires per-task estimates from both models: resample the paired differences between them, not two disconnected sets of tasks.
+Resampling tasks and recomputing macro `pass@k` captures task-sampling uncertainty (holding the generated pools fixed); for comparing two models at the same $k$, compute per-task `pass@k` for both and resample their paired differences.
 
-With four toy tasks the bootstrap interval is wide. Its nominal coverage depends on the sampling design and assumptions, so this calculation alone does not support a launch decision. This task bootstrap holds the generated completions fixed when resampling rows; it does not model how an entirely new batch of completions on the same tasks would vary. For grouped benchmark sets, resample independent clusters rather than treating every prompt as independent.
-
-Before approving a production rollout, verify that your evaluation report contains:
-
-- An interval for the paired lift rather than two disconnected headline numbers
-- The macro pass@k point estimate alongside an empirical bootstrap interval
-- The planned hypothesis direction chosen before inspecting test results
-- The total count of comparisons evaluated and any family-wise error adjustments
-- Explicit checkpoint hashes, prompt templates, decoding seeds, and timeout configs
-- Sandboxing guarantees and test suite coverage audits
-- Latency and cost ceilings for candidate generation in production
-
-Statistical significance and operational value address different questions. Evidence for a pass-rate gain does not guarantee that its size justifies additional generation, verification latency, serving cost, or security exposure.
+> **Key insight:** Statistical significance and practical value are separate questions. Pair every headline benchmark score with its matched protocol (`k`, `n`, decoding settings, timeouts), multiple-comparison count, paired lift interval, and compute cost.
 
 ## Practice: review a benchmark claim
 
-A teammate submits this update: "Model B is better because its `pass@5` reached 64%, whereas Model A's `pass@1` was 58%."
+A teammate writes: "Model B is better because its `pass@5` reached `64%`, whereas Model A's `pass@1` was `58%`."
 
-Write a code review comment addressing three specific issues:
+Spot the three missing pieces:
 
-1. Request matched attempt budgets $k$, prompt suites, test suites, and decoding settings, while noting the sample size $n \ge k$.
-2. Ask for the paired lift and its confidence interval under that matched protocol.
-3. Inquire whether the extra generation budget, verification latency, and compute cost are viable for production serving.
+1. **Matched attempt budgets:** compare both models at the same `k`, prompt suite, test suite, and decoding settings (reporting pool size `n >= k`).
+2. **Paired lift interval:** report the paired `B - A` lift and its confidence interval rather than two disconnected point estimates.
+3. **Practical cost:** verify whether any multi-attempt `pass@5` workflow fits latency and compute budgets.
 
-A rigorous rewritten claim should read:
+A crisp rewritten claim:
 
-> Under the same 200 paired platform-helper tasks and a matched `pass@1` protocol, Model B's observed pass rate was 2.5 percentage points higher. The paired 95% interval and serving cost guardrails are reported below; the point estimate alone doesn't justify a production swap. `pass@5` is documented separately because it reflects a larger candidate search budget.
+> On 200 paired coding tasks under a matched `pass@1` protocol, Model B scored `+2.5` percentage points higher, with its 95% paired lift interval and latency budget reported below. `pass@5` is reported separately because it reflects a larger five-attempt search budget.
 
 ```checkpoint
 Why is an interval for `B - A` preferable to comparing two separate intervals here?
@@ -923,4 +885,4 @@ Why can `pass@5` be much higher than `pass@1` without proving better single-cand
 ]
 ```
 
-> **Next:** Continue to [Neural Networks from Scratch](/learn/neural-networks-from-scratch). Separate a lucky extra pass from a paired lift, and read pass@k as a claim about a fixed attempt budget. The next lesson uses a different task. A small CodeAssist network turns two request features into a timeout-risk score. These evaluation habits are what you still need before trusting that score.
+> **Next:** Continue to [Neural Networks from Scratch](/learn/neural-networks-from-scratch). Now that you can separate a real paired lift from sampling noise and interpret `pass@k` under a fixed attempt budget, step into model architecture: four XOR points show why neural networks need hidden layers, how gradients flow through backpropagation, and how NumPy and PyTorch compute the exact same updates.

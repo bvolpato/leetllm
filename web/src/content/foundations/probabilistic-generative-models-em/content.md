@@ -15,24 +15,23 @@
 }
 ---
 
-Six request latencies, `[28, 30, 32, 86, 90, 94]` milliseconds, average to 60 ms, yet no request came anywhere near 60 ms. The mean falls in the empty gap between two clusters of values, so any plan built on it describes a request that never occurs. A better model should explain why the observations form two groups instead of one.
+Six request latencies, `[28, 30, 32, 86, 90, 94]` milliseconds, average to 60 ms, yet not a single request landed anywhere near 60 ms. The average sits in the empty valley between two tight clusters, describing a request that never happens.
 
-A single fitted Gaussian places its highest density at 60 ms and spreads wide enough to cover both groups. A <span data-glossary="gaussian-mixture-model">Gaussian mixture model</span> instead fits separate peaks and assigns each observation fractional membership in every peak. Cache status, query plans, and routing are absent from the log, so the peaks carry no physical explanation by themselves, and six observations say little about the shape of the full population.[^bishop2006]
+A single fitted Gaussian centers its peak right in that empty valley and stretches wide to span both groups. A <span data-glossary="gaussian-mixture-model">Gaussian mixture model</span> instead fits two separate peaks and assigns each observation fractional membership in each component.[^bishop2006] The log records only durations, with no labels for what caused the split, so we want an algorithm that discovers both clusters directly from the numbers.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Six observed latencies form groups near 30 and 90 milliseconds. Their two-component Gaussian mixture has peaks at 30 and 90 ms, while a single Gaussian centered at the same pooled mean of 60 ms spreads across the gap. The pooled maximum-likelihood variance is 906.67 ms squared. A separate provisional model at 50 ms normalizes weighted densities 0.00605 and 0.00135 into responsibilities 0.818 and 0.182." />
-  <figcaption>Both fitted models have mean 60 ms. The mixture puts its peaks near the observed groups. Rug marks share the curves' latency axis; they show the six observations, while the curves show densities. The 50 ms membership example below uses different, provisional variances.</figcaption>
+  <figcaption>Both fitted models share a mean of 60 ms, yet only the mixture places density where the six latencies actually occur. Rug marks show the observations along the latency axis; the 50 ms membership breakdown below uses provisional variances to illustrate soft assignment.</figcaption>
 </figure>
 
 ## Generative versus discriminative modeling
 
-The six latencies raise a modeling choice: describe how the observations could have been produced, or predict a label from inputs that are already in hand. In the statistical classification distinction, **discriminative modeling** learns to predict $Y$ from $X$, often through $P(Y \mid X)$ or a decision score. With labeled logs, a classifier might estimate cache-hit probability from latency and query size. A conditional probability alone doesn't specify the input distribution $P(X)$: many different input distributions can share the same $P(Y \mid X)$. The class probability therefore says nothing by itself about whether an input is typical. Confidence on corrupted inputs depends on the model, and it can be high.
+Those six latencies highlight a fundamental divide in probabilistic modeling: do we model how the data could have been generated, or only how to predict a label from an input?
 
-**Generative modeling** specifies a distribution from which we can sample observations. A generative classifier might model $P(X,Y)=P(Y)P(X \mid Y)$ and derive $P(Y \mid X)$ by Bayes' rule. An unlabeled density model instead models $p(X)$, possibly through hidden variables. Density scores support anomaly detection when low likelihood aligns with the failures that matter. The sampling distribution describes modeled observations; causal conclusions require additional assumptions and evidence.[^bishop2006]
+- **Discriminative modeling** learns $P(Y \mid X)$ (or a decision boundary) directly from labeled inputs, such as predicting whether a request hit a cache given its latency and payload size. Because it never models $P(X)$, it cannot tell whether a new input is typical or corrupted, and can still output high class confidence on out-of-distribution inputs.
+- **Generative modeling** specifies a full sampling distribution, either jointly as $P(X, Y) = P(Y)P(X \mid Y)$ (from which Bayes' rule recovers $P(Y \mid X)$) or over unlabeled observations $p(X)$ via hidden structure.[^bishop2006] Modeling $p(X)$ lets you score how typical an input is and generate synthetic observations from the fitted law.
 
-The terminology also depends on the task. An LLM models a distribution over text conditioned on a prompt, so a conditional distribution can support generation. Here we'll use the classification distinction to ask a narrower question: how could a probability model describe our unlabeled latency sample?
-
-Our hidden component index is a <span data-glossary="latent-variable">latent variable</span>, an unobserved variable included in the statistical model. Some request logs do contain cache or routing labels. This example deliberately doesn't.
+Notice that "generative" also applies to conditional distributions over rich outputs: an LLM models $P(\text{text} \mid \text{prompt})$ and generates sequences from it. Here we focus on unlabeled density estimation: how a mixture model describes our six latencies using an unobserved <span data-glossary="latent-variable">latent variable</span> $Z$ that tracks which cluster produced each point.
 
 ## Latent variables and the coupled log-sum
 
@@ -63,19 +62,17 @@ $$
 p(x_i \mid \theta) = \sum_{k=1}^{K} p(x_i, z_i = k \mid \theta) = \sum_{k=1}^{K} \pi_k\,\mathcal{N}(x_i \mid \mu_k, \sigma_k^2).
 $$
 
-Assume observations are independent and identically distributed under this model. Real traffic can violate that assumption through time, tenant, or queue dependence. <span data-glossary="maximum-likelihood">Maximum likelihood estimation</span> chooses parameters $\theta=\{\pi_k,\mu_k,\sigma_k^2\}_{k=1}^K$ to maximize the product of the observed densities. Its logarithm is:
+Assuming independent observations, <span data-glossary="maximum-likelihood">maximum likelihood estimation</span> chooses $\theta=\{\pi_k,\mu_k,\sigma_k^2\}_{k=1}^K$ to maximize the log-likelihood:
 
 $$
 \ell(\theta) = \log p(X \mid \theta) = \sum_{i=1}^{n} \log \left( \sum_{k=1}^{K} \pi_k\,\mathcal{N}(x_i \mid \mu_k, \sigma_k^2) \right).
 $$
 
-Notice the mathematical barrier: the summation across components sits **inside** the logarithm.
+Notice the mathematical barrier: the sum over components sits **inside** the logarithm. For a single Gaussian, taking derivatives yields closed-form mean and variance formulas. For a mixture, the log-sum couples every component's parameters together and makes the objective non-convex.[^bishop2006]
 
-For a single Gaussian with nonzero empirical variance, the mean and variance maximizing likelihood have simple formulas. For a general mixture, the log of a sum couples component parameters, so those single-Gaussian formulas don't solve the whole fit in one step. The objective is non-convex, and gradient-based optimization is possible too.[^bishop2006]
+> **Key insight:** Evaluating a mixture with fixed parameters is exact and easy; *fitting* the parameters is hard because the logarithm wraps the sum over latent components.
 
-Keep **evaluation** separate from **optimization**. With two Gaussian components and parameters already chosen, summing two densities and computing their posterior probabilities is exact. Fitting those parameters is the harder job. Continuous latent variables replace sums with integrals; some models, including linear Gaussian models, still allow exact integration. Nonlinear neural decoders usually don't.
-
-To see how fractional membership works, hold a provisional model fixed and ask how a request landing at 50 ms, between the two groups, divides between the two peaks.
+To break that coupling, first hold a provisional model fixed and see how a request landing at 50 ms divides its membership between the two peaks.
 
 ## Soft responsibilities in Gaussian mixtures
 
@@ -146,11 +143,9 @@ $$
 \gamma_{ik} \propto \pi_k \exp\left(-\frac{\|x_i-\mu_k\|^2}{2\sigma^2}\right).
 $$
 
-Hold centers and positive priors fixed while $\sigma^2 \to 0$. A uniquely closest center receives responsibility approaching one. At an exact distance tie, responsibilities stay proportional to the tied components' priors; shrinking variance doesn't break the tie. The weighted mean update then approaches K-means' mean update when assignments are unique and clusters are nonempty. This limiting argument uses a shared variance; it isn't an instruction to shrink each fitted GMM variance toward zero.
+Hold centers and positive priors fixed while shrinking a shared variance $\sigma^2 \to 0$. A uniquely closest center receives responsibility approaching one (and at an exact distance tie, responsibilities stay proportional to the tied components' priors). The weighted mean update then converges to K-means' hard mean update.
 
-The 0.818/0.182 split expresses membership **under the provisional model**. Hardware traces or queue states would identify physical causes, and cache-versus-database probabilities need verified labels.
-
-Responsibilities are discrete probabilities summing to one for each observation ($\sum_k \gamma_{ik} = 1$). In contrast, $p(x \mid \theta)$ is a continuous probability **density**, whose values can exceed 1.0 for narrow spreads and whose integral over an interval gives probability.
+Keep two probability objects distinct: responsibilities $\gamma_{ik}$ are discrete probabilities summing to one per observation ($\sum_k \gamma_{ik} = 1$), whereas $p(x \mid \theta)$ is a continuous probability **density** whose height can exceed `1.0` for narrow peaks and whose integral over an interval gives probability. Remember too that an unlabeled latency fit identifies statistical clusters, not physical causes like cache hits.
 
 ```checkpoint
 A 50-millisecond request receives fast-component responsibility 0.818. What happens to the remaining 0.182, and does the larger number prove that an in-memory cache handled the request?
@@ -201,34 +196,34 @@ $$
 D_{\mathrm{KL}}(q(Z) \parallel p(Z \mid X, \theta)) = \sum_{Z} q(Z) \log \frac{q(Z)}{p(Z \mid X, \theta)}.
 $$
 
-For finite terms, this decomposition identifies the gap exactly. KL divergence is nonnegative and is zero when $q$ equals the posterior (almost everywhere for continuous variables). Therefore $\mathcal{L}(q,\theta) \le \ell(\theta)$. A bound can be valid yet loose; a restricted or approximate $q$ can leave the gap positive.
+Because KL divergence is nonnegative and equals zero if and only if $q(Z) = p(Z \mid X, \theta)$, we always have $\mathcal{L}(q,\theta) \le \ell(\theta)$, with equality precisely when $q$ matches the exact posterior.
 
 <figure>
   <img src="illustrations/_generated/em_lower_bound_ascent_dark.png" alt="For six latency observations, an E-step with means 70 and 90 ms, equal weights, and variances 400 ms squared gives six fractional component memberships. The component-1 weighted mean is 184.894 divided by 3.907, or 47.33 ms. On the likelihood plot, the old bound rises from -32.028 to -29.517 during the M-step, then a fresh E-step closes the 1.052 gap to the log likelihood at -28.465." />
-  <figcaption>This one-parameter example uses equal weights, variances of 400 ms², and a second mean fixed at 90 ms. Its bars show the E-step responsibilities at first mean 70 ms. The purple arrow holds q fixed during the M-step; the green arrow recomputes q so the new bound meets likelihood at the same mean. Both bounds are quadratic here; general ELBOs need not be concave across all model parameters.</figcaption>
+  <figcaption>With equal weights, variances of 400 ms², and the second mean fixed at 90 ms, the E-step at m = 70 ms makes the lower bound touch the log-likelihood curve. Holding q fixed during the M-step climbs to m = 47.33 ms (purple arrow), and a fresh E-step closes the 1.052 KL gap to meet the higher log-likelihood (green arrow).</figcaption>
 </figure>
 
 The algorithm climbs this geometry through coordinate ascent:
 
-1. **E-step:** Hold $\theta^{(t)}$ fixed and compute the exact posterior $q(Z)=p(Z \mid X,\theta^{(t)})$. For the GMM, this means computing responsibilities. The gap is zero at the current parameters:
+1. **E-step:** Hold $\theta^{(t)}$ fixed and set $q(Z) = p(Z \mid X, \theta^{(t)})$ by computing responsibilities. The KL gap drops to zero, making the bound touch the log-likelihood at $\theta^{(t)}$:
    $$
    \mathcal{L}(q, \theta^{(t)}) = \log p(X \mid \theta^{(t)}).
    $$
 
-2. **M-step:** Freeze $q$ and maximize the bound over the allowed parameter space:
+2. **M-step:** Freeze $q$ and maximize the bound over $\theta$:
    $$
    \theta^{(t+1)} = \arg\max_\theta \mathcal{L}(q, \theta) = \arg\max_\theta \sum_{Z} q(Z) \log p(X, Z \mid \theta).
    $$
-   The entropy $-\sum_Z q(Z)\log q(Z)$ is constant with respect to $\theta$. The remaining objective is the expected complete-data log likelihood, often called $Q$. For our GMM it separates into weighted Gaussian fits. Other models can still require numerical optimization.
+   The entropy $-\sum_Z q(Z)\log q(Z)$ does not depend on $\theta$, leaving the expected complete-data log-likelihood $Q$. For a GMM, $Q$ decouples into separate weighted Gaussian fits.
 
-3. **Monotonicity guarantee**: Combining both steps confirms that likelihood never decreases:[^dempster1977em]
+3. **Monotonic ascent:** Combining both steps guarantees that log-likelihood never decreases:[^dempster1977em]
    $$
    \log p(X \mid \theta^{(t+1)}) \ge \mathcal{L}(q, \theta^{(t+1)}) \ge \mathcal{L}(q, \theta^{(t)}) = \log p(X \mid \theta^{(t)}).
    $$
 
-Read the three comparisons from right to left: the old bound touches old likelihood, the parameter update doesn't lower that bound, and new likelihood is at least the new bound. Exact E-steps plus an M-step that merely **doesn't decrease** $Q$ are sufficient for this argument; that variant is generalized EM.[^dempster1977em]
+Read the chain from right to left: the old bound touches the old likelihood, the M-step improves (or preserves) that bound, and the true likelihood lies at or above the new bound. Even an M-step that merely increases $Q$ without maximizing it completely (generalized EM) preserves this inequality.[^dempster1977em]
 
-Monotonic means non-decreasing. If likelihood is bounded above, its values converge. Parameter convergence and stationary-point results require additional regularity conditions, and unconstrained Gaussian mixtures can have unbounded likelihood. The inequality establishes monotonic likelihood improvement under its assumptions; global optimality needs a separate result.
+> **Common mistake:** Monotonic log-likelihood ascent means EM never goes downhill, not that it finds the global maximum. Because mixture likelihood is non-convex, EM can settle in a local optimum or saddle point depending on initialization.
 
 Reproduce the figure's restricted example before fitting all parameters. Keep means `[m, 90]`, weights `[0.5, 0.5]`, and both variances at 400 ms². The only free parameter is `m`. For each observation, `q[i][k]` holds its component responsibility; independence lets us sum over observations instead of all assignment vectors:
 
@@ -315,9 +310,9 @@ $$
 \log \sum_{k=1}^{K} \exp(s_k) = s_{\max} + \log \left( \sum_{k=1}^{K} \exp(s_k - s_{\max}) \right),
 $$
 
-Here $s_k=\log \pi_k+\log \mathcal{N}(x_i \mid \mu_k,\sigma_k^2)$ and $s_{\max}=\max_k s_k$. For finite log scores, the largest shifted exponential is one, so the denominator doesn't underflow to zero. Smaller responsibilities can still round to zero. Invalid variances, non-finite inputs, or an all-negative-infinity score vector require separate handling; the subtraction doesn't repair an invalid model.
+Here $s_k=\log \pi_k+\log \mathcal{N}(x_i \mid \mu_k,\sigma_k^2)$ and $s_{\max}=\max_k s_k$. Shifting by $s_{\max}$ makes the largest exponential equal `1`, keeping the denominator strictly positive even when raw densities would underflow to zero.
 
-The next snippet fits the six latencies from provisional means at 25 and 95 ms, initial variances of 900 ms², and a **fixed minimum variance** of 1 ms². It runs eight updates and checks likelihood non-decrease within floating-point tolerance. This compact teaching implementation uses positive initial weights. General-purpose estimators also need initialization, convergence, and degeneracy controls:
+The next snippet fits all six latencies from provisional means at `25` and `95` ms, initial variances of `900` ms², and a minimum variance floor of `1` ms², checking that log-likelihood rises monotonically across eight EM updates:
 
 <!-- leetllm: test, id=em-fit, deps=numpy, output=show -->
 ```python title="fit-two-component-mixture.py"
@@ -373,15 +368,22 @@ component 2: weight=0.500, mean=90.0 ms, variance=10.667 ms²
 ```
 <!-- leetllm: output:end -->
 
-The model settles on component means at 30.0 and 90.0 ms, with variances of `8/3` (2.667 ms²) and `32/3` (10.667 ms²). The slow component's variance is four times larger because observations at `[86, 90, 94]` spread twice as far from their center as `[28, 30, 32]` do from theirs.
+The model settles on component means at `30.0` and `90.0` ms, with variances of `8/3` (`2.667` ms²) and `32/3` (`10.667` ms²). The slow component's variance is four times larger because `[86, 90, 94]` sits twice as far from its center as `[28, 30, 32]`.
 
-The floor prevents covariance collapse by keeping variance positive. It also makes this particular fit a **constrained** maximum-likelihood problem. For fixed responsibilities and a new weighted mean, write the weighted squared deviation as $S_k$. The variance-dependent part of $Q$ is
+The variance floor prevents covariance collapse while keeping the EM monotonicity guarantee intact over the feasible space $v_k \ge v_{\min}$.
+
+<details>
+<summary>Deep dive: why clamping at a floor is an exact constrained M-step</summary>
+
+With fixed responsibilities and updated mean, write the weighted squared deviation as $S_k$. The variance-dependent term in $Q$ is:
 
 $$
--\frac{N_k}{2}\log v_k-\frac{S_k}{2v_k}+\text{constant}.
+-\frac{N_k}{2}\log v_k - \frac{S_k}{2v_k} + \text{constant}.
 $$
 
-Its unconstrained maximizer is $S_k/N_k$. Over $v_k \ge v_{\min}>0$, its exact maximizer is $\max(S_k/N_k,v_{\min})$, which is the code's clamp. The initial variances satisfy the same constraint, so the EM inequality still applies to this fixed feasible space. Every mixture density is at most $1/\sqrt{2\pi v_{\min}}$, giving a finite upper bound on training log likelihood. A different safeguard isn't automatically the same constrained M-step.
+Its derivative is positive below $S_k/N_k$ and negative above it, so over $v_k \ge v_{\min} > 0$, the exact maximizer is $\max(S_k/N_k, v_{\min})$. Because every component density is bounded above by $(2\pi v_{\min})^{-1/2}$, the constrained training log-likelihood also has a finite ceiling.
+
+</details>
 
 ```checkpoint
 The printed trace rounds to -17.694 for several updates. Has the code proved convergence or found the global maximum?
@@ -393,15 +395,13 @@ No. The loop runs a fixed eight updates, and rounded output can hide small chang
 
 Means at 30 ms and 90 ms are not the end of the story. Two familiar failures can still wreck a mixture, and both show up on small latency samples.
 
-The first is **covariance collapse**. In a mixture with at least two components, put one positive-weight component's mean on a training observation and let its variance approach zero. Its density there grows as $(2\pi\sigma_k^2)^{-1/2} \to \infty$. Keep another positive-variance component covering the other points, and the training log likelihood becomes unbounded. Variance exactly zero isn't a valid Gaussian density. This limiting spike comes from the optimization objective and says little about the population distribution.[^bishop2006]
+The first is **covariance collapse**. In any mixture with at least two components, centering one component on a single data point and shrinking $\sigma_k^2 \to 0$ drives its density $(2\pi\sigma_k^2)^{-1/2} \to \infty$ while the other component keeps finite density on the rest of the sample.[^bishop2006] The unconstrained training log-likelihood becomes unbounded above, producing a useless Dirac spike around one point.
 
-A single univariate Gaussian has bounded maximum likelihood when the sample's empirical variance is positive. If all values are identical, even that single-Gaussian fit has a collapse problem. Multivariate singular covariances introduce further cases.
+Practical implementations guard against collapse with a positive variance floor, a Bayesian prior over covariances, or diagonal covariance regularization (for example, scikit-learn's `GaussianMixture` adds a small diagonal ridge `reg_covar`, defaulting to `1e-6`).[^sklearnGaussianMixture2026] Note that adding a ridge and clamping at a floor modify the M-step differently.
 
-Choose a safeguard appropriate to the objective: a positive variance/eigenvalue constraint, suitable priors, or covariance regularization. Scikit-learn exposes `reg_covar` for a diagonal ridge, with default `1e-6` in version 1.9.1. Adding a ridge and clamping at a floor are different operations. Regularization changes the optimization target, so check its update and objective before applying the exact constrained proof.[^sklearnGaussianMixture2026]
+The second failure mode is the **symmetric initialization trap**. If both components start with identical means, variances, and weights (such as $\mu_1 = \mu_2 = 60.0$ ms), every observation gets identical responsibilities $\gamma_{i1} = \gamma_{i2} = 0.5$. The M-step then moves both components to the pooled mean (`60.0` ms) and pooled variance (`906.7` ms²), and exact EM can never break that symmetry.
 
-The second failure mode is the **symmetric initialization trap**. If both components start with identical means, variances, and weights (such as $\mu_1 = \mu_2 = 60.0$ ms), every single observation receives identical responsibilities: $\gamma_{i1} = \gamma_{i2} = 0.5$. The subsequent M-step updates both components to the identical pooled sample mean (60.0 ms) and pooled maximum-likelihood variance (906.7 ms²). Because the responsibilities never differentiate, exact EM steps can't break symmetry.
-
-Compare both starting points on `[29, 31, 88, 92]`. These four held-out values test whether each fit generalizes beyond the training sample:
+Compare separated versus symmetric starts on four held-out latencies `[29, 31, 88, 92]`:
 
 <!-- leetllm: test, continue=em-fit, deps=numpy, output=show -->
 ```python title="compare-mixture-initializations.py"
@@ -420,15 +420,9 @@ start=[60.0, 60.0]: means=[60.0, 60.0], train=-28.943, validation/point=-4.822
 ```
 <!-- leetllm: output:end -->
 
-The separated start scores better on both the training and held-out values. Break exact component symmetry and compare multiple starts, retaining the best training objective for a fixed model configuration. Scikit-learn 1.9.1 defaults to `init_params="kmeans"` and `n_init=1`; setting `n_init=10` explicitly requests ten starts. Additional starts cost computation and still don't certify a global optimum.[^sklearnGaussianMixture2026]
+The separated start wins decisively on both training (`-17.694` vs `-28.943`) and held-out log-likelihood (`-2.637` vs `-4.822` per point). In practice, break symmetry with K-means initialization and run multiple random restarts (such as setting `n_init=10` in scikit-learn's `GaussianMixture`, which defaults to `init_params="kmeans"` and `n_init=1`), keeping the best training objective for a fixed $K$.[^sklearnGaussianMixture2026]
 
-For different component counts $K$, use held-out log likelihood and inspect model assumptions. AIC and BIC are complexity-penalized model-selection criteria, not guarantees that a selected component count describes real causes. With the same variance floor, the *best possible* training likelihood can't decrease when an extra component can duplicate or have zero weight. Separate EM runs can nevertheless return worse local fits. Unconstrained mixture maxima may not exist at all.[^sklearnMixtures2026]
-
-To check what the fit predicts, sample component $k$ with probability $\pi_k$, then sample $x \sim \mathcal{N}(\mu_k,\sigma_k^2)$. Compare simulated and held-out shapes, tails, and group frequencies. Gaussian components allow negative latencies, even when such draws are rare. Positive-support distributions such as log-normal or Gamma components may better match that constraint.
-
-This is simulation from fitted point estimates. A Bayesian **posterior predictive** check additionally averages over uncertainty in the parameters, as Stan's definition makes explicit.[^stanPosteriorPredictiveChecks2026]
-
-Component labels also have no inherent identity: exchanging the two components leaves the mixture density unchanged. External evidence is needed to identify one component as cache activity.
+To choose the number of components $K$, compare held-out log-likelihood alongside complexity-penalized criteria such as AIC or BIC.[^sklearnMixtures2026] You can also run a generative check: sample component $k$ with probability $\pi_k$, draw $x \sim \mathcal{N}(\mu_k,\sigma_k^2)$, and compare simulated shapes and tails against held-out observations (a Bayesian **posterior predictive** check further integrates over parameter uncertainty[^stanPosteriorPredictiveChecks2026]). Because Gaussian components put nonzero mass on negative durations, positive-support families such as lognormal or Gamma mixtures are often a better match for latency data. Finally, component indices are arbitrary: swapping components 1 and 2 leaves the mixture density unchanged, so naming a peak after a physical mechanism requires external labels.
 
 ## From exact responsibilities to an encoder
 
@@ -449,15 +443,17 @@ $$
 \mathcal{L}(\phi, \theta; x) = \mathbb{E}_{q_\phi(z \mid x)} [\log p_\theta(x \mid z)] - D_{\mathrm{KL}}(q_\phi(z \mid x) \parallel p(z)).
 $$
 
-The expected decoder log likelihood is the reconstruction term. With a fixed prior, both encoder and decoder receive its gradients. The prior KL term also affects the encoder; it isn't a separate E-step. Don't confuse that **prior KL penalty** with the **posterior KL gap** $\log p_\theta(x)-\mathcal{L}(\phi,\theta;x)$.[^kingma2014]
+The expected decoder log-likelihood is the reconstruction term, while the second term pulls the approximate posterior toward the prior $p(z)$.
 
-For a diagonal Gaussian encoder and a standard normal prior, sample $\epsilon \sim \mathcal{N}(0,I)$ and write
+> **Common mistake:** Do not confuse the **prior KL penalty** $D_{\mathrm{KL}}(q_\phi(z \mid x) \parallel p(z))$ inside the ELBO with the **posterior KL gap** $D_{\mathrm{KL}}(q_\phi(z \mid x) \parallel p_\theta(z \mid x)) = \log p_\theta(x) - \mathcal{L}(\phi,\theta;x)$ between the ELBO and exact log-evidence.[^kingma2014]
+
+For a diagonal Gaussian encoder and a standard normal prior, sample $\epsilon \sim \mathcal{N}(0,I)$ and write:
 
 $$
-z=\mu_\phi(x)+\sigma_\phi(x)\odot\epsilon.
+z=\mu_\phi(x)+\sigma_\phi(x)\odot\epsilon,
 $$
 
-Here $\sigma_\phi$ is standard deviation, not variance. The **reparameterization trick** makes the sampled decoder objective differentiable through the encoder. Kingma and Welling's method uses stochastic gradients to learn both parameter sets jointly; it doesn't require an exact posterior or an exact M-step.[^kingma2014]
+where $\sigma_\phi$ is standard deviation, not variance. This **reparameterization trick** moves randomness into $\epsilon$, making the sampled reconstruction loss differentiable with respect to both encoder and decoder parameters so SGD can train them jointly.[^kingma2014]
 
 Think through a scalar draw: hold $\epsilon=0.5$ and set $z=\mu+0.5\sigma$. Changing $\mu$ changes the decoder's reconstruction term through $z$, with $\partial z/\partial\mu=1$. Changing $\sigma$ changes it too, with $\partial z/\partial\sigma=0.5$. This explains why reconstruction trains the encoder as well as the decoder.
 

@@ -19,7 +19,7 @@
   "keyConceptsTested": [
     "git init/clone/commit with optional LFS",
     ".gitignore for models, .env, vector DBs, caches",
-    "pre-commit hooks and eval gates",
+    "pre-commit hooks and eval checks",
     "shell functions and one-liners for nvidia-smi, du, find",
     "Linux permissions, processes, tmux, nohup",
     "reproducible project layout and activation scripts",
@@ -34,49 +34,31 @@
 }
 ---
 
-Your laptop runs an evaluation script, compares three saved model predictions against ground truth, and prints `0.667`: two answers matched. A teammate clones your repo, runs the exact same script, and crashes immediately with a `FileNotFoundError`. The Python code arrived over Git, but the dataset it reads stayed behind on your hard drive.
+Your laptop runs an evaluation script over three saved model predictions and prints `0.667`: two answers matched. A teammate clones your repository, runs the same command, and hits `FileNotFoundError`. The Python code traveled through Git, while the dataset stayed untracked on your hard drive.
 
-The project is a minimal repo called `prompt-eval`, tested from a <span data-glossary="reproducible-environment">fresh clone</span>. Its evaluation (an **eval**) compares saved predictions with expected answers. It needs no live API calls or secret tokens. Git carries the source code and eval data, and shell scripts define the setup and eval commands.
-
-The final check runs on your own machine. It tests whether the committed files can rebuild the local Python environment and reproduce the score. Another machine can still have a different operating system, Python version, or GPU driver. Those differences stay outside this check. The crash is a missing file. Before hunting for it, the terminal has to show which directory you are in.
+In this lesson, you will build a minimal repo called `prompt-eval` and test it from a <span data-glossary="reproducible-environment">fresh clone</span>. Git tracks the code, starter eval set, and setup scripts; shell commands keep daily debugging fast on local machines and remote Linux GPU boxes alike.
 
 ## Meet the terminal, shell, and repository
 
-The **terminal** is the window where that directory becomes visible. The <span data-glossary="shell">shell</span> running inside it, typically Bash or Zsh, parses commands and launches processes. Linux is common on remote AI servers and multi-GPU clusters, so you'll use these command-line habits there too.
-
-Use Bash or Zsh on macOS, Linux, or Windows Subsystem for Linux (WSL), with Git and Python 3.12 or newer installed. You don't need a GPU to complete this project. The GPU commands later in the lesson show how to inspect a remote machine.
-
-Before writing code, make your working path visible. A filesystem **path** locates a file or directory (`.` represents your current directory and `..` points to its parent). We run `pwd` (print working directory) to check the current folder, `mkdir` to create our project directory, and `cd` to move into it. Run these commands line by line in your workspace:
+Your **terminal** runs a <span data-glossary="shell">shell</span> (Bash or Zsh on macOS, Linux, or Windows WSL) that parses commands and reports an **exit status** (`0` for success, nonzero for failure). Initialize the repo with Git and Python 3.12+:
 
 ```bash title="terminal"
 pwd
 mkdir prompt-eval
 cd prompt-eval || exit 1
-pwd
-git --version
-python3 --version
 git init -b main
-```
-
-Notice `cd prompt-eval || exit 1`. If the directory change fails, the shell exits with status 1. This prevents subsequent commands from running in the wrong folder. An **exit status** is the number a command returns when it ends. Status 0 signals success, while a nonzero status usually signals failure. If a command fails, read its error before running the next command.
-
-<span data-glossary="git">Git</span> tracks changes through snapshots called **commits**. A directory managed by Git is a **repository** (or **repo**). Running `git init -b main` creates Git's internal directory at `.git/` and names your initial branch `main`. A **branch** names a line of development. We'll use `main` throughout this lab. Leave the files inside `.git/` to Git and its commands.
-
-Before creating your first commit, assign an author name and email. These settings stay local to `prompt-eval`. (Add `--global` only if you want to use this identity across every repository on your machine):
-
-```bash title="terminal-identity"
 git config user.name "Your Name"
 git config user.email "you@example.com"
 git status
 ```
 
-`git status` confirms you're on `main` with no commits yet. Git distinguishes three states: the **working tree** contains your editable files, the **staging area** selects contents for the next commit, and history contains existing commits. The staging area is also called the **index**. Running `git add` stages a file's current contents. Running `git commit` records the staged snapshot.[^progit] If you edit a file after staging it, run `git add` again to include that edit.
+`cd prompt-eval || exit 1` stops immediately if creating or entering the directory fails, rather than initializing Git in the parent folder.
 
-These states explain the missing-file bug. A file can exist on your laptop without appearing in any commit. Before adding our eval code, decide which files the project needs from Git and which files should stay local.
+<span data-glossary="git">Git</span> separates three states: your **working tree** (files on disk), the **staging area / index** (`git add`), and **commit history** (`git commit`).[^progit] A file sitting in your working tree never reaches a teammate's clone until you stage and commit it.
 
 ## Ignore the files that shouldn't travel
 
-Before adding the scorer, separate project inputs from local residue. Create `.gitignore` with patterns for <span data-glossary="secrets-management">secrets</span>, caches, generated indexes, and model artifacts:
+Before adding any code, create `.gitignore` to keep <span data-glossary="secrets-management">secrets</span>, virtual environments, caches, and generated model artifacts out of commits:
 
 ```gitignore title=".gitignore"
 # Python
@@ -120,13 +102,12 @@ mlruns/
 # .gitattributes routes those extensions through Git LFS when configured.
 ```
 
-`.gitignore` keeps matching untracked files out of ordinary `git add` operations. It doesn't remove tracked files or rewrite Git history. It also isn't an access control: `git add -f` can stage an ignored file. If `git ls-files '.env*'` returns a file containing credentials, stop before sharing your branch. Remove that file from tracking with `git rm --cached`. If an active credential entered commit history, rotate it with your provider. Deleting the file in a later commit leaves the key readable in earlier revisions.[^gitignore2026]
+> **Common mistake:** `.gitignore` only filters untracked files. If `.env` was committed earlier, untrack it with `git rm --cached .env` and rotate the exposed credential immediately, because deleting it in a later commit leaves it readable in earlier history.[^gitignore2026]
 
-Use <span data-glossary="git-lfs">Git LFS</span> only when a large artifact truly belongs in this repo. GitHub warns above 50 MiB and blocks ordinary Git files above 100 MiB; LFS keeps a small pointer in Git while storing the bytes separately.[^github_large] Generated checkpoints and local model directories stay ignored.
+<details>
+<summary>Deep dive: When to use Git LFS for model weights</summary>
 
-Production datasets and frequently changing weights usually belong in object storage or a data registry, with a versioned manifest in Git. LFS <span data-glossary="quota">quotas</span> and file caps depend on the host and plan, so treat LFS as a pointer mechanism, not a dataset store.
-
-An ignored path won't be picked up by LFS tracking. Keep selected LFS patterns out of `.gitignore`, then check whether the separate `git-lfs` tool is installed before adding weights:
+GitHub warns above 50 MiB and blocks regular Git blobs above 100 MiB.[^github_large] <span data-glossary="git-lfs">Git LFS</span> stores small pointer files in Git while hosting large binary blobs separately (keep LFS patterns *out* of `.gitignore`, or `git add` skips them). On a clone without LFS or with `GIT_LFS_SKIP_SMUDGE=1`, run `git lfs pull` to materialize pointer files.[^gitlfs2026pull] Production datasets and rapidly changing checkpoints belong in object storage with a versioned manifest in Git rather than burning LFS <span data-glossary="quota">quotas</span>.
 
 ```bash title="terminal-2"
 cat > .gitattributes << 'EOF'
@@ -141,22 +122,16 @@ else
   echo "Git LFS isn't installed. Safe for now: don't commit model weights yet."
 fi
 
-git add .gitattributes
-```
-
-Commit this skeleton before adding the eval dataset. Inspect the staged changes with `git diff --cached`, then record them. `git commit` saves locally; it doesn't upload anything to GitHub.
-
-```bash title="terminal-3"
 git add .gitignore .gitattributes
 git diff --cached
 git commit -m "chore: initial AI project skeleton with safe .gitignore and LFS"
 ```
 
-On a normal LFS checkout, Git materializes the object. Without LFS, or with `GIT_LFS_SKIP_SMUDGE=1`, a clone may contain pointer text instead. `git lfs pull` downloads and checks out missing objects after LFS is installed.[^gitlfs2026pull] Commit `.gitattributes` when tracking patterns change, and document which workflows need those bytes. The skeleton still has nothing for the scorer to read. Where do the three expected answers live?
+</details>
 
 ## Commit the three-row eval set
 
-Our repository has directory structure, but no evaluation data yet. We'll add three prompt-classification examples, each pairing a user prompt with an expected intent label and a saved model prediction. The shell idiom `cat > path << 'EOF'` writes every line up to `EOF` into the target file, replacing any existing content:
+Create `eval/eval_cases.jsonl` with three prompt-classification examples:
 
 ```bash title="terminal-4"
 mkdir -p eval
@@ -167,13 +142,11 @@ cat > eval/eval_cases.jsonl << 'EOF'
 EOF
 ```
 
-Row 2 is the intentional miss (`compare` vs `explain`). Two of three labels match, so accuracy is $2 / 3$, printed to three decimal places as `0.667`. Three fixed examples are enough to check the workflow, not enough to measure model quality. The downloadable [eval file](assets/eval_cases.jsonl) contains the same rows; the browser's runnable example reads that copy.
+Row 2 intentionally misses (`compare` vs `explain`), giving an exact-match accuracy of $2/3$ (`0.667`). The downloadable [eval file](assets/eval_cases.jsonl) mirrors these three rows so the runnable scorer below works directly.
 
 ## A scorer that fails out loud
 
-Give the check a small program that reads <span data-glossary="jsonl">JSONL</span>, one JSON object per line, and computes exact-match accuracy. You don't need to understand every Python statement yet. Follow its three jobs: validate the rows, count matching labels, and report whether at least two thirds match. [Python for AI Engineering](/learn/python-for-ai-engineering) later explains the functions, exceptions, and tests behind this work.
-
-A **gate** is a check that blocks a later action when it fails. Valid rows at or above the threshold print a score and return status 0; missing, malformed, empty, or below-threshold input returns nonzero. Run `mkdir -p scripts`, then save the utility below as `scripts/score_eval.py`. The shell wrapper will invoke it on every clone.
+A reliable evaluation script reads <span data-glossary="jsonl">JSONL</span> (one JSON object per line), validates the required text fields, checks whether at least two-thirds match, and communicates its verdict through its exit status: `0` on pass, `1` (with diagnostics on `stderr`) on missing files, bad JSON, or a score regression.
 
 ```mermaid
 flowchart TB
@@ -181,6 +154,8 @@ flowchart TB
     scorer -->|"valid, at least 2/3"| pass["print score, exit 0"]:::success
     scorer -->|"missing, bad, or below 2/3"| fail["stderr, exit 1"]:::danger
 ```
+
+Save the script as `scripts/score_eval.py`:
 
 <!-- leetllm: test, output=show -->
 ```python title="scripts/score_eval.py"
@@ -203,17 +178,11 @@ for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines()
         continue
     try:
         row = json.loads(line)
-    except json.JSONDecodeError as error:
-        print(f"ERROR: line {line_number}: {error.msg}", file=sys.stderr)
+        values = [row[field].strip() for field in REQUIRED]
+    except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as error:
+        print(f"ERROR: line {line_number} invalid eval row: {error}", file=sys.stderr)
         raise SystemExit(1)
-    if not isinstance(row, dict):
-        print(f"ERROR: line {line_number} must be a JSON object", file=sys.stderr)
-        raise SystemExit(1)
-    missing = [field for field in REQUIRED if field not in row]
-    if missing:
-        print(f"ERROR: line {line_number} missing {missing}", file=sys.stderr)
-        raise SystemExit(1)
-    if any(not isinstance(row[field], str) or not row[field].strip() for field in REQUIRED):
+    if not all(values):
         print(f"ERROR: line {line_number} requires nonempty text fields", file=sys.stderr)
         raise SystemExit(1)
     rows.append(row)
@@ -222,42 +191,38 @@ if not rows:
     print("ERROR: eval file is empty", file=sys.stderr)
     raise SystemExit(1)
 
-def normalize(label: str) -> str:
-    return label.strip().lower()
-
-correct = sum(normalize(row["expected"]) == normalize(row["prediction"]) for row in rows)
+correct = sum(
+    row["expected"].strip().lower() == row["prediction"].strip().lower()
+    for row in rows
+)
 total = len(rows)
-score = correct / total
 print(f"Eval rows: {total}")
-print(f"Exact-match accuracy on eval set: {score:.3f} ({correct}/{total})")
-# Count gate: fail below 2/3 correct (same rule Docker and Python reuse).
+print(f"Exact-match accuracy on eval set: {correct / total:.3f} ({correct}/{total})")
 if correct * 3 < total * 2:
-    print("Gate failed: score regressed below 2/3", file=sys.stderr)
+    print("Eval failed: score regressed below 2/3", file=sys.stderr)
     raise SystemExit(1)
-print("Gate passed. You may commit.")
+print("Eval passed. You may commit.")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 Eval rows: 3
 Exact-match accuracy on eval set: 0.667 (2/3)
-Gate passed. You may commit.
+Eval passed. You may commit.
 ```
 <!-- leetllm: output:end -->
 
-Labels are normalized with `strip().lower()`, which removes surrounding whitespace and ignores letter case. The gate compares integer counts (`correct * 3 < total * 2`) instead of asking whether a rounded float equals `0.667`. A score of `1.000` also passes; `0.667` is this eval file's expected output, not the only permitted score.
-
-Read the printed count for what happened, then read the exit status for whether the command may continue. Errors use **standard error** (`stderr`), a separate output stream from ordinary results. Shell scripts can capture or redirect those streams independently.
+> **Key insight:** Cross-multiplying integer counts (`correct * 3 < total * 2`) tests the exact two-thirds threshold without floating-point rounding traps against `0.667`.
 
 ```checkpoint
-Why does the gate compare integer counts instead of testing whether a floating-point score equals `0.667`?
+Why does the scorer compare integer counts instead of testing whether a floating-point score equals `0.667`?
 ---
 `2 / 3` isn't exactly `0.667`. Binary floating-point arithmetic can introduce subtle rounding errors, whereas cross-multiplying integer counts (`correct * 3 >= total * 2`) tests the exact two-thirds threshold without float precision traps.
 ```
 
 ## The pre-commit gate that protects the score
 
-The scorer works, but remembering to trigger it manually every time doesn't scale. We'll create an executable shell wrapper that both our local <span data-glossary="pre-commit-hook">pre-commit hook</span> and the clean-clone test can invoke.
+Wrap the scorer in two tracked entrypoints: `scripts/run_eval.sh` (which verifies the dataset and Python interpreter) and a root `repro.sh` that teammates and CI can call directly:
 
 ```bash title="terminal-5"
 mkdir -p scripts
@@ -277,38 +242,25 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -f scripts/score_eval.py ]]; then
-  "$PYTHON_BIN" scripts/score_eval.py
-else
-  echo "ERROR: scripts/score_eval.py missing. Add the Python scorer from this chapter." >&2
-  exit 1
-fi
+"$PYTHON_BIN" scripts/score_eval.py
 EOF
-chmod +x scripts/run_eval.sh
-```
 
-Put the shared eval command in a tracked script. A personal shell alias and an installed `.git/hooks/` script stay local. A committed `repro.sh` arrives with a clone.
-
-```bash title="terminal-6"
 cat > repro.sh << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-
 ./scripts/run_eval.sh
 EOF
-chmod +x repro.sh
+chmod +x scripts/run_eval.sh repro.sh
 ```
 
-Now connect that command to Git with a **pre-commit hook**. Git runs this executable script before recording a commit. By default, active hooks live inside `.git/hooks/` and don't travel in a clone.[^git2026hooks] We'll commit the hook source in `scripts/`, then install a local copy on each checkout. The installer below refuses to overwrite a different hook or ignore an existing `core.hooksPath` setting.
+Now wire `run_eval.sh` into a Git <span data-glossary="pre-commit-hook">pre-commit hook</span>. Because `.git/hooks/` stays strictly local to each clone, commit the hook template and an installer script that refuses to clobber an existing hook or custom `core.hooksPath`:[^git2026hooks]
 
 ```bash title="terminal-7"
 cat > scripts/pre-commit-ai-eval.sh << 'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-
-echo "Running AI eval gate before commit..."
+echo "Running AI eval check before commit..."
 ./scripts/run_eval.sh
-echo "Eval gate passed."
 EOF
 
 cat > scripts/install_hooks.sh << 'EOF'
@@ -322,14 +274,12 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 cd "$repo_root"
 
 if configured_hooks_path="$(git config --get core.hooksPath)"; then
-  echo "ERROR: core.hooksPath is already set to $configured_hooks_path; add the eval gate there deliberately" >&2
+  echo "ERROR: core.hooksPath is already set to $configured_hooks_path; add the eval check there deliberately" >&2
   exit 1
 fi
 
 hooks_dir="$(git rev-parse --git-path hooks)"
-if [[ "$hooks_dir" != /* ]]; then
-  hooks_dir="$repo_root/$hooks_dir"
-fi
+[[ "$hooks_dir" == /* ]] || hooks_dir="$repo_root/$hooks_dir"
 hook_path="$hooks_dir/pre-commit"
 
 mkdir -p "$hooks_dir"
@@ -345,82 +295,46 @@ EOF
 
 chmod +x scripts/pre-commit-ai-eval.sh scripts/install_hooks.sh
 ./scripts/install_hooks.sh
-```
-
-Run the eval, then commit the files. The commit runs the eval again through the installed hook:
-
-```bash title="terminal-8"
 ./repro.sh
 git add scripts/pre-commit-ai-eval.sh scripts/score_eval.py scripts/run_eval.sh scripts/install_hooks.sh repro.sh eval/eval_cases.jsonl
-git commit -m "feat: add three-row eval and pre-commit gate that protects 0.667"
+git commit -m "feat: add three-row eval and pre-commit check that protects 0.667"
 ```
 
-```text title="Output" output compact
-Eval rows: 3
-Exact-match accuracy on eval set: 0.667 (2/3)
-Gate passed. You may commit.
-Running AI eval gate before commit...
-Eval rows: 3
-Exact-match accuracy on eval set: 0.667 (2/3)
-Gate passed. You may commit.
-Eval gate passed.
-```
-
-Consider what happens if a fourth row fails. Suppose you append one wrong prediction so two of four labels match: accuracy falls to $2/4 = 0.5$. The scorer returns status 1 because $0.5 < 2/3$, and the hook blocks the commit. A missing eval file also returns status 1, but its error names the missing file. Use that message to distinguish a score regression from a setup failure.
-
-If the scorer reports a regression or the eval file disappears, the commit stops. This hook reads working-tree files, not the staged snapshot. A passing unstaged edit could therefore hide a failing version in the commit. Review `git diff` for unstaged edits and `git diff --cached` for the version you're about to commit, then test the committed version in a clone.
-
-`--no-verify` can bypass a local hook, so it provides fast feedback rather than a hard enforcement check. Run `./repro.sh` in <span data-glossary="continuous-integration">continuous integration (CI)</span>, an automated check of a committed version, too. That shared check catches a bypassed or missing local hook without borrowing working-tree edits.
+Keep two hook quirks in mind: a working-tree hook inspects files on disk rather than only what you ran `git add` on (so unstaged edits can hide a broken staged version), and `--no-verify` bypasses local hooks. Run `./repro.sh` in <span data-glossary="continuous-integration">continuous integration (CI)</span> to verify the committed snapshot itself.
 
 ## Trace a regression through Git history
 
-The gate tells you when behavior changes, but it doesn't name which file or commit broke it. When yesterday's passing `0.667` suddenly regresses to exit status 1, capture the terminal output and exit code before modifying any code:
+When `./repro.sh` suddenly exits `1`, inspect your status and recent commits before editing anything:
 
 ```bash title="terminal-history"
-./repro.sh
-repro_status=$?
-printf 'repro exit status: %s\n' "$repro_status"
+./repro.sh; printf 'repro exit status: %s\n' "$?"
 git status --short
 git log --oneline --decorate -5
 git show --stat --oneline HEAD
 ```
 
-`git log` names the snapshots that led here. `git show` reveals what the latest snapshot changed, while `git status --short` separates committed history from edits still sitting in the worktree. A green rerun with a dirty worktree is weaker evidence than a green commit with a clean status.
-
-When the bad behavior could have entered anywhere in a long history, test the middle instead of reading every diff. `git bisect` checks one candidate commit at a time and narrows the range. Start from a clean worktree or set aside uncommitted edits, because bisect checks out candidate snapshots:
+When a regression slipped in dozens of commits ago, binary-search commit history with `git bisect` instead of reading every diff:[^progit]
 
 ```bash title="terminal-bisect"
 git bisect start
 git bisect bad HEAD
-# Replace the value with a commit known to pass ./repro.sh.
-GOOD_COMMIT="replace-with-known-good-commit"
-git bisect good "$GOOD_COMMIT"
+git bisect good "<known-good-commit>"
+
+# At each checked-out commit, run ./repro.sh, then classify:
+#   git bisect good   (if ./repro.sh exited 0)
+#   git bisect bad    (if it reproduced the regression)
+#   git bisect skip   (if an unrelated environment issue blocked testing)
+
+git show refs/bisect/bad   # inspect the first bad commit
+git bisect reset           # return to your original branch
 ```
-
-At each candidate, run the gate and read its output before classifying the commit:
-
-```bash title="terminal-bisect-test"
-./repro.sh
-printf 'repro exit status: %s\n' "$?"
-```
-
-Enter `git bisect good` if the check passes, `git bisect bad` if it reproduces the regression, or `git bisect skip` if an unrelated setup problem prevents testing. Repeat the test and classification at each new candidate until Git reports the first bad commit. Only then inspect it and return to your original branch:
-
-```bash title="terminal-bisect-finish"
-git show refs/bisect/bad
-git bisect reset
-```
-
-The shell's zero-versus-nonzero status maps directly to `git bisect good` and `git bisect bad`. If a candidate commit can't execute because of a broken environment, use `git bisect skip` rather than falsely condemning that revision. Once Git identifies the first bad snapshot, running `git show <commit>` gives you the exact diff that introduced the bug.[^progit]
 
 ## Personal shortcuts vs repo commands
 
-The hook now runs on your development machine, but shortcuts defined in `~/.zshrc` or `~/.bashrc` stay strictly local. Shell functions can accelerate daily development on your personal machine; they can never serve as a repository's official setup step.
-
-For NVIDIA setups, `nvidia-smi --query-gpu` with `--format=csv` provides a scriptable interface for custom shell helpers.[^nvsmi] The functions below assume GNU utilities on a Linux GPU system. Command options often differ on macOS, which doesn't ship NVIDIA drivers; run these helpers on remote GPU instances, and rely on `./repro.sh` as the portable repo entrypoint.
+Shell helpers in `~/.zshrc` or `~/.bashrc` speed up daily work on Linux GPU servers, while `./repro.sh` stays the tracked command in README and CI.[^nvsmi]
 
 ```bash title="terminal-9"
-# GPU snapshot (works on NVIDIA, falls back gracefully)
+# GPU snapshot (NVIDIA hosts)
 gpu() {
   if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv,noheader
@@ -429,125 +343,97 @@ gpu() {
   fi
 }
 
-# Dataset size at a glance
+# Dataset size and JSONL newline count
 ds() {
   local target="${1:-.}"
-  # Prevent a relative name beginning with '-' from becoming a find option.
   [[ "$target" == /* ]] || target="./$target"
   du -sh -- "$target" || return
   local counts
   counts=$(find "$target" -type f -name '*.jsonl' -exec sh -c '
-    for file do
-      wc -l < "$file" || exit
-    done
+    for file do wc -l < "$file" || exit; done
   ' sh {} +) || return
   awk '{ rows += $1 } END { print "JSONL newline count:", rows + 0 }' <<< "$counts"
 }
 
-# One-command reproduction of the current eval
 repro() {
-  if [[ -x ./repro.sh ]]; then
-    ./repro.sh
-  else
-    echo "No executable ./repro.sh in the current directory" >&2
-    return 1
-  fi
+  [[ -x ./repro.sh ]] && ./repro.sh || { echo "No executable ./repro.sh" >&2; return 1; }
 }
 ```
 
-After saving the functions, run `source ~/.zshrc` or `source ~/.bashrc` once to reload the configuration. `gpu`, `ds`, and `repro` then become shortcuts. Keep `./repro.sh` in setup docs and CI. If a clone needs the alias, the command still isn't reproducible.
+<details>
+<summary>Deep dive: Why <code>ds()</code> separates <code>local counts</code> and feeds <code>wc -l</code> through stdin</summary>
 
-Try `ds eval`: the eval file contributes three newline characters. Now pass a nonexistent directory. The helper must return nonzero and leave the newline count unprinted. A broken helper that hides `find` errors and sums an empty stream would report zero successfully, confusing unavailable data with an empty dataset.
+Passing filenames via `find ... -exec ... sh {} +` handles spaces and newlines in paths safely, and reading `< "$file"` makes `wc -l` emit only a bare number.[^gnuFindutils2026] Declaring `local counts` on its own line matters because combining `local counts=$(...)` replaces the command substitution's nonzero exit code with `local`'s `0` status, hiding unreadable directories.[^bashBuiltins2026]
 
-The helper captures counts before printing their sum. Each `wc` reads through stdin, so its output contains only a count, even if the filename contains spaces or newlines. The `+` form batches paths into `sh`; `find` returns nonzero if a batch fails. Keep `local counts` separate from the assignment: combining them as `local counts=$(...)` can mask the command's failure with the declaration's successful status.[^gnuFindutils2026][^bashBuiltins2026]
+</details>
 
 ## Inspect data, then reclaim a GPU
 
-Remote debugging on cloud nodes starts with a fundamental question: is the input dataset malformed, or is the training process hung? First inspect large datasets without flooding your SSH session. Running `cat train.jsonl` dumps millions of lines into your terminal buffer; start with a single line and targeted row counts instead:
+Never `cat` a multi-gigabyte JSONL shard over SSH. Peek at one row and count lines or matches with pipes:
 
 ```bash title="terminal-inspect"
-head -n 1 eval/eval_cases.jsonl    # peek at the schema of one row
-wc -l eval/eval_cases.jsonl        # count rows without loading the file
-grep -c '"expected"' eval/eval_cases.jsonl  # how many rows have the field
+head -n 1 eval/eval_cases.jsonl
+wc -l eval/eval_cases.jsonl
+grep -c '"expected"' eval/eval_cases.jsonl
 ```
 
-The pipe operator `|` routes stdout from one process into stdin of the next. Running `grep '"translate"' eval/eval_cases.jsonl | wc -l` streams lines through the filter and counts matches on the fly. Remember that `wc -l` counts newline characters (`\n`), not JSON objects: a final line lacking a trailing newline won't be counted, and blank lines will be counted. Similarly, `grep` performs plain string matching rather than schema validation. These utilities offer rapid checks, not replacements for full data validation.
+Remember that `wc -l` counts newline characters (`\n`), not JSON objects: a file without a trailing newline reports one fewer line than objects.
 
-Without `pipefail`, Bash normally uses the final command's status for a pipeline. That means `wc` could report success (status 0) even if `grep` couldn't open the file. With `pipefail`, a failure in an earlier stage makes the pipeline return nonzero too. Bash still waits for the pipeline to finish; this option doesn't immediately cancel the other stages.[^bashPipelines2026]
+<details>
+<summary>Deep dive: Bash <code>pipefail</code> and <code>grep</code> exit codes</summary>
 
-`set -euo pipefail` is useful, but it doesn't replace explicit error handling. `-u` catches unset variables; `-e` exits on many unhandled nonzero statuses. Commands tested by `if`, `while`, `!`, or parts of `&&` / `||` lists have exceptions. Testing a function this way can also disable `-e` inside the function. Check important failures deliberately, and remember that `grep` returns 1 for a valid search with no matches.[^bashSetBuiltin2026]
-
-For example, ask whether a label appears instead of treating every nonzero status as a crash. A nonexistent file is a different outcome from an existing file with no matching label:
+By default, a pipeline returns only its *last* command's status, so `grep missing.jsonl | wc -l` exits `0`. Enabling `set -o pipefail` returns the rightmost nonzero stage status instead (after waiting for the pipeline to finish).[^bashPipelines2026] Also remember that `grep` exits `1` for "no match" and `2` for real errors like a missing file, and `set -e` does not abort inside `if` conditions:[^bashSetBuiltin2026]
 
 ```bash title="terminal-grep-status"
 if grep -q '"translate"' eval/eval_cases.jsonl; then
   echo "At least one translate label appears"
 else
   search_status=$?
-  if [[ "$search_status" -eq 1 ]]; then
-    echo "No translate label appears"
-  else
-    echo "ERROR: search failed with status $search_status" >&2
-  fi
+  [[ "$search_status" -eq 1 ]] && echo "No translate label appears" || echo "ERROR: search failed ($search_status)" >&2
 fi
 ```
 
-If the output is surprising, verify location before blaming Python. A **relative path** such as `eval/eval_cases.jsonl` starts from the current directory; an **absolute path** starts at `/`. Quote variables that contain paths so spaces don't split one path into several arguments. Then check the exact capability a command needs:
+</details>
 
-```bash title="terminal-permissions"
-pwd
-ls -l scripts/run_eval.sh eval/eval_cases.jsonl
-test -r eval/eval_cases.jsonl && echo "eval file is readable"
-test -x scripts/run_eval.sh && echo "eval script is executable"
-```
+When permissions fail, check the exact read or execute bit (`ls -l`, `test -r`, `test -x`) and use `chmod +x` on scripts instead of `chmod 777`.
 
-`chmod +x scripts/run_eval.sh` adds the executable bit. It doesn't make a script trustworthy, grant access to its input, or fix a filesystem mounted with execution disabled. Avoid `chmod 777`: it grants write access far beyond what this repo needs and hides the ownership problem.
-
-Now inspect a <span data-glossary="gpu">GPU</span> whose memory remains allocated after a training script hangs or an SSH session ends. A detached <span data-glossary="pytorch">PyTorch</span> process can keep GPU memory allocated. Use the `nvidia-smi` Processes table to look for the owner.[^nvsmi] A **process ID (PID)** identifies a process. Check its owner and command before sending a signal. If you own the job or have permission to stop it, request a graceful shutdown first. Consider a forced shutdown only if it doesn't exit.
+If a hung <span data-glossary="pytorch">PyTorch</span> job leaves <span data-glossary="gpu">GPU</span> VRAM pinned, inspect the PID in `nvidia-smi`, verify you own that exact process, send `SIGTERM` (signal 15) so it can flush <span data-glossary="model-checkpoint">checkpoints</span> and release CUDA memory, and re-verify the command in `ps` before ever sending `SIGKILL` (signal 9) so you never kill a reused PID:[^nvsmi][^signal]
 
 ```bash title="terminal-kill"
-nvidia-smi  # read the PID in the bottom "Processes" table
-PID=12345   # replace this only after you identify your own process
+nvidia-smi  # find your PID in the Processes table
+PID=12345   # replace with your own process ID
 
 ps -o user=,pid=,ppid=,stat=,etime=,cmd= -p "$PID"
 kill -TERM "$PID"
-for _ in {1..10}; do  # give graceful shutdown up to ten seconds
+for _ in {1..10}; do
   kill -0 "$PID" 2>/dev/null || break
   sleep 1
 done
 
 if kill -0 "$PID" 2>/dev/null; then
   ps -o user=,pid=,ppid=,stat=,etime=,cmd= -p "$PID"
-  echo "Still alive. Recheck owner and command before: kill -KILL $PID"
+  echo "Still alive. Confirm owner and command before: kill -KILL $PID"
 fi
 ```
 
-Only signal a process you own or have permission to manage. `kill -0` checks whether a PID exists and whether you may signal it; it doesn't prove that the PID still belongs to the same program. Re-inspect owner and command before SIGKILL. If VRAM remains allocated but `nvidia-smi` shows no owning compute PID, there's no process ID to kill. Check container or PID-namespace visibility and other driver clients, then move to container-runtime or driver diagnosis.
-
-Start with SIGTERM. Signal 15 gives the process a chance to close files and release CUDA memory. SIGKILL (signal 9) can't be caught or handled and can leave lock files or corrupt <span data-glossary="model-checkpoint">checkpoints</span>, so reserve it for a process that refuses to exit.[^signal]
-
 ```checkpoint
-You find a live training PID holding GPU memory. Which signal should you send first, and when should you escalate?
+You find a live training PID holding GPU memory. Which signal should you send first, and when should you switch to `SIGKILL`?
 ---
 After checking ownership and permission to stop the job, send SIGTERM first. A program with a shutdown handler can then flush files. Wait for a short grace period and recheck the process identity before considering SIGKILL; a live PID alone isn't enough.
 ```
 
 ## Keep a long job alive across SSH
 
-Our small eval ends quickly. A training job can run for hours through SSH, so choose how it should continue after a disconnect. Your choice depends on whether you'll need an interactive terminal when you reconnect.
+Choose session management based on whether you need to reattach interactively:
 
-- `nohup python train.py > train.log 2>&1 </dev/null &` runs a noninteractive process that ignores hangup and writes a log. It won't give you a session to type into later.
-- `tmux new -s training` gives you a detachable session. Detach with `Ctrl-b d`, reconnect, then run `tmux attach -t training`; the job keeps its terminal while you're away.[^tmux2026]
-- `nice -n 10 python train.py` requests a niceness increase of 10, which generally gives the command less CPU priority. It doesn't cap RAM or GPU, and it doesn't keep a process alive after logout.[^gnucoreutils2026]
-- When disk fills up, find heavy paths with `du -ah /workspace | sort -rh | head -20`. When you need the training PID, `pgrep -af 'python.*train.py'` finds candidates without matching the search command itself.
-
-Use `tmux` when you may need to inspect or steer the run later. Use `nohup` for a noninteractive job whose progress you can inspect through its log. Neither protects against a machine reboot, an out-of-memory kill, or a cluster scheduler stopping the job. They also don't make its inputs or environment reproducible.
-
-Git carried the scripts and eval data. Python still needs a declared, rebuildable environment on the next machine.
+- **`tmux new -s training`**: keeps a detachable interactive terminal (`Ctrl-b d` to detach, `tmux attach -t training` to return).[^tmux2026]
+- **`nohup python train.py > train.log 2>&1 </dev/null &`**: ignores hangup for noninteractive background runs whose output goes to a log file.
+- **`nice -n 10 python train.py`**: lowers CPU scheduling priority (does not cap GPU VRAM or survive SSH logout).[^gnucoreutils2026]
+- **Quick triage**: `du -ah /workspace | sort -rh | head -20` locates disk hogs; `pgrep -af 'python.*train.py'` finds matching training processes.
 
 ## Rebuild Python on every clone
 
-Another setup failure is `ModuleNotFoundError`: the code arrived, but the selected Python environment lacks a required package. Python's built-in `venv` module creates isolated <span data-glossary="virtual-environment">virtual environments</span>. These environments can contain absolute paths to their interpreters, so copying a `.venv` to another location can break it. Rebuild `.venv` in each fresh clone.[^python2026venv] Our scorer uses only the standard library. The activation script also checks <span data-glossary="cuda">CUDA</span> availability if `torch` is installed.
+Python <span data-glossary="virtual-environment">virtual environments</span> embed absolute interpreter paths, so never commit `.venv/`.[^python2026venv] Instead, commit `.python-version`, `requirements.txt` (or `pyproject.toml` + `uv.lock` for `uv sync --locked`[^uv2026sync][^pip2026secureinstalls]), `.env.example` (key names only, never real secrets), and an `activate.sh` script that rebuilds `.venv` and prints the active Python and <span data-glossary="cuda">CUDA</span> state:
 
 ```bash title="terminal-10"
 cat > .python-version << 'EOF'
@@ -567,114 +453,59 @@ EOF
 cat > activate.sh << 'EOF'
 #!/usr/bin/env bash
 
-_activate_fail() {
-  echo "ERROR: $1" >&2
-}
+_activate_fail() { echo "ERROR: $1" >&2; }
 
 _activate_main() {
-  # Allow an explicit interpreter; version managers can read .python-version.
   PYTHON_BIN="${PYTHON_BIN:-python3}"
-  if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-    _activate_fail "install python3 or set PYTHON_BIN=/path/to/python"
-    return 1
-  fi
+  command -v "$PYTHON_BIN" >/dev/null 2>&1 || { _activate_fail "install python3 or set PYTHON_BIN"; return 1; }
 
-  if ! "$PYTHON_BIN" - << 'PY'
-import sys
-raise SystemExit(0 if sys.version_info >= (3, 12) else 1)
-PY
-  then
-    _activate_fail "Python 3.12 or newer is required; set PYTHON_BIN to a supported interpreter"
-    return 1
-  fi
-
-  # 1. Create or reuse a local virtualenv
-  if [[ ! -d .venv ]]; then
-    "$PYTHON_BIN" -m venv .venv || {
-      _activate_fail "could not create .venv"
-      return 1
-    }
-  fi
-  source .venv/bin/activate || {
-    _activate_fail "could not activate .venv"
+  "$PYTHON_BIN" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)' || {
+    _activate_fail "Python 3.12+ is required"
     return 1
   }
 
-  if ! python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)'; then
-    _activate_fail "existing .venv uses an older Python; recreate it with Python 3.12 or newer"
+  [[ -d .venv ]] || "$PYTHON_BIN" -m venv .venv || { _activate_fail "could not create .venv"; return 1; }
+  source .venv/bin/activate || { _activate_fail "could not activate .venv"; return 1; }
+  python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)' || {
+    _activate_fail "existing .venv uses an older Python; recreate it"
     return 1
-  fi
-  # Make run_eval.sh use this environment, even after an interpreter override.
+  }
   export PYTHON_BIN="$VIRTUAL_ENV/bin/python"
 
-  # 2. Install only a fully pinned, fully hashed requirements set.
   if grep -Ev '^[[:space:]]*(#|$)' requirements.txt >/dev/null 2>&1; then
     python -m pip install --require-hashes -r requirements.txt || {
       _activate_fail "requirements must pin and hash every package"
       return 1
     }
-  else
-    _requirements_status=$?
-    if [[ $_requirements_status -gt 1 ]]; then
-      _activate_fail "could not read requirements.txt"
-      return 1
-    fi
   fi
-  unset _requirements_status
 
-  # 3. Print the local environment without requiring GPU packages yet
-  if ! python - << 'PY'
+  python - << 'PY'
 import os, sys
 print("Python executable:", sys.executable)
 print("Python:", sys.version.split()[0])
-visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
-print(
-    "CUDA_VISIBLE_DEVICES:",
-    visible_devices if visible_devices is not None else "<unset; no mask applied>",
-)
+vis = os.environ.get("CUDA_VISIBLE_DEVICES")
+print("CUDA_VISIBLE_DEVICES:", vis if vis is not None else "<unset; no mask applied>")
 try:
     import torch
 except ModuleNotFoundError:
     print("PyTorch: not installed yet (OK for this chapter)")
 else:
-    print("PyTorch:", torch.__version__)
-    print("CUDA available:", torch.cuda.is_available())
+    print("PyTorch:", torch.__version__, "| CUDA available:", torch.cuda.is_available())
     if torch.cuda.is_available():
         print("GPU:", torch.cuda.get_device_name(0))
 PY
-  then
-    _activate_fail "environment probe failed"
-    return 1
-  fi
-
-  echo "Environment ready. Run './repro.sh' to execute the eval gate."
+  echo "Environment ready. Run './repro.sh' to execute the eval check."
 }
 
-if _activate_main; then
-  _activate_status=0
-else
-  _activate_status=$?
-fi
+if _activate_main; then _activate_status=0; else _activate_status=$?; fi
 unset -f _activate_main _activate_fail
-if [[ $_activate_status -ne 0 ]]; then
-  return "$_activate_status" 2>/dev/null || exit "$_activate_status"
-fi
+[[ $_activate_status -ne 0 ]] && { return "$_activate_status" 2>/dev/null || exit "$_activate_status"; }
 unset _activate_status
 EOF
 chmod +x activate.sh
 ```
 
-The outer status check matters because this file is sourced. A helper can return nonzero while later commands keep running and make setup look successful. `_activate_main` checks its important steps explicitly; the surrounding `if` captures its result before cleanup, and the file-level `return` passes that status back to the caller. Run `source activate.sh && ./repro.sh` to continue only after successful setup. If your calling shell has `-e` enabled, handle a setup failure in a conditional too rather than assuming a nonzero `source` will leave that shell open.
-
-The scorer's dependency set is empty today. Once packages arrive, plain version ranges won't reproduce an install. Choose one complete dependency specification: commit `pyproject.toml` plus `uv.lock` and run `uv sync --locked`, or commit a requirements file that pins every direct and transitive package and includes accepted artifact hashes for `pip --require-hashes`.[^uv2026sync][^pip2026secureinstalls] A <span data-glossary="dependency-lockfile">lockfile</span> constrains Python packages; it doesn't pin the OS, driver, or system libraries. <span data-glossary="docker">Docker</span> packages that layer next.
-
-`.python-version` suggests Python 3.12 to version managers; it doesn't install Python or enforce that version by itself. This lab checks for 3.12 or newer because it uses only the standard library. A project that depends on one exact Python release should pin and verify that release too.
-
-`.env.example` demonstrates how to record a variable name without its secret value. This scorer doesn't need `EVAL_API_KEY`; leave it empty. `activate.sh` deliberately doesn't `source .env`: sourcing treats every line as shell code. When an application does need a key, export trusted values through your shell or a dedicated environment loader and fail clearly when the required variable is absent.
-
-> **Expected output:** `source activate.sh` should print an executable inside `prompt-eval/.venv`, a Python version of 3.12 or newer, the current `CUDA_VISIBLE_DEVICES` state, and `Environment ready`. If setup prints `ERROR`, fix that first and don't run the eval from a half-created environment.
-
-Create `README.md` with the same setup order another machine should follow:
+Run `source activate.sh && ./repro.sh` so the eval runs only when environment setup returns `0`. (Avoid `source .env`, which executes arbitrary lines as shell code.) Record the setup order in `README.md` and commit:
 
 ```bash title="terminal-readme"
 cat > README.md << 'EOF'
@@ -689,41 +520,29 @@ if command -v git-lfs >/dev/null 2>&1; then
 fi
 source activate.sh && ./repro.sh
 EOF
-```
 
-Track the setup files before testing a clone. If the hook is configured, committing these files runs the same eval gate first.
-
-```bash title="terminal-commit-setup"
 git add .python-version requirements.txt .env.example activate.sh README.md
 git commit -m "chore: add reproducible environment setup"
-git status --short
 ```
-
-With ordinary status settings, no output from `git status --short` means the tracked files and staging area match the new commit and no unignored, untracked files were reported. Ignored files can still exist. Now test the stronger claim: did the required project files actually enter the commit?
 
 ## When the clone still fails
 
-| Symptom | Possible cause | Fix that belongs in the repo |
+| Symptom | Likely cause | Fix that belongs in the repo |
 |---|---|---|
-| `CUDA not found` on the GPU box | Host driver or container runtime is missing, the image lacks a compatible CUDA stack, or `CUDA_VISIBLE_DEVICES` is explicitly empty/invalid and hides the GPU | Compare `nvidia-smi`, the printed `CUDA_VISIBLE_DEVICES`, and `torch.cuda.is_available()`; remove an accidental mask or choose a valid device index, then document the required image and runtime. An unset variable normally exposes all available devices. An empty string hides every GPU.[^cudaEnvironment2026] |
-| `ModuleNotFoundError` for a package that worked on the laptop | Dependency lock is incomplete or environment wasn't synced from it | Rebuild from an empty env, lock every direct and transitive dependency, commit the lock, and install with `uv sync --locked` or a fully hashed requirements file |
-| Eval exits because the three-row JSONL is missing | eval file existed only as an untracked local file | Move `eval_cases.jsonl` to `eval/`, commit it, and verify it appears in a clone |
-| Pre-commit hook doesn't run on a fresh clone | installed copy under Git's private hook path is clone-local | Keep `scripts/pre-commit-ai-eval.sh` and `scripts/install_hooks.sh` tracked, then run the installer after cloning |
-| Installer refuses to replace an existing hook | another tool or teammate already owns `pre-commit` | Merge `./scripts/run_eval.sh` into existing hook deliberately; don't silently overwrite another team script |
-| Pull introduces a model pointer that won't load | Git LFS is missing, smudge was skipped, or object wasn't uploaded | Run `git lfs install` and `git lfs pull`, inspect pointer status, and make CI verify required LFS objects before a release |
-
-Keep each diagnosis and its prevention in the repo. The next clone should spell out each missing file or requirement instead of forcing machine-specific guesswork.
+| `CUDA not found` on GPU host | Missing driver/runtime, mismatched CUDA wheel, or empty `CUDA_VISIBLE_DEVICES` (unset exposes all GPUs; empty string hides all GPUs[^cudaEnvironment2026]) | Compare `nvidia-smi`, `CUDA_VISIBLE_DEVICES`, and `torch.cuda.is_available()`; document required image and runtime |
+| `ModuleNotFoundError` on clone | Unpinned transitive package or stale env | Commit complete `uv.lock` or hashed requirements and rebuild `.venv` |
+| Eval file missing | `eval_cases.jsonl` stayed untracked | Commit `eval/eval_cases.jsonl` and verify in a fresh clone |
+| Pre-commit hook doesn't fire | `.git/hooks/` is clone-local | Track `scripts/install_hooks.sh` and run it after cloning |
+| Pull leaves LFS pointer text | Git LFS missing or smudge skipped | Run `git lfs install && git lfs pull`; verify LFS blobs in CI |
 
 ## Prove it with a throwaway clone
 
-The code, eval cases, and setup scripts are committed. Now test them in a separate checkout without copying untracked project files. The clone must receive the eval file and scripts, build a fresh `.venv`, and install its local pre-commit hook. This eval requires no secret tokens. Both copies should print `0.667` when running `./repro.sh`.
+Test your repository the way a teammate experiences it: clone into a fresh temporary directory (`--no-local` uses standard Git transport without hardlinks[^git2026clone]), rebuild `.venv`, install the hook, and run `./repro.sh` inside a subshell:
 
 <figure>
-  <img src="illustrations/_generated/chapter_flow_dark.png" alt="Committed eval data, scorer, and setup scripts arrive unchanged in a fresh clone. The clone runs the tracked setup scripts to build a fresh virtual environment and install its own hook, while the original environment, installed hook, and secret file remain local. Running repro.sh scores two matching predictions out of three, or 0.667, with both checkouts sharing the host operating system, tools, and driver." />
-  <figcaption>Follow the files a clone receives and the local environment rebuilt from them. The <code>.venv</code>, installed hook, and secrets remain local; the check still shares the host OS, tools, and driver.</figcaption>
+  <img src="illustrations/_generated/chapter_flow_dark.png" alt="Committed eval data, scorer, and setup scripts arrive unchanged in a fresh clone. The clone runs the tracked setup scripts to build a fresh virtual environment and install its own hook, while the original environment, installed hook, and secret file remain local. Running repro.sh scores two matching predictions out of three, or 0.667." />
+  <figcaption>Committed code, eval data, and setup scripts arrive in the fresh clone and rebuild <code>.venv</code> and the local hook from scratch, while original secrets and caches stay behind.</figcaption>
 </figure>
-
-`mktemp -d` generates a clean, unique temporary directory. The clone receives committed files without borrowing the original worktree's untracked inputs or installed `.git/hooks/`. Calling the tracked `./repro.sh` avoids relying on a personal alias. Adding `--no-local` uses regular Git transport instead of the local hardlink optimization; a local-path clone still doesn't need a network server.[^git2026clone] Wrapping the commands in a subshell `(...)` keeps activation changes out of your active terminal.
 
 ```bash title="terminal-clean-clone"
 repo_root="$(pwd)"
@@ -738,22 +557,16 @@ clone_root="$(mktemp -d)"
   ./repro.sh
   git status --short
 )
-clone_status=$?
-
-printf 'Clone check exit status: %s\n' "$clone_status"
+printf 'Clone check exit status: %s\n' "$?"
 echo "Temporary clone kept for inspection: $clone_root/prompt-eval"
 ```
 
-Check all four results: activation prints its Python executable and version, the eval prints three rows and `0.667 (2/3)`, `git status --short` prints nothing, and the clone check exits 0. The ignored `.venv` may exist without making the tree dirty. A setup or eval failure stops the subshell instead of being hidden by a later successful `git status`.
-
-This file-isolation test runs on the same machine and shares your installed tools, environment variables, network access, and operating system. If it needs an untracked project file, add the nonsecret input or its setup instructions to Git, commit, and rerun. Testing on another machine or in CI exposes the next layer of assumptions.
-
-Before sharing a commit, inspect `git status`, run `./repro.sh`, and repeat the temporary clone. Record any missing file, variable, package, permission, or machine requirement in the tracked setup files first.
+Expect `0.667 (2/3)`, empty `git status --short`, and exit status `0`. This confirms no untracked laptop files are hiding behind your score; the next lesson packages the OS and Python runtime itself with Docker.
 
 ```checkpoint
 Why is a clean temporary clone stronger evidence than rerunning `repro` in your working directory?
 ---
-The clone doesn't contain your untracked files or installed hook copies, and the test invokes tracked scripts rather than a personal alias. A passing run shows that those files and setup commands traveled through Git. The same-machine test still inherits host tools and environment variables; it doesn't prove OS or driver parity.
+The clone doesn't contain your untracked files or installed hook copies, and the test invokes tracked scripts rather than a personal alias. A passing run shows that those files and setup commands traveled through Git, though a same-machine clone still shares your host OS and drivers.
 ```
 
 ```mastery-quiz
@@ -781,7 +594,7 @@ The clone doesn't contain your untracked files or installed hook copies, and the
     "explanation": "An ignore pattern does not remove an already tracked file. git rm --cached removes current tracking while leaving the working file; old committed credentials would still require exposure response and rotation. An ignored untracked model is omitted by ordinary add even when an LFS attribute matches it. Keep required LFS paths trackable and verify the separate objects."
   },
   {
-    "question": "A UTF-8 eval file contains four single-line JSON objects that the scorer accepts. One line feed (LF) byte separates adjacent objects, and the file ends at the last object's closing brace. The first two predictions match exactly. The third predicts ' READY ' for 'ready'. The fourth predicts 'open' for 'closed'. The scorer trims and lowercases labels and requires at least two thirds to match. In order, what are the wc -l count, parsed object count, match count, and gate decision?",
+    "question": "A UTF-8 eval file contains four single-line JSON objects that the scorer accepts. One line feed (LF) byte separates adjacent objects, and the file ends at the last object's closing brace. The first two predictions match exactly. The third predicts ' READY ' for 'ready'. The fourth predicts 'open' for 'closed'. The scorer trims and lowercases labels and requires at least two thirds to match. In order, what are the wc -l count, parsed object count, match count, and threshold decision?",
     "options": [
       "4; 4; 3; pass.",
       "3; 3; 3; pass.",
@@ -789,7 +602,7 @@ The clone doesn't contain your untracked files or installed hook copies, and the
       "3; 4; 3; pass."
     ],
     "answer": "3; 4; 3; pass.",
-    "explanation": "The four objects have three gaps between them. Each gap contains one LF byte, so wc -l reports three. A count of four would require a final LF. Python reads the fourth object through the end of the file, so dropping it would give the wrong total of three. Counting only exact matches would miss the third prediction, which becomes 'ready' after normalization. Three of four match, and 3 × 3 = 9 exceeds 2 × 4 = 8, so the gate passes."
+    "explanation": "The four objects have three gaps between them. Each gap contains one LF byte, so wc -l reports three. A count of four would require a final LF. Python reads the fourth object through the end of the file, so dropping it would give the wrong total of three. Counting only exact matches would miss the third prediction, which becomes 'ready' after normalization. Three of four match, and 3 × 3 = 9 exceeds 2 × 4 = 8, so the check passes."
   },
   {
     "question": "A foreground Bash pipeline finishes with left-to-right stage statuses 3, 0, 5, 0. In the order default pipeline status, status with pipefail, which pair is correct?",
@@ -803,7 +616,7 @@ The clone doesn't contain your untracked files or installed hook copies, and the
     "explanation": "The default status comes from the last stage, which succeeded. With pipefail, the rightmost nonzero stage returns 5. The first failed stage would give 3, which is not the pipefail selection rule. Bash still waits for the foreground pipeline to complete."
   },
   {
-    "question": "A Linux helper must count newline characters across JSONL files whose names can contain spaces or newlines. If a selected input cannot be read, it must return failure before printing a total. Which implementation guarantees that behavior?",
+    "question": "A Linux helper must count newline characters across JSONL files whose names can contain spaces or newlines. If a selected input cannot be read, it must return failure before printing a total. Which implementation ensures that behavior?",
     "options": [
       "Split find output into whitespace-separated names, then sum wc results after suppressing read errors.",
       "Pass names as find -exec arguments, capture successful stdin-based wc counts, and return on command failure.",
@@ -858,7 +671,7 @@ The clone doesn't contain your untracked files or installed hook copies, and the
     "explanation": "The list selects physical device 3 before physical device 1, so application indices are renumbered in that order. An empty mask exposes zero devices to a fresh CUDA application. Unsetting a mask is different from setting it empty; neither action provides a missing driver or container device."
   },
   {
-    "question": "A new valid eval file has eleven examples and eight normalized matches. Two wrong predictions are added and the resulting file is committed. A same-host clean clone runs the declared setup and scorer on that commit. Which gate result and check scope follow?",
+    "question": "A new valid eval file has eleven examples and eight normalized matches. Two wrong predictions are added and the resulting file is committed. A same-host clean clone runs the declared setup and scorer on that commit. Which check result and scope follow?",
     "options": [
       "Pass, because the earlier eleven-row file passed; this check verifies host OS and driver parity.",
       "Fail, because 24 is below 26; this check verifies the committed file and setup behavior on the tested host.",

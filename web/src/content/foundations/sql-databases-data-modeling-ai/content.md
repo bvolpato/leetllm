@@ -15,7 +15,7 @@
     "Meta",
     "xAI"
   ],
-  "shortDescription": "When the support retriever restarts and its document dictionary is empty, SQL tables keep the versioned policy, permissions, and citations that make the answer recoverable.",
+  "shortDescription": "When the support retriever restarts and its document dictionary is empty, SQL tables keep the versioned guides, permissions, and citations that make the answer recoverable.",
   "keyConceptsTested": [
     "tables, rows, columns, and durable state",
     "primary keys, foreign keys, and uniqueness constraints",
@@ -40,55 +40,39 @@
 }
 ---
 
-Your retriever finds the right paragraph. Then the process restarts, and its document dictionary is empty. The [Data Structures for AI](/learn/data-structures-for-ai-systems) lesson made lookup efficient inside one process; now the documents need a home that outlives it.
+Your RAG retriever finds the exact paragraph, answers the question, and then the container restarts. Every in-memory Python dictionary vanishes. Worse, even before the restart, two versions of Acme Cloud's API-key handbook existed: an older version saying "rotate within ninety days" and the active version saying "rotate within seven days." Without structured storage, your retriever can cite a retired paragraph or leak a chunk from another customer's workspace.
 
-Structured Query Language (<span data-glossary="sql">SQL</span>) lets you read and change data in a relational database. The database stores durable state in **tables**. Named **columns** describe fields, and each stored fact is a **row**. Constraints turn assumptions into rules the database can enforce, even when another process writes the data.
+<span data-glossary="sql">SQL</span> solves durability, attribution, versioning, and access filtering in one relational model. We will build a complete local lab in Python's `sqlite3` (run the cells in order so they share the same database file) and then extend the exact same schema to <span data-glossary="postgresql">PostgreSQL</span> and `pgvector`.
 
-Use a small Acme Cloud support-policy corpus. Its current API-key policy says "rotate within seven days," while an older version says ninety days. Both paragraphs can match a search, but only the active record should support a current answer.
-
-SQLite and Python's standard-library `sqlite3` interface keep the lab local and runnable. Run the Python cells in order in one session; they share the connection and tables. The later <span data-glossary="postgresql">PostgreSQL</span> sections are extensions, not additional software you need for the SQLite lab.
-
-| Question | Database feature that answers it |
+| Retrieval question | SQL feature that answers it |
 |---|---|
-| Does this document still exist after a restart? | A table row saved in a database |
-| Can two chunks claim the same identity? | A primary key or uniqueness constraint |
-| Which document version produced this quoted chunk? | A foreign key plus a `JOIN` |
-| Is this agent allowed to retrieve it? | A permission row plus a filter |
-| What if chunk insertion fails halfway through? | A transaction that rolls back |
+| Does the corpus survive a restart? | Rows committed to durable tables |
+| Which document version produced this chunk? | Foreign key + `JOIN` |
+| Which rule was active at a given instant? | Half-open `[valid_from, valid_to)` time filter |
+| Who may see this paragraph? | Normalized permission table + workspace filter |
+| What if ingestion crashes halfway through? | Atomic transaction + `ROLLBACK` |
 
 ## From Python objects to rows
 
-In memory, you might keep documents in a dictionary keyed by `document_id`. A database makes those identities and their relationships explicit. A **workspace** separates one customer's data from another's; a **chunk** is a paragraph we might retrieve; a **principal** is the user or service whose access we're checking:
+Split the corpus into four tables so every link is enforced by the database rather than developer discipline:
 
-| Table | One row means | Important link |
+| Table | One row represents | Key relationship |
 |---|---|---|
-| `workspaces` | one tenant workspace | `id` identifies tenant |
-| `documents` | one published version of a source document | `workspace_id` refers to owner |
-| `chunks` | one retrievable paragraph | `document_id` refers to source |
-| `chunk_permissions` | one allowed principal for one chunk | `chunk_id` refers to content |
+| `workspaces` | one tenant workspace | `id` identifies the tenant |
+| `documents` | one published version of a source doc | `workspace_id` -> `workspaces(id)` |
+| `chunks` | one retrievable paragraph | `document_id` -> `documents(id)` |
+| `chunk_permissions` | one allowed principal for one chunk | `chunk_id` -> `chunks(id)` |
 
-Now the links are data rather than a convention in application code. In-memory Python dictionaries let you nest chunks inside documents, but they leave integrity to developer discipline. Separate writes to a persistent store can leave a document without its chunks if an ingestion worker fails halfway through. A relational schema turns relationship assumptions into database-enforced rules: a <span data-glossary="primary-key">primary key</span> uniquely identifies each row, while a <span data-glossary="foreign-key">foreign key</span> ensures references point to existing records. Our references specify `NOT NULL`, so a chunk can't omit its source document or point into the void. A transaction will later keep the related writes together.
-
-Keep identity, ownership, and permission links in these relational columns. Optional parser metadata, such as detected headings, can live in a separate JSON field. Putting a `document_id` inside JSON doesn't make it a foreign key; the declared column constraint is what enforces that relationship.[^postgresqlConstraints2026]
+A <span data-glossary="primary-key">primary key</span> uniquely identifies each row; a `NOT NULL` <span data-glossary="foreign-key">foreign key</span> blocks orphan chunks that point to nonexistent documents. Keep ownership, versions, and permissions in relational columns where constraints apply, and reserve optional JSON columns for flexible parser metadata like detected headings.[^postgresqlConstraints2026]
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Foreign-key references point from chunk c7a to document d7, from d7 to workspace w01, and from permissions and vector embeddings to c7a. The references connect the seven-day rule to its exact source, tenant, access rights, and semantic features." />
-  <figcaption>Each arrow points from a stored foreign-key value to the row it references. Follow c7a to d7 to w01 to recover its source and owner. Permissions and embeddings attach directly to the chunk.</figcaption>
+  <figcaption>Follow the foreign-key arrows from chunk <code>c7a</code> to document <code>d7</code> and workspace <code>w01</code> to recover its source and owner, with permissions and embeddings attached directly to the chunk.</figcaption>
 </figure>
 
 ## Create the smallest useful schema
 
-The first example creates four tables and inserts a tiny corpus. `CREATE TABLE` declares columns and constraints; `INSERT INTO` adds rows. `TEXT` holds strings, `NOT NULL` requires a value, and `UNIQUE` rejects a repeated combination of values. A `CHECK` rejects a row when its condition is false. A check that evaluates to `NULL` can pass, so it doesn't replace `NOT NULL`.[^sqliteCreateTable2026]
-
-The database file lives in a fresh temporary directory so rerunning the lesson won't overwrite earlier work. A file-backed connection can be closed and reopened without losing committed rows. `sqlite3.connect(":memory:")` would be convenient for scratch work, but it would lose the database when that connection closes.[^pythonSqlite2026]
-
-Its validity interval is half-open: active at `valid_from`, inactive at `valid_to`. A `NULL` `valid_to` means the version has no known end yet. This local SQLite lab stores canonical UTC timestamps as text; the PostgreSQL version later uses `TIMESTAMPTZ`.
-
-`PRAGMA foreign_keys = ON` enables SQLite's foreign-key rules on this connection. Don't depend on the build's default setting.[^sqliteForeignKeys2026] SQLite also preserves a historical exception: an ordinary `TEXT PRIMARY KEY` can accept `NULL` unless it explicitly says `NOT NULL`. PostgreSQL primary keys reject `NULL` automatically, but this lab declares both constraints.[^sqliteCreateTable2026]
-
-This lab requires Python 3.12 or later and explicitly selects its legacy transaction mode. In that mode, data-changing statements can open a transaction, while `SELECT` doesn't automatically start a multi-statement snapshot. Pinning the mode keeps the examples independent of a future change to Python's default.[^pythonSqlite2026]
-
-We commit the seed data so later examples can open and <span data-glossary="rollback">roll back</span> new transactions on purpose.
+We store the SQLite database in a temporary directory so the file survives closing and reopening (unlike `:memory:`).[^pythonSqlite2026] Enable `PRAGMA foreign_keys = ON` on every SQLite connection,[^sqliteForeignKeys2026] declare `PRIMARY KEY NOT NULL` explicitly (SQLite otherwise allows `NULL` in non-integer primary keys), and remember `CHECK` passes on `NULL` unless paired with `NOT NULL`.[^sqliteCreateTable2026]
 
 <!-- leetllm: test, id=sql-lab, output=show -->
 ```python title="01_create_schema.py"
@@ -148,17 +132,17 @@ conn.executemany(
         (
             "d7-old",
             "w01",
-            "api-key-policy",
-            "API Key Policy",
-            "2026-01-01T00:00:00Z",
-            "2026-07-01T00:00:00Z",
+            "api-key-guide",
+            "API Key Guide",
+            "2024-01-01T00:00:00Z",
+            "2024-07-01T00:00:00Z",
         ),
         (
             "d7",
             "w01",
-            "api-key-policy",
-            "API Key Policy",
-            "2026-07-01T00:00:00Z",
+            "api-key-guide",
+            "API Key Guide",
+            "2024-07-01T00:00:00Z",
             None,
         ),
         (
@@ -166,15 +150,15 @@ conn.executemany(
             "w01",
             "account-help",
             "Account Help",
-            "2026-01-01T00:00:00Z",
+            "2024-01-01T00:00:00Z",
             None,
         ),
         (
             "d99",
             "w02",
-            "private-token-policy",
-            "Private Token Policy",
-            "2026-01-01T00:00:00Z",
+            "private-token-guide",
+            "Private Token Guide",
+            "2024-01-01T00:00:00Z",
             None,
         ),
     ],
@@ -220,17 +204,11 @@ rows [2, 4, 5, 7]
 ```
 <!-- leetllm: output:end -->
 
-Those counts describe two workspaces, four document versions, five chunks, and seven permission rows. `executemany` repeats one parameterized insert for each Python tuple. `commit()` makes those inserts a completed unit rather than leaving them pending on this connection.
-
-`d7-old` and `d7` share `source_key = "api-key-policy"`, but their validity intervals don't overlap. Ownership and version time live on the document; visibility lives on the chunk. Two paragraphs in one document can have different visibility, and every retrieved paragraph still points at the exact source version.
-
-The `(document_id, chunk_text)` uniqueness rule treats identical text in one version as a duplicate for this tiny corpus. Real chunkers may produce identical paragraphs at different positions; use a stable chunk position or source span if those occurrences must remain distinct. A unique text value also doesn't prove that a chunk or document is immutable.
+`d7-old` and `d7` share `source_key = "api-key-guide"` with adjacent half-open validity intervals `[valid_from, valid_to)` (`NULL` `valid_to` means open-ended). Ownership and validity live on `documents`, while read grants live per paragraph in `chunk_permissions`.
 
 ## Select rows with parameters
 
-`SELECT` chooses columns. `WHERE` keeps some rows and drops the rest. `ORDER BY` makes the output order something you can test. This query keeps Acme versions that have no recorded end time.
-
-Keep the query shape and its values separate. Put a placeholder in the statement and pass the value beside it. That split prevents untrusted data from changing the statement's structure through <span data-glossary="sql-injection">SQL injection</span>.[^pythonSqlite2026]
+Never interpolate user or model text into SQL strings. Pass `?` placeholders (or `$1`, `$2` in PostgreSQL) with a separate value tuple so untrusted input cannot alter SQL syntax via <span data-glossary="sql-injection">SQL injection</span>.[^pythonSqlite2026] Remember SQL's three-valued logic for `NULL`: write `valid_to IS NULL`, because `valid_to = NULL` evaluates to unknown rather than true.
 
 <!-- leetllm: test, continue=sql-lab, id=select-lab, output=show -->
 ```python title="02_select_with_parameters.py"
@@ -252,28 +230,13 @@ print(rows)
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-[('d7', 'API Key Policy'), ('d9', 'Account Help')]
+[('d7', 'API Key Guide'), ('d9', 'Account Help')]
 ```
 <!-- leetllm: output:end -->
 
-The SQL statement has a `?` where a value belongs, and the tuple `(workspace_id,)` holds that value. `execute` runs the query; `fetchall` collects its result rows as Python tuples. These rows have no end time, which isn't yet the same as proving they're active now: a future version could also have `valid_to IS NULL`.
-
-Placeholder spelling depends on the driver. Python's SQLite interface uses `?`; PostgreSQL prepared statements use `$1` and `$2`, as shown in the [PostgreSQL `PREPARE` reference](https://www.postgresql.org/docs/current/sql-prepare.html). Use the parameter API your driver gives you. Keep values out of SQL text.
-
-`NULL` means missing or unknown, not an ordinary value. Comparisons with it yield an unknown truth value, so `valid_to = NULL` doesn't select open-ended rows. Write `valid_to IS NULL`. PostgreSQL follows the same three-valued rule in its [comparison documentation](https://www.postgresql.org/docs/current/functions-comparison.html).
-
-| Check | Expression | What to notice |
-|---|---|---|
-| Bind the workspace value | `workspace_id = ?` | SQL structure stays separate from the value tuple. |
-| Select an open-ended version | `valid_to IS NULL` | `NULL` needs `IS NULL`, not ordinary equality. |
-
-Binding keeps a value from becoming SQL syntax. A chat message is still untrusted input, even when another model wrote it. It must not rewrite the statement shape.
-
 ## Join a chunk to its source
 
-Matching text isn't enough for an answer generator. The UI also needs the title, version, or document ID that makes the evidence citable. A **join** combines rows according to a condition. Ours matches a chunk's document reference to the corresponding document identity.
-
-Here, `chunks.document_id` refers to `documents.id`. Follow that link and one result set can return both the paragraph and its source title:
+A retrieved paragraph needs its source title and version window for citations. Follow `chunks.document_id = documents.id` with a `JOIN`:
 
 <!-- leetllm: test, continue=select-lab, id=join-lab, output=show -->
 ```python title="03_join_chunks_to_documents.py"
@@ -297,17 +260,15 @@ for chunk_id, title, valid_from, valid_to, text in citations:
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-c7-old [API Key Policy] 2026-01-01T00:00:00Z -> 2026-07-01T00:00:00Z | API keys rotate within ninety days.
-c7a [API Key Policy] 2026-07-01T00:00:00Z -> open | API keys rotate within seven days.
-c7b [API Key Policy] 2026-07-01T00:00:00Z -> open | Email security with your workspace ID for key rotation.
+c7-old [API Key Guide] 2024-01-01T00:00:00Z -> 2024-07-01T00:00:00Z | API keys rotate within ninety days.
+c7a [API Key Guide] 2024-07-01T00:00:00Z -> open | API keys rotate within seven days.
+c7b [API Key Guide] 2024-07-01T00:00:00Z -> open | Email security with your workspace ID for key rotation.
 ```
 <!-- leetllm: output:end -->
 
-For `c7a`, `document_id` is `d7`, so the join attaches the title and dates from `d7`. It doesn't attach `d7-old` merely because that row has the same title. `AS c` and `AS d` are short table aliases, and `c.id` identifies which table supplies the column. The pattern `%key%` was bound as a value, not pasted into SQL text.
+> **Common mistake:** Binding a parameter prevents SQL injection, yet `%` and `_` inside a bound `LIKE` value still act as wildcards. Escape them explicitly before exposing substring search to users.
 
-In `LIKE`, `%` matches any sequence of characters and `_` matches one character. Binding doesn't make either wildcard literal. This exploratory query intentionally uses `%key%` to find `key` anywhere in the text. Before exposing search to a caller, we'll escape user-supplied wildcards and reject blank input.
-
-It also showed a new problem. Both the retired ninety-day rule and the current seven-day rule match `key`, so a correct join alone doesn't decide which fact was valid for this request.
+Notice the retrieval bug this output reveals: both retired `c7-old` (ninety days) and active `c7a` (seven days) matched `key`.
 
 ```checkpoint
 Which safeguard does a bound SQL parameter provide, and what does it leave unaddressed inside `LIKE`?
@@ -317,11 +278,11 @@ It keeps user data from becoming SQL syntax. It doesn't make `%` or `_` literal 
 
 ## Query the version that was valid at a specific time
 
-Now ask a time-bound question: which policy was true at a particular instant? The lab uses a fixed timestamp so every rerun has the same answer. A version is valid when `valid_from <= as_of` and either its end is unknown or `as_of < valid_to`:
+Filter by the half-open interval `valid_from <= as_of AND (valid_to IS NULL OR as_of < valid_to)`. At `2024-07-01T00:00:00Z`, `d7-old` expires cleanly and `d7` takes over with zero gap and zero overlap:
 
 <!-- leetllm: test, continue=join-lab, id=as-of-lab, output=show -->
 ```python title="04_query_as_of_time.py"
-AS_OF = "2026-08-12T12:00:00Z"
+AS_OF = "2024-08-12T12:00:00Z"
 
 current_citations = conn.execute(
     """
@@ -343,35 +304,25 @@ for chunk_id, title, text in current_citations:
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-c7a [API Key Policy] API keys rotate within seven days.
-c7b [API Key Policy] Email security with your workspace ID for key rotation.
+c7a [API Key Guide] API keys rotate within seven days.
+c7b [API Key Guide] Email security with your workspace ID for key rotation.
 ```
 <!-- leetllm: output:end -->
 
-The half-open interval `[valid_from, valid_to)` gives a crisp cutoff: at exactly `2026-07-01T00:00:00Z`, `d7-old` is inactive and `d7` is active.
-
-SQLite's text comparison works here because every timestamp uses the same fixed-width UTC format. Mixing offsets or formats would break that ordering.
-
 ```mermaid
 flowchart TB
-  asof["as_of<br/>2026-08-12"]:::accent
+  asof["as_of<br/>Aug 12"]:::accent
   old["d7-old<br/>90-day rule<br/>[Jan 1, Jul 1)"]:::muted
   cur["d7<br/>7-day rule<br/>[Jul 1, open)"]:::primary
   asof -->|"misses"| old
   asof -->|"selects"| cur
 ```
 
-The schema prevents duplicate start times for a source, but it doesn't reject overlapping intervals. For example, a second row beginning June 15 and ending July 15 could overlap both versions without violating any current constraint. An ingestion transaction must check the existing intervals under appropriate concurrency control, or PostgreSQL can enforce a suitable exclusion constraint.[^postgresqlConstraints2026]
-
-PostgreSQL should store these instants as `TIMESTAMPTZ`; it normalizes zoned input internally and converts it for display in the active session time zone.[^postgresqlDateTime2026]
-
-`LIKE` is enough for this tiny vocabulary demonstration. It isn't semantic retrieval: it will miss paraphrases such as "rotate credentials" when no row contains "key." The PostgreSQL extension later adds <span data-glossary="vector">vector</span> similarity without discarding time, tenant, or permission checks.
+SQLite compares fixed-width UTC ISO strings lexicographically; in PostgreSQL, use `TIMESTAMPTZ` and add an exclusion constraint when you want the database to reject overlapping intervals automatically.[^postgresqlConstraints2026][^postgresqlDateTime2026]
 
 ## Group rows to inspect the corpus
 
-Retrieval returns individual chunks. Operators often need a summary instead: how many current chunks does each Acme source contribute? `GROUP BY` collects input rows that share the named keys, and `COUNT(*)` reduces each group to one number.
-
-At `AS_OF`, predict two chunks for `d7` and one for `d9`; retired `d7-old` should contribute none. The query makes that prediction testable:
+Use `GROUP BY` and `COUNT(*)` to summarize how many active chunks each document contributes:
 
 <!-- leetllm: test, continue=as-of-lab, id=group-lab, output=show -->
 ```python title="05_group_current_chunks.py"
@@ -395,22 +346,16 @@ for document_id, title, chunk_count in summary:
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-d7 API Key Policy 2
+d7 API Key Guide 2
 d9 Account Help 1
 ```
 <!-- leetllm: output:end -->
 
-`WHERE` filters rows before grouping, so retired `d7-old` never contributes to these counts. To filter completed groups, such as keeping sources with at least two chunks, add `HAVING COUNT(*) >= 2` after `GROUP BY`.[^postgresqlAggregates2026]
-
-An ordinary `JOIN` also drops documents with no matching chunks. For an ingestion audit that must show zero-chunk documents, use `LEFT JOIN chunks AS c ON c.document_id = d.id` and `COUNT(c.id)`. A left join preserves the document with null chunk fields; counting `c.id` gives zero, whereas `COUNT(*)` would count that placeholder row as one.
+`WHERE` filters rows before grouping; `HAVING COUNT(*) >= 2` filters groups afterward.[^postgresqlAggregates2026] To spot zero-chunk documents during ingestion checks, switch to `LEFT JOIN chunks AS c` and count `COUNT(c.id)` rather than `COUNT(*)` (which would count the null-padded placeholder row as `1`).
 
 ## Constraints catch broken relationships
 
-Code can be buggy. An ingestion job can create a chunk for a document ID that never arrived. Without a constraint, that orphan may show up in retrieval with no trustworthy source.
-
-Inserting a chunk for `missing-document` must fail before it becomes data. The foreign key on `chunks` turns that silent corruption into an immediate integrity error.
-
-Under the lab's pinned `sqlite3` transaction mode, a data-changing statement opens a transaction implicitly. These immediate constraint failures revert the failing statement; earlier successful statements in that transaction can still be pending. `rollback()` discards the whole pending unit before the lab continues:
+Schema constraints protect every writer, including buggy ingestion jobs. Inserting an orphan chunk or a `NULL` primary key raises `sqlite3.IntegrityError` immediately:
 
 <!-- leetllm: test, continue=group-lab, id=constraint-lab, output=show -->
 ```python title="06_foreign_key_guard.py"
@@ -447,13 +392,9 @@ orphan rows stored 0
 ```
 <!-- leetllm: output:end -->
 
-Primary keys catch duplicate identities. The explicit `NOT NULL` catches SQLite's otherwise-accepted missing text identity. Foreign keys catch broken references.
-
-These rules belong in the schema because every writer must obey them, including the current Python script. Remove `NOT NULL` from `chunks.id` and the second check stops printing `blocked null primary key`: SQLite accepts the missing identity even though the column says `PRIMARY KEY`.
-
 ### Deleting a parent doesn't silently erase its children
 
-The current schema doesn't declare `ON DELETE CASCADE`. Deleting `d7` while `c7a` and `c7b` still reference it should fail. Deleting those chunks first also requires handling their permission rows. Predict which table must be cleared first:
+Because this schema omits `ON DELETE CASCADE`, deleting `d7` fails while chunks reference it, and deleting those chunks fails while `chunk_permissions` reference them. Delete leaf rows first (permissions -> chunks -> document), shown below inside a rehearsed transaction that rolls back cleanly:[^sqliteForeignKeys2026]
 
 <!-- leetllm: test, continue=constraint-lab, id=delete-lab, output=show -->
 ```python title="06b_delete_dependencies.py"
@@ -497,17 +438,9 @@ d7 restored after rollback True
 ```
 <!-- leetllm: output:end -->
 
-Choose deletion behavior deliberately: reject deletion while references exist, delete dependent rows together, or declare cascades where that matches the product. A cascade follows declared foreign keys; it doesn't delete remote vectors or cached answers. Historical evidence needed by evaluations may need retention rather than cascading deletion.[^sqliteForeignKeys2026]
-
 ## Make permissions queryable data
 
-Integrity tells us which rows connect. It doesn't tell us who may read one. An access-control list says which principals may view a resource. Instead of hiding that list in application logic, this schema stores one permitted `(chunk_id, principal)` pair per row. The retrieval rule is:
-
-> Return a chunk only when its document belongs to the active workspace and a permission row exists for the active principal.
-
-Alice (`agent:u1`) may read key and account help. Bob (`agent:u3`) may read key paragraphs for Acme, but not Acme account-help content. The query below turns that distinction into rows we can inspect:
-
-In an application, the authenticated session supplies `principal`, and the server verifies the requested workspace against that session. They aren't claims a chat message or model may choose. The function accepts them as arguments here only so the lab can exercise several identities explicitly.
+Storing `(chunk_id, principal)` grants in `chunk_permissions` lets SQL enforce access control directly. In production, the authenticated session supplies both `workspace_id` and `principal` (never a chat prompt). Alice (`agent:u1`) can read both key and password chunks in `w01`; Bob (`agent:u3`) can read key chunks only:
 
 <!-- leetllm: test, continue=delete-lab, id=auth-lab, output=show -->
 ```python title="07_authorized_lookup.py"
@@ -551,9 +484,7 @@ Alice password ['c9a']
 
 ## A missing workspace predicate leaks a row
 
-Bob also has permission to read one row in `w02`. That's useful for showing the failure rather than assuming the rule is correct.
-
-Suppose the active support screen is displaying Acme (`w01`), but a programmer filters only by user and query word. Bob's `key` search can now pull a private rule from `w02` even though the UI is scoped to Acme:
+Bob also has access to `c99` inside workspace `w02`. If a query filters by `principal` and time while forgetting `d.workspace_id = ?`, Bob's Acme (`w01`) support search leaks `c99` from `w02`:
 
 <!-- leetllm: test, continue=auth-lab, id=leak-lab, output=show -->
 ```python title="08_missing_tenant_filter.py"
@@ -585,16 +516,17 @@ safe ['c7a', 'c7b']
 ```
 <!-- leetllm: output:end -->
 
-The scoped query checks both dimensions: current workspace and current principal. Bob can read `c99` in a different request, but that doesn't make it valid context for an Acme answer. This is a cross-workspace disclosure in the active request, not evidence that Bob lacks all access to `c99`.
-
 <figure>
-  <img src="illustrations/_generated/authorized_retrieval_path_dark.png" alt="Predicate filter pipeline for Bob (agent:u3) searching key in workspace w01 as of 2026-08-12. Starting from four matching rows with Bob grants (c7-old, c7a, c7b, c99), the half-open time filter drops retired c7-old (ended Jul 1) and the workspace predicate drops c99 (in w02), returning only active chunks c7a and c7b." />
-  <figcaption>Each filter stage narrows the candidate pool: time validity drops retired chunk <code>c7-old</code>, and tenant isolation drops <code>c99</code> from workspace <code>w02</code>. Only <code>c7a</code> and <code>c7b</code> satisfy every predicate.</figcaption>
+  <img src="illustrations/_generated/authorized_retrieval_path_dark.png" alt="Predicate filter pipeline for Bob (agent:u3) searching key in workspace w01 on Aug 12. Starting from four matching rows with Bob grants (c7-old, c7a, c7b, c99), the half-open time filter drops retired c7-old (ended Jul 1) and the workspace predicate drops c99 (in w02), returning only active chunks c7a and c7b." />
+  <figcaption>Time validity drops retired chunk <code>c7-old</code>, and workspace isolation drops <code>c99</code> from <code>w02</code>, leaving only <code>c7a</code> and <code>c7b</code>.</figcaption>
 </figure>
 
-For a production PostgreSQL application, <span data-glossary="row-level-security">row-level security (RLS)</span> adds database-enforced row filtering as defense in depth. RLS isn't automatic: once it's enabled for a table, normal access must satisfy a policy, and an enabled table with no policy uses default deny.[^postgresql_rls_docs]
+<details>
+<summary>Deep dive: PostgreSQL Row-Level Security (RLS)</summary>
 
-Superusers and roles with `BYPASSRLS` always bypass those policies. Table owners normally bypass them too unless the table uses `FORCE ROW LEVEL SECURITY`. Run application queries with a role that's subject to the policy, then test that role directly.
+In PostgreSQL, enabling <span data-glossary="row-level-security">row-level security (RLS)</span> adds database-enforced tenant filters as defense in depth (an RLS-enabled table with no access rule defaults to deny).[^postgresql_rls_docs] Superusers and roles with `BYPASSRLS` always bypass RLS, and table owners bypass it unless you enable `FORCE ROW LEVEL SECURITY`. Always connect your application as a non-superuser role subject to RLS and test it directly.
+
+</details>
 
 ```checkpoint
 Why is filtering only by `principal` insufficient when the active support screen is scoped to workspace `w01`?
@@ -604,11 +536,7 @@ The same principal may have access in another workspace. Every retrieval path mu
 
 ## Use a transaction for all-or-nothing ingestion
 
-A <span data-glossary="database-transaction">database transaction</span> groups changes into one unit. A commit makes that unit permanent; a rollback discards it. That matters when a new document and its chunks must appear together. A visible document with missing chunks is confusing; visible chunks with no source are worse.
-
-Use `with conn:` here so Python commits an open transaction on success or rolls it back when an exception escapes the block. Catch the exception outside the block: swallowing it inside could let earlier writes commit. The context manager doesn't open a transaction by itself.[^pythonSqlite2026]
-
-With this lab's pinned transaction mode, the first `INSERT` inside the block opens one. The second `INSERT` intentionally points at a missing source, so its foreign-key error rolls back the document insertion too:
+A <span data-glossary="database-transaction">database transaction</span> makes multi-table ingestion atomic: either the document and all its chunks commit together, or `ROLLBACK` discards the whole unit. Wrapping writes in `with conn:` commits on clean exit and rolls back when an exception escapes the block (catch the exception *outside* `with conn:`, because swallowing it inside lets earlier writes commit):[^pythonSqlite2026]
 
 <!-- leetllm: test, continue=leak-lab, id=transaction-lab, output=show -->
 ```python title="09_transaction_rollback.py"
@@ -623,15 +551,15 @@ try:
             (
                 "d20",
                 "w01",
-                "incident-policy",
-                "Incident Policy",
-                "2026-08-01T00:00:00Z",
+                "outage-runbook",
+                "Outage Runbook",
+                "2024-08-01T00:00:00Z",
                 None,
             ),
         )
         conn.execute(
             "INSERT INTO chunks (id, document_id, chunk_text) VALUES (?, ?, ?)",
-            ("c20", "not-d20", "Incidents are reviewed in two days."),
+            ("c20", "not-d20", "Outages are reviewed within two days."),
         )
 except sqlite3.IntegrityError:
     print("transaction rolled back")
@@ -650,11 +578,9 @@ partial document visible False
 ```
 <!-- leetllm: output:end -->
 
-The transaction protects database rows, not a remote <span data-glossary="embedding">embedding</span> service. You have two reasonable designs: compute embeddings before the database transaction and commit document plus chunks together, or write a pending ingestion record and publish a new complete version only after all chunks are ready. Don't expose half an index to retrieval without making that state deliberate.
+Because a database transaction cannot roll back an external <span data-glossary="embedding">embedding</span> API call, compute embeddings *before* opening the DB transaction, or stage a pending ingestion row and publish only once all chunks are ready.
 
-Publication must also retire the old version in that same unit. Committing its end time before the replacement is ready creates a gap; publishing the replacement without ending the old version creates overlapping facts. The earlier interval `CHECK` doesn't prevent either mistake.
-
-Rehearse replacing `d7` at `AS_OF`. `BEGIN IMMEDIATE` claims SQLite's one writer slot before inspecting or changing publication state. A second connection can still read the committed policy, but its competing writer attempt fails immediately because this example sets `timeout=0`. A real caller would wait within a bound or retry the whole publication transaction.[^sqliteTransactions2026]
+Publishing a replacement version must retire the old version and insert the new document, chunks, and grants inside one transaction. `BEGIN IMMEDIATE` claims SQLite's writer lock upfront so a competing writer gets `SQLITE_BUSY` while concurrent readers continue seeing committed `d7`:[^sqliteTransactions2026]
 
 <!-- leetllm: test, continue=transaction-lab, id=publication-lab, output=show -->
 ```python title="09b_publish_one_complete_version.py"
@@ -663,10 +589,10 @@ other = sqlite3.connect(
 )
 other.execute("PRAGMA foreign_keys = ON")
 
-def active_policy_ids(db):
+def active_guide_ids(db):
     return [row[0] for row in db.execute(
         """SELECT id FROM documents
-           WHERE workspace_id = 'w01' AND source_key = 'api-key-policy'
+           WHERE workspace_id = 'w01' AND source_key = 'api-key-guide'
              AND valid_from <= ? AND (valid_to IS NULL OR ? < valid_to)
            ORDER BY id""", (AS_OF, AS_OF)
     ).fetchall()]
@@ -687,12 +613,12 @@ try:
     ).rowcount
     if ended != 1:
         raise ValueError("expected open version changed; reload publication state")
-    print("writer before replacement", active_policy_ids(conn))
-    print("reader during publication", active_policy_ids(other))
+    print("writer before replacement", active_guide_ids(conn))
+    print("reader during publication", active_guide_ids(other))
 
     conn.execute(
         "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?)",
-        ("d7-next", "w01", "api-key-policy", "API Key Policy", AS_OF, None),
+        ("d7-next", "w01", "api-key-guide", "API Key Guide", AS_OF, None),
     )
     conn.execute(
         "INSERT INTO chunks VALUES (?, ?, ?)",
@@ -701,13 +627,13 @@ try:
     conn.execute(
         "INSERT INTO chunk_permissions VALUES (?, ?)", ("c7-next", "agent:u3")
     )
-    print("writer's complete replacement", active_policy_ids(conn))
+    print("writer's complete replacement", active_guide_ids(conn))
     print("writer's authorized result", permitted_matches("w01", "agent:u3", "key", AS_OF))
 finally:
     conn.rollback()  # Rehearsal: keep later cells on the original seven-day rule.
     other.rollback()
     other.close()
-print("after rehearsal rollback", active_policy_ids(conn))
+print("after rehearsal rollback", active_guide_ids(conn))
 ```
 
 <!-- leetllm: output:start -->
@@ -721,23 +647,17 @@ after rehearsal rollback ['d7']
 ```
 <!-- leetllm: output:end -->
 
-The writer temporarily sees a gap inside its own unfinished transaction; the other connection continues to see committed `d7`. In production, commit only after the replacement chunks and intended grants are complete. Here rollback restores the original rows for later exercises. This serializes cooperating SQLite publishers; it doesn't add a global overlap constraint, validate remote embeddings, or prevent another code path from publishing invalid intervals. PostgreSQL needs its own locking, exclusion, or serializable-transaction design for that invariant.
-
 ```checkpoint
 An ingestion transaction inserts a document, then fails while inserting one chunk. What state should remain after rollback?
 ---
-Neither the document nor any of its chunks should remain. The transaction preserves the all-or-nothing invariant and prevents a visible partial ingestion.
+Neither the document nor any of its chunks should remain. The transaction preserves all-or-nothing atomicity and prevents a visible partial ingestion.
 ```
 
 ## Atomicity doesn't choose what concurrent readers see
 
-Rollback demonstrates **atomicity**: one transaction's writes appear together or not at all. **Isolation** answers a different question: what can one transaction observe while another transaction commits changes?
+**Atomicity** ensures one transaction's writes land together or roll back. **Isolation** controls what concurrent readers see while writers commit.
 
-PostgreSQL defaults to Read Committed isolation. Each ordinary `SELECT` sees a snapshot taken when that statement begins, so two `SELECT` statements in one transaction can observe different committed states.
-
-That behavior is fine for many request paths. It can undermine an evaluation export that first counts current chunks and later reads them, because a concurrent ingestion may commit between those statements.[^postgresqlIsolation2026]
-
-When several reads must describe one stable corpus snapshot, use a read-only Repeatable Read transaction. This is PostgreSQL syntax, not part of the SQLite lab:
+PostgreSQL defaults to **Read Committed**, where each `SELECT` takes a fresh snapshot. An evaluation export that counts chunks in query 1 and lists them in query 2 can see inconsistent totals if an ingestion commits in between.[^postgresqlIsolation2026] Pin both queries to one consistent snapshot with a read-only **Repeatable Read** transaction:
 
 ```sql title="postgres_stable_eval_snapshot.sql"
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
@@ -746,10 +666,10 @@ SELECT d.id, COUNT(*)
 FROM documents AS d
 JOIN chunks AS c ON c.document_id = d.id
 WHERE d.workspace_id = 'w01'
-  AND d.valid_from <= TIMESTAMPTZ '2026-08-12 12:00:00+00'
+  AND d.valid_from <= TIMESTAMPTZ '2024-08-12 12:00:00+00'
   AND (
       d.valid_to IS NULL
-      OR TIMESTAMPTZ '2026-08-12 12:00:00+00' < d.valid_to
+      OR TIMESTAMPTZ '2024-08-12 12:00:00+00' < d.valid_to
   )
 GROUP BY d.id;
 
@@ -758,31 +678,25 @@ SELECT c.id, c.chunk_text
 FROM chunks AS c
 JOIN documents AS d ON d.id = c.document_id
 WHERE d.workspace_id = 'w01'
-  AND d.valid_from <= TIMESTAMPTZ '2026-08-12 12:00:00+00'
+  AND d.valid_from <= TIMESTAMPTZ '2024-08-12 12:00:00+00'
   AND (
       d.valid_to IS NULL
-      OR TIMESTAMPTZ '2026-08-12 12:00:00+00' < d.valid_to
+      OR TIMESTAMPTZ '2024-08-12 12:00:00+00' < d.valid_to
   );
 
 COMMIT;
 ```
 
-Repeatable Read fixes the snapshot after the first non-control statement, so the count and detail rows agree even if another transaction commits later.
-
-Serializable isolation is stricter when concurrent transactions enforce a cross-row business rule, but PostgreSQL may abort one transaction with a serialization failure. Applications using that level must retry the whole transaction rather than the final statement alone.
+For cross-row business rules under concurrent writes, **Serializable** isolation is stricter, and your application must retry the entire transaction when PostgreSQL raises a serialization error.
 
 <figure>
   <img src="illustrations/_generated/transaction_boundaries_dark.png" alt="Side-by-side comparison of SQL transaction guarantees. Left, atomicity rolls back pending document d20 when inserting chunk c20 fails its foreign key to not-d20. Right, PostgreSQL Repeatable Read isolation pins snapshot S1 containing c7a, c7b, and c9a so count and row queries still agree even after a concurrent writer commits snapshot S2." />
-  <figcaption>The failed chunk insert rolls back d20 along with its pending writes. PostgreSQL's read-only Repeatable Read transaction keeps the count and detail queries on the same snapshot, even when another writer commits between them.</figcaption>
+  <figcaption>Atomicity rolls back pending <code>d20</code> on a bad chunk insert; PostgreSQL's read-only Repeatable Read pins count and detail queries to the same snapshot even as concurrent writers commit.</figcaption>
 </figure>
 
 ## Keep retries from duplicating completed work
 
-A transaction makes one attempt all-or-nothing. It doesn't tell a worker whether the request already succeeded before a timeout. If the worker commits new rows, crashes before sending its response, and retries the same request, a second write attempt can duplicate work.
-
-For retried writes, store a stable <span data-glossary="idempotency">idempotency</span> key in the same transaction as the rows created for that request. A uniqueness constraint lets the database accept the first attempt and recognize later repeats even after the original process disappears:
-
-The same key must also mean the same input. Store a fingerprint of all input fields alongside it. Here, `json.dumps` gives a fixed field list a consistent representation, and SHA-256 turns those bytes into a compact comparison value. A changed title or paragraph must raise an error, not be mistaken for a successful retry.
+If a worker commits rows and crashes before returning HTTP 200, the caller retries the same request. Store a unique <span data-glossary="idempotency">idempotency</span> key plus a SHA-256 fingerprint of the payload inside the same transaction: an identical retry skips the write cleanly, while reusing the same key with altered text raises an error:
 
 <!-- leetllm: test, continue=publication-lab, id=idempotency-lab, output=show -->
 ```python title="10_idempotent_ingestion.py"
@@ -854,7 +768,7 @@ print(
         "d30",
         "key-rotation-faq",
         "Key Rotation FAQ",
-        "2026-08-10T00:00:00Z",
+        "2024-08-10T00:00:00Z",
         "c30",
         "Temporary keys expire after 30 days.",
     ),
@@ -866,7 +780,7 @@ print(
         "d30",
         "key-rotation-faq",
         "Key Rotation FAQ",
-        "2026-08-10T00:00:00Z",
+        "2024-08-10T00:00:00Z",
         "c30",
         "Temporary keys expire after 30 days.",
     ),
@@ -880,7 +794,7 @@ print("d30 rows", stored)
 try:
     ingest_document_once(
         "req-30", "d30", "key-rotation-faq", "Key Rotation FAQ",
-        "2026-08-10T00:00:00Z", "c30", "Changed policy text.",
+        "2024-08-10T00:00:00Z", "c30", "Changed guide text.",
     )
 except ValueError as exc:
     print("changed retry", exc)
@@ -897,17 +811,11 @@ changed retry idempotency key reused with changed input
 ```
 <!-- leetllm: output:end -->
 
-The first call stores the request marker, document, and chunk together. An identical retry skips the write. Reusing `req-30` with different text raises an error and leaves the original policy untouched. The fingerprint is an equality check, not authentication; the server still owns workspace and user identity.
-
-This function leaves the new chunk ungranted, so retrieval won't expose it yet. A complete ingestion operation would also write the intended permission rows before publishing the document. Keeping that default closed is safer than treating a missing permission as public access.
-
-This pattern works when the protected side effect lives in the same database transaction. A local marker can't atomically cover a deployment API or another remote service. For an external side effect, pass the same key to a downstream API that enforces it, or use a workflow such as an outbox with an idempotent consumer.
+Notice that `c30` stays invisible until explicit permission rows are inserted (default-closed). For side effects hitting a remote API outside the database, pass an idempotency key to that downstream service or reconcile its state before replaying.
 
 ## Index the predicates you run often
 
-Without an index, a database may need to inspect many rows to answer a filter. An **index** is an additional data structure that lets the engine reach selected rows more directly, at the cost of storage and write work.
-
-Our authorized query repeatedly filters permissions by `principal` and follows document ownership. Add indexes for those paths, then ask SQLite for its <span data-glossary="query-plan">query plan</span>. The plan describes the database's chosen access strategy; measure runtime separately.[^sqliteQueryPlan2026]
+An **index** lets the query engine jump straight to matching keys instead of scanning every row. Add composite indexes on `(principal, chunk_id)` and `(workspace_id, valid_from, valid_to, id)`, then inspect SQLite's <span data-glossary="query-plan">query plan</span>:[^sqliteQueryPlan2026]
 
 <!-- leetllm: test, continue=idempotency-lab, id=index-lab, output=show -->
 ```python title="11_add_indexes_and_explain.py"
@@ -950,26 +858,16 @@ USE TEMP B-TREE FOR ORDER BY
 ```
 <!-- leetllm: output:end -->
 
-Plan details vary as engines and statistics change. Inspect the production query plan with realistic tenant and permission selectivity, then measure request latency on the intended workload.
-
-`SEARCH` visits a selected subset through the named access path; `SCAN` visits a full table or index. `COVERING` means the selected fields can come from that index without an additional table lookup for those fields. `USE TEMP B-TREE FOR ORDER BY` identifies sorting work that remains after indexed lookups. Seeing one index name doesn't guarantee that every join or filter became cheap.[^sqliteQueryPlan2026]
-
-In this corpus, a sequential path inspects all seven `chunk_permissions` rows. An index on `(principal, chunk_id)` can seek the four rows for `agent:u3` (`c7-old`, `c7a`, `c7b`, `c99`). Workspace and validity predicates then drop the retired version and the other-workspace chunk, leaving `c7a` and `c7b`.
-
-Those numbers count candidate rows. They do not describe storage operations or runtime. An index still has to traverse its own structure, and the planner can choose a different join order. Whatever path it picks, the authorization rule must stay unchanged.
-
-> **Query-plan check:** PostgreSQL uses `EXPLAIN` for estimated plans and `EXPLAIN ANALYZE` for actual row counts and timing. The latter executes the statement, including writes. Use a read query here. A surrounding rollback can undo ordinary database writes, but it can't undo every possible effect, such as a function calling an external service. Plans from tiny tables also don't predict plans for large ones.[^postgresqlExplain2026]
-
-Indexes on `principal`, workspace, and validity time give the planner candidate access paths for authorization and version filters. They don't make `LOWER(c.chunk_text) LIKE ?` a fast B-tree lookup on `chunk_text`. Substring `LIKE` at scale needs full-text search, a trigram index, or a vector path. This demo corpus is small enough that a scan is fine.
+`SEARCH ... USING COVERING INDEX` reads `(principal, chunk_id)` directly from the index without touching the base permission table, while `USE TEMP B-TREE FOR ORDER BY` flags a remaining sort step. In PostgreSQL, use `EXPLAIN` for estimated plans and `EXPLAIN ANALYZE` for live timings (remember `EXPLAIN ANALYZE` executes the statement, including writes).[^postgresqlExplain2026] B-tree indexes speed up equality and range filters; at scale, substring `LIKE` calls for full-text search, trigram indexes, or vector retrieval.
 
 <figure>
-  <img src="illustrations/_generated/hybrid_schema_layers_dark.png" alt="Two possible permission access paths: scanning all seven permission rows or seeking the four entries for Bob with permission_principal_idx. Joins and validity filters leave c7a and c7b in either case. The counts describe candidate rows. Measure actual reads and timings separately." />
-  <figcaption>A permission-table scan considers seven rows; a principal index can seek Bob's four entries. Joins and filters still do work. These candidate counts illustrate two possible access paths. The planner may use other indexes or table scans.</figcaption>
+  <img src="illustrations/_generated/hybrid_schema_layers_dark.png" alt="Two possible permission access paths: scanning all seven permission rows or seeking the four entries for Bob with permission_principal_idx. Joins and validity filters leave c7a and c7b in either case." />
+  <figcaption>A full table scan inspects all seven permission rows; <code>permission_principal_idx</code> seeks straight to Bob's four entries before joins and validity filters narrow to <code>c7a</code> and <code>c7b</code>.</figcaption>
 </figure>
 
 ## Build a small authorized retriever
 
-The schema, filters, and indexes now fit one function a caller can test. It returns permitted matching paragraphs beside their document titles. The query above uses `ESCAPE '!'`: `!%` matches a literal `%`, `!_` matches a literal `_`, and `!!` matches a literal `!`. Escape those characters in the user's text before adding our own surrounding `%` wildcards.
+Wrap the query in one function that strips blank input and escapes `!`, `%`, and `_` under `ESCAPE '!'` before adding surrounding `%` wildcards:
 
 <!-- leetllm: test, continue=index-lab, id=search-lab, output=show -->
 ```python title="12_authorized_retriever.py"
@@ -995,18 +893,14 @@ for chunk_id, title, text in search_support("w01", "agent:u3", "key", AS_OF):
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-c7a | API Key Policy | API keys rotate within seven days.
-c7b | API Key Policy | Email security with your workspace ID for key rotation.
+c7a | API Key Guide | API keys rotate within seven days.
+c7b | API Key Guide | Email security with your workspace ID for key rotation.
 ```
 <!-- leetllm: output:end -->
 
-This is lexical search: it looks for a literal text fragment. A query of `%` now searches for an actual percent sign rather than matching every row. Blank queries return no rows. The SQL parameter still protects statement structure; escaping protects the product's substring-search behavior. Neither one supplies authorization.
-
-Passing `as_of` keeps a retired policy out of current answers and still lets a historical audit reproduce an older one. A retrieval-augmented generation (RAG) system usually also retrieves semantically related text before a large language model (LLM) drafts an answer. That path should reuse the same source, time, and permission model.
-
 ## Test forbidden rows too
 
-Test forbidden results as well as matches. Make the excluded test case match the query first: a cross-workspace test using `token` would be weak here because `c99` contains `key`, not `token`. It would return nothing even if the workspace predicate were missing.
+Always test negative cases whose text *matches* the query (`c99` contains `key`), so a missing workspace filter actually fails the test:
 
 <!-- leetllm: test, continue=search-lab, id=auth-tests, output=show -->
 ```python title="13_authorization_tests.py"
@@ -1018,7 +912,7 @@ other_workspace_key = [
 unknown_user = search_support("w01", "agent:unknown", "key", AS_OF)
 retired_key = [
     row[0]
-    for row in search_support("w01", "agent:u3", "key", "2026-06-01T00:00:00Z")
+    for row in search_support("w01", "agent:u3", "key", "2024-06-01T00:00:00Z")
 ]
 
 assert bob_key == ["c7a", "c7b"]
@@ -1031,7 +925,7 @@ assert search_support("w01", "agent:u3", "%", AS_OF) == []
 assert search_support("w01", "agent:u3", "   ", AS_OF) == []
 assert [
     row[0]
-    for row in search_support("w01", "agent:u3", "key", "2026-07-01T00:00:00Z")
+    for row in search_support("w01", "agent:u3", "key", "2024-07-01T00:00:00Z")
 ] == ["c7a", "c7b"]
 
 print("authorized retrieval tests passed")
@@ -1043,15 +937,9 @@ authorized retrieval tests passed
 ```
 <!-- leetllm: output:end -->
 
-The tests guard the core retrieval invariant: context must be relevant, authorized, and valid at the requested time before it reaches an LLM prompt.
-
-The historical assertion also proves that keeping old versions isn't the same as leaking them into current answers.
-
 ## Close the connection and read the file again
 
-So far, every query has used the same open connection. Test the promise that motivated the database: after committing and closing it, can another connection recover the same authorized rows?
-
-The global `conn` name is rebound below, so `search_support` now queries the reopened file. No schema creation or seeding runs a second time:
+Commit, close the connection, reopen `db_path` fresh, and verify the committed rows survive a full process restart:
 
 <!-- leetllm: test, continue=auth-tests, output=show -->
 ```python title="14_reopen_database.py"
@@ -1074,17 +962,11 @@ reopened ['c7a', 'c7b']
 ```
 <!-- leetllm: output:end -->
 
-The file, not the connection object, preserved the rows. Cleanup removes this lab's file only after the check. An application would use a stable path on persistent storage and keep it across runs. Don't rerun the seed script against that existing database; open it and query it. A file inside an ephemeral container filesystem still disappears when that container is removed, so the Docker storage distinction applies here too.[^pythonSqlite2026]
+Inside containers, mount the database directory on persistent storage rather than an ephemeral container filesystem so restarts keep the file intact.[^pythonSqlite2026]
 
 ## Extend the model with PostgreSQL and pgvector
 
-SQLite gave us a fully runnable lab without a separate database server. A PostgreSQL server becomes useful when application processes on several machines need a shared database and its concurrency controls. The table relationships stay useful, but adapt column types, driver placeholders, and transaction behavior rather than assuming the files are interchangeable.
-
-When keyword matching isn't enough, the `pgvector` extension adds a vector column and distance operators. A vector is a list of numbers representing an embedding. Nearby embeddings can capture semantic similarity even when the exact words differ.
-
-This PostgreSQL sketch assumes you've installed pgvector on the server and created the equivalent base tables, using `TIMESTAMPTZ` for the validity columns. `$1` through `$5` are server-side query parameters, not literals to paste into an ordinary SQL console. A Python driver may use different placeholder syntax.
-
-Three vector dimensions keep the declaration readable. Choose the dimension required by your embedding model in a real system, and embed the query with the same model and preprocessing as the stored vectors. Matching dimensions alone doesn't make two models' vector spaces compatible. Embeddings live in their own table so each derived feature keeps its source chunk, model identifier, and creation time.
+When multiple application servers share one corpus and need semantic search beyond keyword `LIKE`, PostgreSQL with `pgvector` stores <span data-glossary="vector">embeddings</span> in a sibling `chunk_embeddings` table keyed by `(chunk_id, embedding_model)`. Every vector query keeps the exact same workspace, half-open validity, model, and permission predicates:
 
 ```sql title="postgres_pgvector_extension.sql"
 CREATE EXTENSION vector;
@@ -1125,15 +1007,9 @@ ORDER BY e.embedding <=> $1
 LIMIT 3;
 ```
 
-In `pgvector`, `<=>` means cosine distance, so `1 - distance` is <span data-glossary="cosine-similarity">cosine similarity</span>. The query works without an approximate index: `pgvector` performs exact nearest-neighbor search by default. <span data-glossary="hnsw">HNSW</span> (Hierarchical Navigable Small World) builds a graph of nearby vectors to search a promising subset instead of exhaustively comparing every vector.
+`<=>` computes cosine distance (`1 - cosine_similarity`).[^pgvector_docs] Without an index, `pgvector` performs exact search; add an <span data-glossary="hnsw">HNSW</span> index only when exact scans exceed latency targets.
 
-Add an HNSW index when exact scans no longer meet the latency target, then measure the recall tradeoff introduced by approximate search.[^pgvector_docs]
-
-Filtered search has one caveat. With an approximate vector index, filtering conditions can be applied after the index scans candidates. If workspace or permission filters reject many candidates, a query may return fewer rows than requested even when allowed matches exist.
-
-Iterative index scans continue searching when filters remove too many candidates. Available since pgvector 0.8.0 and off by default, they can be enabled for this HNSW example with `SET hnsw.iterative_scan = strict_order`. Configured limits can stop the scan before it finds every exact neighbor. Re-measure recall with realistic workspace, model, and permission filters.[^pgvector_docs][^pgvector_iterative]
-
-The next script uses NumPy to mirror `pgvector` cosine distance (`1 - cos_sim`) on 3-D unit-normed chunk embeddings, contrasting naive top-2 ranking followed by filtering (which can drop too few allowed chunks) against SQL pre-filtering before ranking:
+> **Key insight:** Filtering *after* taking top-$k$ nearest neighbors can starve results whenever top vectors belong to another workspace or retired version. The NumPy mirror below shows naive post-filtering returning `[]` while authorized pre-filtering returns `['c7a', 'c7b']`.
 
 <!-- leetllm: test, id=pgvector-numpy, output=show -->
 ```python title="15_authorized_cosine_retrieval.py"
@@ -1142,7 +1018,7 @@ import numpy as np
 query_vec = np.array([0.8, 0.6, 0.0])
 rows = [
     ("c99", np.array([0.85, 0.52, 0.07]), False),     # w02 cross-tenant leak
-    ("c7-old", np.array([0.79, 0.61, 0.05]), False),  # retired policy version
+    ("c7-old", np.array([0.79, 0.61, 0.05]), False),  # retired version
     ("c7a", np.array([0.74, 0.66, 0.14]), True),      # active, authorized
     ("c7b", np.array([0.55, 0.80, 0.24]), True),      # active, authorized
 ]
@@ -1172,18 +1048,16 @@ authorized top-2: ['c7a', 'c7b']
 ```
 <!-- leetllm: output:end -->
 
-> **Vector check:** Four checks carry into vector retrieval:
+<details>
+<summary>Deep dive: Filtered HNSW scans with <code>hnsw.iterative_scan</code></summary>
 
-1. Authorization predicates belong in every retrieval query.
-2. Version and embedding-model predicates make current answers reproducible.
-3. Approximate vector retrieval still needs plan inspection and recall testing under restrictive filters.
-4. A database policy such as PostgreSQL RLS can reinforce authorization, but it doesn't replace designing and testing retrieval behavior.
+With an approximate HNSW index, selective workspace or permission filters can discard most initial graph candidates and return fewer than `LIMIT` rows. Enabling `SET hnsw.iterative_scan = strict_order` in `pgvector` keeps expanding the HNSW search until enough filtered rows are found (or scan limits are reached); always benchmark recall under realistic tenant selectivity.[^pgvector_docs][^pgvector_iterative]
+
+</details>
 
 ## Keep feature and evaluation lineage in the schema
 
-An embedding is a derived **feature**. If an evaluation improves after changing the embedding model, you need to know which feature row produced each ranked result. Store that identity instead of keeping only a floating-point score.
-
-These PostgreSQL tables keep one evaluation run beside the embedding rows it ranked, so a later reader can point at the feature behind each score:
+Treat every embedding as an immutable derived **feature**. Link evaluation runs directly to `chunk_embeddings(id)` alongside dataset and query-model versions, and insert a new row (never overwrite vectors or text in place) whenever source text or embedding models change:
 
 ```sql title="postgres_retrieval_eval_lineage.sql"
 CREATE TABLE retrieval_eval_runs (
@@ -1204,31 +1078,21 @@ CREATE TABLE retrieval_eval_results (
 );
 ```
 
-`embedding_id` leads back to the chunk and embedding model. `eval_run_id` records dataset and query-model versions. Preserve those rows as immutable versions: overwriting the vector or source text in place would change what an old result points to. Use a versioned model identifier and a new chunk identity when the source text changes.
-
-For a reproducible evaluation, also record the retrieval query/configuration, requested policy time, and corpus snapshot. This minimal schema still needs those fields. A stored foreign key identifies a row; preserving its version and the ranking inputs makes the comparison reproducible.
-
-A timestamp alone can't answer that question because two runs may use different models at the same time.
-
-This schema stores ranked evidence alongside scores. Compute recall or hit rate by adding relevance labels for each evaluation query. Store those labels in the versioned dataset named by the run.
+Pair these tables with the requested `as_of` timestamp, retrieval configuration, and versioned relevance labels so any historical metric stays reproducible.
 
 ## Database skills used in retrieval
 
-The process can restart now without emptying the corpus. These checks keep a retrieved paragraph tied to its version, tenant, and principal:
-
 | Skill | Why it matters in an AI system |
 |---|---|
-| Model versioned documents, chunks, and permissions as rows | Context keeps explicit ownership, validity, and <span data-glossary="provenance">origin</span> |
-| Use primary and foreign keys | Broken citation links fail early |
-| Bind parameters rather than formatting SQL | Inputs can't change query structure |
-| Join source and permission tables | Retrieval returns only attributable, allowed text |
-| Group rows and handle `NULL` explicitly | Summaries don't silently mix current and retired state |
-| Wrap multi-row ingestion in a transaction | Partially written context stays hidden |
-| Choose isolation for multi-query reads | One evaluation packet describes one corpus snapshot |
-| Store a unique idempotency key with retried writes | Completed work doesn't run twice after a timeout |
-| Inspect indexes and plans | Performance is measured, not assumed |
-| Version derived embeddings and eval results | Model changes remain traceable to exact evidence |
-| Add vectors after access rules are correct | Semantic rank preserves tenant and time rules |
+| Normalized tables (`workspaces`, `documents`, `chunks`, `chunk_permissions`) | Keeps explicit ownership, validity, and <span data-glossary="provenance">origin</span> |
+| Primary and foreign keys (`NOT NULL`) | Broken citation links fail early |
+| Parameterized queries + escaped `LIKE` | Blocks SQL injection and wildcard abuse |
+| Half-open `[valid_from, valid_to)` + workspace + principal filters | Returns only active, authorized context |
+| `GROUP BY` + `LEFT JOIN` + `COUNT(col)` | Summarizes corpus health without miscounting `NULL` |
+| Transactions + `ROLLBACK` + Repeatable Read | Keeps ingestion atomic and multi-query exports consistent |
+| Idempotency key + payload hash | Prevents retried workers from duplicating writes |
+| Composite indexes + `EXPLAIN QUERY PLAN` | Measures access paths instead of guessing |
+| Versioned `chunk_embeddings` + eval lineage | Keeps vector similarity and offline metrics reproducible |
 
 ```mastery-quiz
 [
@@ -1299,7 +1163,7 @@ The process can restart now without emptying the corpus. These checks keep a ret
     "explanation": "Under Read Committed, each query takes a snapshot when it starts. The list includes the two new rows, so it has seven. A final count of seven would miss the committed deletion, which leaves six. Under Repeatable Read, all three queries use the first query’s snapshot and see five rows. Predicting five throughout for Read Committed and changing counts for Repeatable Read swaps the two rules. Predicting 5/7/6 for both gives Repeatable Read a new snapshot at each query."
   },
   {
-    "question": "Trace A commits rows and its matching unique request marker atomically, then loses the reply; the identical input/key returns. Trace B sends a remote action successfully, crashes before a local completion marker, and the destination has no stated deduplication policy. Which recovery pair is justified?",
+    "question": "Trace A commits rows and its matching unique request marker atomically, then loses the reply; the identical input/key returns. Trace B sends a remote action successfully, crashes before a local completion marker, and the destination has no stated deduplication support. Which recovery pair is justified?",
     "options": [
       "A reruns local inserts; B reconciles the destination outcome before choosing a replay.",
       "A returns the retained local result; B treats the absent local marker as a failed remote action.",
@@ -1307,7 +1171,7 @@ The process can restart now without emptying the corpus. These checks keep a ret
       "A returns the retained local result; B reconciles the destination outcome before choosing a replay."
     ],
     "answer": "A returns the retained local result; B reconciles the destination outcome before choosing a replay.",
-    "explanation": "A’s durable marker and result share the completed local transaction, so matching replay can return that result. B’s external effect is outside that atomic unit; a missing local marker does not prove remote failure. Reconcile the actual destination state or use an explicit destination idempotency key. A fingerprint compares input equality and does not create authorization."
+    "explanation": "A’s durable marker and result share the completed local transaction, so matching replay can return that result. B’s external effect is outside that atomic unit; a missing local marker does not mean remote failure. Reconcile the actual destination state or use an explicit destination idempotency key. A fingerprint compares input equality and does not create authorization."
   },
   {
     "question": "An executed SQLite EXPLAIN QUERY PLAN has SEARCH p USING COVERING INDEX (principal=?), further primary-key searches for chunks/documents, and USE TEMP B-TREE FOR ORDER BY. A separate benchmark trace reduces 70 permission rows to nine candidates and five allowed results. Which interpretation follows?",
@@ -1332,7 +1196,7 @@ The process can restart now without emptying the corpus. These checks keep a ret
     "explanation": "B has similarity 1 and A 0.8, so the first two candidates both fail access predicates. C has dot product 6 and length product 2×5=10, giving similarity 0.6 and cosine distance 0.4. D has similarity 0. Continuing the exact order returns C then D. Filtering a short approximate prefix can instead stop before enough allowed neighbors are found."
   },
   {
-    "question": "Run R saves rank/score and a valid foreign key to embedding E1, with dataset/model/configuration/policy-time/corpus versions recorded. E1’s vector is later overwritten under the same ID. A separate new report keeps immutable vectors but changes its relevance-label dataset. Which repair pair preserves the claims?",
+    "question": "Run R saves rank/score and a valid foreign key to embedding E1, with dataset/model/configuration/as-of timestamp/corpus versions recorded. E1’s vector is later overwritten under the same ID. A separate new report keeps immutable vectors but changes its relevance-label dataset. Which repair pair preserves the claims?",
     "options": [
       "R can retain its reproducibility claim because E1 exists; the new report must identify and recompute its new label version.",
       "R needs its original immutable E1 values or an explicit missing-evidence status; the new report must identify and recompute its new label version.",

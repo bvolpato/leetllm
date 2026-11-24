@@ -32,11 +32,13 @@
 ---
 <!-- leetllm: edition:reference:start -->
 
-An assistant reads retrieved context before responding. Across five retrieved-context latency measurements, latency climbs from 118 to 198 milliseconds as context grows from 100 to 500 tokens, and a straight line suggests 220 milliseconds at 600 tokens. The sections below derive both the closed-form solution and gradient descent for that line, compare solvers numerically, and show what a training $R^2$ of 0.9965 hides. Earlier chapters on [linear algebra](/learn/linear-algebra-machine-learning-deeper) and [Training & Backpropagation](/learn/training-backpropagation-gradient-descent) introduced least-squares projections and iterative updates, which we now apply side by side before testing when an accurate optimizer still yields an unreliable predictor.
+Five latency measurements climb smoothly from 118 ms at 100 tokens to 198 ms at 500 tokens. Fit a straight line and you get $R^2 = 0.9965$, which looks like textbook perfection until you zoom in on the residuals and spot a clean arch hiding underneath.
+
+Linear regression is the simplest place to watch the full machinery of machine learning work in plain sight: orthogonal projection, iterative gradient descent, loss-surface geometry, regularization, and held-out evaluation. Building on [linear algebra](/learn/linear-algebra-machine-learning-deeper) and [Training & Backpropagation](/learn/training-backpropagation-gradient-descent), we will derive both the closed-form solution and gradient descent on the same five measurements, watch when a solver breaks, and see why a near-perfect training score can still steer extrapolation off course.
 
 ## Predicting latency from retrieved evidence
 
-The input feature is retrieved text length measured in hundreds of <span data-glossary="token">tokens</span>. The target is end-to-end latency in milliseconds. Keeping units visible preserves physical intuition because `x = 1` represents 100 tokens while `y = 118` represents 118 ms, and later diagnostics compare these five observations directly against held-out traffic:
+Our feature `x` is retrieved text length in hundreds of <span data-glossary="token">tokens</span>, and our target `y` is end-to-end latency in milliseconds. Keeping natural units makes every parameter readable: `x = 1` means 100 tokens and `y = 118` means 118 ms.
 
 | Evidence length `x` (hundreds of tokens) | Observed latency `y` (ms) |
 |---|---:|
@@ -46,26 +48,26 @@ The input feature is retrieved text length measured in hundreds of <span data-gl
 | 4 | 181 |
 | 5 | 198 |
 
-Observed latency climbs by roughly 20 ms for each additional 100 tokens. Before setting up a formal solver, we can express our hypothesis with two parameters:
+Latency rises by roughly 20 ms for every extra 100 tokens. A linear model expresses that rule with two parameters:
 
-- The **intercept**, `b`, is the line's prediction at `x = 0` (a possible approximation to baseline overhead).
-- The **slope**, `w` (or `m`), is the change in predicted latency for each additional 100 tokens.
+- The **intercept**, `b`, sets the prediction at `x = 0`.
+- The **slope**, `w` (or `m`), sets the change in predicted latency per additional 100 tokens.
 
-For a single observation with feature vector $x \in \mathbb{R}^D$, the linear regression hypothesis writes predictions as a weighted sum of inputs plus an offset:
+For a general feature vector $x \in \mathbb{R}^D$, the linear regression hypothesis computes a weighted sum plus an offset:
 
 $$
 \hat{y} = w^\top x + b
 $$
 
-With one feature, this simplifies to $\hat{y} = w x + b$, giving the candidate line:
+With one feature, $\hat{y} = w x + b$, and the candidate line
 
 $$
 \hat{y} = 100 + 20x
 $$
 
-Read this as an operational baseline that starts around 100 ms of fixed overhead and adds 20 ms for each 100 tokens of retrieved context, predicting $100 + 20 \times 6 = 220$ ms at `x = 6` (600 tokens). This model is single-feature <span data-glossary="linear-regression">linear regression</span>, where we choose `b` and `w` to minimize squared prediction errors under **ordinary least squares** (OLS). Note that the fit summarizes empirical association rather than proving causation, and predicting at `x = 0` or `x = 6` extends outside observed support, making both values **extrapolations**.
+starts at 100 ms of baseline overhead, adds 20 ms per 100 tokens, and predicts $100 + 20 \times 6 = 220$ ms at `x = 6` (600 tokens). Choosing `b` and `w` to minimize squared prediction errors gives **ordinary least squares** (OLS) <span data-glossary="linear-regression">linear regression</span>. Both `x = 0` and `x = 6` lie outside our observed 100-to-500-token span, so those predictions are **extrapolations**.
 
-Inspecting the five arrays directly confirms an evidence range of 1 to 5 (hundreds of tokens) and a latency range of 118 to 198 ms:
+Inspecting the five arrays directly confirms the input and latency spans:
 
 <!-- leetllm: test, output=show -->
 ```python title="inspect-the-request-replay.py"
@@ -99,10 +101,10 @@ On the raw latency scale, small 1-2 ms errors almost disappear against a 100-200
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="The same five latency observations plotted on two scales. The fitted line y-hat = 100 + 20x has training R-squared 0.9965. The enlarged residual plot shows minus 2, plus 1, plus 2, plus 1, minus 2 milliseconds. Both x = 0 and x = 6 lie outside the observed range." />
-  <figcaption>The line looks close on the latency scale. The residual scale reveals a bend in these five rows: negative at both ends and positive in the middle, so a larger sample would be needed before calling this a population pattern.</figcaption>
+  <figcaption>The line looks almost exact on the latency scale, yet isolating the residuals reveals a clean arch (-2, +1, +2, +1, -2 ms) that a straight line cannot bend to follow.</figcaption>
 </figure>
 
-Evaluating $\hat{y} = 100 + 20x$ row by row before summing errors makes the exact signed misses visible:
+Evaluating $\hat{y} = 100 + 20x$ row by row makes every signed miss explicit:
 
 | `x` | Actual `y` | Predicted y-hat | Residual y - y-hat | Residual squared |
 |---:|---:|---:|---:|---:|
@@ -112,25 +114,25 @@ Evaluating $\hat{y} = 100 + 20x$ row by row before summing errors makes the exac
 | 4 | 181 | 180 | 1 | 1 |
 | 5 | 198 | 200 | -2 | 4 |
 
-Signs carry direct diagnostic information because negative residuals indicate the model predicted too high, positive residuals indicate it predicted too low, and residuals near zero mean the observation sat directly on the line. Here the residuals run $[-2, +1, +2, +1, -2]$: negative at both endpoints and positive in the center. That arc suggests missing curvature, though with only one observation at each length it cannot confirm the true conditional mean or rule out random noise; with five distinct points, a quadratic polynomial happens to interpolate every row, and we will test its extrapolation behavior later.
+Residual signs carry immediate diagnostic information: negative means the model predicted too high, and positive means too low. Here the residuals run $[-2, +1, +2, +1, -2]$, negative at both ends and positive in the middle. That symmetric arch hints at slight concavity in the relationship, which we will test against a quadratic fit later.
 
-To summarize performance in a single scalar, average the squared residuals across all $N$ observations:
+To summarize fit quality in one number, average the squared residuals across all $N$ observations:
 
 $$
 \text{MSE} = \frac{1}{N} \sum_{i=1}^N (y_i - \hat{y}_i)^2 = \frac{4 + 1 + 4 + 1 + 4}{5} = 2.8\,\text{ms}^2
 $$
 
-That quantity is **<span data-glossary="mean-squared-error">mean squared error</span>** (MSE), which prevents positive and negative misses from canceling while penalizing large errors quadratically. Taking the square root gives the **<span data-glossary="root-mean-squared-error">root mean squared error</span>**, $\text{RMSE} = \sqrt{2.8} \approx 1.67$ ms, returning error back to original latency units. Comparing against predicting the target mean $\bar{y} = 160$ ms for every request drops MSE from `802.8` to `2.8`, showing the feature fits these rows well while leaving transfer to fresh data open to verification.
+This is **<span data-glossary="mean-squared-error">mean squared error</span>** (MSE): squaring prevents opposite signs from canceling and penalizes large misses heavily. Its square root, **<span data-glossary="root-mean-squared-error">root mean squared error</span>** ($\text{RMSE} = \sqrt{2.8} \approx 1.67$ ms), brings error back to milliseconds. Compared with predicting the mean latency $\bar{y} = 160$ ms for every request (MSE `802.8`), our line cuts squared error to `2.8`.
 
-The coefficient of determination, **<span data-glossary="r-squared">R-squared</span>**, scales that squared error relative to total variance around the target mean:[^sklearnR2Score2026]
+The coefficient of determination, **<span data-glossary="r-squared">R-squared</span>**, expresses that drop as a fraction of variance around the target mean:[^sklearnR2Score2026]
 
 $$
 R^2 = 1 - \frac{\sum (y_i - \hat{y}_i)^2}{\sum (y_i - \bar{y})^2} = 1 - \frac{14}{4014} = 1 - \frac{2.8}{802.8} \approx 0.9965
 $$
 
-For nonconstant targets, $R^2 = 0$ matches that mean baseline, $R^2 = 1$ means zero error, and negative values mean worse predictions. Constant targets make the denominator zero; scikit-learn substitutes finite scores by default. With fewer than two observations, its `r2_score` returns `NaN`. On held-out data, the metric's denominator uses the held-out target mean; an actual deployable constant predictor must instead learn its mean from training data.
+For nonconstant targets, $R^2 = 0$ matches the mean baseline, $R^2 = 1$ means zero error, and negative values mean worse predictions than predicting the mean.
 
-Dividing the numerator and denominator by $N = 5$ reproduces the ratio `1 - MSE_line / MSE_baseline`. Here, $0.9965$ describes training fit quality across these five points. It doesn't make the underlying residual curve vanish, nor does it guarantee accuracy on future requests outside this sample.
+> **Key insight:** An $R^2$ of `0.9965` tells you the line explains almost all of the variance across these five points, yet it completely hides the `-2, +1, +2, +1, -2` arch. Always inspect residuals, never just summary scores.
 
 ```checkpoint
 Why square residuals before averaging them instead of taking their raw sum?
@@ -239,41 +241,27 @@ forced_worse_than_mean True
 ```
 <!-- leetllm: output:end -->
 
-Forcing the line through zero yields an MSE of `1820.98`, more than double the mean baseline's error of `802.8`. Allowing a fitted offset helps these data, even when the intercept doesn't isolate a physical source of delay. Some problems have a justified zero-intercept constraint; this table doesn't supply one.
+Forcing the line through zero inflates MSE to `1820.98`, more than double the mean baseline (`802.8`). Unless physics or domain geometry forces $\hat{y}(0) = 0$, keep the intercept column.
 
 ## The Normal Equation: closed-form ordinary least squares
 
-How do we solve for $w^*$ without guessing combinations of $b$ and $m$? We express the total Mean Squared Error loss in matrix notation and apply matrix calculus:
+To solve for $w^*$ directly without guessing, write MSE in matrix form and set its gradient to zero:
 
 $$
-J(w) = \frac{1}{N} \|X w - y\|_2^2 = \frac{1}{N} (X w - y)^\top (X w - y)
+J(w) = \frac{1}{N} \|X w - y\|_2^2 = \frac{1}{N} \left( w^\top X^\top X w - 2 y^\top X w + y^\top y \right)
 $$
 
-Expanding the inner product turns the quadratic objective into three matrix terms whose gradient with respect to $w$ follows directly from linear and symmetric-quadratic differentiation:
-
 $$
-J(w) = \frac{1}{N} \left( w^\top X^\top X w - 2 y^\top X w + y^\top y \right), \qquad \nabla_w J(w) = \frac{2}{N} \left( X^\top X w - X^\top y \right)
+\nabla_w J(w) = \frac{2}{N} \left( X^\top X w - X^\top y \right) = 0 \implies X^\top X w = X^\top y
 $$
 
-Some textbooks include a leading $\frac{1}{2N}$ factor to cancel the 2 in the derivative. Both formulations share the exact same stationary points. Setting the gradient to zero yields the **Normal Equation**:
-
-$$
-X^\top X w = X^\top y
-$$
-
-When $X$ has full column rank, the **Gram matrix** $X^\top X \in \mathbb{R}^{(D+1) \times (D+1)}$ is symmetric positive definite and invertible, giving the closed-form ordinary least squares estimator and our five-row normal system:[^hastie2009]
+This linear system is the **Normal Equation**. When $X$ has full column rank, the **Gram matrix** $X^\top X \in \mathbb{R}^{(D+1) \times (D+1)}$ is symmetric positive definite and invertible, giving the unique global minimum:[^hastie2009]
 
 $$
 w^* = (X^\top X)^{-1} X^\top y, \qquad \begin{bmatrix} 5 & 15 \\ 15 & 55 \end{bmatrix} \begin{bmatrix} b \\ m \end{bmatrix} = \begin{bmatrix} 800 \\ 2600 \end{bmatrix}
 $$
 
-Row-reducing gives $55m - 3(15m) = 10m = 2600 - 2400 = 200$, so $m = 20$, and back-substitution yields $5b + 15(20) = 800 \implies b = 100$. Because the loss is a convex quadratic, this stationary point is the unique global minimum. Even so, its dense-matrix complexity creates clear scaling limits:
-
-1. Forming $X^\top X$ requires multiplying a $(D+1) \times N$ matrix by an $N \times (D+1)$ matrix, costing $O(N D^2)$ arithmetic operations.
-2. Factoring the $(D+1) \times (D+1)$ positive-definite system with Cholesky ($X^\top X = L L^\top$) costs $O(D^3)$; the subsequent triangular solves cost $O(D^2)$. An explicit inverse is neither needed nor numerically desirable.
-3. Storing $X^\top X$ requires $O(D^2)$ memory.
-
-These are dense-matrix costs, with the intercept absorbed into $D$ in big-O notation, giving total time $O(N D^2 + D^3)$ on top of input and solver workspace storage. At 10,000 features, a float64 Gram matrix alone holds 100 million entries, roughly 800 MB, which already motivates selecting a solver based on rank, conditioning, sparsity, data size, and hardware. Forming $X^\top X$ also squares its 2-norm condition number ($\kappa_2(X^\top X) = \kappa_2(X)^2$), whereas QR or SVD methods such as NumPy's `lstsq` avoid squaring conditioning and expose numerical rank and singular values directly.[^trefethen1997][^numpyLstsq2026] Below, we solve the normal system explicitly to check weights `[100, 20]`, MSE `2.8`, and orthogonality `True` while keeping `lstsq` as the default choice in production solves:
+Row-reducing gives $10m = 200 \implies m = 20$, and back-substitution gives $5b + 300 = 800 \implies b = 100$. In code, never compute an explicit matrix inverse; use a linear solver or direct QR/SVD least squares (`np.linalg.lstsq`). Below, solving the normal system directly confirms `[100, 20]`, MSE `2.8`, and exact residual orthogonality:
 
 <!-- leetllm: test, output=show -->
 ```python title="numpy-implementation-with-the-closed-form.py"
@@ -344,11 +332,22 @@ cond_XTX 69.99
 ```
 <!-- leetllm: output:end -->
 
-The 2-norm condition number of $X$ is $\sigma_{\max} / \sigma_{\min} \approx 7.69 / 0.92 \approx 8.37$. Squaring that condition number when forming $X^\top X$ produces $69.99$. On five well-behaved rows that solves cleanly, but on ill-conditioned data that squaring can wipe out numerical precision.
+The 2-norm condition number of $X$ is $\sigma_{\max} / \sigma_{\min} \approx 7.69 / 0.92 \approx 8.37$, while forming $X^\top X$ squares it to `69.99`. On ill-conditioned features, that squaring can erase digits of precision before the solve even starts.
 
-Numerical rank is also a solver decision. In NumPy 2.0 and later, `rcond=None` uses machine precision times the larger matrix dimension as a relative singular-value cutoff. A singular value below that fraction of the largest one is treated as zero. Increasing the cutoff can discard a nearly dependent direction, changing both coefficients and fitted predictions; it doesn't prove exact redundancy in the underlying features.[^numpyLstsq2026]
+<details>
+<summary>Deep dive: Cholesky complexity, memory scaling, and numerical rank cutoffs</summary>
 
-Appending a redundant feature column such as `double_tokens = 2 * tokens` makes the design rank deficient because the third column supplies zero new information. `np.linalg.solve` consequently raises a singular matrix error on $X^\top X$. By contrast, `np.linalg.lstsq` detects rank `2` across `3` columns and keeps MSE at `2.8`:
+For dense matrices with $N$ rows and $D$ features (absorbing the intercept into $D$), solving the normal equations via Cholesky factorization ($X^\top X = L L^\top$) carries three costs:
+
+1. **Gram formation** ($X^\top X$): $O(N D^2)$ arithmetic operations.
+2. **Cholesky factorization**: $O(D^3)$ operations (followed by $O(D^2)$ triangular solves).
+3. **Gram storage**: $O(D^2)$ memory. At $D = 10{,}000$ features in `float64`, the Gram matrix alone holds 100 million entries (~800 MB), pushing large-feature problems toward iterative or sparse solvers.
+
+QR and SVD solvers like `np.linalg.lstsq` operate directly on $X$, avoiding the $\kappa_2(X)^2$ condition-number squaring.[^trefethen1997][^numpyLstsq2026] With `rcond=None`, NumPy treats singular values below machine precision times $\max(N, D+1)$ times $\sigma_{\max}$ as zero. When $X$ is rank deficient (or $N \le D+1$), `lstsq` also returns an empty `residual_sums` array, so compute `y - X @ w` directly whenever you need residuals across all cases.
+
+</details>
+
+Appending a duplicate column `double_tokens = 2 * tokens` makes the design rank deficient: `np.linalg.solve` crashes on the singular Gram matrix, while `np.linalg.lstsq` reports rank `2` across `3` columns and selects the minimum-norm weight vector `[100, 4, 8]` (since $4x + 8(2x) = 20x$):
 
 <!-- leetllm: test, output=show -->
 ```python title="redundant-features-break-normal-equation.py"
@@ -657,11 +656,13 @@ loss_increased True
 ```
 <!-- leetllm: output:end -->
 
-The five recorded losses, from initialization through the fourth update, grow from $2.6 \times 10^4$ to $9.4 \times 10^8$. The loop performs a fifth update after its last recording. This example isolates a step-size failure; it doesn't tell us whether a straight line is the right statistical model.
+The five recorded losses grow from $2.6 \times 10^4$ to $9.4 \times 10^8$ in four updates.
+
+> **Common mistake:** Standardizing features fixes conditioning for a single feature (turning $\kappa \approx 70$ into $\kappa = 1$), yet it does **not** remove correlation between features. Two duplicate columns remain exact duplicates after `StandardScaler`.
 
 ## Stabilizing ill-conditioned fits with Ridge and Lasso
 
-Strongly correlated columns can make coefficients sensitive to small data changes. If there are more parameters than rows, the OLS weights aren't unique without an additional choice such as minimum norm. Neither situation alone proves that prediction variance is severe. **<span data-glossary="regularization">Regularization</span>** adds a parameter penalty and can improve stability; its predictive value needs held-out evaluation.[^hastie2009]
+Strongly correlated features make OLS coefficients swing wildly under tiny data perturbations, and having more parameters than rows leaves OLS weights non-unique. **<span data-glossary="regularization">Regularization</span>** adds a penalty on feature weights to stabilize the fit, trading a small bias for lower variance.[^hastie2009]
 
 **Ridge Regression (L2 regularization)** adds the sum of squared feature weights to the loss:
 
@@ -669,15 +670,13 @@ $$
 J_{\text{ridge}}(w) = \frac{1}{N} \|X w - y\|_2^2 + \lambda \|w_{1:D}\|_2^2
 $$
 
-Our objective excludes the intercept $w_0=b$. Define $R=\operatorname{diag}(0,1,\ldots,1)$, then set the gradient to zero:
+Notice that the penalty excludes the intercept $w_0 = b$. Setting $R = \operatorname{diag}(0, 1, \ldots, 1)$ and solving $\nabla_w J_{\text{ridge}}(w) = 0$ gives:
 
 $$
 w^*_{\text{ridge}} = \left( X^\top X + \lambda N R \right)^{-1} X^\top y
 $$
 
-Use a linear solve rather than explicitly computing that inverse. With at least one row, an all-ones intercept column, all other coefficients penalized, and $\lambda>0$, the system is positive definite even when feature columns are redundant. For any vector $v$, its quadratic form is $\|Xv\|^2+\lambda N\sum_{j=1}^D v_j^2$. It can be zero only when all feature coordinates vanish and the intercept does too.
-
-The familiar $X^\top X+\lambda N I$ formula penalizes **every** coordinate, including the intercept, shifting every eigenvalue uniformly whereas the feature-only penalty does not. Ridge shrinks feature weights overall and introduces bias in their estimates, though individual correlated coefficients do not have to shrink monotonically and better future prediction is not guaranteed. Accidentally replacing $R$ with $I$ at $\lambda=1$ alters both the baseline and slope, whereas the feature-only fit preserves the training target mean because its intercept remains free:
+For $\lambda > 0$, the matrix $X^\top X + \lambda N R$ is strictly positive definite even when feature columns are collinear (so a linear solve always succeeds). Using $I$ instead of $R$ penalizes the intercept too, pulling predictions toward zero and breaking the match between mean prediction and target mean:
 
 <!-- leetllm: test, output=show -->
 ```python title="ridge-penalty-must-preserve-the-intercept.py"
@@ -748,21 +747,24 @@ Library parameters need the same care. scikit-learn's `Ridge` uses summed square
 
 ## Gauss-Markov foundations and residual diagnostic checks
 
-The **Gauss-Markov theorem** gives a precise, limited reason to value OLS. Conditional on a full-column-rank design and the assumptions below, it is **BLUE**, the Best Linear Unbiased Estimator. "Linear" describes an estimator that is a linear function of the observed targets $y$; "best" means its covariance is no larger than that of another linear unbiased estimator.[^freedman2004GaussMarkov]
+Under clean classical error assumptions, the **Gauss-Markov theorem** shows that OLS is **BLUE**, the Best Linear Unbiased Estimator: among all unbiased estimators that are linear functions of the observed targets $y$, OLS achieves the smallest coefficient covariance.[^freedman2004GaussMarkov]
 
-The conditions are:
+<details>
+<summary>Deep dive: the five Gauss-Markov conditions and classical inference</summary>
 
-1. **Linearity in parameters**: $y=Xw+\epsilon$. Columns may include $x^2$ or $\log x$; the coefficients still enter linearly.
-2. **Zero conditional error mean**: $\mathbb{E}[\epsilon\mid X]=0$. Omitted effects correlated with included features or measurement error in features can violate this condition, though an omitted variable alone does not have to do so.
-3. **Full column rank**: $\operatorname{rank}(X)=D+1\le N$, so the weights are identifiable.
-4. **Constant conditional error variance**: $\operatorname{Var}(\epsilon_i\mid X)=\sigma^2<\infty$.
-5. **Uncorrelated conditional errors**: $\operatorname{Cov}(\epsilon_i,\epsilon_j\mid X)=0$ for distinct rows. Uncorrelated doesn't require independent. Sequential traffic may violate this condition through shared load or cache state.
+Conditional on a full-column-rank design matrix $X$, OLS is BLUE when:
 
-Together, the last two conditions say $\operatorname{Cov}(\epsilon\mid X)=\sigma^2I$. No normality assumption is part of the BLUE guarantee. Gaussian errors give the familiar exact small-sample $t$/$F$ results under the rest of the classical model; other inference methods use other assumptions. OLS consistency and asymptotic normality need sampling and moment conditions as well as identification. A larger sample alone doesn't overcome dependence, endogeneity, or heavy tails that break those conditions.
+1. **Linearity in parameters**: $y = Xw + \epsilon$. Nonlinear feature columns such as $x^2$ or $\log x$ are allowed; the weights $w$ still enter linearly.
+2. **Zero conditional error mean**: $\mathbb{E}[\epsilon \mid X] = 0$. Measurement error in features or omitted variables correlated with $X$ break this condition.
+3. **Full column rank**: $\operatorname{rank}(X) = D + 1 \le N$, making every coefficient identifiable.
+4. **Constant conditional error variance (homoscedasticity)**: $\operatorname{Var}(\epsilon_i \mid X) = \sigma^2 < \infty$.
+5. **Uncorrelated conditional errors**: $\operatorname{Cov}(\epsilon_i, \epsilon_j \mid X) = 0$ for $i \ne j$ (sequential traffic with shared load or cache state often breaks this).
 
-Don't substitute fitted residuals $e=y-X\hat w$ for unobservable population errors $\epsilon$. OLS residuals share constraints such as $X^\top e=0$ and can be correlated even when the true errors aren't. Five residuals aren't five estimates of a conditional expectation.
+Together, conditions 4 and 5 read $\operatorname{Cov}(\epsilon \mid X) = \sigma^2 I$. Notice that normality of $\epsilon$ is **not** required for BLUE; Gaussian errors are only needed for exact small-sample $t$ and $F$ intervals. Also keep fitted residuals $e = y - X\hat{w}$ distinct from true population errors $\epsilon$: because $X^\top e = 0$, fitted residuals are constrained and correlated even when true errors are independent.
 
-For our table, adding $x^2$ gives coefficients $[93,26,-1]$ and zero training error. The model is curved in $x$ but still **linear in its parameters**. Compare its extrapolation with the straight line before deciding which would generalize.
+</details>
+
+Because linearity in parameters allows nonlinear columns, adding $x^2$ to our table stays linear regression. It fits weights `[93, 26, -1]` with zero training error and bends the `x = 6` extrapolation down from `220` ms to `213` ms:
 
 <!-- leetllm: test, output=show -->
 ```python title="a-curved-predictor-can-be-linear-in-parameters.py"
@@ -790,15 +792,13 @@ quadratic_x6_ms 213.0
 ```
 <!-- leetllm: output:end -->
 
-Both predictions lie outside the observed range, and exact training fit does not prove a physical law. Collect fresh data across the target context span and compare held-out errors side by side. Verify whether nonlinear feature transforms remain physically sensible before trusting any extrapolated curve.
+Both `220.0` ms and `213.0` ms extrapolate past our observed range, and hitting zero error on five points only shows that a parabola can bend through them. Fresh measurements at 600 tokens settle which curve generalizes better.
 
 ## Evaluation starts on unseen requests
 
-Training metrics describe data used by the solver. To estimate performance on fresh traffic, plan a <span data-glossary="train-validation-test-split">train, validation, and test split</span> that matches intended use. A random split may suit independent requests; a time split tests future traffic, and a grouped split can keep repeated users or replay families together. Test novel length/topic/load ranges separately when those shifts matter. Neither random splitting nor deliberately unfamiliar inputs automatically represent deployment.
+Training scores only measure fit on rows the solver already saw. To estimate performance on fresh traffic, build a <span data-glossary="train-validation-test-split">train, validation, and test split</span> that mirrors how the model will be used: random splits for independent requests, time splits for future traffic, and grouped splits when repeated users or sessions share structure. Hold out the test partition before exploratory analysis.
 
-To demonstrate data separation mechanics, refit using only the first four evidence lengths ($x \in \{1, 2, 3, 4\}$) and score the held-out fifth request ($x = 5$). Because all five points were already inspected above, this retrospective split demonstrates mechanics rather than untouched holdout evaluation. In real projects, hold out test partitions before exploratory analysis.
-
-Will removing the final row make the slope steeper or flatter? The first four increments are larger; the fit becomes $98+21x$ and predicts 203 ms for the held-out `x=5`.
+To see split mechanics on our five rows, fit on the first four lengths ($x \in \{1, 2, 3, 4\}$) and evaluate on the held-out fifth request ($x = 5$). Because the first four increments are slightly steeper, the fit shifts to $\hat{y} = 98 + 21x$ and predicts `203` ms for `x = 5`:
 
 <!-- leetllm: test, output=show -->
 ```python title="evaluate-a-held-out-request.py"
@@ -865,16 +865,16 @@ r2 0.9965
 ```
 <!-- leetllm: output:end -->
 
-Agreement confirms the arithmetic on this dataset, though it does not prove every corner case or imply identical numerical algorithms because a library may center features and apply a least-squares factorization instead of forming a Gram system. As checked on October 10, 2026, [scikit-learn 1.9's `LinearRegression`](https://scikit-learn.org/1.9/modules/generated/sklearn.linear_model.LinearRegression.html) uses `tol` as the singular-value cutoff `cond` for dense least squares, whereas NumPy's `lstsq(rcond=None)` applies its own machine-precision cutoff. Near-collinear matrices can therefore report different numerical ranks unless tolerances and library versions are recorded side by side.
+Exact agreement confirms our hand derivation and NumPy solve against a standard library solver. Under the hood, `LinearRegression` centers features and calls a direct least-squares factorization rather than forming $X^\top X$, and uses its `tol` parameter as the singular-value rank cutoff, so near-collinear matrices can occasionally report slightly different numerical ranks than `np.linalg.lstsq(rcond=None)`.
 
 ## Operating limits and extrapolation guardrails
 
-A fitted line predicts `220 ms` for `x = 6`, yet a point estimate conveys no uncertainty on its own. A classical regression **<span data-glossary="prediction-interval">prediction interval</span>** combines uncertainty in the fitted mean with the scatter of an individual future observation, whereas a **<span data-glossary="confidence-interval">confidence interval</span>** covers only the conditional mean. Neither interval turns five observations into an unconditional latency guarantee when misspecification or distribution shift breaks model assumptions.
+A point prediction of `220 ms` at `x = 6` hides uncertainty. A **<span data-glossary="confidence-interval">confidence interval</span>** brackets uncertainty in the conditional mean latency at `x`, whereas a **<span data-glossary="prediction-interval">prediction interval</span>** is wider because it also adds the scatter of an individual future observation.
 
-Even a careful interval does not tell an inference service how to handle an input length outside observed support, so record that training range alongside the saved weights:
+For deployment, store the training domain alongside the weights:
 
-1. Record feature units, allowable training ranges ($1 \le x \le 5$), condition numbers, and held-out error distributions alongside saved weights.
-2. If an incoming request arrives with `x = 50` after training on `1` through `5`, route it to an explicit fallback path rather than trusting linear extrapolation, because dynamics outside the training domain often transition into different regimes such as memory paging or context truncation.
+1. Save feature units, observed training ranges ($1 \le x \le 5$), condition numbers, and held-out error distributions with the model artifact.
+2. Route extreme out-of-range inputs (such as `x = 50` after training on `1` through `5`) to an explicit fallback rather than trusting linear extrapolation, because long contexts trigger nonlinear regime changes like memory paging or context truncation.
 
 ## Common failure patterns
 
@@ -885,7 +885,7 @@ Each symptom below suggests diagnostic evidence to inspect before running a targ
 | Residuals show a low-high-low arc | More observations at comparable lengths; load/cache and omitted-feature patterns | Compare a curved or richer-feature fit on fresh data |
 | Gradient-descent loss grows | Actual gradient formula, finite input values, Hessian eigenvalues, and learning rate | On this quadratic, try a rate inside the bound; scale features using training statistics |
 | A Gram solve fails or coefficients vary sharply | Numerical rank, singular values, duplicate columns, units, and perturbation sensitivity | Try direct `lstsq`; compare feature removal and feature-only Ridge on held-out predictions |
-| High training $R^2$, large test error | Split integrity, feature availability at prediction time, and differences in traffic | Audit leakage and evaluate with a split matching the observed shift |
+| High training $R^2$, large test error | Split integrity, feature availability at prediction time, and differences in traffic | Check for leakage and evaluate with a split matching the observed shift |
 | One row changes the fit substantially | Both unusual feature values (leverage) and its residual; possible measurement faults | Compare fits with/without the row and a suitable robust loss; don't remove valid traffic merely for being extreme |
 
 ## Try it yourself

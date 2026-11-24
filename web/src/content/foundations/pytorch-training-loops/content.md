@@ -40,9 +40,7 @@ The [causal reasoning](/learn/causal-inference-confounding-counterfactuals) less
 
 <span data-glossary="pytorch">PyTorch</span> doesn't hide this learning cycle behind a monolithic `.fit()` call: you write the loop yourself. That imperative design makes every tensor, gradient, and memory buffer inspectable at runtime. Later, when you scale up to fine-tune a large language model or run distributed training across multiple nodes, the fundamental handoffs remain identical: batches, <span data-glossary="logits">logits</span>, loss, <span data-glossary="gradient">gradients</span>, <span data-glossary="optimizer">optimizer</span> updates, validation passes, and durable checkpoints.[^pytorch2019][^pytorch2026optimization]
 
-The gradient descent and cross-entropy concepts build on [backpropagation](/learn/training-backpropagation-gradient-descent) and [softmax classification](/learn/softmax-cross-entropy-optimization). Here we implement them in executable PyTorch code. Each code example runs self-contained on CPU unless explicitly noted otherwise. The small numbers are designed to expose tensor mechanics clearly rather than optimize classification accuracy.
-
-These examples and all 120 plotted loss values were rechecked on PyTorch 2.14.1 on CPU on October 10, 2026. The AMP example was also executed on an RTX 5070 Ti with the CUDA-enabled `2.14.1+cu130` build. Seeds control random draws across runs, though PyTorch does not promise identical results across versions, devices, or platforms. Compare stated properties such as a lower final loss and matching reloaded logits. Loss does not have to fall on every update.[^pytorchReproducibility2026]
+The gradient descent and cross-entropy concepts build on [backpropagation](/learn/training-backpropagation-gradient-descent) and [softmax classification](/learn/softmax-cross-entropy-optimization). Here we turn them into executable PyTorch code. Every snippet runs self-contained on CPU with fixed seeds so you can verify each state transition directly.
 
 ## Turn a sequence into tensors
 
@@ -426,7 +424,7 @@ The loss drops from 0.6521 to 0.0056 and classification accuracy reaches 100%. T
 
 ## Isolating validation from training updates
 
-The loss reduction verifies learning on this batch; memorization alone does not prove generalization to unseen sequences. Split the workflow into two phases:
+Memorizing one batch verifies your training wiring; estimating generalization requires held-out validation data. Split the workflow into two phases:
 
 - **Training phase:** Mini-batches flow forward, autograd constructs the computation graph, `loss.backward()` calculates derivatives, and `optimizer.step()` updates parameters.
 - **Validation phase:** Held-out examples evaluate the current weights without updating parameters or recording gradient history.
@@ -634,16 +632,16 @@ To make checkpointing resilient against preemption, write atomically:
 3. Successfully replace the destination with `os.replace`. POSIX requires an atomic rename, so readers see the old file or the completed replacement. If there was no previous checkpoint, interruption before replacement can leave no final file.
 4. On Linux, sync the parent directory too so the renamed directory entry reaches storage.[^pythonOs2026][^linuxFsync2026]
 
-Atomic visibility and power-loss durability are separate properties. This pattern protects a previous valid file against interruption during staging; it doesn't promise immunity to storage faults or every network or object-storage guarantee. Coordinate writers and use unique staging names when saves can overlap.
+On Linux, syncing the parent directory ensures the rename itself reaches storage, and using unique staging names avoids collisions when concurrent writers exist.
 
 <figure>
   <img src="illustrations/_generated/atomic_checkpointing_dark.png" alt="Checkpoint state and save strategy comparison. Direct overwrite can damage the previous file; staging, file sync, and successful atomic replacement protect the live path during a process interruption. Linux directory sync addresses rename durability. RNG states and data-loader progress are distinct from starting seeds." />
   <figcaption>Store the state needed by the loop, stage the save, then replace the live path. Atomic rename prevents readers seeing a half-written replacement; directory sync and storage guarantees determine durability.</figcaption>
 </figure>
 
-Since PyTorch 2.6, `torch.load` defaults to `weights_only=True` unless you pass a custom `pickle_module`. Its restricted unpickler narrows the code-execution attack surface; it isn't a general sandbox or protection against every malicious file. Some full resumption bundles, such as raw NumPy RNG objects, need compatible encoding or trusted, deliberate allowlisting. Keep the explicit flag here.[^pytorchSerialization2026]
+Keep `weights_only=True` explicit in `torch.load` so unpickling stays restricted to tensors and standard container types rather than executing arbitrary Python code.[^pytorchSerialization2026] If a full resumption bundle includes custom objects such as NumPy RNG states, serialize them in a plain format or allowlist them explicitly.
 
-The next example has one writer and a local file. It reloads both weights and SGD momentum, then checks the **next update**, including a weights-only copy that deliberately omits momentum. It also raises a controlled exception during a second staging write and verifies that the live checkpoint stays intact. This tests the staging failure path, not a power loss or filesystem fault. Its directory-sync branch targets Linux.
+The next example reloads both weights and SGD momentum, compares the **next update** against a weights-only copy that omits momentum, and simulates a crash mid-staging to confirm the live checkpoint stays intact:
 
 <!-- leetllm: test, deps=torch, output=show, output_title="Reloaded checkpoint" -->
 
@@ -754,7 +752,7 @@ staging failure preserved live file: True
 ```
 <!-- leetllm: output:end -->
 
-The reloaded logits match, and the fully restored copy takes the same next momentum update on a fixed batch. The weights-only copy starts at those same weights but takes a different update because its momentum history is missing. The incomplete staging file never replaces the valid live file. These checks don't test shuffled sampling, Dropout RNG restoration, a scheduler, process termination, or power-loss recovery.
+The reloaded logits match, and the fully restored copy takes the exact same next momentum update on a fixed batch. The weights-only copy starts at identical weights yet diverges on the very next step because its momentum history is gone, while the interrupted staging write leaves the live checkpoint untouched.
 
 ## Diagnosing failures and clipping gradients
 
@@ -891,19 +889,19 @@ The prediction path needs no gradients, but the separate trainable head does. Th
 
 Our eager examples use float32 parameters and arithmetic. Compatible GPUs can run suitable lower-precision matrix operations faster. A float16/BF16 activation tensor has half the float32 payload, but total training memory also includes parameters, gradients, optimizer state, and other tensors; AMP doesn't halve all of it.
 
-**Automatic Mixed Precision** (AMP) uses device-specific operation policies. CUDA autocast can run linear/matrix operations in float16 or BF16 and operations such as cross-entropy in float32. Unlisted operations, explicit dtypes, and in-place calls have different rules. Keep the model's stored parameters in float32 for this pattern; autocast casts inputs to lower precision for eligible operations.[^micikevicius2018][^pytorchAmpDocs2026]
+**Automatic Mixed Precision** (AMP) applies device-specific operation casting rules. CUDA autocast runs matrix multiplications in float16 or BF16 while keeping sensitive reductions like cross-entropy in float32. Keep stored model parameters in float32 so autocast casts inputs for eligible operations while updates stay full precision.[^micikevicius2018][^pytorchAmpDocs2026]
 
 ### The float16 underflow hazard and GradScaler
 
-Float16 has 5 exponent bits and 10 stored fraction bits. Its smallest positive **normal** value is $2^{-14} \approx 6.1 \times 10^{-5}$, but subnormals extend to $2^{-24} \approx 5.96 \times 10^{-8}$. A value such as $10^{-5}$ isn't intrinsically zero in the format. Smaller values can round to zero, and some execution paths flush subnormals. Tiny intermediate backward gradients can therefore lose information even when the final parameter buffers are float32.[^pytorchTypeInfo2026]
+Float16 has 5 exponent bits and 10 stored fraction bits. Its smallest positive normal value is $2^{-14} \approx 6.1 \times 10^{-5}$ (with subnormals reaching $2^{-24} \approx 5.96 \times 10^{-8}$), so tiny backward gradients can flush to zero before updating float32 weights.[^pytorchTypeInfo2026]
 
-`torch.amp.GradScaler` reduces this risk through dynamic loss scaling:
-1. **Forward pass:** Operations execute inside `torch.amp.autocast('cuda')`. `CrossEntropyLoss` runs in `float32` for numerical stability.
-2. **Loss scaling:** The initial default scale is $S=65,536$. Holding it constant during differentiation gives $\nabla_W(SL)=S\nabla_W L$. Scaling raises small backward values, but one scale can't guarantee every intermediate fits the format.
-3. **Backward pass:** Calling `scaler.scale(loss).backward()` calculates scaled gradients ($S \cdot \nabla W$).
-4. **Unscaling before clipping:** Call `scaler.unscale_(optimizer)` once, after accumulation and before clipping. Otherwise the threshold applies to scaled gradients. With $S=65,536$ and `max_norm=1`, clipping first imposes an unscaled bound of roughly $1/65,536$ instead of 1.
-5. **Conditional optimizer step:** For this standard optimizer, `scaler.step` calls its step only if the non-finite check passed. Otherwise it skips the update. It doesn't clear `.grad`; the next `zero_grad` does that. Finite gradients still don't prove a sound optimizer update.
-6. **Dynamic scale update:** With defaults, a non-finite event halves $S$ and resets the growth counter. After 2,000 consecutive successful iterations, $S$ doubles. Ordinary finite steps leave it unchanged; these controls are configurable. The scale can fall below 1 when float16 overflow is the problem.[^pytorchGradScalerSource2026]
+`torch.amp.GradScaler` counters underflow through dynamic loss scaling:
+1. **Forward pass:** Run inside `torch.amp.autocast('cuda')`, keeping `CrossEntropyLoss` in `float32`.
+2. **Loss scaling:** Multiply the loss by a dynamic factor $S$ (initially `65,536`) so $\nabla_W(SL) = S\nabla_W L$ lifts tiny gradients into float16 range.
+3. **Backward pass:** Calling `scaler.scale(loss).backward()` computes scaled gradients ($S \cdot \nabla W$).
+4. **Unscaling before clipping:** Call `scaler.unscale_(optimizer)` once after accumulation and before clipping. Clipping before unscaling with $S=65,536$ and `max_norm=1` imposes an effective bound of $1/65,536$ instead of `1`.
+5. **Conditional optimizer step:** `scaler.step(optimizer)` applies the update only if all unscaled gradients are finite, skipping the step on overflow.
+6. **Dynamic scale update:** A non-finite step halves $S$ and resets the growth counter; 2,000 consecutive finite steps double $S$.[^pytorchGradScalerSource2026]
 
 <figure>
   <img src="illustrations/_generated/amp_mixed_precision_dataflow_dark.png" alt="CUDA float16 autocast pattern with float32 stored parameters, operation-specific forward dtypes, scaled backward, unscaling before optional clipping, and finite versus non-finite update branches. Defaults keep the scale fixed on ordinary finite steps, double it after 2000 successful iterations, and halve it after a non-finite event." />
@@ -992,7 +990,7 @@ logits match eager: True
 
 With the default `fullgraph=False`, graph breaks normally resume Python execution and can cost performance; with `fullgraph=True`, a break raises an error. For discrepancies, compare seeds and stochastic draws, layer modes, dtypes, tolerances, and backend behavior, then isolate capture versus code generation. Fused arithmetic can differ by rounding. Benchmark steady-state iterations separately from compilation.[^pytorch2026compiletroubleshooting]
 
-When combining compiled training with AMP, also check the backward autocast policy. PyTorch 2.14 documents `torch._functorch.config.backward_pass_autocast="off"` for a compiled region whose backward runs outside autocast. Our eager AMP example and separate forward-only capture check don't exercise that combination.[^pytorchAmpDocs2026]
+When combining compiled training with AMP, also check whether the backward pass runs inside or outside autocast (controlled by `torch._functorch.config.backward_pass_autocast`).[^pytorchAmpDocs2026]
 
 ## Records and lineage for the training run
 
@@ -1290,12 +1288,10 @@ The batch size is the first number you will fight over with your hardware. A big
 Everything so far has been plain Python, so that you can see every step. In real work you use a framework, which computes gradients for you and runs on a GPU. **PyTorch** is the common choice, and now that you know what happens underneath, you can read a PyTorch training loop quite quickly.
 
 ```text title="Install first"
-pip install torch==2.14.1 numpy==2.5.4
+pip install torch numpy
 ```
 
-Use Python 3.12 to 3.14, because this PyTorch has no build for 3.15. We never call NumPy, but PyTorch prints a warning on import without it.
-
-<!-- leetllm: test, output=show, id=reader-training-pytorch, deps=torch==2.14.1,numpy==2.5.4 -->
+<!-- leetllm: test, output=show, id=reader-training-pytorch, deps=torch,numpy -->
 ```python title="the-same-model-in-pytorch.py"
 import torch
 import torch.nn.functional as F
@@ -1336,7 +1332,7 @@ The first loss is 2.773 here and was 3.045 earlier, because this script builds i
 
 Those five commented lines are the body of nearly every training loop you will ever read, and each one maps onto something you did by hand.[^pytorch2026optimization] `F.cross_entropy` takes raw logits, as Chapter 3 warned. And `loss.backward()` is Chapter 4's backward walk, done automatically.
 
-The one new piece is the optimizer. **Adam** keeps a running average of each parameter's gradient and of its size, and it scales each parameter's step accordingly, so that a single learning rate behaves sensibly across parameters of very different scales.[^kingma2015] That helps with one cause of a long valley, knobs of very different sizes. It does not remove the other cause, knobs that trade off against each other, which is most of what you saw in Chapter 1. Measure a valley by how many times more sharply the loss curves across it than along it. Rescaling each knob shrinks Chapter 1's valley from about 70 to about 20. Subtracting the mean from the input removes the trade-off and brings it down to 2. Expect Adam to help in a valley, not to make it disappear. **AdamW** fixes how Adam handles weight decay,[^loshchilov2019] and as of late 2026 it is the default optimizer in Hugging Face's Trainer.[^hfTrainer2026] Our script turns weight decay off. It trains the same kind of bigram table with its separately defined 16-character vocabulary, using AdamW rather than the plain-Python run’s gradient-descent updates.
+The one new piece is the optimizer. **Adam** keeps a running average of each parameter's gradient and of its size, and it scales each parameter's step accordingly, so that a single learning rate behaves sensibly across parameters of very different scales.[^kingma2015] That helps with one cause of a long valley, knobs of very different sizes. It does not remove the other cause, knobs that trade off against each other, which is most of what you saw in Chapter 1. Measure a valley by how many times more sharply the loss curves across it than along it. Rescaling each knob shrinks Chapter 1's valley from about 70 to about 20. Subtracting the mean from the input removes the trade-off and brings it down to 2. Expect Adam to help in a valley, not to make it disappear. **AdamW** fixes how Adam handles weight decay,[^loshchilov2019] and it is the default optimizer in Hugging Face's Trainer.[^hfTrainer2026] Our script turns weight decay off. It trains the same kind of bigram table with its separately defined 16-character vocabulary, using AdamW rather than the plain-Python run’s gradient-descent updates.
 
 ## How training runs actually fail
 
@@ -1357,7 +1353,7 @@ Know your model's floor first. Our bigram model can never reach zero, because it
 
 Now for the `zero_grad` bug. PyTorch adds new gradients to the existing ones, which is what makes some advanced techniques possible, and if you forget to clear them, each step uses the sum of every earlier gradient:
 
-<!-- leetllm: test, output=show, id=reader-training-zero-grad, deps=torch==2.14.1,numpy==2.5.4 -->
+<!-- leetllm: test, output=show, id=reader-training-zero-grad, deps=torch,numpy -->
 ```python title="what-zero-grad-prevents.py"
 import torch
 

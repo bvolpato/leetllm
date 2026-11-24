@@ -28,30 +28,26 @@
 }
 ---
 
-This week the review queue is larger than the team can label. Reviewers can draw 100 flagged signups at random and confirm 16 abuse cases. The dashboard wants to report `16%`, while the review lead needs to decide how much that number could move before changing capacity. [Bayesian Inference from Evidence](/learn/bayesian-inference-priors-posteriors) combined ten coding-agent outcomes with an explicit prior. Here we'll ask how a sample-based estimate moves across repeated audits, before returning to the role of a prior.
+You draw 100 flagged signups at random from an unlabeled stream and find 16 confirmed abuse cases. That single fraction, `16%`, looks concrete, yet if you drew another 100 signups from the exact same stream five minutes later, you could easily see `10` or `22`. Before acting on `16%`, you need to know how far random sampling can move it, and whether your 100 labels even came from the right population.
 
-The earlier [probability lesson](/learn/probability-for-machine-learning) counted 95 abusive flags among all 590 flags in a fully labeled signup snapshot. That was a population calculation. This week's queue is much larger and mostly unlabeled: `16 / 100` is evidence about an unknown rate, not an exact count of the whole queue.
+[Bayesian Inference from Evidence](/learn/bayesian-inference-priors-posteriors) combined ten observations with an explicit prior. Here we measure how a sample-based estimate fluctuates across repeated draws, build confidence intervals that survive boundary cases like `0/10`, expose how selection bias beats sample size, and return to priors through MLE versus MAP. Earlier in [Probability for Machine Learning](/learn/probability-for-machine-learning), counting 95 abusive cases out of 590 fully labeled flags was a population calculation; here the full stream is mostly unlabeled, so `16 / 100` is statistical evidence about an unknown rate.
 
 ## Start with the target behind 16%
 
-Before doing arithmetic, finish this sentence: "16 of 100 **what**?" Both numbers refer to flagged signups, so the sample has a precise target:
+Before computing intervals, pin down the denominator: "16 of 100 **what**?"
 
-| Name | Meaning here |
+| Term | Meaning here |
 |---|---|
-| Population | every flagged signup entering the manual-review queue this week |
-| Sample | 100 flagged signups selected at random and reviewed by humans |
-| Success | reviewer confirms the signup is abusive |
-| Unknown rate | $P(\text{abusive} \mid \text{flagged})$, also called <span data-glossary="precision-recall">review-queue precision</span> |
-
-The **population** is the full set you want to describe. This week's queue is that population. The **sample** is the 100 signups you managed to label. It's evidence about the queue, not a smaller name for the queue itself. Now name the target quantity: the **estimand** is the queue's unknown abuse rate, $p = P(\text{abusive} \mid \text{flagged})$.
-
-The **estimator** is the rule applied to labels, here $\hat{p} = k/n$. This sample produces one realized **estimate**, $16/100 = 0.16$. A different random sample could produce a different estimate even if the queue's true rate stayed fixed.
+| **Population** | All flagged signups entering the review stream this week |
+| **Sample** | 100 flagged signups drawn at random and labeled |
+| **Estimand ($p$)** | The stream's unknown precision, $P(\text{abusive} \mid \text{flagged})$ |
+| **Estimator ($\hat{p}$)** | The rule $k / n$, yielding the realized **estimate** $16 / 100 = 0.16$ |
 
 $$
 \hat{p} = \frac{16}{100} = 0.16
 $$
 
-The hat on $\hat{p}$ says "estimate." It doesn't say the full queue is exactly 16 percent abuse. For a Bernoulli rate, $k/n$ is also the **maximum-likelihood** estimate: the value of $p$ that makes these observed labels most likely under the model. The decision concerns the flagged queue rather than all signups. If only 1 percent of all signups are abusive, a useless model that labels every signup clean is 99 percent accurate. For review planning, ask how much of the flagged queue is worth a human review. Run that smallest possible report before adding any uncertainty machinery:
+The hat on $\hat{p}$ marks an estimate rather than the exact population parameter. For independent Bernoulli labels, $k / n$ is also the **maximum-likelihood estimate (MLE)**: the value of $p$ that maximizes the probability of observing `16` positives and `84` negatives. Notice why we track <span data-glossary="precision-recall">review-queue precision</span> $P(\text{abusive} \mid \text{flagged})$ instead of overall accuracy: if only `1%` of all signups are abusive, a trivial classifier that labels everything clean achieves `99%` accuracy while catching zero abuse.
 
 <!-- leetllm: test, output=show, output_title="Queue point estimate" -->
 
@@ -77,15 +73,12 @@ misleading rare-event baseline accuracy: 99.0%
 ```
 <!-- leetllm: output:end -->
 
-That denominator assumes all 100 selected signups received a usable label. Suppose instead that 80 are resolved, including 16 abuse cases, while 20 remain unresolved:
+<details>
+<summary>Deep dive: missing-label bounds when some sampled items go unresolved</summary>
 
-| Calculation | What it describes |
-|---|---|
-| `16 / 80 = 20%` | abuse among the resolved cases |
-| `16 / 100 = 16%` | treats every unresolved case as non-abuse |
-| `16 / 100` through `(16 + 20) / 100` | possible abuse fractions in the selected sample: 16% through 36% |
+The denominator `100` assumes every sampled item received a label. If `80` items were resolved (`16` abuse) and `20` remained unresolved, dropping the `20` gives `16/80 = 20%`, while treating them as non-abuse gives `16/100 = 16%`. Letting all `20` unresolved items take either label yields **missing-label bounds** of `[16%, 36%]` for the selected sample. Always report selected, resolved, and unresolved counts together, because hard or high-risk cases often go missing non-randomly.[^statcanWeightingEstimation2009]
 
-The last range lets every missing label be either negative or positive. These **missing-label bounds** cover the unresolved cases in the selected sample. Estimating uncertainty for the queue also requires accounting for sampling variation. If difficult or high-risk cases are less likely to be resolved, dropping them can bias the result even though the original selection was random. Report selected, resolved, and unresolved counts, then investigate why labels are missing.[^statcanWeightingEstimation2009]
+</details>
 
 ```checkpoint
 Why is `16 / 100` a better running metric here than detector accuracy over all signups?
@@ -122,15 +115,13 @@ range across batches:    0.10 to 0.19
 ```
 <!-- leetllm: output:end -->
 
-The batches don't all return 16 percent. That movement isn't model drift because the simulated rate never changed. It's sampling variation. One measured rate answers a question about one sample. A production claim needs both the center and the amount that center can move.
+The eight batches range from `0.10` to `0.19` even though the underlying probability stayed fixed at `0.16`. That spread is pure **sampling variation**, not model drift.
 
-The simulation knew the true rate because we wrote it into the code. A real audit doesn't. It has to estimate sampling movement from the labels already in hand.
+In the simulation we knew `p = 0.16`. On a real dataset we have only the 100 labels in hand and must estimate that spread from them alone.
 
 ## Replay sampling with the labels in hand
 
-Our real audit has sixteen `1` values and eighty-four `0` values. The true queue risk remains unknown. The **<span data-glossary="bootstrap-resampling">bootstrap</span>** repeatedly samples 100 rows *with replacement* from those observed labels. Each resample gives another value of $k/n$, so its distribution approximates how the estimate might move if we could redraw the audit. It uses the empirical sample distribution as a plug-in estimate of the population without adding new data.[^efron1979][^hastie2009]
-
-For example, one resample might draw a particular abusive signup three times and omit another entirely. It does not need to preserve exactly 16 successes. `rng.choice(..., replace=True)` performs that draw; each of its 5,000 rows is a resampled audit. Taking the 2.5th and 97.5th percentiles gives a **percentile bootstrap interval**.[^scipyBootstrap2026]
+Our sample contains sixteen `1`s and eighty-four `0`s. The **<span data-glossary="bootstrap-resampling">bootstrap</span>** treats that empirical sample as a proxy for the population and draws 100 labels *with replacement* thousands of times.[^efron1979][^hastie2009] Each resample produces a fresh proportion $k/n$; taking the `2.5th` and `97.5th` percentiles across `5,000` resamples forms a **95% percentile bootstrap interval**.[^scipyBootstrap2026]
 
 <!-- leetllm: test, output=show, output_title="Bootstrap precision interval" -->
 
@@ -163,11 +154,12 @@ bootstrap estimates from 0/10: [0.0]
 ```
 <!-- leetllm: output:end -->
 
-The central bootstrap range is much wider than a single point. It approximates sampling uncertainty by treating these labels as the population. That approximation can fail: with ten zero labels, every resample also contains ten zeros, so the percentile interval collapses to `[0, 0]`. Resampling can't invent an unobserved abuse case. We'll need a different interval for that boundary case. Extra bootstrap repetitions only reduce Monte Carlo jitter in those percentile cut points. They don't add reviewed signups or repair a biased sample.
+The bootstrap interval `[0.090, 0.230]` immediately exposes the sampling spread around `0.160`. Notice two failure modes right away:
 
-Row-by-row resampling also assumes the rows act like independent draws. If the audit selects whole groups of linked signups, keep those groups together when estimating uncertainty; ten related rows aren't necessarily ten independent pieces of evidence. Match the resampling unit to the sampling design.[^statcanWeightingEstimation2009]
+- **Boundary collapse:** From `0 / 10` positives, every resample consists of ten zeros, collapsing the percentile interval to `[0, 0]`. Extra bootstrap repetitions only smooth Monte Carlo jitter; they never create new labels.
+- **Clustered data:** Row-by-row resampling assumes independent rows. If signups arrive in linked campaigns, resampling individual rows treats ten correlated copies as ten independent observations. Always resample at the independent **sampling unit**.[^statcanWeightingEstimation2009]
 
-Try a separate, deliberately extreme audit: draw ten independent signup campaigns, then label ten signups from each. Two campaigns are entirely abusive and eight entirely clean. The sample fraction is `20 / 100 = 20%`, but outcomes within each campaign are identical. Predict which bootstrap interval will be wider.
+Test that second rule directly on ten independent signup campaigns of ten signups each, where two campaigns are `100%` abusive and eight are `100%` clean (`20 / 100 = 20%`):
 
 <!-- leetllm: test, output=show, output_title="Resample the independent campaigns" -->
 
@@ -200,33 +192,31 @@ whole campaigns: [0%, 50%]
 ```
 <!-- leetllm: output:end -->
 
-`campaign_labels[campaign_indices]` has shape `(10_000, 10, 10)`: resampled audits, campaigns, and signups. Averaging the last two axes gives one estimate per audit. The row bootstrap breaks the dependence and creates the illusion of 100 independent observations. Here only ten independently sampled campaigns supply new evidence.
+`campaign_labels[campaign_indices]` has shape `(10_000, 10, 10)`: resamples, campaigns, and signups. Resampling rows yields a falsely narrow `[12%, 28%]`, pretending there are 100 independent draws; resampling whole campaigns yields `[0%, 50%]`, reflecting that only `10` independent campaigns supplied evidence.[^statcanWeightingEstimation2009]
 
-Ten campaigns are still a small sample, so coverage can vary widely around the nominal 95% level. A zero lower endpoint leaves population risk unresolved. This equal-size example illustrates the resampling unit; unequal campaign sizes or more complex selection require an estimator and resampling scheme matched to the intended signup population.[^statcanWeightingEstimation2009] Bootstrap gives us an empirical picture. For a binary rate, we can also estimate its typical movement with a short formula.
+> **Key insight:** Match the bootstrap resampling unit to the independent unit of data collection. Resampling rows inside correlated clusters artificially shrinks your standard error.
 
 ## Put a scale on the movement
 
-Bootstrap gave us a distribution of possible estimates. For this binary rate, we can also get a quick scale for that movement from the 16 successes in 100 labels. With `16 / 100`, the estimated variance of one binary label is `0.16 × 0.84 = 0.1344`. Averaging 100 independent labels divides that variance by 100. Take the square root to put it back on the rate's scale:
+For a binary proportion, we can also calculate the sampling scale analytically. With `16 / 100`, the estimated variance of a single Bernoulli label is $0.16 \times 0.84 = 0.1344$. Averaging 100 independent labels divides variance by `100`, and taking the square root returns to percentage-point units:
 
 $$
 \widehat{SE} = \sqrt{\frac{0.16 \times 0.84}{100}} \approx 0.0367
 $$
 
-That's about **3.7 percentage points** of typical sampling movement, not a 3.7 percent relative error. Under the independent-binomial model, the estimator's <span data-glossary="variance">variance</span> is $p(1-p)/n$. Substituting the observed rate $\hat{p}$ for the unknown $p$ gives the general standard-error estimate:
+In general, substituting $\hat{p}$ into the binomial variance $p(1-p)/n$ gives the **standard error** of a sample proportion:
 
 $$
 \widehat{SE} = \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}
 $$
 
-Standard error is the estimated <span data-glossary="standard-deviation">standard deviation</span> of the **estimator** across repeated samples. It isn't the spread of individual labels. Notice the $\sqrt{n}$ in the denominator: standard error scales as $1/\sqrt{n}$. Cutting your typical sampling margin in half requires $4\times$ as many labels. Cutting it by a factor of 10 requires reviewing $100\times$ as many signups. This square-root penalty governs labeling budgets across machine learning: statistical certainty gets progressively more expensive as you demand narrower margins. The <span data-glossary="central-limit-theorem">central limit theorem</span> explains why a sample mean can approach a normal shape as enough independent observations accumulate. It doesn't rescue tiny samples, dependent rows, or rates near 0 and 1.
-
-These examples treat the live queue as much larger than the sample. Sampling a substantial fraction of a fixed queue without replacement needs a finite-population correction, because inspecting more of the queue leaves fewer unknown labels. A census of all its labels has no sampling uncertainty about that queue, though future traffic and label errors remain uncertain. A familiar first approximation turns that scale into the **Wald interval**:
+Standard error is the standard deviation of the *estimator* across repeated samples, not the spread of individual labels. Because $n$ sits inside a square root, halving the uncertainty margin takes $4\times$ as many labels, and cutting it by $10\times$ takes $100\times$ as many. By the <span data-glossary="central-limit-theorem">central limit theorem</span>, the distribution of $\hat{p}$ approaches normal for large independent samples away from `0` and `1`, giving the quick **Wald interval**:
 
 $$
 \hat{p} \pm 1.96 \widehat{SE} = 0.16 \pm 0.0719 \approx [0.088,\ 0.232]
 $$
 
-Evaluating the interval midpoint reveals that the Wald midpoint is the observed rate, `0.16`; the standard error supplies the margin on each side.
+(When sampling a large fraction of a fixed finite queue without replacement, apply a finite-population correction $\sqrt{(N - n)/(N - 1)}$ to shrink the standard error accordingly.)
 
 <!-- leetllm: test, output=show, output_title="Quick interval calculation" -->
 
@@ -273,7 +263,7 @@ $$
 \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}
 $$
 
-For a rough 95 percent interval, use $z = 1.96$. The center isn't $\hat{p}$ because the score construction adds a small adjustment toward 0.5. With $n=100$ and $\hat{p}=0.16$, $z^2 \approx 3.84$, so the center is about $(0.16 + 3.84/200) / (1 + 3.84/100) \approx 0.173$. For `0 / 10`, the same adjustment moves the center off zero and keeps the margin positive. The code below uses $z=1.96$ exactly and returns `center - margin` and `center + margin`, clipped to $[0, 1]$. Evaluating boundary conditions demonstrates that Wald collapses at both endpoints, whereas Wilson remains leave room above `0` after zero successes and below `1` after ten successes.
+For a 95% interval, set $z = 1.96$ ($z^2 \approx 3.84$). Notice how Wilson shifts the center slightly toward `0.5`: for `16 / 100`, the center moves to `0.173`, and for `0 / 10`, the $z^2/(2n)$ term lifts the center off zero and keeps the upper bound positive. Compare Wald and Wilson across interior and boundary counts:
 
 <!-- leetllm: test, output=show, output_title="Wald failure and score interval" -->
 
@@ -320,11 +310,9 @@ for successes, n in [(16, 100), (0, 10), (10, 10)]:
   <figcaption>Wald and Wilson 95% confidence intervals across three sample regimes. At boundary counts (0/10 and 10/10), Wald collapses to zero width, falsely claiming absolute certainty. Wilson score intervals maintain finite uncertainty bounds.</figcaption>
 </figure>
 
-A 95% confidence level describes repeated use of the procedure: draw a sample, calculate an interval, and check whether it contains the true rate. Wilson targets 95% coverage under the binomial model and typically improves on Wald, but its coverage isn't exactly 95% for every sample size and rate.[^nistConfidenceIntervals2026][^nistBinomialIntervals2026] Coverage describes the procedure across replications. After seeing one realized interval, don't read it as "probability 0.95 that the true rate sits inside these two numbers." It isn't a posterior probability on these fixed endpoints.
+> **Common mistake:** A 95% confidence interval means the *procedure* covers the true population rate $p$ in roughly 95% of repeated samples.[^nistConfidenceIntervals2026][^nistBinomialIntervals2026] Do not read one realized interval `[0.101, 0.244]` as a 95% posterior probability on $p$, nor as a prediction interval for the next 100 signups (a future sample adds its own binomial scatter).
 
-The interval concerns the population rate, not the outcome of one signup or the fraction in the next 100 labels. That next batch has its own sampling variation even if the population rate were known exactly. Forecasting its count requires a prediction calculation, which we'll develop through binomial simulation in the next lesson.
-
-For the review decision, if a threshold lies inside this two-sided 95% interval, the interval does not prove that the rate is above or below it. Inclusion isn't proof of equality. Keep the sample size and confidence level fixed in advance; repeatedly checking until an interval clears a threshold requires a different analysis. For this binary report, use the Wilson interval. The immediate question is now practical: how much does a larger, still-representative sample narrow it?
+Fix sample size $n$ and confidence level in advance rather than peeking until an interval clears a threshold. When a target threshold sits inside the interval, the sample is too small to resolve which side the true rate lies on. Next, watch how growing $n$ tightens a Wilson interval.
 
 ```checkpoint
 Why should a report avoid the quick Wald interval for `0 / 10` reviewed abuse cases?
@@ -408,21 +396,21 @@ bias from wrong slice:   -5.6%
 ```
 <!-- leetllm: output:end -->
 
-In a real audit, the slice rates are estimates too. Confirm that the shares describe the target queue and that labels were selected randomly within each slice. If you deliberately review equal numbers from unequal-sized slices, don't pool their raw counts as though the result were a simple random sample of the queue. Weight the rates by population shares, and calculate uncertainty using the sampling design rather than applying the unweighted Wilson formula to the pooled counts.[^statcanWeightingEstimation2009] This trade-off has a clean mathematical foundation: the **bias-variance decomposition** of Mean Squared Error ($\text{MSE}$). For any estimator $\hat{p}$ targeting the unknown queue rate $p$:
+In practice, slice rates are estimates too. If you sample equal counts from unequal-sized strata, weight each stratum's rate by its true population share and compute stratified variance rather than applying unweighted Wilson to pooled counts.[^statcanWeightingEstimation2009]
+
+The **bias-variance decomposition** of Mean Squared Error (MSE) makes the trade-off exact:
 
 $$
 \text{MSE}(\hat{p}) = \mathbb{E}[(\hat{p} - p)^2] = \text{Bias}(\hat{p})^2 + \text{Var}(\hat{p})
 $$
 
-where $\text{Bias}(\hat{p}) = \mathbb{E}[\hat{p}] - p$. Under the independent-binomial model for a representative sample, the estimator is unbiased: $\text{Bias}(\hat{p}) = 0$. Mean squared error equals sampling variance, $\text{Var}(\hat{p}) = p(1-p)/n$. Gathering more independent labels drives variance down as $1/n$ (and standard error down as $1/\sqrt{n}$). A random sample without replacement is also unbiased for a fixed queue's rate, but uses the finite-population correction discussed above. Neither calculation removes labeling errors or uncertainty about future traffic.
-
-When you sample only routine domestic flags, your estimator converges to $\mathbb{E}[\hat{p}] = 0.120$ instead of the true queue rate $p = 0.176$. That leaves an irreducible bias of $\text{Bias} = 0.120 - 0.176 = -0.056$. Even if you label 10,000 domestic signups so variance collapses near zero:
+where $\text{Bias}(\hat{p}) = \mathbb{E}[\hat{p}] - p$. Under simple random sampling from the full queue, $\text{Bias}(\hat{p}) = 0$ and $\text{MSE} = p(1 - p)/n$, which vanishes as $n \to \infty$. Under domestic-only sampling, $\mathbb{E}[\hat{p}] = 0.120$ while $p = 0.176$, locking in an irreducible bias of `-0.056`. Even with `10,000` domestic labels driving variance to zero:
 
 $$
 \text{MSE}(\hat{p}) \to (-0.056)^2 + 0 \approx 0.00314
 $$
 
-The squared bias term creates an error floor while the sampling plan stays domestic-only. To reduce it, spend part of the labeling budget on the omitted slices and weight their rates by the queue mix.
+> **Key insight:** Sample size shrinks variance at rate $1/n$, never selection bias. Fixing an unrepresentative sample requires covering the missing strata and weighting them by queue share.
 
 <figure>
   <img src="illustrations/_generated/sample_size_vs_bias_dark.png" alt="Left chart shows 95% Wilson intervals around a 16% observed rate narrowing as sample size grows from 100 to 10,000 (widths: 14.3 pp, 4.5 pp, 1.4 pp). Right chart illustrates sampling bias: evaluating only the domestic cohort (12% rate) underestimates the overall flagged-queue abuse rate (17.6% across domestic, international, and high-value tiers) by 5.6 percentage points." />
@@ -492,7 +480,7 @@ The output makes the scale of the prior's influence visible: `1 / 5` moves from 
 
 ## A four-point calibration gap can still be noise
 
-The Bayesian lesson asked whether forecasts line up with outcomes on new tasks. That's <span data-glossary="calibration">calibration</span>: among many comparable cases assigned a probability near 20 percent, do about 20 percent have positive outcomes? Use a separate audit of 100 randomly selected signups all assigned risk `0.20` before reviewers see their outcomes. Suppose 16 are abusive. These are new labels, chosen from one score bucket; the same `16 / 100` arithmetic applies. The observed gap is four percentage points. Does this bucket have enough evidence to rule out 20 percent?
+A risk classifier is **<span data-glossary="calibration">calibrated</span>** when cases assigned a predicted probability of `0.20` actually turn out positive roughly `20%` of the time. Suppose we draw `100` fresh signups from the `0.20` predicted-risk bucket and observe `16` abuse cases. That `4`-percentage-point gap looks suspicious at first glance, yet the Wilson interval tests whether `0.20` is still compatible with sampling variation:
 
 <!-- leetllm: test, output=show, output_title="Calibration needs labels" -->
 
@@ -530,9 +518,7 @@ observed interval:     [10.1%, 24.4%]
 ```
 <!-- leetllm: output:end -->
 
-The interval includes 20 percent, so this preselected bucket hasn't established a calibration failure by the two-sided 95% comparison. It hasn't established exact calibration either. A wide interval can hide an operationally important gap.
-
-Real buckets contain nearby, not identical, predictions. Compare their average prediction with their observed rate and preserve the number of labels in each bucket. Use held-out outcomes, choose bins before inspecting them, and don't treat one compatible bucket as evidence that the whole model is calibrated. Searching many buckets for a mismatch also needs a multiple-comparison plan.[^nistBonferroni2026] Deep networks can be miscalibrated even when accuracy looks strong, so calibration has to be measured rather than assumed.[^guo2017] Accuracy and calibration answer different questions, and neither replaces representative labels. A rate, an interval, a sampling plan, and a calibration comparison are now separate claims. Printing only 16 percent would hide which claim a reader is looking at.
+The interval `[10.1%, 24.4%]` covers `20%`, so `100` labels are not enough to declare this bucket miscalibrated (nor tight enough to certify exact calibration). On real models, compare each pre-declared score bin's average prediction against its empirical rate on held-out data, keep per-bin counts visible, and adjust for multiple comparisons when scanning many bins.[^nistBonferroni2026] Modern neural networks are frequently miscalibrated despite high accuracy, making explicit calibration checks essential.[^guo2017]
 
 ```checkpoint
 A risk bucket predicts 20 percent, while 16 of 100 reviewed cases are positive and the observed Wilson interval is 10.1 to 24.4 percent. Can this sample establish miscalibration?
@@ -542,9 +528,7 @@ No. The interval still includes 20 percent, so the four-point observed gap is co
 
 ## Print the counts, the interval, and the sampling plan
 
-A report should let someone reconstruct the estimate before they act. This function prints the numerator, denominator, estimate, interval width, and sampling method. It doesn't decide whether to launch. That decision still needs costs, thresholds, and slice coverage.
-
-There's no universal label count that makes an audit adequate. A 14-percentage-point interval may be enough for rough staffing and too wide for a close policy decision. Show the width and let the decision's tolerance determine whether more labels are needed. A slice name alone also isn't a sampling plan: say how its reviewed cases were selected.
+A clean metric report lets any reader reconstruct the estimate and judge its precision at a glance: numerator, denominator, point estimate, Wilson interval width, and sampling design. Whether a `14.3`-percentage-point width is acceptable depends on how close the estimate sits to your decision threshold.
 
 <!-- leetllm: test, output=show, output_title="Review queue report" -->
 
@@ -589,42 +573,40 @@ require 0 <= successes <= n and n > 0
 ```
 <!-- leetllm: output:end -->
 
-The international line is a separate sample of 100 international flags, not a subset of the mixed 16/100 draw. Neither line should claim to measure next month's traffic without evidence that the population is comparable. Also record which important slices still lack labels. A number without its collection process invites overconfidence.
+Here the international line comes from its own 100-item random sample, separate from the mixed weekly sample, and every summary carries the collection method alongside the interval.
 
 ## Tighter intervals don't fix the wrong labels
 
-An interval around queue precision measures **estimation uncertainty**: how much a finite reviewed sample can move. It doesn't identify every reason a detector can fail. Ask what happens when the interval is narrow but reviewers saw model predictions before resolving ambiguous cases. The arithmetic can be precise while the labels no longer represent an independent review process.
+A confidence interval quantifies **estimation uncertainty**: how much a finite sample fluctuates around the population rate. If annotators saw the model's score before labeling ambiguous cases, the interval can be razor-thin while measuring a contaminated ground truth.
 
-| Problem | What it looks like | Does a tighter interval fix it? |
+| Failure mode | Symptom | Does more data fix it? |
 |---|---|---|
-| finite representative sample | measured precision moves across random label batches | yes, more representative labels narrow it |
-| sampling bias | only one routine slice was reviewed | no, change the sample design |
-| ambiguous labels | reviewers disagree on whether a signup is abuse | no, improve rubric and measure agreement |
-| unfamiliar deployment traffic | new payment path or geography appears | no, add coverage and retrain or route safely |
-| miscalibrated score | predicted-risk buckets disagree with observed rates | no, measure and calibrate on held-out labels |
+| Finite representative sample | Estimates wobble across random batches | Yes, more representative labels narrow the interval |
+| Selection bias | Only one easy slice was labeled | No, fix the sampling design and stratum weights |
+| Ambiguous or leaked labels | Annotators disagree or anchor on model scores | No, lock the rubric and blind ambiguous reviews |
+| Distribution shift | New geographies or payment flows appear | No, sample the new regime and retrain |
+| Miscalibrated probabilities | Predicted risk diverges from observed bin rates | No, recalibrate on held-out labels |
 
-Some literature groups irreducible input or label ambiguity under **aleatoric uncertainty**, and lack of knowledge about unfamiliar cases under **epistemic uncertainty**. Those names can be useful, but the repair matters more: don't use an interval for sampling noise as if it solved biased sampling, unclear labels, or unfamiliar traffic.
+In ML uncertainty literature, irreducible label or input ambiguity is called **aleatoric uncertainty**, while lack of data in unfamiliar regions is **epistemic uncertainty**. Either way, match the fix to the source of error.
 
 ## Practice with 24/120 high-value flags
 
-Transfer the audit to one new slice. You review `24 / 120` flagged high-value signups and confirm abuse. Before calculating, predict whether 120 labels can settle a 25 percent policy threshold.
+Apply the full workflow to a new slice: `24` confirmed abuse cases out of `120` randomly sampled high-value flags.
 
-1. Compute the point estimate and run the `wilson_interval` function for `24, 120`.
-2. Decide whether this sample alone proves the high-value slice meets a 25 percent minimum precision requirement.
-3. Your routine-domestic slice has `120 / 1000` abuse. Explain why you can't replace one slice with the other.
-4. A predicted-risk bucket averages 25 percent risk and contains `24 / 120` abuse. Decide whether this is enough to declare it miscalibrated.
+1. Compute the point estimate and 95% Wilson interval for `24 / 120`.
+2. Decide whether this sample resolves a `25%` minimum precision threshold.
+3. Explain why a `120 / 1,000` domestic sample cannot substitute for this slice.
+4. If a predicted-risk bucket averages `25%` risk and observes `24 / 120` abuse, decide whether it is provably miscalibrated.
 
-Solution checks:
-
-| Item | Check |
+| Item | Result |
 |---|---|
-| Point estimate | `24 / 120 = 0.20` |
-| Wilson interval | approximately `[0.138, 0.280]` |
-| 25 percent requirement | the interval crosses 25 percent, so this sample does not prove that precision is below or above the requirement |
-| Slice swap | high-value and routine-domestic flags represent different populations; combine them only with a valid sampling/weighting plan |
-| Calibration call | no; 25 percent remains plausible within this finite bucket's interval |
+| Point estimate | `24 / 120 = 0.20` (`20.0%`) |
+| 95% Wilson interval | `[0.138, 0.280]` (`13.8%` to `28.0%`) |
+| `25%` threshold | Unresolved: the interval spans both sides of `25%` |
+| Slice swap | High-value and domestic flags are distinct strata; combine only via population-share weighting |
+| Calibration call | Compatible with `25%` within sampling variation; more labels are needed to tell |
 
-The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval describe sampling uncertainty. The sampling method and label process determine which population that description deserves to represent.
+Counts plus a Wilson interval bound sampling uncertainty; the sampling design and label hygiene determine which population that interval actually describes.
 
 ```mastery-quiz
 [
@@ -637,7 +619,7 @@ The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval
       "Abuse among all signups: prevalence, estimated at 20% for flagged and unflagged cases."
     ],
     "answer": "Abuse among flagged signups: review-queue precision, estimated at 20% for this population.",
-    "explanation": "The denominator contains flagged signups. This sample estimates P (abuse|flagged), not a probability with a different denominator. A point estimate does not identify the exact queue rate."
+    "explanation": "The denominator contains flagged signups, so 30/150 estimates P(abuse | flagged), the precision of the flagged queue."
   },
   {
     "question": "Representative samples have 30/150 and 120/600 positives. Each team bootstraps at its own sample size. What scale comparison follows under independent rows?",
@@ -648,21 +630,21 @@ The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval
       "Both samples gain new evidence per resample; more repetitions replace the need for additional labels."
     ],
     "answer": "The 600-row sample has about half the standard error; bootstrap repetitions reuse its existing labels.",
-    "explanation": "The observed rate is 0.2 in each sample. Standard error scales as 1/sqrt (n), so quadrupling 150 to 600 halves it under the independent model. More resamples reduce simulation jitter, not finite-label uncertainty."
+    "explanation": "The observed rate is 0.2 in each sample. Standard error scales as 1/sqrt(n), so quadrupling 150 to 600 halves it under the independent model. More resamples reduce simulation jitter, not finite-label uncertainty."
   },
   {
-    "question": "An audit has 0 positives among 20 independent labels. Wald and a percentile bootstrap both collapse to zero. Which interpretation is justified?",
+    "question": "A random sample has 0 positives among 20 independent labels. Wald and a percentile bootstrap both collapse to zero. Which interpretation is justified?",
     "options": [
       "Zero outcomes still leave population uncertainty; the 95% Wilson upper bound is about 16.1%.",
       "Zero outcomes establish a zero population rate; both matching methods remove the need for an interval.",
       "The bootstrap creates missing positive cases; its upper bound recovers the unknown population risk.",
-      "The likelihood has no maximum at zero; discard this audit until a positive case becomes available."
+      "The likelihood has no maximum at zero; discard this sample until a positive case becomes available."
     ],
     "answer": "Zero outcomes still leave population uncertainty; the 95% Wilson upper bound is about 16.1%.",
-    "explanation": "At zero the plug-in Wald scale vanishes, and all bootstrap resamples of observed zeros are zeros. Wilson instead gives an upper endpoint 1.96²/(20+1.96²)≈0.1611. Neither collapsed calculation proves zero population risk."
+    "explanation": "At zero the plug-in Wald scale vanishes, and all bootstrap resamples of observed zeros are zeros. Wilson instead gives an upper endpoint 1.96²/(20+1.96²)≈0.1611, preserving nonzero uncertainty."
   },
   {
-    "question": "A toy queue has disjoint shares 50%,30%,20% with known positive rates 10%,20%,40%. A sample covers only the first slice. What is the full-queue rate?",
+    "question": "A queue has disjoint shares 50%, 30%, 20% with known positive rates 10%, 20%, 40%. A sample covers only the first slice. What is the full-queue rate?",
     "options": [
       "19%, using the slice-weighted sum; the first slice’s 10% targets a different population.",
       "23.3%, using the unweighted mean; each slice contributes one rate to the overall queue.",
@@ -670,10 +652,10 @@ The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval
       "40%, using the highest-risk slice’s rate; the maximum defines the queue-wide fraction."
     ],
     "answer": "19%, using the slice-weighted sum; the first slice’s 10% targets a different population.",
-    "explanation": "The weighted rate is 0.5 × 0.1+0.3 × 0.2+0.2 × 0.4=0.19. Sampling only the first slice does not prove either omitted rate, and more labels from that slice do not repair selection bias."
+    "explanation": "The weighted rate is 0.5 × 0.1 + 0.3 × 0.2 + 0.2 × 0.4 = 0.19. Sampling only the first slice misses the other strata, and adding more rows from that slice cannot remove selection bias."
   },
   {
-    "question": "A new slice audit observes 18/90 positives, with 95% Wilson interval about [13.0%,29.4%]. A minimum-quality rule requires 25%. Which evidence report follows?",
+    "question": "A new slice sample observes 18/90 positives, with 95% Wilson interval about [13.0%, 29.4%]. A minimum-quality target requires 25%. Which evidence report follows?",
     "options": [
       "Report counts, interval and selection; this interval crosses 25%, leaving the threshold unresolved.",
       "Approve the slice from 29.4%; an upper endpoint above the threshold establishes the minimum rate.",
@@ -681,21 +663,21 @@ The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval
       "Pool it with a larger low-risk slice; a larger denominator establishes this slice’s threshold status."
     ],
     "answer": "Report counts, interval and selection; this interval crosses 25%, leaving the threshold unresolved.",
-    "explanation": "The interval covers values on both sides of 25%. An upper endpoint is not a demonstrated lower bound, and the point estimate alone does not settle the threshold. Preserve the sampled population and design."
+    "explanation": "The interval covers values on both sides of 25%. Neither the upper endpoint nor the point estimate alone settles whether the true rate exceeds 25%."
   },
   {
-    "question": "A preselected bucket forecasts 25% risk. A held-out audit finds 12/60 positives with Wilson interval about [11.8%,31.8%]. What follows from this bucket?",
+    "question": "A preselected bucket forecasts 25% risk. A held-out sample finds 12/60 positives with Wilson interval about [11.8%, 31.8%]. What follows from this bucket?",
     "options": [
-      "The forecast remains compatible with these labels; one bucket does not prove whole-model calibration.",
+      "The forecast remains compatible with these labels; one bucket cannot establish whole-model calibration.",
       "The model is exactly calibrated across buckets; including 25% establishes the entire calibration curve.",
       "The bucket is miscalibrated from its 20% estimate; a five-point difference establishes a population gap.",
       "The labels are unnecessary for calibration; the configured forecast is the bucket’s measured outcome rate."
     ],
-    "answer": "The forecast remains compatible with these labels; one bucket does not prove whole-model calibration.",
-    "explanation": "The finite bucket interval includes 25%, so this comparison does not prove a calibration failure or exact calibration. Other bins and multiple comparisons need their own predeclared evaluation."
+    "answer": "The forecast remains compatible with these labels; one bucket cannot establish whole-model calibration.",
+    "explanation": "The Wilson interval includes 25%, so this bucket is compatible with 25% risk, while other bins still need their own held-out evaluation."
   },
   {
-    "question": "Use a Beta (2,2) prior. Compare 2/8 positives with 50/200 positives. Which posterior-mode and MLE calculation is correct?",
+    "question": "Use a Beta(2,2) prior. Compare 2/8 positives with 50/200 positives. Which posterior-mode and MLE calculation is correct?",
     "options": [
       "Both MLEs are 0.25; MAP is 3/10=0.30 and 51/202≈0.2525, so the prior shifts the smaller sample more.",
       "Both MLEs are 0.25; MAP is 4/12≈0.333 and 52/204≈0.2549, because the posterior mean is the mode.",
@@ -703,7 +685,7 @@ The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval
       "Both MLEs are undefined; the prior supplies the likelihood estimate before a large-sample cutoff is met."
     ],
     "answer": "Both MLEs are 0.25; MAP is 3/10=0.30 and 51/202≈0.2525, so the prior shifts the smaller sample more.",
-    "explanation": "For this prior the posterior mode is (k+1)/(n+2), giving 3/10 and 51/202. The posterior mean uses (k+2)/(n+4), which is a different summary. Prior terms are not newly reviewed cases."
+    "explanation": "For this prior the posterior mode is (k+1)/(n+2), giving 3/10 and 51/202. The posterior mean uses (k+2)/(n+4), which is a different summary."
   },
   {
     "question": "An analyst reuses one 95% Wilson interval to claim a 95% chance that the next 50 labels have a fraction inside those fixed endpoints. Which correction follows?",
@@ -714,7 +696,7 @@ The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval
       "The interval bounds individual binary labels; its endpoints describe the outcome range of each future signup."
     ],
     "answer": "The interval concerns the population rate; the next sample fraction needs a separate prediction calculation.",
-    "explanation": "A confidence interval describes repeated-use coverage of a fixed population parameter under a sampling model. A future sample has additional variation; predicting its fraction is a separate calculation."
+    "explanation": "A confidence interval describes repeated-use coverage of a fixed population parameter under a sampling model. A future sample has additional binomial variation; predicting its fraction is a separate calculation."
   },
   {
     "question": "A narrow interval uses labels revised after reviewers saw model scores. Which intervention addresses the compromised evidence?",
@@ -725,7 +707,7 @@ The original `16 / 100` wasn't wrong; it was incomplete. Counts plus an interval
       "Increase bootstrap repetitions while retaining the revised labels, and treat repetition as new evidence."
     ],
     "answer": "Freeze the rubric, blind ambiguous-case review to scores, and assess independent reviewer agreement.",
-    "explanation": "Sampling calculations condition on the supplied labels. Fix model-influenced labeling and assess agreement; neither a different formula nor more resampling removes that influence."
+    "explanation": "Sampling formulas condition on the supplied labels. Fixing score-contaminated labels requires blinding review and measuring inter-annotator agreement."
   }
 ]
 ```

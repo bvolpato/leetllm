@@ -28,37 +28,35 @@
 }
 ---
 
-Suppose a team evaluates 1,000 routing prompt templates against the same 40 user queries. The winning prompt classifies 36 correctly: 90% empirical accuracy. How much of that score reflects a good router, and how much reflects selecting a lucky fit to this small benchmark? The score is valid development evidence, but it needs an analysis that accounts for the search before it can support a population error claim.
+Test 1,000 prompt templates on the same 40 user queries and pick the winner. It nails 36 of 40: `90%` accuracy. Did you discover a genuinely strong router, or did 1,000 rolls of the dice simply hand you a lucky fit to those 40 queries?
 
-[Validation and Leakage](/learn/cross-validation-leakage-generalization) showed how easily information leaks across train-test splits. When teams run extensive prompt sweeps or hyperparameter searches, the search process itself overfits the benchmark. <span data-glossary="statistical-learning-theory">Statistical learning theory</span> measures how much data, how many candidate models, and which evaluation splits an accuracy claim needs before it holds up on fresh traffic.[^liang2016learningtheory]
+[Validation and Leakage](/learn/cross-validation-leakage-generalization) showed how train-test contamination inflates scores. Even without a leak, searching over many candidates bends an evaluation set toward the winner. <span data-glossary="statistical-learning-theory">Statistical learning theory</span> prices that search explicitly, telling you how much data, how much model capacity, and which split discipline an accuracy claim requires to hold up on fresh traffic.[^liang2016learningtheory]
 
 ## Start with one predictor and one loss
 
-Suppose our router evaluates 40 evaluation queries: 36 routes are correct and 4 misroute. We need one exact number for what happened on these 40 rows, and a separate probabilistic concept for future queries.
+Start with a single frozen router evaluated on 40 fresh queries: 36 correct and 4 misrouted. We need one exact number for what happened on this batch, and a separate probabilistic target for future queries.
 
-Assign <span data-glossary="loss-function">loss</span> 0 to a correct route and loss 1 to an incorrect one (standard zero-one classification loss). The average loss on this dataset is $4/40 = 0.10$. This number is its <span data-glossary="empirical-risk">empirical risk</span>. While this 10% error rate is exact for these 40 specific queries, it does not prove that future queries will fail 10% of the time.
+Assign <span data-glossary="loss-function">loss</span> `0` to a correct route and `1` to a misroute (zero-one classification loss). The sample average is $4/40 = 0.10$, the router's <span data-glossary="empirical-risk">empirical risk</span>. That `10%` error is exact for these 40 rows, while true performance on unseen traffic is the unknown <span data-glossary="population-risk">population risk</span>.
 
-To express this formally, let $h$ denote the predictor, $n$ the sample size, $x_i$ the query input, and $y_i$ the true label. The loss function $\ell(h(x_i), y_i) \in [0, 1]$ scores each individual prediction. The empirical risk averages these losses over the observed sample $S = \{(x_1, y_1), \dots, (x_n, y_n)\}$:
+Formally, for predictor $h$, sample $S = \{(x_1, y_1), \dots, (x_n, y_n)\}$, and bounded loss $\ell(h(x_i), y_i) \in [0, 1]$, empirical risk is:
 
 $$
 R_{\text{emp}}(h) = \frac{1}{n} \sum_{i=1}^{n} \ell(h(x_i), y_i)
 $$
 
-<span data-glossary="population-risk">Population risk</span> $R(h) = \mathbb{E}_{(X, Y) \sim \mathcal{D}}[\ell(h(X), Y)]$ is expected loss under a specified target distribution $\mathcal{D}$. It describes future traffic only to the extent that this traffic follows that distribution. The difference between population risk and the observed sample average is the <span data-glossary="generalization-gap">generalization gap</span>:
+Population risk $R(h) = \mathbb{E}_{(X, Y) \sim \mathcal{D}}[\ell(h(X), Y)]$ is expected loss under the target distribution $\mathcal{D}$. Their difference is the <span data-glossary="generalization-gap">generalization gap</span>:
 
 $$
 \text{gen-gap}(h) = R(h) - R_{\text{emp}}(h)
 $$
 
-| Quantity | Source | Can engineers observe it directly? |
+| Quantity | Source | Observable directly? |
 |---|---|---|
 | Empirical risk $R_{\text{emp}}(h)$ | The finite evaluated sample | Yes |
 | Population risk $R(h)$ | Future draws from target distribution $\mathcal{D}$ | No |
-| Generalization gap $\text{gen-gap}(h)$ | Population risk minus empirical risk | No; bounds or independent samples estimate its size |
+| Generalization gap $\text{gen-gap}(h)$ | Population risk minus empirical risk | No; bounded or estimated on fresh data |
 
-For a predictor chosen independently of 40 i.i.d. cases, $R_{\text{emp}}(h)$ is an unbiased estimate of $R(h)$. The realized gap can be positive or negative: a difficult sample can make the model look worse than its population average. A conservative calculation adds an uncertainty radius to the observed risk. With failure probability $\delta = 0.05$, the resulting bound covers population risk with probability at least 95% over repeated sampling under these assumptions. This frequentist statement does not assign a 95% posterior probability to the particular interval after observing it.
-
-We can compute this uncertainty radius directly with Python:
+For a predictor fixed before drawing 40 independent queries from $\mathcal{D}$, $R_{\text{emp}}(h)$ is an unbiased estimate of $R(h)$, though any single sample can fluctuate above or below the truth. Adding a two-sided concentration radius at failure probability $\delta = 0.05$ yields a `95%` confidence upper bound on $R(h)$:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="fixed-predictor-uncertainty.py"
@@ -141,9 +139,9 @@ $$
 \varepsilon = \sqrt{\frac{\log(2|\mathcal{H}|/\delta)}{2n}}
 $$
 
-The $\log |\mathcal{H}|$ term is a conservative allowance for search in this bound. It is not the exact amount of selection bias: duplicate or highly similar candidates can make the union bound loose. Candidate errors need not be independent of one another; the i.i.d. assumption concerns the sampled cases, and the pool must be independent of that sample.
+The $\log |\mathcal{H}|$ term prices the candidate search conservatively: searching 10x as many models adds $\log 10$ inside the square root, even when candidates correlate (the union bound requires i.i.d. data cases and a prespecified pool, never independent candidates).
 
-The same 40 queries and the same 10 percent error now pay for a larger search. Compare the radius at 1, 10, and 1,000 prespecified prompts:
+Watch how the uncertainty radius grows on the same 40 queries as the prespecified prompt pool expands from 1 to 10 to 1,000:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="compare-hypothesis-search-bounds.py"
@@ -165,14 +163,16 @@ candidates=1000  radius=0.364
 ```
 <!-- leetllm: output:end -->
 
-At 10% observed error on 40 cases, the conservative upper bound for a single fixed predictor is $0.100 + 0.215 = 0.315$ (31.5%). For the winner of a 1,000-candidate search, it becomes $0.100 + 0.364 = 0.464$ (46.4%). Neither calculation certifies a population error below 20%. Failing this conservative check does not prove that either model's true risk exceeds 20%.
+At `10%` observed error on 40 cases, the upper bound rises from `31.5%` for one fixed predictor to `46.4%` for the winner of a 1,000-prompt search. With only 40 queries, neither bound can establish an error rate below `20%`.
+
+> **Key insight:** Candidate search enters the generalization radius only logarithmically ($\sqrt{\log|\mathcal{H}| / n}$), which is why evaluating a fixed pool is manageable with enough data, while *adaptive* hill-climbing on the same validation set breaks the finite-pool assumption altogether.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Three horizontal intervals start at the 10% observed error from 4 misroutes among 40 queries and extend to two-sided Hoeffding upper limits of 31.5% for one fixed predictor, 37.4% for 10 prompts, and 46.4% for 1,000 prompts. A dashed 20% error target line sits left of all three upper limits." />
-  <figcaption>Each interval starts at the same 4/40 observed loss. The allowance grows with a prespecified candidate pool. These upper endpoints use a two-sided Hoeffding union bound at δ = 0.05 for i.i.d. cases with loss in [0, 1].</figcaption>
+  <figcaption>All three intervals start at the same 4/40 observed error, but the two-sided Hoeffding upper bound (δ = 0.05) widens from 31.5% to 46.4% as the prespecified prompt pool grows from 1 to 1,000.</figcaption>
 </figure>
 
-Adaptive prompt engineering complicates this calculation further. If engineers manually inspect validation failures and craft new prompts to address those exact failures, the search space isn't prespecified. Counting only the 1,000 saved iterations understates the true search capacity. The cleanest production remedy freezes the chosen prompt and evaluates it on an untouched, held-out test split:
+When engineers inspect validation failures and iteratively write new prompts to patch them, the search becomes adaptive and the pool is no longer prespecified. The clean remedy is to freeze the chosen prompt and evaluate it once on an untouched test split:
 
 ```mermaid
 flowchart TB
@@ -272,7 +272,7 @@ $$
 d_{\text{VC}}(\text{affine halfspaces in } \mathbb{R}^2) = 3
 $$
 
-In $\mathbb{R}^d$, affine halfspaces have VC dimension $d+1$; homogeneous halfspaces whose boundaries pass through the origin have VC dimension $d$. The intercept changes the class. Raw parameter count alone does not determine VC dimension.[^liang2016learningtheory]
+In $\mathbb{R}^d$, affine halfspaces have VC dimension $d + 1$, while homogeneous halfspaces passing through the origin have VC dimension $d$. Removing the intercept removes one degree of geometric freedom, and parameter count alone can be misleading: ten redundant weights can collapse to $d_{\text{VC}} = 1$, while a single frequency parameter in $\sin(\theta x)$ can shatter arbitrarily many points.[^liang2016learningtheory]
 
 ```checkpoint
 If a classifier has 10 continuous weights, is its VC dimension guaranteed to be 10?
@@ -284,17 +284,13 @@ No. Ten redundant weights that enter only through their sum can still describe a
 
 To derive generalization bounds for infinite classes, we track the **growth function** $\Pi_{\mathcal{H}}(n)$: the maximum number of distinct labelings that $\mathcal{H}$ can induce on any $n$ points.
 
-When $n \le d_{\text{VC}}$, there exists a set of $n$ points that is shattered, so the **maximum** $\Pi_{\mathcal{H}}(n)=2^n$. This does not say every observed dataset is shattered. Repeated inputs, for example, cannot receive conflicting labels from a deterministic predictor.
-
-For finite $d_{\text{VC}}\ge1$ and $n>d_{\text{VC}}$, the **Sauer-Shelah lemma** gives a polynomial upper bound:[^liang2016learningtheory]
+When $n \le d_{\text{VC}}$, some set of $n$ points is shattered, so $\Pi_{\mathcal{H}}(n) = 2^n$. Once $n$ crosses $d_{\text{VC}}$, a dramatic phase change occurs. For finite $d_{\text{VC}} \ge 1$ and $n > d_{\text{VC}}$, the **Sauer-Shelah lemma** bounds the growth function polynomially:[^liang2016learningtheory]
 
 $$
 \Pi_{\mathcal{H}}(n) \le \sum_{i=0}^{d_{\text{VC}}} \binom{n}{i} \le \left(\frac{en}{d_{\text{VC}}}\right)^{d_{\text{VC}}} = \mathcal{O}\left(n^{d_{\text{VC}}}\right)
 $$
 
-For a fixed VC dimension, the upper bound grows polynomially with $n$ rather than exponentially. The number of attainable patterns does not suddenly decrease when another point is added. A nonempty class with VC dimension zero has growth function 1 and can be handled separately.
-
-Compare the generic upper bound with all binary labelings for affine halfspaces in two dimensions ($d_{\text{VC}}=3$):
+Growth shifts from exponential ($2^n$) to polynomial ($n^{d_{\text{VC}}}$), which is slow enough for concentration to win as $n$ grows. Compare the Sauer-Shelah bound with all $2^n$ binary labelings for 2D affine halfspaces ($d_{\text{VC}} = 3$):
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="sauer-shelah-phase-change.py"
@@ -322,23 +318,21 @@ n=50: 2^n=1125899906842624  Sauer= 20876  ratio=1.854e-11
 ```
 <!-- leetllm: output:end -->
 
-At $n=50$, there are over $1.12\times10^{15}$ binary assignments, while this bound allows at most 20,876 attainable patterns. It is an upper bound, not an exact count: at $n=4$ it allows 15 patterns, although affine halfspaces attain at most 14.
+At $n = 50$, over $1.12 \times 10^{15}$ binary labelings exist, yet a class with $d_{\text{VC}} = 3$ can realize at most `20,876` (and affine halfspaces in $\mathbb{R}^2$ realize slightly fewer, e.g., `14` rather than `15` at $n = 4$).
 
-Using the Sauer-Shelah lemma combined with a symmetrization argument (introducing an independent ghost sample), Vapnik and Chervonenkis proved that with probability at least $1 - \delta$, for all $h \in \mathcal{H}$:
+Combining the Sauer-Shelah lemma with a ghost-sample symmetrization argument gives the classic VC generalization bound for zero-one loss over a fixed class ($n \ge d_{\text{VC}} \ge 1$). With probability at least $1 - \delta$, simultaneously for all $h \in \mathcal{H}$:
 
 $$
 |R(h)-R_{\text{emp}}(h)| \le \mathcal{O}\left(\sqrt{\frac{d_{\text{VC}} \log(en / d_{\text{VC}}) + \log(1/\delta)}{n}}\right)
 $$
 
-Here the loss is zero-one classification loss, the class is fixed independently of the i.i.d. sample, and $n\ge d_{\text{VC}}\ge1$. The big-O hides constants, so it is not a tight numerical bound. A bound larger than 1 is uninformative because bounded losses already give $|R-R_{\text{emp}}|\le1$.
-
-An order-level sufficient sample size for a uniform **estimation radius** $\varepsilon$ is:
+Inverting this rate gives the agnostic sample complexity for estimation radius $\varepsilon$:
 
 $$
 n = \mathcal{O}\left(\frac{d_{\text{VC}} \log(1/\varepsilon) + \log(1/\delta)}{\varepsilon^2}\right)
 $$
 
-This controls estimation and, consequently, agnostic ERM excess risk up to a factor of two. Absolute population error also depends on how well the class can approximate the task. In realizable classification, consistent learning can achieve faster sample rates of order $1/\varepsilon$ up to logarithms; the generic $1/\varepsilon^2$ rate applies to the stated agnostic setting.
+In the realizable setting (where $R(h^*) = 0$), consistent learners improve this dependence from $1/\varepsilon^2$ to $1/\varepsilon$ up to log factors.
 
 ```checkpoint
 Can we directly replace |H| by the number of label patterns seen on our evaluation sample in the finite-class union bound?
@@ -395,17 +389,20 @@ right thresholds: 0.456055
 ```
 <!-- leetllm: output:end -->
 
-These are complexities of four different **predictor classes** on these eight inputs. The constants and thresholds can exploit some noise; the lookup table exploits all of it. Changing $n$ changes the numbers. No Monte Carlo estimation is involved here.
+Each number is an exact average over all 256 sign vectors on these eight inputs: the fixed predictor ignores noise (`0.000`), thresholds absorb nearly half of it (`0.456`), and the lookup table matches every random flip (`1.000`).
 
-To bound risk, apply the machinery to the **loss class**, not automatically to raw predictions. Let $z_i=(x_i,y_i)$ and $\mathcal{F}=\{(x,y)\mapsto\ell(h(x),y):h\in\mathcal{H}\}$. For a fixed class, losses in $[0,1]$, and an i.i.d. sample, an empirical-Rademacher bound holds simultaneously for every $h$ with probability at least $1-\delta$:[^liang2016learningtheory]
+To bound generalization error, apply Rademacher complexity to the **loss class** $\mathcal{F} = \{(x,y) \mapsto \ell(h(x), y) : h \in \mathcal{H}\}$ for losses in $[0, 1]$. With probability at least $1 - \delta$, simultaneously for all $h \in \mathcal{H}$:[^liang2016learningtheory]
 
 $$
 R(h) \le R_{\text{emp}}(h) + 2\widehat{\mathcal{R}}_S(\mathcal{F}) + 3\sqrt{\frac{\log(2/\delta)}{2n}}
 $$
 
-The loss-class distinction matters. For the binary predictors above and labels $y_i\in\{-1,+1\}$, there's an exact shortcut: $\ell(h(x_i),y_i)=(1-y_i h(x_i))/2$. The constant term has zero expectation over the signs, and multiplying each sign by $-y_i$ leaves its fair-coin distribution unchanged. Therefore $\widehat{\mathcal R}_S(\mathcal F)=\widehat{\mathcal R}_S(\mathcal H)/2$. For our eight-input threshold class, the loss complexity is $0.4560546875/2=0.22802734375$; the bound's $2\widehat{\mathcal R}_S(\mathcal F)$ term is $0.4560546875$ before adding the confidence term. Even this simple class gives a loose certificate at eight cases.
+<details>
+<summary>Deep dive: linking loss-class complexity to predictor complexity</summary>
 
-For real-valued scores, relating loss complexity to predictor complexity requires additional arguments, such as contraction for a Lipschitz loss. Zero-one loss is discontinuous, so that Lipschitz step does not apply directly; margin-based analyses often use a suitable surrogate. Norm restrictions can reduce capacity, but a data-dependent bound can still be too large to be useful.
+For binary classifiers $h(x) \in \{-1, +1\}$ and zero-one loss $\ell(h(x_i), y_i) = (1 - y_i h(x_i))/2$, the constant $1/2$ vanishes in expectation over fair signs $\sigma_i$, and multiplying $\sigma_i$ by $-y_i \in \{-1, +1\}$ leaves its distribution unchanged. Hence $\widehat{\mathcal{R}}_S(\mathcal{F}) = \widehat{\mathcal{R}}_S(\mathcal{H})/2$. On our eight inputs, the threshold class has $\widehat{\mathcal{R}}_S(\mathcal{F}) = 0.228$, contributing $2\widehat{\mathcal{R}}_S(\mathcal{F}) = 0.456$ before the confidence term. For continuous scores and a Lipschitz loss (such as hinge or margin loss), Talagrand's contraction lemma links $\widehat{\mathcal{R}}_S(\mathcal{F})$ directly to $\widehat{\mathcal{R}}_S(\mathcal{H})$.
+
+</details>
 
 ```checkpoint
 Does fitting one randomly relabeled dataset prove that a network class has predictor Rademacher complexity 1?
@@ -415,11 +412,9 @@ No. Complexity averages the best correlation over all sign assignments. One succ
 
 ## Ask when interpolation hurts, and when it does not
 
-The bias-variance decomposition is an identity for squared prediction error. A U-shaped test-error curve is a common pattern in particular model families, not a theorem saying that every interpolating predictor must fail. **Interpolation** means fitting the training targets exactly; it says nothing by itself about performance on new inputs.
+Classical intuition draws a U-shaped test-error curve: add capacity and error drops, push past the sweet spot and **interpolation** (fitting training targets exactly) ruins generalization. Yet Belkin and colleagues documented **double descent**: test error can fall, spike near the interpolation threshold where exact fitting becomes barely possible, and then fall a second time in the overparameterized regime.[^belkin2019doubleDescent]
 
-Belkin and colleagues documented **double descent**: test error can first decrease, then rise near the capacity where interpolation becomes possible, and then decrease again at greater capacity.[^belkin2019doubleDescent] The location and shape depend on the model, data, noise, loss, regularization, and optimization. For a nonlinear network, counting parameters and setting $p=n$ does not locate the interpolation threshold. LLM pretraining also does not generally attain zero cross-entropy, and comparing parameter counts with a loosely defined number of training “examples” is not a generalization analysis.
-
-A tractable case makes the assumptions visible. Consider well-specified linear regression with i.i.d. standard Gaussian design entries, fixed signal squared norm $r^2=1$, independent mean-zero noise of variance $\sigma^2=1$, and the minimum Euclidean norm least-squares estimator. As $n,p$ grow with $p/n\to\gamma\ne1$, its excess prediction risk has the limit:[^hastie2019Ridgeless]
+An exact linear model exposes the mechanism cleanly. Take well-specified linear regression with i.i.d. standard Gaussian features, unit signal norm $r^2 = 1$, independent noise variance $\sigma^2 = 1$, and the minimum Euclidean norm least-squares estimator. As $n, p \to \infty$ with ratio $p/n \to \gamma \ne 1$, its limiting excess squared prediction risk against the noiseless target is:[^hastie2019Ridgeless]
 
 $$
 \mathcal{E}(\gamma)=
@@ -429,14 +424,14 @@ $$
 \end{cases}
 $$
 
-This measures squared prediction error against the noiseless regression function. Predicting a noisy future response adds noise variance 1. It is not a bounded classification error rate. The formula diverges as $\gamma$ approaches 1 and decreases toward 1 on the overparameterized side. That limit is the risk of the zero predictor here, not zero risk or a guarantee of near-optimal prediction.
+Near $\gamma = 1$, the design matrix becomes nearly singular and noise amplification blows up the variance. Past $\gamma = 1$, extra dimensions absorb the noise more smoothly: variance falls back toward `0` while squared bias rises toward `1`, sending total excess risk down toward `1` (the risk of the zero predictor in this isotropic setting).
 
 <figure>
   <img src="illustrations/_generated/double_descent_risk_curve_dark.png" alt="The limiting excess squared prediction risk for isotropic minimum-norm linear regression rises toward a divergence at gamma = p/n = 1, then falls toward 1. Above the threshold, separate curves show variance falling toward zero while squared bias rises toward one. At gamma = 2, variance is 1, squared bias is 0.5, and total risk is 1.5." />
-  <figcaption>At γ = 2, variance contributes 1 and squared bias contributes 0.5, for total excess risk 1.5. As γ grows, variance approaches zero and bias approaches the zero-predictor risk of 1. This is an asymptotic result under the stated random-design model; neural-network risk needs its own empirical evaluation.</figcaption>
+  <figcaption>Limiting excess squared risk for isotropic minimum-norm linear regression spikes at γ = p/n = 1, then descends again: at γ = 2, variance (1.0) plus squared bias (0.5) gives total excess risk 1.5, approaching 1.0 as γ grows.</figcaption>
 </figure>
 
-Check the formula at a few capacity ratios:
+Check the formula across both sides of the threshold:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="limiting-linear-prediction-risk.py"
@@ -467,9 +462,7 @@ gamma=10.0  excess risk=1.011
 ```
 <!-- leetllm: output:end -->
 
-For a **full-row-rank linear design** with $p>n$, infinitely many coefficient vectors interpolate. Ordinary gradient descent from zero, with a suitably small constant step, converges to the minimum Euclidean norm solution.[^hastie2019Ridgeless] A nonzero initialization can retain a component in the design's null space. Preconditioning changes the preferred geometry. Neither this linear result nor a generic “implicit bias” claim proves that Adam selects minimum Euclidean norm in a neural network.
-
-Here all three optimizers fit the same one-row problem, $w_1+2w_2=1$, but they choose different weights:
+When $p > n$ for a full-row-rank linear design, infinitely many weight vectors achieve zero training loss, so the **optimizer** picks which interpolant you get. Ordinary gradient descent from zero stays inside the row span and converges to the minimum Euclidean norm solution.[^hastie2019Ridgeless] Starting with a null-space component retains it forever, and preconditioning shifts the preferred geometry. Watch all three fit the same single equation $w_1 + 2w_2 = 1$ yet land on three distinct solutions:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="initialization-changes-the-interpolant.py"
@@ -501,9 +494,11 @@ square identity condition number: 1.0
 ```
 <!-- leetllm: output:end -->
 
-The last line is another counterexample to an overgeneralization: a square identity design has $p=n$, a unique interpolant, and perfect conditioning. Equality of parameter and sample counts does not force a nearly singular matrix. Random-design limiting results need their distributional and asymptotic assumptions.
+Notice the last line too: a square identity matrix has $p = n$ and condition number `1.0`, showing that the random-design spike at $\gamma = 1$ comes from near-singularity of random matrices rather than $p = n$ itself.
 
-**Benign overfitting** means accurate prediction can coexist with fitting noisy training observations. In analyzed minimum-norm linear settings, this depends on the covariance spectrum, signal, noise, and available directions for fitting noise.[^bartlett2020BenignOverfitting] Parameter count alone does not determine the outcome. Broad uniform bounds remain valid even when they are too loose to explain a successful algorithm.
+**Benign overfitting** happens when a model fits noisy training labels exactly while still achieving near-optimal test error. In minimum-norm linear regression, that requires an anisotropic covariance spectrum with enough low-variance directions to soak up noise without distorting the high-variance signal directions.[^bartlett2020BenignOverfitting]
+
+> **Common mistake:** Seeing test error dip after an interpolation peak is not automatic proof of benign overfitting, nor is $p = n$ a universal threshold for nonlinear networks. In the isotropic curve above, risk falls back only to `1.0`, the same excess risk as predicting zero.
 
 ```checkpoint
 A model has zero training error and its test error decreases after the interpolation threshold. Does that curve prove benign overfitting?
@@ -513,13 +508,13 @@ No. A decrease need not bring prediction risk close to the optimal achievable ri
 
 ## Calculate sample complexity for production guarantees
 
-The shape of a test-error curve does not say how many fresh queries this evaluation needs. Inverting the finite-class concentration bound gives a **sufficient** sample size for an estimation radius. That count is not a minimum necessary sample size, and reaching it does not by itself show that error is below a target:
+Inverting the finite-class Hoeffding bound gives a **sufficient** sample size for achieving estimation radius $\varepsilon$ with failure probability at most $\delta$:
 
 $$
 n \ge \frac{\log(2|\mathcal{H}|/\delta)}{2\varepsilon^2}
 $$
 
-Because the target tolerance $\varepsilon$ appears squared in the denominator, sample complexity exhibits quadratic scaling. Halving the allowed uncertainty radius from $\varepsilon = 0.10$ to $\varepsilon = 0.05$ requires four times as many evaluation cases before rounding:
+Because $\varepsilon$ appears squared in the denominator, halving your allowed estimation radius requires four times as many evaluation queries:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="calculate-uniform-sample-complexity.py"
@@ -539,35 +534,30 @@ candidates=1000  radius=0.05  cases=2120
 ```
 <!-- leetllm: output:end -->
 
-Notice the contrast:
-- This Hoeffding calculation gives radius at most $0.05$ for one fixed model with 738 independent cases.
-- A prespecified 1,000-candidate pool searched on the same evaluation sample gets that uniform radius with 2,120 cases.
-- For exact ERM in that pool, radius $0.025$ suffices to bound excess risk by $0.05$. The calculation gives 8,478 cases. This is a conservative route to the guarantee.
+- **One fixed model:** `738` independent queries give radius $\varepsilon \le 0.05$.
+- **1,000 prespecified candidates:** `2,120` queries give the same uniform radius across the whole sweep.
+- **Excess risk $\le 0.05$ for ERM:** requires $\varepsilon = 0.025$ (because of the $2\varepsilon$ factor), quadrupling the budget to `8,478` queries.
 
-If a winner is frozen and then evaluated on fresh independent cases, the fresh evaluation treats it as **one** predictor. It does not pay the earlier 1,000-candidate penalty again. If those cases instead become the next search benchmark, account for that search.
-
-Sampling units must reflect the target risk. Five hundred conversation turns from 10 users are not automatically 500 independent observations, but neither are they automatically 10 independent sessions. Users may have multiple sessions or share organizational effects. An i.i.d. user-level analysis needs independently sampled users and a bounded per-user loss, such as each user's mean error under a prespecified collection rule. That estimates a user-weighted risk; a turn-weighted risk can differ when users contribute different numbers of turns. Grouping observations does not manufacture independence.
+Freezing the winning prompt and testing it on a fresh split resets $|\mathcal{H}|$ back to `1`, letting you evaluate with `738` queries instead of paying the search penalty again. Also match the independent unit to your target metric: 500 conversation turns from 10 users are correlated within each user, so an i.i.d. user-level bound requires independently sampled users and a bounded per-user loss.
 
 ## Map claims to the evaluation design
 
-The 40-query evaluation can now name a sample size, but the bound still depends on how the prompt was chosen. Match the claim to that selection procedure:
+Match the statistical claim to how the candidate was chosen:
 
-| Scenario | What the bound supports | Bound limitations |
+| Scenario | What the bound supports | Key caveat |
 |---|---|---|
-| One frozen model on fresh i.i.d. queries | Bounded-loss risk bound for the sampled target distribution | No automatic protection against distribution shift |
-| Prespecified finite candidate search | Simultaneous estimation allowance for the pool | Saved iteration counts alone do not bound an adaptive search |
-| Correlated multi-turn conversations | Cluster-level analysis under an appropriate sampling model | Grouping alone does not create independence or the right weighting |
-| Shifted deployment traffic | Evaluate risk under a specified deployment distribution | An old-distribution bound does not certify new traffic |
+| One frozen model on fresh i.i.d. queries | Bounded-loss risk bound on the target distribution | Assumes traffic matches the sampled distribution |
+| Prespecified finite candidate search | Simultaneous estimation radius across the pool | Adaptive prompt edits require a fresh split |
+| Correlated multi-turn conversations | Cluster-level analysis over independent users | User-weighted and turn-weighted risk can differ |
+| Shifted deployment traffic | Risk bound only on the new target distribution | Bounds on old data expire under distribution shift |
 
-When metrics disagree across development, test, and traffic monitoring, use the discrepancy as a diagnostic symptom:
+Disagreements across splits point straight to distinct failure modes:
 
-- **Low training error, high validation error:** Investigate overfitting, sampling noise, cohort differences, labels, and preprocessing consistency.
-- **Low validation error, high test error:** Investigate selection overfitting, different case difficulty, small samples, and evaluation bugs.
-- **Low test error, poor production performance:** Investigate distribution shift, serving mismatches, changed labels, and monitoring definitions.
+- **Low training error, high validation error:** overfitting, noisy labels, cohort mismatch, or preprocessing skew.
+- **Low validation error, high test error:** selection overfitting from repeated sweeps, split difficulty differences, or small test size.
+- **Low test error, poor live performance:** distribution shift, serving mismatches, or changed metric definitions.
 
-These patterns suggest hypotheses; none identifies a unique cause.
-
-Returning to the opening evaluation, record four misroutes on 40 queries and which selection procedure produced the router. The relevant upper endpoint is $0.315$ for a fixed predictor or $0.464$ for a winner from 1,000 prespecified prompts. This conservative calculation does not verify an error rate below $0.20$. Freeze the winner and prespecify a fresh evaluation: 738 i.i.d. cases suffice for radius at most $0.05$ by this calculation. Passing still requires the **new observed risk plus the actual radius** to be below $0.20$. Merely collecting the planned number of queries does not certify model quality.
+Returning to our opening router: `4` misroutes on `40` queries gives an upper bound of `0.315` for a frozen model or `0.464` after a 1,000-prompt search, leaving a `20%` error target unresolved. Freezing the winner and evaluating it on `738` fresh i.i.d. queries shrinks the radius to `0.05`, so an observed error below `0.15` on that fresh split certifies population risk below `0.20` at 95% confidence.
 
 ```mastery-quiz
 [

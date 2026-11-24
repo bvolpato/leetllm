@@ -44,97 +44,74 @@
 }
 ---
 
-A small engineering assistant helps teams with CI failures, <span data-glossary="rollback">rollbacks</span>, code reviews, and log triage. A launch review asks for 5,000 simulated requests before traffic arrives. Each request contributes four measurements: it either resolves or escalates, takes one route, makes a nonnegative number of tool calls, and takes a positive number of seconds.
+Simulate 5,000 requests through an AI coding assistant before traffic arrives. Each request yields four random measurements: whether it resolves automatically, which task route it takes, how many tool calls it triggers, and how many seconds it takes to finish. Pick the wrong probability family and your average looks comforting while the simulator spits out `-13`-second durations, hides `5x` tool-call bursts, or misses queue congestion entirely.
 
-Now choose how to draw those four values. A wrong choice can make an average look reasonable while hiding retry bursts, producing impossible negative latency, or inventing a route that never appears in the taxonomy. Before trusting a simulator, name the claim behind each draw and the trace that could falsify it.
-
-In [Statistics and Uncertainty](/learn/statistics-estimation-uncertainty), 16 abuse labels out of 100 reviewed flags became a point estimate plus an interval. That asked how much a finite sample supports one unknown rate. Simulation reverses the direction: start with a process, draw new samples, and ask whether the resulting traces look like the system you intend to model.
-
-A <span data-glossary="probability-distribution">probability distribution</span> specifies the allowed values of a random quantity and how probability is assigned to them. A launch review fails if a draw can be negative, invent a route, or hide a retry burst. Write down the allowed values first, then check the frequencies and tails the simulator actually produces.
-
-The numbers below are **planning assumptions**. A real launch would estimate them from logged, reviewed traffic. The Python examples use NumPy's `default_rng` and SciPy's `scipy.stats`, matching real evaluation pipelines. Record library versions along with the seed, because sampling algorithms can change between major releases.[^numpyParallelRandom2026]
+In [Statistics and Uncertainty](/learn/statistics-estimation-uncertainty), we moved from a finite sample (`16/100`) to an interval around an unknown rate. Simulation runs in reverse: specify a <span data-glossary="probability-distribution">probability distribution</span> (the allowed values plus how probability is assigned across them), draw synthetic traces with NumPy and SciPy, and test whether those traces match real system behavior.[^numpyParallelRandom2026]
 
 ## Four measurements from one request
 
-| Quantity from one request | Example value | Value shape | First simulation model | Summary to report |
+| Quantity from one request | Example value | Support | First candidate family | Summary to report |
 |---|---:|---|---|---|
-| Resolved without a human | `1` or `0` | binary | Bernoulli | resolution rate |
-| Request route | `ci_failure`, `rollback`, `code_review`, `log_triage` | one label | categorical | label mix |
-| Tool calls made | `0`, `1`, `2`, ... | count | Poisson baseline | mean and share above a cost threshold |
-| End-to-end response time | `7.4` seconds | positive continuous | lognormal baseline | median and <span data-glossary="p95-latency">p95</span> |
+| Resolved without human handoff | `1` or `0` | binary | Bernoulli | resolution rate |
+| Request route | `ci_failure`, `test_fix`, `code_review`, `log_triage` | finite labels | categorical | label mix |
+| Tool calls made | `0`, `1`, `2`, ... | nonnegative integers | Poisson baseline | mean and share `> 5` |
+| End-to-end response time | `7.4` seconds | positive reals | lognormal baseline | median and <span data-glossary="p95-latency">p95</span> |
 
-The **first simulation model** column is a claim about shape, not a default. If <span data-glossary="tracing">traces</span> disagree, you revise the model instead of defending the convenient formula.
+Treat each candidate family as a testable hypothesis about shape: when observed <span data-glossary="tracing">traces</span> disagree, replace the family rather than defending a convenient formula.
 
 ## Discrete values versus continuous time
 
-The first split is between **discrete** and **continuous** quantities.
+Probability distributions split first by whether outcomes are **discrete** (enumerable outcomes such as binary resolution, route labels, or tool-call counts) or **continuous** (measured on an interval such as response time in seconds).
 
-| Kind | Meaning | In the incident assistant |
-|---|---|---|
-| Discrete | values are separate outcomes you can enumerate | resolved or escalated, one intent label, number of tool calls |
-| Continuous | values live on a measured range | response time in seconds |
-
-For a discrete quantity you can ask for the probability of one exact value, such as `P(tool_calls = 2)`. For a continuous response time, one infinitely precise instant has probability zero under the model. Ask for a range or a percentile instead: `P(time > 15 seconds)` or the p95 response time.
-
-The allowed values are the distribution's **support**. Route labels need a finite set of names, tool calls need nonnegative integers, and response time needs nonnegative seconds. A measured zero may mean a duration was rounded below the clock's resolution; a negative duration is a different problem.
-
-Before sampling, write down four things:
-
-1. What values are allowed?
-2. Which parameter sets the rate, center, or spread?
-3. Which tail or threshold would hurt users or cost?
-4. What observation would prove this model is a poor fit?
-
-For example, ten tool calls may be rare under a baseline but common during retry loops. That observation should change the model, not just the seed.
+For a discrete variable you can ask for the probability of an exact outcome, like `P(tool_calls = 2)`. For a continuous duration, any exact real point has probability zero; ask instead for an interval probability like `P(time > 15s)` or a quantile like p95. Always match a distribution's **support** (its allowed values) to the measurement: finite label sets for routes, nonnegative integers for counts, and strictly positive numbers for durations.
 
 ## PMF, PDF, and CDF
 
-Use the kind of quantity to choose the probability object. For the binary resolution variable `R`, the two masses are `P(R = 0) = 0.28` and `P(R = 1) = 0.72`. A **probability mass function (PMF)** lists those probabilities for each discrete value. The masses add to `1`.
+Three functions describe how probability sits across a distribution's support:
 
-Response time needs different language. A **probability density function (PDF)** describes how densely probability is spread across possible times; area over an interval gives its probability. Its height isn't the probability of one exact time and may exceed `1`. For instance, a uniform duration between `0` and `0.5` seconds has density `2` per second, but total area `2 × 0.5 = 1`.
-
-A **cumulative distribution function (CDF)** gives the chance of finishing by a deadline. Let `T` mean response time and `t` the chosen deadline:
+- **Probability mass function (PMF):** assigns an exact probability to each discrete outcome (`P(R = 0) = 0.28`, `P(R = 1) = 0.72`), summing to `1`.
+- **Probability density function (PDF):** describes probability per unit width for a continuous variable. Area over an interval equals probability; density height itself can exceed `1` (a uniform duration on `[0, 0.5]` seconds has density `2` per second and total area `2 × 0.5 = 1`).
+- **Cumulative distribution function (CDF):** gives the accumulated probability up to threshold $t$:
 
 $$
 F_T(t) = P(T \leq t)
 $$
 
-Read the CDF as an operations question: `F_T(10)` is the chance a response finishes within 10 seconds, while `1 - F_T(15)` is the chance it exceeds 15 seconds. For the smooth latency model below, p95 is the time where the CDF reaches `0.95`. Discrete distributions have CDFs too, but those rise in steps and can jump past `0.95`.[^murphy2012]
+Read $F_T(10)$ as the probability a request finishes within 10 seconds, and $1 - F_T(15)$ as the probability it exceeds 15 seconds. For a smooth latency curve, p95 is the time where $F_T(t) = 0.95$; discrete CDFs rise in steps and can jump past `0.95`.[^murphy2012]
 
-A chart or API that says "probability" is easy to misread. A PMF bar *is* a probability. A PDF curve needs an interval before it becomes one. A CDF's height is already accumulated probability.
+> **Key insight:** A PMF bar *is* a probability; a PDF curve must be integrated over an interval to become one; a CDF height is already accumulated probability.
 
-The [probability chapter](/learn/probability-for-machine-learning) treated a distribution as a function over a known sample space. Naming a response-time family still doesn't produce a duration. How does a computer turn one uniform random number into a simulated time?
+Naming a continuous family tells us its curve, but how does a computer turn uniform random numbers into simulated durations?
 
 ## Inverse CDF transform: how computers sample continuous variables
 
-Start from uniform draws, $U \sim \text{Uniform}(0, 1)$. A pseudo-random generator provides finite-precision floating-point values that approximate this mathematical input. It can also generate random bits and integers.
-
-The **inverse CDF transform**, or inverse-transform sampling, maps uniform draws through a distribution's quantile function. If $F$ is strictly increasing over its support, this is its ordinary inverse. A continuous CDF can also have flat regions, so the general definition is $F^{-1}(u) = \inf\{t : F(t) \geq u\}$, the first point where the CDF reaches the chosen probability. This generalized inverse works for discrete distributions too.
-
-With an ideal uniform draw and the exact quantile function, $T = F^{-1}(U)$ follows the target distribution:
+Every continuous sampler starts from uniform draws $U \sim \text{Uniform}(0, 1)$. The **inverse CDF transform** pushes $U$ through the distribution's quantile function $F^{-1}(u) = \inf\{t : F(t) \geq u\}$ (which also handles flat CDF regions and discrete jumps). Because $F^{-1}(U) \le t$ exactly when $U \le F(t)$, the transformed variable $T = F^{-1}(U)$ has the target CDF:
 
 $$
 P(F^{-1}(U) \leq t) = P(U \leq F(t)) = F(t)
 $$
 
-The **probability integral transform** runs in the other direction: for a draw $T$ from a continuous CDF $F$, the value $F(T)$ is uniform. The two constructions are related, but they aren't the same operation. Numerical quantile implementations and finite-precision RNGs approximate the ideal sampling statement.[SciPy's numerical inversion documentation](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.sampling.NumericalInverseHermite.html) describes this distinction in practice.
+<details>
+<summary>Deep dive: inverse transform versus probability integral transform</summary>
 
-To see how that works analytically, consider an exponential service duration with completion rate $\mu$:
+Running the same identity in reverse gives the **probability integral transform**: if $T$ follows a continuous CDF $F$, then $F(T) \sim \text{Uniform}(0, 1)$. When closed-form quantiles do not exist, libraries such as [SciPy's `NumericalInverseHermite`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.sampling.NumericalInverseHermite.html) approximate $F^{-1}$ numerically to floating-point precision.
+
+</details>
+
+For an exponential duration with rate $\mu$, inverting $F(s) = 1 - e^{-\mu s} = u$ gives a one-line sampler:
 
 $$
 F(s) = 1 - e^{-\mu s} = u \implies e^{-\mu s} = 1 - u \implies s = -\frac{\ln(1 - u)}{\mu}
 $$
 
-Because $1 - u$ is also distributed uniformly on $(0, 1)$, code can draw $u \sim \text{Uniform}(0, 1)$ and compute $s = -\ln(u) / \mu$. For a lognormal variable with median $e^\mu$ and log-spread $\sigma$, you invert standard normal noise: draw $u$, find the standard normal quantile $z = \Phi^{-1}(u)$, and exponentiate: $t = \exp(\mu + \sigma z)$.
+For a lognormal duration with median $e^\mu$ and log-spread $\sigma$, invert the standard normal CDF $z = \Phi^{-1}(u)$ and exponentiate: $t = \exp(\mu + \sigma z)$.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="A Bernoulli probability mass function assigns 28% to escalation and 72% to resolution. A lognormal cumulative distribution maps uniform draws to positive response times: u = 0.50 reaches the 6.0-second median, and u = 0.95 reaches the 14.8-second p95. The final 5% of uniform draws maps to response times at or beyond 14.8 seconds." />
-  <figcaption>Bernoulli bars show exact outcome masses. The lognormal CDF maps uniform draw levels on the vertical scale to response times on the horizontal scale: u = 0.50 reaches the 6.0-second median, and u = 0.95 reaches the 14.8-second p95. The top 5% of uniform draws maps to the response-time tail beyond that threshold.</figcaption>
+  <figcaption>Bernoulli bars show discrete outcome masses (28% vs 72%). The lognormal CDF maps uniform draws on the vertical axis to positive durations: u = 0.50 lands at the 6.0-second median, and the top 5% of uniform draws stretches across the entire right tail past 14.8 seconds.</figcaption>
 </figure>
 
-Notice the geometry in the plot: where the CDF is steep (near the 6-second median), a wide swath of uniform draws projects into a narrow slice of time. Where the CDF flattens out (the right tail), a tiny 5% sliver of uniform draws ($u \in [0.95, 1.0]$) stretches out across all latencies beyond 14.8 seconds.
-
-Inverting 5,000 uniform draws maps them close to the theoretical 0.05-second exponential mean, the 6.0-second lognormal median, and the 14.83-second p95 threshold. Because NumPy's `rng.uniform` can emit `0.0` while `norm.ppf` requires `0 < u < 1`, clip the lower endpoint using `np.finfo(float).tiny` instead of passing exact zero.
+Watch the geometry: where the CDF is steep near the 6-second median, a wide band of uniform draws compresses into a narrow time slice; where the CDF flattens in the right tail, the top `5%` of uniform draws ($u \in [0.95, 1.0]$) stretches across every latency past `14.8` seconds. Clip uniform draws strictly inside `(0, 1)` before calling `norm.ppf` so exact `0.0` never triggers `-inf`:
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Inverse CDF transform sampling" -->
 ```python title="sample-via-inverse-cdf.py"
@@ -167,20 +144,13 @@ lognormal p95:    14.74s (target: 14.83s)
 
 ## Bernoulli: resolved or escalated
 
-Begin with the smallest distribution. Let `R = 1` if the assistant resolves a request without a human, and `R = 0` if it escalates. The planning value is `p = 0.72`.
-
-| Outcome | `R` | Probability |
-|---|---:|---:|
-| escalation | 0 | 0.28 |
-| resolved | 1 | 0.72 |
-
-The <span data-glossary="expected-value">expected value</span> is:
+Start with the simplest distribution. Let `R = 1` when the assistant resolves a request autonomously (`p = 0.72`) and `R = 0` when it hands off (`1 - p = 0.28`). Because `R` is binary, its <span data-glossary="expected-value">expected value</span> equals the resolution probability:
 
 $$
 E[R] = 0 \times 0.28 + 1 \times 0.72 = 0.72
 $$
 
-Because `R` is encoded as `0` or `1`, its long-run average *is* the resolution rate. Calculate that weighted average directly:
+Verify the PMF and expectation with `scipy.stats.bernoulli`:
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Bernoulli resolution setup" -->
 ```python title="bernoulli-resolution-rate.py"
@@ -208,23 +178,15 @@ E[R]:         0.72
 ```
 <!-- leetllm: output:end -->
 
-One request is now a coin with a known bias. The next question is what happens when you count many of those coins.
-
 ## Binomial: resolutions in a 100-request batch
 
-If you count resolutions across `n = 100` independent requests that all share `p = 0.72`, the count `X` has a **binomial distribution**. A single request is Bernoulli; the sum of these 100 outcomes is binomial.[^nist2012binomial]
-
-Its expected count is `np = 72`, and its variance is `np(1-p) = 20.16`. The count can land anywhere from `0` to `100`, even though `72` is the center of the model.
-
-One particular arrangement of 72 resolutions and 28 escalations has probability `0.72^72 × 0.28^28`. There are many arrangements with that same count. The binomial coefficient $\binom{100}{72}$ counts them, giving:
+Summing $n = 100$ independent Bernoulli trials with shared probability $p = 0.72$ produces a **binomial distribution** with mean $np = 72$ and variance $np(1 - p) = 20.16$.[^nist2012binomial] Counting all $\binom{100}{72}$ ways to arrange 72 successes gives:
 
 $$
 P(X=72) = \binom{100}{72}(0.72)^{72}(0.28)^{28} \approx 0.089
 $$
 
-The binomial model is a sum of independent Bernoulli trials. If requests arrive in correlated incident waves, or if each request has a different resolution probability, this simple count model needs a richer design.
-
-Because each 100-request batch is finite, six sampled rates scatter around `.72` rather than matching it identically. The code checks the binomial formula with `scipy.stats.binom`, then draws six independent 100-request batches with NumPy's `Generator.binomial` while holding `p = 0.72` fixed.
+If requests arrive in correlated bursts or carry heterogeneous difficulty, a single-rate binomial model misses that structure. Even under fixed $p = 0.72$, watch six independent 100-request batches wobble from `0.65` to `0.76`:
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Resolution batches wobble" -->
 ```python title="sample-resolution-batches.py"
@@ -260,7 +222,7 @@ range:           0.65 to 0.76
 ```
 <!-- leetllm: output:end -->
 
-A <span data-glossary="confidence-interval">confidence interval</span> from the last chapter uses a finite sample to quantify uncertainty about an unknown rate. A distribution does the opposite: it assumes a process, then generates the samples you might see. The interval asks what the data support; the simulator asks what the assumption would produce.
+Notice the symmetry with the previous lesson: a <span data-glossary="confidence-interval">confidence interval</span> asks which rates $p$ are compatible with an observed sample, while a binomial simulator fixes $p$ and generates the samples it produces.
 
 ```checkpoint
 What is the difference between `p = 0.72` and a sampled batch rate of `0.68`?
@@ -268,30 +230,24 @@ What is the difference between `p = 0.72` and a sampled batch rate of `0.68`?
 `p = 0.72` is the assumed long-run resolution probability in the simulator. `0.68` is one finite batch generated under that assumption. A different batch can land above or below `0.72`.
 ```
 
-Binary resolution is only one label. Real traffic is split across several routes.
-
 ## Categorical: one route per request
 
-An incident-assistant request isn't always binary. It may be exactly one of several route labels. For this planning mix:
+When a request maps to exactly one of $K$ mutually exclusive labels whose weights sum to `1.0`, a single draw follows a **categorical distribution**, and the vector of label counts across 500 independent requests follows a **multinomial distribution**:
 
-| Intent | Probability | Expected count among 500 requests |
+| Route | Probability | Expected count in 500 requests |
 |---|---:|---:|
-| ci failure | 0.45 | 225 |
-| rollback | 0.20 | 100 |
-| code review | 0.20 | 100 |
-| log triage | 0.15 | 75 |
+| `ci_failure` | 0.45 | 225 |
+| `test_fix` | 0.20 | 100 |
+| `code_review` | 0.20 | 100 |
+| `log_triage` | 0.15 | 75 |
 
-The four probabilities sum to `1.00` because every request receives one route in this simplified taxonomy. A categorical distribution draws one of those labels according to the given weights.
-
-One request gives one categorical outcome. If 500 requests are independent and use this same route mix, the four counts together follow a **multinomial distribution**. Their sum must be 500, so the counts aren't independent of one another. Using `rng.choice` draws all 500 independent route labels directly from the categorical probabilities.
-
-In any finite draw of 500 requests, the observed counts will fall near `225`, `100`, `100`, and `75` without hitting those exact averages. Sampling variation is the behavior we want to inspect.
+Draw 500 independent routes with `rng.choice` and compare sampled counts against expectations:
 
 <!-- leetllm: test, output=show, output_title="Categorical route sample" -->
 ```python title="sample-intent-routing.py"
 import numpy as np
 
-intents = ["ci_failure", "rollback", "code_review", "log_triage"]
+intents = ["ci_failure", "test_fix", "code_review", "log_triage"]
 probabilities = np.array([0.45, 0.20, 0.20, 0.15])
 requests = 500
 
@@ -312,33 +268,23 @@ print("all labels known:", set(sampled).issubset(intents))
 
 <!-- leetllm: output:start -->
 ```text title="Categorical route sample" output compact
-expected counts: {'ci_failure': 225, 'rollback': 100, 'code_review': 100, 'log_triage': 75}
-sampled counts:  {'ci_failure': 230, 'rollback': 97, 'code_review': 102, 'log_triage': 71}
+expected counts: {'ci_failure': 225, 'test_fix': 100, 'code_review': 100, 'log_triage': 75}
+sampled counts:  {'ci_failure': 230, 'test_fix': 97, 'code_review': 102, 'log_triage': 71}
 all labels known: True
 ```
 <!-- leetllm: output:end -->
 
-The sampled counts need not equal the expectations; that discrepancy is ordinary sampling variation. An unknown label such as `database_restore` would be a different failure, showing that either the route taxonomy or the sampler configuration is wrong. Keeping explicit probability weights in `rng.choice` makes the planning mix clear at a glance.[^numpyParallelRandom2026]
-
-Routes tell you *what kind* of request arrived. Tool calls tell you how expensive that request was to serve.
+Counts fluctuate slightly around `[225, 100, 100, 75]` while always summing to 500 and staying strictly inside the declared route vocabulary.[^numpyParallelRandom2026]
 
 ## Poisson counts, then a bursty counterexample
 
-Tool calls are counts. A simple baseline is a Poisson distribution with parameter `lambda`, written $\lambda$. If `lambda = 2.2`, the simulated agent makes `2.2` tool calls per request on average.
-
-With a mean of `2.2`, a Poisson model predicts about `26.8%` of requests will make exactly two calls. To calculate that value, let `C` denote the count and `k` one nonnegative integer. In the formula below, `k!` means the factorial (`2! = 2 × 1`), and `e` is the base of natural logarithms:
+For nonnegative counts such as tool calls per request, a **Poisson distribution** with rate $\lambda$ assigns probability:
 
 $$
 P(C=k) = \frac{\lambda^k e^{-\lambda}}{k!}
 $$
 
-With $\lambda = 2.2$ and $k = 2$:
-
-$$
-P(C=2) = \frac{2.2^2 e^{-2.2}}{2} = \frac{4.84 \times e^{-2.2}}{2} \approx 0.268
-$$
-
-The loop below prints a few more masses, including the expensive tail `P(C > 5)`.
+At $\lambda = 2.2$, the probability of exactly two calls is $2.2^2 e^{-2.2} / 2 \approx 0.268$, and `scipy.stats.poisson` gives the full table plus the costly tail `P(C > 5)`:
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Poisson count probabilities" -->
 ```python title="poisson-tool-call-probabilities.py"
@@ -346,23 +292,10 @@ from scipy.stats import poisson
 
 dist = poisson(mu=2.2)
 
-
-def poisson_probability(k: int) -> float:
-    if k < 0:
-        raise ValueError("k must be nonnegative")
-    return float(dist.pmf(k))
-
-
 for k in range(5):
-    print(f"P(calls = {k}): {poisson_probability(k):.3f}")
+    print(f"P(calls = {k}): {dist.pmf(k):.3f}")
 
-share_above_5 = float(dist.sf(5))
-print(f"P(calls > 5): {share_above_5:.3f}")
-
-try:
-    poisson_probability(-1)
-except ValueError as error:
-    print(error)
+print(f"P(calls > 5): {dist.sf(5):.3f}")
 ```
 
 <!-- leetllm: output:start -->
@@ -373,17 +306,12 @@ P(calls = 2): 0.268
 P(calls = 3): 0.197
 P(calls = 4): 0.108
 P(calls > 5): 0.025
-k must be nonnegative
 ```
 <!-- leetllm: output:end -->
 
-The Poisson model makes a stronger claim than "counts can't be negative." Its mean and <span data-glossary="variance">variance</span> are both $\lambda$.[^nist2012poisson] A Poisson process produces such counts in a fixed exposure window when events arrive independently at a constant rate. Tool calls within a request aren't automatically such a process: the agent often decides its next call based on a previous result. Here Poisson is a candidate count distribution, not a fact implied by the data type.
+Poisson carries a rigid structural constraint: its mean and <span data-glossary="variance">variance</span> must both equal $\lambda$.[^nist2012poisson] Real tool-calling agents routinely violate this when ordinary queries take `1` to `2` calls while difficult debugging loops trigger `10+` calls, creating **overdispersion** (variance much larger than the mean).
 
-An agent can break that assumption. A difficult rollback may trigger a deploy lookup, a runbook lookup, a retry, and a handoff together. Those bursts create **overdispersion**, where variance is much larger than the mean.
-
-Both streams in the next comparison have a mean near `2.2`. The mixed stream uses ordinary requests 88% of the time and hard requests 12% of the time. Its exact expected count is `0.88 × 1.2 + 0.12 × 10 = 2.256`, close to the baseline's `2.2`.
-
-Under a true Poisson process, the variance-to-mean ratio stays close to `1`, and the share above five calls lands near `.025`. Sampling with NumPy's `Generator.poisson` shows how mixing low-rate and high-rate streams blows up the variance and tail risk even when the averages match.
+Compare a steady `Poisson(2.2)` stream against a mixture of `88%` ordinary requests (`Poisson(1.2)`) and `12%` complex debugging requests (`Poisson(10.0)`). Both share nearly the exact same mean (`2.20` vs `2.256`), yet their variance and costly tails diverge dramatically:
 
 <!-- leetllm: test, output=show, output_title="Poisson fit diagnostic" -->
 ```python title="challenge-poisson-tool-calls.py"
@@ -416,14 +344,14 @@ bursty: mean=2.24 variance=10.15 variance/mean=4.52 share>5=0.113
 ```
 <!-- leetllm: output:end -->
 
-| Metric | Steady Poisson ($\lambda = 2.2$) | Bursty Mixture ($88\% \text{ Poisson}(1.2) + 12\% \text{ Poisson}(10)$) | Operational Diagnosis |
+| Metric | Steady Poisson ($\lambda = 2.2$) | Bursty Mixture ($88\% \text{ Poisson}(1.2) + 12\% \text{ Poisson}(10)$) | Diagnosis |
 |---|---:|---:|---|
-| Theoretical Mean | 2.20 calls | 2.256 calls | Averages appear almost identical |
-| Sample Variance | 2.20 | 10.66 | Mixture variance is nearly $5\times$ higher |
-| Variance / Mean ratio | 0.98 | 4.65 | The mixture breaks the single-Poisson variance assumption |
-| Costly tail ($> 5$ calls) | 2.5% | 11.5% | About $4.6\times$ as many requests cross the count threshold |
+| Sample Mean | 2.24 calls | 2.24 calls | Averages look identical |
+| Sample Variance | 2.19 | 10.15 | Mixture variance is `4.6x` larger |
+| Variance / Mean ratio | 0.98 | 4.52 | Violates Poisson's equal-mean-variance law |
+| Costly tail (`> 5` calls) | 2.5% | 11.3% | `4.5x` as many expensive requests |
 
-The mixed sample has both excess variance and a larger expensive-tail share. It doesn't identify a retry storm: this simulator chooses request types independently and has no temporal clustering. Overdispersion alone doesn't determine every tail probability, and a tiny sample can have an unstable variance estimate. Inspect the count frequencies and the actual threshold you care about. Also separate request types or incident waves before deciding whether one distribution should describe them all.
+> **Key insight:** Matching the mean of count data hides bursty tails. Check the variance-to-mean ratio (dispersion index) and the share above your cost threshold, and switch to a mixture or negative binomial model when variance far exceeds the mean.
 
 ```checkpoint
 Why isn't a Poisson distribution automatically correct for agent tool calls just because tool calls are counts?
@@ -431,15 +359,9 @@ Why isn't a Poisson distribution automatically correct for agent tool calls just
 Poisson is a useful first count model, but it assumes the variance matches the mean. Agent retries and difficult request clusters can create much larger variance and a heavier expensive tail. Check the observed count shape before relying on the baseline.
 ```
 
-Counts are only half of the cost story. The other half is how long the request occupies a worker.
-
 ## Lognormal response time
 
-End-to-end response time can't be negative. Some requests can also take much longer than the typical request, forming a **right tail**. A lognormal distribution is one candidate for positive, right-skewed values; positivity alone does not imply that it's the right family.
-
-A **normal distribution** is the familiar symmetric bell-shaped model, described by a mean and standard deviation. A variable is **lognormal** when its natural logarithm is normal. For this example, take the logarithm of the numerical duration expressed in seconds.
-
-Both NumPy's `rng.lognormal(mu, sigma)` and Python's standard-library `random.lognormvariate(mu, sigma)` take the mean and standard deviation of those **log values**, not of the durations. Set `mu = log(6)` for a six-second median and `sigma = 0.55` for log-space spread. This gives a mean near `6.98` seconds. The conversion rules are:[^nistLognormal2012]
+Response times are strictly positive and right-skewed: most requests finish quickly while a long tail stretches out. A variable $T$ is **lognormal** when $\log T \sim \mathcal{N}(\mu, \sigma^2)$. Setting $\mu = \ln(6)$ and $\sigma = 0.55$ gives a 6-second median and a `6.98`-second mean:[^nistLognormal2012]
 
 $$
 \text{median}(T) = e^\mu
@@ -447,15 +369,15 @@ $$
 E[T] = e^{\mu + \sigma^2/2}
 $$
 
-To find `F_T(10)`, measure how many log-space standard deviations 10 seconds lies above the center. This standardized distance is a **z-score**:
+To find $F_T(10)$, convert 10 seconds to a log-space z-score:
 
 $$
 z = \frac{\log 10 - \log 6}{0.55} = \frac{\log(10/6)}{0.55} \approx 0.93
 $$
 
-The normal CDF with mean zero and standard deviation one gives about `0.823` at this z-score. Thus roughly 82% finish within 10 seconds. Its 95th-percentile z-score is about `1.645`, so the model's p95 is `exp(log(6) + 0.55 × 1.645) ≈ 14.83` seconds. A finite sample will usually stay close to those population targets without hitting either value on the nose.
+The standard normal CDF gives $\Phi(0.93) \approx 0.823$ (`82.3%` finish within 10 seconds), and the 95th percentile z-score `1.645` puts p95 at $\exp(\ln 6 + 0.55 \times 1.645) \approx 14.83$ seconds.
 
-> **⚠️ Common mistake:** Passing `6.0` as `mu` does *not* make the median six seconds. It makes the median $e^{6} \approx 403$ seconds. NumPy's `Generator.lognormal(mean, sigma)` uses the same log-space `mean`, while `scipy.stats.lognorm(s=sigma, scale=median_seconds)` passes the median directly through `scale`.
+> **Common mistake:** Passing `6.0` as `mu` to `rng.lognormal(mu, sigma)` sets the median to $e^6 \approx 403$ seconds, not 6 seconds. Pass `np.log(6.0)` to NumPy, or pass the median directly through `scale=6.0` in `scipy.stats.lognorm(s=sigma, scale=6.0)`.
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Positive response-time sample" -->
 ```python title="sample-lognormal-response-time.py"
@@ -488,13 +410,11 @@ model P(T <= 10):      0.823
 ```
 <!-- leetllm: output:end -->
 
-The median describes a typical request. p95 tells you about a noticeably slow slice. Reporting only the mean would hide how long the slow responses take. These lognormal draws stayed positive. What happens if a familiar bell curve, whose support includes negative numbers, is used for a duration instead?
+Reporting median (`6.00`s) alongside p95 (`14.89`s) reveals the slow tail that a bare mean (`7.05`s) hides. What goes wrong if you use an ordinary normal curve for durations instead?
 
 ## A normal model can go negative
 
-The normal distribution's support extends across the whole real line. It can model signed quantities, such as a measurement error around zero. It can also approximate a positive quantity when the chance of a negative draw is negligible for the task, but that needs checking.
-
-With mean `8` seconds and <span data-glossary="standard-deviation">standard deviation</span> `6` seconds, negative response times are far from negligible. Generate 5,000 durations and check support before accepting the plausible-looking mean or p95:
+A normal distribution spans $(-\infty, +\infty)$. With mean `8` seconds and <span data-glossary="standard-deviation">standard deviation</span> `6` seconds, nearly a tenth of simulated durations fall below zero:
 
 <!-- leetllm: test, output=show, output_title="Invalid latency model" -->
 ```python title="reject-negative-response-time.py"
@@ -520,25 +440,17 @@ sample mean:        8.08
 ```
 <!-- leetllm: output:end -->
 
-This normal model puts roughly a tenth of the sample below zero, which is physically impossible for a duration. Clipping every negative draw to zero would create a pile of zero-duration requests and alter the distribution rather than validating a fit. A positive family, a justified truncated model, or sampling representative empirical durations are alternatives to evaluate against actual traces.
-
-Even a plausible distribution for isolated durations misses another source of latency: waiting behind other requests. First distinguish time spent doing work from time spent in a queue.
+Clipping negative draws to zero creates an artificial spike at `0.0` instead of fixing the shape. Use a positive-support family (lognormal, Gamma, Weibull) or resample empirical traces directly.
 
 ## Exponential service time
 
-An **exponential distribution** models a duration with a constant completion rate, conditional on not having finished yet. It's the waiting-time distribution between arrivals in a constant-rate Poisson process. Using it for service time is a separate modeling assumption.
-
-For a toy single-server service, let `S` be service time and `μ = 20` completions per second when the server is busy. The mean duration is `1 / 20 = 0.05` seconds. This 50 ms service is a separate queueing example, not a new parameter for the six-second agent response-time model.
-
-Its density and CDF are:
+An **exponential distribution** models the duration of a constant-rate process ($\mu$ completions per second, mean $1/\mu$). Consider a fast single-server step with $\mu = 20$ completions/s (mean `0.05` s = `50` ms):
 
 $$
 f_S(s) = \mu e^{-\mu s}, \qquad F_S(s) = P(S \leq s) = 1 - e^{-\mu s}, \qquad s \geq 0
 $$
 
-At 20 requests per second, `P(S > 0.10) = e^{-20 \times 0.10} \approx 0.135`. The distribution is **memoryless**: after a request has already taken 50 ms, its remaining service-time distribution is still the same as at the start. This makes it a useful queueing baseline. Real tool work can depend on elapsed time and request state.[^murphy2012][^bishop2006]
-
-At 20 completions per second, 5,000 exponential draws concentrate around a `0.05`-second mean and leave about `0.135` above `0.10` seconds. Notice the parameter convention: `Random.expovariate(mu)` takes the **rate** `μ`, whereas NumPy's `Generator.exponential` and SciPy's `scipy.stats.expon` take the mean duration as `scale = 1 / μ`. Passing `20` as `scale` instead of `0.05` makes the mean 400 times larger. Although exact zero has probability zero in the mathematical model, a finite-precision sampler can return it, so the support check allows zero.[^numpyParallelRandom2026]
+The survival probability past `0.10` s is $P(S > 0.10) = e^{-20 \times 0.10} \approx 0.135$. Because the hazard rate is constant, the exponential distribution is **memoryless**: having already waited 50 ms gives no information about how much longer remains.[^murphy2012][^bishop2006] Watch the API convention: Python's `random.expovariate(mu)` takes the rate $\mu = 20$, while NumPy's `rng.exponential(scale=1/mu)` and SciPy's `expon(scale=1/mu)` take the mean duration `0.05`.[^numpyParallelRandom2026]
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Exponential service-time baseline" -->
 ```python title="sample-exponential-service-time.py"
@@ -569,15 +481,9 @@ min seconds: 0.000012
 ```
 <!-- leetllm: output:end -->
 
-The sample follows the chosen model. It doesn't show that real service times are exponential. Repeated simulation can estimate a model's tail probability more precisely without improving the model's fit to reality.
-
 ## More draws reduce simulation noise
 
-Monte Carlo simulation means using repeated random samples to approximate a quantity you care about. Here the quantity is the resolution rate, estimated from repeated simulated batches.
-
-For `N = 100` independent Bernoulli requests with `p = 0.72`, the batch-rate standard deviation is `sqrt(0.72 × 0.28 / 100) ≈ 0.045`. With `N = 10,000`, it's about `0.0045`. This is the earlier standard-error formula: `sqrt(p(1-p)/N)`. Multiplying the sample size by 100 divides this uncertainty by 10, not by 100.
-
-Across the three batch sizes (`100`, `1,000`, and `10,000`), those theoretical standard deviations drop from roughly `.045` to `.014` and `.0045`. That scaling shows Monte Carlo convergence under the assumed process; production claims still require fitting or validating the assumption against real traces.
+**Monte Carlo simulation** approximates an expected value or tail probability by averaging repeated random draws. Under independent Bernoulli draws with $p = 0.72$, standard error shrinks as $\sqrt{p(1-p)/N}$: multiplying draws by `100` (from `100` to `10,000`) cuts simulation noise by `10x` (from `0.045` to `0.0045`):
 
 <!-- leetllm: test, output=show, output_title="Monte Carlo convergence" -->
 ```python title="measure-monte-carlo-wobble.py"
@@ -602,9 +508,7 @@ N=10000: mean=0.720 sd_of_rates=0.0047
 ```
 <!-- leetllm: output:end -->
 
-Simulation answers a conditional question: "What happens if these assumptions are the generating process?" It doesn't validate `p = 0.72`, `lambda = 2.2`, or the latency parameters. Those must come from data, review design, and production measurement.
-
-The draw budget also depends on the question. Suppose a costly failure has assumed probability `q = 0.0001` per independent request. A 5,000-request simulation expects only `Nq = 0.5` failures. The probability of seeing none is `(1-q)^N`, about 61%. A run with zero failures would be common even under this model.
+Budget your draws for the rarest event you need to see. If a failure has probability $q = 0.0001$, a `5,000`-request run expects only `0.5` failures and sees zero failures `(1 - q)^5000 ≈ 60.7%` of the time:
 
 <!-- leetllm: test, output=show, output_title="Rare-event draw budget" -->
 ```python title="budget-rare-event-draws.py"
@@ -628,17 +532,11 @@ draws for 95% chance of at least one failure: 29,956
 ```
 <!-- leetllm: output:end -->
 
-That last budget makes `P(no failures) ≤ 0.05` under the assumed `q`. It gives a chance to detect the event, not a precise estimate of its frequency. Even that budget expects only about three failures. Before interpreting a quiet simulation, check whether it had enough draws to expose the tail you care about.
-
-To investigate a surprising run, record enough information to replay it rather than hoping the next random draw looks better.
+Seeing at least one failure with `95%` confidence already takes `29,956` draws (expecting ~3 failures), and estimating $q$ precisely takes far more.
 
 ## Recorded seeds replay a stream
 
-`Random(seed)` creates a deterministic pseudo-random stream. In the same environment, reusing the seed and draw order recreates a run. Record the code, Python and library versions, parameters, and number of draws too. Sampler algorithms can change across upgrades, so matching seeds alone may produce different results.[^pythonRandom2026]
-
-A seed doesn't make observations independent, and it doesn't repair a wrong model. Independence is a modeling assumption; separate streams help avoid accidentally replaying the same sequence across replicas.
-
-For parallel replications, spawn independent streams from one root `SeedSequence` rather than sharing one generator. Distinct child streams keep workers reproducible without replaying identical pseudo-observations as if they were new evidence.[^numpyParallelRandom2026]
+Seeding a pseudo-random generator makes a simulation deterministic within the same environment and library version.[^pythonRandom2026] For parallel replicas, never pass the same seed to multiple workers (which would duplicate identical draws). Instead, spawn independent child streams from one root `np.random.SeedSequence`:[^numpyParallelRandom2026]
 
 <!-- leetllm: test, output=show, output_title="Reproducible replica streams" -->
 ```python title="replay-replica-rng-streams.py"
@@ -671,25 +569,19 @@ replay matches: True
 ```
 <!-- leetllm: output:end -->
 
-Replay is a reproducibility requirement. It also helps inspect a more difficult sampling problem: a Bayesian posterior that can't be sampled directly.
-
 ## Sample a posterior when direct draws aren't available
 
-[Bayesian Inference from Evidence](/learn/bayesian-inference-priors-posteriors) updated a Beta(2, 2) prior with eight passes and two failures to obtain an exact Beta(10, 4) posterior. That direct update worked because the prior and likelihood were conjugate. A richer agent model might include several interacting skill parameters or task-difficulty effects without a convenient closed-form posterior.
+Conjugate models like the `Beta(10, 4)` posterior from [Bayesian Inference from Evidence](/learn/bayesian-inference-priors-posteriors) have closed-form samplers. Hierarchical models with interacting skill and task-difficulty parameters rarely do: we can evaluate the unnormalized density $\tilde{\pi}(p)$, not the normalizing constant.
 
-<span data-glossary="markov-chain-monte-carlo">Markov chain Monte Carlo (MCMC)</span> addresses that harder case by constructing dependent parameter states with the desired posterior as their stationary distribution. Reaching that distribution requires a valid transition rule and adequate exploration; a chain trapped in one region can give misleading estimates. Unlike the independent Monte Carlo draws above, each new state starts from the previous state.[^murphy2012]
-
-<span data-glossary="metropolis-hastings">Metropolis-Hastings</span> proposes a candidate state, then either moves to it or stays at the current state. Start with a concrete comparison: the Beta(10, 4) posterior's unnormalized density is about `2.642` times as high at `0.6` as at `0.5`. With a symmetric proposal, accept the move to `0.6` with probability `1`; accept the reverse move with probability `1 / 2.642 ≈ 0.379`.
-
-Here **symmetric** means the proposal is equally likely in either direction, as with a normal step centered on the current value. If $\pi$ denotes the target density and $p'$ a proposed value, this rule is:[^hastings1970mcmc]
+<span data-glossary="markov-chain-monte-carlo">Markov chain Monte Carlo (MCMC)</span> builds a dependent chain of states whose stationary distribution is the target posterior.[^murphy2012] At each step, **<span data-glossary="metropolis-hastings">Metropolis-Hastings</span>** proposes a candidate $p'$ from the current state $p$. For a symmetric proposal (such as a Gaussian step centered at $p$), the unknown normalizing constant cancels in the acceptance probability:[^hastings1970mcmc]
 
 $$
 a(p,p')=\min\left(1,\frac{\pi(p')}{\pi(p)}\right)
 $$
 
-The unknown normalization constant in $\pi$ cancels in the ratio. The earlier Beta(10, 4) result lets us check the mechanics even though NumPy can sample this posterior directly via `rng.beta(10, 4)`. Its density is proportional to $p^9(1-p)^3$ for `0 < p < 1`. An asymmetric proposal needs an additional reverse-to-forward proposal-density ratio; don't reuse the simplified rule unchanged.
+(An asymmetric proposal multiplies this ratio by the reverse-to-forward proposal density ratio $q(p \mid p') / q(p' \mid p)$.)
 
-The next cell checks both directions with a fixed uniform draw `0.4`. That value sits below the forward probability `1.000`, so the uphill move accepts, and above `0.379`, so the reverse move rejects. This is a single deterministic check; a complete sampler draws a fresh uniform threshold at every step.
+Check the ratio on `Beta(10, 4)`, where $\pi(0.6) / \pi(0.5) \approx 2.642$: uphill moves to `0.6` accept with probability `1.0`, while downhill moves back to `0.5` accept with probability `1 / 2.642 = 0.379` (rejected at uniform draw `u = 0.4`):
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Metropolis-Hastings acceptance check" -->
 ```python title="inspect-metropolis-hastings-acceptance.py"
@@ -713,7 +605,7 @@ reverse accepted at u=0.4: False
 ```
 <!-- leetllm: output:end -->
 
-A rejection must remain in the chain as another copy of the current state. Keeping only accepted moves would sample a different process. This teaching sampler evaluates SciPy's log density `beta(10, 4).logpdf` to avoid underflow, rejects out-of-range proposals automatically (`-inf` log density outside `[0, 1]`), and compares four starting points with the exact posterior mean:
+When a proposal is rejected, record the current state again (discarding rejections alters the stationary distribution). Evaluate log-densities to avoid underflow, discard early **warmup** steps, and launch four chains from dispersed starting points to check whether they converge to the exact posterior mean `10/14 = 0.714`:
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Posterior chain checks" -->
 ```python title="sample-beta-posterior-with-metropolis.py"
@@ -758,31 +650,26 @@ exact posterior mean: 0.714
 ```
 <!-- leetllm: output:end -->
 
-Early **warmup** or **burn-in** states can reflect initialization rather than the posterior. Discarding them addresses initialization; assess later exploration with chain diagnostics. The printed lag-one correlation measures similarity between adjacent draws; it can stay large even when the sample mean looks right.
+All four chains converge to `0.712` to `0.715`, yet lag-1 <span data-glossary="autocorrelation">autocorrelation</span> is `~0.72`: consecutive draws are strongly correlated, so `10,000` correlated MCMC draws carry far less information than `10,000` independent draws.
 
-<span data-glossary="autocorrelation">Autocorrelation</span> reduces the information in many ordinary chains. <span data-glossary="effective-sample-size">Effective sample size</span> estimates precision for a particular quantity relative to independent draws; chain length alone doesn't determine it. Established tools report rank-normalized split **R-hat**, which compares variation within and between chains, alongside effective sample sizes. Passing the loose mean assertion above is a code smoke check against a known answer, not a convergence proof.[^stanPosteriorAnalysis2026]
+<details>
+<summary>Deep dive: MCMC diagnostics (ESS, R-hat) and Gibbs sampling</summary>
 
-<span data-glossary="gibbs-sampling">Gibbs sampling</span> instead updates one variable from its conditional distribution given the current values of the others. Exact conditional draws can still produce a strongly correlated chain. Neither method proves that the underlying statistical model represents the real system.
+Production MCMC tools track <span data-glossary="effective-sample-size">effective sample size (ESS)</span> to measure how many independent draws a correlated chain is worth, alongside rank-normalized split **R-hat** to verify that chains started at different points mix into the same distribution.[^stanPosteriorAnalysis2026] When full conditional distributions are known in closed form, **<span data-glossary="gibbs-sampling">Gibbs sampling</span>** updates one parameter at a time by drawing directly from its conditional distribution given the rest (a special case of Metropolis-Hastings with acceptance probability 1).
 
-Posterior-sampling diagnostics qualify uncertainty about model parameters. They still say nothing about queues, which is where isolated latency samples go wrong.
+</details>
 
 ## Waiting time when the server fills up
 
-A simulation that samples latency in isolation ignores how requests interact. Suppose three requests arrive at `0`, `10`, and `20` ms, and each needs `50` ms on one server. The first starts immediately. The second waits until `50` ms, and the third until `100` ms. Their total times are therefore `50`, `90`, and `130` ms, even though each does the same amount of work.
+Sampling response times in isolation ignores contention. If three requests arrive at `0`, `10`, and `20` ms and each needs `50` ms on one server, they finish at `50`, `100`, and `150` ms, spending `50`, `90`, and `130` ms in the system solely because of **queueing delay**.
 
-That is **queueing delay**: time waiting to start, separate from service time. A probabilistic queueing model adds random arrivals and service durations to this same mechanism.
-
-**Little's Law** states that the average number of requests in a stable system $L$ equals the arrival rate $\lambda$ times the average time $W$ a request spends in the system:
+In any stable queueing system, **Little's Law** links average concurrency $L$, arrival rate $\lambda$, and mean time in system $W$:
 
 $$
 L = \lambda W
 $$
 
-For an **M/M/1** baseline, assume constant-rate Poisson arrivals, independent exponential service times, one server, first-come-first-served processing, unlimited waiting space, and no abandonment. The two `M`s denote the memoryless arrival and service models. At a steady arrival rate of 15 requests per second and a service rate of 20 per second, the server is busy on average `15 / 20 = 75%` of the time.
-
-Write utilization as $\rho = \lambda / \mu$. A steady-state distribution requires $\lambda < \mu$. Here $\lambda$ counts arrivals per second; the earlier tool-count parameter `2.2` counted calls per request. The same Greek letter doesn't imply the same units.[^mitQueueingTheory2026]
-
-Average total time in the system $W$ and average time waiting in the queue $W_q$ are:
+For an **M/M/1** queue (memoryless Poisson arrivals at rate $\lambda$, exponential service at rate $\mu$, single FIFO server, and $\rho = \lambda/\mu < 1$), mean total time $W$ and mean queue wait $W_q$ are:[^mitQueueingTheory2026]
 
 $$
 W = \frac{1}{\mu - \lambda}
@@ -790,26 +677,20 @@ W = \frac{1}{\mu - \lambda}
 W_q = \frac{\lambda}{\mu(\mu - \lambda)}
 $$
 
-As utilization approaches 100%, both quantities rise sharply. Consider a service with a mean service time of 50 ms ($\mu = 20$ requests/second):
+Watch what happens at a fixed `50` ms service time ($\mu = 20$ req/s) as utilization approaches `100%`:
 
 | Arrivals $\lambda$ | Utilization $\rho$ | Total time $W$ | Queue time $W_q$ |
 |---:|---:|---:|---:|
 | 15 req/s | 0.75 | 0.20 s | 0.15 s |
 | 19 req/s | 0.95 | 1.00 s | 0.95 s |
 
-The service time stays at 50 ms in both rows, but moving from 75% to 95% utilization lifts average total time from 0.20 to 1.00 seconds. Queueing, not slower work, caused the jump.
-
-These are steady-state averages, not predictions for a three-request burst or a p99 latency. At or above `λ = μ`, this model has no finite steady-state mean waiting time; plugging those values into the formula is invalid. Little's Law alone doesn't cause the sharp increase: that shape comes from the M/M/1 assumptions. Real batching, parallel workers, deadlines, and dependent retries need a different queueing model.
-
-Two ways a latency simulator can lie are already on the table: the wrong positive-time family, and a missing queue. The last diagnostic uses the CDF you already have.
+Pushing utilization from `75%` to `95%` multiplies average latency by `5x` (`0.20`s to `1.00`s) without the server getting any slower, and at $\lambda \ge \mu$ no finite steady-state mean exists.
 
 ## Score a candidate with the CDF
 
-Before using a simulator for planning, compare it with representative held-out traces, including difficult requests and timeouts. A **quantile-quantile (Q-Q) plot** compares observed quantiles against candidate quantiles; disagreement near the high end exposes a tail mismatch. A timeout recorded at its deadline is a censored observation, not necessarily a completed response at exactly that duration.
+Compare any candidate distribution against held-out traces using Q-Q plots (which highlight tail divergence) and the **empirical CDF** $F_n(t)$, the fraction of requests finishing by deadline $t$.
 
-The **empirical CDF** of a fully observed sample at a deadline is the fraction of durations at or below it. If 160 of 200 responses finish within 10 seconds, and all 200 eventually finish with observed durations, it equals `0.80` there. A candidate CDF of `0.823` has a gap of `0.023` at that deadline.
-
-Now suppose those 200 completions came from 250 requests. Another 50 requests were still unfinished when measurement stopped at a 15-second deadline. These are **right-censored** completion times: each is known to exceed 15 seconds, but its eventual duration is unknown.[^scipyCensoredData2026] The deadline-completion fraction at 10 seconds uses all 250 requests, not just the 200 that finished:
+Watch out for **right-censored** timeouts: if `160` of `250` requests finish within 10 s, `40` finish between 10 and 15 s, and `50` time out unfinished at 15 s, dropping timeouts inflates the 10-second completion rate from `0.64` to `0.80` and hides the fact that true completion p95 sits beyond 15 s:[^scipyCensoredData2026]
 
 <!-- leetllm: test, output=show, output_title="Timeouts change the denominator" -->
 ```python title="keep-censored-requests-in-the-population.py"
@@ -832,19 +713,15 @@ unfinished fraction at 15s: 0.20
 ```
 <!-- leetllm: output:end -->
 
-Dropping the unfinished requests turns `0.64` into `0.80` and makes latency look better. Because 20% remain unfinished at 15 seconds, this cohort's completion-time p95 lies beyond that deadline; these logs can't identify its actual value. If instead you measure time until the client receives either a response or a timeout, 15 seconds is an observed timeout duration. That's a different quantity from time to completion. Use a censoring-aware fit for completion times, and don't treat the deadline as a completed response time in an ordinary KS test. The shared measurement deadline here is fixed in advance; shorter deadlines assigned to harder requests would require accounting for that selection rule too.
+Always keep censored requests in the denominator and use censoring-aware survival estimators rather than treating timeout deadlines as completed durations.
 
-The **Kolmogorov-Smirnov (KS) distance** $D$ takes the largest such vertical gap over all deadlines. In the notation below, `sup` means the largest gap, `F_n` is the empirical CDF, and `F` is the candidate CDF:
+For uncensored samples, the **Kolmogorov-Smirnov (KS) distance** $D$ measures the largest vertical gap between the empirical CDF $F_n$ and a candidate CDF $F$:
 
 $$
 D = \sup_t \left| F_n(t) - F(t) \right|
 $$
 
-On the same sample, a larger `D` means a larger worst-case CDF discrepancy. It isn't a verdict on every operational risk: two models can differ mainly in a rare tail that contributes little to `D`. Keep your explicit timeout and costly-tail checks.
-
-The ordinary one-sample KS p-value assumes independent observations from a continuous distribution whose parameters were specified in advance. Fitting parameters on the same observations needs a calibration procedure that accounts for fitting, such as a parametric bootstrap. SciPy's `goodness_of_fit` implements this approach.[^scipyGoodnessOfFit2026] This example only calculates distances, not p-values.
-
-This check specifies both candidates first, using the same lognormal planning values as the rest of the chapter, then scores them against 200 positive draws. The normal candidate gets the lognormal's mean and standard deviation, so the comparison tests shape beyond those summaries. The generating lognormal model has lower expected KS distance; either candidate can score lower on a finite sample.
+(When candidate parameters are fitted on the same sample rather than fixed beforehand, compute KS p-values via parametric bootstrap, as in SciPy's `goodness_of_fit`.[^scipyGoodnessOfFit2026]) Below, compare our lognormal candidate against a normal candidate sharing the exact same mean (`6.98`s) and standard deviation (`4.15`s) on 200 lognormal traces:
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="KS distance challenge" -->
 ```python title="ks-distance-challenge.py"
@@ -876,25 +753,22 @@ normal mean: 6.98s  std: 4.15s
 ```
 <!-- leetllm: output:end -->
 
-The lognormal gap is smaller in this seeded run. A finite sample still gives `D > 0`. This check asks whether our comparison distinguishes the known generating shape from an alternative. Validate against actual service traces before using the model for planning.
+The lognormal gap (`0.051`) is less than one-third the normal gap (`0.159`), exposing the skewness mismatch even when mean and standard deviation are identical.
 
 ## Build a launch-simulation report
 
-Now put the four request fields together. This is deliberately an **independent-field baseline**: it draws each field without conditioning on the others. It has no arrivals, worker limits, or queue, so it describes synthetic requests, not system capacity. Keep that limitation attached to the report.
+Assemble all four distributions into an **independent-field baseline** simulator for 5,000 requests:
 
 <!-- leetllm: test, output=show, output_title="Agent launch simulation report" -->
 ```python title="build-agent-launch-report.py"
 import numpy as np
 
 
-def simulate_incident_agent(seed: int, n_requests: int) -> dict[str, float]:
-    if n_requests <= 0:
-        raise ValueError("n_requests must be positive")
-
+def simulate_coding_agent(seed: int, n_requests: int) -> dict[str, float]:
     rng = np.random.default_rng(seed)
     resolved = rng.binomial(1, 0.72, size=n_requests)
 
-    intents = ["ci_failure", "rollback", "code_review", "log_triage"]
+    intents = ["ci_failure", "test_fix", "code_review", "log_triage"]
     intent_probs = [0.45, 0.20, 0.20, 0.15]
     routed = rng.choice(intents, p=intent_probs, size=n_requests)
 
@@ -903,7 +777,7 @@ def simulate_incident_agent(seed: int, n_requests: int) -> dict[str, float]:
 
     return {
         "resolution_rate": float(resolved.mean()),
-        "rollback_share": float(np.mean(routed == "rollback")),
+        "test_fix_share": float(np.mean(routed == "test_fix")),
         "mean_tool_calls": float(tool_calls.mean()),
         "share_over_5_tools": float(np.mean(tool_calls > 5)),
         "median_seconds": float(np.median(response_seconds)),
@@ -912,7 +786,7 @@ def simulate_incident_agent(seed: int, n_requests: int) -> dict[str, float]:
     }
 
 
-report = simulate_incident_agent(seed=7, n_requests=5_000)
+report = simulate_coding_agent(seed=7, n_requests=5_000)
 for name, value in report.items():
     print(f"{name:>20}: {value:.3f}")
 
@@ -923,7 +797,7 @@ assert report["p95_seconds"] > report["median_seconds"]
 <!-- leetllm: output:start -->
 ```text title="Agent launch simulation report" output compact
      resolution_rate: 0.722
-      rollback_share: 0.195
+      test_fix_share: 0.195
      mean_tool_calls: 2.228
   share_over_5_tools: 0.023
       median_seconds: 5.973
@@ -932,13 +806,9 @@ assert report["p95_seconds"] > report["median_seconds"]
 ```
 <!-- leetllm: output:end -->
 
-Use that output as a simulator report. The rate, label mix, count tail, and latency tail are only as credible as their fitted parameters and assumption checks. Validate those assumptions against production data before making operational claims.
+Notice what this independent baseline leaves out: it draws each field separately, so hard routes never correlate with extra tool calls or slower responses. To model coupled fields, use **conditional sampling** (draw route first, then draw tool calls and latency from route-specific parameters).
 
-This generator samples each field separately from one root state. It therefore treats resolution, route, tool count, and response time as independent once their parameters are fixed.
-
-A shared <span data-glossary="random-number-generator">random-number generator (RNG)</span> makes the run replayable; it doesn't create or prove independence. Real rollback requests may use more tools and take longer. Preserve that relationship with **conditional sampling**, such as drawing route first, then drawing tool count and latency from models for that route.
-
-To see what separate summaries miss, compare two four-request datasets. They have identical tool counts and identical durations, but pair those values differently so we can compare how often a request is both expensive and slow across the two pairings:
+Watch how identical marginal distributions can produce completely different joint tail risk depending on how fields pair up:
 
 <!-- leetllm: test, output=show, output_title="Same marginals, different joint risk" -->
 ```python title="check-joint-expensive-and-slow.py"
@@ -965,15 +835,13 @@ reversed expensive-and-slow: 0.00
 ```
 <!-- leetllm: output:end -->
 
-Every one-field histogram, mean, and percentile is identical between these datasets. Yet the joint threshold shares differ. Matching each marginal distribution separately doesn't validate the relationships among fields, which matter for timeouts and simultaneous resource demand.
-
-Those checks apply to the simulator's fields. The same categorical math appears inside the model that writes the assistant's answer.
+Both datasets have identical marginal histograms, means, and percentiles, yet their joint expensive-and-slow share jumps from `0.00` to `0.50`. Checking marginals alone misses joint resource spikes.
 
 ## Next tokens: categorical draws, temperature scaling, and the Gumbel-Max trick
 
-The incident-assistant labels form a categorical distribution because one label is selected from a finite list. An LLM uses the same family over a much larger vocabulary. At each step it produces a **<span data-glossary="logits">logit</span>**, an unnormalized score, for each candidate <span data-glossary="token">token</span>. **<span data-glossary="softmax">Softmax</span>** exponentiates those scores and divides by their sum, producing probabilities. A decoder may sample one token from that distribution.[^goodfellow2016]
+That same categorical distribution drives every step of LLM decoding, scaled up to a vocabulary of `50,000` to `128,000+` tokens. The model outputs one unnormalized **<span data-glossary="logits">logit</span>** per candidate <span data-glossary="token">token</span>, **<span data-glossary="softmax">softmax</span>** converts logits into a categorical probability vector, and the decoder draws one token.[^goodfellow2016]
 
-Take a tiny continuation for the prompt `The sky is`. Four words are enough to see the mechanics: `blue` has the largest probability, while a random draw can still choose `clear`.
+Try a four-word continuation for `The sky is`: `blue` has the highest probability (`0.604`), while sampling can still draw `clear` (`0.300`):
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Tiny token distribution" -->
 ```python title="sample-one-token-from-logits.py"
@@ -1004,54 +872,44 @@ probabilities sum to one: True
 ```
 <!-- leetllm: output:end -->
 
-`blue` is the **mode**, the most probable outcome, while this draw returned `clear`. Greedy decoding would choose `blue`; sampling can select any word with nonzero probability. Subtracting the largest logit before exponentiating prevents overflow for these finite inputs without changing the probability ratios. Displayed rounded probabilities may add to `1.001`; the unrounded values still sum to one.
+`blue` is the **mode** (what greedy decoding always picks), while random sampling selected `clear`.
 
 ### Reshaping entropy with temperature scaling
 
-Before feeding logits into softmax, generation runtimes introduce a positive **temperature** parameter $T > 0$ that scales logits: $\tilde{z}_i = z_i / T$.
+Before applying softmax, decoders divide logits by a positive **temperature** $T > 0$ ($\tilde{z}_i = z_i / T$), reshaping entropy while keeping the token ranking intact:
 
-Dividing logits by temperature alters the distribution's entropy without changing which token has the highest score:
-
-- **Low temperature ($T < 1.0$, such as $T = 0.3$):** Logit gaps stretch wider. Dividing by 0.3 multiplies differences by $3.33\times$. Here `blue` climbs from 60.4% to 91.1%, while `clear` still has about 8.8% probability. This remains sampling. As $T \to 0$, probability concentrates on the highest logit; with a unique maximum, the limit is greedy selection. Tied maxima share the limiting mass unless a separate tie-breaking rule selects one.
-- **Baseline temperature ($T = 1.0$):** Softmax evaluates unscaled logits. That does not imply calibration; a model can assign confident probabilities to incorrect continuations.
-- **High temperature ($T > 1.0$, such as $T = 2.0$):** Logit gaps shrink. Here `blue` drops to 44.8% and `green` rises to 7.1%. For a fixed finite vocabulary and finite logits, the distribution approaches uniform ($1/4 = 25\%$ here) as $T \to \infty$. At `T=2`, `blue` remains the most likely word. More varied continuations do not by themselves yield better answers or a particular hallucination rate.
+- **Low temperature ($T = 0.3$):** stretches logit gaps by $3.33\times$, lifting `blue` from `60.4%` to `91.1%` (with `clear` still at `8.8%`). As $T \to 0$, probability concentrates on the maximum logit (greedy decoding).
+- **Baseline temperature ($T = 1.0$):** applies softmax to the raw logits.
+- **High temperature ($T = 2.0$):** shrinks logit gaps, dropping `blue` to `44.8%` and lifting `green` to `7.1%`; as $T \to \infty$, the distribution flattens toward uniform (`25%` each).
 
 ### GPU-parallel sampling with the Gumbel-Max trick
 
-On GPU hardware serving thousands of concurrent requests, how does code draw a categorical sample from 128,000 candidate tokens?
-
-One option is to build a cumulative probability array and locate a uniform draw in it. Prefix sums can run in parallel too. Another option is the **Gumbel-Max trick**, which expresses categorical sampling as independent noise plus an argmax. Runtimes choose among kernels based on hardware, vocabulary size, filtering, and reproducibility requirements.
-
-Draw an independent standard Gumbel noise value for each vocabulary token from uniform random numbers:
+How can a GPU sample from `128,000` logits without building a serial cumulative-probability search? The **Gumbel-Max trick** turns categorical sampling into elementwise noise plus a parallel argmax. Draw independent standard Gumbel noise for every vocabulary slot:
 
 $$
 g_i = -\ln(-\ln(u_i)), \qquad u_i \sim \text{Uniform}(0, 1)
 $$
 
-Add that Gumbel noise directly to the temperature-scaled logits, then take the parallel argmax:
+Add $g_i$ to the temperature-scaled logits and take the maximum:
 
 $$
 i^* = \operatorname{argmax}_i \left( \frac{z_i}{T} + g_i \right)
 $$
 
-With independent standard Gumbel draws, token $k$ wins with its softmax probability in the mathematical model:[Gumbel-Max derivation](https://arxiv.org/pdf/1611.01144).
+Remarkably, token $k$ wins this race with its exact softmax probability ([Gumbel-Max derivation](https://arxiv.org/pdf/1611.01144)):
 
 $$
 P\left(\operatorname{argmax}_i \left( \frac{z_i}{T} + g_i \right) = k\right) = \frac{\exp(z_k / T)}{\sum_j \exp(z_j / T)}
 $$
 
-The transformation can run in parallel, and it also needs random-number generation, logarithms, and a reduction. Measure speed and memory-bandwidth use on the target workload. As checked on October 10, 2026, [vLLM's PyTorch-native sampler](https://github.com/vllm-project/vllm/blob/276fbcff2717bd934cfa37c8a2e4c391f3e7237b/vllm/v1/sample/ops/topk_topp_sampler.py) uses an equivalent exponential-noise race, while eligible filtered CUDA paths can use FlashInfer rejection-sampling kernels. The mathematical distribution can agree while seeded outputs differ between implementations.
-
-The hard argmax here selects a discrete token. It doesn't provide useful gradients through that chosen index. The Gumbel-Softmax training method replaces it with a smooth relaxation; this example uses the categorical sampler, not that relaxation.[Gumbel-Softmax paper](https://arxiv.org/pdf/1611.01144)
+> **Key insight:** Gumbel-Max (and the algebraically equivalent exponential-race formulation used in GPU inference kernels) expresses discrete categorical sampling as an elementwise noise addition followed by a single parallel reduction. Hard argmax is non-differentiable; training with gradients uses the continuous **Gumbel-Softmax** relaxation instead.
 
 <figure>
   <img src="illustrations/_generated/distribution_workflow_dark.png" alt="Temperature changes blue's probability to 91.1% at T=0.3, 60.4% at T=1, and 44.8% at T=2. The T=0.3 distribution still gives clear 8.8% probability; at T=2, blue remains most likely while probability spreads across all four words. At T=1, the sampled Gumbel draw makes clear win with score 3.75 over blue's 2.97. Independent Gumbel draws reproduce the softmax categorical law in the mathematical model." />
-  <figcaption>Lower temperature concentrates probability on high-logit words; higher temperature spreads it across more choices. This sampled T=1 Gumbel draw gives `clear` the highest perturbed score. For a fixed noise draw, argmax selects one word; fresh Gumbel draws produce samples according to the softmax distribution.</figcaption>
+  <figcaption>Lower temperature sharpens mass onto the highest-logit token while higher temperature spreads it out. In the bottom panel (T = 1), Gumbel noise pushes `clear` (1.50 + 2.25 = 3.75) ahead of `blue` (2.20 + 0.77 = 2.97), so `clear` wins that draw.</figcaption>
 </figure>
 
-In the bottom panel, word `clear` starts with a lower base logit (1.50) than `blue` (2.20). This draw gives `clear` a +2.25 Gumbel perturbation and `blue` a +0.77 perturbation, moving their scores to 3.75 and 2.97. `clear` therefore wins the argmax. Across thousands of draws, each candidate's empirical win frequency approaches its softmax probability.
-
-The next snippet compares empirical win frequencies across 10,000 vectorized Gumbel draws against the exact softmax probabilities at two temperatures. It illustrates the equivalence rather than proving it; NumPy's `rng.gumbel` handles open-interval bounds internally without dividing by zero.
+Verify the equivalence across `10,000` vectorized Gumbel draws at `T = 1.0` and `T = 0.3`:
 
 <!-- leetllm: test, deps=scipy, output=show, output_title="Gumbel-Max sampling verification" -->
 ```python title="gumbel-max-token-sampling.py"
@@ -1090,47 +948,41 @@ Temperature T=0.3:
 ```
 <!-- leetllm: output:end -->
 
-Later chapters teach decoding controls in depth. A sampling decoder doesn't choose from raw logits directly. It draws from a probability distribution derived from those logits. A greedy decoder is different: it selects the highest-probability token instead of drawing a sample. For open-ended text generation, <span data-glossary="top-p">nucleus sampling</span> chooses a dynamic high-probability token set and renormalizes it before sampling, rather than sampling from an unreliable long tail.[^holtzman2020]
+For open-ended text generation, <span data-glossary="top-p">nucleus sampling</span> (top-$p$) truncates the unreliable low-probability tail and renormalizes the remaining tokens before sampling.[^holtzman2020]
 
 ## Keep the simulation honest
 
-Before believing output from a random simulator, write down its assumptions:
-
-| Quantity | Model used | Report | Challenge before trusting it |
+| Quantity | Distribution | Summary | Diagnostic check |
 |---|---|---|---|
-| resolved without human | Bernoulli | rate | is one request one binary decision? |
-| request route | categorical | proportions | are all real route labels represented? |
-| tool calls | Poisson baseline | mean and share above 5 | is variance near mean, or are calls bursty? |
-| response time | lognormal baseline | median and p95 | is any time nonpositive, and does the tail resemble traces? |
-| next token | categorical from softmax | sampled token and probabilities | does decoding alter the candidate set or distribution? |
-
-The seed also belongs in the report. It makes one simulated run reproducible, but it doesn't make an incorrect model correct.
+| Autonomous resolution | Bernoulli | rate | are requests independent with stationary `p`? |
+| Request route | categorical | proportions | does the support cover every real route label? |
+| Tool calls | Poisson baseline | mean and share `> 5` | is `variance / mean ≈ 1`, or overdispersed? |
+| Response time | lognormal baseline | median and p95 | strictly positive support, KS/Q-Q fit, timeouts kept? |
+| Next token | categorical (softmax) | token and probabilities | temperature, top-$p$, and seed recorded? |
 
 ## Practice: challenge a candidate launch model
 
-A teammate proposes this incident-assistant simulator:
+A teammate proposes this assistant simulator:
 
 | Quantity | Proposed model | Claim |
 |---|---|---|
-| resolution | Bernoulli with `p = 0.78` | 78 percent resolves automatically |
+| resolution | Bernoulli with `p = 0.78` | 78% resolves automatically |
 | request type | categorical with no `log_triage` label | covers incoming requests |
 | tool calls | Poisson with mean `2.0` | estimates tool cost |
-| response time | normal with mean `7` seconds and standard deviation `8` seconds | estimates p95 latency |
+| response time | normal with mean `7` s and std `8` s | estimates p95 latency |
 
-Write a review with four parts:
+Check four diagnostics:
 
-1. Name one parameter that needs evidence from logs or reviewed traffic.
-2. Identify the impossible or missing state.
-3. State one count diagnostic for the tool-call assumption.
-4. State which latency summary should appear in the report.
+1. Which parameter requires empirical estimation from real logs?
+2. Which support violation or missing state breaks the simulator immediately?
+3. What count diagnostic tests the Poisson tool-call assumption?
+4. Which latency summaries belong in the report?
 
 ```checkpoint
 What is a strong answer to the practice review?
 ---
 The resolution probability needs evidence from a representative set of requests. The categorical model is missing `log_triage`, so it can't represent every stated route. Tool-call counts should be checked for overdispersion by comparing variance with mean and reporting the share above a costly threshold. A normal response-time model can create negative seconds when spread is large; use a positive baseline and report median plus p95.
 ```
-
-Before trusting a simulator, build a launch-model worksheet from one seeded run. Record each assumed parameter, check labels and support, compare count variance with the mean, and report median, p95, and costly-tail rates. Use the worksheet to reject or revise assumptions before simulated capacity or cost numbers reach a design review.
 
 ```mastery-quiz
 [
@@ -1143,7 +995,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Density 4/s; interval probability 0.10; sampled time 0.20 s."
     ],
     "answer": "Density 4/s; interval probability 0.40; sampled time 0.20 s.",
-    "explanation": "Density is reciprocal width, 1/0.25=4 per second. The interval area is 0.10×4=0.40. The quantile is 0.25×0.8=0.20 seconds. A PDF height is not a point probability; an exact continuous point still has probability zero."
+    "explanation": "Density is reciprocal width, 1/0.25=4 per second. The interval area is 0.10×4=0.40. The quantile is 0.25×0.8=0.20 seconds."
   },
   {
     "question": "An independent binary-failure simulator assumes q=0.002 and draws 500 requests. Which expected count, zero-failure probability and interpretation follow?",
@@ -1154,10 +1006,10 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Expected 1; P(zero)≈0.135; one detected failure estimates q precisely."
     ],
     "answer": "Expected 1; P(zero)≈0.368; a quiet run is compatible with q.",
-    "explanation": "The count is binomial with mean 500×0.002=1. Its zero-event probability is (1−0.002)^500≈0.3675. An empty finite batch can occur under that assumed rate. At least one detected event and a precise estimate require different budgets; simulated output does not measure production q."
+    "explanation": "The count is binomial with mean 500×0.002=1 and zero-event probability (1−0.002)^500≈0.3675, so a zero-failure run is routine under q=0.002."
   },
   {
-    "question": "A route sampler declares exactly {CI, review, rollback}; all six outputs use those labels. The same requests have tools [1,1,1,8,8,8] and seconds [2,2,2,18,18,18]. Pairing A aligns the lists; pairing B reverses seconds. What are the expensive (>5 tools) and slow (>15 s) joint shares, and what did the valid labels prove?",
+    "question": "A route sampler declares exactly {CI, review, test_fix}; all six outputs use those labels. The same requests have tools [1,1,1,8,8,8] and seconds [2,2,2,18,18,18]. Pairing A aligns the lists; pairing B reverses seconds. What are the expensive (>5 tools) and slow (>15 s) joint shares, and what did the valid labels prove?",
     "options": [
       "A 0.50; B 0.50; valid route support determines the joint law.",
       "A 0.50; B 0; valid route support determines the joint law.",
@@ -1165,7 +1017,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "A 0.50; B 0; valid route support leaves the joint law untested."
     ],
     "answer": "A 0.50; B 0; valid route support leaves the joint law untested.",
-    "explanation": "Alignment pairs all three eight-tool requests with eighteen seconds, giving 3/6. Reversal separates expensive and slow requests, giving zero. The marginal lists and valid route labels are identical. Support checks catch invalid categories; they do not identify request dependence or verify production fit."
+    "explanation": "Alignment pairs all three eight-tool requests with eighteen seconds (3/6 = 0.50); reversal separates them (0). Valid route labels check marginal support only and leave cross-field dependence untested."
   },
   {
     "question": "Several representative count batches have mean 4 and variance 20, with a costly threshold at more than 9 calls. A one-rate Poisson baseline has lambda=4. Which next assessment addresses the observed mismatch?",
@@ -1176,7 +1028,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Ratio 5; fit Poisson lambda 4 with variance 20; inspect costly-tail share."
     ],
     "answer": "Ratio 5; investigate mixtures/retries; inspect counts and costly-tail share.",
-    "explanation": "Poisson links variance and mean to the same parameter. Here variance/mean=20/4=5, so the persistent excess variance challenges one rate. Request mixtures or retries are possible explanations, not uniquely identified causes. The expensive tail needs its own comparison; a count field does not guarantee a Poisson arrival process."
+    "explanation": "Poisson ties variance to mean, so variance/mean = 20/4 = 5 signals strong overdispersion from mixtures or retries and calls for checking the costly-tail share directly."
   },
   {
     "question": "A duration model needs median 5 seconds with log-space spread 0.4. A separate exponential service model needs mean 0.125 seconds. Which parameter pair matches Python lognormvariate(mu,sigma) and NumPy exponential(scale)?",
@@ -1187,7 +1039,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Lognormal mu=log(5)−0.08, sigma=0.4; exponential scale=0.125."
     ],
     "answer": "Lognormal mu=log(5), sigma=0.4; exponential scale=0.125.",
-    "explanation": "The lognormal median is exp(mu), so mu=log(5). Subtracting sigma²/2 would instead set the mean to five. NumPy scale is mean service time, 0.125, while a Python expovariate rate would be its reciprocal 8. Parameter units matter before any timing claim."
+    "explanation": "The lognormal median is exp(mu), so mu=log(5). NumPy exponential takes mean service time as scale=0.125, whereas Python expovariate takes the reciprocal rate 8."
   },
   {
     "question": "For an independent Bernoulli model, increase each batch from 400 to 6,400 draws. Two workers then replay the identical seeded call sequence. Which standard-error factor and replica interpretation are justified?",
@@ -1198,7 +1050,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Factor 1/16; the copied workers replay identical data."
     ],
     "answer": "Factor 1/4; the copied workers replay identical data.",
-    "explanation": "6,400/400=16, so standard error scales by 1/sqrt(16)=1/4 under the independent model. Identical seeded implementations and call order replay the same stream. Duplicating that stream adds no independent replica information and does not validate the assumed model."
+    "explanation": "Increasing N by 16x scales standard error by 1/sqrt(16) = 1/4. Two workers given the exact same seed and call order replay identical numbers rather than independent replicas."
   },
   {
     "question": "An asymmetric Metropolis-Hastings proposal has target ratio 0.4 and reverse/forward proposal-density ratio 0.5. The open-uniform draw is 0.25. Which acceptance probability and retained state follow?",
@@ -1209,7 +1061,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Acceptance 0.2; reject and omit this iteration from the chain."
     ],
     "answer": "Acceptance 0.2; reject and record the current state again.",
-    "explanation": "The probability is min(1,0.4×0.5)=0.2. Since 0.25 exceeds it, reject but retain the repeated current state. The symmetric shortcut would omit a necessary proposal factor. The retained chain is dependent; length alone is not an effective sample size or a convergence diagnostic."
+    "explanation": "The Metropolis-Hastings acceptance probability is min(1, 0.4 × 0.5) = 0.2. Because u = 0.25 > 0.2, reject the proposal and retain the current state in the chain."
   },
   {
     "question": "A stable one-server M/M/1 baseline has lambda=18 requests/s and mu=24 requests/s. Which utilization, mean total time and mean queue time follow, and what happens if lambda reaches 24?",
@@ -1220,7 +1072,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Utilization 0.75; total 0.1667 s; queue 0.125 s; no finite mean at 24."
     ],
     "answer": "Utilization 0.75; total 0.1667 s; queue 0.125 s; no finite mean at 24.",
-    "explanation": "Utilization=18/24=0.75. Total mean=1/(24−18)=1/6≈0.1667 s. Subtract service mean 1/24≈0.0417 to get queue mean 0.125 s. At equal arrival and service rates this baseline has no finite steady-state mean. These averages do not give a p99 or a result for arbitrary batching/multiple-server policies."
+    "explanation": "Utilization is 18/24 = 0.75, mean total time is 1/(24−18) = 1/6 ≈ 0.1667 s, and mean queue wait is 1/6 − 1/24 = 0.125 s. At lambda = mu = 24, the M/M/1 queue has no finite steady-state mean."
   },
   {
     "question": "A cohort has 200 requests: 120 finish by 8 seconds, another 30 by 12, and 50 are still running at 12. Separately, a model is fitted and ordinary KS-tested on its same 150 completed rows. Which deadline rate, completion-p95 conclusion and KS interpretation follow?",
@@ -1231,7 +1083,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "By 8: 0.80; p95 beyond 12 and unknown; fitted-row KS distance is descriptive."
     ],
     "answer": "By 8: 0.60; p95 beyond 12 and unknown; fitted-row KS distance is descriptive.",
-    "explanation": "Use all 200 request identities: 120/200=0.60, while 120/150=0.80 conditions on completion. Only 75% completed by 12, so the cohort completion p95 is beyond 12 and its value is not observed. Fitting and completion selection violate the ordinary fixed-CDF, uncensored calibration; a distance may describe those selected rows but does not repair selection or identify their population tail."
+    "explanation": "Keep all 200 requests in the denominator: 120/200 = 0.60. Only 75% completed by 12 s, so true completion p95 sits beyond 12 s and is unobserved. Fitting parameters and dropping censored rows invalidates ordinary fixed-CDF KS p-values."
   },
   {
     "question": "Tokens A/B/C have logits [1.2,0.2,−0.8], temperature 0.5 and given independent standard-Gumbel offsets [0,2.1,0.2]. Which perturbed winner, original mode and operation are consistent?",
@@ -1242,7 +1094,7 @@ Before trusting a simulator, build a launch-model worksheet from one seeded run.
       "Winner B; mode A; differentiable Gumbel-Softmax relaxation."
     ],
     "answer": "Winner B; mode A; hard categorical Gumbel-Max sample.",
-    "explanation": "Divide logits by 0.5, then add offsets: [2.4,2.5,−1.4]. B wins this inspected perturbed argmax, while A remains the mode before noise because positive temperature preserves logit order. Hard Gumbel-Max samples the categorical law in the ideal model; differentiable Gumbel-Softmax replaces the hard selection with a continuous relaxation. Parallel form does not imply a particular runtime speed."
+    "explanation": "Scaling by T=0.5 and adding offsets gives [2.4, 2.5, −1.4], so B wins the hard Gumbel-Max argmax while A remains the pre-noise mode."
   }
 ]
 ```
