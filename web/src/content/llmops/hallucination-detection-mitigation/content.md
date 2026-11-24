@@ -28,7 +28,7 @@
 }
 ---
 
-When an engineering documentation assistant answers a question about PyTorch compiler behavior, it can quote a real documentation header and still deliver a subtle bug into user code. Consider a developer asking a <span data-glossary="rag">RAG</span> assistant whether `torch.compile` supports custom `torch.autograd.Function` backward passes with multiple tensor outputs, and whether `fullgraph=True` silently falls back to eager execution when an unsupported Python hook runs. Two retrieved `PyTorch 2.6` passages confirm that custom `autograd.Function` backward passes work inside `torch.compile`, while `fullgraph=True` raises an error on graph breaks instead of falling back to eager mode (`fullgraph=False` is the flag that falls back per graph break).
+When an engineering documentation assistant answers a question about PyTorch compiler behavior, it can quote a real documentation header and still deliver a subtle bug into user code. Consider a developer asking a <span data-glossary="rag">RAG</span> assistant whether `torch.compile` supports custom `torch.autograd.Function` backward passes with multiple tensor outputs, and whether `fullgraph=True` silently falls back to eager execution when an unsupported Python hook runs. Two retrieved PyTorch documentation passages confirm that custom `autograd.Function` backward passes work inside `torch.compile`, while `fullgraph=True` raises an error on graph breaks instead of falling back to eager mode (`fullgraph=False` is the flag that falls back per graph break).
 
 Now examine a fluent four-sentence reply generated from those passages: the assistant notes that custom backward passes compile cleanly (supported), promises that multi-tensor custom outputs fuse automatically into one CUDA graph (fabricated), claims `fullgraph=True` silently falls back to eager mode (contradicted), and remarks that `torch.compile` shipped in PyTorch 2.0 (accurate in general weights, yet missing from the retrieved context). Evaluating that reply at the whole-answer level or rewarding its clean syntax and valid document link hides both the fabricated optimization promise and the inverted compiler semantics. Research on why language models hallucinate shows that standard pretraining and post-training objectives reward confident guessing whenever uncertainty goes unpenalized [^kalai2025]. Production reliability demands checking every atomic statement individually before deciding whether to serve, prune, re-retrieve, or abstain.
 
@@ -248,7 +248,7 @@ Drifting fabric.  | H_tok=1.372 | min_p=0.225 | PPL=3.89 | H_sem=1.338
 ```
 <!-- leetllm: output:end -->
 
-Look closely at the contrast between **Paraphrase valid** and **Confident myth** in the output above. Semantic entropy neatly drops to `0.000` on valid paraphrases where token perplexity rose to `2.67`, preventing unnecessary abstentions when wording varies safely. Yet **Confident myth** mimics **Grounded crisp** across every internal uncertainty signal, demonstrating why external NLI verification against retrieved chunks remains indispensable whenever world or API facts are at stake.
+> **Key insight:** Semantic entropy drops cleanly to `0.000` on valid paraphrases where token perplexity jumped to `2.67`, avoiding false alarms when wording varies. Yet **Confident myth** looks identical to **Grounded crisp** on every internal signal, proving why external NLI verification against retrieved evidence is indispensable when factual accuracy matters.
 
 ## Calibrated NLI verification and conformal risk-coverage gates
 
@@ -385,7 +385,7 @@ No single intervention removes every hallucination failure mode cleanly, because
   <figcaption>Unsupported-claim rates fall cumulatively when prompt grounding, multi-sample consistency filtering, atomic claim pruning, and corrective retrieval plus a calibrated gate work in sequence.</figcaption>
 </figure>
 
-Note an important evaluation caveat highlighted by benchmarks such as TruthfulQA [^lin2021]: evaluating hallucination defenses requires measuring both **error suppression** and **excessive refusal**. A gate that blocks 90% of answers trivially pushes unsupported error toward zero while rendering the assistant unusable. Always track selective risk jointly with supported recall and net serving utility (`+1` per served supported claim minus penalty $\lambda$ per served unsupported claim).
+> **Common mistake:** Measuring hallucination defenses on error rate alone. As benchmarks like TruthfulQA illustrate,[^lin2021] a filter that refuses 90% of queries trivially pushes unsupported errors near zero while making the assistant useless. Always track selective risk alongside supported recall and net serving utility (`+1` per served supported claim minus penalty $\lambda$ per served unsupported claim).
 
 <!-- leetllm: test, deps=numpy,scikit-learn, output=show, id=mitigation-pipeline-lab -->
 ```python title="layered-mitigation-benchmark.py"
@@ -424,9 +424,7 @@ def simulate_pipeline_stages(n_queries: int = 200, seed: int = 42) -> None:
     sc_keep_query = np.min(consistency, axis=1) >= 0.45
 
     # Layer 4: Atomic claim pruning removes individual claims with weak entailment
-    pruned_keep = (prompt_supported == 1) & (prompt_signal >= 0.56) | (
-        (prompt_supported == 0) & (prompt_signal >= 0.56)
-    )
+    pruned_keep = prompt_signal >= 0.56
 
     # Layer 5: Corrective re-retrieval lifts uncertain queries before calibrated gate
     reretrieved_supported = np.where(

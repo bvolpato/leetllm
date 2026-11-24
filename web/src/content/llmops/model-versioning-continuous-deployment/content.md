@@ -42,7 +42,7 @@ In classic software systems, source commits and build artifacts largely capture 
   <figcaption>Combining weights, prompts, retrieval index snapshots, and runtime configuration into one immutable SHA-256 digest guarantees that every deployment reproduces exact end-to-end behavior.</figcaption>
 </figure>
 
-Every Python block in this walkthrough runs on deterministic in-memory telemetry for a `payments-compliance-helper` service using NumPy and SciPy, with zero network calls or external registries required. Tracing through the math and state transitions step by step reveals why hash verification, sticky bucketing, and statistical stop rules prevent partial rollbacks from hiding production regressions.
+We will trace this end to end on a `payments-compliance-helper` service: hashing the full release tuple, guarding alias transitions with compare-and-swap, verifying offline F1 and shadow latency, bucketing multi-turn threads with sticky routing, and wiring Clopper-Pearson and SPRT stop rules.
 
 ## Package every runtime dependency into one immutable digest
 
@@ -378,7 +378,9 @@ Rollback readiness [OldReaderOnly]: rps=195, schemas=['v2'] -> ready=False
 ```
 <!-- leetllm: output:end -->
 
-LOOK AT THAT FULL PIPELINE IN ONE PLACE: Clopper-Pearson upper risk bounds, precedence-ordered canary gating (`attribution -> breach -> telemetry -> latency`), sequential Wald SPRT accumulation crossing the exact alert barrier in batch 2, and operational readiness verification (`195 req/s >= 180` AND `v3` state compatibility) before declaring any rollback healthy. Once a restored release is live and serving cleanly, every downstream request must also carry that release ID directly into answer-cache scope so stale or bad responses from another revision never leak back to users.
+> **Key insight:** Four independent safeguards work together here: Clopper-Pearson upper risk bounds quantify uncertainty on clean windows, precedence-ordered canary checks (`attribution -> breach -> telemetry -> latency`) prevent missing data from masking violations, Wald's SPRT crosses the abort barrier (`+4.60`) by batch 3 on the degraded stream, and rollback readiness confirms both warm capacity (`195 >= 180 req/s`) and `v3` state compatibility before restoring traffic.
+
+Once a restored release is live, pass its `release_id` directly into answer-cache keys so superseded responses from another revision never leak back to users.
 
 ```mastery-quiz
 [

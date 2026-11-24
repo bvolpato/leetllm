@@ -186,7 +186,7 @@ exact_canonical_match=True trigram_jaccard=0.625
 ```
 <!-- leetllm: output:end -->
 
-Notice two properties in the output above. First, `maya.chen@example.com` maps to the same placeholder in both `requester` and `approver`, preserving the self-approval conflict while hiding her identity across separate tickets. Second, canonical hashing catches formatting and casing edits instantly (`exact_canonical_match=True`), while token-trigram overlap flags near-copies (`trigram_jaccard=0.556`) that escape byte-exact hashing. For robust split isolation, group related prompts by underlying incident, user, or source document family so entire paraphrase clusters remain on one side of the split.
+Notice two properties in the output above. First, `maya.chen@example.com` maps to the same placeholder in both `requester` and `approver`, preserving the self-approval conflict while hiding her identity across separate tickets. Second, canonical hashing catches formatting and casing edits instantly (`exact_canonical_match=True`), while token-trigram overlap flags near-copies (`trigram_jaccard=0.625`) that escape byte-exact hashing. For robust split isolation, group related prompts by underlying incident, user, or source document family so entire paraphrase clusters remain on one side of the split.
 
 ## Build a hierarchical rubric and measure reviewer agreement
 
@@ -283,7 +283,7 @@ dpo_margin=1.0986 dpo_loss=0.2877
 ```
 <!-- leetllm: output:end -->
 
-Notice two lessons in the printed metrics. On balanced classes (`42, 3, 1 / 4, 38, 2 / 2, 1, 27`), `kappa=0.835` matches `sklearn` identically and cleanly clears a `0.65` quality threshold, isolating the 13 off-diagonal disputes for adjudication. Yet on the rare-event matrix (`[[114, 2], [2, 2]]`), 96.7% raw accuracy yields `rare_class_kappa=0.483` because random agreement on the dominant class leaves little room above chance. Agreement measures consistency, not accuracy: reviewers who share a misconception land on the diagonal, so always audit a sample of agreements alongside disagreements. Treat `kappa` as undefined whenever one category takes every item (`1 - p_e = 0`) and report category counts beside every reliability score.
+> **Common mistake:** Treating high inter-annotator agreement as proof of label accuracy. On balanced classes (`kappa=0.835`), agreement isolates the 13 off-diagonal disputes for adjudication, while on the rare-event matrix (`[[114, 2], [2, 2]]`), 96.7% raw accuracy yields `kappa=0.483` because the dominant class inflates chance agreement. Always inspect a sample of diagonal agreements alongside disagreements, and treat `kappa` as undefined whenever one label takes every item (`1 - p_e = 0`).
 
 ## Select informative batches with uncertainty and diversity
 
@@ -647,7 +647,7 @@ No. Adjusting hyperparameters against test results adapts the selector to test v
       "Choose K at 0.72 over J at 0.52, then recompute nearest-selected distances."
     ],
     "answer": "Choose K at 0.72 over J at 0.52, then recompute nearest-selected distances.",
-    "explanation": "J scores 0.48+0.04 = 0.52 and K scores 0.36+0.36 = 0.72. Selecting K can change nearest-selected distances. This weighted heuristic does not by itself optimize minimax k-center or prove task-level improvement."
+    "explanation": "J scores 0.48+0.04 = 0.52 and K scores 0.36+0.36 = 0.72. Because selecting K changes the set of chosen items, recompute nearest-selected distances before ranking the next slot."
   },
   {
     "question": "Two selectors each use 300 accepted labels from the same starting checkpoint. Validation starts at 70%. Random selection reaches 73% and hybrid selection reaches 75%. What is the cost in accepted labels per percentage point gained for random and hybrid selection, in that order? Round to two decimal places.",
@@ -718,7 +718,7 @@ One trace can have two jobs without entering training. Take that urgent admin at
 
 Sensitive details must leave the trace before reviewers see it and before any selection algorithm ranks it. Strip names, emails, keys, and internal identifiers into per-trace placeholders, keeping one shared placeholder when two fields inside the same trace match so reviewers can still spot self-approval without tracking individuals across rows.
 
-Automated scrubbers catch formatted secrets well, yet they miss clues such as `"the only on-call database admin in our Lisbon office"`, so pair automated redaction with human review before sharing records widely.[^presidio2023] When a task depends on a protected fact, use an authorized reviewer, a placeholder scenario, or exclude the row cleanly. InstructGPT split prompts by user ID and filtered personal details out of training.[^ouyang2022]
+Automated scrubbers catch formatted secrets well, yet they miss clues such as `"the only database administrator in our Lisbon office"`, so pair automated redaction with human review before sharing records widely.[^presidio2023] When a task depends on a protected fact, use an authorized reviewer, a placeholder scenario, or exclude the row cleanly. InstructGPT split prompts by user ID and filtered personal details out of training.[^ouyang2022]
 
 Before ranking training candidates, lock your validation and private evaluation partitions. An active selector hunts specifically for challenging edge cases, so failing to isolate held-out tests early almost guarantees you will select your own exam into training. Keep validation separate for tuning weights and leave the private evaluation partition untouched until final scoring.
 
@@ -815,7 +815,7 @@ agreement=0.892; kappa=0.835; review_queue=13
   <figcaption>Big circles on the diagonal are agreements. The small circles off it are your work queue. Their position tells you which confusion is common, which a single kappa score cannot.</figcaption>
 </figure>
 
-The 0.835 score clears the 0.65 threshold, which is when reading starts rather than stops. Open the 13 off-diagonal disagreements and sort them into factual errors (settle from source records), rubric gaps (revise guidelines, version the rubric, add an anchor example, and test on fresh data), or genuine differences in taste. Also read a sample of diagonal agreements, because two reviewers sharing a blind spot achieve high kappa on top of a systematic error. Keep in mind that kappa shrinks when one category dominates and breaks when both reviewers use a single label (`p_e = 1`), and switch to Krippendorff's alpha whenever more than two raters or missing ratings enter the pool.[^krippendorff2011alpha]
+> **Key insight:** Clearing `kappa = 0.835` is where reading starts, not stops. Open the 13 off-diagonal disagreements and separate factual errors, rubric gaps, and genuine taste differences, and spot-check diagonal agreements too so shared blind spots never hide behind high kappa. When one category dominates (or `p_e = 1`), report raw counts alongside kappa, and switch to Krippendorff's alpha whenever more than two raters or missing ratings enter the pool.[^krippendorff2011alpha]
 
 ## Spend review time where it teaches
 
@@ -878,7 +878,7 @@ seed_acc: 0.357 highest_entropy_pool_idx: 42
   <figcaption>Stacked bars show why case 4 wins step two. Its uncertainty is ordinary, but it sits far from the seed, and distance makes up the difference.</figcaption>
 </figure>
 
-The hybrid batch covers all four request domains cleanly, yet keep two caveats in view. Active selection distorts class frequencies, so you cannot estimate deployment error rates directly from an uncertainty-sampled review queue; draw a random probability sample with known inclusion weights for prevalence estimates and keep sampling metadata with every row. Likewise, keep a random sample running alongside active acquisition so confident systematic blind spots remain visible.
+> **Common mistake:** Using an active-learning review queue to estimate production error rates. Active selection intentionally over-samples uncertain prompts and distorts class frequencies; draw a separate random sample with known inclusion weights to track live error prevalence and surface confident blind spots.
 
 ## Make the selector earn its keep
 

@@ -568,7 +568,7 @@ lead=240s ready=207s margin=+33s
 
 ### Spot instances and fault tolerance
 
-Spot instances reduce compute costs dramatically when paired with deterministic preemption draining. Provider warning intervals differ significantly as of November 2026: AWS provides a two-minute stop or termination notice (`0 s` for hibernation),[^awsSpotInterruptions2026] Azure offers up to `30 seconds`,[^azureSpotVms2026] and Google Cloud Spot VMs provide none by default with an optional `120 s` notice and up to `30 s` best-effort shutdown.[^googleSpotVms2026] The moment a preemption warning fires, flip local intake to `503` and subtract cleanup overhead (`20 s` out of `120 s` leaves `100 s`). Finish short active streams inside that remaining budget, reroute unstarted queued requests within their original deadline, and emit an explicit interruption event for overrunning streams rather than splicing text across workers.
+Spot instances reduce compute costs dramatically when paired with deterministic preemption draining. Provider warning intervals differ sharply across clouds: AWS provides a two-minute stop or termination notice (`0 s` for hibernation),[^awsSpotInterruptions2026] Azure offers up to `30 seconds`,[^azureSpotVms2026] and Google Cloud Spot VMs provide none by default with an optional `120 s` notice and up to `30 s` best-effort shutdown.[^googleSpotVms2026] The moment a preemption warning fires, flip local intake to `503` and subtract cleanup overhead (`20 s` out of `120 s` leaves `100 s`). Finish short active streams inside that remaining budget, reroute unstarted queued requests within their original deadline, and emit an explicit interruption event for overrunning streams rather than splicing text across workers.
 
 <!-- leetllm: test, output=show -->
 ```python title="spot-drain-deadline.py"
@@ -863,7 +863,7 @@ Kubernetes pod phases move through scheduling, container start, weight load, war
 | Readiness | Control live Service traffic | Probing a healthy sidecar while the model failed to load |
 | Liveness | Restart a wedged process | Failing the probe merely because all batch slots are full |
 
-Tripping a liveness check on a saturated worker is catastrophic because Kubernetes destroys active generations, drops warm prefix caches, and restarts a multi-minute boot during peak load. A full worker is healthy and should shed extra work with HTTP `429` rather than restarting. Graceful drain introduces one final state: flipping local intake to `503` immediately while existing streams finish, because Service endpoint updates lag behind readiness changes.
+> **Common mistake:** Tripping a Kubernetes liveness probe when all batch slots are full. A saturated worker is healthy; killing it destroys active generations, drops warm prefix caches, and triggers a multi-minute cold boot during peak load. Shed extra work with HTTP `429`, and flip local intake to `503` during graceful drain while active streams finish.
 
 <!-- leetllm: test, output=show, id=reader-gpu-worker-lifecycle -->
 ```python title="worker-lifecycle.py"
@@ -1011,7 +1011,7 @@ Because no autoscaler produces ready GPUs inside a `30 s` timeout when boot time
 
 ## Draining and spot capacity
 
-Spot instances save substantial compute budget when drain logic respects cloud notice periods. As of November 2026, AWS issues two-minute notices for stop or termination (and zero seconds for hibernation),[^awsSpotInterruptions2026] Azure offers up to 30 seconds,[^azureSpotVms2026] and Google Cloud offers none by default with an optional 120-second notice and a 30-second best-effort shutdown window.[^googleSpotVms2026] Reserving `20 s` for cleanup out of a `120 s` warning leaves `100 s` to finish short generations cleanly, reroute unstarted queued requests elsewhere, and mark overrun streams explicitly as interrupted rather than splicing two separate runs.
+Spot instances save substantial compute budget when drain logic respects cloud notice periods. AWS issues two-minute notices for stop or termination (and zero seconds for hibernation),[^awsSpotInterruptions2026] Azure offers up to 30 seconds,[^azureSpotVms2026] and Google Cloud offers none by default with an optional 120-second notice and a 30-second best-effort shutdown window.[^googleSpotVms2026] Reserving `20 s` for cleanup out of a `120 s` warning leaves `100 s` to finish short generations cleanly, reroute unstarted queued requests elsewhere, and mark overrun streams explicitly as interrupted rather than splicing two separate runs.
 
 <!-- leetllm: test, output=show, id=reader-gpu-drain-decision -->
 ```python title="drain-decision.py"

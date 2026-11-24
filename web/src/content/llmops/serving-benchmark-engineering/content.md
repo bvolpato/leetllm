@@ -103,7 +103,7 @@ At 3 requests/s and 0.9 seconds average latency, the average outstanding count i
 
 A Poisson process has exponential inter-arrival gaps with coefficient of variation $CV=1$. Regular spacing has $CV=0$. Real traffic can have correlated bursts that neither description captures. Save realized timestamps when replay identity matters.
 
-As checked on October 10, 2026, `vllm bench serve` exposes `--request-rate`, `--burstiness`, and `--max-concurrency`. Its `burstiness` is a Gamma shape parameter $k$, with $CV=1/\sqrt{k}$: values below one make gaps more variable. Infinite request rate creates an all-at-once or concurrency-limited stress mode; use a finite arrival rate for an open-loop test. For production server benchmarking, the current vLLM guide recommends GuideLLM; the built-in benchmarks focus primarily on feature evaluation and regressions.[^vllm2026benchmarkcli]
+For example, `vllm bench serve` exposes `--request-rate`, `--burstiness`, and `--max-concurrency`. Its `burstiness` is a Gamma shape parameter $k$, with $CV=1/\sqrt{k}$: values below one make gaps more variable. Infinite request rate creates an all-at-once or concurrency-limited stress mode; use a finite arrival rate for an open-loop test. For production server benchmarking, vLLM recommends GuideLLM while built-in benchmarks focus primarily on feature evaluation and regressions.[^vllm2026benchmarkcli]
 
 Inspect the realized schedule too: the current implementation's constant-rate path rescales sampled gaps so the final scheduled arrival is at request count divided by rate. This finite trace conditions the final arrival and differs from an unconditioned Poisson realization. Self-timed replay instead uses stored timestamps and bypasses rate, burstiness, and ramp-up controls.[^vllm2026benchmarkServeImplementation]
 
@@ -224,7 +224,7 @@ A server-sent event (SSE) may contain several tokens, metadata without text, or 
 
 Dividing a multi-token chunk's delay by its token count invents arrival times. Keep chunk metrics when those are the available observations. The downloadable scorer accepts normalized token events; it isn't an SSE parser and can't manufacture missing granularity.
 
-For example, vLLM calls gaps between accepted stream events ITL, even when speculation puts several tokens in one event. Its request TPOT amortizes the adapter's reported latency minus TTFT over output tokens minus one. As checked on October 10, 2026, the pinned Completions and Chat Completions adapters end that latency at the last event with nonempty `choices`, which can carry empty content. Later usage-only events and `[DONE]` don't extend it. The Responses adapter instead timestamps text and reasoning deltas. Those markers don't necessarily measure terminal completion or first visible text.[^vllm2026benchmarkStreamImplementation][^vllm2026benchmarkServeImplementation]
+For example, vLLM calls gaps between accepted stream events ITL, even when speculation packs several tokens into one event. Its request TPOT amortizes the adapter's reported latency minus TTFT over output tokens minus one. Its Completions and Chat Completions adapters end that latency at the last event with nonempty `choices` (ignoring trailing usage-only frames and `[DONE]`), whereas the Responses adapter timestamps text and reasoning deltas.[^vllm2026benchmarkStreamImplementation][^vllm2026benchmarkServeImplementation]
 
 This lesson's token-granular worksheet uses the first-to-last token interval and records terminal completion separately. Match the endpoint, observed events, token-count source, and installed adapter version before comparing those numbers.
 
@@ -377,7 +377,7 @@ for good, n in [(190, 200), (200, 200), (20, 20)]:
   <figcaption>Zooming into the 85% to 100% interval highlights how sample size tightens the one-sided 95% Wilson lower bound under independent Bernoulli trials. Only 200 of 200 clears a 95% lower-bound gate, whereas 190 of 200 (91.8%) and 20 of 20 (88.1%) fall short.</figcaption>
 </figure>
 
-The first row passes the 95% point-estimate rule but fails a rule requiring that lower bound to reach 95%. Even twenty perfect outcomes don't pass that stronger rule. Confidence describes the interval procedure's coverage under its assumptions; it isn't the fraction of requests meeting the SLO or a 95% posterior probability about this particular interval. Choosing the best point after many noisy sweeps needs a selection-aware procedure or fresh confirmation runs. Shared bursts can invalidate the independent-trial calculation.
+> **Key insight:** `190/200` passes a 95% point-estimate rule yet fails a 95% lower-bound rule (`91.8%`), and even `20/20` only lifts the lower bound to `88.1%`. Decide your evidence bar before sweeping rates, run fresh confirmation checks after picking a winner, and resample whole runs or time blocks when correlated bursts break independence.
 
 Alternate baseline and candidate run order. Keep cold-start and warm-capacity results separate, and consider a downward sweep when cache or thermal history creates hysteresis. Don't select the best of many noisy runs and omit the others.
 
@@ -754,7 +754,7 @@ Now work out goodput, using just the arrival window for simplicity. Two hundred 
   <figcaption>The highest passing tested point is 1.5 RPS. Lag stays under 20 ms everywhere, so the generator isn't the bottleneck; attainment fails first at 2.0 RPS even as goodput peaks at 1.60 RPS.</figcaption>
 </figure>
 
-So 1.5 RPS is your result, and it's narrower than it sounds. It's the highest *tested* point that passed. It isn't a proven maximum between points, a certified service level, or a safe production target. Test near the failure point, confirm the failing neighbor, and leave margin for traffic drift and failures.
+> **Key insight:** `1.5 RPS` is the highest *tested* rate that passed, not a safe operating target with zero margin. Confirm the failing neighbor (`2.0 RPS`), refine the sweep near the knee if you need tighter sizing, and reserve headroom for traffic spikes and replica failures.
 
 ## Back to five requests per replica
 

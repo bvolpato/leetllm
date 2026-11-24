@@ -182,7 +182,7 @@ Cosine(upgrade,   downgrade):     0.7863  [DANGER: antonym exceeds paraphrase!]
 ```
 <!-- leetllm: output:end -->
 
-Look closely at those computed similarities from real character n-gram vectors: `"upgrade"` vs. `"downgrade"` scores `0.7863`, which is higher than the valid retention paraphrase (`0.7223`)! That real numerical inversion explains why cosine similarity cannot act as the sole safety gate. A production cache must run authorization checks, live-state bypasses, corpus/index version matching, and TTL expiration strictly before considering vector distance.
+> **Common mistake:** Treating high cosine similarity as answer equivalence. In the real TF-IDF output above, `"upgrade"` vs. `"downgrade"` scores `0.7863`, beating the genuine retention paraphrase (`0.7223`). Always run authorization checks, live-state bypasses, corpus/index version matching, and TTL expiration before consulting vector distance.
 
 ## Order structural gates before cutoff checks
 
@@ -340,7 +340,7 @@ hit_rate=96.00% -> mean=  69.6 ms | p95=  30.0 ms
 ```
 <!-- leetllm: output:end -->
 
-Every number in that output exposes a metric engineers regularly misreport. Never average separate hit and miss `p95` metrics or mistake median drops for tail improvements: until safe hit rates exceed `95%` (or misses accelerate independently via provider prompt-prefix reuse), `5%` of real users still experience full miss generation plus cache-lookup overhead[^vllm2026prefix][^openai2026promptcaching].
+> **Key insight:** Semantic caching shrinks *average* latency steadily, yet **p95 tail latency stays stuck at `1,020 ms` (20 ms slower than uncached inference)** until more than 95% of requests hit the cache. Never mistake median latency drops for tail-latency wins unless misses also accelerate via provider prompt-prefix caching.[^vllm2026prefix][^openai2026promptcaching]
 
 ## Coordinate semantic caching with provider prompt caching
 

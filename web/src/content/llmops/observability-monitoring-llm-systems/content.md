@@ -27,9 +27,9 @@
 }
 ---
 <!-- leetllm: edition:reference:start -->
-Every systems dashboard looks healthy at 09:12: all six policy-assistant responses returned `200 OK`, first-token latency stayed below the 500 ms warning line, and total token spend stayed comfortably under budget. Yet two of those six answers told engineers they had approval to deploy when no authorization record existed in the retrieved policy. Standard HTTP monitoring sees fast, inexpensive text generation rather than an implicit error returned with a successful status code.[^sreMonitoringDistributedSystems]
+Every systems dashboard is green: all six deployment-assistant responses returned `200 OK`, first-token latency stayed below the 500 ms warning line, and token spend stayed comfortably under budget. Yet two of those six answers told engineers they had approval to deploy when no authorization record existed in the retrieved specification. Standard HTTP monitoring sees fast, cheap text generation rather than an implicit error returned with a successful status code.[^sreMonitoringDistributedSystems]
 
-Traditional Application Performance Monitoring (APM) captures latency, traffic, HTTP errors, and saturation, which form the necessary floor for any serving stack. For language models, however, monitoring aggregates must sit alongside quality outcomes, <span data-glossary="tracing">trace</span> trees, token economics, and embedding distribution checks. Monitoring summarizes population rates over windows so an operator knows when something shifted, while request-level <span data-glossary="observability">observability</span> preserves parent-child execution spans and version metadata so the on-call engineer can isolate why a specific response broke containment.
+Traditional Application Performance Monitoring (APM) captures latency, traffic, HTTP errors, and saturation, which form the necessary floor for any serving stack. For language models, monitoring aggregates must sit alongside quality outcomes, <span data-glossary="tracing">trace</span> trees, token economics, and embedding distribution checks. Monitoring summarizes population rates over windows so you know when something shifted, while request-level <span data-glossary="observability">observability</span> preserves parent-child execution spans and version metadata so an engineer can isolate why a specific response broke containment.
 
 <figure>
   <img src="illustrations/_generated/observability_dark.png" alt="Six reviewed requests share a 0 to 500 ms first-visible-token axis. All return HTTP 200; nearest-rank p95 is 240 ms under the 500 ms warning line. One safe answer, three abstentions, and two unsafe served answers yield 2/6 unsafe reviewed requests and 2/3 unsafe served answers." />
@@ -138,7 +138,7 @@ zero_of_50_wilson_95ci=(0.0000, 0.0713)
 ```
 <!-- leetllm: output:end -->
 
-Look closely at the Wilson interval (`(0.0000, 0.0713)`): observing zero unsafe answers across 50 reviewed traces still remains compatible with up to a 7.1% true violation rate under a 95% confidence interval. By contrast, even over just six requests, separating `2/6` overall violations from `2/3` conditional served risk makes the severity shift unambiguous. Reporting sample sizes alongside zero-defect counts prevents premature release confidence on sparse canary windows.
+> **Key insight:** Look closely at the Wilson interval (`(0.0000, 0.0713)`): seeing zero unsafe answers across 50 reviewed traces is still compatible with a 7.1% true violation rate at 95% confidence. Meanwhile, separating `2/6` overall violations from `2/3` conditional served risk exposes how often users who actually received an answer got bad advice. Always report sample size and denominator alongside zero-defect counts.
 
 ## Trace OpenTelemetry span trees, agent loops, and alert rules
 
@@ -149,7 +149,7 @@ Population metrics reveal when an operational curve shifts, while distributed tr
   <figcaption>A three-span child tree isolates where the bad claim was generated (`claim_generation`) separately from where containment failed (`serving_gate`).</figcaption>
 </figure>
 
-Two governance habits make traces durable and safe in production. First, keep metric attributes low-cardinality (deployment version, operation name, route) and reserve high-cardinality `request_id` values for trace spans and exemplar pointers, while disabling raw prompt/completion capture unless an explicit time-limited debugging scope requires it.[^otelsensitivedata2026][^otelgenaimetrics2026] Even an anonymized trace field can leak private strings if upstream callers pass free text inside an identifier, so validate identifier formats at the exporter before persistence.
+Two engineering habits make traces durable and safe in production. First, keep metric attributes low-cardinality (deployment version, operation name, route) and reserve high-cardinality `request_id` values for trace spans and exemplar pointers, keeping raw prompt and completion capture opt-in for time-limited debugging.[^otelsensitivedata2026][^otelgenaimetrics2026] Validate identifier formats at the exporter before persistence so upstream callers cannot accidentally pass free text inside an ID field.
 
 Second, autonomous tool-calling loops demand hard runtime limits rather than relying on telemetry alerts after spend accumulates. When an agent appends every prior tool output to its conversation history and grows by `growth` tokens per step, cumulative input tokens across `N` turns scale quadratically: $N \cdot s + g \cdot \frac{N(N-1)}{2}$. Combining a consecutive identical-state repeat cap (resetting when a progress marker advances) with independent time and dollar budgets stops runaway polling loops cleanly inside the runtime.
 
@@ -478,7 +478,7 @@ Every dashboard is green. The service returned HTTP 200 on all six requests in t
 
 HTTP status and latency alone do not reveal this failure. The status says the server responded, and the latency chart says it responded quickly. Product-quality monitoring checks whether the response was true. Google's SRE guidance has a name for wrong content returned with a 200: an implicit error.[^sreMonitoringDistributedSystems] In an LLM system, it is the failure you should worry about most, because a model can be wrong in perfect grammar, at full speed, with nothing in standard logs to show for it.
 
-Observability for these systems has to answer three questions: what did the user actually receive, how was it produced, and which exact versions produced it? By the end of this chapter you will know how to measure answer quality cleanly, trace one bad answer back to its cause, keep debugging evidence without hoarding private text, detect distributional shifts early, and set alerts someone can act on. Throughout the chapter we follow a small window of six requests (`trace-01` through `trace-06`) handled by an internal deployment-policy assistant.
+Observability for LLM systems must answer three concrete questions: what did the user actually receive, how was it produced, and which exact versions produced it? We will follow a six-request window (`trace-01` through `trace-06`) from a deployment assistant to separate bad drafts from escaped answers, trace a failure to its exact span, spot silent drift early, and wire alerts that hold up even when a telemetry stream goes down.
 
 ## Start from what reached the user
 
@@ -513,7 +513,7 @@ Store `unsafe_claim_served` with three values rather than two: `False` means rev
 
 ## Every rate needs a denominator
 
-Two of the six reviewed requests leaked an unsupported claim (`33.3%`), whereas two of the three answers actually delivered were unsafe (`66.7%`). Both percentages are mathematically true because they answer different operational questions: the first summarizes how often reviewed traffic leaks overall, while the second states the chance that a user who received an answer got bad advice. Reporting `33%` to a user-facing product team cuts perceived risk in half. Equally important, sparse sampling can fool you completely: checking only two suspicious requests and finding both unsafe tells you `2/2` on inspected rows and nothing about unreviewed traffic, so always publish review coverage alongside every safety rate because missing labels remain unknown rather than safe.
+> **Common mistake:** Treating `2/6` (33.3%) and `2/3` (66.7%) as interchangeable. Two of six reviewed requests leaked an unsupported claim, while two of the three users who actually received an answer got bad advice. Publish review coverage alongside both denominators so unreviewed requests never masquerade as safe.
 
 <!-- leetllm: test, output=show, id=reader-observe-denominators -->
 ```python title="reviewed-window.py"

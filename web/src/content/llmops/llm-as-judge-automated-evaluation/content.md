@@ -23,36 +23,38 @@
 ---
 <!-- leetllm: edition:reference:start -->
 
-Suppose ServeSpec, an inference documentation assistant, receives a 40,000-token batch that hits a GPU out-of-memory error. Policy note `SERVE-27` requires enabling chunked sliding-window prefill for prompts over 32,768 tokens and pinning `max_batch_tokens` to 8192. Two candidate replies express that exact configuration change differently:
+Suppose ServeSpec, an inference documentation assistant, receives a 40,000-token batch that hits a GPU out-of-memory error. Serving spec `SERVE-27` requires enabling chunked sliding-window prefill for prompts over 32,768 tokens and pinning `max_batch_tokens` to 8192. Two candidate replies express that exact configuration change differently:
 
 | Candidate ID | Reply |
 |---|---|
 | `compact` | "Enable chunked sliding-window prefill for prompts over 32,768 tokens and pin `max_batch_tokens` to 8192 to avoid GPU out-of-memory errors." |
 | `stepwise` | "Prompts exceeding 32,768 tokens overflow GPU memory. Follow these steps: 1. Enable chunked sliding-window prefill. 2. Pin `max_batch_tokens` to 8192." |
 
-Which reply is easier for an inference engineer to follow under memory pressure? The first leads directly with the primary configuration flag, while the second separates the mitigation into a numbered sequence. Reasonable engineers can prefer either format or view both as equally clear, and an exact string match cannot settle that comparison.
+Which reply is easier for an inference engineer to follow under memory pressure? The first leads directly with the primary configuration flag, while the second separates the mitigation into a numbered sequence. Both satisfy the spec, and no string match can settle which reads more clearly.
 
-An **<span data-glossary="llm-as-judge">LLM-as-a-judge</span>** uses a language model to evaluate another model's output against a task prompt, reference evidence, and explicit scoring rubric. Automated judges can estimate clarity, instruction adherence, or whether prose follows from reference documentation. Even so, their verdicts remain fallible statistical measurements that can fail quietly when an output parses as valid JSON and offers fluent justification.
+An **<span data-glossary="llm-as-judge">LLM-as-a-judge</span>** uses a language model to grade another model's output against a prompt, reference evidence, and explicit rubric. Automated judges scale clarity, instruction-following, and groundedness checks to thousands of responses, yet they behave like noisy measuring instruments: a judge can return valid JSON and fluent reasoning while still picking the wrong answer.
 
-The previous lesson, [Evaluation, Benchmarks & Failure Modes](/learn/llm-evaluation-benchmarks-limitations), established statistical intervals for pass rates and separated held-out suites from development tuning. Both `compact` and `stepwise` can satisfy structural accuracy checks and still leave open which presentation works better in practice. A judge helps estimate that human preference, while code must continue to enforce deterministic rules and access controls independently.
+In [Evaluation, Benchmarks & Failure Modes](/learn/llm-evaluation-benchmarks-limitations), we built statistical intervals for pass rates and separated held-out suites from development tuning. Here we design the automated judge itself: separating deterministic code checks from semantic grading, normalizing order bias, probing shortcuts, measuring human agreement with its true denominator, and sizing validation sets for low error bounds.
 
-Zheng et al.'s MT-Bench and Chatbot Arena study measured over 80% agreement between GPT-4 judgments and human preferences in its 2023 evaluation setting, while documenting position and verbosity effects and investigating self-enhancement without reaching a definitive conclusion.[^zheng2023] Those findings make automated judging worth building for open-ended text quality checks. At the same time, they demonstrate why every team must validate its own judge configuration on task-specific data instead of assuming general benchmark reliability transfers unchanged.
+In MT-Bench and Chatbot Arena, GPT-4 judgments exceeded 80% agreement with human preferences while exposing position and verbosity biases alongside mixed evidence on self-enhancement.[^zheng2023] Automated judging is therefore worth building for open-ended quality, provided you calibrate and test each judge on your own task data.
 
 ## Decide what code can actually verify
 
-Checking a structured fact differs fundamentally from interpreting open-ended prose. Program logic can verify directly whether a configuration key equals an allowed value or whether a caller holds access to a document. By contrast, scanning text for the token `chunked_prefill` cannot confirm that an answer recommends enabling it, because `"Do not set chunked_prefill"` contains the identical token.
+Checking a structured fact differs fundamentally from interpreting open-ended prose. Code verifies directly whether a configuration key equals an allowed value or whether a caller can access a document. Scanning free text for the substring `chunked_prefill` fails completely, because `"Do not set chunked_prefill"` contains the exact same token.
 
 | Evaluation question | Appropriate mechanism | Scope limit |
 |---|---|---|
 | May this caller read the referenced serving spec? | Authorization check | A judge score never overrides access control. |
-| Does a structured field match the allowed flag value? | Exact match against reference policy data | Verifies the field only, not prose around it. |
+| Does a structured field match the allowed flag value? | Exact match against reference spec data | Verifies the field only, not prose around it. |
 | Does free-form explanation follow from the spec? | Fact verification with calibrated judge support | Unconstrained phrasing keeps support uncertain. |
 | Which supported wording is clearer to configure? | Rubric-based judge or human comparison | Preference varies with task and reader. |
-| Is an undocumented memory exception safe to ship? | Accountable engineering review | High model confidence does not widen rubric scope. |
+| Is an undocumented memory exception safe to ship? | Accountable engineering review | High model confidence never widens rubric scope. |
 
-A **<span data-glossary="eval-gate">gate</span>** blocks downstream promotion or execution when a required rule fails, and its implementation determines what it guarantees. Calling a keyword heuristic a "faithfulness gate" does not make it a semantic verifier. Whenever output values come from a constrained set, generate structured parameters and verify them directly with deterministic rules before calling any model evaluator on the remaining prose.
+A **<span data-glossary="eval-gate">gate</span>** blocks promotion when a required check fails, and its mechanism determines what it actually enforces. Whenever outputs come from a finite set, emit structured fields and validate them with deterministic code first, reserving the language model judge strictly for the remaining prose.
 
-To examine clarity evaluation cleanly, assume both quoted ServeSpec replies already passed technical accuracy review against `SERVE-27`. Treat that assumption as part of the worked walkthrough rather than an annotation study or live judge measurement. If either reply or the underlying configuration note changes later, bind the new validation record to those updated text versions rather than reusing stale reviews.
+> **Key insight:** Run deterministic checks before calling any LLM judge. Code settles permissions, JSON schemas, and exact config values with zero ambiguity; the judge only grades the open-ended explanation that remains.
+
+To focus on clarity evaluation, we start with both ServeSpec replies already verified against `SERVE-27`. Whenever a reply or spec note changes, bind the new verification to those updated text versions rather than reusing stale reviews.
 
 <figure>
   <img src="illustrations/_generated/llm_judge_dark.png" alt="Stage one shows a candidate response passing through deterministic host checks for access permissions and JSON structure, blocking any failure immediately. Stage two passes valid outputs to the rubric judge, recording resolved wins or ties while escalating unclear cases to human review." />
@@ -62,18 +64,18 @@ To examine clarity evaluation cleanly, assume both quoted ServeSpec replies alre
 ```checkpoint
 An output passes a substring check for `chunked_prefill`, yet its full sentence says "Disable chunked_prefill for prompts over 32k." What did the string check demonstrate?
 ---
-The string check confirmed only character presence, not operational meaning or policy compliance. Use exact value checks for structured configuration fields and calibrated semantic evaluation for free-form text.
+Only that the characters appeared, not what the sentence instructed. Use exact value checks for structured configuration fields and calibrated semantic evaluation for free-form text.
 ```
 
 ## Select your judge format and anchor the rubric
 
-Begin by matching the evaluation format to the decision you need: an absolute rubric score, a relative pairwise preference, or comparison against reference text. Pointwise and pairwise describe how many candidates enter one judge call, and reference material can ground either mode.[^zheng2023] Choosing the wrong format wastes calls or obscures subtle differences between closely matched outputs.
+Match the evaluation format to the decision you need: an absolute rubric score, a relative pairwise preference, or comparison against reference text. Pointwise and pairwise describe how many candidates enter one judge call, and reference material can ground either mode.[^zheng2023]
 
-**Single-answer rubric scoring (pointwise evaluation)** grades one output against an explicit ordinal scale. For example, score 0 when a required setting is omitted, score 1 when both parameters appear without actionable sequence, and score 2 when both parameters and conditions read cleanly without numbered-list assumptions. Evaluating $N$ candidates with one pass each requires $N$ judge calls, though ordinal ratings rarely share equal numeric spacing and can compress into middle values when prompts shift.[^prometheus2024]
+**Single-answer rubric scoring (pointwise evaluation)** grades one output against an explicit ordinal scale. For example, score 0 when a required setting is omitted, score 1 when both parameters appear without an actionable sequence, and score 2 when both parameters and conditions read cleanly. Evaluating $N$ candidates takes $N$ calls, though ordinal scales rarely have equal spacing and tend to cluster in the middle when prompts shift.[^prometheus2024]
 
-**Pairwise comparison** shows two responses for the same query side by side and asks which satisfies the rubric better. Relative comparison frequently sharpens small style and clarity distinctions that coarse pointwise scales blur, though its advantage still needs verification on your own examples.[^zheng2023] Exhaustively comparing every pair among $N$ revisions requires $N(N-1)/2$ unordered pairs per case, whereas comparing each revision against one baseline takes $N-1$ pairs; moreover, pairwise picks can cycle ($A \succ B$, $B \succ C$, $C \succ A$) and still need standalone safety checks so a forced winner never masks two flawed candidates.
+**Pairwise comparison** shows two responses side by side and asks which better satisfies the rubric. Relative comparison sharpens fine clarity distinctions that coarse pointwise scales blur.[^zheng2023] Comparing every unordered pair among $N$ candidates takes $N(N-1)/2$ pairs per case, while comparing each candidate against one baseline takes $N-1$. Pairwise preferences can also cycle ($A \succ B$, $B \succ C$, $C \succ A$) and need standalone accuracy checks so a forced winner never masks two broken replies.
 
-**Reference-guided evaluation** includes an authoritative specification or worked solution alongside a pointwise or pairwise task. Grounding the judge in explicit documentation reduces reliance on parametric memory, provided the evaluator actually inspects the excerpt and recognizes valid paraphrases rather than rewarding surface phrasing overlap. For technical configuration pairs like ServeSpec, evaluate claims against exact versioned documentation first and reserve pairwise preference judging for already-accurate answers.
+**Reference-guided evaluation** supplies the authoritative specification or worked solution alongside the candidate(s). Grounding the judge in explicit documentation reduces reliance on parametric memory, as long as the rubric rewards valid paraphrases rather than literal surface overlap. For ServeSpec, verify factual claims against the versioned spec first and reserve pairwise preference judging for accurate answers.
 
 | Criterion | Inspection target | Condition for keeping a tie |
 |---|---|---|
@@ -81,7 +83,7 @@ Begin by matching the evaluation format to the decision you need: an absolute ru
 | Clarity | Is the 32,768-token condition linked clearly to OOM mitigation? | Neither answer introduces technical ambiguity. |
 | Concision | Does each clause assist configuration without filler? | Extra formatting adds scannable value. |
 
-Do not equate longer responses with higher quality, and avoid penalizing structured lists purely for extra punctuation. G-Eval explored form-based criterion scoring for summarization and dialogue, while JudgeLM trained evaluators with swap augmentation and reference support.[^liu2023][^judgelm2024] High correlation against another LLM still leaves open whether judgments reflect true technical accuracy until checked independently against domain reviewers.
+Avoid rewarding length on its own or penalizing structured lists for extra punctuation. G-Eval introduced form-based criterion scoring for summarization and dialogue, while JudgeLM trained specialized evaluators with swap augmentation and reference support.[^liu2023][^judgelm2024] High correlation with another LLM still needs validation against domain reviewers before trusting scores on your own workload.
 
 ```text title="pairwise-rubric.txt"
 Compare Candidate A and Candidate B against the task prompt and reference spec.
@@ -108,62 +110,40 @@ Prompt wording never guarantees well-formed evaluator responses. In this offline
 
 <!-- leetllm: test, output=show, id=judge-parse, deps=pydantic -->
 ```python title="parse-judge-result.py"
-from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from typing import Annotated, Literal
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, field_validator
 
-
-class EvaluationRun(BaseModel):
-    case_id: str = Field(min_length=1)
-    run_config_id: str = Field(min_length=1)
-    order: tuple[str, str]
-
-    @field_validator("case_id", "run_config_id")
-    @classmethod
-    def strip_required(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
-            raise ValueError("identifier must be nonblank")
-        return cleaned
-
-    @field_validator("order")
-    @classmethod
-    def validate_pair(cls, pair: tuple[str, str]) -> tuple[str, str]:
-        cleaned = (pair[0].strip(), pair[1].strip())
-        if not all(cleaned) or cleaned[0] == cleaned[1] or set(cleaned) & {"tie", "review"}:
-            raise ValueError("need two distinct, non-reserved candidate IDs")
-        return cleaned
+NonBlank = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class JudgePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
     verdict: Literal["A", "B", "tie", "review"]
-    evidence: tuple[str, ...] = Field(min_length=1)
-
-    @field_validator("evidence")
-    @classmethod
-    def validate_evidence(cls, items: tuple[str, ...]) -> tuple[str, ...]:
-        cleaned = tuple(item.strip() for item in items)
-        if any(not item for item in cleaned):
-            raise ValueError("evidence strings must be nonblank")
-        return cleaned
+    evidence: tuple[NonBlank, ...] = Field(min_length=1)
 
 
 class Judgment(BaseModel):
     model_config = ConfigDict(frozen=True)
-    case_id: str
-    run_config_id: str
-    order: tuple[str, str]
+    case_id: NonBlank
+    run_config_id: NonBlank
+    order: tuple[NonBlank, NonBlank]
     verdict: Literal["A", "B", "tie", "review"]
-    evidence: tuple[str, ...]
+    evidence: tuple[NonBlank, ...]
+
+    @field_validator("order")
+    @classmethod
+    def check_distinct_ids(cls, pair: tuple[str, str]) -> tuple[str, str]:
+        if pair[0] == pair[1] or set(pair) & {"tie", "review"}:
+            raise ValueError("need two distinct, non-reserved candidate IDs")
+        return pair
 
 
 def parse_judgment(raw, *, case_id: str, run_config_id: str, order: tuple[str, str]) -> Judgment:
-    meta = EvaluationRun(case_id=case_id, run_config_id=run_config_id, order=order)
     payload = JudgePayload.model_validate(raw)
     return Judgment(
-        case_id=meta.case_id,
-        run_config_id=meta.run_config_id,
-        order=meta.order,
+        case_id=case_id,
+        run_config_id=run_config_id,
+        order=order,
         verdict=payload.verdict,
         evidence=payload.evidence,
     )
@@ -187,12 +167,7 @@ bad_responses = [
 ]
 for raw in bad_responses:
     try:
-        parse_judgment(
-            raw,
-            case_id=first.case_id,
-            run_config_id=first.run_config_id,
-            order=first.order,
-        )
+        parse_judgment(raw, case_id=first.case_id, run_config_id=first.run_config_id, order=first.order)
     except ValidationError:
         continue
     raise AssertionError("malformed response was accepted")
@@ -286,7 +261,7 @@ To check sensitivity on the ServeSpec configuration pair, invoke the identical j
   <figcaption>Translate slot verdicts (`A` or `B`) back to candidate IDs before reconciling order-swapped runs. Calling `B` twice reverses the chosen candidate across orders.</figcaption>
 </figure>
 
-Apply a conservative reconciliation policy that keeps disagreements explicit. Promote a winner only when both slot orders map to the same candidate identity, record `tie` only when both orders explicitly emit `tie`, escalate immediately to `review` if either pass requests human review, and classify one-sided preferences or order flips as `unresolved`. Doubling calls raises API cost proportionally, so track unresolved rates by evaluation slice and treat disagreements as diagnostic evidence rather than picking arbitrary tiebreakers.
+Use a conservative reconciliation rule that keeps disagreements visible. Declare a winner only when both slot orders pick the same candidate, record `tie` only when both orders emit `tie`, route to `review` if either pass requests human review, and mark one-sided preferences or order flips as `unresolved`. Doubling calls doubles API cost, so track unresolved rates by slice and inspect flips instead of hiding them behind arbitrary tiebreakers.
 
 <!-- leetllm: test, output=show, id=judge-swap, continue=judge-json, deps=pydantic -->
 ```python title="aggregate-swaps.py"
@@ -365,7 +340,7 @@ same-order, cross-case, and cross-configuration runs rejected
 ```
 <!-- leetllm: output:end -->
 
-Two consistent slot runs still share the same judge weights, prompt wording, and evidence text, so order consistency does not rule out shared rubric mistakes or formatting preferences. An evaluator can pick the same wrong answer reliably in both positions when the rubric omits a condition. Treat order reconciliation as one necessary consistency filter rather than proof of accuracy, and measure agreement directly against independent human judgments.
+> **Common mistake:** Treating order consistency as proof of accuracy. Two consistent slot runs share the same judge weights, prompt, and rubric, so an evaluator will happily pick the same wrong answer in both positions when the rubric misses a key condition. Order swapping filters position bias; agreement with independent human reviewers measures accuracy.
 
 ```checkpoint
 A pairwise judge emits `A` in both presentation orders (`(compact, stepwise)` and `(stepwise, compact)`). Does matching verdict letters indicate a reliable decision?
@@ -374,9 +349,9 @@ No. After swapping positions, `A` selects `compact` on the first call and `stepw
 ```
 
 ```checkpoint
-Under the reconciliation policy in `aggregate-swaps.py`, the first pass returns `tie` and the reversed pass returns `review`. What final label should the harness record?
+Under the reconciliation rule in `aggregate-swaps.py`, the first pass returns `tie` and the reversed pass returns `review`. What final label should the harness record?
 ---
-Record `review` and preserve both underlying judge outputs in the evaluation log. The explicit escalation branch overrides ties and one-sided picks so uncertain cases reach human inspection rather than collapsing into generic ties.
+Record `review` and preserve both underlying judge outputs in the evaluation log. The review branch overrides ties and one-sided picks so uncertain cases reach human inspection rather than collapsing into generic ties.
 ```
 
 ## Probe shortcuts instead of printing "bias: passed"
@@ -402,7 +377,7 @@ When verbose answers win more often than justified by utility, resist adjusting 
 
 Panickssery et al. documented connections between self-recognition and self-preference across tested model families and tasks.[^panickssery2024] Even when model identifiers are stripped from prompt text, distinctive formatting or phrasing signatures can still cue an evaluator from the same family. Measure family bias cleanly by scoring anonymized, human-quality-matched outputs across multiple judge families in both slot orders, and test visible badge bias separately by swapping only displayed author labels on fixed responses.
 
-Using an evaluation panel composed of multiple model families can surface single-model blind spots, yet panels do not eliminate correlated failure modes when models share training distributions or formatting preferences. Recent work studies calibrated judge ensembles in absolute correctness tasks, relying on panel consensus proxies and simulated drift tests when ground-truth labels are sparse.[^judge2026Ensemble] Always validate panel decisions against independent human annotations before promoting consensus weights into release metrics.
+Using a panel of multiple model families surfaces single-model blind spots, though models trained on overlapping corpora can still share formatting habits and factual errors. Validate any judge ensemble against independent human annotations before relying on panel consensus.[^judge2026Ensemble]
 
 ### Adversarial candidate injection
 
@@ -577,9 +552,9 @@ Before promoting an automated judge into regression tracking or release blocking
 
 A clean streak on a compact validation set easily breeds overconfidence in judge precision. Suppose a release check tests **50 independent known-bad configuration replies**, and the judge catches every defect with zero false acceptances. Observing zero failures on 50 examples still leaves meaningful statistical room for hidden defects whenever true error probability $p > 0$.
 
-Under independent trials with shared error probability $p$, observing zero false approvals across $N$ defective replies occurs with probability $(1 - p)^N$. Setting that survival probability to a 5% tail level defines the exact one-sided 95% upper confidence limit $p_{\text{upper}} = 1 - 0.05^{1/N}$. Plugging $N = 50$ into that relation yields $p_{\text{upper}} = 1 - 0.05^{1/50} \approx 0.0582$, showing that a rate near $5.82\%$ remains compatible with a spotless 50-case run.
+Under independent trials with shared error probability $p$, observing zero false approvals across $N$ defective replies occurs with probability $(1 - p)^N$. Setting that survival probability to 5% defines the exact one-sided 95% upper confidence limit $p_{\text{upper}} = 1 - 0.05^{1/N}$. At $N = 50$, $p_{\text{upper}} = 1 - 0.05^{1/50} \approx 5.82\%$: a spotless 50-case run is still consistent with a judge approving nearly 1 in 17 broken answers.[^scipyBinomtest2026]
 
-Under the stated binomial model, zero errors out of 50 remains statistically compatible with a judge approving nearly 1 in 17 broken configuration answers.[^scipyBinomtest2026] Remember that 95% describes repeated-sampling coverage of the interval procedure across independent draws, conditional on flawed outputs entering evaluation. To bring that one-sided 95% upper bound below 1% ($p_{\text{upper}} \le 0.01$), calculate the required preplanned sample size:
+To pull that one-sided 95% upper bound below 1% ($p_{\text{upper}} \le 0.01$), solve for the required sample size:
 
 $$
 (1 - 0.01)^N \le 0.05
@@ -587,7 +562,7 @@ $$
 N \ge \frac{\ln(0.05)}{\ln(0.99)} \approx \frac{-2.9957}{-0.01005} \approx 298.07.
 $$
 
-Preplanning 299 independent known-bad cases with zero false approvals pulls the exact upper confidence bound down to $0.997\%$, closely aligning with Hanley and Lippman-Hand's rule-of-three heuristic $3/N$.[^hanley1983] Lock sample size, slice weights, and test prompts before inspecting evaluation passes, because peeking repeatedly until a zero-error streak lands alters stopping rules and invalidates the interval. Likewise, running one 50-case split six times measures intra-judge variance rather than expanding independent sample diversity.
+Preplanning 299 independent known-bad cases with zero false approvals brings the exact upper bound down to $0.997\%$, matching Hanley and Lippman-Hand's rule of three ($3/N$).[^hanley1983] Lock sample size and prompts before looking at results so optional stopping does not break the bound, and remember that repeating the same 50 prompts six times measures sampling jitter rather than adding independent cases.
 
 <figure>
   <img src="illustrations/_generated/calibration_uncertainty_dark.png" alt="Line chart and bar summary of the one-sided 95 percent upper bound on false acceptance after zero errors. The upper bound drops from 5.82 percent at N = 50 cases to 1.98 percent at N = 150 cases and 0.997 percent at N = 299 cases, just below the 1 percent threshold." />
@@ -623,9 +598,9 @@ zero failures needed for a 1% upper bound: 299 (exact=0.997%)
 ```
 <!-- leetllm: output:end -->
 
-Keep statistical capacity separate from total API volume when reading that output: running 200 distinct tasks across two presentation orders and three repeats issues 1,200 model calls, yet independent task diversity remains capped at 200. Repeated calls quantify nondeterministic sampling jitter, whereas broader confidence bounds demand newly collected, non-overlapping cases. Binomial intervals also assume representative sampling and accurate reference labels, so domain mismatch or omitted adversarial categories stay invisible inside tight bounds.
+> **Key insight:** API call count is not sample size. Running 200 tasks across two slot orders and three repeats issues 1,200 judge calls, yet independent task diversity is still 200. Repeats measure sampling variance; tighter confidence bounds require new, independent examples.
 
-Version every moving component together: judge checkpoint, rubric prompt, reference specifications, parser, reconciliation logic, raw responses, parse failures, and human annotations. Whenever prompt tuning optimizes against a development judge, validate candidate generators against held-out cases and separate reviewers so gains do not reflect overfitting to one evaluator's habits. Keep deterministic rules decisive, keep unresolved cases visible, and recheck fairness across user varieties before trusting aggregate scores.
+Version every moving component together: judge checkpoint, rubric prompt, reference specifications, parser, reconciliation logic, raw responses, parse failures, and human annotations. Whenever prompt tuning optimizes against a development judge, validate candidate generators against held-out cases and separate reviewers so gains reflect real quality rather than one evaluator's quirks.
 
 ```mastery-quiz
 [
@@ -899,40 +874,41 @@ The paraphrase comes back `supported`, which is what a careful reviewer would sa
 
 Before you clear the pile on that basis, read the rest. The judge caught the contradiction and ignored the planted instruction, but it still said `supported` to three of the five claims that should not pass. Look at the reason under the first miss: it cites the approval requirement as support for the claim that approval is optional. Every one of those replies was valid JSON with a reasonable-sounding reason, so the parser had nothing to object to.
 
-We also tried the next size down, `Qwen3-0.6B`, with the same prompt. It said `supported` to all seven, and for the contradiction it wrote that the policy "directly contradicts the claim" inside a reply whose verdict was `supported`. A stronger model may do far better, and the research later in this chapter suggests it can. You cannot tell from one good verdict, though, and you cannot tell from reading the reasons. So keep a person on this paraphrase's verdict for now. The rest of this chapter shows how to measure a judge until you can decide how far to rely on it.
+We also tried the next size down, `Qwen3-0.6B`, with the same prompt. It said `supported` to all seven, and for the contradiction it wrote that the policy "directly contradicts the claim" inside a reply whose verdict was `supported`. A stronger model can do far better, yet one good verdict or fluent rationale never reveals how often a judge fails. Keep a human on that paraphrase for now; the rest of this chapter builds the measurement toolkit that tells you how far to trust any judge.
 
+### From pointwise claims to pairwise preferences
 
-Compare two supported ServeSpec configuration replies when a 40,000-token batch overflows GPU memory. Policy note `SERVE-27` instructs engineers to enable chunked sliding-window prefill for prompts over 32,768 tokens and pin `max_batch_tokens` to 8192. The generator can return either version:
+Pointwise grading settles whether one claim matches a reference. Often, though, two candidate answers are both factually right and differ only in clarity. Consider ServeSpec handling a 40,000-token batch that hits GPU out-of-memory errors. Serving spec `SERVE-27` instructs engineers to enable chunked sliding-window prefill for prompts over 32,768 tokens and pin `max_batch_tokens` to 8192. Two valid replies express that fix differently:
 
 | Candidate ID | Reply |
 |---|---|
 | `compact` | Enable chunked sliding-window prefill for prompts over 32,768 tokens while pinning `max_batch_tokens` to 8192 to prevent GPU out-of-memory errors. |
 | `stepwise` | Prompts exceeding 32,768 tokens risk GPU out-of-memory errors. Next: 1. Enable chunked sliding-window prefill. 2. Pin `max_batch_tokens` to 8192. |
 
-Because both replies preserve the required configuration values, a single-answer accuracy check marks both correct. Deciding which format engineers execute more reliably under memory pressure takes direct pairwise comparison.
+Both replies keep every required flag, so an accuracy check passes both. Deciding which format engineers execute more cleanly under pressure calls for pairwise comparison.
 
 ## Use code first, and a judge for what remains
 
-Start by checking every requirement that program logic can verify directly. Required JSON keys, permitted flag names, documentation version hashes, and valid numerical limits can all be checked exactly without calling any language model. Searching prose for `chunked_prefill` fails because `"Do not enable chunked_prefill"` contains the exact characters too, whereas matching a structured key against allowed values verifies the field cleanly.
+Start by checking everything code can verify directly: required JSON keys, permitted flag names, documentation version hashes, and numerical limits. Searching free text for `chunked_prefill` breaks immediately because `"Do not enable chunked_prefill"` contains the same characters; checking a structured key against allowed values settles the field with zero ambiguity.
 
-Run deterministic checks first and let them decide hard requirements. If an answer breaks an access rule or emits invalid JSON, a flattering rubric score must never promote it. Reserve semantic judging for what code cannot settle: whether an explanation preserves technical conditions, skips a setup prerequisite, or lays out instructions in a clear execution order. Always remember that any score belongs only to that fixed judge model, prompt, rubric, and reference snippet rather than a universal quality scale.
+> **Key insight:** Let deterministic code enforce hard requirements first. A flattering rubric score never overrides a failed permission check or invalid JSON; reserve the judge strictly for the open-ended explanation that code cannot verify.
 
-Zheng et al. observed over 80% agreement between strong LLM judges and human preferences in MT-Bench and Chatbot Arena, comparable to human-to-human agreement on those benchmarks, while also documenting order and length biases.[^zheng2023] That makes automated judges practical to investigate, provided you measure error rates on your own engineering documentation tasks instead of extrapolating general benchmarks. Choose pointwise grading when scoring answers independently against fixed criteria, pairwise comparison when distinguishing subtle clarity differences between valid drafts, and reference guidance whenever domain-specific rules would otherwise be missed. Pairwise tournaments grow quadratically ($N(N-1)/2$ pairs per case, doubled across slot orders), so focus comparisons on active deployment choices rather than exhaustive cross-grids.
+In MT-Bench and Chatbot Arena, strong LLM judges topped 80% agreement with human preferences while revealing systematic position and verbosity biases.[^zheng2023] Use pointwise grading to score answers independently against fixed criteria, pairwise comparison to separate subtle clarity differences between valid drafts, and reference guidance whenever domain-specific rules would otherwise be missed. Because full pairwise tournaments grow quadratically ($N(N-1)/2$ pairs per case, doubled across slot orders), compare active candidates against a baseline instead of running exhaustive cross-grids.
 
 ## A rubric that rewards the right things
 
-An evaluator measures only what your prompt makes explicit. Write concise rules anchored to ServeSpec configuration work:
+An evaluator measures only what your rubric spells out. Anchor the ServeSpec rules directly to the engineering task:
 
-1. Preserve both policy settings: enable chunked sliding-window prefill above 32,768 tokens and pin `max_batch_tokens` to 8192.
+1. Preserve both spec settings: enable chunked sliding-window prefill above 32,768 tokens and pin `max_batch_tokens` to 8192.
 2. Recommend actions consistent with the latest confirmed configuration state.
 3. Order instructions clearly enough for an ML engineer to apply safely under pressure.
-4. Preserve uncertainty and escalate whenever source details fail to settle the choice.
+4. Surface uncertainty and route to `review` whenever source details leave the answer open.
 
-The first two criteria enforce correctness, while the third evaluates practical readability. Extra wording should earn credit only when numbered spacing or explicit thresholds improve clarity, so padded explanations do not win simply for length and terse answers do not win after omitting prerequisites.
+The first two criteria check correctness; the third grades readability. Reward extra wording only when structure or explicit thresholds improve clarity, so padded prose does not win on length and terse replies do not win after dropping prerequisites.
 
-Give the evaluator explicit non-preference branches as well. Allow `tie` when two replies serve the engineer equally well under the rubric, and allow `review` when documentation is incomplete, both outputs fail, or judgment remains ambiguous. Forcing every pair into an `A` or `B` pick manufactures false winners between broken responses instead of routing defects to engineers.
+Give the evaluator explicit non-preference options: allow `tie` when both replies serve the engineer equally well, and `review` when documentation is missing, both outputs fail, or judgment is unclear. Forcing every pair into `A` or `B` manufactures false winners between broken answers.
 
-Keep candidate model labels out of the judge prompt, and treat candidate outputs strictly as untrusted input strings. Research on JudgeDeceiver demonstrates optimization-based attacks inside candidate text capable of hijacking naive prompt instructions.[^shi2024_judgedeceiver] Execute judges without external action tools or credentials, validate strict JSON with duplicate-key rejection, and verify any quoted reasoning excerpts against the underlying candidate outputs periodically.
+Keep candidate model names out of the judge prompt and treat candidate text strictly as untrusted data. Optimization attacks like JudgeDeceiver can hijack naive judge prompts via adversarial text embedded inside a candidate answer.[^shi2024_judgedeceiver] Run judges with zero action tools or credentials, decode JSON strictly with duplicate-key rejection, and spot-check quoted evidence against the original candidate text.
 
 ## The A and B trap
 
@@ -945,7 +921,7 @@ Evaluate each pair in both positions and map every verdict back to its candidate
 <figcaption>The slot letters change while the chosen candidate stays consistent. Map every `A` or `B` vote back to its candidate ID before checking order agreement.</figcaption>
 </figure>
 
-The helper below applies a conservative reconciliation policy: keep a candidate selected consistently across both orders, preserve double ties, and send single ties, flips, and explicit escalations to `review`.
+The helper below applies a conservative reconciliation rule: keep a candidate selected consistently across both orders, preserve double ties, and send single ties, flips, and explicit escalations to `review`.
 
 <!-- leetllm: test, output=show -->
 ```python title="reader-judge-order-swap.py"
@@ -982,7 +958,7 @@ two explicit ties: tie
 ```
 <!-- leetllm: output:end -->
 
-Look closely at the middle check where the judge returned `B` on both calls. Even though the letters matched, the judge swapped candidates just by holding onto the second slot, and aggregating position labels without translating IDs would mistakenly log unanimous confidence. Consistent picks across swapped runs still share the same judge habits and missing context, so track both conditional metrics and excluded `review` cases rather than throwing away disagreements and celebrating cherry-picked accuracy.
+> **Common mistake:** Counting matching verdict letters as agreement. When the judge returns `B` on both calls, it actually switched candidates by clinging to the second slot. Always normalize slot letters back to candidate IDs, and report excluded `review` rates alongside conditional agreement so hard cases never vanish from your denominator.
 
 ## Compare it with people
 
@@ -1048,7 +1024,7 @@ assert -math.expm1(math.log(0.05) / 299) < 0.01
 ```
 <!-- leetllm: output:end -->
 
-Remember two sampling traps that quietly invalidate this bound: re-evaluating the same 50 prompts six times runs 300 calls across only 50 independent tasks, and stopping mid-evaluation the moment a streak passes target thresholds breaks the fixed-sample assumption. Lock test design and sample counts before reviewing verdicts, and multiply conditional false-accept risk by actual defect prevalence to estimate leaked errors in production.
+Two sampling traps quietly break this bound: re-running the same 50 prompts six times buys 300 API calls over only 50 independent cases, and stopping the moment a zero-error streak lands invalidates fixed-sample confidence intervals. Lock your test cases and sample size before inspecting verdicts, then multiply conditional false-accept risk by actual defect prevalence to estimate leaked errors in production.
 
 ## Decide how much power to give it
 

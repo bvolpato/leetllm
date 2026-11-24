@@ -711,9 +711,7 @@ Interleaving can name a click winner, and a resolution rate can look better, bef
 
 ### Multiple testing correction
 
-If you inspect 20 independent secondary metrics at $\alpha=0.05$, the probability of seeing at least one spurious crossing under the null is $1 - (1 - 0.05)^{20} \approx 64.2\%$, known as the Family-Wise Error Rate (FWER). Real metrics are often correlated across turns and latencies, so the exact false-alarm curve shifts with covariance, yet the selection inflation remains substantial. Predeclare one primary metric, and choose the error-control method before looking when reading exploratory segments or secondary endpoints.
-
-Predeclare the primary decision metric. When you interpret a family of exploratory metrics, segments, or rubric axes, choose the error criterion before looking. Bonferroni controls family-wise error under arbitrary dependence when each test is valid. Benjamini-Hochberg[^benjamini1995] controls the expected false-discovery proportion under independence and certain positive-dependence conditions; it isn't a universal safety gate.
+If you inspect 20 independent secondary metrics at $\alpha=0.05$, the chance of at least one false positive under the null climbs to $1 - (1 - 0.05)^{20} \approx 64.2\%$ (the Family-Wise Error Rate, FWER). Even when metrics correlate across turns and latencies, unadjusted multi-metric shopping inflates false wins. Predeclare one primary decision metric, and pick your error-control method before looking at secondary metrics or slices: Bonferroni controls family-wise error under arbitrary dependence, while Benjamini-Hochberg[^benjamini1995] controls the expected false-discovery rate for exploratory sets.
 
 Testing four metrics simultaneously illustrates how different corrections alter release verdicts. Given raw p-values of $0.001$, $0.020$, $0.12$, and $0.42$ across source compliance, resolution rate, p95 latency, and cost per session, unadjusted testing flags two winners. Below, NumPy and SciPy compute Bonferroni adjusted p-values (controlling family-wise error) alongside Benjamini-Hochberg adjusted p-values (controlling false discovery rate):
 
@@ -768,7 +766,7 @@ cost_per_session: bonf=1.000 bh=0.420 significant_bh=False
 ```
 <!-- leetllm: output:end -->
 
-Here `resolution_rate` passes Benjamini-Hochberg ($q = 0.040 \le 0.05$) because it ranks second among the four tests, whereas strict Bonferroni multiplies every p-value by four and lifts it to $0.080$. Notice that adjusting exploratory p-values decides only whether a diagnostic movement looks genuine, not whether operational risk stays small. Remember that non-significant latency or cost p-values never imply guardrail safety: evaluate every guardrail against its registered margin and confidence interval regardless of rank adjustment.
+> **Common mistake:** Treating a non-significant latency or cost p-value as proof of guardrail safety. Adjusting exploratory p-values only controls false discoveries on secondary signals; always evaluate every guardrail against its registered margin and confidence interval.
 
 <figure>
 <img src="illustrations/_generated/multiple_testing_family_dark.png" alt="Left line chart plots Bonferroni and Benjamini-Hochberg adjusted p-values across four metrics against the 0.05 cutoff, paired with a decision matrix showing Raw, BH, and Bonferroni p-values for Citation, Resolution, Latency, and Cost." />
@@ -854,9 +852,9 @@ $$
 \chi^2 = \sum_{i \in \{\text{control}, \text{treatment}\}} \frac{(O_i - E_i)^2}{E_i}
 $$
 
-For two arms, $\chi^2$ follows a 1-degree-of-freedom chi-square null distribution, where $\alpha = 0.001$ places the cutoff at $\chi^2 \approx 10.83$. Crossing that cutoff alerts you to reconcile assignment, filtering, and logging before trusting any metric lift, though the count test alone cannot reveal the root cause or dictate how much bias occurred. Schedule repeated SRM checks intentionally so monitoring does not trigger excessive false alarms.
+For two arms, $\chi^2$ follows a 1-degree-of-freedom chi-square null distribution, where $\alpha = 0.001$ places the cutoff at $\chi^2 \approx 10.83$. Crossing that threshold signals that assignment, filtering, or logging diverged from the planned split and must be diagnosed before reading any metric lift.
 
-Count **unique assigned units** rather than message turns, finished generations, or survey replies. If treatment causes users to ask more follow-up questions, more treatment turns reflect an outcome shift rather than an assignment defect, though symmetric data drops can still hide behind a balanced 50/50 split. Below, SciPy computes exact two-arm SRM chi-square statistics and p-values:
+> **Key insight:** Count **unique assigned units**, never message turns or completed replies. If a better prompt prompts users to ask more follow-up questions, extra treatment turns are an experiment outcome rather than an assignment bug. Below, SciPy computes exact two-arm SRM chi-square statistics and p-values:
 
 <!-- leetllm: test, output=show, deps=numpy,scipy -->
 ```python title="sample-ratio-mismatch.py"
@@ -962,7 +960,7 @@ false width ratio: 0.577
 <figcaption>Aggregating to one observation per assigned user keeps the 95% interval width at 6.00 pp (SE 1.53 pp). Duplicating three rows per user preserves the +3.63 pp point estimate while spuriously multiplying the standard error by 1/sqrt(3) = 0.577.</figcaption>
 </figure>
 
-When a user contributes multiple conversations or clustered sessions, aggregate outcomes to the assigned user unit or apply cluster-robust standard errors and user-level bootstrap resampling. Standard large-sample normal intervals also break down under sparse safety rates, tiny cluster counts, adaptive bandit allocation, or missing follow-ups. Note that weighting every user equally answers a slightly different causal question than weighting every conversation equally whenever treatment changes conversation frequency.
+> **Key insight:** Analyze at the randomization unit. When one user generates multiple sessions or repeated log rows, aggregate to one outcome per assigned user (or use cluster-robust standard errors / user-level bootstrap) so duplicated rows never manufacture false precision. Weighting users equally also answers a distinct question from weighting conversations equally whenever treatment shifts how often users return.
 
 ### Keep the denominator and the observation window
 
@@ -1410,7 +1408,7 @@ decision: recalibrate judge
 ```checkpoint
 Why run an LLM judge online after launch when you already screened the variant offline?
 ---
-Offline screening covers the curated set and judge you froze. Sampled online judging can flag answer-quality changes on observed traces. Pair its scores with measured latency, cost, and error telemetry; a quality judge doesn't measure those operational outcomes or guarantee detection of rare failures.
+Offline screening covers the curated set and judge you froze. Sampled online judging tracks answer-quality drift on live traces, while operational telemetry measures latency, cost, and error rates directly.
 ```
 
 ## Decide what the evidence permits

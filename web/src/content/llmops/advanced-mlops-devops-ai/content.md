@@ -113,7 +113,9 @@ runtime:
 
 Pinning aliases cleanly inside Git solves version sprawl, yet two subtle production traps remain when registries meet live serving workers. First, model registries such as <span data-glossary="mlflow">MLflow</span> decouple a mutable pointer (`@production`) from the numbered checkpoint behind it.[^mlflow2026registryworkflow] Reassigning `@production` in the metadata database updates future startups immediately, yet worker processes that already loaded version 4 into GPU memory keep serving stale weights until the controller explicitly cycles workers or triggers reload RPCs. Health checks must therefore expose the actually loaded checkpoint digest rather than repeating a registry lookup.
 
-Second, emergency operator interventions clash directly with continuous reconciliation loops whenever incident responders bypass Git history. When an on-call engineer manually flips a traffic router back to a safe release during an outage without updating Git first, an auto-syncing GitOps controller notices divergence from the repository and pushes the broken candidate right back into production.[^argoCdAutoSync2026] Safe recovery requires both updating desired state in Git and protecting live router tables against lagging automation.
+Second, emergency operator interventions clash directly with continuous reconciliation loops whenever responders bypass Git history. If an engineer manually flips a traffic router back to a safe release during an outage without updating Git first, an auto-syncing GitOps controller spots the divergence and pushes the broken candidate right back into production.[^argoCdAutoSync2026] Safe recovery requires both updating desired state in Git and fencing live router tables against lagging automation.
+
+> **Common mistake:** Reassigning a `@production` alias in a model registry and assuming live pods switched over. Running inference workers keep their loaded weights in GPU memory until rolled or signaled to reload, so readiness probes must expose the *actually loaded* checkpoint digest.
 
 <figure>
   <img src="illustrations/_generated/gitops_promotion_flow_dark.png" alt="GitOps reconciliation and override alert diagram paired with a routing generation timeline explaining how stale generation tokens are rejected even on identical release digests." />
@@ -256,7 +258,7 @@ vector_parity_passed=False max_delta=3.20
 ```
 <!-- leetllm: output:end -->
 
-Look closely at how `max_delta = 3.20` rejects deployment whenever unit-normalized offline embeddings collide against raw online matrices, even before any request touches production users. At the same time, the four lookup queries demonstrate why storing both `event_hour` and `available_hour` protects historical backfills against both future leakage (`9.0` excluded at noon) and premature writes (`None` at `09:00`). Combining snapshot timing with numerical vector comparison closes both sides of the training-serving gap.
+> **Key insight:** Look at why `max_delta = 3.20` blocks deployment before any user sees a token: unit-normalized offline embeddings collide with raw online vectors even when both read from the same `releases@5` feature view. Pairing transform-parity checks with dual timestamps (`event_hour` and `available_hour`) closes both sides of the training-serving gap.
 
 ## Shadow evaluation, sticky routing, and AND promotion gates
 

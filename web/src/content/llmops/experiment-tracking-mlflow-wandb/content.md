@@ -32,7 +32,7 @@
 
 An engineering team investigates an unsupported generation raised in [LLM Observability & Monitoring](/learn/observability-monitoring-llm-systems), edits a citation-routing prompt or retrains a classifier gate, and sees validation F1 jump from `0.87` to `0.93`. That higher number proves nothing until another engineer can verify whether the win came from genuinely better predictions, a cleaner evaluation split, a looser abstention threshold, or a modified judge prompt. Experiment tracking turns transient ad-hoc runs into inspectable engineering records that separate real improvements from accidental measurement drift.
 
-Unlike classical supervised learning, LLM engineering varies weights, prompts, retrieval indexes, post-hoc decision thresholds, and automated scorers at the same time. Comparing runs safely requires pinning both the <span data-glossary="model-checkpoint">checkpoint</span> and the evaluation harness on every execution. In this guide, you will train a regularized logistic abstention router across sweep settings, record immutable artifacts and prompt aliases in <span data-glossary="mlflow">MLflow</span>, log parallel runs and traces with <span data-glossary="weights-and-biases">Weights & Biases</span> (W&B) and Weave, and enforce automated comparability filters before ranking candidates.
+Unlike classical supervised learning, LLM systems vary weights, prompts, retrieval indexes, post-hoc decision thresholds, and automated scorers all at once. Comparing candidates honestly means pinning both the <span data-glossary="model-checkpoint">checkpoint</span> and the evaluation harness on every run. To make that concrete, we will train a regularized logistic abstention router across sweep settings, record immutable artifacts and prompt aliases in <span data-glossary="mlflow">MLflow</span>, run parallel offline tracking in <span data-glossary="weights-and-biases">Weights & Biases</span> (W&B) and Weave, and enforce automated lineage checks before any run reaches the leaderboard.
 
 ## Why single summary scores mislead
 
@@ -322,7 +322,7 @@ PROMOTED balanced_tau0.50 : F1=0.9011, unsafe=0.0167, false_abstain=0.0583
 ```
 <!-- leetllm: output:end -->
 
-Look closely at why automated blocking matters: `run_split_drift` boasted `F1 = 0.928` and `run_scorer_drift` hit `F1 = 0.915`, both beating `balanced_tau0.50` (`0.9011`). Without comparing `dataset_sha` and `evaluator_version` first, a naive sorting query would ship an unverified checkpoint based on shifted evaluation conditions.
+> **Key insight:** Both `run_split_drift` (`F1 = 0.928`) and `run_scorer_drift` (`F1 = 0.915`) beat `balanced_tau0.50` (`0.9011`) on raw score. Sorting a leaderboard without checking `dataset_sha` and `evaluator_version` first ships a worse model solely because its test split or rubric shifted.
 
 <figure>
   <img src="illustrations/_generated/run_comparison_lineage_dark.png" alt="A left-to-right lineage diagram traces how code commit and seed, frozen evaluation split b54d7ceab650, checkpoint SHA 62df2fcb552b, and evaluator route-eval-v2 at prompt version 2 combine into a comparable balanced candidate run (F1 0.901, unsafe rate 1.7%). Two other runs are flagged as non-comparable on the leaderboard: one altered the evaluation split digest (F1 0.928) and the other changed the evaluator version to eval-v3 (F1 0.915)." />

@@ -185,7 +185,7 @@ class LaneTelemetry:
         # Lower score wins: balance normalized latency, normalized cost, error rate, and quality gap
         norm_lat = lats / max(req.deadline_ms, 1)
         norm_cost = costs / max(req.max_attempt_usd, 1e-6)
-        utility = 0.45 * norm_lat + 0.20 * norm_cost + 2.50 * errs + 1.20 * (1.0 - quals)
+        utility = 0.45 * norm_lat + 0.20 * norm_cost + 2.50 * errs + 2.80 * (1.0 - quals)
         order = np.argsort(utility, kind="stable")
         return [(float(utility[i]), candidates[i]) for i in order]
 
@@ -205,11 +205,11 @@ for score, lane in telemetry.rank(billing_review, eligible):
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-Healthy rank  | private-vpc-8b   | score=0.361 | ewma_lat=490ms
-Healthy rank  | private-vpc-70b  | score=0.413 | ewma_lat=920ms
+Healthy rank  | private-vpc-70b  | score=0.493 | ewma_lat=920ms
+Healthy rank  | private-vpc-8b   | score=0.585 | ewma_lat=490ms
 
-Degraded rank | private-vpc-8b   | score=0.361 | ewma_lat=490ms | err=0.02
-Degraded rank | private-vpc-70b  | score=2.467 | ewma_lat=1746ms | err=0.77
+Degraded rank | private-vpc-8b   | score=0.585 | ewma_lat=490ms | err=0.02
+Degraded rank | private-vpc-70b  | score=2.547 | ewma_lat=1746ms | err=0.77
 ```
 <!-- leetllm: output:end -->
 
@@ -376,7 +376,7 @@ print("EWMA + breaker:", {k: round(v, 3) for k, v in protected.items()})
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 Static ranker : {'availability': 0.99, 'p50_ms': 983.845, 'p95_ms': 1894.734, 'mean_usd_per_1k': 4.01, 'breaker_skips': 0.0}
-EWMA + breaker: {'availability': 0.997, 'p50_ms': 532.242, 'p95_ms': 1083.24, 'mean_usd_per_1k': 2.224, 'breaker_skips': 0.0}
+EWMA + breaker: {'availability': 0.997, 'p50_ms': 633.34, 'p95_ms': 1328.25, 'mean_usd_per_1k': 2.972, 'breaker_skips': 0.0}
 ```
 <!-- leetllm: output:end -->
 
@@ -384,7 +384,7 @@ During the 70-request outage window, the static ranker stalls over a second on `
 
 ## Post-generation validation and idempotent side effects
 
-Even after a healthy lane finishes inside clock and spend budgets, transport success does not guarantee application safety. The gateway normalizes token counts, finish reasons, and refusal payloads, checks response fields against the versioned JSON schema, and hands the parsed record back to your application. Two downstream safeguards stay cleanly outside transport retries:
+A fast HTTP 200 inside clock and spend budgets settles transport health, while your application still owns semantic safety. The gateway normalizes token counts, finish reasons, and refusal payloads, checks response fields against the versioned JSON schema, and hands the parsed record back to your application. Two downstream safeguards stay cleanly outside transport retries:
 
 1. **Application grounding and authorization:** Your service must confirm that every cited document identifier appears in passages the current user is permitted to inspect and actually supports the answer text. A language model must never validate its own escalation state by setting `"review": "approved"`, and any automated workflow engine verifies account entitlements independently before mutating records.
 2. **Idempotency for state-changing tools:** Repeating pure text generation after a pre-output stall is safe, whereas re-executing a refund or support-ticket mutation creates duplicate ledger writes. Every consequential tool invocation uses a deterministic idempotency key derived from `(request_id, operation_name, canonical_payload)` paired with a stored transaction table so retried explanation turns read back the already-committed write result instead of repeating the mutation.[^awsIdempotentApis2026]
@@ -461,7 +461,7 @@ Retry write : {'write_id': 'wr_84f462', 'status': 'committed', 'replayed_from_le
 ```
 <!-- leetllm: output:end -->
 
-Notice why `validate_structured_reply` rejects self-approved responses locally without tripping `CircuitBreaker`: semantic mistakes indicate a prompt or evaluation gap rather than an unreachable server. Meanwhile, `IdempotentWriteLedger` demonstrates why retries across explanation turns stay harmless once tool writes commit under deterministic parameter hashes. Even if a network hiccup interrupts formatting after the write succeeds, reading back the ledger entry returns the same confirmation ID cleanly.
+> **Key insight:** Separate transport faults from semantic errors. `validate_structured_reply` rejects self-approved responses locally without tripping `CircuitBreaker`, because a broken prompt should never blacklist a healthy cluster. Meanwhile, `IdempotentWriteLedger` ensures that retrying an explanation turn after a network hiccup reads back the committed confirmation ID instead of repeating the write.
 
 ## Operational summary and mastery check
 

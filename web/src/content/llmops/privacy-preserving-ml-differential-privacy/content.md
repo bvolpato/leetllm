@@ -15,17 +15,15 @@
 }
 ---
 
-Imagine a support copilot in its final security review. An analyst prompts it with `"Ticket summary: Customer reported recurring billing error on..."`. It completes the sentence with a customer's address and a private medical note.
+Imagine a support copilot in security review. You prompt it with `"Ticket summary: Customer reported recurring billing error on..."`, and it finishes the sentence with a real customer's street address and private medical note.
 
-Seeing sensitive text in a response does not by itself pinpoint the leak path. Did a retrieval tool fetch an unauthorized ticket? Was the note already in the prompt? Was it published elsewhere, or memorized during training? Trace the data path before diagnosing training leakage.
+A leaked detail can arrive through several paths: a retrieval tool fetched an unauthorized record, the note was already in the prompt, it appeared in public text, or the model memorized it during training. Trace the data path first so you fix the right layer.
 
-Suppose the investigation confirms training-data extraction. Removing names reduces direct identifiers; addresses, unusual phrases, and combinations of facts can still identify someone. Memorization depends on the data, repetition, training, and attack. An unusual sentence isn't automatically memorized.[^carlini2021Extraction]
+Suppose tracing confirms training-data memorization. Stripping names removes direct identifiers, yet addresses, rare phrases, and combinations of facts still identify individuals, and extraction attacks have recovered sequences appearing in even a single training document.[^carlini2021Extraction]
 
-<span data-glossary="differential-privacy">Differential privacy</span> compares neighboring training datasets that differ in one declared protected contribution. It bounds how much that change can affect the distribution of released outputs. The contribution might be a row or a person's entire history. The privacy definition also specifies whether that contribution is added, removed, or replaced. Those choices determine the guarantee.[^dwork2006][^dwork2014]
+<span data-glossary="differential-privacy">Differential privacy</span> (DP) bounds how much adding, removing, or replacing one protected contribution (a single row or a person's entire history) can shift the output distribution of a training algorithm.[^dwork2006][^dwork2014] In the **central privacy model**, a trusted training pipeline reads raw records and releases a model whose parameters obey that bound. Queries using the released model alone inherit its guarantee; raw databases, prompts, retrieval indexes, and logs still need their own access controls.
 
-Our training setup uses the **central privacy model**: a trusted service sees raw records, and the released model must satisfy the privacy bound. Queries using that model and no additional private data inherit its guarantee. Raw databases, prompts, retrieval tools, and internal logs need their own controls. DP bounds the effect of protected participation. It doesn't prevent every sensitive inference or erase facts someone already knows.
-
-The review still has a tempting shortcut: scrub the names, run a membership test, and treat a pass as safety. What would that test actually tell you?
+Teams often try a shortcut first: scrub names with regexes, run a membership-inference test, and treat a passing score as proof of safety. What does that test actually show?
 
 ## What an attack test can tell you
 
@@ -42,7 +40,7 @@ Regex redaction masks recognized strings. Privacy evaluation also asks whether t
 | Passing a membership test | Reports the tested attack's performance on its evaluation setup | Stronger attacks, other populations, and other interfaces remain untested |
 | Differentially private training | Bounds probabilities for the declared neighboring relation and parameters | Doesn't certify legal compliance, access control, task quality, or zero disclosure |
 
-A weak attack can miss real leakage. A successful, statistically sound attack can give evidence against a claimed guarantee. Neither result substitutes for checking the mechanism and its assumptions. DP's inequality holds for every output event, including events chosen by an adversary with background knowledge.
+> **Key insight:** A passing membership-inference test only shows that one specific attack failed on one setup, whereas a successful attack refutes a claimed privacy bound. Differential privacy flips the question: its inequality holds for *every* output event, regardless of an adversary's background knowledge.
 
 ```checkpoint
 Why does a passing membership inference test fail to guarantee that a customer's support ticket can't be extracted?
@@ -128,7 +126,7 @@ epsilon: 1.099, delta: 0
 ```
 <!-- leetllm: output:end -->
 
-This example verifies probabilities; it doesn't collect private responses. Central DP training uses a trusted service instead, and needs a mechanism for the entire released training result.
+Central DP training runs on a trusted server instead, applying a randomized mechanism to the entire training trajectory rather than individual raw answers.
 
 ```checkpoint
 A hospital proposes epsilon = 2 and delta = 0.05 for 50,000 protected patients. Does this mean exactly 2,500 patients could be exposed?
@@ -148,7 +146,7 @@ The mechanism determines the kind of noise and how to calibrate it. Two foundati
 
 The **Laplace mechanism** adds independent noise drawn from $\text{Lap}(\Delta_1 f / \varepsilon)$ to each coordinate. It guarantees pure $(\varepsilon, 0)$-differential privacy. For scalar counts or low-dimensional database queries, Laplace noise is the usual choice.
 
-For a $d$-dimensional vector, $\|v\|_1\le\sqrt d\,\|v\|_2$. An $L_2$ sensitivity bound can therefore imply a larger $L_1$ bound. Coordinate-wise Laplace calibration may be costly in this setting; it doesn't universally make neural-network optimization fail.
+For a $d$-dimensional vector, $\|v\|_1\le\sqrt d\,\|v\|_2$, so an $L_2$-bounded gradient can have an $L_1$ sensitivity $\sqrt{d}$ times larger, making coordinate-wise Laplace noise costly in high-dimensional parameter spaces.
 
 The **Gaussian mechanism** adds $\mathcal{N}(0,s^2 I)$. One classical sufficient calibration, for $0<\varepsilon<1$ and $0<\delta<1$, is:[^dwork2014]
 
@@ -156,7 +154,7 @@ $$
 s > \frac{\Delta_2 f \sqrt{2 \ln(1.25/\delta)}}{\varepsilon}
 $$
 
-This calibration is sufficient over the stated epsilon range. Analytical Gaussian calibration uses the Gaussian cumulative distribution function and avoids limitations of this classical bound.[^balle2018AnalyticGaussian] Gaussian noise and its composition analysis are standard ingredients in DP-SGD, though they don't imply a universal utility ranking over all mechanisms.
+Analytical Gaussian calibration tightens this via the Gaussian CDF and works across all $\varepsilon > 0$.[^balle2018AnalyticGaussian] Combined with tight composition accounting, the Gaussian mechanism forms the core noise step of DP-SGD.
 
 We'll use $s$ for an actual standard deviation. In the training step that follows, $\sigma$ is a **dimensionless noise multiplier**, and the standard deviation on the clipped sum is $\sigma C$. That scale is valid only after each contribution is bounded. What has to happen to one example's gradient before the noise is added?
 
@@ -192,9 +190,9 @@ Each step $t$ has five phases:
   <figcaption>The vector (3, 4) moves radially to (0.6, 0.8), keeping its direction while meeting the norm bound. Clip protected-unit contributions before summing, then add calibrated noise and divide by public L. The plotted clipping is deterministic; privacy also requires valid sampling and accounting.</figcaption>
 </figure>
 
-A frequent bug in custom implementations is clipping the batch average *after* aggregation: `clip(mean(gradients), C)`. This bounds the final update vector's length to $C$, but neighboring dataset averages can still point in opposite directions, creating a worst-case difference of $2C$ between outputs. Clipping must occur per sample before aggregation to guarantee sensitivity $C$ for the batch sum.
+> **Common mistake:** Clipping the batch average *after* aggregation (`clip(mean(gradients), C)`). Even though the final update has norm at most $C$, two neighboring averages can point in opposite directions and differ by $2C$. Clip each protected unit *before* summing so sensitivity stays at $C$.
 
-Verify the geometry on three vectors. This deterministic example is **not a DP release**: it adds no noise. Keep full precision during aggregation and round only the display; rounding a clipped vector first can push its norm above $C$.
+Below we verify the clipping geometry on three vectors before adding noise. Keep full precision during aggregation and round only when printing, because rounding a clipped vector early can nudge its norm slightly above $C$:
 
 <!-- leetllm: test, deps=numpy, output=show, id=vector-clipping -->
 ```python title="clip-vector-gradients.py"
@@ -319,7 +317,7 @@ Here $\mathcal A$ is the set of analyzed orders. Accountants can use tighter con
 
 **Subsampling amplification** exploits the random inclusion of a protected unit when the sample identity isn't released. The observer sees an output distribution that mixes inclusion and non-inclusion cases. They can still infer something about participation. A Poisson accountant must match the actual sampler, adjacency, protected unit, and clipping mechanism.
 
-Compute a concrete budget with Opacus's `RDPAccountant`.[^opacusRdpAccountant2026] This example pins version **1.6.0**, checked September 21, 2026. It charges 300 or 600 Poisson-sampled Gaussian steps at $q=0.01$, multiplier $\sigma=1$, and $\delta=10^{-5}$:
+Compute a concrete budget with Opacus's `RDPAccountant`,[^opacusRdpAccountant2026] charging 300 and 600 Poisson-sampled Gaussian steps at $q=0.01$, multiplier $\sigma=1$, and $\delta=10^{-5}$:
 
 <!-- leetllm: test, deps=opacus==1.6.0, output=show -->
 ```python title="account-sampled-gaussian-updates.py"
@@ -456,7 +454,7 @@ adapter step-noise RMS: 0.17
 ```
 <!-- leetllm: output:end -->
 
-This calculation compares coordinate-space magnitudes. Adapter coordinates and full-weight coordinates describe different parameterizations, so equal coordinate norms can change model outputs by different amounts. Evaluate task accuracy and gradient signal-to-noise ratio separately; the privacy budget follows its accountant and training configuration.
+> **Key insight:** Because independent Gaussian noise norms grow as $\sqrt{d}$, adapting 5 million LoRA coordinates cuts the coordinate-space noise norm by $37.4\times$ compared to 7 billion full weights at the same $\sigma C$. Always benchmark task accuracy directly alongside the privacy budget, since low-rank adapters and full weights span different update spaces.
 
 <figure>
   <img src="illustrations/_generated/privacy_utility_tradeoff_dark.png" alt="A log-log plot shows the RMS noise norm divided by per-coordinate standard deviation sigma C growing as the square root of trainable dimension d. At sigma C = 1, five million coordinates give RMS 2,236; seven billion give RMS 83,666. With normalizer L = 128 and learning rate eta = 0.01, parameter-step RMS values are 0.17 for the adapter and 6.54 for the full model. Measure task quality for each parameterization." />

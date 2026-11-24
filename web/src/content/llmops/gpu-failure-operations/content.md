@@ -46,7 +46,7 @@
 }
 ---
 
-A serving dashboard reports only `CUDA out of memory`, which identifies a failed allocation without revealing its operational scope. Request `r-7812` asks replica `summarizer-7f9d6` for another 1.50 GiB at 14:03:17 UTC on August 29, 2026, and the allocation fails while node `gpu-a17` still answers health checks and peer replicas keep serving traffic.
+A serving dashboard reports only `CUDA out of memory`, naming a failed allocation without revealing its operational scope. Request `r-7812` asks replica `summarizer-7f9d6` for another 1.50 GiB and fails, while node `gpu-a17` still answers health checks and peer replicas keep serving traffic.
 
 The initial telemetry snapshot gives more detail:
 
@@ -159,7 +159,7 @@ torch.cuda.memory._record_memory_history(
 torch.cuda.memory._dump_snapshot("r-7812-memory.pickle")
 ```
 
-This instrumentation fragment uses CUDA APIs, so a CPU-only diagnostic cannot run it. Enable history before the workload and dump it from that same process near the failure; the two adjacent calls show the API. The initial `_` marks private APIs, so pin and validate the fleet's PyTorch version. PyTorch says `memory_viz` processes the file locally without uploading it.[^pytorchCudaMemory2026] Treat snapshots as sensitive artifacts: stack traces and source paths can expose application details.
+Enable history before the workload runs and dump the snapshot from that same GPU process near the failure. Because the leading `_` marks private PyTorch APIs, pin and test against your fleet's PyTorch version; `memory_viz` inspects the dumped file locally without uploading it.[^pytorchCudaMemory2026] Treat snapshots as sensitive artifacts since Python stack traces and paths can expose internal details.
 
 History is a ring buffer, not an infinite flight recorder. Once `max_entries` fills, the oldest entries are overwritten. Large histories can also produce multi-gigabyte dumps, so pick a practical entry window, record the recording start time and limit alongside the snapshot, and dump promptly around the failure. A snapshot with no OOM event often means recording started too late or the ring wrapped, not that the alert was false.
 
@@ -199,9 +199,7 @@ The GPU Operator device plugin listens for health events and can report a GPU un
 
 This is why the first observed error deserves careful handling: CUDA work is asynchronous. An API call can enqueue work and return before the device executes it, so an error may surface only at a later synchronization point. Record the first observed failure, stream, request, kernel, and correlation timestamp. In a controlled debug run, `CUDA_LAUNCH_BLOCKING=1` can help reproduce ordering. It alters execution, so don't enable it fleet-wide in production.[^cudaProgrammingGuide2026]
 
-`cudaGetLastError()` retrieves and clears the last-error record; an immediate second call can return `cudaSuccess`. Clearing that record doesn't undo the failed operation or restore a corrupted process. Preserve the first result, and correlate a successful status with the particular operation it describes.[^cudaProgrammingGuide2026][^nvidiaCudaRuntimeErrors2026]
-
-Some CUDA runtime errors explicitly leave the process in an inconsistent state. NVIDIA documents illegal address, kernel-execution launch timeout, launch failure, and several hardware-stack errors as requiring process termination and relaunch. Retrying another request in that same process is unsafe. This rule doesn't apply to every CUDA error, so preserve the exact error enum and originating API operation rather than matching the word “CUDA.”[^nvidiaCudaRuntimeErrors2026]
+> **Common mistake:** Calling `cudaGetLastError()` twice and trusting a green HTTP probe. `cudaGetLastError()` reads and *clears* the error register, so a second call returns `cudaSuccess` even when an illegal address or launch timeout has permanently poisoned the CUDA context. Preserve the first error enum, take the worker out of rotation, and kill and relaunch the process.
 
 <figure>
   <img src="illustrations/_generated/asynchronous_process_state_dark.png" alt="Failure propagation for an asynchronous CUDA illegal-address error: an async kernel enqueue lets the host continue until synchronization reveals the illegal address, cudaGetLastError clears the latched error on first read so a second call reports cudaSuccess, and an HTTP probe still returns 200 OK even though the CUDA context stays poisoned until capture, kill, and relaunch." />
@@ -400,7 +398,7 @@ You can inspect the analyzer's classification across eight incident telemetry sn
 * [Download incident snapshots](assets/gpu_failure_snapshots.json)
 * [Download snapshot analyzer](assets/analyze_gpu_snapshots.py)
 
-The analyzer is a read-only worksheet. It doesn't connect to hardware, run diagnostics, or change cluster state. It emits a primary hypothesis and a separate `must_relaunch` flag so a hardware finding can't hide an unsafe process state. A false flag means only “no listed relaunch-required error,” not “healthy.”
+The analyzer operates strictly on captured telemetry snapshots without touching live hardware. It outputs both a primary hypothesis and a separate `must_relaunch` flag so a hardware finding never hides a poisoned process state.
 
 Its inputs are already normalized. `new_xids` and ECC increments cover one incident window; an empty list or zero counter requires a successful collection, not a failed telemetry query. `clock_event_reasons` includes only limiters correlated with an unexpected regression. An operator or version-pinned parser has decoded DCGM defect classes from the full code and message; raw `Fail`, `Skip`, and `Not Run` aren't defect classes. CUDA labels come from exact enums and API context, not substring matches. The retryable set covers transient transport and timeout errors; consult the CUDA runtime error catalog for version-specific additions.[^nvidiaCudaRuntimeErrors2026]
 
@@ -592,7 +590,7 @@ native fragmentation inference withheld for cudaMallocAsync
   <figcaption>Hardware triage and worker relaunch stay independent when faults co-occur: Xid 31 routes device checks without suppressing the process relaunch required by illegal_address, and missing NVML readings remain unavailable rather than zero.</figcaption>
 </figure>
 
-These checks test classification logic in software rather than injecting real GPU faults. Production controllers also require authenticated node ownership, sample freshness checks, incident deduplication, and durable quarantine latches so a quiet telemetry poll never clears an unverified GPU prematurely.
+Production controllers pair this classification logic with authenticated node ownership, sample freshness checks, incident deduplication, and durable quarantine latches so a quiet telemetry poll never clears an unverified GPU prematurely.
 
 ```checkpoint
 A telemetry snapshot records both a DCGM memory fault and a `launch_timeout` CUDA error, with no fabric or Xid errors. The analyzer prioritizes DCGM hardware findings and evaluates `must_relaunch` separately. Which classification follows?
