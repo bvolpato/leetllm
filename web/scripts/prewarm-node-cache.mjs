@@ -18,7 +18,7 @@ const routes = [
   '/glossary',
   '/tracks',
   '/api/search/learn?q=attention',
-  '/cdn/content-image/foundations/vectors-matrices-tensors/illustrations/_generated/chapter_flow_dark.png',
+  '/cdn/content-image/blog/how-we-built-leetllm/illustrations/_generated/content_pipeline_dark.png?w=640&fm=webp',
 ];
 const server = spawn(process.execPath, ['server.js'], {
   env: { ...process.env, HOSTNAME: '127.0.0.1', PORT: String(port) },
