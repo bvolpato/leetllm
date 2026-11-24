@@ -32,6 +32,9 @@ function portableRelativePath(root: string, path: string): string {
 
 export function isRuntimeContentPath(path: string): boolean {
     const name = basename(path)
+    if (path.includes("/__pycache__/") || name.endsWith(".pyc")) {
+        return false
+    }
     return name === "references.json"
         || name === "metadata.json"
         || name === "content.md"

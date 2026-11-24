@@ -34,6 +34,7 @@ RUN node -e ' \
   const dst = "/runtime-content"; \
   const keep = (rel) => { \
     const name = path.basename(rel); \
+    if (rel.includes("/__pycache__/") || name.endsWith(".pyc")) return false; \
     return name === "references.json" \
       || name === "metadata.json" \
       || name === "content.md" \
