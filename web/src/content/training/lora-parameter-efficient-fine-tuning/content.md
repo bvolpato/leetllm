@@ -39,117 +39,68 @@
 ---
 <!-- leetllm: edition:reference:start -->
 
-Suppose a read-only SQL analytics assistant already answers routine questions, but a new warehouse schema renames key tables and adds join rules. You have 5,000 labeled question-to-SQL pairs and one 48 GB training GPU. Full fine-tuning asks that machine to hold <span data-glossary="gradient">gradients</span> and Adam state for every base weight. A thin adapter looks affordable, but it still has to learn the new schema conventions without damaging ordinary queries. Which constraint fails first: memory, adaptation capacity, or regression quality?
+Suppose your read-only SQL analytics assistant already answers routine questions, and a warehouse migration renames key tables and adds new join rules. You have 5,000 labeled question-to-SQL pairs and a single 48 GB training GPU. Full fine-tuning asks that GPU to store <span data-glossary="gradient">gradients</span> and Adam optimizer state for every single weight in the base model, blowing past your memory budget before the first batch finishes. Do you really need to update all 70 billion numbers independently just to teach a model new schema conventions?
 
-Call this experiment `sql-lora-v1`. It changes how the assistant writes queries against the new schema, not where the current schema lives: frequently changing table definitions still need a versioned source or retrieval. LoRA (Low-Rank Adaptation) freezes the pretrained weights and learns a small additive update inside selected linear layers. Full fine-tuning moves every eligible weight. Both still execute the base network.
-
-The original GPT-3 175B experiments reported roughly 10,000 times fewer trainable parameters and three times lower <span data-glossary="gpu">GPU</span> memory requirements than full fine-tuning with Adam.[^hu2021] Those figures describe the paper's setup. The calculations below estimate storage, and the executable examples check small layers; evaluate a complete training run separately.
+Call this adaptation run `sql-lora-v1`. LoRA (Low-Rank Adaptation) bets that task-specific weight changes live in a much smaller subspace than the full weight matrices: it freezes the pretrained weights and learns a compact low-rank correction inside selected linear layers. The original GPT-3 175B experiments cut trainable parameters by roughly 10,000x and reduced <span data-glossary="gpu">GPU</span> memory by roughly 3x compared to full fine-tuning with Adam.[^hu2021] (Frequently changing schema definitions still belong in retrieval or context; fine-tuning teaches the model how to write queries cleanly against the warehouse conventions.)
 
 ## Why LoRA exists
 
-Full fine-tuning a 70-billion parameter model is expensive for a specific reason: training stores more than model weights. It also keeps gradients and <span data-glossary="optimizer">optimizer</span> state for every trainable parameter. Before reading the table, fix the accounting recipe. It assumes low-precision parameters and gradients with two FP32 Adam moment tensors, but **no separate FP32 master parameter copy**.
-
-Consider the memory breakdown for a 70B model using Adam with <span data-glossary="fp16">FP16</span> (half-precision) weights:
+Full fine-tuning a 70-billion-parameter model is expensive because training stores far more than model weights: every trainable parameter also carries a gradient and <span data-glossary="optimizer">optimizer</span> state. Under a lean mixed-precision setup with <span data-glossary="fp16">FP16</span> weights and gradients plus two FP32 Adam moment tensors (12 bytes per parameter, decimal GB):
 
 | Component | Memory | Formula |
 |-----------|--------|---------|
 | Model weights (FP16) | 140 GB | $70\text{B} \times 2$ bytes |
 | Gradients (FP16) | 140 GB | $70\text{B} \times 2$ bytes |
-| Adam optimizer $m$ (FP32, single-precision) | 280 GB | $70\text{B} \times 4$ bytes |
-| Adam optimizer $v$ (FP32, single-precision) | 280 GB | $70\text{B} \times 4$ bytes |
-| **Total under this 12-byte recipe** | **840 GB** | Before activations and temporary buffers |
+| Adam first moment $m$ (FP32) | 280 GB | $70\text{B} \times 4$ bytes |
+| Adam second moment $v$ (FP32) | 280 GB | $70\text{B} \times 4$ bytes |
+| **Total (12 bytes/param)** | **840 GB** | Before activations and temporary buffers |
 
-The 840 GB total covers model state only. All GB and MB here are decimal ($10^9$ and $10^6$ bytes). A real run also stores activations and temporary buffers. If the optimizer keeps a separate FP32 master copy, add another 280 GB, giving the 1.12 TB, 16-byte recipe from the [distributed training](/learn/distributed-training-fsdp-deepspeed-zero) lesson. Actual dtypes depend on the optimizer and training stack; this isn't a claim about every Adam implementation.
+Adding an FP32 master parameter copy raises that to 16 bytes per parameter, or 1.12 TB (as budgeted in [distributed training](/learn/distributed-training-fsdp-deepspeed-zero)). Either way, 840 GB of model state dwarfs a single 80 GB GPU before a single activation is allocated.
 
-<!-- leetllm: test, output=show, output_title="Fine-tuning recipe output" -->
-```python title="full-finetuning-memory-recipe.py"
-params_billion = 70
-gb_per_byte_per_billion = 1
+Pretrained transformers are heavily over-parameterized for any single downstream shift. During pretraining, they build rich internal representations of syntax, SQL patterns, and world knowledge. Adapting `sql-lora-v1` on 5,000 question-to-SQL pairs steers those existing representations rather than rebuilding language from scratch.
 
-recipe = {
-    "fp16_parameters": 2,
-    "fp16_gradients": 2,
-    "fp32_adam_moments": 8,
-}
-without_master = params_billion * sum(recipe.values()) * gb_per_byte_per_billion
-with_master = without_master + params_billion * 4
-
-print("bytes_per_parameter_without_master=", sum(recipe.values()))
-print("full_finetuning_states_without_master_GB=", without_master)
-print("full_finetuning_states_with_master_GB=", with_master)
-print("frozen_fp16_base_floor_for_lora_GB=", params_billion * recipe["fp16_parameters"])
-```
-
-<!-- leetllm: output:start -->
-```text title="Fine-tuning recipe output" output compact
-bytes_per_parameter_without_master= 12
-full_finetuning_states_without_master_GB= 840
-full_finetuning_states_with_master_GB= 1120
-frozen_fp16_base_floor_for_lora_GB= 140
-```
-<!-- leetllm: output:end -->
-
-840 GB of model state already blows past the capacity of a single 80 GB GPU. Does adapting to a specific task really require moving all 70 billion parameters independently?
-
-Pretrained transformers are massively over-parameterized. During pretraining, they construct rich internal representations of syntax, reasoning, and world knowledge. When we adapt `sql-lora-v1` on 5,000 question-to-SQL pairs, we aren't asking the network to relearn the structure of language from scratch. We're steering existing representations toward the new schema conventions.
-
-Aghajanyan et al. found that their studied pretrained models could approach full fine-tuning performance by optimizing a much smaller, randomly projected parameter subspace.[^aghajanyan2020] This **intrinsic dimension** counts free optimization coordinates; layer-update matrix rank is a separate property. One scalar $\theta$ controlling $\Delta W=\theta I$ already gives a full-rank update whenever $\theta\ne0$.
-
-Inspired by those results, Hu et al. proposed a separate **intrinsic rank hypothesis** and tested low-rank updates.[^hu2021] LoRA constrains selected updates to $\Delta W=BA$, whose rank is at most $r$. Test whether this low-rank constraint fits the target task's updates.
+Aghajanyan et al. showed that pretrained language models can approach full fine-tuning quality while optimizing inside a surprisingly small random parameter subspace (their **intrinsic dimension**).[^aghajanyan2020] Inspired by that finding, Hu et al. proposed the **intrinsic rank hypothesis**: the weight change $\Delta W$ required for downstream adaptation has low matrix rank, so constraining updates to $\Delta W = BA$ with rank at most $r$ captures the adaptation at a fraction of the memory cost.[^hu2021] (Intrinsic optimization dimension and matrix rank are distinct concepts: a single scalar $\theta$ scaling $\Delta W = \theta I$ has one free coordinate yet full matrix rank whenever $\theta \ne 0$.)
 
 ### What LoRA saves, and what it doesn't
 
-LoRA removes gradients and <span data-glossary="optimizer-state">optimizer state</span> for the frozen base model. The base weights still occupy memory, and the adapter keeps its own small trainable state.
+Freezing the base model eliminates gradients and <span data-glossary="optimizer-state">optimizer state</span> for every frozen weight. The frozen weights themselves still sit in memory, and the small adapter carries its own gradients and optimizer state.
 
-Run the SQL example at 2,048 tokens per training example and the apparent bargain changes. **Activation memory isn't eliminated.** Activations are intermediate tensors retained for backpropagation. Many grow with sequence length, batch size, and depth; materialized attention scores additionally grow quadratically with sequence length. Backpropagation still needs paths through frozen operations to calculate adapter gradients. Long-context activations can outweigh adapter state or even base weights. Profile the peak before shrinking rank: compare activation recomputation (gradient checkpointing), smaller micro-batches, and an attention implementation that avoids the full score matrix.
+> **Common mistake:** Treating a tiny adapter file as a guarantee of tiny GPU memory. **Activation memory does not disappear.** Backpropagation still flows through every frozen layer to reach adapters in earlier blocks, so intermediate activations still scale with sequence length, batch size, and depth. On a batch of 2,048-<span data-glossary="token">token</span> schema-heavy prompts, activations can dominate peak memory. When you hit OOM, turn on gradient checkpointing (activation recomputation), shrink the micro-batch, or use memory-efficient attention before shrinking rank.
 
-> **Memory boundary:** LoRA removes base-weight gradient and optimizer-state storage, not the need to execute the full base network. A batch of 2,048-<span data-glossary="token">token</span> schema-heavy prompts can still be dominated by activations. Measure peak memory under the intended context length and micro-batch size.
-
-The running example uses 70B for planning, while QLoRA's published comparison uses 65B. Keep that boundary visible: under this 12-byte recipe, 65B full fine-tuning requires 780 GB, while the <span data-glossary="qlora">QLoRA</span> paper fine-tuned a 65B model on a single 48 GB GPU.[^dettmers2023] That paper demonstrates one end-to-end configuration; profile memory at the target sequence length and batch size.
+To put the memory gap on one scale, compare a 65B model under the same 12-byte accounting: full fine-tuning needs 780 GB of model state, a frozen 16-bit base needs 130 GB, and <span data-glossary="qlora">QLoRA</span> compresses that frozen base to 4-bit NF4 (~33.5 GB with nested scales), enabling fine-tuning on a single 48 GB GPU.[^dettmers2023]
 
 <figure>
-  <img src="illustrations/_generated/lora_memory_budget_dark.png" alt="A shared 0–800 GB scale compares 780 GB of full-fine-tuning states, a 130 GB frozen FP16 base, and a 33.5 GB ideal NF4 base plus nested scales for a 65B model. A separate 0–48 GB scale shows 32.5 GB of NF4 values and 1.0 GB of scales, leaving 14.5 GB for omitted allocations. The base-only inventory excludes adapters, gradients, optimizer state, activations, and temporary buffers; it is not evidence that training fits. The QLoRA paper reports one 65B run on a 48 GB GPU." />
-  <figcaption>The full-FT bar counts parameters, gradients, and moments. The other bars count only their frozen bases. An ideal all-NF4 payload plus scales leaves about 14.5 GB below the example's 48 GB capacity, to cover every omitted live allocation. QLoRA's published 65B run demonstrates one configuration; these bars alone don't show that training fits.</figcaption>
+  <img src="illustrations/_generated/lora_memory_budget_dark.png" alt="A shared 0–800 GB scale compares 780 GB of full-fine-tuning states, a 130 GB frozen FP16 base, and a 33.5 GB ideal NF4 base plus nested scales for a 65B model. A separate 0–48 GB scale shows 32.5 GB of NF4 values and 1.0 GB of scales, leaving 14.5 GB for adapters, activations, and runtime buffers." />
+  <figcaption>Model-state memory for a 65B model on one shared scale. The lower two bars show the frozen base floor; in the 48 GB zoomed strip, the remaining 14.5 GB must still cover adapters, activations, and temporary buffers.</figcaption>
 </figure>
 
-The bars explain why `sql-lora-v1` is worth testing. They don't tell us how much behavior the overlay can express. For one layer, full fine-tuning rewrites $W_0$. LoRA keeps $W_0$ frozen and learns $\Delta W = BA$, scaled by $\alpha / r$, so the layer uses $W_0 + \frac{\alpha}{r}BA$. On a 4096 by 4096 projection, how many numbers is that, and why does the product stay low rank?
+Now zoom inside a single $4096 \times 4096$ linear projection to see how LoRA replaces a 16.7-million-parameter update with two thin matrices.
 
 ## The math: from a 4096×4096 layer
 
 ### A layer small enough to count
 
-Suppose one <span data-glossary="transformer">Transformer</span> projection has a $4096 \times 4096$ weight matrix. Before naming LoRA's factors, count the budget: an update of rank $r=16$ contains only thousands of values, while the base layer holds millions.
+Full fine-tuning updates all $4096 \times 4096 = 16{,}777{,}216$ entries of a weight matrix $W_0$. A rank-$r$ LoRA adapter ($r=16$) freezes $W_0$ and learns two skinny factors instead:
 
-Full fine-tuning would train $4096 \times 4096 = 16,777,216$ parameters. A rank-16 LoRA update instead uses:
+- Down-projection $A \in \mathbb{R}^{16 \times 4096}$: $65{,}536$ parameters
+- Up-projection $B \in \mathbb{R}^{4096 \times 16}$: $65{,}536$ parameters
+- **Total adapter parameters:** $131{,}072$, just **0.78%** of the full matrix (a **99.2% reduction**)
 
-- Matrix $A$ has shape $16 \times 4096$ and has $65,536$ parameters.
-- Matrix $B$ has shape $4096 \times 16$ and has $65,536$ parameters.
-- Total LoRA parameters: $131,072$
-
-That is **0.78%** of the full matrix size, a **99.2% reduction**. The capacity is smaller by design; the base layer still supplies the general representation.
-
-Now follow one input <span data-glossary="vector">vector</span> $x$. The frozen layer produces $W_0x$, while the adapter compresses $x$ into rank space, expands it back out, and adds that correction:
+For an input <span data-glossary="vector">vector</span> $x$, the frozen base computes $W_0 x$ in parallel while the adapter squeezes $x$ into an $r$-dimensional bottleneck, expands it back out, and adds a scaled correction:
 
 $$
 h = W_0 x + \frac{\alpha}{r} B A x = W_0 x + \frac{\alpha}{r} B(Ax)
 $$
 
-One path is the base response. A second path is the trainable overlay, scaled by $\alpha/r$, where $\alpha$ controls its explicit strength. Because both paths share the same input, merging them later can recover one dense matrix.
-
-The parentheses in $B(Ax)$ reflect computational associativity. An ordinary unmerged LoRA forward can evaluate two thin products without materializing the full $d_{\text{out}} \times d_{\text{in}}$ update. Forming that matrix would take $\approx 2 \times 4096^2 \times 16$ operations. Instead, $Ax$ and $B(Ax)$ each take about 131K FLOPs per token, totaling about 262K versus 33.5M for this base projection. That's about 0.78% **additional arithmetic for this projection**, excluding scaling and addition. It doesn't predict 0.78% extra latency: kernel launches, memory traffic, batching, and backward also matter.
+The parentheses in $B(Ax)$ are crucial for efficiency. Evaluating two thin matrix-vector products ($Ax$, then $B(Ax)$) takes roughly 262K FLOPs per token compared to 33.5M for the base projection (about 0.78% extra arithmetic), without ever materializing the dense $4096 \times 4096$ update matrix during the forward pass.
 
 ### Why the product is low rank
 
-The worked layer used equal input and output widths. In general, a full update $\Delta W$ has the same dimensions as the base weights, $d_{\text{out}} \times d_{\text{in}}$. LoRA factorizes that update into two smaller matrices:
+For any linear layer with weight $W_0 \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}$, LoRA constrains the update to $\Delta W = B \cdot A$:
 
-$$
-\Delta W = B \cdot A
-$$
-
-Read the shapes from right to left when checking the product:
-- $A \in \mathbb{R}^{r \times d_{\text{in}}}$: the first matrix (maps from input to rank $r$)
-- $B \in \mathbb{R}^{d_{\text{out}} \times r}$: the second matrix (maps from rank to output)
-- $r$ is the factor width, conventionally called the **rank**. The product's actual rank is at most $r$; it starts at zero under the usual zero-B initialization.[^hu2021]
+- $A \in \mathbb{R}^{r \times d_{\text{in}}}$ projects inputs into the rank-$r$ subspace.
+- $B \in \mathbb{R}^{d_{\text{out}} \times r}$ maps back to the output dimension.
+- The resulting matrix $BA$ has rank at most $r$, starting at rank 0 when $B=0$.[^hu2021]
 
 ```checkpoint
 Why does LoRA save parameters?
@@ -157,257 +108,137 @@ Why does LoRA save parameters?
 It learns two skinny matrices instead of one full-size update matrix. When $r$ is much smaller than $d_{\text{in}}$ and $d_{\text{out}}$, $A$ and $B$ contain far fewer trainable values than $\Delta W$.
 ```
 
-In the figure, trace the dimensions: $B$ times $A$ recreates a matrix shaped like $W_0$, but only $A$ and $B$ carry gradients. The visual also keeps the forward order straight: $x$ enters $A$, then $B$, even though the written product is $BA$.
-
 <figure>
   <img src="illustrations/_generated/lora_adapters_dark.png" alt="LoRA factorization for a 4096 by 4096 projection: input x routes through frozen base weight W0 (16.7M parameters) in parallel with trainable low-rank factors A (16 by 4096, random init) and B (4096 by 16, zero init). The adapter output is scaled by alpha/r and added to W0*x. With B=0 initially, delta-W starts at zero, preserving base behavior on step 0." />
-  <figcaption>Input vector $x$ routes through both branches in parallel: the frozen base path $W_0 x$ and the low-rank adapter path $(A \to B)$. Down-projection $A$ projects $x$ into rank bottleneck $r=16$, and up-projection $B$ expands it back to 4096 dimensions. Because $B=0$ at initialization, the adapter output starts at zero, preserving the exact pretrained behavior on step 0.</figcaption>
+  <figcaption>Input vector $x$ flows through both branches in parallel: the frozen base path $W_0 x$ and the low-rank adapter path $A \to B$. Because $B=0$ at initialization, the adapter starts as an exact no-op on step 0.</figcaption>
 </figure>
 
 #### Count the saved parameters
 
-The same arithmetic scales to any square projection. Use the table to put capacity and storage side by side before checking the count in code.
+For a linear layer with input width $d_{\text{in}}$ and output width $d_{\text{out}}$, an adapter adds $r(d_{\text{in}} + d_{\text{out}})$ parameters (or $2rd$ for a square $d \times d$ projection):
 
-$$
-\text{LoRA params} = r \cdot d_{\text{in}} + d_{\text{out}} \cdot r = 2r \cdot d
-$$
-
-Where $r$ is LoRA rank, and $d_{\text{in}}, d_{\text{out}}$ are matrix dimensions (equal to $d$ for square projection layers).
-
-| Approach | Parameters | Ratio | Memory (FP16) |
+| Approach | Parameters ($4096 \times 4096$) | Ratio | Weight memory (FP16) |
 |----------|-----------|-------|---------------|
 | Full fine-tuning | $4096^2 = $ **16.7M** | 100% | 33.5 MB |
 | LoRA ($r=8$) | $2 \times 8 \times 4096 = $ **65.5K** | **0.39%** | 131 KB |
 | LoRA ($r=16$) | $2 \times 16 \times 4096 = $ **131K** | 0.78% | 262 KB |
-| LoRA ($r=64$) | $2 \times 64 \times 4096 = $ **524K** | 3.1% | 1 MB |
-
-For $r=16$, the adapter trains 131K values instead of 16.7M. The task gets a rank-16 update, and that layer no longer stores a full gradient plus Adam pair for its frozen base weights.
-
-<!-- leetllm: test, output=show, output_title="Parameter savings output" -->
-```python title="parameter-savings-concrete-calculation.py"
-def lora_parameter_count(d_in: int, d_out: int, rank: int) -> int:
-    return rank * d_in + d_out * rank
-
-
-d_in = d_out = 4096
-rank = 16
-full_params = d_in * d_out
-lora_params = lora_parameter_count(d_in, d_out, rank)
-ratio = lora_params / full_params
-
-print(f"full_params={full_params:,}")
-print(f"lora_params={lora_params:,}")
-print(f"LoRA r={rank} trains {lora_params:,} params, {ratio:.2%} of full fine-tuning.")
-```
-
-<!-- leetllm: output:start -->
-```text title="Parameter savings output" output compact
-full_params=16,777,216
-lora_params=131,072
-LoRA r=16 trains 131,072 params, 0.78% of full fine-tuning.
-```
-<!-- leetllm: output:end -->
+| LoRA ($r=64$) | $2 \times 64 \times 4096 = $ **524K** | 3.12% | 1.05 MB |
 
 #### Start from the checkpoint
 
-The first training step shouldn't erase the behavior we paid to pretrain. If both $A$ and $B$ start non-zero, the adapter injects random noise before it has seen a single label.
+The first step of fine-tuning should preserve the pretrained model you paid for. Initializing both $A$ and $B$ randomly injects noise into every layer before the model sees a single label.
 
-The original paper uses Gaussian A and zero B.[^hu2021] For linear layers, PEFT's default instead uses Kaiming-uniform A and still zeros B.[^huggingface2026peftlora] Both make the initial adapter contribution zero. The linear layer below uses that ordinary initialization. Other supported schemes can reparameterize the base or use data to choose factors.
+LoRA solves this asymmetrically: $A$ is initialized randomly (Gaussian in the original paper, Kaiming-uniform by default in PEFT) and $B$ is initialized to exact zeros.[^hu2021][^huggingface2026peftlora]
 
-Follow its forward and backward paths:
-
-1. **Step-zero identity:** $B=0$ makes the additive correction zero. With the same base, inputs, and evaluation settings, the layer begins as $W_0x$. Later loss depends on the data, optimizer, and updates.
-2. **Usable gradient flow on step 1:** Let loss be $\mathcal{L}$ and incoming gradient with respect to output $h$ be $g = \nabla_h \mathcal{L} \in \mathbb{R}^{d_{\text{out}}}$. By the chain rule:
+1. **Step-zero identity:** Because $B=0$, the additive term $\frac{\alpha}{r}B(Ax)$ is identically zero, so the wrapped model starts with the exact pretrained outputs $W_0 x$.
+2. **Breaking symmetry on step 1:** Let $g = \nabla_h \mathcal{L} \in \mathbb{R}^{d_{\text{out}}}$ be the incoming gradient. By the chain rule:
    $$
-   \nabla_B \mathcal{L} = \frac{\alpha}{r} g (Ax)^T \in \mathbb{R}^{d_{\text{out}} \times r}, \qquad \nabla_A \mathcal{L} = \frac{\alpha}{r} B^T g x^T \in \mathbb{R}^{r \times d_{\text{in}}}
+   \nabla_B \mathcal{L} = \frac{\alpha}{r} g (Ax)^T, \qquad \nabla_A \mathcal{L} = \frac{\alpha}{r} B^T g x^T
    $$
-   At $B=0$, A's loss gradient is zero. B can receive a nonzero gradient when the scale, incoming gradient, and $Ax$ are nonzero. Nonzero A and x alone aren't sufficient: x can lie in A's null space, and batch contributions can cancel. Once B moves, A can receive gradients on later steps; inspect them rather than assuming every batch updates both factors.
+   On step 1, $B=0$ makes $\nabla_A \mathcal{L} = 0$, while $\nabla_B \mathcal{L}$ is nonzero as long as $g$ and $Ax$ are nonzero. After step 1 updates $B$, $B$ is no longer zero, so $A$ receives nonzero gradients from step 2 onward. If both $A$ and $B$ started at zero, both gradients would remain stuck at zero forever.
 
-If both factors are zero, both loss gradients are zero and ordinary gradient updates can't leave that point. Reversing the asymmetry, zero A with nonzero B, can also begin as a no-op with A learning first. Two unconstrained random factors generally perturb the starting model; that isn't a theorem that every nonzero initialization is unstable.
+Watch all four initialization cases (including when $x$ happens to fall in the null space of $A$) in PyTorch:
 
-The next CPU experiment checks the null-space case. The base contribution is fixed at zero, the scale is one, and the loss is $(h-1)^2/2$:
-
-<!-- leetllm: test, deps=torch, output=show, output_title="Initial gradient counterexamples" -->
+<!-- leetllm: test, deps=torch, output=show, output_title="Initial gradient behavior" -->
 ```python title="lora_initial_gradients.py"
 import torch
 
-def factors(a, b):
-    return (torch.tensor([a], dtype=torch.float64, requires_grad=True),
-            torch.tensor([[b]], dtype=torch.float64, requires_grad=True))
+def make_factors(a, b):
+    return (
+        torch.tensor([a], dtype=torch.float64, requires_grad=True),
+        torch.tensor([[b]], dtype=torch.float64, requires_grad=True),
+    )
 
-for name, a, b, values, expected in [
-    ("usual", [1., -1.], 0., [1., 0.], (False, True)),
-    ("null_space", [1., -1.], 0., [1., 1.], (False, False)),
-    ("both_zero", [0., 0.], 0., [1., 0.], (False, False)),
-    ("reversed", [0., 0.], 1., [1., 0.], (True, False)),
+for name, a, b, values in [
+    ("usual (A!=0, B=0)", [1.0, -1.0], 0.0, [1.0, 0.0]),
+    ("null_space (Ax=0)", [1.0, -1.0], 0.0, [1.0, 1.0]),
+    ("both_zero (stuck)", [0.0, 0.0], 0.0, [1.0, 0.0]),
+    ("reversed (A=0, B!=0)", [0.0, 0.0], 1.0, [1.0, 0.0]),
 ]:
-    A, B = factors(a, b)
+    A, B = make_factors(a, b)
     x = torch.tensor(values, dtype=torch.float64)
     h = (B @ (A @ x)).squeeze()
-    assert h.item() == 0
     ((h - 1).square() / 2).backward()
-    moved = (bool(A.grad.abs().sum() > 0), bool(B.grad.abs().sum() > 0))
-    assert moved == expected
-    print(f"{name}: A_grad_nonzero={moved[0]}, B_grad_nonzero={moved[1]}")
+    print(f"{name:22s} -> |grad A|={A.grad.abs().sum().item():.1f}, |grad B|={B.grad.abs().sum().item():.1f}")
 
-A, B = factors([1., -1.], 0.)
-optimizer = torch.optim.SGD([A, B], lr=0.1)
-x = torch.tensor([1., 0.], dtype=torch.float64)
-for step in range(2):
-    optimizer.zero_grad(set_to_none=True)
-    h = (B @ (A @ x)).squeeze()
-    ((h - 1).square() / 2).backward()
-    assert bool(A.grad.abs().sum() > 0) == (step == 1)
-    optimizer.step()
-print("usual_second_step_A_grad_nonzero=True")
+A, B = make_factors([1.0, -1.0], 0.0)
+opt = torch.optim.SGD([A, B], lr=0.1)
+x = torch.tensor([1.0, 0.0], dtype=torch.float64)
+for step in (1, 2):
+    opt.zero_grad(set_to_none=True)
+    ((B @ (A @ x) - 1).square() / 2).backward()
+    print(f"step {step} usual          -> |grad A|={A.grad.abs().sum().item():.3f}, |grad B|={B.grad.abs().sum().item():.3f}")
+    opt.step()
 ```
 
 <!-- leetllm: output:start -->
-```text title="Initial gradient counterexamples" output compact
-usual: A_grad_nonzero=False, B_grad_nonzero=True
-null_space: A_grad_nonzero=False, B_grad_nonzero=False
-both_zero: A_grad_nonzero=False, B_grad_nonzero=False
-reversed: A_grad_nonzero=True, B_grad_nonzero=False
-usual_second_step_A_grad_nonzero=True
+```text title="Initial gradient behavior" output compact
+usual (A!=0, B=0)      -> |grad A|=0.0, |grad B|=1.0
+null_space (Ax=0)      -> |grad A|=0.0, |grad B|=0.0
+both_zero (stuck)      -> |grad A|=0.0, |grad B|=0.0
+reversed (A=0, B!=0)   -> |grad A|=1.0, |grad B|=0.0
+step 1 usual          -> |grad A|=0.000, |grad B|=1.000
+step 2 usual          -> |grad A|=0.090, |grad B|=0.900
 ```
 <!-- leetllm: output:end -->
 
 #### Separate capacity from strength
 
-Rank and scale answer two distinct questions. Rank says how many independent directions the adapter can express; $\alpha/r$ says how strongly the resulting correction enters the layer:
+Rank and scale answer two distinct questions. Rank $r$ sets how many independent directions the adapter can express; $\alpha/r$ sets how strongly the adapter output enters the layer:
 
 $$
 \text{scaling} = \frac{\alpha}{r}
 $$
 
-- $r$ (rank): sets the inner bottleneck dimension, dictating adapter parameter count and expressive capacity.
-- $\alpha$ (alpha): sets the fixed numerical scale of the learned correction.
-
-The original paper uses $\alpha/r$ to reduce hyperparameter retuning when changing rank.[^hu2021] It isn't a universal rank-stability rule. B starts at zero, so the initial correction is zero at every rank; its later size depends on factor initialization, gradients, and optimization as well as the explicit multiplier.
+The original paper introduced $\alpha/r$ to reduce learning-rate retuning when sweeping rank.[^hu2021] Notice a common pitfall: if you double $r$ while holding $\alpha$ fixed, you cut $\alpha/r$ in half, changing capacity and step strength at the same time. When running a clean rank ablation, hold $\alpha/r$ constant (for instance $\alpha = r$ or $\alpha = 2r$) and log both numbers explicitly.
 
 ```checkpoint
-If rank increases but $\alpha$ stays fixed, what happens to $\alpha/r$?
+If rank increases while $\alpha$ stays fixed, what happens to $\alpha/r$?
 ---
-It gets smaller. That changes the forward multiplier and gradients. Learned update magnitudes also depend on the number of components and their optimization, so compare ranks with measured updates.
+It gets smaller, which scales down both the adapter's forward contribution and its gradients. Hold $\alpha/r$ constant when isolating the effect of rank.
 ```
 
-For ordinary LoRA scaling, $\alpha=r$ and $\alpha=2r$ produce multipliers of 1 and 2. Holding $\alpha/r$ constant makes a rank comparison easier to interpret; measure learned update magnitudes across ranks. Sweep rank, scale, <span data-glossary="learning-rate">learning rate</span>, and target-module coverage as coupled choices.
-
-**rsLoRA** (rank-stabilized LoRA) uses $\alpha/\sqrt{r}$. Kalajdzievski derives this scaling under assumptions about initialization and input/gradient statistics, and finds higher-rank learning improvements in the evaluated setups.[^kalajdzievski2023] The theorem describes those assumptions and results; compare gradient norms and task quality on the target run to choose rank. PEFT exposes it with `use_rslora=True`.[^huggingface2026peftlora]
-
-<!-- leetllm: test, output=show, output_title="LoRA scaling output" -->
-```python title="lora-scaling-factor.py"
-import math
-
-configs = [
-    {"rank": 8, "alpha": 16},
-    {"rank": 32, "alpha": 16},
-    {"rank": 32, "alpha": 64},
-]
-
-for config in configs:
-    rank = config["rank"]
-    alpha = config["alpha"]
-    ordinary = alpha / rank
-    rslora = alpha / math.sqrt(rank)
-    print(
-        f"r={rank:>2} alpha={alpha:>2} "
-        f"ordinary={ordinary:.3f} rslora={rslora:.3f}"
-    )
-```
-
-<!-- leetllm: output:start -->
-```text title="LoRA scaling output" output compact
-r= 8 alpha=16 ordinary=2.000 rslora=5.657
-r=32 alpha=16 ordinary=0.500 rslora=2.828
-r=32 alpha=64 ordinary=2.000 rslora=11.314
-```
-<!-- leetllm: output:end -->
+At high ranks ($r \ge 64$), dividing by $r$ can over-damp updates. **rsLoRA** (rank-stabilized LoRA) replaces $\alpha/r$ with $\alpha/\sqrt{r}$, derived so update magnitudes stay well-scaled as rank grows, and is enabled in PEFT via `use_rslora=True`.[^kalajdzievski2023][^huggingface2026peftlora]
 
 ## Where to inject LoRA
 
-The rank tells us how much each adapter can express. We still need to choose where that capacity enters the block. Start with the narrow question: should `sql-lora-v1` change only attention routing, or also the per-token transformation that follows it?
+Rank sets how wide each adapter is; target selection decides *where* in the Transformer block adaptation can happen. Should `sql-lora-v1` adapt only attention routing, or also the per-token MLP transformations?
 
-Query ($W_Q$) and Value ($W_V$) projections were a central LoRA configuration.[^hu2021] PEFT defaults vary by architecture; inspect the resolved `target_modules` list to see which modules receive adapters.[^huggingface2026peftlora] In its LLaMA-7B Alpaca comparison, QLoRA required adapters across all linear Transformer-block layers to match full fine-tuning.[^dettmers2023]
+The original LoRA paper focused on Query ($W_Q$) and Value ($W_V$) projections as a lean baseline.[^hu2021] Later QLoRA ablations found that matching full fine-tuning required placing adapters on **all linear layers** in every Transformer block, including the MLP projections.[^dettmers2023]
 
 ### Common injection strategies
 
-Target coverage trades adapter cost for capacity. Before choosing a larger rank, compare these three ways to spend the same kind of adapter budget:
+| Strategy | Target modules | Typical parameter cost (7B-style block, $r=16$) | When to use |
+|----------|---------------|-------------------------------------------------|-------------|
+| **Original LoRA** | $W_Q, W_V$ | 262K / block | Cheapest baseline matching the original paper |
+| **All attention** | $W_Q, W_K, W_V, W_O$ | 524K / block | Attention-only routing adaptation |
+| **All-linear** | Attention + MLP (`gate_proj`, `up_proj`, `down_proj`) | 1.25M / block (~4.8x Q/V) | Strongest default when quality matters |
 
-| Strategy | Target modules | When to use |
-|----------|---------------|-------------|
-| **Original LoRA** | $W_Q, W_V$ only | Cheapest baseline matching the original paper's attention setup. |
-| **All attention** | $W_Q, W_K, W_V, W_O$ | Attention-only comparison with more trainable capacity. |
-| **All-linear** | Attention projections + MLP gate/up/down projections | QLoRA-style starting point to compare when quality matters. |
+> **Key insight:** Attention projections control *which tokens talk to each other*; MLP layers (`gate_proj`, `up_proj`, `down_proj` in SwiGLU blocks) transform each token's internal features. On procedural tasks like SQL generation, spending your adapter budget across all linear layers at $r=8$ or $r=16$ often beats spending the same budget on a high-rank Q/V-only adapter.
 
-Module names vary by architecture. Current Hugging Face PEFT exposes `target_modules="all-linear"` as a QLoRA-style shortcut, but on a `PreTrainedModel` that selection **excludes the output projection** (`lm_head`). Inspect the matched module names instead of trusting the shortcut, especially after adding special tokens.[^huggingface2026peftlora]
-
-### Why adapt MLP layers?
-
-Attention layers ($W_Q, W_K, W_V, W_O$) control how tokens route information across the context. MLP (Multi-Layer Perceptron) layers, also called FFNs (<span data-glossary="feed-forward-network">Feed-Forward Networks</span>), transform each token after that routing. The LLaMA and Qwen2-style SwiGLU blocks shown here use `gate_proj`, `up_proj`, and `down_proj`; names and layouts vary across architectures.
-
-Q/V targeting was a principal original LoRA baseline, and that paper also compared other attention targets.[^hu2021] QLoRA's LLaMA-7B/Alpaca ablation found all-linear coverage important for matching its full-fine-tuning baseline.[^dettmers2023] For `sql-lora-v1`, compare low-rank adapters across all linear layers with higher-rank attention-only adapters. Measure whether MLP adapters help the procedural task. Record cost and held-out quality for each candidate.
-
-The toy block below puts a number on that choice. With rank 16, how much more adapter state does all-linear targeting add than Q/V targeting?
-
-<!-- leetllm: test, output=show, output_title="Target-module budget output" -->
-```python title="target-module-budget.py"
-dimensions = {
-    "q_proj": (4096, 4096),
-    "k_proj": (4096, 4096),
-    "v_proj": (4096, 4096),
-    "o_proj": (4096, 4096),
-    "gate_proj": (4096, 11008),
-    "up_proj": (4096, 11008),
-    "down_proj": (11008, 4096),
-}
-rank = 16
-
-def adapter_params(names):
-    return sum(rank * (dimensions[name][0] + dimensions[name][1]) for name in names)
-
-qv = adapter_params(["q_proj", "v_proj"])
-all_linear = adapter_params(list(dimensions))
-print("qv_adapter_params=", qv)
-print("all_linear_adapter_params=", all_linear)
-print("all_linear_vs_qv_ratio=", round(all_linear / qv, 2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Target-module budget output" output compact
-qv_adapter_params= 262144
-all_linear_adapter_params= 1249280
-all_linear_vs_qv_ratio= 4.77
-```
-<!-- leetllm: output:end -->
+Note that PEFT's `target_modules="all-linear"` shortcut excludes `lm_head` on a `PreTrainedModel`. Always print the matched module names rather than assuming what a shortcut selected, especially if you added special tokens.[^huggingface2026peftlora]
 
 ### Methods that train learned state outside weight matrices
 
-Prompt tuning and prefix tuning are two other parameter-efficient fine-tuning families. They learn **prompt-like state** while leaving the base weight matrices unchanged.
+Two closely related PEFT families leave every weight matrix frozen and learn continuous **prompt-like state** instead:
 
-Prompt tuning trains a small set of continuous virtual tokens prepended to the input.[^lester2021] These are learned embedding vectors, not human-readable words. For `sql-lora-v1`, the control signal enters through each ticket's <span data-glossary="context-window">context window</span>. The projection weights stay fixed, which limits how directly the method can change internal transformations.
+| Method | What trains | Where the signal enters |
+|--------|-------------|-------------------------|
+| **Prompt tuning / soft prompts**[^lester2021] | Learned virtual token <span data-glossary="embedding">embeddings</span> | Prepended to the input sequence inside the <span data-glossary="context-window">context window</span> |
+| **Prefix tuning**[^li2021prefix] | Learned continuous key/value prefixes | Prepended to attention keys and values at every Transformer layer |
+| **LoRA / QLoRA** | Low-rank weight factors $A, B$ | Added directly to internal linear projections |
 
-Prefix tuning trains continuous key/value prefixes for Transformer layers.[^li2021prefix] The base weights remain frozen, and each layer receives learned prefix state that attention can attend to. The control signal therefore reaches multiple layers directly.
-
-Compare methods by where their learned state enters the model. Evaluate their adaptation strength on your task:
-
-| Method | What trains | Example comparisons |
-|--------|-------------|----------|
-| **Prompt tuning / soft prompts** | Learned input <span data-glossary="embedding">embeddings</span> | Task steering with a small learned input, including the original T5 experiments |
-| **Prefix tuning** | Learned per-layer prefix states | Generation, including the original table-to-text and summarization experiments |
-| **LoRA / QLoRA** | Low-rank weight adapters | Internal projection updates for task or instruction adaptation |
-
-Reserve the name "LoRA" for methods that modify internal projections through low-rank adapters. Soft prompt tuning and prefix tuning keep those projections frozen and learn continuous prompt-like state. This distinction matters when inspecting a checkpoint or estimating what a new policy can change.
+Keep the names distinct: if the learned parameters aren't low-rank factors $A$ and $B$ inside linear projections, the method is prompt or prefix tuning, not LoRA.
 
 ## Implementing LoRA with Hugging Face PEFT
 
-The `peft` (Parameter-Efficient Fine-Tuning) library wraps the factors, so you don't need to write $BAx$ by hand. The setup has two important effects: `all-linear` attaches more adapters than Q/V targeting, and `r=16`, `alpha=32` makes the ordinary scale $2$.
+The `peft` library wraps any target linear layer with $A$ and $B$ automatically, handles freezing the base weights, and merges adapters back into dense weights when you are ready to export.
 
-### Verify the adapter on CPU first
+### Verify the adapter lifecycle on CPU
 
-This tiny, randomly initialized Qwen2 architecture downloads no checkpoint. It tests the actual PEFT wrapper with pinned PyTorch 2.13.0, Transformers 5.16.1, and PEFT 0.20.0. One synthetic four-token sequence checks no-op initialization, frozen base weights, two-step gradient flow, adapter save/reload, and merge equivalence. These pinned versions define the fixture; check current releases before adopting them. The fixture measures neither policy accuracy nor 7B-model memory.
+Before launching a multi-hour GPU job, run a tiny, randomly initialized Qwen2 block on CPU to verify the complete adapter lifecycle end-to-end: step-zero identity, frozen base weights, step-1 vs step-2 gradient flow, save/reload equivalence, and lossless merging into a standard dense model.
 
-<!-- leetllm: test, deps=torch==2.13.0,transformers==5.16.1,peft==0.20.0, output=show, output_title="Real PEFT wrapper, tiny CPU model" -->
+<!-- leetllm: test, deps=torch==2.13.0,transformers==5.16.1,peft==0.20.0, output=show, output_title="Real PEFT wrapper lifecycle on CPU" -->
 ```python title="tiny-peft-check.py"
 import tempfile
 import torch
@@ -418,107 +249,93 @@ torch.manual_seed(7)
 config = Qwen2Config(
     vocab_size=32, hidden_size=16, intermediate_size=32,
     num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1,
-    max_position_embeddings=32, attention_dropout=0.0,
-    tie_word_embeddings=False,
+    max_position_embeddings=32, attention_dropout=0.0, tie_word_embeddings=False,
 )
 base = Qwen2ForCausalLM(config).eval()
 ids = torch.tensor([[1, 2, 3, 4]])
-expected = base(ids).logits.detach().clone()
-base_state = {name: value.detach().clone() for name, value in base.state_dict().items()}
-base_snapshot = [(p, p.detach().clone()) for p in base.parameters()]
+base_logits = base(ids).logits.detach().clone()
+base_state = {k: v.detach().clone() for k, v in base.state_dict().items()}
+
 model = get_peft_model(base, LoraConfig(
     r=2, lora_alpha=4, target_modules="all-linear",
     lora_dropout=0.0, bias="none", task_type="CAUSAL_LM",
 )).eval()
-torch.testing.assert_close(model(ids).logits, expected)
-targets = [name.rsplit(".", 1)[-1] for name, module in model.named_modules()
-           if hasattr(module, "lora_A")]
-assert set(targets) == {"q_proj", "k_proj", "v_proj", "o_proj",
-                        "gate_proj", "up_proj", "down_proj"}
-assert model.get_nb_trainable_parameters() == (512, 3920)
+
+targets = [n.rsplit(".", 1)[-1] for n, m in model.named_modules() if hasattr(m, "lora_A")]
+trainable, total = model.get_nb_trainable_parameters()
+print("adapted modules:", targets)
+print(f"trainable: {trainable:,} / {total:,} ({trainable / total:.1%})")
+print(f"step-0 max logit diff: {(model(ids).logits - base_logits).abs().max().item():.1e}")
 
 model.train()
-optimizer = torch.optim.SGD([p for p in model.parameters() if p.requires_grad], lr=0.1)
-model(ids, labels=ids).loss.backward()
-a_grad = sum(p.grad.abs().sum().item() for n, p in model.named_parameters() if "lora_A" in n)
-b_grad = sum(p.grad.abs().sum().item() for n, p in model.named_parameters() if "lora_B" in n)
-assert a_grad == 0 and b_grad > 0
-assert all(p.grad is None for p in model.parameters() if not p.requires_grad)
-optimizer.step()
-optimizer.zero_grad(set_to_none=True)
-model(ids, labels=ids).loss.backward()
-assert sum(p.grad.abs().sum().item() for n, p in model.named_parameters() if "lora_A" in n) > 0
-optimizer.step()
-assert all(torch.equal(p, saved) for p, saved in base_snapshot)
+opt = torch.optim.SGD([p for p in model.parameters() if p.requires_grad], lr=0.1)
+for step in (1, 2):
+    opt.zero_grad(set_to_none=True)
+    model(ids, labels=ids).loss.backward()
+    a_g = sum(p.grad.abs().sum().item() for n, p in model.named_parameters() if "lora_A" in n)
+    b_g = sum(p.grad.abs().sum().item() for n, p in model.named_parameters() if "lora_B" in n)
+    print(f"step {step} grads -> |grad A|={a_g:.4f}, |grad B|={b_g:.4f}")
+    opt.step()
 
 model.eval()
-adapted = model(ids).logits.detach()
-assert not torch.equal(adapted, expected)
-with tempfile.TemporaryDirectory() as directory:
-    model.save_pretrained(directory)
-    fresh_base = Qwen2ForCausalLM(config)
-    fresh_base.load_state_dict(base_state)
-    reloaded = PeftModel.from_pretrained(fresh_base, directory).eval()
-    torch.testing.assert_close(reloaded(ids).logits, adapted)
+adapted_logits = model(ids).logits.detach()
+with tempfile.TemporaryDirectory() as tmpdir:
+    model.save_pretrained(tmpdir)
+    fresh = Qwen2ForCausalLM(config)
+    fresh.load_state_dict(base_state)
+    reloaded = PeftModel.from_pretrained(fresh, tmpdir).eval()
+    reload_diff = (reloaded(ids).logits - adapted_logits).abs().max().item()
+
 merged = model.merge_and_unload(safe_merge=True).eval()
-torch.testing.assert_close(merged(ids).logits, adapted, atol=1e-6, rtol=1e-5)
-assert not any("lora_" in name for name, _ in merged.named_parameters())
-print("adapted modules:", targets)
-print("trainable parameters: 512; total with adapters: 3920")
-print("no-op, frozen base, two-step gradients, save/reload, merge: passed")
+merge_diff = (merged(ids).logits - adapted_logits).abs().max().item()
+print(f"reload max diff: {reload_diff:.1e} | merge max diff: {merge_diff:.1e}")
 ```
 
 <!-- leetllm: output:start -->
-```text title="Real PEFT wrapper, tiny CPU model" output compact
+```text title="Real PEFT wrapper lifecycle on CPU" output compact
 adapted modules: ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj']
-trainable parameters: 512; total with adapters: 3920
-no-op, frozen base, two-step gradients, save/reload, merge: passed
+trainable: 512 / 3,920 (13.1%)
+step-0 max logit diff: 0.0e+00
+step 1 grads -> |grad A|=0.0000, |grad B|=2.4652
+step 2 grads -> |grad A|=0.2497, |grad B|=2.3136
+reload max diff: 0.0e+00 | merge max diff: 3.0e-08
 ```
 <!-- leetllm: output:end -->
 
-The key/value projections here are narrower than the query projection because the configuration uses grouped-query attention. Compare each module's actual input and output dimensions with the model's hidden width. With rank 2, Q and O each add 64 parameters, K and V each add 48, and the three MLP projections each add 96: 512 total.
-
-The module map below follows the exact Qwen2 example. Each row connects its input and output widths to its rank-2 adapter cost; the columns show which modules each target set reaches.
+Notice that `k_proj` and `v_proj` are narrower than `q_proj` because this model uses grouped-query attention (2 query heads sharing 1 key/value head). At rank 2, `q_proj` and `o_proj` each add 64 parameters, `k_proj` and `v_proj` each add 48, and the three MLP projections each add 96: 512 trainable parameters in total.
 
 <figure>
 <img src="illustrations/_generated/lora_target_module_map_dark.png" alt="A module map for the one-layer Qwen2 CPU example with hidden width 16, intermediate width 32, two query heads, one key/value head, and rank 2. It lists the input and output widths and adapter parameter count for q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, and down_proj. The Q/V, all-attention, and all-linear columns mark the modules selected by each target set and total 112, 224, and 512 adapter parameters. The lm_head output projection is shown separately because PEFT all-linear excludes it for a PreTrainedModel." />
-<figcaption>Wider target sets attach adapters to more modules. In this rank-2 Qwen2 example, Q/V selects two modules and 112 parameters; all seven transformer linear projections require 512, with the output head excluded.</figcaption>
+<figcaption>Wider target sets attach adapters to more projections. In this rank-2 Qwen2 block, Q/V adds 112 parameters, all-attention adds 224, and all-linear adds 512 while leaving `lm_head` untouched.</figcaption>
 </figure>
 
-### Set up the larger training job
+### Set up a full training job
 
-This is a real training-setup fragment, not a local <span data-glossary="smoke-test">smoke test</span>. To run it, install `torch`, `transformers`, `peft`, and `accelerate` on a machine that can load the target model. Let your trainer or distributed launcher handle placement. Accelerate documents `device_map="auto"` for Big Model **Inference**, not as a distributed-training strategy.[^huggingface2026acceleratebigmodel]
+For real fine-tuning, let your trainer or distributed launcher (`accelerate launch`, FSDP, or DeepSpeed) handle device placement rather than passing `device_map="auto"`, which is designed for Big Model Inference rather than multi-GPU training.[^huggingface2026acceleratebigmodel]
 
 ```python title="implementing-lora-with-hugging-face-peft.py"
 import torch
 from peft import LoraConfig, get_peft_model, TaskType
 from transformers import AutoModelForCausalLM
 
-model = AutoModelForCausalLM.from_pretrained(
-    "Qwen/Qwen2.5-7B",
-    dtype=torch.bfloat16,
-)
+model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2.5-7B", dtype=torch.bfloat16)
 
-# Configure LoRA
 lora_config = LoraConfig(
-    r=16,                          # rank
-    lora_alpha=32,                 # scaling factor alpha/r = 32/16 = 2.0
-    target_modules="all-linear",   # QLoRA-style targeting
-    lora_dropout=0.05,             # regularization
-    bias="none",                   # don't train biases
+    r=16,
+    lora_alpha=32,               # scaling = alpha / r = 2.0
+    target_modules="all-linear",
+    lora_dropout=0.05,
+    bias="none",
     task_type=TaskType.CAUSAL_LM,
 )
 
 model = get_peft_model(model, lora_config)
 model.print_trainable_parameters()
-# Inspect this output rather than assuming how many modules matched.
 ```
-
-When you run `print_trainable_parameters()`, you get trainable parameters, total parameters, and the percentage for this exact checkpoint and module selection. Save that receipt with the run. A shortcut is useful only if it matched the intended projections, and `all-linear` won't attach an adapter to `lm_head`.
 
 ### Inspect stored adapter precision
 
-Loading the base in BF16 doesn't force its adapter factors to stay BF16. PEFT normally promotes low-precision LoRA factors to FP32; `autocast_adapter_dtype=False` disables that promotion.[^huggingface2026peftTroubleshooting] The name describes adapter storage handling, not PyTorch's operation-level autocast. This pinned CPU check inspects the parameters directly:
+Loading the base model in BF16 does not mean your adapters are stored in BF16: by default, PEFT promotes low-precision LoRA weights to FP32 so small updates retain precision (`autocast_adapter_dtype=False` keeps them in BF16).[^huggingface2026peftTroubleshooting]
 
 <!-- leetllm: test, deps=torch==2.13.0,transformers==5.16.1,peft==0.20.0, output=show, output_title="PEFT stored parameter dtypes" -->
 ```python title="peft_adapter_dtypes.py"
@@ -526,347 +343,192 @@ import torch
 from torch import nn
 from peft import LoraConfig, get_peft_model
 
-for promote in [True, False]:
+for promote in (True, False):
     base = nn.Sequential(nn.Linear(6, 4, bias=False).to(torch.bfloat16))
-    wrapped = get_peft_model(base, LoraConfig(r=2, target_modules=["0"]),
-                             autocast_adapter_dtype=promote)
+    wrapped = get_peft_model(
+        base, LoraConfig(r=2, target_modules=["0"]), autocast_adapter_dtype=promote
+    )
     layer = wrapped.base_model.model[0]
-    actual = layer.lora_A["default"].weight.dtype
-    assert actual == (torch.float32 if promote else torch.bfloat16)
-    assert layer.lora_B["default"].weight.dtype == actual
-    assert layer.base_layer.weight.dtype == torch.bfloat16
-    print(f"promote={promote}: base={layer.base_layer.weight.dtype}, adapter={actual}")
+    print(
+        f"promote={str(promote):5s} -> base={layer.base_layer.weight.dtype}, "
+        f"adapter={layer.lora_A['default'].weight.dtype}"
+    )
 ```
 
 <!-- leetllm: output:start -->
 ```text title="PEFT stored parameter dtypes" output compact
-promote=True: base=torch.bfloat16, adapter=torch.float32
-promote=False: base=torch.bfloat16, adapter=torch.bfloat16
+promote=True  -> base=torch.bfloat16, adapter=torch.float32
+promote=False -> base=torch.bfloat16, adapter=torch.bfloat16
 ```
 <!-- leetllm: output:end -->
 
-### Merge when the serving setup is single-tenant
+### Build a minimal PyTorch LoRA layer and merge it
 
-For a single-adapter deployment, you can merge the overlay into the base weights. That removes the extra adapter path and produces one ordinary checkpoint for inference engines that support the base architecture. Keep the separate artifact until evaluation and rollback checks pass.
+Under the hood, a LoRA linear layer is just 25 lines of PyTorch. Freezing `base.weight` keeps it out of the optimizer, `B` starts at zeros so step 0 is an exact no-op, training updates only `A` and `B`, and `merge()` folds $\frac{\alpha}{r}BA$ straight into the dense matrix with zero extra inference branches.[^huggingface2026peftlora]
 
-```python title="merging-the-adapter-path.py"
-# After training completes
-merged_model = model.merge_and_unload()
-# merged_model is now a standard transformers model with no PEFT adapters
-merged_model.save_pretrained("./my-adapted-model")
-```
+<!-- leetllm: test, deps=torch, output=show, output_title="From-scratch PyTorch LoRA training and merge" -->
+```python title="pytorch-lora-layer.py"
+import torch
+import torch.nn as nn
 
-For ordinary LoRA, `merge_and_unload()` folds $\frac{\alpha}{r}BA$ into each adapted weight and returns the underlying dense model.[^huggingface2026peftlora] Assign and use that return value. The call merges updates into the wrapped base weights while unloading adapters. Save the adapter first and reload a clean base for rollback. Compare merged and unmerged outputs in evaluation mode, with dropout disabled; finite-precision rounding can prevent bitwise equality.
+torch.manual_seed(0)
 
-<!-- leetllm: test, output=show, output_title="Adapter merge output" -->
-```python title="merge-identity.py"
-base = [[1.0, 2.0], [3.0, 4.0]]
-A = [[1.0, -1.0]]
-B = [[0.5], [1.0]]
-scale = 2.0
-x = [2.0, 1.0]
-
-def matvec(matrix, vector):
-    return [sum(a * b for a, b in zip(row, vector)) for row in matrix]
-
-adapter_matrix = [
-    [scale * B[row][0] * A[0][col] for col in range(2)]
-    for row in range(2)
-]
-merged = [
-    [base[row][col] + adapter_matrix[row][col] for col in range(2)]
-    for row in range(2)
-]
-unmerged_output = [
-    value + delta
-    for value, delta in zip(matvec(base, x), matvec(adapter_matrix, x))
-]
-print("merged_weights=", merged)
-print("outputs_match=", matvec(merged, x) == unmerged_output)
-```
-
-<!-- leetllm: output:start -->
-```text title="Adapter merge output" output compact
-merged_weights= [[2.0, 1.0], [5.0, 2.0]]
-outputs_match= True
-```
-<!-- leetllm: output:end -->
-
-### See the two paths without a framework
-
-The standard-library layer below isolates the forward algebra. It leaves $W_0$ unchanged, creates a thin $r \times d_{\text{in}}$ matrix $A$, starts $B$ at zero, and adds $\frac{\alpha}{r}B(Ax)$. It has no autograd or optimizer. The forward path uses two thin matrix-vector products; only the explicit merge calculation materializes the dense update.
-
-<!-- leetllm: test, output=show, output_title="LoRA layer output" -->
-```python title="stdlib-lora-layer.py"
-def matvec(matrix: list[list[float]], vector: list[float]) -> list[float]:
-    if not matrix or any(len(row) != len(vector) for row in matrix):
-        raise ValueError("matrix/vector dimensions don't match")
-    return [sum(a * b for a, b in zip(row, vector)) for row in matrix]
-
-
-def close(left: list[float], right: list[float], tol: float = 1e-9) -> bool:
-    return len(left) == len(right) and all(abs(a - b) <= tol for a, b in zip(left, right))
-
-
-class LoRALinear:
-    def __init__(self, weight: list[list[float]], rank: int, alpha: float):
-        if not weight or not weight[0] or any(len(row) != len(weight[0]) for row in weight):
-            raise ValueError("weight must be nonempty and rectangular")
-        if rank <= 0:
-            raise ValueError("rank must be positive")
-        d_out = len(weight)
-        d_in = len(weight[0])
-        self.weight = [row[:] for row in weight]
-        self.A = [
-            [0.02 * ((i * d_in + j) % 7 - 3) for j in range(d_in)]
-            for i in range(rank)
-        ]
-        self.B = [[0.0 for _ in range(rank)] for _ in range(d_out)]
+class LoRALinear(nn.Module):
+    def __init__(self, base: nn.Linear, rank: int, alpha: float):
+        super().__init__()
+        self.base = base
+        self.base.weight.requires_grad_(False)
+        d_out, d_in = base.weight.shape
+        self.A = nn.Parameter(torch.randn(rank, d_in) * 0.1)
+        self.B = nn.Parameter(torch.zeros(d_out, rank))
         self.scaling = alpha / rank
 
-    def delta_w(self) -> list[list[float]]:
-        d_out = len(self.B)
-        d_in = len(self.A[0])
-        rank = len(self.A)
-        return [
-            [
-                self.scaling * sum(self.B[i][k] * self.A[k][j] for k in range(rank))
-                for j in range(d_in)
-            ]
-            for i in range(d_out)
-        ]
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.base(x) + self.scaling * ((x @ self.A.T) @ self.B.T)
 
-    def forward(self, x: list[float]) -> list[float]:
-        base = matvec(self.weight, x)
-        adapter = [self.scaling * v for v in matvec(self.B, matvec(self.A, x))]
-        return [u + v for u, v in zip(base, adapter)]
+    @torch.no_grad()
+    def merged_weight(self) -> torch.Tensor:
+        return self.base.weight + self.scaling * (self.B @ self.A)
 
+base = nn.Linear(4, 3, bias=False)
+x = torch.randn(8, 4)
+target = torch.randn(8, 3)
 
-weight = [
-    [1.0, 0.0, -0.5, 0.25],
-    [0.0, 1.0, 0.5, -0.25],
-    [0.5, -0.5, 1.0, 0.0],
-]
-layer = LoRALinear(weight, rank=2, alpha=4)
-x = [1.0, -0.5, 0.25, 2.0]
-base_out = matvec(weight, x)
-starts_as_noop = close(layer.forward(x), base_out)
+layer = LoRALinear(base, rank=2, alpha=4.0)
+print(f"step-0 diff from base: {(layer(x) - base(x)).abs().max().item():.1e}")
 
-layer.B[0][0] = 1.0
-layer.B[2][1] = -0.5
-moved = layer.forward(x)
-adapter_changed_output = not close(moved, base_out)
+opt = torch.optim.Adam([layer.A, layer.B], lr=0.05)
+for step in range(1, 41):
+    opt.zero_grad()
+    loss = (layer(x) - target).pow(2).mean()
+    loss.backward()
+    opt.step()
+    if step in (1, 20, 40):
+        print(f"step {step:2d} MSE={loss.item():.4f}")
 
-merged = [
-    [w + d for w, d in zip(w_row, d_row)]
-    for w_row, d_row in zip(weight, layer.delta_w())
-]
-merge_matches = close(matvec(merged, x), moved)
-assert starts_as_noop and adapter_changed_output and merge_matches
-assert close(matvec(layer.delta_w(), x), [v - b for v, b in zip(moved, base_out)])
-
-print(f"starts_as_noop={starts_as_noop}")
-print(f"adapter_changed_output={adapter_changed_output}")
-print(f"merge_matches={merge_matches}")
-print(f"base_out={[round(v, 4) for v in base_out]}")
-print(f"adapted_out={[round(v, 4) for v in moved]}")
+W_merged = layer.merged_weight()
+merge_diff = (x @ W_merged.T - layer(x)).abs().max().item()
+print(f"merged vs unmerged max diff: {merge_diff:.1e}")
 ```
 
 <!-- leetllm: output:start -->
-```text title="LoRA layer output" output compact
-starts_as_noop=True
-adapter_changed_output=True
-merge_matches=True
-base_out=[1.375, -0.875, 1.0]
-adapted_out=[1.285, -0.875, 1.105]
+```text title="From-scratch PyTorch LoRA training and merge" output compact
+step-0 diff from base: 0.0e+00
+step  1 MSE=1.7893
+step 20 MSE=1.1618
+step 40 MSE=1.0832
+merged vs unmerged max diff: 1.8e-07
 ```
 <!-- leetllm: output:end -->
+
+In PEFT, calling `merged = model.merge_and_unload()` performs this exact weight folding and returns a standard `transformers` model with no adapter overhead. Always save the standalone adapter before merging so you can revert or re-merge against a clean base checkpoint:
+
+```python title="merging-the-adapter-path.py"
+model.save_pretrained("./sql-lora-v1-adapter")
+merged_model = model.merge_and_unload()
+merged_model.save_pretrained("./sql-lora-v1-merged")
+```
 
 ## Choose rank from evidence
 
-`sql-lora-v1` now has a working adapter path. The next question is whether rank 8 is enough or rank 64 is worth its cost. Rank $r$ controls adapter capacity, but module coverage, data quality, and learning rate can matter just as much. Hold target modules fixed and adapter parameters scale linearly with $r$:
+With the adapter path working, should `sql-lora-v1` use rank 8, 16, or 64? With target modules fixed, adapter parameter count scales linearly with rank:
 
-| Rank ($r$) | Relative adapter parameters | What to compare |
+| Rank ($r$) | Relative adapter parameters | Role in a sweep |
 |------------|-----------------------------|-----------------|
-| 4 | 0.25x of rank 16 | Cheap capacity floor |
-| 8 | 0.50x of rank 16 | Low-cost candidate |
-| 16 | 1.00x | Reference candidate |
-| 64 | 4.00x of rank 16 | Higher-capacity candidate only if evaluation warrants it |
-| 256 | 16.00x of rank 16 | Expensive diagnostic, not an assumed improvement |
+| 4 | 0.25x of rank 16 | Minimal capacity floor |
+| 8 | 0.50x of rank 16 | Fast low-cost baseline |
+| 16 | 1.00x | Strong default reference |
+| 64 | 4.00x of rank 16 | Worth trying only if held-out accuracy is underfitting |
+| 256 | 16.00x of rank 16 | High-capacity diagnostic, rarely needed for style or format shifts |
 
-Use a held-out task set for the new schema and a regression set for capabilities you need to retain. A rank that lowers training loss while degrading general behavior isn't a better adapter. Look for the failure shape before buying capacity: underfit task examples suggest a capacity or coverage problem, while regression suggests data, scale, or target-selection trouble.
-
-<!-- leetllm: test, output=show, output_title="Rank budget output" -->
-```python title="rank-budget-scaling.py"
-reference_rank = 16
-reference_adapter_parameters = 1_249_280  # toy all-linear block from the earlier example
-
-for rank in [4, 8, 16, 64, 256]:
-    params = reference_adapter_parameters * rank // reference_rank
-    multiplier = rank / reference_rank
-    print(f"r={rank:>3} params={params:>8,} relative_to_r16={multiplier:.2f}x")
-```
-
-<!-- leetllm: output:start -->
-```text title="Rank budget output" output compact
-r=  4 params= 312,320 relative_to_r16=0.25x
-r=  8 params= 624,640 relative_to_r16=0.50x
-r= 16 params=1,249,280 relative_to_r16=1.00x
-r= 64 params=4,997,120 relative_to_r16=4.00x
-r=256 params=19,988,480 relative_to_r16=16.00x
-```
-<!-- leetllm: output:end -->
+Always evaluate on two held-out sets: a **task set** measuring the new schema rules, and a **regression set** checking general SQL queries that must keep working. Look at the failure shape before buying more rank: underfitting on the task set points to capacity or target coverage, while regressions point to data mix, learning rate, or scaling.
 
 ```checkpoint
-Your platform team wants `sql-lora-v1` to cover three new warehouse schemas. You have 5,000 labeled question-to-SQL pairs, each averaging 512 tokens. Would you start with $r=8$ or $r=64$?
+Your team wants `sql-lora-v1` to cover three new warehouse schemas with 5,000 labeled question-to-SQL pairs. Would you start with $r=8$ or $r=64$?
 ---
-Compare a low-cost candidate such as $r=8$ or $r=16$ before paying four times rank-16 adapter state for $r=64$. Choose from held-out task accuracy, regression behavior, and memory/latency measurements rather than assuming a larger adapter fixes a data or prompt-format problem.
+Start with $r=8$ or $r=16$ across all linear layers before paying 4x the adapter state for $r=64$. Let held-out task accuracy and regression checks tell you whether capacity is actually the bottleneck.
 ```
-
-The LoRA and QLoRA papers report strong low-rank results on their studied tasks, but that doesn't make one rank universal.[^hu2021][^dettmers2023] Establish target coverage, define the two evaluation sets, then sweep rank only when the evidence says capacity is the bottleneck.
 
 ## Decide after the first controlled comparison
 
-LoRA reduces trainable state. For `sql-lora-v1`, run the same held-out cases against each candidate, then compare task quality, regressions, memory use, and serving needs. Decide whether the new data calls for a broad change beyond the base model's learned domain.
+Compare LoRA and full fine-tuning on the same held-out evaluation sets:
 
-If many task variants, fast iteration, or cheap deployment matter, LoRA is a strong first comparison even with a large dataset. If the target documents sit far from the <span data-glossary="pretraining">pretraining</span> mix and the hardware can update everything, full fine-tuning may justify its extra cost. `sql-lora-v1` looks narrower: the model already speaks the domain, and the rotation procedure changes one escalation behavior.
-
-- **LoRA keeps the original checkpoint recoverable, but an active adapter can still regress behavior.** Fewer trainable parameters constrain the update and make <span data-glossary="rollback">rollback</span> or adapter disablement a config change. They don't guarantee that enabled-adapter responses preserve general capabilities, so evaluate policy quality and regressions together.
-- **Full fine-tuning has higher capacity.** With a large corpus, enough memory, and a target domain far from pretraining, every eligible weight can move. Pay that cost only when held-out results show that the narrower update can't express the required behavior.
+- **When LoRA shines:** Many task variants, tight GPU memory, fast iteration, or an adaptation close to what the base model already knows (like `sql-lora-v1` adopting renamed tables and join conventions). Keeping the base weights frozen also makes reverting to the original model as simple as disabling the adapter, though an active adapter can still regress general behavior while enabled, so always evaluate with it turned on.
+- **When full fine-tuning wins:** A large corpus far from the <span data-glossary="pretraining">pretraining</span> distribution (such as a new programming language or heavy domain shift) where hardware allows updating every weight and held-out evaluations show low-rank updates are underfitting.
 
 ## Diagnose from the failure shape
 
-An adapter run usually tells you which axis is wrong before it tells you which hyperparameter to change. Read the symptom against the path we just built: target modules affect where behavior can move, rank affects capacity, scale affects update strength, and merge affects serving. The following cases turn that map into concrete checks.
+Each failure pattern points to a specific axis in the adapter setup:
 
-### When validation loss stays flat
-
-If training loss barely moves, adapting only $W_Q$ and $W_V$ may be too narrow for the behavior change. Compare `all-linear` targeting, then inspect the matched module list. QLoRA reported its full-fine-tuning match when applying adapters to all linear layers in each Transformer block.[^dettmers2023] Choose targets for the task and evaluate held-out behavior.
-
-### Adapter cost rises with rank but held-out quality doesn't
-
-Rank may not be the limiting axis, or ordinary $\alpha/r$ scaling may make the comparison hard to read. Hold target coverage and scaling explicit, check data formatting, and try rsLoRA for a high-rank run with `use_rslora=True` instead of assuming more rank is enough.[^kalajdzievski2023][^huggingface2026peftlora]
-
-### Changing rank causes overfitting or underfitting
-
-Changing $r$ without changing $\alpha$ also changes the explicit scale. For an isolated ordinary-LoRA rank comparison, hold $\alpha/r$ constant. For an optimization search, log rank and alpha separately so a quality change has an interpretable cause. Don't present one alpha rule as universal.
-
-### Inference latency is higher than expected
-
-If one adapter owns the deployment, a runtime adapter path may be unnecessary overhead. Evaluate a merged artifact after training: $W_{\text{merged}} = W_0 + \frac{\alpha}{r}BA$ is a standard linear layer with no separate adapter path. Keep adapters separate intentionally when serving several tasks from one resident base.
-
-### A multi-GPU job uses `device_map="auto"` as its sharding plan
-
-That mixes inference dispatch with distributed training. `device_map="auto"` belongs to Accelerate's Big Model Inference path. Let the trainer or launcher select supported training placement, and use <span data-glossary="fsdp">FSDP</span>, <span data-glossary="deepspeed">DeepSpeed</span>, or a deliberate QLoRA setup when the model doesn't fit on one training device.[^huggingface2026acceleratebigmodel]
-
-### LoRA on a sharded base
-
-<!-- leetllm: audience:website:start -->Adapters don't change the FSDP / <span data-glossary="zero">ZeRO</span> requirements from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and remember that FSDP gathers each unit's frozen weights onto the GPU before the unit runs. Peak memory includes that materialization plus activations, so a 2,048-token `sql-lora-v1` batch can OOM even when the adapter file is tiny. Resume, preemption, and deciding whether to continue or export belong to the next chapter.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->Adapters don't change the FSDP / <span data-glossary="zero">ZeRO</span> requirements from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and remember that FSDP gathers each unit's frozen weights onto the GPU before the unit runs. Peak memory includes that materialization plus activations, so a 2,048-token `sql-lora-v1` batch can OOM even when the adapter file is tiny. The online companion's [Training Run Operations](/learn/training-run-operations) chapter covers resuming after preemption and deciding whether to continue or export.<!-- leetllm: audience:book:end -->
-
-### PEFT notes say "LoRA" but the method trains prompt vectors
-
-Soft prompt tuning learns input embeddings, prefix tuning learns per-layer prefix state, and LoRA learns low-rank updates inside weight matrices. Name the method by what trains. If the learned parameters don't form $A$ and $B$ inside a projection layer, it isn't LoRA.
-
-### New special tokens never appear in generated output
-
-Adding tokenizer IDs doesn't resize model tensors. Call `resize_token_embeddings(len(tokenizer))` before wrapping the model, then inspect input and output shapes. Resizing creates new rows; it doesn't train useful representations for them. `all-linear` excludes `lm_head`. For untied embeddings, train and save both the affected input embeddings and output head, or configure supported row-selective training. For tied weights, verify that the tying survives wrapping and saving. PEFT's `trainable_token_indices` support and weight-tying options are version-sensitive; inspect their behavior rather than assuming attention adapters learn new lexical rows.[^huggingface2026peftlora]
-
-### Shape checks fail only at runtime
-
-$A$ and $B$ may be transposed or initialized inconsistently. For $W_0 \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}$, use $A \in \mathbb{R}^{r \times d_{\text{in}}}$ and $B \in \mathbb{R}^{d_{\text{out}} \times r}$ so $BA$ matches $W_0$. Assert those dimensions while wrapping modules, and zero-initialize one factor so the adapter starts as a no-op.
+- **Validation loss barely moves:** Adapting only $W_Q$ and $W_V$ may be too narrow. Switch to `all-linear` targeting and inspect the matched module list.[^dettmers2023]
+- **Rank grows, cost rises, but quality stalls:** Rank may not be the bottleneck, or fixed $\alpha$ is shrinking $\alpha/r$. Hold $\alpha/r$ constant, check data formatting, and test `use_rslora=True` for high-rank runs.[^kalajdzievski2023][^huggingface2026peftlora]
+- **Unexpected inference latency:** A single-task deployment still running unmerged adapters pays extra kernel launches. Merge with `merge_and_unload()` so inference runs one dense layer.
+- **Multi-GPU training stalls or fails with `device_map="auto"`:** That setting belongs to Accelerate's Big Model Inference path, not distributed training. Use <span data-glossary="fsdp">FSDP</span>, <span data-glossary="deepspeed">DeepSpeed</span>, or QLoRA instead.[^huggingface2026acceleratebigmodel]
+- **OOM with a tiny adapter on a sharded base:** <!-- leetllm: audience:website:start -->Adapters don't eliminate FSDP / <span data-glossary="zero">ZeRO</span> peak memory from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and budget for both gathered frozen layer weights and full activations.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->Adapters don't eliminate FSDP / <span data-glossary="zero">ZeRO</span> peak memory from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and budget for both gathered frozen layer weights and full activations. The online companion's [Training Run Operations](/learn/training-run-operations) chapter covers resuming after preemption and exporting checkpoints.<!-- leetllm: audience:book:end -->
+- **New special tokens never appear in outputs:** Adding tokenizer IDs does not resize model tensors. Call `resize_token_embeddings(len(tokenizer))` before wrapping, and explicitly unfreeze or select the affected input embedding and `lm_head` rows (`all-linear` excludes `lm_head`).[^huggingface2026peftlora]
+- **Shape mismatches at runtime:** Verify $A \in \mathbb{R}^{r \times d_{\text{in}}}$ and $B \in \mathbb{R}^{d_{\text{out}} \times r}$, especially on grouped-query attention models where $k_{\text{proj}}$ and $v_{\text{proj}}$ are narrower than $q_{\text{proj}}$.
 
 ## Production sweep starting points
 
-When `sql-lora-v1` is ready for a run, don't start by sweeping every knob. Pick one reproducible baseline, change one or two axes, and log enough context to explain a win or regression. The candidates below are starting points, not production defaults:
+Start with one reproducible baseline, sweep one or two knobs at a time, and log task accuracy alongside regression checks:
 
-| Hyperparameter | Initial candidates | Note |
+| Hyperparameter | Starting candidates | Why |
 |---|---|---|
-| **Learning Rate** | `1e-4`, `2e-4` | Standard LoRA <span data-glossary="supervised-fine-tuning">SFT</span> sweep range (~10x full fine-tuning LR). |
-| **Effective token batch** | Measure and hold stable | Compare token throughput and quality, not example count alone. |
-| **Rank ($r$)** | 8, 16 | Add a higher-rank candidate only when evaluation shows capacity pressure. |
-| **Alpha ($\alpha$)** | Choose an explicit $\alpha/r$ comparison | Record scaling with rank; don't hide it inside a default. |
-| **Dropout** | 0.0, 0.05 | Decide from validation behavior and dataset size. |
-| **Target Modules** | Q/V baseline versus `all-linear` | QLoRA-style coverage costs more adapter state but may improve quality. |
-| **Gradient Checkpointing** | Off/on comparison if memory is tight | It reduces activation storage by adding recomputation cost. |
+| **Learning rate** | `1e-4`, `2e-4` | Standard LoRA <span data-glossary="supervised-fine-tuning">SFT</span> range (~10x full fine-tuning LR) |
+| **Effective token batch** | Hold fixed across runs | Keeps step-to-step comparisons fair |
+| **Rank ($r$)** | 8, 16 | Scale up only when held-out task quality underfits |
+| **Alpha ($\alpha$)** | $\alpha = r$ or $\alpha = 2r$ | Keeps scaling $\alpha/r$ explicit during rank sweeps |
+| **Dropout** | 0.0, 0.05 | Regularizes small datasets without slowing large ones |
+| **Target modules** | `all-linear` vs Q/V | Usually the highest-leverage capacity knob |
+| **Gradient checkpointing** | On when activation-bound | Cuts activation VRAM at a ~25-30% compute cost |
 
-During training, log task evaluation and regression evaluation beside validation loss. Fewer trainable parameters don't make <span data-glossary="overfitting">overfitting</span> impossible. If training loss falls while held-out task quality falls, inspect data cleanup and dropout before rank. If neither loss nor policy quality moves, inspect formatting and target modules before buying more capacity.
+Fewer trainable parameters do not prevent <span data-glossary="overfitting">overfitting</span>. If training loss drops while held-out SQL accuracy worsens, inspect dataset diversity, epochs, and dropout before touching rank.
 
 ## QLoRA: going further
 
-Standard LoRA often keeps its frozen base in <span data-glossary="bf16">BF16</span> or FP16. That would leave a 65B base at roughly 130 GB before activations, which doesn't fit the 48 GB machine in our scenario. **QLoRA (Quantized LoRA)**[^dettmers2023] quantizes the *frozen base's supported weights* to **4-bit** and dequantizes as needed for computation. Other base tensors can remain in higher precision. Trainable factors also use higher precision, often FP32 in current PEFT. Gradients pass through the base computation to update adapters; the frozen weights have no parameter gradients or optimizer state.
+Standard LoRA keeps the frozen base in <span data-glossary="bf16">BF16</span> or FP16, leaving a 65B base at 130 GB before activations, still too large for our 48 GB GPU. **QLoRA (Quantized LoRA)**[^dettmers2023] stores the frozen base weights in **4-bit** precision and dequantizes them on the fly into BF16 for forward and backward matmuls, while keeping trainable LoRA factors in higher precision.
 
-Use consistent model sizes when comparing numbers. For a **65B** model, the raw storage floor and the paper's measured feasibility statement are different kinds of evidence:
+For a 65B model:
 
-| Method | Number you can defend | What it means |
-|--------|-----------------------|---------------|
-| Full FT under the 12-byte recipe above | 780 GB model states | $65\text{B} \times 12$ bytes, before activations |
-| LoRA with a BF16/FP16 frozen base | 130 GB base-weight floor | $65\text{B} \times 2$ bytes, plus adapters and runtime memory |
-| **QLoRA (NF4 base)** | Fine-tuned 65B on one 48 GB GPU in the paper | Memory depends on the complete training setup[^dettmers2023] |
+| Method | Frozen/model state | What fits |
+|--------|--------------------|-----------|
+| Full fine-tuning (12-byte recipe) | 780 GB | Multi-node cluster |
+| LoRA (BF16 frozen base) | 130 GB + adapters & activations | Multi-GPU node |
+| **QLoRA (4-bit NF4 base)** | **33.5 GB** base + scales (plus adapters & activations) | **Single 48 GB GPU** in the QLoRA paper[^dettmers2023] |
 
-The raw 4-bit payload is only one storage term. <span data-glossary="quantization">Quantization</span> metadata, adapters, adapter optimizer state, activations, and temporary buffers still contribute to the QLoRA training footprint. Calculate the floor below, then compare it with peak allocation from the actual run:
+QLoRA makes 4-bit fine-tuning match 16-bit quality through three interlocking ideas:
 
-<!-- leetllm: test, output=show, output_title="QLoRA storage floor output" -->
-```python title="qlora-storage-floor.py"
-parameters_billion = 65
-bf16_base_gb = parameters_billion * 2
-nf4_raw_payload_gb = parameters_billion * 4 / 8
-double_quant_overhead_bits_per_param = 8 / 64 + 32 / (64 * 256)
-nf4_plus_constants_gb = parameters_billion * (4 + double_quant_overhead_bits_per_param) / 8
+1. **NormalFloat4 (NF4):** Pretrained neural network weights follow roughly zero-centered normal distributions. Instead of uniformly spaced 4-bit bins, NF4 maps each 4-bit index to one of 16 fixed, nonuniform codebook values chosen from the quantiles of a standard normal distribution normalized to $[-1, 1]$ (7 negative values, exact `0.0`, and 8 positive values). Each block of 64 weights is scaled by its absolute maximum into $[-1, 1]$.[^dettmers2023][^bitsandbytes2026nf4Implementation]
+2. **Double quantization:** Storing one FP32 scale per 64 weights adds $32/64 = 0.5$ bits per weight (~4.1 GB on a 65B model). Quantizing those scales themselves into 8-bit values (with one FP32 second-level scale per 256 blocks) drops the overhead to $8/64 + 32/(64 \cdot 256) \approx 0.127$ bits per weight (~1.0 GB on 65B, saving ~3 GB).[^dettmers2023][^bitsandbytes2026nf4Implementation]
+3. **Paged optimizers:** Using CUDA unified memory, optimizer-state pages automatically evict to CPU RAM during activation spikes and page back in for the optimizer step, preventing OOM crashes during long sequences at a modest latency tradeoff.[^dettmers2023][^bitsandbytes2026pagedOptimizers]
 
-print(f"bf16_frozen_base_floor_GB={bf16_base_gb:.1f}")
-print(f"nf4_raw_payload_GB={nf4_raw_payload_gb:.1f}")
-print(f"nf4_plus_quant_constants_GB={nf4_plus_constants_gb:.1f}")
-print("paper_device_capacity_GB=48")
-```
-
-<!-- leetllm: output:start -->
-```text title="QLoRA storage floor output" output compact
-bf16_frozen_base_floor_GB=130.0
-nf4_raw_payload_GB=32.5
-nf4_plus_quant_constants_GB=33.5
-paper_device_capacity_GB=48
-```
-<!-- leetllm: output:end -->
-
-The output is a payload estimate, not a fit guarantee. Activations still scale with sequence length and micro-batch size, so a long-context QLoRA run can OOM even when the quantized base fits.
-
-QLoRA combined three memory techniques. In the paper's evaluated tasks, that combination preserved 16-bit fine-tuning performance while making 4-bit adapter training practical:
-
-1. **NormalFloat4 (NF4):** A 4-bit index selects one of sixteen nonuniform values, chosen using a normal-distribution model and normalized to $[-1,1]$. A block's absolute maximum rescales its weights into that range. The actual codebook has seven negative values, zero, and eight positive values. It isn't a sign/exponent/fraction encoding or a guarantee of minimum MSE for arbitrary weights. Constructing levels directly from the normal inverse CDF's $Q(0)$ and $Q(1)$ would give infinite endpoints; use the finite codebook instead.[^dettmers2023][^bitsandbytes2026nf4Implementation]
-2. **Double quantization:** One FP32 scale per 64 weights costs $32/64=0.5$ bits per weight. Quantizing those scales to eight-bit values, with an FP32 scale per 256 of them, gives $8/64+32/(64\cdot256)\approx0.127$ bits per weight. The paper calls its scale format eight-bit floats; current bitsandbytes stores indices into an eight-bit codebook and also keeps a centering offset. This large-tensor estimate saves about 3.03 decimal GB at 65B, excluding small extra metadata and incomplete blocks.[^dettmers2023][^bitsandbytes2026nf4Implementation]
-3. **Paged optimizers:** CUDA managed memory lets optimizer-state pages migrate between GPU and host under memory pressure. This differs from ordinary pinned host buffers. Paging can make room during activation peaks, but doesn't eliminate all OOM causes and transfers can slow the iteration. It doesn't require the backward computation and optimizer step to run simultaneously. The paper's reported equal speed at batch size 16 belongs to its 65B/48 GB comparison.[^dettmers2023][^bitsandbytes2026pagedOptimizers]
-
-Trace one normalized block with a rounded copy of the published NF4 codebook. Can positive and negative values use exactly symmetric levels? Does zero survive? This cell checks lookup arithmetic, not packing, double quantization, a CUDA kernel, or task accuracy:
+Watch NF4 quantize and reconstruct a tiny weight block using its asymmetric normal-quantile codebook:
 
 <!-- leetllm: test, output=show, output_title="NF4 lookup output" -->
 ```python title="nf4_lookup.py"
-codebook = [-1., -.696193, -.525073, -.394917, -.284441, -.184773, -.091050,
-            0., .079580, .160930, .246112, .337915, .440710, .562617, .722957, 1.]
-weights = [-.2, 0., .2, 2.]
-scale = max(abs(value) for value in weights)
-indices = [min(range(16), key=lambda i: abs(value / scale - codebook[i]))
-           for value in weights]
-restored = [scale * codebook[i] for i in indices]
-assert len(codebook) == 16 and indices[1] == 7 and restored[1] == 0
-assert sum(value < 0 for value in codebook) == 7
-assert sum(value > 0 for value in codebook) == 8
-print("four_bit_indices=", indices)
-print("dequantized_weights=", [round(value, 5) for value in restored])
+codebook = [
+    -1.0, -0.696193, -0.525073, -0.394917, -0.284441, -0.184773, -0.091050,
+    0.0, 0.079580, 0.160930, 0.246112, 0.337915, 0.440710, 0.562617, 0.722957, 1.0,
+]
+weights = [-0.2, 0.0, 0.2, 2.0]
+scale = max(abs(w) for w in weights)
+indices = [min(range(16), key=lambda i: abs(w / scale - codebook[i])) for w in weights]
+restored = [round(scale * codebook[i], 5) for i in indices]
+
+print("4-bit indices:", indices)
+print("reconstructed:", restored)
 ```
 
 <!-- leetllm: output:start -->
 ```text title="NF4 lookup output" output compact
-four_bit_indices= [6, 7, 8, 15]
-dequantized_weights= [-0.1821, 0.0, 0.15916, 2.0]
+4-bit indices: [6, 7, 8, 15]
+reconstructed: [-0.1821, 0.0, 0.15916, 2.0]
 ```
 <!-- leetllm: output:end -->
 
-Keep four precision choices separate: packed base storage, dequantized base computation, adapter parameter storage, and optimizer state. The paper uses BF16 computation; the fragment below requests that compute dtype but doesn't force every tensor to BF16. PEFT's k-bit preparation can upcast unquantized tensors, and adapter promotion can leave factors in FP32.[^huggingface2026peftTroubleshooting][^peft2026kbitPreparation]
+Notice two subtleties in the output: `0.0` maps exactly to index `7` (preserving sparsity), while `-0.2` and `+0.2` reconstruct to slightly asymmetric values because the 16 bins split as 7 negative, zero, and 8 positive.
 
-Dequantization's temporary storage depends on the implementation. As of bitsandbytes 0.50.2, the backward path calls `dequantize_4bit` to materialize a weight matrix before computing input gradients. Don't assume the entire training path dequantizes only into SRAM/registers or has no additional device-memory allocation.[^bitsandbytes2026fourBitAutograd] Frozen base weights have no parameter gradients; gradients through their operations can still be needed upstream.
-
-QLoRA is a strong candidate when a frozen BF16 or FP16 base doesn't fit on the available training hardware. It trades memory for quantization complexity. Compare task quality and regressions against an affordable higher-precision baseline so a memory win doesn't hide a behavior loss.
-
-The following GPU setup fragment follows PEFT's QLoRA path: quantize at load time, prepare for k-bit training, then add adapters.[^huggingface2026peftquantization] It requires a compatible `bitsandbytes` installation and BF16-capable hardware. It hasn't been run as a full GPU training job here. Pin the base revision and library versions, supply the trainer/data configuration, and measure peak memory before claiming the run fits.
+In practice, keep four precision settings distinct: packed 4-bit base storage, BF16 compute dtype, adapter parameter storage (often promoted to FP32 by PEFT's k-bit preparation), and optimizer state.[^huggingface2026peftTroubleshooting][^peft2026kbitPreparation] Also remember that bitsandbytes' backward pass dequantizes the 4-bit weight matrix to compute input gradients, so leave headroom for those temporary tensors plus activations.[^bitsandbytes2026fourBitAutograd]
 
 ```python title="qlora-peft-setup.py"
 import torch
@@ -891,83 +553,42 @@ model = get_peft_model(
 )
 ```
 
-One export option is to reload the exact source base revision in BF16 or FP16, attach the saved adapter, merge, then optionally re-quantize. This isn't numerically identical to the training path: the adapter trained against a quantized approximation of the base. Re-evaluate the merged and re-quantized artifacts separately. Quantized merge support depends on the backend; don't assume every format supports the same operation.
+For export, you can reload the exact base revision in BF16, attach the trained adapter, merge, and optionally re-quantize for serving.[^huggingface2026peftquantization] Because the adapter trained against a 4-bit approximation of the base weights, always re-evaluate the merged BF16 and re-quantized artifacts on your held-out suite.
 
 ## Keep the base shared when serving many adapters
 
-A merged artifact makes one adapter easy to run. Separate merged artifacts duplicate base weights, while dynamic adapters can share one resident base. Keep `sql-lora-v1` unmerged when several tasks should share that base; a few popular adapters can still justify separate merged deployments.
+Merging removes adapter branches for a single-task deployment, but duplicating a 14 GB base model across 50 tenants consumes 700 GB of storage. Keeping one shared 14 GB base alongside fifty 128 MB adapters takes just **20.4 GB**, a **34.3x** reduction in artifact size.
 
 <figure>
-  <img src="illustrations/_generated/lora_serving_modes_dark.png" alt="Merged LoRA checkpoints remove the adapter branch; dynamic serving shares a base across requests using different adapters. An assumed 14 GB base and fifty 128 MB adapter artifacts total 20.4 GB, versus 700 GB for fifty merged artifacts. Device residency, KV caches, and runtime buffers are separate budgets. Punica uses SGMV; S-LoRA jointly pages adapter and KV tensors." />
-  <figcaption>Merging removes the low-rank inference branch, while dynamic routing retains it to share the base. The 700 GB and 20.4 GB figures count assumed artifact bytes, not GPU memory or measured serving capacity. Punica and S-LoRA illustrate distinct batching and memory techniques.</figcaption>
+  <img src="illustrations/_generated/lora_serving_modes_dark.png" alt="Merged LoRA checkpoints remove the adapter branch; dynamic serving shares a base across requests using different adapters. A 14 GB base and fifty 128 MB adapter artifacts total 20.4 GB, versus 700 GB for fifty merged artifacts. Punica uses SGMV; S-LoRA jointly pages adapter and KV tensors." />
+  <figcaption>Merging eliminates the low-rank inference branch for single-task serving, while dynamic adapter routing shares one base across many tasks (20.4 GB vs 700 GB in artifact storage for 50 adapters).</figcaption>
 </figure>
 
-When deploying fine-tuned models to production, choose between two serving modes:
+Two systems innovations make multi-adapter serving fast in production:
 
-- **Merged artifact:** Fold $\frac{\alpha}{r}BA$ into the base and serve it through an engine that supports that architecture and dtype. There are no adapter-factor tensors or low-rank kernels in the exported model. Ordinary inference still has kernel dispatch, KV caches, and other runtime costs; merging doesn't promise zero overall latency overhead from every deployment change.
-- **Shared base with dynamic adapters:** Route requests to their adapters while keeping the common base resident. Adapters can be loaded as needed; how many fit or run concurrently depends on their ranks, targets, dtype, request shapes, and the engine. Fifty merged 14 GB artifacts would occupy 700 GB on disk, but don't have to be resident on GPUs simultaneously. Fifty **assumed** 128 MB adapters plus one 14 GB base occupy 20.4 GB as artifacts; host/GPU residency is a separate calculation.
+1. **Heterogeneous batching (Punica):** Custom **Segmented Gather Matrix-Vector multiplication (SGMV)** kernels let requests targeting different adapters share one batched base-model forward pass ($X W_0^T$) and apply each request's low-rank correction $\frac{\alpha_i}{r_i}(X_i A_i^T) B_i^T$ in parallel.[^chen2023punica]
+2. **Unified Paging (S-LoRA):** Stores both KV-cache blocks and adapter weights inside one unified paged GPU memory pool, prefetching upcoming adapters and eliminating fragmentation across varying ranks and sequence lengths.[^sheng2023]
 
-Modern multi-tenant serving frameworks make dynamic adapter routing practical through two key innovations:
-
-1. **Heterogeneous batching (Punica):** The paper's custom primitive is **Segmented Gather Matrix-Vector multiplication (SGMV)**.[^chen2023punica] Requests with different adapters can share base computation instead of requiring separate whole-model passes. With tokens stored as rows and our weight orientation, the base projection is $XW_0^T$ and adapter i adds $\frac{\alpha_i}{r_i}(X_iA_i^T)B_i^T$. Adapter selection is per request; the low-rank operations use the corresponding factors.
-2. **Unified Paging (S-LoRA):** A common GPU pool stores both KV-cache tensors and adapter weights in non-contiguous pages. Prefetching upcoming adapters reduces loading waits; the pool reduces fragmentation from changing sequence lengths and adapter ranks.[^sheng2023] This engine-managed paging differs from the CUDA managed-memory optimizer mechanism above. Neither paper establishes the toy artifact calculation as a GPU serving benchmark.
-
-Fifty merged 14 GB checkpoints cost 700 GB, while one 14 GB base plus 50 small adapters costs far less.
-
-<!-- leetllm: test, output=show, output_title="Adapter serving storage output" -->
-```python title="multi-adapter-storage.py"
-base_checkpoint_gb = 14
-adapter_mb = 128
-tenant_count = 50
-
-merged_full_models_gb = base_checkpoint_gb * tenant_count
-shared_base_plus_adapters_gb = base_checkpoint_gb + adapter_mb * tenant_count / 1000
-
-print(f"merged_full_models_GB={merged_full_models_gb:.1f}")
-print(f"shared_base_plus_adapters_GB={shared_base_plus_adapters_gb:.2f}")
-print(f"storage_reduction_x={merged_full_models_gb / shared_base_plus_adapters_gb:.1f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Adapter serving storage output" output compact
-merged_full_models_GB=700.0
-shared_base_plus_adapters_GB=20.40
-storage_reduction_x=34.3
-```
-<!-- leetllm: output:end -->
+Rule of thumb: merge your one or two highest-traffic adapters for the simplest low-latency serving path, and use dynamic multi-adapter serving when traffic spreads across dozens of specialized tasks.
 
 ## Advanced: separate magnitude from direction
 
-A LoRA variant called **DoRA (Weight-Decomposed Low-Rank Adaptation)**[^liu2024] asks whether separating weight magnitude from direction can improve adaptation.
-
-For a nonzero weight vector, magnitude is $m=\|w\|_2$ and unit direction is $v=w/\|w\|_2$. Liu et al.'s VL-BART query/value case study compared changes in these quantities across layers and checkpoints:
-
-- Full fine-tuning showed correlation -0.62 between the study's magnitude-change and directional-change statistics.
-- LoRA showed 0.83, and DoRA showed -0.31.
-
-Those are measured patterns in that case study, not universal correlations or proof that an additive update cannot rotate a vector without changing its norm. Full fine-tuning also applies additive weight updates; DoRA makes the magnitude parameter explicit.
-
-DoRA resolves this by explicitly factorizing each weight into a learnable magnitude vector and a directional matrix updated via low-rank adaptation. For a PyTorch linear weight $W_0 \in \mathbb{R}^{d_{\text{out}}\times d_{\text{in}}}$, the row-wise formulation is:
+**DoRA (Weight-Decomposed Low-Rank Adaptation)**[^liu2024] asks why full fine-tuning and standard LoRA behave differently when modifying weights. Decomposing any weight row into its Euclidean length (magnitude $m = \|w\|_2$) and unit direction ($v = w / \|w\|_2$), Liu et al. observed in a VL-BART case study that full fine-tuning often adjusted magnitude and direction in opposite directions (correlation $-0.62$), whereas LoRA coupled them positively ($+0.83$). DoRA decouples them explicitly, giving a row-wise PyTorch weight update:
 
 $$
 V = W_0 + \frac{\alpha}{r}BA, \qquad W_{\text{DoRA}} = m \odot \frac{V}{\|V\|_{\text{row}}}
 $$
 
-where:
-- $V \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}$ is the directional matrix carrying the standard LoRA update.
-- $\|\cdot\|_{\text{row}}$ takes the row-wise $L_2$ norm (`dim=1` in PyTorch). The paper uses the transposed, column-vector convention; don't transfer its axis label unchanged to this layout.
-- $m \in \mathbb{R}^{d_{\text{out}}}$ is initialized to $\|W_0\|_{\text{row}}$ and broadcast as $(d_{\text{out}},1)$. The displayed divisions assume nonzero row norms.
-- $\odot$ denotes element-wise broadcast multiplication across rows.
+Here $m \in \mathbb{R}^{d_{\text{out}}}$ is initialized to $\|W_0\|_{\text{row}}$ (one learnable scalar per output row) and $\|\cdot\|_{\text{row}}$ is the row-wise $L_2$ norm (`dim=1` in PyTorch). On step 0, $B=0 \implies V = W_0$, so $W^{(0)} = \|W_0\|_{\text{row}} \odot (W_0 / \|W_0\|_{\text{row}}) = W_0$: exact step-zero identity is preserved.
 
-This design preserves the initialization invariant: on step zero, $B = 0 \implies V = W_0$. Because $m^{(0)} = \|W_0\|_{\text{row}}$, the initial weight is:
-$$
-W^{(0)} = \|W_0\|_{\text{row}} \odot \frac{W_0}{\|W_0\|_{\text{row}}} = W_0
-$$
-The model begins with zero perturbation to the pretrained base weights.
+Adding $d_{\text{out}}$ magnitude scalars costs only $1/(2r)$ extra parameters over standard LoRA on a square layer (3.12% at $r=16$), and PEFT enables it with `use_dora=True`.[^huggingface2026peftdora] Like standard LoRA, a trained DoRA adapter merges cleanly into a single dense matrix $W_{\text{merged}} = m \odot V / \|V\|_{\text{row}}$ for inference.
 
-The forward equation doesn't specify the whole training algorithm. The paper's Section 4.3 and PEFT 0.20.0 detach the denominator's norm from the gradient graph: its value is recomputed from the updated direction, but backward treats that value as constant. Differentiating the displayed normalization without this stop-gradient gives a different training rule.[^liu2024][^huggingface2026peftdora]
+<details>
+<summary>Deep dive: DoRA's detached norm gradient in PEFT</summary>
 
-Make that distinction measurable. With one row $v=(3,4)$, magnitude $m=5$, and input $x=(1,0)$, both forward paths output 3. Differentiating $5v_1/\|v\|$ normally gives $(0.64,-0.48)$. Treating the denominator as constant gives $(1,0)$. The following PEFT check sets $A=I$ and $B=0$, so B's gradient exposes that difference directly:
+Both the DoRA paper (Section 4.3) and PEFT detach the denominator norm $\|V\|_{\text{row}}$ from the backward graph: the forward pass recomputes the norm after every update, while backward treats $\|V\|_{\text{row}}$ as a constant to cut memory and stabilize gradients.[^liu2024][^huggingface2026peftdora] Differentiating through the norm produces a different gradient vector, even though both produce the exact same forward output.
+
+Watch the difference on a single row $v=(3, 4)$, $m=5$, and input $x=(1, 0)$: both paths output `3.0`, yet full differentiation yields `[0.64, -0.48]` while PEFT's detached-norm backward yields `[1.0, 0.0]`:
 
 <!-- leetllm: test, deps=torch==2.13.0,transformers==5.16.1,peft==0.20.0, output=show, output_title="DoRA backward check" -->
 ```python title="dora-backward-check.py"
@@ -977,147 +598,51 @@ from peft import LoraConfig, get_peft_model
 
 base = nn.Sequential(nn.Linear(2, 1, bias=False))
 with torch.no_grad():
-    base[0].weight.copy_(torch.tensor([[3., 4.]]))
-model = get_peft_model(base, LoraConfig(
-    r=2, lora_alpha=2, target_modules=["0"], use_dora=True,
-))
+    base[0].weight.copy_(torch.tensor([[3.0, 4.0]]))
+model = get_peft_model(
+    base, LoraConfig(r=2, lora_alpha=2, target_modules=["0"], use_dora=True)
+)
 layer = model.base_model.model[0]
 with torch.no_grad():
     layer.lora_A["default"].weight.copy_(torch.eye(2))
     layer.lora_B["default"].weight.zero_()
-output = model(torch.tensor([[1., 0.]]))
-output.sum().backward()
-peft_gradient = layer.lora_B["default"].weight.grad.flatten()
 
-direction = torch.tensor([3., 4.], requires_grad=True)
-normalized_output = 5 * direction[0] / direction.norm()
-full_gradient, = torch.autograd.grad(normalized_output, direction)
-torch.testing.assert_close(output.flatten(), normalized_output.detach().view(1))
-torch.testing.assert_close(peft_gradient, torch.tensor([1., 0.]))
-torch.testing.assert_close(full_gradient, torch.tensor([.64, -.48]))
-print("same forward output:", round(output.item(), 2))
-print("full-normalization gradient:", [round(v, 2) for v in full_gradient.tolist()])
-print("PEFT detached-norm gradient:", [round(v, 2) for v in peft_gradient.tolist()])
+output = model(torch.tensor([[1.0, 0.0]]))
+output.sum().backward()
+peft_grad = layer.lora_B["default"].weight.grad.flatten()
+
+direction = torch.tensor([3.0, 4.0], requires_grad=True)
+full_grad, = torch.autograd.grad(5 * direction[0] / direction.norm(), direction)
+
+print("forward output:            ", round(output.item(), 2))
+print("full-normalization grad:   ", [round(v, 2) for v in full_grad.tolist()])
+print("PEFT detached-norm grad:   ", [round(v, 2) for v in peft_grad.tolist()])
+print("magnitude vector shape:    ", tuple(layer.lora_magnitude_vector["default"].weight.shape))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="DoRA backward check" output compact
-same forward output: 3.0
-full-normalization gradient: [0.64, -0.48]
-PEFT detached-norm gradient: [1.0, 0.0]
+forward output:             3.0
+full-normalization grad:    [0.64, -0.48]
+PEFT detached-norm grad:    [1.0, 0.0]
+magnitude vector shape:     (1,)
 ```
 <!-- leetllm: output:end -->
 
-Matching forward values can coexist with different training behavior between a handwritten DoRA implementation and PEFT. The detached denominator can change the directional matrix's norm during an update; the next forward recomputes that norm. The explicit magnitude still controls the normalized row's length.
-
-During training, $BA$ changes the directional matrix while $m$ separately controls row magnitudes. When training concludes, a supported DoRA adapter can be merged into one dense matrix, removing the adapter and normalization branches from inference:
-$$
-W_{\text{merged}} = m \odot \frac{W_0 + \frac{\alpha}{r}BA}{\|W_0 + \frac{\alpha}{r}BA\|_{\text{row}}}
-$$
-
-PEFT exposes DoRA with `use_dora=True`.[^huggingface2026peftdora] For a square layer ($d_{\text{in}} = d_{\text{out}} = d$), adding $d$ magnitude scalars adds only $d / (2rd) = 1/(2r)$ extra parameters over standard LoRA (just 3.12% extra trainable parameters at $r=16$). Before merging, training requires additional normalization steps, so evaluate both quality gains and training throughput.
-
-<!-- leetllm: test, output=show, output_title="DoRA parameter output" -->
-```python title="dora-extra-parameters.py"
-import math
-
-d_in = 6
-d_out = 4
-rank = 2
-lora_params = rank * (d_in + d_out)
-dora_magnitude_params = d_out
-
-# A rectangular weight makes a row/column mix-up visible.
-weight = [
-    [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 2.0, 0.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 3.0, 0.0, 0.0, 0.0],
-    [0.0, 0.0, 0.0, 4.0, 1.0, 1.0],
-]
-row_norms = [math.sqrt(sum(value ** 2 for value in row)) for row in weight]
-assert d_in != d_out
-assert len(row_norms) == d_out
-assert dora_magnitude_params == len(row_norms)
-assert len(weight) == d_out
-assert all(len(row) == d_in for row in weight)
-
-square_d_in = square_d_out = 4096
-square_rank = 16
-square_lora_params = square_rank * (square_d_in + square_d_out)
-square_dora_magnitude_params = square_d_out
-
-print("lora_adapter_params=", lora_params)
-print("dora_extra_magnitude_params=", dora_magnitude_params)
-print(f"dora_extra_vs_lora={dora_magnitude_params / lora_params:.2%}")
-print("example_weight_shape=", (d_out, d_in))
-print("example_magnitude_broadcast_shape=", (len(row_norms), 1))
-print("example_row_norms=", [round(value, 3) for value in row_norms])
-print("square_lora_adapter_params=", square_lora_params)
-print("square_dora_extra_magnitude_params=", square_dora_magnitude_params)
-print(f"square_dora_extra_vs_lora={square_dora_magnitude_params / square_lora_params:.2%}")
-```
-
-<!-- leetllm: output:start -->
-```text title="DoRA parameter output" output compact
-lora_adapter_params= 20
-dora_extra_magnitude_params= 4
-dora_extra_vs_lora=20.00%
-example_weight_shape= (4, 6)
-example_magnitude_broadcast_shape= (4, 1)
-example_row_norms= [1.0, 2.0, 3.0, 4.243]
-square_lora_adapter_params= 131072
-square_dora_extra_magnitude_params= 4096
-square_dora_extra_vs_lora=3.12%
-```
-<!-- leetllm: output:end -->
-
-The rectangular count makes the dimension visible: rank 2 on a four-by-six PyTorch weight has 20 LoRA parameters and four magnitude scalars. Its final row norm is $\sqrt{18}$, not 4, because the whole row contributes. The square example alone would hide a transposed-axis bug.
-
-Check that axis against the same PEFT version used above. A six-input, four-output linear layer should expose four magnitude parameters:
-
-<!-- leetllm: test, deps=torch==2.13.0,transformers==5.16.1,peft==0.20.0, output=show, output_title="PEFT DoRA axis check" -->
-```python title="peft-dora-axis.py"
-import torch
-from torch import nn
-from peft import LoraConfig, get_peft_model
-
-base = nn.Sequential(nn.Linear(6, 4, bias=False))
-model = get_peft_model(base, LoraConfig(
-    r=2, lora_alpha=2, target_modules=["0"], use_dora=True,
-))
-layer = model.base_model.model[0]
-magnitude = layer.lora_magnitude_vector["default"].weight
-assert magnitude.shape == (4,)
-torch.testing.assert_close(magnitude, layer.base_layer.weight.norm(dim=1))
-print("stored magnitude shape:", tuple(magnitude.shape))
-```
-
-<!-- leetllm: output:start -->
-```text title="PEFT DoRA axis check" output compact
-stored magnitude shape: (4,)
-```
-<!-- leetllm: output:end -->
-
-## Practice: change one constraint
-
-1. In the CPU example, replace `all-linear` with Q/V targeting. Expect 64 + 48 = 112 trainable parameters, so update the assertion to match. The base weight count stays unchanged.
-2. Set both LoRA factors to zero before the backward pass. Confirm neither learns. Restore random A and zero B, then verify A receives a gradient on the second optimization step.
-3. Re-run merge equivalence after nonzero adapter updates. Save and reload a separate adapter against a fresh copy of the exact base; compare logits with dropout disabled.
-4. For a real model, budget frozen weights, trainable state, and activation memory separately. No result above shows that a 7B or 65B GPU run fits or improves task quality.
+</details>
 
 ## What to check before moving on
 
-| Check | Evidence you should produce |
-|-------|-----------------------------|
-| Factor shapes | A and B match each selected projection, including narrower GQA key/value layers. |
-| Learning path | Initial no-op, nonzero first B gradient, later A gradient, and unchanged base weights. |
-| Export | Saved adapter and merged model checked against the exact base revision in evaluation mode. |
-| Memory | Decimal storage arithmetic separated from measured device peak allocation and reserved memory. |
-| Quality | Held-out task and regression results, with rank, scale, data, and target coverage recorded. |
+| Check | What to verify |
+|-------|----------------|
+| **Factor shapes** | $A$ and $B$ match each adapted projection, including narrower GQA key/value layers |
+| **Learning path** | Step-zero identity, nonzero step-1 $B$ gradient, step-2 $A$ gradient, and unchanged base weights |
+| **Export** | Saved adapter and merged checkpoint match within float tolerance in eval mode |
+| **Peak memory** | Measure actual GPU peak memory at target sequence length and micro-batch size |
+| **Evaluation** | Held-out SQL task accuracy and general regression checks both pass |
 
-Those checks are what `sql-lora-v1` can show: which weights moved, whether the base stayed frozen, and whether the new schema conventions survived held-out review. The run that uses them still has to stay honest under preemption and batch scaling.
-
-**Additional worked practice**
+<details>
+<summary>Additional worked practice</summary>
 
 ```checkpoint
 An update family is ΔW = θI₄. Only scalar θ is optimized, and the current θ is 0.2. Which optimization-coordinate count and matrix rank describe this update?
@@ -1126,34 +651,36 @@ One free coordinate; rank 4. One scalar controls all four nonzero diagonal entri
 ```
 
 ```checkpoint
-Use the taught large-tensor nested-scale estimate with one 8-bit code per 64 weights and one FP32 parent scale per 256 codes. For one billion weights, which approximate metadata cost follows, excluding offsets, incomplete blocks and other small records?
+Use the large-tensor nested-scale estimate with one 8-bit code per 64 weights and one FP32 parent scale per 256 codes. For one billion weights, what is the approximate scale metadata cost?
 ---
-0.127 bits per weight; 15.869 decimal MB. The estimate is 8/64 + 32/(64×256) = 0.126953125 bits per weight. Multiply by 1e9, divide by 8 and then 1e6 to get 15.869140625 MB. Omitting the parent scales gives 0.125; retaining FP32 scales gives 0.5. These are scale-metadata costs, separate from the four-bit weight payload.
+0.127 bits per weight, or 15.87 decimal MB. The formula is 8/64 + 32/(64×256) = 0.126953125 bits per weight. Multiplying by 1e9, dividing by 8, and dividing by 1e6 gives 15.87 MB (separate from the 4-bit weight payload).
 ```
 
 ```checkpoint
-A quantized adapter job still runs out of memory during an activation-heavy backward pass. The proposed repair is a paged optimizer using CUDA managed memory. Which assessment describes the mechanism and the next check?
+A quantized adapter job runs out of memory during an activation-heavy backward pass. What does a paged optimizer do, and what should you check next?
 ---
-Move optimizer-state pages between GPU and host; inspect the full peak and migration cost under the same workload. Paged optimizers manage optimizer-state residency using CUDA managed memory. They can relieve a peak but do not eliminate activations or other allocations, and migrations can cost time. This differs from pinned host buffers and engine-managed adapter/KV paging.
+It moves optimizer-state pages between GPU and host via CUDA unified memory during peaks, then pages them back for the step. It relieves optimizer pressure but does not shrink activations, so also check gradient checkpointing and micro-batch size.
 ```
 
 ```checkpoint
-DoRA adapts a PyTorch Linear weight with 3 output rows and 5 input columns at rank 2. Under row-wise magnitudes, how many total trainable LoRA-factor-plus-magnitude values are added?
+DoRA adapts a PyTorch Linear weight with 3 output rows and 5 input columns at rank 2. Under row-wise magnitudes, how many total trainable parameters (A, B, and magnitudes) are added?
 ---
-19 values: 10 in A, 6 in B and 3 magnitudes. A has 2×5 = 10 values and B has 3×2 = 6. DoRA adds one magnitude for each output row, so 16+3 = 19. Five magnitudes uses the input axis; a square example would hide that axis error.
+19 values: 10 in A (2×5), 6 in B (3×2), and 3 row magnitudes (one per output row).
 ```
 
 ```checkpoint
-An adapter was trained against a four-bit approximation of base revision R. For export, the team reloads revision R in BF16, merges and then quantizes the merged model again. Which artifact evaluation contract follows?
+An adapter was trained against a 4-bit approximation of base revision R. For export, you reload revision R in BF16, merge, and re-quantize. What should you evaluate?
 ---
-Compare merged BF16 and re-quantized exports separately; retain the source base and adapter for rollback. The training base was a quantized approximation. BF16 reload changes numerical values, and re-quantizing the merged result adds another approximation. Evaluate each deployed artifact and preserve the original components for rollback; merging does not package optimizer history.
+Evaluate both the merged BF16 checkpoint and the re-quantized export separately, and keep the standalone adapter and clean base so you can revert if quantization shifts behavior.
 ```
 
 ```checkpoint
-Assume a 9 GB base artifact, twelve 80 MB adapter artifacts and decimal units. Compare twelve merged 9 GB artifacts with the shared-base artifact set. Which storage calculation and scope are correct?
+Assume a 9 GB base model and twelve 80 MB adapters (decimal units). Compare storage for twelve merged checkpoints versus one shared base with twelve adapters.
 ---
-Merged 108 GB; shared 9.96 GB; calculate device residency from the separate runtime inventory. Merged artifacts total 12×9 = 108 GB. Sharing totals 9+12×80/1000 = 9.96 GB. These are artifact bytes; GPU residency additionally depends on runtime state, KV caches, tensor dtypes and engine support. Treating MB as a tenth of a GB gives the wrong shared total.
+Merged checkpoints take 12 × 9 = 108 GB. A shared base plus twelve adapters takes 9 + 12 × 80 / 1000 = 9.96 GB.
 ```
+
+</details>
 
 ```mastery-quiz
 [
@@ -1202,7 +729,7 @@ Merged 108 GB; shared 9.96 GB; calculate device residency from the separate runt
     "explanation": "Each adapter has three parameters per input and three per output. Q and O each add 3 × (12 + 12) = 72. K and V each add 3 × (12 + 4) = 48. Q and V together add 120. Adding K and O brings the total to 240. The counts 144 and 288 treat K and V as 12×12. The counts 120 and 168 use the given widths but leave O out of the second total. The counts 144 and 216 make both mistakes."
   },
   {
-    "question": "A model uses untied input embeddings and output weights. New tokenizer IDs are added, but only attention projections are wrapped with trainable LoRA factors. The new IDs have no useful learned input or output rows. Which repair follows the lexical training contract?",
+    "question": "A model uses untied input embeddings and output weights. New tokenizer IDs are added, but only attention projections are wrapped with trainable LoRA factors. The new IDs have no useful learned input or output rows. What fixes both layers?",
     "options": [
       "Resize before wrapping; train the input rows and keep output rows frozen, then verify both after reload.",
       "Resize before wrapping; train the affected input and output rows, then verify both after reload.",
@@ -1303,7 +830,7 @@ That is a huge saving, but it still does not fit on your 48 GB device. Getting t
   <figcaption>Compare each bar with the device line. The lower bars count only the frozen base, so the 14.5 GB left over in the zoomed strip must still hold adapters, activations, and everything else a live job needs.</figcaption>
 </figure>
 
-There is a trap in that bar chart: it leaves out activations, and they do not go away. Backward still has to propagate through the frozen operations to reach adapters in earlier layers, so the base network runs in full and its intermediates get saved. Many of them grow with sequence length, batch size, and depth. Run your examples at 2,048 tokens each, and activations can outweigh the adapter state, or even the base weights. So a tiny adapter file tells you nothing about peak training memory. Measure the peak at your real sequence length and batch size, and when you hit a limit, try gradient checkpointing, also called activation recomputation, which keeps fewer activations on the forward pass and recomputes the rest during backward. As of TRL 1.17 it is already on by default.[^huggingfaceTrlPacking2026] Try a smaller micro-batch too, before you start shrinking rank.
+There is a trap in that bar chart: it leaves out activations, and they do not go away. Backward still has to propagate through the frozen operations to reach adapters in earlier layers, so the base network runs in full and its intermediates get saved. Many of them grow with sequence length, batch size, and depth. Run your examples at 2,048 tokens each, and activations can outweigh the adapter state, or even the base weights. Measure peak memory at your real sequence length and batch size, and when you hit a limit, turn on gradient checkpointing (activation recomputation), which keeps fewer activations on the forward pass and recomputes them during backward, and is enabled by default in trainers like TRL.[^huggingfaceTrlPacking2026] Try a smaller micro-batch too, before you start shrinking rank.
 
 ## Factor the change to one layer
 
@@ -1345,7 +872,6 @@ nf4_scales = parameters * (8 / 64 + 32 / (64 * 256)) / 8 / 1e9
 print(f"full state {full_state:.0f} GB; "
       f"frozen base {frozen_base:.0f} GB")
 print(f"NF4 payload {nf4_payload:.1f} GB; scales {nf4_scales:.2f} GB")
-assert adapter_parameters(4096, 4096, 16) == 131072
 ```
 
 <!-- leetllm: output:start -->
@@ -1369,49 +895,43 @@ $$
 \nabla_A\mathcal L=s\,B^Tg x^T.
 $$
 
-With $B$ at zero, $A$'s loss gradient is zero, but $B$'s can be nonzero when the scale, incoming gradient, and measured $Ax$ are nonzero. Once $B$ moves, $A$ can receive loss gradients on later steps. A nonzero $B$ alone doesn't guarantee that: inspect $B^Tg$, the input, and batch cancellation. Set both factors to zero and both loss gradients vanish, so ordinary gradient learning cannot leave that point. The asymmetry gives a harmless start with a possible path out of it.
+With $B$ at zero, $A$'s gradient is zero on step 1, while $B$ updates immediately whenever $g$ and $Ax$ are nonzero. Once $B$ moves off zero, $A$ receives gradients from step 2 onward. If both factors start at zero, both gradients vanish and training is stuck. The asymmetry gives a harmless start with a clean path out of it.
 
-Watch it happen in a tiny layer. The base is the identity, the input is $(1,0)$, the target is $(0,1)$, and the loss is half the squared output error. We use the standard library, set $s=1$ to keep the numbers small, and compute every gradient from the equations above, so nothing is hidden in a framework.
+Watch it happen in a tiny NumPy layer. The base is the identity, the input is $(1,0)$, the target is $(0,1)$, and we compute every gradient directly from the equations above:
 
-<!-- leetllm: test, id=reader-lora-learning-and-merge, output=show, output_title="Reader LoRA learning and merge" -->
+<!-- leetllm: test, id=reader-lora-learning-and-merge, deps=numpy, output=show, output_title="Reader LoRA learning and merge" -->
 ```python title="reader-lora-learning-and-merge.py"
-base = [[1.0, 0.0], [0.0, 1.0]]
-A, B = [1.0, -1.0], [0.0, 0.0]
-x, target = [1.0, 0.0], [0.0, 1.0]
+import numpy as np
+
+W0 = np.eye(2)
+A = np.array([[1.0, -1.0]])
+B = np.zeros((2, 1))
+x = np.array([1.0, 0.0])
+target = np.array([0.0, 1.0])
 
 def forward():
-    compressed = sum(a * value for a, value in zip(A, x))
-    frozen = [sum(w * value for w, value in zip(row, x))
-              for row in base]
-    return [f + b * compressed for f, b in zip(frozen, B)]
+    return W0 @ x + (B @ (A @ x))
 
-assert forward() == [1.0, 0.0]
-for step in range(2):
-    compressed = sum(a * value for a, value in zip(A, x))
-    error = [out - wanted for out, wanted in zip(forward(), target)]
-    grad_B = [g * compressed for g in error]
-    back_to_rank = sum(b * g for b, g in zip(B, error))
-    grad_A = [back_to_rank * value for value in x]
-    shown = [round(g, 3) for g in grad_A]
-    print(f"step {step + 1} A gradient:", shown)
-    A = [a - 0.1 * g for a, g in zip(A, grad_A)]
-    B = [b - 0.1 * g for b, g in zip(B, grad_B)]
+print("step 0 output (matches base):", forward().tolist())
+for step in (1, 2):
+    ax = A @ x
+    err = forward() - target
+    grad_B = np.outer(err, ax)
+    grad_A = np.outer(B.T @ err, x)
+    print(f"step {step}: grad_A={grad_A.round(3).tolist()[0]}, grad_B={grad_B.round(3).flatten().tolist()}")
+    A = A - 0.1 * grad_A
+    B = B - 0.1 * grad_B
 
-merged = [[w + b * a for w, a in zip(row, A)]
-          for row, b in zip(base, B)]
-merged_output = [sum(w * value for w, value in zip(row, x))
-                 for row in merged]
-pairs = zip(merged_output, forward())
-assert all(abs(a - b) < 1e-12 for a, b in pairs)
-assert base == [[1.0, 0.0], [0.0, 1.0]]
-print("base unchanged; merged output matches")
+W_merged = W0 + B @ A
+print("merged matches unmerged:", np.allclose(W_merged @ x, forward()))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Reader LoRA learning and merge" output compact
-step 1 A gradient: [0.0, 0.0]
-step 2 A gradient: [-0.18, -0.0]
-base unchanged; merged output matches
+step 0 output (matches base): [1.0, 0.0]
+step 1: grad_A=[0.0, 0.0], grad_B=[1.0, -1.0]
+step 2: grad_A=[-0.18, -0.0], grad_B=[0.9, -0.9]
+merged matches unmerged: True
 ```
 <!-- leetllm: output:end -->
 
@@ -1445,9 +965,9 @@ Now back to the 130 GB that still will not fit. QLoRA stores the frozen base's s
 
 **Paged optimizers.** CUDA managed memory lets optimizer-state pages migrate to the host under memory pressure. That can make room during an activation peak. It will not cure every out-of-memory error, and page migration can slow a step.[^bitsandbytes2026pagedOptimizers]
 
-Together, these fine-tuned a 65-billion-parameter model on one 48 GB GPU in the paper, and preserved 16-bit performance on the tasks it evaluated. The 33.5 GB is a floor. Unquantized tensors, adapter state, activations, temporary dequantization, and runtime buffers all come on top. As of bitsandbytes 0.50.2, the backward path, for one, materializes a dequantized weight matrix to compute input gradients, so don't assume dequantization costs no device memory.[^bitsandbytes2026fourBitAutograd]
+Together, these fine-tuned a 65-billion-parameter model on one 48 GB GPU in the paper while preserving 16-bit quality. The 33.5 GB figure is the base floor: unquantized tensors, adapter state, activations, and temporary dequantization buffers all sit on top. In bitsandbytes, the backward pass materializes a dequantized weight matrix to compute input gradients, so leave device-memory headroom for those buffers.[^bitsandbytes2026fourBitAutograd]
 
-Keep four choices explicit in your run record: packed base storage, base compute dtype, adapter storage, and optimizer state. They can all differ, and as of PEFT 0.21, PEFT promotes BF16 adapter factors to FP32 by default even when the base computes in BF16.[^huggingface2026peftTroubleshooting] TRL 1.17.1's `SFTTrainer` casts trainable LoRA factors back to BF16 in its quantized-model path, excluding the DoRA magnitude vector. Inspect the actual tensors after trainer construction.[^trl2026SftV117] Compare a quantized candidate against an affordable higher-precision baseline, so a memory win cannot hide a behavior loss. If you later reload the base in BF16 to merge and export, re-evaluate that artifact too, because the adapter was trained against a quantized approximation of those weights.
+Keep four precision choices clear in your training config: packed 4-bit base storage, base compute dtype, adapter parameter storage, and optimizer state. PEFT promotes BF16 adapter factors to FP32 by default even when the base computes in BF16, whereas higher-level trainers like TRL's `SFTTrainer` can cast trainable LoRA factors back to BF16 in quantized runs (leaving DoRA's magnitude vector in FP32).[^huggingface2026peftTroubleshooting][^trl2026SftV117] Inspect the actual parameter dtypes after constructing your trainer. Compare a quantized candidate against an affordable higher-precision baseline so a memory win does not hide a quality loss, and re-evaluate if you later reload the BF16 base to merge and export.
 
 ## Buy capacity only when the failure asks for it
 

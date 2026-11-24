@@ -38,13 +38,13 @@
 }
 ---
 
-Frontier AI labs rarely rely solely on abstract array puzzles for systems roles. Instead, interviewers hand you a compact 45-to-60-minute Python problem modeled directly on the engine room of LLM training and serving: managing paged KV-cache memory across forked beams, computing masked grouped-query attention in NumPy without numerical `NaN` propagation, truncating logit distributions with top-k and nucleus masks, or scheduling dynamic microbatches under strict token and memory budgets. Requirements arrive incrementally in three or four rounds so the interviewer can see whether your initial state model extends cleanly without throwing away correctness guarantees.
+Two forked beams share a physical KV-cache page, and one appends a new token. If your allocator mutates that page in place, the sibling beam silently reads corrupted history. Forty minutes into a frontier-lab coding round, bugs like that are the entire interview. Instead of abstract array puzzles, systems interviewers hand you a compact Python problem modeled directly on LLM training and serving: a paged KV-cache allocator, batched grouped-query attention in NumPy without `NaN` propagation, top-k and nucleus token sampling, or a continuous batching scheduler with retries and async streaming.
 
-The deciding factor between a hire and a pass is rarely raw typing speed. Candidates stand out when they build from clear data invariants: separating physical page ownership from logical token positions, stabilizing exponentials before normalizing, isolating side effects behind injectable clocks and seeded generators, and writing small unit tests that directly exercise race conditions or off-by-one masks as soon as a function works.
+Requirements arrive incrementally in three or four rounds so the interviewer can see whether your state model extends cleanly without breaking correctness. Raw typing speed rarely decides the round. Strong candidates build from explicit data invariants: separating physical page ownership from logical token positions, stabilizing exponentials before normalizing, isolating side effects behind injectable clocks and seeded generators, and running small targeted checks on race conditions or off-by-one masks as soon as a function works.
 
 ## How Lab Coding Rounds Unfold
 
-Most ML systems coding interviews begin with a minimal working slice that fits in 30 lines of Python, followed by progressive extensions that stress shared state, vectorization, or concurrency. Jumping immediately into over-engineered abstractions wastes ten minutes before you know where requirement two will push the API, whereas dumping raw dictionaries everywhere collapses the moment beam sharing or concurrency enters in round three.
+Most ML systems coding interviews start with a minimal working slice that fits in 30 lines of Python, then layer on extensions that stress shared state, vectorization, or concurrency. Jumping immediately into over-engineered abstractions wastes ten minutes before you know where round two will push the API, while dumping raw dictionaries everywhere collapses the moment beam sharing or worker threads enter in round three.
 
 ```mermaid
 flowchart LR
@@ -58,25 +58,25 @@ flowchart LR
     classDef warning fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
 ```
 
-To stay ahead of incremental prompts, anchor each round around one explicit invariant and test it locally before moving on. Write down what each data structure owns, trace how a second requirement could mutate that ownership, and verify boundary inputs right after implementing a helper. The table below summarizes the four archetypes interviewers rotate through most often and the subtle failure mode each prompt is designed to trigger.
+Anchor each round around one explicit invariant and verify it locally before moving on. Write down what each object owns, trace how the next requirement mutates that ownership, and test boundary inputs right after implementing a helper. The table below maps the four archetypes interviewers rotate through most often and the specific failure mode each prompt is built to trigger.
 
 | Archetype | Typical Prompt Evolution | Primary Data Invariant | Classic Trap Under Pressure |
 | --- | --- | --- | --- |
 | Paged KV Allocator | Single append -> beam fork -> multi-thread decode | `len(seq.blocks) * block_size` capacity matches `token_count` and refcounts equal total references | Mutating a shared block in place instead of performing copy-on-write on `ref_count > 1` |
 | Attention Kernel | Vanilla QKV -> causal mask -> padding mask + GQA | Masked positions contribute zero weight before value weighted sum | Softmax across an all-`-inf` query padding row produces `0 / 0 = NaN` |
 | Token Sampler | Greedy / temperature -> top-k -> top-p -> batched RNG | Cumulative mass stays at least `top_p` after truncation | Filtering strictly on `cumsum <= top_p` drops the boundary token and creates an empty mask |
-| Batch Scheduler | FIFO queue -> token budget -> backoff + async stream | Running prefill chunks plus active decode steps never exceed step token cap | Allowing `time.sleep` or live `time.monotonic()` directly inside scheduler assertions |
+| Batch Scheduler | FIFO queue -> token budget -> backoff + async stream | Running prefill chunks plus active decode steps never exceed step token cap | Calling `time.sleep` or live `time.monotonic()` directly inside scheduler logic |
 
 ## Paged KV-Cache Allocator with Copy-on-Write
 
-Serving engines such as vLLM eliminate contiguous allocation waste by splitting each sequence's KV cache into fixed-size physical blocks mapped through per-sequence logical block tables [^kwon2023]. When two prompts share a system prefix or one sequence branches into parallel beam-search candidates, both sequences point to the same physical prefix blocks with a reference count greater than one. Appending a new token to a trailing block whose `ref_count > 1` must never overwrite the shared storage in place: the allocator pops a fresh physical page from the free list, copies the existing tokens into the private page, decrements the old block's reference count, and updates the sequence's block table.
+Serving engines such as vLLM eliminate contiguous allocation waste by splitting each sequence's KV cache into fixed-size physical blocks mapped through per-sequence logical block tables.[^kwon2023] When two prompts share a system prefix or one sequence branches into parallel beam-search candidates, both sequences point to the same physical prefix blocks with a reference count greater than one. Appending a new token to a trailing block whose `ref_count > 1` must never overwrite the shared storage in place: the allocator pops a fresh physical page from the free list, copies the existing tokens into the private page, decrements the old block's reference count, and updates the sequence's block table.
 
 <figure>
 <img src="illustrations/_generated/paged_kv_allocator_dark.png" alt="Paged KV-cache Copy-on-Write block allocation diagram. Sequence A and forked Sequence B share immutable prefix block B0 (ref=2), while both sequences call the locked free pool to allocate private blocks B2 and B3 cleanly." />
 <figcaption>Paged KV-cache ownership under beam forking. Shared prefix block B0 remains read-only while `ref_count == 2`; appending divergent tokens acquires private blocks B2 and B3 from the thread-safe free pool.</figcaption>
 </figure>
 
-Two details determine whether a Python implementation survives concurrent worker threads. First, block tables should hold integer block identifiers pointing into a central block pool rather than duplicating byte buffers inside each sequence object. Second, mutating `free_blocks` and reference counts must execute inside a single `threading.Lock` so concurrent decode steps or beam forks cannot pop the same physical block twice or decrement a counter below zero. Testing concurrency reliably in an interview requires two threads synchronized on a `threading.Barrier` so both threads race into `append_token` and `fork_sequence` at the exact same instant.
+Two details determine whether a Python implementation survives concurrent worker threads. First, block tables hold integer block identifiers pointing into a central pool rather than duplicating token buffers inside each sequence object. Second, mutating `_free` and reference counts happens inside a single `threading.Lock` so concurrent decode steps or beam forks cannot pop the same physical block twice or decrement a counter below zero. Synchronizing two test threads on a `threading.Barrier` forces both workers to race into `append_token` at the exact same instant so you can watch copy-on-write isolate their trailing blocks cleanly:
 
 <!-- leetllm: test, output=show -->
 ```python title="kv_cache_allocator.py"
@@ -194,12 +194,9 @@ class PagedKVCacheAllocator:
 alloc = PagedKVCacheAllocator(num_blocks=12, block_size=4)
 alloc.create_sequence("beam_a", [101, 102, 103, 104, 105])
 alloc.fork_sequence("beam_a", "beam_b")
+print("after fork (used, free):", alloc.stats())
 
-# Both shared blocks initially have ref_count=2 (used=2, free=10).
-used_before, free_before = alloc.stats()
-assert (used_before, free_before) == (2, 10)
-
-# Concurrent token appends force copy-on-write on the partial trailing block.
+# Two threads race to append divergent tokens onto the shared trailing block.
 barrier = threading.Barrier(2)
 
 
@@ -215,42 +212,42 @@ t2.start()
 t1.join()
 t2.join()
 
-assert alloc.read_tokens("beam_a") == [101, 102, 103, 104, 105, 201]
-assert alloc.read_tokens("beam_b") == [101, 102, 103, 104, 105, 301]
-# The first concurrent writer triggers CoW (new block, old ref_count -> 1);
-# the second writer now holds ref_count == 1 on the trailing block and reuses it.
-used_after, free_after = alloc.stats()
-assert used_after == 3 and free_after == 9
+print("beam_a tokens:", alloc.read_tokens("beam_a"))
+print("beam_b tokens:", alloc.read_tokens("beam_b"))
+print("after concurrent CoW append (used, free):", alloc.stats())
 
 alloc.free_sequence("beam_a")
-assert alloc.read_tokens("beam_b") == [101, 102, 103, 104, 105, 301]
+print("beam_b after freeing beam_a:", alloc.read_tokens("beam_b"), "stats:", alloc.stats())
 alloc.free_sequence("beam_b")
-assert alloc.stats() == (0, 12)
-print(
-    f"CoW allocator verified: before={(used_before, free_before)}, "
-    f"after_fork_append={(used_after, free_after)}, post_free={alloc.stats()}"
-)
+print("after freeing both (used, free):", alloc.stats())
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-CoW allocator verified: before=(2, 10), after_fork_append=(3, 9), post_free=(0, 12)
+after fork (used, free): (2, 10)
+beam_a tokens: [101, 102, 103, 104, 105, 201]
+beam_b tokens: [101, 102, 103, 104, 105, 301]
+after concurrent CoW append (used, free): (3, 9)
+beam_b after freeing beam_a: [101, 102, 103, 104, 105, 301] stats: (2, 10)
+after freeing both (used, free): (0, 12)
 ```
 <!-- leetllm: output:end -->
 
-Notice the rollback loop inside `create_sequence` as well: if a 64-block prefill exhausts free pages on block 50, catching `MemoryError` and releasing blocks `0..49` prevents leaked physical blocks from stranding the allocator permanently. Mentioning exception-safe rollback proactively during an interview shows production instincts immediately. Holding `self._lock` strictly around fast metadata updates rather than GPU tensor copies also prevents unrelated sequences from stalling on memory movement.
+Trace why `used` moves from `2` to `3` rather than `4` after both concurrent appends: the first thread to enter the lock sees `ref_count == 2` on the partial trailing block, copies it into a fresh page, and drops the original block's `ref_count` to `1`. When the second thread acquires the lock, that original trailing block now belongs exclusively to it (`ref_count == 1`), so it appends in place without wasting an extra page.
+
+> **Key insight:** Look at the cleanup loop inside `create_sequence`. If a 64-block prefill exhausts free pages on block 50, catching `MemoryError` and releasing blocks `0..49` prevents leaked physical blocks from stranding the allocator permanently. Keeping `self._lock` strictly around fast metadata updates rather than GPU tensor copies also prevents unrelated sequences from stalling on memory movement.
 
 ## Batched Grouped-Query Attention in NumPy
 
-When interviewers ask for scaled dot-product attention from scratch in NumPy without PyTorch autograd helpers, they are testing tensor broadcasting, scaling, numerical stability, and mask edge cases [^vaswani2017]. Modern LLMs also replace full multi-head keys and values with Grouped-Query Attention (GQA), where $H_q$ query heads share $H_{kv}$ key/value heads with group ratio $g = H_q / H_{kv}$.
+When interviewers ask for scaled dot-product attention from scratch in NumPy without PyTorch autograd helpers, they are testing tensor broadcasting, scaling, numerical stability, and mask edge cases.[^vaswani2017] Modern LLMs also replace full multi-head keys and values with Grouped-Query Attention (GQA), where $H_q$ query heads share $H_{kv}$ key/value heads with group ratio $g = H_q / H_{kv}$.
 
-For queries $Q \in \mathbb{R}^{B \times H_q \times S_q \times D}$, keys $K \in \mathbb{R}^{B \times H_{kv} \times S_k \times D}$, and values $V \in \mathbb{R}^{B \times H_{kv} \times S_k \times D}$, repeating each KV head $g$ times aligns every head axis before scaling and normalization. In real serving kernels, that repetition happens logically via head indexing rather than copying key/value buffers in HBM, while NumPy tests validate the exact tensor algebra first. Computing the scaled similarity scores then passes cleanly into masked row softmax:
+For queries $Q \in \mathbb{R}^{B \times H_q \times S_q \times D}$, keys $K \in \mathbb{R}^{B \times H_{kv} \times S_k \times D}$, and values $V \in \mathbb{R}^{B \times H_{kv} \times S_k \times D}$, repeating each KV head $g$ times aligns every head axis before scaling and normalization. In production serving kernels, that repetition happens logically via head indexing rather than copying key/value buffers in HBM, while NumPy tests verify the exact tensor algebra first. Computing the scaled similarity scores then passes into masked row softmax:
 
 $$
 \text{Attention}(Q, K, V, M) = \text{softmax}\!\left(\frac{Q K^\top}{\sqrt{D}} + M\right) V
 $$
 
-Two edge cases trip candidates up every week. First, subtracting the per-row maximum before calling `np.exp` keeps logits below zero so large positive inner products never overflow to `inf`. Second, when combined causal and right/left padding masks block every key for a padded query row, the additive mask leaves an entire row at $-\infty$. Subtracting `max = -inf` yields `-inf - (-inf) = NaN` inside `np.exp`. A clean NumPy kernel explicitly flags rows where no keys are valid, skips normalizing those rows (`0.0` probability everywhere), and returns clean zero vectors instead of corrupting downstream batch reductions. Production fused kernels such as FlashAttention follow this same safe-softmax convention while tiling keys and queries in GPU SRAM [^dao2022].
+Two edge cases trip candidates up every week. First, subtracting the per-row maximum before calling `np.exp` keeps logits at or below zero so large positive inner products never overflow to `inf`. Second, when combined causal and padding masks block every key for a padded query row, the additive mask leaves an entire row at $-\infty$. Subtracting `max = -inf` yields `-inf - (-inf) = NaN` inside `np.exp`. A clean NumPy kernel explicitly flags rows where no keys are valid, skips normalizing those rows (`0.0` probability everywhere), and returns clean zero vectors instead of corrupting downstream batch reductions. Production fused kernels such as FlashAttention follow this same safe-softmax convention while tiling keys and queries in GPU SRAM.[^dao2022]
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="batched_causal_attention.py"
@@ -302,41 +299,43 @@ rng = np.random.default_rng(7)
 q = rng.normal(size=(2, 4, 3, 8))
 k = rng.normal(size=(2, 2, 4, 8))
 v = rng.normal(size=(2, 2, 4, 8))
+
 # Batch 0 attends to all 4 tokens; Batch 1 has only the first 2 tokens valid.
 pad_mask = np.array([[True, True, True, True], [True, True, False, False]])
-
 out, probs = grouped_query_attention(q, k, v, key_padding_mask=pad_mask, causal=True)
-assert out.shape == (2, 4, 3, 8)
-assert np.allclose(probs[:, :, :, :].sum(axis=-1), 1.0)
-assert np.allclose(probs[1, :, :, 2:], 0.0)
+print(
+    f"GQA out={out.shape}, row_sum_range=({probs.sum(axis=-1).min():.3f}, "
+    f"{probs.sum(axis=-1).max():.3f}), batch1_pad_prob_max={probs[1, :, :, 2:].max():.1e}"
+)
 
-# Verify completely masked rows return zeros without NaN propagation.
+# Fully masked batch item must emit clean zeros instead of NaN.
 empty_mask = np.array([[True, True, True, True], [False, False, False, False]])
 out_safe, probs_safe = grouped_query_attention(q, k, v, key_padding_mask=empty_mask, causal=True)
-assert not np.isnan(out_safe).any()
-assert np.allclose(out_safe[1], 0.0)
-assert np.allclose(probs_safe[1], 0.0)
-print(f"GQA shape={out.shape}, batch1_pad_probs_max={probs[1, :, :, 2:].max():.1e}, nan_count=0")
+print(
+    f"all-masked batch1: nan_count={int(np.isnan(out_safe).sum())}, "
+    f"max_abs_out={np.abs(out_safe[1]).max():.1e}, max_prob={probs_safe[1].max():.1e}"
+)
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-GQA shape=(2, 4, 3, 8), batch1_pad_probs_max=0.0e+00, nan_count=0
+GQA out=(2, 4, 3, 8), row_sum_range=(1.000, 1.000), batch1_pad_prob_max=0.0e+00
+all-masked batch1: nan_count=0, max_abs_out=0.0e+00, max_prob=0.0e+00
 ```
 <!-- leetllm: output:end -->
 
-Notice the `offset = s_k - s_q` detail inside the causal mask too. During cached autoregressive decoding, `s_k` holds the entire prefix length while `s_q = 1` holds only the newest query token; indexing relative to `s_k - s_q` prevents the decoder from masking out all cached history except position zero. During chunked prefill, that same expression generalizes seamlessly to `s_q > 1` chunks appended after an existing prefix cache.
+> **Common mistake:** Forgetting the `offset = s_k - s_q` shift in the causal mask. During cached autoregressive decoding, `s_k` holds the entire prefix length while `s_q = 1` holds only the newest query token; indexing relative to `s_k - s_q` lets that query attend across all cached history instead of masking everything past position zero. During chunked prefill, the same expression generalizes seamlessly to `s_q > 1` chunks appended after an existing prefix cache.
 
 ## Top-k and Top-p Nucleus Token Sampling
 
-Autoregressive decoding transforms raw vocabulary logits into a discrete token choice at every generation step. Temperature $T > 0$ rescales logits before softmax, top-$k$ truncates the distribution to the $k$ highest-scoring candidates [^fan2018], and top-$p$ (nucleus) sampling keeps the smallest sorted set whose cumulative probability reaches $p \in (0, 1]$ [^holtzman2020].
+Autoregressive decoding turns raw vocabulary logits into a discrete token choice at every generation step. Temperature $T > 0$ rescales logits before softmax, top-$k$ truncates the distribution to the $k$ highest-scoring candidates,[^fan2018] and top-$p$ (nucleus) sampling keeps the smallest sorted set whose cumulative probability reaches $p \in (0, 1]$.[^holtzman2020]
 
 <figure>
 <img src="illustrations/_generated/sampling_truncation_dark.png" alt="Dual horizontal bar charts showing raw sorted token probabilities with cumulative totals (#1 42%, #2 28% at 0.70, #3 16% at 0.86, #4 8% at 0.94, #5 6% at 1.00) on top, and the post-top-p=0.85 normalized nucleus keeping #1-#3 (48.8%, 32.6%, 18.6%) while zeroing #4 and #5 below." />
 <figcaption>Top-p (nucleus) filtering for p = 0.85. Shifting the cumulative probability array right by one slot preserves token #3 (which lifts cumulative mass from 0.70 across 0.85 to 0.86) and renormalizes the surviving nucleus cleanly.</figcaption>
 </figure>
 
-The single most common interview bug happens right at the cumulative threshold. Suppose five sorted token probabilities are `[0.42, 0.28, 0.16, 0.08, 0.06]` and `top_p = 0.85`. Cumulative sums are `[0.42, 0.70, 0.86, 0.94, 1.00]`. Checking `cumsum <= 0.85` drops token `#3`, leaving only `0.70` total mass! Even worse, if the top token alone has probability `0.92`, naive filtering drops every token and causes division by zero. The fix is to filter on the **exclusive prefix sum** `(cumsum - sorted_probs) > top_p`: any token whose predecessors already reached or exceeded `top_p` gets discarded, whereas the first token that pushes cumulative mass across `top_p` stays in the nucleus.
+The single most common interview bug happens right at the cumulative threshold. Suppose five sorted token probabilities are `[0.42, 0.28, 0.16, 0.08, 0.06]` and `top_p = 0.85`. Cumulative sums are `[0.42, 0.70, 0.86, 0.94, 1.00]`. Checking `cumsum <= 0.85` drops token `#3`, leaving only `0.70` total mass. Worse, if the top token alone has probability `0.92`, naive filtering drops every token and triggers division by zero. The fix is to filter on the **exclusive prefix sum** `(cumsum - sorted_probs) >= top_p`: any token whose predecessors already reached or exceeded `top_p` gets discarded, while the first token that pushes cumulative mass across `top_p` stays in the nucleus.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="nucleus_sampling.py"
@@ -375,7 +374,7 @@ def filter_and_renormalize(
         order = np.argsort(-probs, axis=-1, kind="stable")
         sorted_probs = np.take_along_axis(probs, order, axis=-1)
         cum_probs = np.cumsum(sorted_probs, axis=-1)
-        # Shifted exclusive prefix keeps the boundary token pushing mass past top_p.
+        # Exclusive prefix keeps the boundary token pushing mass past top_p.
         drop_sorted = (cum_probs - sorted_probs) >= top_p
         sorted_probs = np.where(drop_sorted, 0.0, sorted_probs)
         sorted_probs = sorted_probs / np.sum(sorted_probs, axis=-1, keepdims=True)
@@ -403,35 +402,38 @@ def sample_tokens(
 raw_probs = np.array([[0.42, 0.28, 0.16, 0.08, 0.06], [0.92, 0.05, 0.02, 0.01, 0.00]])
 logits = np.log(np.maximum(raw_probs, 1e-12))
 kept = filter_and_renormalize(logits, temperature=1.0, top_p=0.85)
-assert np.allclose(kept[0, :3], [0.42 / 0.86, 0.28 / 0.86, 0.16 / 0.86], atol=1e-4)
-assert np.allclose(kept[0, 3:], 0.0)
-assert np.allclose(kept[1, 0], 1.0) and np.allclose(kept[1, 1:], 0.0)
 
 rng = np.random.default_rng(42)
 draws = np.array([sample_tokens(logits, rng, top_p=0.85) for _ in range(1000)])
 counts_row0 = np.bincount(draws[:, 0], minlength=5)
-assert counts_row0[3] == 0 and counts_row0[4] == 0
-print(f"Row 0 kept probs={np.round(kept[0], 4).tolist()}, empirical_counts={counts_row0.tolist()}")
+
+print("row 0 nucleus probs:", np.round(kept[0], 4).tolist())
+print("row 1 dominant-token probs:", np.round(kept[1], 4).tolist())
+print("row 0 draws (1000 seeded samples):", counts_row0.tolist())
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-Row 0 kept probs=[0.4884, 0.3256, 0.186, 0.0, 0.0], empirical_counts=[497, 307, 196, 0, 0]
+row 0 nucleus probs: [0.4884, 0.3256, 0.186, 0.0, 0.0]
+row 1 dominant-token probs: [1.0, 0.0, 0.0, 0.0, 0.0]
+row 0 draws (1000 seeded samples): [497, 307, 196, 0, 0]
 ```
 <!-- leetllm: output:end -->
 
-Separating `filter_and_renormalize` from `sample_tokens` turns probabilistic sampling into two straightforward test layers: exact floating-point assertions on the renormalized nucleus weights, plus a seeded `np.random.default_rng` draw loop proving zero samples land in the truncated tail (`counts_row0[3] == 0`). Note also `top_k` filtering uses `np.partition` ($O(V)$ average work instead of full $O(V \log V)$ sorting) whenever top-p is disabled. For 128k-token vocabularies across a batch of 64 sequences, avoiding redundant full sorts cuts CPU/GPU sampling overhead measurably.
+Separating `filter_and_renormalize` from `sample_tokens` turns probabilistic sampling into two straightforward test layers: deterministic checks on the renormalized nucleus weights (notice row 1 stays `[1.0, 0.0, 0.0, 0.0, 0.0]` even though its top token already exceeds `0.85`), plus a seeded `np.random.default_rng` draw loop confirming zero samples land in the truncated tail (`counts_row0[3:] == [0, 0]`).
+
+> **Key insight:** `top_k` filtering uses `np.partition` ($O(V)$ average work instead of full $O(V \log V)$ sorting) whenever `top_p == 1.0`. Across a 128k-token vocabulary and a batch of 64 sequences, skipping redundant full sorts cuts sampling overhead noticeably.
 
 ## Continuous Batching, Retries, and Python Concurrency
 
-The fourth core coding archetype pairs a stateful loop scheduler with realistic time progression, retries, or Python async dispatch. In Orca-style continuous batching, each forward step combines decode steps (1 token per active sequence) with chunked prefill slices from waiting requests up to a fixed step token cap, freeing slots the moment an end-of-sequence token or length cap hits [^yu2022]. Whenever you test timeouts, TTL expiration, or exponential backoff with jitter (`awsbackoff`), inject `clock` and `rng` dependencies rather than calling `time.sleep` or live clocks directly [^awsbackoff].
+The fourth core coding archetype pairs a stateful loop scheduler with realistic time progression, retries, or Python async dispatch. In Orca-style continuous batching, each forward step combines decode steps (1 token per active sequence) with chunked prefill slices from waiting requests up to a fixed step token cap, freeing slots the moment an end-of-sequence token or length cap hits.[^yu2022] Whenever you test timeouts, TTL expiration, or exponential backoff with jitter, inject `clock` and `rng` dependencies rather than calling `time.sleep` or live clocks directly.[^awsbackoff]
 
-Choosing the right concurrency primitive matters just as much as the scheduling logic itself. Under classic GIL-enabled CPython, CPU-heavy preprocessing does not scale across threads; candidates move pure-Python tokenizers or multi-process workers onto `ProcessPoolExecutor` while keeping network streaming, bounded backpressure queues, and upstream LLM HTTP dispatches inside `asyncio` tasks [^python2026asyncioTasks][^python314Executors2026]. Crossing process boundaries also requires top-level picklable callables rather than inline lambdas or nested closures [^pythonPickle2026], and closing async clients or locks cleanly inside `contextlib` exit stacks avoids leaked file descriptors [^pythonContextlib2026]. Meanwhile, experimental free-threaded Python 3.14 builds let pure-Python threads run across CPU cores without the GIL, turning explicit locking over shared block pools from good hygiene into a hard correctness requirement [^python_free_threading2026].
+Choosing the right concurrency primitive matters just as much as the scheduling logic itself. Under classic GIL-enabled CPython, CPU-heavy preprocessing does not scale across threads; move pure-Python tokenizers or multi-process parsers onto `ProcessPoolExecutor` while keeping network streaming, bounded backpressure queues, and upstream LLM HTTP dispatches inside `asyncio` tasks.[^python2026asyncioTasks][^python314Executors2026] Crossing process boundaries requires top-level picklable callables rather than inline lambdas or nested closures,[^pythonPickle2026] and closing async clients or locks cleanly inside `contextlib` exit stacks avoids leaked file descriptors.[^pythonContextlib2026] Free-threaded CPython builds let pure-Python threads run across CPU cores without the GIL, turning explicit locking over shared block pools from good hygiene into a hard correctness requirement.[^python_free_threading2026]
 
 | Workload Type | Recommended Primitive | Why It Wins | Subtle Pitfall |
 | --- | --- | --- | --- |
 | Token SSE streaming / RPC fan-out | `asyncio` tasks + `asyncio.Queue(maxsize)` | Thousands of sockets on one event loop with explicit backpressure | Blocking `time.sleep` or sync HTTP calls stall the entire event loop |
-| Shared in-process state (KV pool, batch map) | `threading.Lock` protecting short critical sections | Safe on both GIL and free-threaded Python 3.14 builds | Holding a lock across network I/O deadlocks or kills throughput |
+| Shared in-process state (KV pool, batch map) | `threading.Lock` protecting short critical sections | Safe on both GIL and free-threaded CPython builds | Holding a lock across network I/O deadlocks or kills throughput |
 | Parallel CPU preprocessing / parsing | `ProcessPoolExecutor` (module-level functions) | Bypasses GIL for Python-heavy work across CPU cores | Closures, lambdas, or open sockets fail serialization under `pickle` |
 
 <!-- leetllm: test, output=show -->
@@ -566,30 +568,33 @@ sched.submit(r2)
 
 # Step 0 budgets 6 prefill tokens for r1 and 2 partial prefill tokens for r2 (8 total).
 used0, ev0 = sched.step()
-assert used0 == 8 and r1.prefilled == 6 and r2.prefilled == 2
+print(f"step 0 (used={used0}): {ev0}")
 
-# Preempt r2 with deterministic jitter backoff; r2 stays deferred until clock advances.
+# Preempt r2 with deterministic jitter backoff; r2 stays deferred until the clock advances.
 retry_at = sched.requeue_after_preemption(r2)
-used1, _ = sched.step()
-assert len(sched.active) == 1 and r1.generated == 1
+used1, ev1 = sched.step()
+print(f"step 1 while r2 deferred until {retry_at:.3f}s (used={used1}): {ev1}")
 
 now_t[0] = retry_at + 0.01
 trace = asyncio.run(run_async_stream_demo(sched))
-assert len(sched.finished) == 2
-print(f"Step0={ev0}, retry_at={retry_at:.3f}s, remaining_events={len(trace)}")
+print(f"remaining stream after clock jump: {trace}")
+print(f"finished requests: {[req.req_id for req in sched.finished]}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-Step0=['r1:prefill(6/6)', 'r2:prefill(2/6)'], retry_at=0.226s, remaining_events=3
+step 0 (used=8): ['r1:prefill(6/6)', 'r2:prefill(2/6)']
+step 1 while r2 deferred until 0.226s (used=1): ['r1:decode(1/2)']
+remaining stream after clock jump: ['r1:decode(2/2)', 'r2:prefill(6/6)', 'r2:decode(1/1)']
+finished requests: ['r1', 'r2']
 ```
 <!-- leetllm: output:end -->
 
-Watch how keeping `now_t` as a deterministic mock clock lets the test assert exact prefill chunk sizes, preemption deferral, jitter wakeup timing, and async streaming completion in milliseconds with zero flaky sleeps. In an interview, that design pattern also isolates bug fixes: if a scheduler bug breaks retry backoff ordering, you reproduce the exact millisecond trace in one line instead of waiting seconds per iteration. Passing an explicit `random.Random` instance gives you identical reproducibility for jittered schedules across repeated CI runs.
+Keeping `now_t` as a controllable mock clock lets you verify exact prefill chunk sizes, preemption deferral, jitter wakeup timing, and async streaming completion in milliseconds with zero flaky sleeps. In an interview, that same pattern isolates bug fixes immediately: if a scheduler bug breaks retry backoff ordering, you reproduce the exact millisecond trace in one line instead of waiting seconds per iteration. Passing an explicit `random.Random` instance makes jittered schedules completely reproducible across repeated runs.
 
 ## Practice Labs and Verification Habit
 
-Before writing implementation code in an interview, spend two minutes confirming input shapes, edge cases (empty prompts, all-masked rows, cache exhaustion), and whether state lives per sequence or across threads. As soon as one phase works, write three targeted assertions covering the happy path, a boundary condition, and a concurrency or masking edge case so later refactors never silently regress earlier invariants. Keeping code modular and small makes the final 15 minutes calm even when requirements stack up.
+Before writing implementation code in an interview, spend two minutes confirming input shapes, edge cases (empty prompts, all-masked rows, cache exhaustion), and whether state lives per sequence or across threads. As soon as one phase works, run three targeted checks covering the happy path, a boundary condition, and a concurrency or masking edge case so later refactors never silently regress earlier invariants. Keeping code modular and small makes the final 15 minutes calm even when requirements stack up.
 
 Work through these companion implementation exercises to build fluency across stateful data invariants, parsing, retries, and bounded queues. Each drill isolates one recurring systems mechanism so you can build reliable reflexes before stacking multiple components under interview time limits:
 
@@ -692,11 +697,11 @@ Work through these companion implementation exercises to build fluency across st
     "question": "An interview suite tests retry jitter and timeout logic by sleeping 2 seconds between iterations. Why does that design hurt both correctness signals and iteration speed?",
     "options": [
       "Python integer clocks overflow signed 32-bit counters once multiplied by backoff scales",
-      "Real sleeps waste suite minutes and couple assertions to OS noise while injected clocks stay exact",
+      "Real sleeps waste suite minutes and couple checks to OS noise while injected clocks stay exact",
       "Thread locks silently expire waiting acquisition after one full second of blocking wall-clock sleep",
       "Async event loops reject coroutines that accept numeric timestamp values across yield boundaries"
     ],
-    "answer": "Real sleeps waste suite minutes and couple assertions to OS noise while injected clocks stay exact",
+    "answer": "Real sleeps waste suite minutes and couple checks to OS noise while injected clocks stay exact",
     "explanation": "Injecting a controllable clock callable and a seeded random.Random instance lets tests jump deterministically to exact retry deadlines in microseconds."
   },
   {

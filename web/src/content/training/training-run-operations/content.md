@@ -34,9 +34,9 @@
 }
 ---
 
-It's 3:15 AM. Your training cluster dies. You check the storage bucket: yesterday's weights are intact. You load them into your script, hit resume, and watch yesterday's training samples replay from the start while the learning rate restarts its warmup from zero. The model weights survived, but the training run died.
+It's 3:15 AM. A spot preemption terminates your training cluster mid-epoch. You check the storage bucket: yesterday's weights are intact. You load them into your training script, hit resume, and watch yesterday's batches replay from step zero while the learning rate restarts its warmup. The model weights survived, yet the training run broke.
 
-Name the dead job `policy-sft-v4`: four data-parallel replicas, two sequences per microbatch, eight microbatches per accumulation window, and a committed checkpoint at update 1840. A resume has to answer three questions. Which state survived? Which sample comes next? Did the replacement hardware change the optimization trajectory? Full-weight pretraining and parameter-efficient fine-tuning (<span data-glossary="lora">LoRA</span>) ask the same three.
+Consider a concrete job, `policy-sft-v4`: four data-parallel replicas, two sequences per microbatch, eight microbatches per accumulation window, and a durable checkpoint committed at update 1840. Resuming it cleanly requires answering three questions: which training state actually reached storage, which data sample comes next, and whether the replacement hardware preserves the optimization trajectory. Full-weight pretraining and parameter-efficient fine-tuning (<span data-glossary="lora">LoRA</span>) face the exact same three questions.
 
 <figure>
   <img src="illustrations/_generated/preempt_resume_contract_dark.png" alt="A warning arrives after microbatch 5 of 8 while the durable pointer is 1840. Batches 6, 7, and 8 produce update 1841. The GPU live state is copied at that boundary into a frozen host snapshot containing model, AdamW moments, scheduler, scaler, RNG, and data cursor. After staging completes, live training may advance while the host copy stays at 1841. Storage writes shards and validates the manifest before the outcomes branch: success atomically publishes pointer 1841; any write or validation failure leaves pointer 1840. A 120-second preemption budget allocates 20s to finish step 1841, 90s to stage and publish checkpoint shards, and 10s of safety margin." />
@@ -45,7 +45,7 @@ Name the dead job `policy-sft-v4`: four data-parallel replicas, two sequences pe
 
 ## Weights are only one part of a continuation
 
-[Training loops](/learn/pytorch-training-loops) introduced the optimizer and scheduler. A restart must restore their internal state alongside the model architecture. You need to distinguish three operations before calling a checkpoint loader:
+[Training loops](/learn/pytorch-training-loops) introduced the optimizer and learning-rate scheduler. Resuming an interrupted job means restoring their internal state alongside the parameters. Before calling any checkpoint loader, separate three distinct operations:
 
 | Operation | State you need | Meaning of the next update |
 |---|---|---|
@@ -53,31 +53,27 @@ Name the dead job `policy-sft-v4`: four data-parallel replicas, two sequences pe
 | **Initialize a new run** | Compatible weights or adapters and their base model | Start fresh optimization from those parameters |
 | **Export for inference** | Weights or adapters, tokenizer, configuration, and serving assets | No optimizer update is implied |
 
-For AdamW, optimizer state includes the first and second gradient moments ($m$ and $v$) alongside parameter step counters [^loshchilov2019]. For mixed precision, you must include the gradient scaler when the recipe uses one. Save per-rank random number generator (RNG) states and the data loader resumable cursor. Preserve the model, tokenizer, chat template, dataset slice, and training arguments needed to interpret them. Evaluation history helps select a checkpoint, but it isn't a substitute for optimization state.
+For AdamW, optimizer state includes the first and second gradient moments ($m$ and $v$) along with per-parameter step counters [^loshchilov2019]. Mixed-precision runs with FP16 also require the gradient scaler state. Save per-rank random number generator (RNG) states and the dataloader's resumable cursor, plus the model config, tokenizer, chat template, and training arguments needed to interpret them.
 
-Adapter checkpoints also require the correct frozen base weights and adapter configuration. A merged inference export isn't a resumable adapter checkpoint. Tooling frameworks distinguish intermediate training checkpoints from final exports; torchtune documents separate resume requirements for full-weight and LoRA recipes [^torchtune2026checkpointer].
+Adapter checkpoints also depend on matching frozen base weights and adapter metadata. A merged inference export cannot resume an adapter run; training frameworks like torchtune separate intermediate resumable checkpoints from final inference exports for this reason [^torchtune2026checkpointer].
 
-Continuation resumes optimization state. Bitwise replay also requires strict control over CUDA kernels, non-deterministic operations, cluster topology, random streams, and sample batching. A topology change can alter all-reduce reduction trees and data partitions. Document these changes and compare loss trajectories against an acceptable tolerance.
+> **Key insight:** Continuation restores optimization state, not bitwise determinism. Bitwise replay additionally requires identical CUDA kernels, deterministic operators, cluster topology, random streams, and batch ordering. Changing topology alters all-reduce reduction trees and data partitions, so compare resumed loss trajectories against an uninterrupted baseline within a measured tolerance.
 
 ### What lost optimizer moments break
 
-What happens when you restore weights but let AdamW start with zeroed moments?
-AdamW normalizes gradient steps by running second moments:
+What happens when you reload model weights but let AdamW start with zeroed moments? AdamW scales each parameter update by its running second moment:
 
 $$
 \theta_{t+1} = \theta_t - \eta_t \left( \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} + \lambda \theta_t \right)
 $$
 
-Here $v$ estimates a second moment, not the variance alone. If you reset both moments **and the optimizer's step counter**, the first bias-corrected moments are $\hat m_1=g$ and $\hat v_1=g^2$. The adaptive gradient term moves a scalar coordinate by $\eta g/(|g|+\epsilon)$, whose magnitude is at most $\eta$. A tiny gradient doesn't make that first update arbitrarily large. This bound excludes the separate weight-decay term.
-
-Try three gradient magnitudes with the same learning rate:
+Here $v$ estimates the uncentered second moment, not variance. If you reset both moments **and** the optimizer's step counter to zero, bias correction on step 1 yields $\hat{m}_1 = g$ and $\hat{v}_1 = g^2$. Excluding weight decay, the adaptive step moves each coordinate by $\eta g / (|g| + \epsilon)$, which is bounded in magnitude by $\eta$. A tiny gradient does not make that first step explode:
 
 <!-- leetllm: test, id=adam-first-update, output=show, output_title="A fresh first step is bounded" -->
 ```python title="adam_first_update.py"
 lr, epsilon = 1e-3, 1e-8
 for gradient in (1e-12, 1e-6, 1.0):
     update = lr * gradient / (abs(gradient) + epsilon)
-    assert abs(update) <= lr
     print(f"g={gradient:.0e}; |first update|={abs(update):.3g}")
 ```
 
@@ -89,9 +85,7 @@ g=1e+00; |first update|=0.001
 ```
 <!-- leetllm: output:end -->
 
-Resetting moments still discards the history that determines future direction and magnitude. Keeping an old step counter with fresh moments also changes their bias correction. Either restart can change the trajectory; neither necessarily causes a loss jump or divergence.
-
-This scalar Adam example minimizes $(w-y)^2/2$ over a repeating target sequence. It tracks first and second moments, bias-correction steps, a step-based learning rate, and a consumed data cursor. JSON round-tripping models a serialized restart:
+Even though step 1 stays bounded, resetting moments discards the gradient history that steers subsequent direction and step size, and keeping the old step counter alongside zeroed moments skews bias correction. Watch what happens on a scalar Adam loop minimizing $(w - y)^2 / 2$ over a repeating target stream when we serialize a full checkpoint at update 7 versus dropping its moments:
 
 <!-- leetllm: test, id=adam-resume, output=show, output_title="Continuation versus fresh moments" -->
 ```python title="adam_resume.py"
@@ -104,8 +98,6 @@ def fresh(w=0.0):
     return dict(w=w, m=0.0, v=0.0, step=0, cursor=0)
 
 def advance(state, updates):
-    if updates < 0:
-        raise ValueError("updates must be a nonnegative integer")
     state = dict(state)
     for _ in range(updates):
         g = state["w"] - TARGETS[state["cursor"] % len(TARGETS)]
@@ -124,13 +116,11 @@ saved = advance(fresh(), 7)
 restored = json.loads(json.dumps(saved))
 resumed = advance(restored, 5)
 baseline = advance(fresh(), 12)
-assert resumed == baseline
 
-# Isolate missing moments: keep the weights, step and data cursor.
+# Keep weights, step, and cursor, but drop Adam moments.
 lost_moments = dict(restored, m=0.0, v=0.0)
 wrong = advance(lost_moments, 5)
-assert abs(wrong["w"] - baseline["w"]) > 1e-4
-assert advance(restored, 0) == restored
+
 print(f"continuous={baseline['w']:.6f}; resumed={resumed['w']:.6f}")
 print(f"reset moments={wrong['w']:.6f}; next cursor={resumed['cursor']}")
 ```
@@ -143,114 +133,112 @@ reset moments=0.126672; next cursor=12
 <!-- leetllm: output:end -->
 
 <figure>
-  <img src="illustrations/_generated/optimizer_state_continuation_dark.png" alt="In the article’s scalar Adam fixture, the saved update-7 state has weight 0.086726, first moment -0.341636, second moment 0.027877, and consumed-target cursor 7. Restoring all of it reaches weight 0.125436 at update 12. Resetting the moments while keeping the saved weight, step, and cursor reaches 0.126672 on the same five targets. The plotted weight trajectories use the same labeled 0.08–0.13 axis; this toy demonstrates a changed trajectory, not a guaranteed large loss jump." />
-  <figcaption>The same next examples lead to different updates when Adam's moment history is reset.</figcaption>
+  <img src="illustrations/_generated/optimizer_state_continuation_dark.png" alt="In the scalar Adam example, the saved update-7 state has weight 0.086726, first moment -0.341636, second moment 0.027877, and consumed-target cursor 7. Restoring all of it reaches weight 0.125436 at update 12. Resetting the moments while keeping the saved weight, step, and cursor reaches 0.126672 on the same five targets." />
+  <figcaption>The same five next targets produce a different trajectory when Adam's moment history is reset.</figcaption>
 </figure>
 
-The step counter alone cannot reconstruct lost optimizer moments. In a real cluster restore drill, compare the next sample IDs, current learning rate, optimizer moments, and next gradient update against an uninterrupted reference run. A smooth loss curve is one signal; compare the full restored state and next update.
+The step counter alone cannot reconstruct lost moments. In a cluster restore test, verify the next sample IDs, active learning rate, optimizer moments, and updated parameters against an uninterrupted run rather than eyeballing the loss curve alone.
 
 ## Reliability and the two checkpoint completion points
 
-Large clusters have more opportunities for interruption. Llama 3 405B used configurations with up to 16,384 H100 GPUs. Over one reported 54-day period, the team recorded 419 unexpected interruptions and 47 planned ones; these included several kinds of hardware and software faults [^dubey2024]. Those observations don't establish a universal GPU failure rate.
+Large GPU clusters experience frequent interruptions. During Llama 3 405B training on configurations up to 16,384 H100 GPUs, the team recorded 419 unexpected interruptions and 47 planned ones over a 54-day window across hardware and software faults [^dubey2024].
 
-For a simplified model of $N$ independent devices with identical, constant failure rates, where **any** device failure stops the job, rates add:
+Under an independent-device model of $N$ identical GPUs with constant failure rate, where any single failure halts the job, failure rates add:
 
 $$
-\text{MTBF}_{\mathrm{cluster}} = \frac{\text{MTBF}_{\mathrm{device}}}{N}.
+\text{MTBF}_{\mathrm{cluster}} = \frac{\text{MTBF}_{\mathrm{device}}}{N}
 $$
 
-Shared power, network faults, repairs, and software failures violate that model's assumptions. Measure your own run's interruption frequency and lost work rather than substituting a supposed server MTBF into a GPU-count formula.
+Real clusters also suffer correlated power, network, and software failures, so track your own cluster's observed interruption rate and lost work rather than extrapolating from a single server's spec sheet.
 
-An asynchronous checkpoint separates three places where state can live:
+To keep frequent saves from stalling GPUs, asynchronous checkpointing separates three locations where state lives:
 
-1. **Live training memory:** Parameters, optimizer state, and other saved state can change as training proceeds.
-2. **Stable host snapshot:** Staging makes a copy independent of subsequent live mutations. Pinned host buffers can improve transfer performance, but consume reserved RAM.
-3. **Storage:** Background I/O persists the snapshot. Only successful storage completion and the required publication protocol establish a new recovery point.
+1. **Live training memory:** GPU parameters, optimizer buffers, and dataloader state actively mutated by each step.
+2. **Stable host snapshot:** Staging copies live tensors into isolated host RAM. Pinned memory speeds transfers but consumes reserved host RAM.
+3. **Durable storage:** Background I/O writes the host snapshot to disk or object storage. Only completed writes plus manifest validation establish a new recovery point.
 
-PyTorch's standard `async_save` stages state before returning a background storage future. Its default staging can still block training. The optional `DefaultStager`, introduced in PyTorch 2.9, moves staging to a background CPU thread; the documented response separates `staging_completion` from `upload_completion` [^pytorchDcpAsync2026].
+PyTorch Distributed Checkpoint's `async_save` stages state and returns a background storage future, while its optional `DefaultStager` moves staging itself to a background CPU thread and exposes separate `staging_completion` and `upload_completion` signals [^pytorchDcpAsync2026].
 
-Wait for staging before modifying any live state whose copy is still pending. Parameters aren't the only concern: forward passes can change buffers, and the next batch can advance RNG or loader state. Capture progress metadata at the same boundary as the tensors. Wait for storage completion before publishing or deleting the previous recovery point. Bound concurrent saves, propagate future exceptions, and close the stager when finished [^pytorchDcpApi2026].
+> **Common mistake:** Treating `staging_completion` as a durable save. Wait for staging before mutating live tensors, forward buffers, RNG, or dataloader state, and wait for full storage completion before publishing the new checkpoint pointer or pruning the previous one. Bound concurrent saves, propagate background exceptions, and close the stager on shutdown [^pytorchDcpApi2026].
 
-A Python dictionary isn't necessarily a stable snapshot. `model.state_dict()` contains references to live parameter and buffer storage. Holding that dictionary while the optimizer runs can silently change the supposedly saved weights. PyTorch's saving tutorial recommends serialization or `deepcopy` when preserving an in-memory best state [^pytorchSavingLoading2026]. Predict which value stays at 1 in this CPU example:
+Beware of shallow references when snapshotting in Python. `model.state_dict()` holds views into live parameter storage, so stepping the optimizer mutates the dictionary you thought you saved [^pytorchSavingLoading2026]:
 
-<!-- leetllm: test, deps=torch==2.13.0, output=show, output_title="A state dictionary can alias live weights" -->
+<!-- leetllm: test, deps=torch, output=show, output_title="A state dictionary can alias live weights" -->
 ```python title="checkpoint-aliasing.py"
 from copy import deepcopy
 import torch
 
 model = torch.nn.Linear(1, 1, bias=False)
 with torch.no_grad():
-    model.weight.fill_(1.)
-optimizer = torch.optim.SGD(model.parameters(), lr=.1)
+    model.weight.fill_(1.0)
+
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 live_dictionary = model.state_dict()
 stable_copy = deepcopy(live_dictionary)
+
 loss = model(torch.ones(1, 1)).square().sum()
 loss.backward()
 optimizer.step()
-assert live_dictionary["weight"].data_ptr() == model.weight.data_ptr()
-torch.testing.assert_close(live_dictionary["weight"], torch.tensor([[.8]]))
-torch.testing.assert_close(stable_copy["weight"], torch.tensor([[1.]]))
+
+print("same storage pointer:", live_dictionary["weight"].data_ptr() == model.weight.data_ptr())
 print("live dictionary after update:", round(live_dictionary["weight"].item(), 1))
 print("independent copy at save boundary:", stable_copy["weight"].item())
 ```
 
 <!-- leetllm: output:start -->
 ```text title="A state dictionary can alias live weights" output compact
+same storage pointer: True
 live dictionary after update: 0.8
 independent copy at save boundary: 1.0
 ```
 <!-- leetllm: output:end -->
 
-This fixture checks ownership of tensor storage. Its independent copy is still only in memory, and copying a GPU state dictionary this way can double device allocations. Use the checkpoint framework's supported staging path for a large distributed job, then establish durable publication separately.
-
-Asynchronous I/O can overlap computation, but still competes for host memory, CPU time, and storage bandwidth. Measure staging latency, storage latency, and training throughput together; there is no fixed “100 GB in three seconds” guarantee.
+Calling `deepcopy` on a large GPU state dictionary can double device memory usage, so rely on your checkpoint framework's host-staging path for distributed jobs. Asynchronous I/O overlaps computation, yet still shares host RAM, CPU cycles, and storage bandwidth; measure staging latency, upload latency, and step throughput together.
 
 ### Atomic manifest publishing and data cursor alignment
 
-Use a new checkpoint identifier for each save. Keep the previous committed snapshot until the new shards, framework metadata, and application state have completed successfully. A manifest should identify one consistent boundary and the expected artifacts, with integrity information such as sizes and hashes. Validate the manifest against every expected artifact before marking the checkpoint complete.
+Write every checkpoint under a fresh versioned identifier and leave the previous committed snapshot intact until every shard, framework metadata file, and application state object finishes writing. A manifest should list the exact step boundary and expected artifacts with sizes or hashes so the loader can validate completeness before restoring.
 
-Publication depends on the storage backend. On a suitable filesystem, an atomic rename can replace a pointer file after the checkpoint completes; crash durability also requires the relevant file and directory synchronization [Linux `fsync` documentation](https://man7.org/linux/man-pages/man2/fsync.2.html). An object store doesn't provide a transaction over an arbitrary collection of shard uploads. For Google Cloud Storage, individual object writes are atomic; a generation-match precondition can protect a `latest` pointer update from competing writers [^google2026storageConsistency] [^google2026storagePreconditions]. Publish that pointer only after its referenced checkpoint is complete, and validate the checkpoint when loading.
+How you publish the new recovery pointer depends on the storage backend:
+- **POSIX filesystems:** Atomically rename a pointer file after flushing both the target files and parent directory with `fsync` ([Linux `fsync` documentation](https://man7.org/linux/man-pages/man2/fsync.2.html)).
+- **Object stores:** Individual object writes are atomic, not multi-shard uploads. On Google Cloud Storage, update a `latest` pointer with a generation-match precondition only after every referenced shard passes validation [^google2026storageConsistency] [^google2026storagePreconditions].
 
-A clean weight restore still fails if the data position describes a different boundary. A recorded **consumed** batch count plus a deterministic sampler can suffice for a simple replayable dataset. A worker's prefetched producer position can be ahead of what training consumed. Stateful streaming, random transforms, and packing may need worker RNG, sampler, dataset, and buffered-example state as well.
+A valid weight restore still corrupts continuation if the data cursor points to a different boundary. For a deterministic replayable dataset, recording the **consumed** batch count plus sampler seed is enough; never record the prefetch producer's furthest read, which runs ahead of the optimizer. Stateful streams, random augmentations, and sequence packing also need worker RNG and buffer state.
 
-TorchData's `StatefulDataLoader` supports `state_dict` and `load_state_dict`; its default strategy tracks yielded batches and fast-forwards, while stateful datasets and samplers can provide their own restore state. It aggregates state across workers, **not across distributed ranks** [^torchdata2026statefulLoader]. For the documented iterable-dataset worker-state restore, the new loader must have the same `num_workers` as the saved state [^torchdataStatefulTutorial2026]. A topology or worker-count change therefore needs an explicit data-partition policy, alongside tensor resharding.
+TorchData's `StatefulDataLoader` exposes `state_dict` and `load_state_dict`, aggregating state across local workers **but not across distributed ranks** [^torchdata2026statefulLoader]. Its iterable-dataset worker restore expects the same `num_workers` on reload [^torchdataStatefulTutorial2026], so changing world size or worker count requires an explicit data-repartitioning plan alongside tensor resharding.
 
 ## Treat preemption as a deadline and trigger saves explicitly
 
-Suppose update 1840 is durably committed to storage, and a preemption warning signal (such as a cloud spot termination notice or a cluster scheduler `SIGTERM`) arrives after microbatch 5 of the next 8-microbatch accumulation window.
+Suppose update 1840 is durably committed to storage, and a preemption warning (`SIGTERM` or a cloud spot notice) arrives right after microbatch 5 of the next 8-microbatch accumulation window.
 
-Your training policy saves only at completed optimizer boundaries. There are two valid operational outcomes:
-1. All nodes remain healthy and there's enough time to complete the remaining 3 microbatches, perform the optimizer step, stage the checkpoint to host RAM, and update the manifest for step 1841.
-2. Time runs out or a rank dies abruptly. The orchestrator terminates, discards partial in-flight state, and reboots from durable step 1840. With a fixed global batch of 64 examples per step and none was skipped, so the saved global consumed-example count is $1840\times64=117{,}760$. That count isn't itself a dataset row ID or byte offset.
+When your policy saves only at completed optimizer boundaries, exactly two outcomes are valid:
 
-Never pair weights from step 1840 with a data cursor that advanced past microbatch 5. That mistake silently drops those five microbatches without applying their gradients. Mid-window recovery needs the in-flight accumulated gradients, accumulation counter, matching scaler, model buffers, RNG, and data state. With AMP, those gradients may still be **scaled**; preserve their representation and keep the scale constant throughout accumulation [^pytorchAmpExamples2026]. Unless your framework explicitly supports and tests that recovery, use completed update boundaries.
+1. **Finish the boundary:** All ranks stay healthy and enough time remains to run microbatches 6, 7, and 8, apply update 1841, stage to host RAM, upload every shard, and publish pointer 1841.
+2. **Discard and rewind:** Time runs out or a rank dies. The orchestrator discards the five partial microbatches and restarts from durable step 1840. With a fixed 64 examples per step and no skipped updates, the consumed-example count is $1840 \times 64 = 117{,}760$.
 
-Signal handlers should only set an internal shutdown flag, not initiate distributed network I/O. The main loop coordinates the save at a clean boundary. If a member of an ordinary fixed process group dies, collectives can't complete normally; a fault-tolerant launcher must recover or reconfigure the job. Periodic durable checkpoints remain necessary because not every failure gives a warning.
+> **Common mistake:** Pairing weights from step 1840 with a data cursor that advanced past microbatch 5. Those five microbatches vanish from training without ever contributing a gradient. Mid-window recovery requires saving accumulated gradients (still scaled under FP16 AMP), accumulation step count, scaler, buffers, RNG, and data state [^pytorchAmpExamples2026]; unless your stack explicitly tests mid-window restore, stick to completed update boundaries.
+
+Keep signal handlers minimal: set a shutdown flag inside the handler, never launch distributed collectives there. Let the main training loop coordinate the boundary save across ranks. Because hardware faults often arrive with no warning at all, periodic durable checkpoints remain mandatory.
 
 ### Budget the entire remaining path
 
-A 90-second checkpoint doesn't fit into a 90-second warning if you also need to finish active microbatches and publish manifests. The preemption budget equation is:
+A 90-second checkpoint does not fit into a 90-second preemption warning if you also need to finish active microbatches and publish the manifest. Budget the full end-to-end path:
 
 $$
 T_{\mathrm{warning}} \ge T_{\mathrm{window}} + T_{\mathrm{save}} + T_{\mathrm{margin}}
 $$
 
-Here $T_{\mathrm{save}}$ includes time through durable publication, and $T_{\mathrm{margin}}$ absorbs network and disk jitter:
+Here $T_{\mathrm{save}}$ spans staging through durable manifest publication, and $T_{\mathrm{margin}}$ absorbs storage and network jitter:
 
 <!-- leetllm: test, id=preemption-budget, output=show, output_title="Warning-period budget" -->
 ```python title="preemption_budget.py"
-import math
-
 def can_finish(grace, window, save, margin):
-    times = (grace, window, save, margin)
-    if any(not math.isfinite(t) or t < 0 for t in times):
-        raise ValueError("times must be finite nonnegative seconds")
     return window + save + margin <= grace
 
-assert can_finish(120, 20, 90, 10)
-assert not can_finish(119, 20, 90, 10)
-assert not can_finish(90, 20, 90, 10)
-print("120s warning: feasible at the estimate; 119s: insufficient")
+for grace in (120, 119, 90):
+    status = "fits" if can_finish(grace, window=20, save=90, margin=10) else "insufficient"
+    print(f"{grace}s warning: {status}")
+
 for productive_seconds in (300, 1200):
     fraction = 90 / (productive_seconds + 90)
     print(f"{productive_seconds}s compute + 90s save: {fraction:.1%} save overhead")
@@ -258,59 +246,51 @@ for productive_seconds in (300, 1200):
 
 <!-- leetllm: output:start -->
 ```text title="Warning-period budget" output compact
-120s warning: feasible at the estimate; 119s: insufficient
+120s warning: fits
+119s warning: insufficient
+90s warning: insufficient
 300s compute + 90s save: 23.1% save overhead
 1200s compute + 90s save: 7.0% save overhead
 ```
 <!-- leetllm: output:end -->
 
-A blocking save every five minutes of compute spends 23.1% of cluster wall-clock time writing files under these authored timings. Increasing the compute interval to twenty minutes drops that fraction to 7.0%, but increases work exposed to failure. With asynchronous saving, work performed while a snapshot uploads is also uncommitted until publication. Choose the interval using measured latency, interruption frequency, and acceptable replay cost. The warning calculation establishes feasibility at the estimates, not a deadline guarantee.
+A blocking 90-second save every 5 minutes spends 23.1% of wall-clock time checkpointing; stretching the interval to 20 minutes cuts overhead to 7.0% while exposing more work to unexpected loss. Under asynchronous saves, steps completed while an upload is still in flight remain uncommitted until publication. Tune the interval from measured save latency, cluster interruption frequency, and acceptable replay cost.
 
 ## Sharded saves need a compatible restore path
 
-FSDP and ZeRO-3 distribute persistent parameters and optimizer state rather than keeping a complete copy on every GPU [^rajbhandari2020]. FSDP can temporarily all-gather a module's weights for computation. For checkpointing, ask two questions: did the save complete reliably, and can the restore loader interpret its layout?
+FSDP and ZeRO-3 distribute parameters and optimizer state across ranks rather than keeping a full copy on every GPU [^rajbhandari2020]. When checkpointing sharded models, verify both that the save finishes cleanly and that the target loader can read its layout.
 
-A full state dictionary can gather tensors onto one rank, possibly into host memory. For 70 billion parameters, BF16 weights occupy 140 decimal GB; **each** FP32 Adam moment occupies 280 GB. Two moments plus those weights total 700 GB, before any separately saved master weights or other state. Consolidation needs enough capacity at its destination and substantial transfer time; it isn't automatically an instant GPU OOM if the framework offloads to a sufficiently large host.
+Gathering a full state dictionary onto rank 0 hits single-host capacity fast. For a 70B model, BF16 weights take 140 GB and each FP32 Adam moment takes 280 GB, totaling 700 GB before any separate FP32 master weights. Offloading that gather to a large CPU host can avoid GPU OOM, yet still incurs heavy single-node transfer and memory pressure.
 
-PyTorch Distributed Checkpoint (DCP) can save local shards without first constructing the entire tensor on one rank [^pytorch2026dcp]. Its metadata describes parameter identities, global tensor properties, and shard coordinates. The storage path can stage tensors through CPU memory; “distributed save” doesn't imply a direct GPU-to-object-store transfer.
+PyTorch Distributed Checkpoint (DCP) writes per-rank shards in parallel without assembling full tensors on one node [^pytorch2026dcp]. Its `.metadata` index records parameter names, global shapes, and shard coordinates. Even distributed saves typically stage tensors through host CPU RAM on the way to storage.
 
 <figure>
-  <img src="illustrations/_generated/sharded_save_reshard_dark.png" alt="The global element-index axis stays fixed from 0 through 16. Four source ranks own [0,4), [4,8), [8,12), and [12,16); eight target ranks own [0,2), [2,4), [4,6), [6,8), [8,10), [10,12), [12,14), and [14,16). Each source range maps to two adjacent target ranges with no gaps or overlap. This is a logical coordinate mapping; the reader may still deserialize larger source tensors into CPU memory, and physical I/O depends on the storage implementation." />
-  <figcaption>The tensor coordinates stay fixed while ownership changes. Model and optimizer mappings both need a compatible destination layout.</figcaption>
+  <img src="illustrations/_generated/sharded_save_reshard_dark.png" alt="The global element-index axis stays fixed from 0 through 16. Four source ranks own [0,4), [4,8), [8,12), and [12,16); eight target ranks own [0,2), [2,4), [4,6), [6,8), [8,10), [10,12), [12,14), and [14,16). Each source range maps to two adjacent target ranges with no gaps or overlap." />
+  <figcaption>The global tensor coordinates stay fixed while rank ownership changes. Model and optimizer mappings both need a compatible destination layout.</figcaption>
 </figure>
 
 ### Resharding across topologies without single-node bottlenecks
 
-When you intentionally change the partitioned layout, the loader must map saved coordinates into the new layout. Not every model-parallel mesh permits every world size: check divisibility, parameter identities, and the framework's supported model and optimizer mappings.
+When restarting on a different GPU count, the loader maps saved global coordinates into the new sharding layout. Verify mesh divisibility, parameter identities, and optimizer state compatibility before assuming any world size works.
 
-Under DCP, resharding happens without central gathering:
-1. Initialize compatible destination model and optimizer state dictionaries, with tensors allocated in the target distributed layout.
-2. Each destination rank consults the shared `.metadata` index file.
-3. Each rank calculates which source shard files intersect its assigned tensor slice.
-4. Distributed readers load the relevant serialized data and copy the required logical slices into destination tensors.
+Under DCP, resharding proceeds without a central gather:
+1. Allocate destination model and optimizer state dictionaries in the new distributed layout.
+2. Read the shared `.metadata` index on each destination rank.
+3. Intersect each rank's required coordinate slice with the saved source shard ranges.
+4. Load the intersecting serialized slices into destination tensors.
 
-DCP's PyTorch 2.14 filesystem reader loads the serialized tensor into CPU memory before narrowing it to the requested slice. It reads the full tensor value and allocates the loaded CPU representation before slicing [^pytorch2026dcpFilesystem].
+Keep two implementation details in mind: DCP's filesystem reader allocates and deserializes each source tensor into CPU RAM before narrowing it to the requested slice [^pytorch2026dcpFilesystem], and cross-version DCP compatibility is unspecified, so test upgrades on your target stack [^pytorchDcpApi2026]. DeepSpeed handles topology changes via Universal Checkpointing: save ZeRO shards, convert them to universal format, and load onto the new mesh [^deepspeedUniversalCheckpointing2026].
 
-DCP documents cross-version checkpoint compatibility as unspecified, including changes within a major release [^pytorchDcpApi2026]. Test the actual target stack. DeepSpeed Universal Checkpointing uses a ZeRO save, explicit conversion, and Universal load; supported topology changes still require matching model parameter identities and compatible shapes [^deepspeedUniversalCheckpointing2026].
-
-This small coordinate exercise reconstructs eight destination slices from four source slices and rejects gaps and overlaps. It deliberately builds a complete Python list in one process for inspection. It is **not** a DCP implementation or a test of distributed I/O and memory:
+The coordinate mapping below slices four saved shards across eight destination ranks while rejecting missing or overlapping ranges:
 
 <!-- leetllm: test, id=reshard-offsets, output=show, output_title="Logical ranges survive a new layout" -->
 ```python title="reshard_offsets.py"
 def reshard(shards, size, destinations):
-    if size <= 0:
-        raise ValueError("positive tensor size required")
-    if destinations <= 0 or size % destinations:
-        raise ValueError("this toy requires equal nonempty destination shards")
     tensor = [None] * size
     for start, values in shards:
-        if start < 0 or start + len(values) > size:
-            raise ValueError("invalid range")
         for offset, value in enumerate(values, start):
             if tensor[offset] is not None:
                 raise ValueError("overlapping ranges")
-            if value is None:
-                raise ValueError("None is reserved for a missing element")
             tensor[offset] = value
     if any(value is None for value in tensor):
         raise ValueError("missing range")
@@ -319,15 +299,13 @@ def reshard(shards, size, destinations):
 
 saved = [(i, list(range(i, i + 4))) for i in range(0, 16, 4)]
 loaded = reshard(saved, 16, 8)
-assert [v for _, values in loaded for v in values] == list(range(16))
-assert reshard(loaded, 16, 4) == saved
+
 for broken in (saved[:-1], saved + [saved[0]]):
     try:
         reshard(broken, 16, 8)
     except ValueError as error:
         print(error)
-    else:
-        raise AssertionError("incomplete or overlapping state was accepted")
+
 print(loaded)
 ```
 
@@ -339,25 +317,23 @@ overlapping ranges
 ```
 <!-- leetllm: output:end -->
 
-The slices can move to a new rank layout and still describe the same tensor. More GPUs do not, by themselves, put more sequences into one optimizer step.
+Resharding moves tensor slices to a new rank layout cleanly. Changing the GPU count, however, does not automatically change how many sequences enter each optimizer step.
 
 ## Keep the update size separate from the GPU count
 
-Count independent data-parallel replicas, not devices. For complete accumulation windows with equal microbatch sizes:
+Global batch size depends on independent data-parallel replicas, not raw GPU count. For uniform microbatches across a full accumulation window:
 
 $$
 B_{\mathrm{global}} = B_{\mathrm{micro}} \times K \times D_{\mathrm{replica}}
 $$
 
-Here $B_{\mathrm{micro}}$ is the sequence count per replica's microbatch, $K$ is the number of accumulated microbatches per update, and $D_{\mathrm{replica}}$ counts independent **data-parallel replicas**. Workers collaborating on one replica don't contribute independent examples.
-
-For a regular mesh whose distinct axes are tensor parallelism ($\mathrm{TP}$), pipeline parallelism ($\mathrm{PP}$), context parallelism ($\mathrm{CP}$), and data parallelism:
+Here $B_{\mathrm{micro}}$ is sequences per replica microbatch, $K$ is accumulated microbatches per update, and $D_{\mathrm{replica}}$ is the number of independent **data-parallel replicas**. On a regular Cartesian mesh with tensor ($\mathrm{TP}$), pipeline ($\mathrm{PP}$), and context ($\mathrm{CP}$) parallelism:
 
 $$
 D_{\mathrm{replica}} = \frac{N_{\mathrm{GPUs}}}{\mathrm{TP} \times \mathrm{PP} \times \mathrm{CP}}
 $$
 
-Context-parallel workers split one example's sequence rather than adding independent examples. This product formula isn't a universal description of overlapping expert-parallel or hybrid process groups. Eight GPUs with $\mathrm{TP}=2$, $\mathrm{PP}=1$, and $\mathrm{CP}=1$ form $D=4$ replicas. Halving accumulation while keeping $D=4$ cuts the nominal global batch in half.
+Workers sharing a tensor-, pipeline-, or context-parallel group cooperate on the same sequences rather than adding new ones. Eight GPUs with $\mathrm{TP}=2$, $\mathrm{PP}=1$, and $\mathrm{CP}=1$ still form $D=4$ replicas; halving $K$ on that mesh would cut the global batch in half.
 
 <figure>
   <img src="illustrations/_generated/global_batch_stack_dark.png" alt="Eight GPUs form four data-parallel replicas when tensor parallelism is 2 and pipeline and context parallelism are each 1. Within every replica, two tensor-parallel ranks cooperate on the same microbatch; they do not add examples. Each of four independent replicas processes eight microbatches of two sequences, totaling 2 × 8 × 4 = 64 sequences per update. On a common 128-sequence scale, changing to eight replicas with four accumulation steps keeps 64, while eight replicas with eight steps reaches 128." />
@@ -372,35 +348,35 @@ Context-parallel workers split one example's sequence rather than adding indepen
 
 ### Sequences versus supervised tokens and loss reduction
 
-Sequence counts don't equal token throughput. In instruction tuning and conversational SFT, sequence packing, system prompt masking, and variable response lengths mean that two batches with identical sequence counts carry different numbers of loss-bearing tokens:
+Sequence count rarely equals supervised token count. Packing, prompt masking, and variable response lengths mean two batches with the same sequence count carry very different numbers of loss-bearing tokens:
 
 $$
 \text{Tokens per update} = \sum_{i=1}^{B_{\mathrm{global}}} \text{Length}_{\mathrm{unmasked}}(i)
 $$
 
-If replica 0 processes 4,800 supervised tokens while replica 1 processes 9,600, averaging their per-device mean loss values equally computes $\frac{1}{2}(\bar{\mathcal{L}}_0 + \bar{\mathcal{L}}_1)$. That naive average assigns twice as much weight to tokens on replica 0 as tokens on replica 1, distorting the true gradient.
+If replica 0 holds 4,800 supervised tokens and replica 1 holds 9,600, averaging their local means computes $\frac{1}{2}(\bar{\mathcal{L}}_0 + \bar{\mathcal{L}}_1)$, giving each token on replica 0 twice the weight of each token on replica 1.
 
-If the intended objective is a **mean over supervised tokens**, use:
+When the intended objective is a **mean over all supervised tokens**:
 
 $$
 \mathcal{L}_{\mathrm{global}} = \frac{\sum_{r} \sum_{j} \mathcal{L}_{r, j}}{\sum_{r} N_{\mathrm{tokens}, r}}
 $$
 
-This is a choice of objective: a deliberately equal-weighted per-example objective is different and can be valid. For the token mean, count supervised targets after shifting and masking across the **whole accumulation window** and all replicas. Ordinary DDP averages gradients across replicas [^pytorchDdpDocs2026]. With $D$ replicas and a global token count $N$, backpropagating each replica's local loss sum multiplied by $D/N$ gives the desired gradient after that averaging. Check trainer normalization before adding any scale factor; don't also divide by $K$ when the global denominator already includes all $K$ microbatches.
+Count supervised targets after shifting and masking across the full accumulation window and all replicas. Because standard DDP averages gradients across $D$ replicas [^pytorchDdpDocs2026], scaling each replica's local loss sum by $D / N$ (where $N$ is the global supervised token count) yields the exact global token-mean gradient after DDP averaging. Do not also divide by $K$ once $N$ spans all $K$ microbatches.
 
-Trace per-token scalar loss gradients across two data-parallel ranks: One replica has one token; another has three:
+Watch how the two reductions diverge when rank 0 holds one token (gradient `10.0`) and rank 1 holds three tokens (gradient `-2.0` each):
 
 <!-- leetllm: test, id=token-weighted-gradients, output=show, output_title="Token mean versus replica mean" -->
 ```python title="token_weighted_gradients.py"
 tokens = [[10.0], [-2.0, -2.0, -2.0]]
 replicas = len(tokens)
 count = sum(len(rank) for rank in tokens)
+
 token_mean = sum(sum(rank) for rank in tokens) / count
 replica_mean = sum(sum(rank) / len(rank) for rank in tokens) / replicas
 local_scaled = [replicas * sum(rank) / count for rank in tokens]
 ddp_average = sum(local_scaled) / replicas
-assert token_mean == ddp_average == 1.0
-assert replica_mean == 4.0
+
 print(f"token mean gradient={token_mean:.1f}; replica mean={replica_mean:.1f}")
 print(f"DDP averaged corrected gradients={ddp_average:.1f}")
 ```
@@ -412,7 +388,7 @@ DDP averaged corrected gradients=1.0
 ```
 <!-- leetllm: output:end -->
 
-This arithmetic checks the reduction, not a running process group. Inspect your distributed trainer's real gradient normalization with a small reference batch.
+Verify your distributed trainer's actual gradient reduction on a small asymmetric batch before scaling up.
 
 ```checkpoint
 A 4-replica job with microbatch 2 and accumulation 8 restarts on eight GPUs configured as tensor parallel 2 and data parallel 4. Should you halve accumulation to preserve the batch?
@@ -422,48 +398,48 @@ No. Data parallelism is still four, so the batch remains 2 × 8 × 4 = 64. Halvi
 
 ## Preserve the scheduler before tuning a new batch
 
-When continuing a run at the same effective batch size, restore the scheduler phase directly. Don't restart warmup just because the process restarted.
+When resuming at the same effective batch size, restore the scheduler state directly rather than restarting warmup.
 
-Changing the global batch changes the optimization trajectory. Doubling **tokens per update** approximately halves the number of updates for a fixed token budget. Doubling sequences has that effect only if their average token contribution stays comparable.
-
-A schedule with 100 warmup updates needs 6,400 examples at 64 examples/update and 12,800 at 128. Its milestones move to **later data volumes**, and a fixed data budget may end before the original step-based decay finishes. Decide whether to preserve update milestones or remap them to a data budget. Log whether the schedule uses updates, examples, or tokens.
+If you deliberately double tokens per update, a fixed token budget runs half as many optimizer updates. A 100-update warmup consumes 6,400 examples at batch 64 versus 12,800 examples at batch 128, shifting every milestone to later data volumes and potentially ending the run before cosine decay completes. Explicitly decide whether to preserve update counts or remap milestones to your token budget, and log the unit your schedule tracks.
 
 ### Detect AMP overflow before counting an optimizer update
 
-In a standard FP16 GradScaler loop, nonfinite gradients can cause the optimizer step to be skipped. Keep separate counters for attempted accumulation windows, consumed data, and successful optimizer updates. A scheduler defined per successful update should stay fixed when no update occurred; a deliberately data-indexed scheduler follows its own policy.
+Under FP16 `GradScaler`, nonfinite gradients cause `scaler.step(optimizer)` to skip the parameter update. Maintain separate counters for attempted accumulation windows, consumed examples/tokens, and successful optimizer updates. A scheduler indexed by successful updates stays put on skipped windows, whereas a data-indexed scheduler advances with consumed data.
 
 <figure>
-  <img src="illustrations/_generated/amp_update_clocks_dark.png" alt="An authored three-window FP16 GradScaler trace uses 64 examples per accumulation window and a scheduler indexed by successful optimizer updates. Window 1 is finite: the optimizer and scheduler advance to 1. Window 2 consumes the next 64 examples but has nonfinite gradients: the optimizer step is skipped, the successful-update and scheduler counters stay at 1, and the scaler backs off. Window 3 is finite: the optimizer and scheduler advance to 2. The counters distinguish attempted windows, consumed examples, and successful parameter updates." />
+  <img src="illustrations/_generated/amp_update_clocks_dark.png" alt="A three-window FP16 GradScaler trace uses 64 examples per accumulation window and a scheduler indexed by successful optimizer updates. Window 1 is finite: the optimizer and scheduler advance to 1. Window 2 consumes the next 64 examples but has nonfinite gradients: the optimizer step is skipped, the successful-update and scheduler counters stay at 1, and the scaler backs off. Window 3 is finite: the optimizer and scheduler advance to 2." />
   <figcaption>Overflow advances data consumption while the successful-update scheduler waits.</figcaption>
 </figure>
 
-Perform overflow checks and scale updates at effective-batch boundaries, keeping the scale constant during accumulation [^pytorchAmpExamples2026]. A skipped step can still consume data and change scaler state. Preserve both in the checkpoint. Don't infer success from `scaler.step(...)` returning `None`: many optimizers return `None` even after a real update. Use the framework's supported overflow handling.
+Keep the loss scale constant across an accumulation window, check for overflow once at the window boundary, and save both the consumed data cursor and scaler state in checkpoints [^pytorchAmpExamples2026]. Never infer whether an update ran from `scaler.step(...)` returning `None`, since most PyTorch optimizers return `None` after a normal step.
 
 ### Scaling rules are hypotheses to test
 
-Goyal et al. popularized linear learning-rate scaling with gradual warmup for large-batch SGD, training ResNet-50 with batch 8,192 on 256 GPUs [^goyal2017]. The approximation compares one large step with several smaller steps while assuming their gradients change little. It can break early in training or at very large batches; it isn't an AdamW SFT guarantee.
+Goyal et al. popularized linear learning-rate scaling with gradual warmup for large-batch SGD on ResNet-50 (batch 8,192 across 256 GPUs) [^goyal2017]. That approximation assumes gradients change slowly across steps and can break early in training or at very large batch sizes.
 
-Malladi et al. derive an Adam scaling rule from stochastic differential equation approximations under specified noise and moment assumptions [^malladi2022adaptiveScaling]. For a batch multiplier $\kappa$, their rule changes **more than the learning rate**:
+For Adam, Malladi et al. derive a stochastic differential equation scaling rule for a batch multiplier $\kappa$ that adjusts more than just the learning rate [^malladi2022adaptiveScaling]:
+
 $$
 \begin{aligned}
-\eta'&=\sqrt\kappa\,\eta,\\
-\beta'_i&=1-\kappa(1-\beta_i),\\
-\epsilon'&=\epsilon/\sqrt\kappa.
+\eta' &= \sqrt{\kappa}\,\eta, \\
+\beta'_i &= 1 - \kappa(1 - \beta_i), \\
+\epsilon' &= \epsilon / \sqrt{\kappa}.
 \end{aligned}
 $$
-The new $\beta_i$ must remain valid optimizer coefficients. This conditional result isn't a theorem that changing only AdamW's LR by $\sqrt\kappa$ preserves a fine-tuning run, nor that linear scaling always diverges. Compare controlled runs, including a fixed-LR baseline, and evaluate quality at a comparable data budget.
 
-McCandlish et al. study a gradient-noise scale:
+Each $\beta'_i$ must stay in a valid $(0, 1)$ range. Treat both linear and square-root scaling as candidate hypotheses to test against a fixed-LR control at matched token budgets.
+
+McCandlish et al. characterize diminishing batch returns through the gradient-noise scale [^mccandlish2018]:
 
 $$
-\mathcal B_{\mathrm{simple}}=\frac{\operatorname{Tr}(\Sigma)}{\lVert G\rVert^2},
+\mathcal{B}_{\mathrm{simple}} = \frac{\operatorname{Tr}(\Sigma)}{\lVert G \rVert^2}
 $$
 
-where $G$ is the mean gradient and $\Sigma$ is the covariance of individual-example gradients [^mccandlish2018]. It predicts the scale of the largest useful batch in their studied settings, rather than an exact universal threshold. Larger batches can reduce update count with diminishing returns, while increasing examples needed to reach a target. That optimization tradeoff doesn't imply linear wall-clock speedup: kernel efficiency and communication matter too.
+where $G$ is the mean gradient and $\Sigma$ is the per-example gradient covariance. Pushing batch size far past $\mathcal{B}_{\mathrm{simple}}$ cuts update steps with diminishing wall-clock gains while increasing total tokens needed to reach the same loss.
 
 ## Diagnose a symptom before choosing a recovery
 
-A loss spike doesn't reveal its cause. Record the last known-good checkpoint, exact batch identity, token counts, learning rate, scaler state, and per-rank timings before changing the run.
+A loss spike alone never identifies its cause. Capture the last committed checkpoint, exact batch IDs, supervised token counts, learning rate, scaler state, and per-rank step timings before changing anything.
 
 | Symptom | Candidates to investigate | First check |
 |---|---|---|
@@ -474,29 +450,29 @@ A loss spike doesn't reveal its cause. Record the last known-good checkpoint, ex
 | Loss NaN on a clean batch | Zero supervised tokens or nonfinite gradient under FP16 | Check loss scale factor, token count masks, and inputs |
 | Sudden loss divergence | Data or schedule change, numerical instability, software bug, hardware corruption | Reproduce from saved state and inspect inputs before assigning a cause |
 
-A slow rank can delay dependent collectives and extend the critical path. Communication may overlap backward computation, so this isn't a literal barrier where every GPU waits throughout the whole pass. Separate compute time, rank arrival skew, and collective completion time. Compare clock event reasons with a healthy device under matched work; there is no model-independent “bad clock” threshold [^nvsmi].
+A slow rank delays dependent collectives along the critical path. Because communication often overlaps backward compute, separate compute duration, rank arrival skew, and collective time in profiler traces, and compare `nvidia-smi` clock throttle reasons against a healthy peer running matched work [^nvsmi].
 
-Link errors and reduced bandwidth can leave a job alive but slower. Counter trends, link state, and measured throughput help distinguish fabric faults from compute imbalance. A particular rate change doesn't imply a fixed tenfold slowdown, and one counter alone isn't sufficient reason to evict a node.
-
-The Llama 3 report recorded six silent data corruption incidents in its interruption breakdown [^dubey2024]. An ECC alert is one signal; controlled canary computations can help identify other faults when inputs, precision, kernels, and tolerances are matched. Ordinary floating-point differences can arise from valid numerical variation. Canary coverage and tolerances determine which silent faults the check can catch, so run canaries before training and after relevant system changes.
+Link errors and degraded bandwidth slow jobs without crashing them; track counter trends alongside negotiated link speed before evicting a node. For rare silent data corruption (Llama 3 logged six such incidents in its 54-day breakdown [^dubey2024]), combine ECC telemetry with matched-precision matrix-multiply canary checks before training and after infrastructure changes.
 
 ### What a rollback policy must decide
 
-Reject nonfinite training state as a new operational recovery point, and preserve diagnostic evidence. For an unexpected finite loss spike, use thresholds calibrated to the run's normal variability. A median plus three standard deviations over 50 steps is a possible authored heuristic, not an established universal training policy.
+Never publish a nonfinite training state as a recovery point; keep the diagnostic artifacts instead. For finite loss spikes, calibrate alert thresholds to your run's observed step-to-step variance rather than relying on an arbitrary rule of thumb.
 
-Reproduce the suspect batch from a known-good checkpoint, preferably on verified healthy hardware. Check masks, zero-token batches, learning rate, scaler behavior, and gradient norms. Use bounded retries so an automatic restart cannot loop indefinitely.
-
-Choose how far to rewind from evidence about the first affected state. Quarantine data only when the diagnosis supports it, with a recorded decision. Skipping examples or changing the shuffle seed changes the data trajectory and creates a new continuation policy.
+When recovering:
+1. Replay the suspect batch from the last known-good checkpoint on verified healthy hardware.
+2. Inspect target masks, empty-token sequences, learning rate, loss scale, and gradient norms.
+3. Cap automatic retries so a deterministic data or code bug cannot spin in an infinite restart loop.
+4. Rewind to the last verified clean checkpoint based on evidence, and record any data quarantine or shuffle-seed change because it alters the continuation trajectory.
 
 ```checkpoint
 After a NaN loss, a canary passes on every GPU, but the batch has zero supervised targets. Should the recovery harness automatically quarantine a GPU?
 ---
-No. The empty target set can make a mean loss undefined. Check masking and batch construction, fix the data or loss handling, and replay from consistent state. A canary covers its tested workload; inspect device telemetry and run targeted checks before assigning a hardware fault.
+No. The empty target set can make a mean loss undefined. Check masking and batch construction, fix the data or loss handling, and replay from consistent state. Inspect device telemetry and run targeted checks before blaming hardware.
 ```
 
 ## Choose the objective, trainable weights, and precision separately
 
-Training recipes aren't a single dropdown choice. [SFT](/learn/supervised-fine-tuning-pipeline) and [continued pretraining](/learn/continued-pretraining-domain-adaptation) define what the model learns. LoRA defines which parameters update. QLoRA adds 4-bit base-model quantization to adapter tuning. Distillation learns from a teacher, using soft targets [^hinton2015] or generated sequences [^kim2016sequenceDistillation]; logits aren't required for every distillation method.
+Training recipes compose three independent axes rather than a single preset. [SFT](/learn/supervised-fine-tuning-pipeline) and [continued pretraining](/learn/continued-pretraining-domain-adaptation) choose the learning signal. Full fine-tuning vs. LoRA chooses which weights update. BF16, FP8, or 4-bit NormalFloat (NF4, as in QLoRA) chooses frozen-base storage precision. Distillation learns from a teacher via soft logits [^hinton2015] or generated sequences [^kim2016sequenceDistillation].
 
 | Decision | Examples | What it changes |
 |---|---|---|
@@ -504,67 +480,62 @@ Training recipes aren't a single dropdown choice. [SFT](/learn/supervised-fine-t
 | Trainable parameters | Full model weights; LoRA adapters | Parameter memory, optimizer footprint, and capacity |
 | Frozen-base precision | BF16; FP8; 4-bit NormalFloat (NF4) | Base model memory, CUDA kernels, numerical behavior |
 
-These are conceptually separate decisions, but their implementations aren't freely interchangeable. Check that the architecture, quantization backend, adapter implementation, and hardware support the combination you chose.
-
-Domain-adaptive pretraining can improve specialized comprehension. Evaluate held-out text fit and product tasks to decide whether unfamiliar vocabulary warrants it [^gururangan2020]. Compare LoRA SFT and full fine-tuning on the target task and budget [^hu2021].
+Verify that your model architecture, quantization backend, adapter library, and GPU generation actually support the combination you pick. Domain-adaptive pretraining pays off when unfamiliar corpus vocabulary hurts held-out text fit and downstream tasks [^gururangan2020]; compare LoRA against full fine-tuning on the target task and budget [^hu2021].
 
 <figure>
-  <img src="illustrations/_generated/adaptation_method_matrix_dark.png" alt="Three recipe decisions compose a QLoRA SFT setup: response SFT supplies the learning signal, LoRA adapters are trainable while the base is frozen, and NF4 stores the base weights at four bits. On one shared 0–48 GiB scale, ideal storage for 70 billion four-bit weights is 32.6 GiB. This exceeds a 24 GiB single-GPU budget by 8.6 GiB. A 48 GiB budget leaves 15.4 GiB after base weights for every omitted cost; that lower bound alone does not guarantee training fit." />
+  <img src="illustrations/_generated/adaptation_method_matrix_dark.png" alt="Three recipe decisions compose a QLoRA SFT setup: response SFT supplies the learning signal, LoRA adapters are trainable while the base is frozen, and NF4 stores the base weights at four bits. On one shared 0–48 GiB scale, ideal storage for 70 billion four-bit weights is 32.6 GiB. This exceeds a 24 GiB single-GPU budget by 8.6 GiB. A 48 GiB budget leaves 15.4 GiB after base weights for adapters, activations, and overhead." />
   <figcaption>Choose the learning objective, trainable parameters, and base precision separately. Then check the memory floor.</figcaption>
 </figure>
 
 ### Reject impossible memory plans before launching
 
-The original QLoRA paper demonstrated fine-tuning a 65B model on a single 48GB GPU [^dettmers2023]. That empirical result doesn't mean a 70B model fits within a 24 GiB usable device budget. Comparing 24 GiB and 48 GiB device memory budgets shows why 70B QLoRA requires at least a 48 GiB card before activations and KV state.
-
-At an ideal four bits per parameter, a 70B model requires:
+QLoRA demonstrated fine-tuning a 65B model on a single 48 GB GPU [^dettmers2023]. Before launching a 70B run, check the base-weight memory floor first. At an ideal 4 bits per parameter, 70B weights require:
 
 $$
 \text{Memory}_{\mathrm{base}} = \frac{70 \times 10^9 \times 4\text{ bits}}{8\text{ bits/byte}} = 35 \times 10^9\text{ bytes} \approx 32.6\text{ GiB}
 $$
 
-Base weights alone exceed 24 GiB by 8.6 GiB before quantization metadata, higher-precision tensors, LoRA adapters, activations, gradients, optimizer moments, or temporary buffers.
+Those base weights alone overshoot a 24 GiB card by 8.6 GiB before quantization scales, higher-precision norms, LoRA adapters, activations, gradients, or optimizer moments enter memory:
 
 <!-- leetllm: test, id=weight-memory, output=show, output_title="Base-weight memory lower bounds" -->
 ```python title="weight_memory.py"
 def weight_gib(parameters, bits):
-    if parameters <= 0:
-        raise ValueError("positive integer parameter count required")
-    if bits <= 0:
-        raise ValueError("positive integer bit width required")
     return ((parameters * bits + 7) // 8) / (1024 ** 3)
 
-large = weight_gib(70_000_000_000, 4)
-small = weight_gib(8_000_000_000, 16)
-assert large > 24
-assert small < 24  # Only the base fits this lower-bound check.
-assert weight_gib(1, 4) == 1 / (1024 ** 3)
-print(f"70B at 4 bits: at least {large:.1f} GiB; exceeds 24 GiB")
-print(f"8B at 16 bits: at least {small:.1f} GiB; training needs more")
+for label, params, bits in (
+    ("70B at 4 bits", 70_000_000_000, 4),
+    ("8B at 16 bits", 8_000_000_000, 16),
+    ("8B at 4 bits", 8_000_000_000, 4),
+):
+    gib = weight_gib(params, bits)
+    verdict = "exceeds 24 GiB" if gib > 24 else f"leaves {24 - gib:.1f} GiB on 24 GiB card"
+    print(f"{label}: {gib:.1f} GiB base weights ({verdict})")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Base-weight memory lower bounds" output compact
-70B at 4 bits: at least 32.6 GiB; exceeds 24 GiB
-8B at 16 bits: at least 14.9 GiB; training needs more
+70B at 4 bits: 32.6 GiB base weights (exceeds 24 GiB)
+8B at 16 bits: 14.9 GiB base weights (leaves 9.1 GiB on 24 GiB card)
+8B at 4 bits: 3.7 GiB base weights (leaves 20.3 GiB on 24 GiB card)
 ```
 <!-- leetllm: output:end -->
 
-This all-resident four-bit plan cannot fit a 24 GiB budget. Change the plan: use a smaller model, a supported lower-bit representation, sharding, or offloading. Profile the complete training peak beyond base weights. On a 48 GiB GPU, the remaining 15.4 GiB must cover **all** omitted memory, including adapters and activations.
+When base weights already exceed VRAM, change the plan before allocating cluster time: pick a smaller model, add sharding, or offload. On a 48 GiB GPU, 70B 4-bit leaves 15.4 GiB for quantization metadata, adapters, activations, and allocator overhead, so profile the full step peak before committing to a long job.
 
 ## Rehearse the restart before the long run
 
-Don't wait for your first midnight preemption to discover that your checkpoint loader crashes. Run a restart drill on small test jobs:
-- **Local state continuity:** Compare five uninterrupted steps against five steps resumed from an intermediate checkpoint. Verify that weights, Adam moments, learning rates, and data sample IDs match within floating-point tolerance.
-- **Distributed topology restoration:** Save on four GPUs, then load on a supported target layout with eight GPUs (or another valid size). Verify model and optimizer resharding, data partitioning, and peak restore memory.
-- **Preemption deadline drill:** Send `kill -TERM <training-pid>` to your test job. Exercise both a warning that fits the measured path and one that doesn't. Force an interruption during saving and verify that the loader selects the previous complete checkpoint.
-- **Diagnostics and recovery policy:** Inject a controlled straggler or nonfinite test batch. Verify that monitoring identifies the symptom, unsafe state isn't published, retries are bounded, and any rollback or quarantine follows the configured policy.
+Do not wait for your first midnight preemption to find a broken checkpoint loader. Rehearse four short drills on a small test run first:
 
-Distinguish between your *latest resumable checkpoint* and your *best evaluation checkpoint*. Step 1840 might be your operational recovery point, while step 1600 holds your highest validation score. Store both with explicit metadata tags.
+- **Local state continuity:** Compare five uninterrupted steps against five steps resumed from an intermediate checkpoint. Verify that weights, Adam moments, learning rate, and next sample IDs match within floating-point tolerance.
+- **Distributed topology restoration:** Save on four GPUs, then load onto eight GPUs (or your planned recovery mesh). Verify model and optimizer resharding, data partitioning, and peak restore host RAM.
+- **Preemption deadline drill:** Send `kill -TERM <training-pid>` to test both a warning that fits your budget and one that cuts off mid-save. Confirm the loader falls back cleanly to the last validated checkpoint.
+- **Diagnostics and recovery policy:** Inject a slow rank or a zero-target batch. Confirm monitoring surfaces the cause, corrupt state is never published, and retries stay bounded.
 
-A weights file in the bucket is not the run. The moments, the data cursor, and the learning-rate phase have to travel with it, and only a save that has reached storage counts.
+Tag your *latest resumable checkpoint* separately from your *best evaluation checkpoint*. Step 1840 may be your operational resume point while step 1600 holds the best held-out score; track both with explicit metadata.
 
-Snapshot copying, warmup, scaling and training-mode practice.
+A weights file in object storage is not a resumable run. Optimizer moments, the consumed data cursor, and the scheduler phase must travel with it, and only a validated save that reached durable storage counts.
+
+### Check your understanding
 
 ```checkpoint
 A scalar weight starts at 2. A live state_dict and an independent deep copy are retained. One SGD step uses loss w² and learning rate 0.25. Which values are then stored in the live dictionary and independent copy?
@@ -602,7 +573,7 @@ Apply the taught conditional Adam scaling proposal with kappa = 4 to eta = 0.001
 ---
 (0.002, 0.6, 0.996, 5e-9)
 
-sqrt(4) = 2 scales eta to 0.002 and divides epsilon to 5e-9. Each beta becomes 1−4(1−beta), yielding 0.6 and 0.996. Changing only LR or scaling beta with sqrt(kappa) is a different proposal. The approximation remains conditional and does not guarantee an AdamW fine-tuning trajectory.
+sqrt(4) = 2 scales eta to 0.002 and divides epsilon to 5e-9. Each beta becomes 1−4(1−beta), yielding 0.6 and 0.996. Changing only LR or scaling beta with sqrt(kappa) is a different proposal. Always validate the new schedule against a fixed-LR control.
 ```
 
 ```checkpoint
@@ -615,7 +586,7 @@ A team has unlabeled domain text, wants a validated adapter-only training protot
 ---
 Domain-text learning signal; adapters train; NF4 stores the frozen base; validate backend compatibility.
 
-Unlabeled domain text supplies the domain-adaptive objective. Adapter-only specifies the trainable parameters, and NF4 specifies the frozen-base representation. SFT labels, full-weight updates or BF16 storage each change one requested axis; actual implementation compatibility still needs validation.
+Unlabeled domain text supplies the domain-adaptive objective. Adapter-only specifies the trainable parameters, and NF4 specifies the frozen-base representation. SFT labels, full-weight updates, or BF16 storage each change one requested axis; verify implementation compatibility on your target stack.
 ```
 
 ```mastery-quiz
@@ -640,7 +611,7 @@ Unlabeled domain text supplies the domain-adaptive objective. Adapter-only speci
       "106 seconds; it fails."
     ],
     "answer": "106 seconds; it fails.",
-    "explanation": "The complete path is 24 + 70 + 12 = 106 seconds, longer than 105. Comparing only save plus margin drops remaining computation; adding margin twice also changes the stated contract."
+    "explanation": "The complete path is 24 + 70 + 12 = 106 seconds, longer than 105. Comparing only save plus margin drops remaining computation; adding margin twice also distorts the budget."
   },
   {
     "question": "A regular mesh has 48 GPUs with distinct TP = 2, PP = 3 and CP = 2 axes. Each independent replica processes 2 sequences per microbatch and accumulates 5 microbatches. Which replica count and nominal global batch follow?",
@@ -687,7 +658,7 @@ Unlabeled domain text supplies the domain-adaptive objective. Adapter-only speci
     "explanation": "Two four-bit weights fit in a byte. Packing four per byte would give the 2.79 GiB estimate. The base uses 6 billion bytes, or 6.00 GB. Dividing by 2^30 bytes per GiB gives 5.59 GiB. The weights alone exceed 4 GiB. The 24 GiB device has 18.41 GiB left for metadata, adapters, activations and other allocations. Training fit depends on their peak."
   },
   {
-    "question": "Checkpoint 40 is the previous published recovery point. Checkpoint 41 has a stable staged copy, but only three of four expected storage shards have completed. Which pointer action preserves the stated recovery contract?",
+    "question": "Checkpoint 40 is the previous published recovery point. Checkpoint 41 has a stable staged copy, but only three of four expected storage shards have completed. Which pointer action preserves atomic recovery?",
     "options": [
       "Publish 41 because staging completed; retain its missing-shard name in the manifest.",
       "Keep 40 published until the fourth upload future succeeds, then publish 41 on that signal.",
