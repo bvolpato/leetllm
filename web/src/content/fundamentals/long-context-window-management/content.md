@@ -45,18 +45,16 @@
 }
 ---
 
-Suppose a deprecated normalization constant sits somewhere inside a multi-module ML repository, and someone asks which layer defines it and how downstream modules scale it. Sending the entire repository may fit inside a model's advertised limit, yet the decisive definition can still go unread or push KV cache costs above what the deployment can afford. As prompt lengths grow from thousands to hundreds of thousands of tokens, the bottleneck shifts smoothly from pure ingestion work to memory residency, positional extrapolation, and retrieval reachability.
+Paste a 100,000-token ML codebase into a model with a 128K context window and ask which layer defines a deprecated normalization constant. The API accepts every token without complaint. Yet two things often go wrong at once: the model misses the definition buried near the middle of the prompt, and serving just four concurrent requests requires more GPU memory for the <span data-glossary="kv-cache">KV cache</span> than for the entire 70-billion-parameter model itself.
 
-Speculative decoding can amortize weight traffic across useful proposed tokens. Long context adds a different pressure. <span data-glossary="prefill">Prefill</span> must ingest more input, the model must keep the state its attention architecture needs, and the answer still has to find the right evidence. Full-attention layers retain growing <span data-glossary="kv-cache">KV caches</span>, whereas local sliding-window or recurrent layers bound their per-layer state differently.
-
-**Advertised capacity** is how many <span data-glossary="token">tokens</span> a <span data-glossary="context-window">context window</span> accepts. **Effective utilization** is whether the model can find and reason over the right evidence under real compute, memory, and latency constraints. A long codebase query has to clear both hurdles: the prompt and reserved answer must fit cleanly, and the target definition must remain reachable once you pay for prefill, KV storage, and positional encoding. Because the [attention mechanism](/learn/scaled-dot-product-attention) in a standard <span data-glossary="transformer">transformer</span> compares queries against keys across earlier tokens during prompt ingestion, compute grows steeply with sequence length. <span data-glossary="flashattention">FlashAttention</span>[^dao2022] and [paged KV-cache serving](/learn/kv-cache-paged-attention-llm-serving)[^kwon2023] cut memory traffic and allocation fragmentation, improving wall-clock latency without altering how many pairs full attention evaluates.
+That gap separates **advertised capacity** (how many <span data-glossary="token">tokens</span> a <span data-glossary="context-window">context window</span> accepts) from **effective utilization** (whether the model can find and reason over the right evidence under real memory, latency, and cost constraints). Standard [self-attention](/learn/scaled-dot-product-attention) compares every prompt token against every earlier token during <span data-glossary="prefill">prefill</span>, driving quadratic compute, and retains keys and values across every layer during decode. <span data-glossary="flashattention">FlashAttention</span>[^dao2022] and [paged KV-cache serving](/learn/kv-cache-paged-attention-llm-serving)[^kwon2023] cut memory traffic and allocation waste without changing how many token pairs full attention evaluates.
 
 <figure>
   <img src="illustrations/_generated/context_strategies_dark.png" alt="A ten-position sequence places target fact F1 at index 1 and question Q9 at index 9. Full causal attention exposes all 55 lower-triangular query-key pairs and connects Q9 directly to F1. A width-4 sliding window exposes 34 pairs and blocks that direct link in a single layer. Retrieval instead selects chunks F1, 4, and 7 ahead of Q9." />
-  <figcaption>Figure 1: Three ways to reach target fact F1 from question Q9 across a ten-span sequence: full causal attention (55 pairs), a width-4 sliding window (34 pairs, dropping the direct F1-to-Q9 edge in one layer), and top-k retrieval packing candidate chunks F1, 4, and 7 ahead of Q9.</figcaption>
+  <figcaption>Figure 1: Three ways to reach fact F1 from question Q9 across ten spans: full causal attention (55 pairs, direct link), a width-4 sliding window (34 pairs, no single-layer link), and top-k retrieval packing candidate chunks F1, 4, and 7 ahead of Q9.</figcaption>
 </figure>
 
-Read Figure 1 as three architectural bets on the same codebase question. Full attention gives `Q9` a direct attention path back to `F1` at the highest prefill and KV cache cost. A width-4 sliding window keeps each layer local, trimming active pairs from `55` to `34` while relying on stacked layers or global layers for long-range routing. Retrieval narrows ten spans down to three before prefill starts, so recall hinges on whether top-k selection captures `F1`.
+Those three paths represent the core architectural choices of long-context engineering: attend to everything, bound each layer's local window, or retrieve only the candidate spans before prefill begins.
 
 ```checkpoint
 Why is advertised context length different from effective context use?
@@ -64,464 +62,219 @@ Why is advertised context length different from effective context use?
 Advertised length says how many tokens the model can accept. Effective use asks whether the model can find and reason over the right evidence at every position, under real cost, memory, and latency constraints.
 ```
 
-## First gate: can the prompt fit, and what does it cost?
+## Can the prompt fit, and what does it cost?
 
-Treat a context window as a shared budget, not as an input-only bucket. System instructions, conversation history, retrieved evidence, the user request, and the output you reserve all compete for the model's limit. A prompt that fits with a ten-token answer may overflow once you reserve a multi-step generation allowance.
+A context window is a shared budget, not an input-only bucket. System instructions, chat template tokens, tool schemas, history, retrieved evidence, and the reserved output length must satisfy:
 
-For a decoder-only model, start with `serialized_input_tokens + reserved_generation_tokens <= context_limit`. Count the actual chat template, tool schemas, separators, and any multimodal tokens using the deployment's tokenizer rules. Check separate input/output caps and server configuration alongside quality benchmarks: a checkpoint's trained limit, an API request limit, and your verified accuracy window need not match. The 128K calculation below profiles an 80-layer 70B GQA configuration as a concrete reference point.
+$$
+\text{serialized\_input\_tokens} + \text{reserved\_output\_tokens} \le \text{context\_limit}
+$$
 
-### The quadratic bottleneck
+Once a long prompt fits, it hits two separate hardware bills: **prefill compute** and **decode KV-cache memory**.
 
-Before tuning kernels or retrieval parameters, measure how prefill work scales as a prompt grows from 4K to 128K tokens. Standard full attention forms $O(n^2)$ token-pair scores in <span data-glossary="big-o-notation">Big-O notation</span> for sequence length $n$. Causal masking retains $n(n+1)/2$ lower-triangular pairs, still quadratic in $n$. Doubling context length quadruples attention pairs; scaling 32x from 4K to 128K multiplies pairwise checks by roughly 32² = 1,024x during prefill. Linear projections and feed-forward layers scale linearly with $n$, so end-to-end wall-clock slowdown sits below 1,024x, though attention increasingly dominates at long sequence lengths.
+### The quadratic prefill wall and the KV-cache memory bill
 
-Optimized GPU kernels shrink memory traffic without erasing quadratic attention scaling. Meanwhile, full-attention decoding hits a second bottleneck: every generated token attends across the stored prefix keys and values, turning long prompts into both a prefill compute problem and a <span data-glossary="gpu">GPU</span>-memory capacity problem.
+During prefill, full causal attention scores $n(n+1)/2$ token pairs per layer, scaling as $O(n^2)$ in <span data-glossary="big-o-notation">Big-O notation</span>. Growing a prompt 32x from 4K to 128K tokens multiplies pairwise attention checks by $32^2 = 1{,}024\times$. Linear projections and FFNs grow linearly, so attention increasingly dominates time-to-first-token (TTFT) at long lengths.
+
+During decode, every generated token reads all cached keys and values from GPU HBM. For a uniform decoder with $L$ layers, $H_{\text{kv}}$ KV heads of width $d_h$, sequence length $n$, and $b$ bytes per element:
+
+$$
+\text{KV cache bytes} = 2 \cdot L \cdot H_{\text{kv}} \cdot d_h \cdot n \cdot b
+$$
+
+Take a Llama 3 70B profile ($L=80$, 64 query heads, 8 <span data-glossary="grouped-query-attention">GQA</span> KV heads, $d_h=128$, <span data-glossary="bf16">BF16</span> at 2 bytes) at 128K tokens (`131,072`):[^dubey2024]
+
+- **1 sequence (GQA-8, BF16):** **40 GiB** of KV cache (below the ~130 GiB BF16 weights).
+- **4 concurrent sequences (GQA-8, BF16):** **160 GiB** of KV cache, already larger than the model weights!
+- **1 sequence (MHA-64, BF16):** **320 GiB** of KV cache, more than 2.4x the model weights.
 
 <figure>
   <img src="illustrations/_generated/attention_cost_curve_dark.png" alt="Prefill attention FLOPs on a log2 scale relative to 4K rise to 10 (1,024x) at 128K under full attention, while a 4K sliding window rises to 5 (32x). At 128K, BF16 GQA KV state uses 40 GiB for one sequence and 160 GiB for four, exceeding ~130 GiB model weights, while MHA reaches 320 GiB." />
-  <figcaption>Figure 2: Leading-term prefill work normalized to 4K on a log₂ scale (full O(L²) vs. a 4K sliding window O(Lw)), paired with 128K BF16 decode KV memory on an 80-layer, 128-dim head model against ~130 GiB of model weights.</figcaption>
+  <figcaption>Figure 2: Prefill attention work relative to 4K on a log₂ scale (full $O(n^2)$ vs. a 4K sliding window $O(nw)$), paired with 128K BF16 KV cache memory on an 80-layer model against ~130 GiB of weights.</figcaption>
 </figure>
 
-Prefill pays for the pairwise comparison: $O(n^2)$ score computations per layer. Decode pays for keeping prior key/value <span data-glossary="vector">vectors</span> in the KV cache and reading them again for each new token. Extending the usable range adds a third question about training and careful <span data-glossary="rope">RoPE</span> scaling. These are separate costs, so one successful benchmark won't answer all three.
-
-```checkpoint
-Why can moving from 4K to 128K context become more than 32 times harder for full attention?
----
-Full attention compares token pairs, so prefill attention work scales with $n^2$. A 32x increase in sequence length creates about 32² = 1,024x more pairwise attention scores before kernel and hardware optimizations.
-```
-
-### Memory in concrete numbers
-
-Put a number on the second bill. Llama 3 70B is an 80-layer decoder with 64 query heads, 8 KV heads, hidden size 8192, and head dimension 128.[^dubey2024] Llama 3.1 keeps that shape and advertises a 128K window. Take an 80-layer Llama 3 70B profile as a reference calculation: <span data-glossary="bf16">BF16</span> KV <span data-glossary="tensor">tensors</span>, 2 bytes per cached element, and a 128K prompt (131,072 tokens).
-
-With <span data-glossary="grouped-query-attention">GQA</span>, the cache holds 8 KV heads, so the calculation gives **40 GiB per active sequence**. Replace those 8 heads with the 64 heads of full <span data-glossary="multi-head-attention">multi-head attention (MHA)</span> and the cache becomes **320 GiB**. The BF16 weight file is about **130 GiB** ($70 \times 10^9 \times 2$ bytes). One GQA request fits below the weight file; four concurrent requests need **160 GiB** of KV before activations or runtime buffers.
-
-For uniform layers with separate, equal-width K/V arrays, the formula that produced those numbers is:
+Modern hybrid models mix short local sliding-window layers with fewer global full-attention layers, so never multiply one layer's shape uniformly across all layers. Sum layer by layer instead:
 
 $$
-\begin{aligned}
-\text{KV cache size}
-&= 2 \times \text{num\_layers} \times \text{num\_kv\_heads} \\
-&\quad \times \text{head\_dim} \times \text{seq\_len} \times \text{bytes\_per\_element}
-\end{aligned}
+\text{logical KV bytes} = \sum_\ell n_\ell \big(H_{K,\ell} d_{K,\ell} b_{K,\ell} + H_{V,\ell} d_{V,\ell} b_{V,\ell}\big)
 $$
 
-Read the result as **logical, unshared KV per active sequence**, summed across all layers. Multiply by concurrent sequences, include generated tokens as the cache grows, then account for paging, prefix sharing, quantization scales, and runtime buffers. A sharded model distributes this state across devices, sometimes with replicated KV heads; don't charge the entire 40 GiB to every GPU or assume perfectly even sharding. The code below isolates the raw tensor term. Its one-byte row models the payload only, not scale metadata or validated FP8 support.
+In Gemma 4 12B, 40 local sliding-window layers (8 KV heads, width 256, window 1,024) pair with 8 global layers (1 KV head, width 512).[^gemma4config2026][^gemma4CacheImplementation2026] Assuming the local shape everywhere at 128K overestimates KV memory by more than 20x (`48.0 GiB` vs. the true `2.3125 GiB`):
 
 <!-- leetllm: test, output=show -->
 ```python title="kv_cache_capacity.py"
-def kv_cache_gib(
-    layers: int,
-    kv_heads: int,
-    head_dim: int,
-    sequence_tokens: int,
-    bytes_per_element: int,
-) -> float:
-    if any(x <= 0 for x in (layers, kv_heads, head_dim, bytes_per_element)):
-        raise ValueError("architecture dimensions and element size must be positive integers")
-    if sequence_tokens < 0:
-        raise ValueError("sequence_tokens must be nonnegative")
-    bytes_used = (
-        2 * layers * kv_heads * head_dim * sequence_tokens * bytes_per_element
-    )
-    return bytes_used / (1024**3)
+def kv_gib(layers, kv_heads, head_dim, seq_len, elem_bytes=2):
+    return (2 * layers * kv_heads * head_dim * seq_len * elem_bytes) / 2**30
 
-
-WEIGHTS_GIB = (70 * 10**9 * 2) / (1024**3)
-
-for label, heads, dtype_bytes, n_seq in [
-    ("1x GQA BF16", 8, 2, 1),
-    ("1x GQA FP8", 8, 1, 1),
-    ("4x GQA BF16", 8, 2, 4),
-    ("1x MHA BF16", 64, 2, 1),
+weights_gib = (70e9 * 2) / 2**30
+for label, kv_heads, elem_bytes, n_seq in [
+    ("1x Llama-70B GQA BF16", 8, 2, 1),
+    ("1x Llama-70B GQA FP8 ", 8, 1, 1),
+    ("4x Llama-70B GQA BF16", 8, 2, 4),
+    ("1x Llama-70B MHA BF16", 64, 2, 1),
 ]:
-    cache = n_seq * kv_cache_gib(80, heads, 128, 131_072, dtype_bytes)
-    print(
-        f"{label}: {cache:.0f} GiB KV vs {WEIGHTS_GIB:.0f} GiB weights "
-        f"({'KV wins' if cache > WEIGHTS_GIB else 'weights still larger'})"
-    )
+    cache = n_seq * kv_gib(80, kv_heads, 128, 131_072, elem_bytes)
+    print(f"{label}: {cache:5.1f} GiB KV vs {weights_gib:.0f} GiB weights")
+
+# Hybrid Gemma 4 12B at 128K: 40 local (1K window) + 8 global (128K)
+local = kv_gib(40, 8, 256, 1_024, 2)
+global_ = kv_gib(8, 1, 512, 131_072, 2)
+wrong_uniform = kv_gib(48, 8, 256, 131_072, 2)
+print(f"Hybrid sum: {local + global_:.4f} GiB (local {local:.4f} + global {global_:.4f}) vs wrong uniform {wrong_uniform:.1f} GiB")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-1x GQA BF16: 40 GiB KV vs 130 GiB weights (weights still larger)
-1x GQA FP8: 20 GiB KV vs 130 GiB weights (weights still larger)
-4x GQA BF16: 160 GiB KV vs 130 GiB weights (KV wins)
-1x MHA BF16: 320 GiB KV vs 130 GiB weights (KV wins)
+1x Llama-70B GQA BF16:  40.0 GiB KV vs 130 GiB weights
+1x Llama-70B GQA FP8 :  20.0 GiB KV vs 130 GiB weights
+4x Llama-70B GQA BF16: 160.0 GiB KV vs 130 GiB weights
+1x Llama-70B MHA BF16: 320.0 GiB KV vs 130 GiB weights
+Hybrid sum: 2.3125 GiB (local 0.3125 + global 2.0000) vs wrong uniform 48.0 GiB
 ```
 <!-- leetllm: output:end -->
-
-```checkpoint
-For long-context serving, why can a few 128K requests crowd out other users even when one cache is smaller than the weights?
----
-The KV cache is per active sequence. On a Llama 3 70B-class decoder, one 128K GQA cache is about 40 GiB, still under the ~130 GiB weight file, but four concurrent 128K sequences already store about 160 GiB of KV before weights, activations, and runtime buffers.
-```
-
-### Sum mixed layers separately
-
-Before using the 40 GiB result for another checkpoint, inspect its layer schedule carefully rather than extrapolating uniformly. Modern hybrid architectures frequently mix short local sliding-window layers with fewer global full-attention layers, so each layer retains a different sequence span $n_\ell$ alongside potentially distinct key/value head counts and widths:
-
-$$
-\text{logical KV bytes}=\sum_\ell n_\ell\big(H_{K,\ell}d_{K,\ell}b_{K,\ell}+H_{V,\ell}d_{V,\ell}b_{V,\ell}\big)
-$$
-
-Here $n_\ell$ denotes the retained token count in layer $\ell$, which caps at the local window under active cache eviction while full layers continue growing across the entire context. Multi-head latent attention (MLA) replaces explicit per-head keys and values with compressed latent caches, and recurrent state-space layers replace KV history with fixed-size recurrent tensors. Always verify physical allocator buffers to confirm that a sliding-window attention mask actually evicts older entries rather than masking scores over a full-length buffer.
-
-**Architecture check:** the Gemma 4 12B configuration pairs 40 local sliding-window layers (8 KV heads, width 256, window 1,024) with eight global layers (1 KV head, width 512).[^gemma4config2026] Mistakenly applying the local head width uniformly across all 48 layers at 128K overstates cache size by more than twenty-fold, turning a 2.3125 GiB cache footprint into an apparent 48.0 GiB requirement:
-
-<!-- leetllm: test, output=show -->
-```python title="layer_specific_cache.py"
-n, b = 131_072, 2
-local = 2 * 40 * 8 * 256 * min(n, 1_024) * b
-full = 2 * 8 * 1 * 512 * n * b
-wrong_uniform = 2 * 48 * 8 * 256 * n * b
-print(f"local layers: {local / 2**30:.4f} GiB")
-print(f"full layers: {full / 2**30:.4f} GiB")
-print(f"layer-specific sum: {(local + full) / 2**30:.4f} GiB")
-print(f"wrong uniform estimate: {wrong_uniform / 2**30:.4f} GiB")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-local layers: 0.3125 GiB
-full layers: 2.0000 GiB
-layer-specific sum: 2.3125 GiB
-wrong uniform estimate: 48.0000 GiB
-```
-<!-- leetllm: output:end -->
-
-This calculation assumes separate key and value buffers, BF16 payloads, no cross-layer sharing, and active eviction to each layer's local window. Gemma's shared global key/value projection leaves cache size unchanged because the implementation projects distinct states into `cache.update`.[^gemma4CacheImplementation2026] Model-weight precision does not dictate cache precision either, so verify retained allocator buffers and peak GPU memory directly before sizing concurrency limits.
 
 <figure>
   <img src="illustrations/_generated/mixed_layer_cache_ownership_dark.png" alt="A 48-layer Gemma configuration separates 40 local 1K sliding-window layers (8 heads of dim 256, using 0.3125 GiB or 13.5%) from 8 global 128K layers (1 head of dim 512, using 2.000 GiB or 86.5%), totaling 2.3125 GiB in BF16 versus 48.0 GiB when assigning the local shape and full length to every layer." />
-  <figcaption>Figure 3: Layer-specific BF16 KV cache accounting across 40 local 1K layers (0.3125 GiB) and 8 full 128K layers (2.000 GiB) sums to 2.3125 GiB, avoiding the 48.0 GiB error from uniform scaling. Eviction frees memory whereas attention masking alone only hides distant positions.</figcaption>
+  <figcaption>Figure 3: Layer-specific BF16 KV cache accounting across 40 local 1K layers (0.3125 GiB) and 8 global 128K layers (2.000 GiB) sums to 2.3125 GiB instead of a 48.0 GiB uniform overestimate.</figcaption>
 </figure>
 
-### Prefill vs. decode: two different bottlenecks
+Match each optimization to the phase it relieves: FlashAttention cuts prefill attention I/O, [chunked prefill](/learn/continuous-batching-request-scheduling) interleaves long prefills with active decodes,[^vllm2026optimization] prefix reuse skips duplicate prefill, and PagedAttention, GQA, MLA, or KV quantization shrink decode cache memory and bandwidth.
 
-The same 128K request strains hardware twice, for distinct architectural reasons.[^kwon2023] During prefill, the model ingests the full prompt in parallel and pays for constructing its quadratic score matrix across all prompt pairs. During decode, the model generates one token per forward step; cached keys and values avoid recomputing old projections, yet every emitted token must still sweep across all retained prefix blocks in HBM. For a dense-attention step ignoring newly written tokens and weight loads, the logical KV volume read per step follows the cache residency expression:
+### Sliding windows, attention sinks, and history budgeting
 
-$$
-\text{bytes/decode step (KV reads)} \approx 2 \cdot L \cdot H_{kv} \cdot d_h \cdot n_{\text{ctx}} \cdot b
-$$
+**Sliding-window attention (SWA)** caps each layer's visibility to the most recent $w$ tokens, moving attention cost from $O(n^2)$ to $O(n w)$.[^jiang2023] Gemma 2 alternates 4,096-token local layers with 8,192-token global layers so distant tokens still have periodic global highways.[^gemma2team2024] When a pure sliding window rolls forward and evicts the very first tokens of a sequence, generation quality can abruptly collapse: Xiao et al. showed that initial tokens act as **attention sinks** absorbing excess softmax mass, so StreamingLLM keeps a handful of sink KV entries alongside the recent window to keep long streams stable (without restoring evicted middle facts).[^xiao2023streaming]
 
-where $L$ is layers, $H_{kv}$ is KV heads, $d_h$ is head dim, $n_{\text{ctx}}$ is cached tokens, and $b$ is bytes per element. It mirrors the residency equation because each stored entry participates in every new query dot product. On-chip SRAM reuse reduces raw DRAM transfers in fused kernels, whereas scattered page lookups and synchronization can amplify memory transactions, so always profile hardware counters directly.
-
-Compare that with **weight-stream bytes** using an idealized decode batch that loads the dense model's weights once for the batch. One 128K sequence needs about 40 GiB of logical KV reads versus about 130 GiB of BF16 weights; four independent sequences raise the KV side to 160 GiB while reusing the same weights. This explains why batching and context length can shift a weight-bandwidth bottleneck toward KV bandwidth. Measure the crossover on the target stack because kernels, reuse, sharding, and compute utilization determine where it occurs.
-
-Keep the phase attached to each intervention. FlashAttention reduces attention-kernel IO, which matters most during large prefills and <span data-glossary="ttft">time to first token (TTFT)</span>. [Chunked prefill](/learn/continuous-batching-request-scheduling) lets the scheduler interleave a long ingestion with in-flight decodes.[^vllm2026optimization] PagedAttention, GQA, and KV-cache <span data-glossary="quantization">quantization</span> reduce allocation waste or bytes per cached token. <span data-glossary="prefix-cache">Prefix reuse</span> skips repeated prefill for matching prefixes. The right fix is whichever moves your measured bottleneck.
-
-```checkpoint
-Which optimizations mostly help prefill, and which mostly help decode?
----
-FlashAttention reduces attention IO in prefill and can also help decode kernels. Chunked prefill changes scheduling, often protecting ongoing decodes; smaller chunks can worsen the long request's TTFT. Prefix reuse cuts repeated prefill. PagedAttention reduces allocation waste, while GQA and cache quantization reduce stored bytes; those savings also matter while ingesting the prompt.
-```
-
-### Attention variants that cut long-context cost
-
-Instead of keeping every position visible, change the visibility pattern. Mistral 7B pairs GQA with **sliding window attention (SWA)**: each token attends to a fixed local window rather than the entire prefix.[^jiang2023] If that window has width $w$, attention cost moves from $O(n^2)$ toward $O(n \times w)$. Gemma 2 alternates local layers with global-attention layers, using a 4096-token local window and an 8192-token global span in its report.[^gemma2team2024] Local layers pay less; global layers provide occasional long-range paths.
-
-Test the dependency before choosing that trade. A width-$w$ window limits **direct attention in one layer**; stacked layers can propagate information across a wider receptive field. Mistral's report describes this larger receptive field.[^jiang2023] An evicted raw fact has no direct cache entry, and recall through an indirect path depends on the model and task. Evaluate it on the target workload. Sliding-window attention reduces visible positions per layer to a local band; full-prefix access requires a global attention path or another retrieval mechanism.
-
-Here's a second failure to predict when the window rolls forward. Once early tokens leave the cache, quality can collapse in some models. Xiao et al. linked this behavior in their evaluated models to **attention sinks**, initial tokens that attract disproportionate attention; their StreamingLLM experiments retained a few sink KV entries alongside the recent window for stable long generation without fine-tuning.[^xiao2023streaming] Sink count and quality need model-specific tests. Retaining sinks can stabilize generation, but it doesn't restore lookup of every evicted fact.
-
-```checkpoint
-When is sliding-window attention a good fit, and when is it dangerous?
----
-It fits tasks where most dependencies are local, such as continuation or code near the cursor. It's dangerous for forensic QA, policy lookup, or multi-hop reasoning where an answer may depend on evidence far outside the local window. A naive window that evicts the very first tokens can also destabilize generation unless it retains attention-sink tokens.
-```
-
-### When the input doesn't fit: truncation and compaction
-
-Visibility matters only after the prompt fits safely inside the window. In a multi-turn chat or agent workflow, conversation history expands with every step, forcing the runtime to decide which state survives into the next forward pass. **Truncation** applies a hard boundary: preserve the system instructions and latest user prompt, then trim older exchanges until the serialized request fits inside the remaining budget. It executes predictably in constant time without extra model calls, though any dropped fact disappears permanently; always count serialized tokens rather than characters or turn counts because structured code consumes more tokens per word than plain prose.
-
-**Summarization** folds older exchanges into a compact natural-language state note, and agentic <span data-glossary="context-compaction">context compaction</span> generalizes that pattern across multi-step tool transcripts before resuming execution. Both strategies preserve more semantic meaning per token than raw truncation at the expense of extra inference latency and subtle omission risk when critical flags or constants vanish during rewriting. Whether truncating or compacting, enforce the same <span data-glossary="token-budget">token-budgeting</span> discipline: reserve system prompts and expected generation length first, pack intact turns from newest to oldest, and explicitly tag which historical state can be dropped versus compacted.
+When a multi-turn conversation or agent transcript outgrows the window, reserve the output budget and mandatory instructions first, then either **truncate** whole turns from the oldest end or run **<span data-glossary="context-compaction">context compaction</span>** (summarizing older turns while pinning exact file paths, constants, and unresolved items outside the lossy prose summary). Always drop complete user/assistant or tool-call/result pairs so an answer never loses its question.
 
 <figure>
   <img src="illustrations/_generated/serialized_budget_and_compaction_dark.png" alt="A prompt-budget pipeline reserves output tokens first, validates whether mandatory system instructions and the user query fit in the remaining input limit, packs complete recent turns intact, compacts older turns if needed, and recounts the serialized request. In a 16-unit window with 4 reserved output units and 11 mandatory units, only 1 free unit remains, so an older 13-unit turn (9 user plus 4 assistant) is omitted whole." />
-  <figcaption>Figure 4: Four-stage prompt budget pipeline reserving output tokens first (4 of 16 units), verifying mandatory inputs fit within the remaining budget, and dropping an entire 13-unit prior exchange rather than splitting questions from answers. Mandatory inputs exceeding the input budget at limit 14 raise ValueError.</figcaption>
+  <figcaption>Figure 4: Turn-atomic prompt budgeting. Reserve output tokens first, verify mandatory messages fit, and drop or compact complete exchanges rather than splitting questions from answers.</figcaption>
 </figure>
-
-Reserve non-negotiable space before touching history, and fail explicitly if mandatory inputs already overflow. Drop complete conversational turns so an answer never loses its question or a tool result its matching call. Because compaction summarizes earlier text lossily, keep exact identifiers and unresolved dependencies outside the prose summary, recount the serialized request afterward, and never promote summarized untrusted context into system instructions.
-
-The helper below illustrates turn-atomic packing on plain user/assistant messages; tool-call transcripts need an analogous rule grouping each call with its output. Using a whole-request counting callback `count_request` lets your production adapter apply the deployment's chat template and framing tokens accurately instead of summing raw field strings.
 
 <!-- leetllm: test, output=show -->
 ```python title="fit_history.py"
-def fit_history(
-    system: dict,
-    exchanges: list[list[dict]],
-    latest_user: dict,
-    context_limit: int,
-    reserved_output: int,
-    count_request,
-) -> list[dict]:
-    """Preserve mandatory messages and a contiguous suffix of complete exchanges."""
-    if context_limit <= 0 or reserved_output < 0:
-        raise ValueError("invalid context or output budget")
-    if system["role"] != "system" or latest_user["role"] != "user":
-        raise ValueError("expected a system message and latest user message")
-    if any([m["role"] for m in turn] != ["user", "assistant"] for turn in exchanges):
-        raise ValueError("this example accepts complete plain-chat exchanges only")
+def fit_history(system, exchanges, latest_user, context_limit, reserved_output, count_fn):
     budget = context_limit - reserved_output
     mandatory = [system, latest_user]
-    if count_request(mandatory) > budget:
+    if count_fn(mandatory) > budget:
         raise ValueError("mandatory input and reserved output exceed context limit")
     kept = []
     for turn in reversed(exchanges):
-        candidate = [system, *turn, *kept, latest_user]
-        if count_request(candidate) > budget:
+        if count_fn([system, *turn, *kept, latest_user]) > budget:
             break
         kept = [*turn, *kept]
     return [system, *kept, latest_user]
 
-def count_request(messages: list[dict]) -> int:
-    return sum(1 + len(m["content"].split()) for m in messages)
-
+count_words = lambda msgs: sum(1 + len(m["content"].split()) for m in msgs)
 system = {"role": "system", "content": "You are a PyTorch codebase assistant."}
 exchanges = [[
     {"role": "user", "content": "check cosine learning rate warmup schedule setup details"},
     {"role": "assistant", "content": "verified warmup steps config"},
 ]]
 latest = {"role": "user", "content": "where is rope scaling?"}
-kept = fit_history(system, exchanges, latest, 16, 4, count_request)
-print([m["role"] for m in kept])
-print(f"input={count_request(kept)}, output reserved=4, limit=16")
-try:
-    fit_history(system, exchanges, latest, 14, 4, count_request)
-except ValueError as error:
-    print(error)
+
+kept = fit_history(system, exchanges, latest, 16, 4, count_words)
+print("kept roles:", [m["role"] for m in kept], f"used={count_words(kept)}/12 input budget")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-['system', 'user']
-input=12, output reserved=4, limit=16
-mandatory input and reserved output exceed context limit
+kept roles: ['system', 'user'] used=12/12 input budget
 ```
 <!-- leetllm: output:end -->
-
-In the run above, the older exchange drops cleanly so the system prompt and current query remain intact. That works cleanly when earlier turns are disposable, whereas if turn `0` carries a critical module invariant or exact constant needed downstream, compact that state into a structured summary before it falls outside the window. Even once the full conversation fits comfortably inside the budget, however, positioning distant text beyond the model's pretrained sequence span introduces a second failure mode around coordinate scaling.
 
 ```checkpoint
 When should you compact history instead of truncating it?
 ---
-Truncate when older turns are disposable and no summary call is needed. Compact when early facts still matter, then check that required facts, source IDs, and unresolved work survived. A shorter summary reduces input, but extra calls and summary errors are real costs.
+Truncate when older turns are disposable and no summary call is needed. Compact when early facts still matter, then verify that required constants, file IDs, and unresolved work survived the summary.
 ```
 
-## Second gate: do stretched positions still mean what you think?
+## Stretching positional encodings beyond training length
 
-The [positional encoding article](/learn/positional-encoding-rope-alibi) explains why attention needs a position signal. Past the training range, the model can see rotations and frequency combinations it didn't learn. **Rotary Position <span data-glossary="embedding">Embeddings</span> (RoPE)**[^su2021] rotates those <span data-glossary="positional-encoding">position encodings</span> into attention, and interpolation or rescaling tries to extend that learned coordinate system. Llama 3 also raised its RoPE base $\theta$ to 500,000, stretching the useful range before interpolation.[^dubey2024]
-
-### RoPE basics
-
-Picture each pair of embedding dimensions as a dial. Dials rotate at different speeds, so a token's position is a combination of angles rather than one scalar. Comparing two rotated vectors exposes their relative offset, which gives attention distance-aware information without adding a separate lookup row for every position.
-
-RoPE rotates pairs of **query and key head dimensions**, not the residual token embedding itself. Write each pair as a complex number $x_j$ with frequency $\omega_j$:
+Even if a 32K prompt fits in VRAM, a model trained at 8K tokens can produce gibberish past position 8,192 because **Rotary Position <span data-glossary="embedding">Embeddings</span> (RoPE)**[^su2021] enters unseen rotation angles. RoPE rotates pairs of query and key dimensions at geometric frequencies $\omega_j = \theta^{-2j/d_{\text{rot}}}$:
 
 $$
-\text{RoPE}(x_m, m)_j = e^{i m \omega_j} x_j, \qquad \omega_j = \theta^{-2j/d_{\text{rot}}}
+\text{RoPE}(x_m, m)_j = e^{i m \omega_j} x_j
 $$
 
-#### Reading the formula
+Picture each dimension pair as a clock hand spinning at a different speed: fast hands resolve adjacent tokens, while slow hands track long-range distance. Extending the window requires reshaping those frequencies cleanly:
 
-Here $d_{\text{rot}}$ is the even number of rotated head dimensions and $j$ indexes pairs. Position $m$ rotates pair $j$ by $m\omega_j$ radians. In a query-key dot product, the two rotations yield a relative-position angle. Fast frequencies distinguish nearby positions; slow frequencies change more gradually. These are periodic signals, not unique position IDs.
-
-### Position interpolation and NTK-aware scaling
-
-Suppose training stopped at 8,192 tokens and deployment targets 32,768. Naive extrapolation introduces relative offsets and joint frequency patterns outside the trained range, even though individual angles are periodic. **Position interpolation** instead compresses the position coordinate:
-
-$$
-m' = m \times \frac{L_{\text{train}}}{L_{\text{target}}}
-$$
-
-Uniform interpolation protects the range by compressing every frequency band equally. NTK-aware (Neural Tangent Kernel) scaling changes that compromise: it stretches low-frequency dimensions more while keeping high-frequency dimensions closer to their original behavior. Try it to protect local precision, not because every checkpoint tolerates the same factor.
-
-<!-- leetllm: test, output=show -->
-```python title="interpolate_position.py"
-import numpy as np
-
-def interpolate_position(positions: np.ndarray, trained_window: int, target_window: int) -> np.ndarray:
-    """Map extended token indices into the original trained position range."""
-    if trained_window <= 0 or target_window < trained_window:
-        raise ValueError("require positive windows with target_window >= trained_window")
-    if np.any((positions < 0) | (positions >= target_window)):
-        raise ValueError("positions must fall within [0, target_window)")
-    return positions * (trained_window / target_window)
-
-
-positions = np.array([0, 8_192, 16_384, 32_767])
-mapped = interpolate_position(positions, trained_window=8_192, target_window=32_768)
-for pos, coord in zip(positions, mapped):
-    print(f"extended position {pos:>5} -> trained coordinate {coord:7.2f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-extended position     0 -> trained coordinate    0.00
-extended position  8192 -> trained coordinate 2048.00
-extended position 16384 -> trained coordinate 4096.00
-extended position 32767 -> trained coordinate 8191.75
-```
-<!-- leetllm: output:end -->
-
-The arithmetic explains the idea; serving code selects a checkpoint-compatible variant. <span data-glossary="hugging-face-transformers">Hugging Face Transformers</span> 5.19.0 uses `rope_parameters`: `linear` is uniform interpolation, `dynamic` rescales the RoPE base, `yarn` is YaRN, `longrope` follows LongRoPE, and `llama3` is the Llama 3.1 frequency split.[^huggingface2026rope][^ding2024longrope] These settings are not interchangeable across architectures, and some hybrid models configure RoPE separately for local sliding-window layers and global layers.
-
-<!-- leetllm: test, output=show, deps=transformers==5.19.0 -->
-```python title="rope_parameters.py"
-from transformers import LlamaConfig
-
-config = LlamaConfig(
-    max_position_embeddings=8_192,
-    rope_parameters={
-        "rope_type": "dynamic",
-        "rope_theta": 10000.0,
-        "factor": 4.0,
-    },
-)
-print(f"RoPE type={config.rope_parameters['rope_type']} factor={config.rope_parameters['factor']}")
-print(f"configured max positions={config.max_position_embeddings}")
-assert config.max_position_embeddings == 8_192
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-RoPE type=dynamic factor=4.0
-configured max positions=8192
-```
-<!-- leetllm: output:end -->
-
-This constructs and validates a configuration in Transformers 5.19.0 on CPU without loading weights. Notice that adding `factor=4.0` leaves `max_position_embeddings` at `8,192` and does not train extended attention or raise serving engine caps by itself. Match the checkpoint's published scaling parameters and evaluate quality after extending; a `"yarn"` configuration also sets fields such as `original_max_position_embeddings` and optional `attention_factor`, whereas Llama 3 checkpoints use a larger frequency base than this reference 10,000.[^huggingface2026rope]
-
-Dynamic scaling introduces a cache-consistency constraint too. Whenever position scaling changes the rotary basis for longer contexts, previously cached keys must share that same basis. The YaRN paper notes how mixing old and updated rotary frames corrupts attention scores.[^peng2023] Compare one unit-vector pair with a key at position 1 and a query at position 2:
-
-<!-- leetllm: test, output=show -->
-```python title="cached_rotation_basis.py"
-import numpy as np
-
-def rotated(position: int, frequency: float) -> np.ndarray:
-    angle = position * frequency
-    return np.array([np.cos(angle), np.sin(angle)])
-
-query = rotated(2, 0.5)
-old_key = rotated(1, 1.0)
-consistent_key = rotated(1, 0.5)
-print(f"new query / stale key: {np.dot(query, old_key):.6f}")
-print(f"new query / consistent key: {np.dot(query, consistent_key):.6f}")
-assert abs(float(np.dot(query, consistent_key)) - float(np.cos(0.5))) < 1e-12
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-new query / stale key: 1.000000
-new query / consistent key: 0.877583
-```
-<!-- leetllm: output:end -->
-
-A stale cached key at position `1` under unscaled frequency `1.0` happens to align with the new query at position `2` under scaled frequency `0.5`, spuriously colliding at `1.000000` instead of the true cosine `0.877583`. Serving engines avoid this by caching unrotated keys, keeping a fixed scaling basis, or invalidating cached prefixes across context thresholds whenever RoPE scaling parameters change.
-
-<figure>
-  <img src="illustrations/_generated/cached_rotation_consistency_dark.png" alt="Two unit-circle plots compare RoPE basis consistency for a query at position 2 with scaled frequency 0.5 (1 radian). A stale cached key stored under unscaled frequency 1 at position 1 also sits at 1 radian, producing dot product 1.000000. Re-rotating the key under scaled frequency 0.5 puts it at 0.5 radians and restores the true dot product cos(0.5) = 0.877583." />
-  <figcaption>Figure 5: Cached RoPE basis consistency on the unit circle. A stale cached key at 1.0 radian collides with the rotated query (dot product 1.000000), whereas recomputing the key under the scaled 0.5 frequency restores cos(0.5) = 0.877583.</figcaption>
-</figure>
+- **Base frequency scaling:** Raising the RoPE base $\theta$ (Llama 3 raised $\theta$ to 500,000) slows all rotations to stretch native range.[^dubey2024]
+- **Linear position interpolation:** Compresses every position coordinate uniformly via $m' = m \cdot (L_{\text{train}} / L_{\text{target}})$, keeping angles inside the trained range at the cost of crowding nearby tokens.
+- **NTK-aware scaling & YaRN (Yet another RoPE extensioN):** High-frequency bands carry local syntax, so compressing them blurs nearby order. **YaRN** combines **NTK-by-parts** (leaving fast frequencies untouched, compressing slow long-wavelength frequencies, and ramping linearly in between) with an attention-logit scaling factor.[^peng2023] Modern serving configs (such as <span data-glossary="hugging-face-transformers">Hugging Face Transformers</span> `rope_parameters`) expose `linear`, `dynamic`, `yarn`, `longrope`, and `llama3` scaling modes.[^huggingface2026rope][^ding2024longrope]
 
 <figure>
   <img src="illustrations/_generated/rope_frequency_scaling_dark.png" alt="Uniform 4x position interpolation maps extended indices 0 through 32,768 down to 0 through 8,192 (m prime equals m over 4). Below, angular step factors across six RoPE frequency bands compare uniform 0.25 scaling against YaRN NTK-by-parts blending, which keeps local high-frequency steps near 1.0, linearly ramps transition bands, and compresses long-wavelength low-frequency steps to 0.25." />
-  <figcaption>Figure 6: Linear 4x position interpolation versus YaRN frequency-band blending. Uniform scaling compresses every rotary frequency by 4x, whereas YaRN preserves local high-frequency resolution and concentrates interpolation into slow, long-range wavelengths.</figcaption>
+  <figcaption>Figure 5: Uniform 4x position interpolation compresses every frequency equally, whereas YaRN preserves fast local frequencies near 1.0 and concentrates compression in slow long-range bands.</figcaption>
 </figure>
 
-```checkpoint
-Why does naive RoPE extrapolation degrade when context exceeds the training range?
----
-The model sees position rotations and frequency combinations it didn't learn during training. Scaling methods map or reshape those positions to preserve useful relative distances, but aggressive extension still needs validation and often continued training.
-```
+> **Common mistake:** Under dynamic RoPE scaling, changing the rotary frequency mid-sequence without re-rotating cached keys silently corrupts attention scores. A stale key at position `1` under unscaled frequency `1.0` lands at `1.0 rad`, colliding identically (`dot = 1.0`) with a new query at position `2` under scaled frequency `0.5`! Always cache unrotated keys or invalidate the cache when the RoPE scale changes.[^peng2023]
 
-### YaRN (Yet another RoPE extensioN)
+<!-- leetllm: test, deps=numpy, output=show -->
+```python title="rope_interpolation_and_cache_basis.py"
+import numpy as np
 
-YaRN makes the selective compromise explicit. It combines **NTK-by-parts interpolation**, rather than only the NTK-aware base change, with a <span data-glossary="temperature">temperature</span> factor on attention <span data-glossary="logits">logits</span>.[^peng2023] High-frequency dimensions receive no interpolation to protect local order, low-frequency dimensions receive full interpolation to gain range, and middle frequencies use a linear ramp. Attention scaling is distinct from the output sampler's temperature.
+# 1. Linear 4x interpolation: 32K target -> 8K trained scale
+positions = np.array([0, 8_192, 16_384, 32_767])
+print("interpolated coords:", np.round(positions * (8_192 / 32_768), 2).tolist())
 
-That treatment improved long-context <span data-glossary="perplexity">perplexity</span> over plain interpolation at aggressive extension ratios in the YaRN evaluation.[^peng2023] Treat those results as motivation to benchmark YaRN rather than a universal guarantee, because each checkpoint family requires its own recall and perplexity sweep across length bands. Moreover, placing a target normalization constant at an extended coordinate never guarantees that attention heads will read it reliably once irrelevant code distractors accumulate around it.
-
-```checkpoint
-Why does YaRN treat frequency bands differently instead of scaling every RoPE dimension the same way?
----
-High-frequency bands carry local order and syntax, so over-compressing them hurts short-range precision. Lower-frequency bands can stretch more to represent longer distances. YaRN blends those regimes instead of applying one uniform scale.
-```
-
-## Third gate: can the model reach the evidence?
-
-Now return to the repository search problem. Even with a valid budget and an extended position range, recall often depends on where the target definition sits. Liu et al. found that model accuracy varied strongly with evidence position across multi-document tasks, scoring markedly higher near the start or end than in the middle.[^liu2023lost] Prompt layout is therefore part of system design, since a model can ingest every module in the window and still overlook a normalization constant buried in the weak middle. Treat the context window as a position-sensitive retrieval surface rather than a bag whose positions receive uniform attention.
-
-### What the curve looks like
-
-Liu et al.'s benchmarks commonly produce this U-shaped accuracy profile.[^liu2023lost] The Chroma context-rot report later observed flatter depth profiles on one NIAH task even as longer prompts degraded overall accuracy.[^hong2025contextrot] Because sequence-length degradation and midpoint dropoff reflect distinct attention mechanics, measure both across representative prompt formats for your chosen model.
-
-| Placement | Typical Pattern |
-|-----------|-----------------|
-| **Beginning** of context | Often among the strongest positions |
-| **Middle** of context | Most failure-prone |
-| **End** of context | Usually recovers relative to the middle |
-
-```checkpoint
-What does the lost-in-the-middle curve imply for prompt layout?
----
-For a model and task showing middle dropoff, place the highest-ranked excerpts near the beginning or end rather than burying them between weaker chunks, and compare edge-packed prompts against the baseline using the same unique evidence and output budget.
-```
-
-### Mitigation strategies
-
-#### Strategic information placement
-
-When a depth sweep exposes a middle miss, adjust ordering before swapping models. Suppose retrieval returns five repository excerpts: the `Attention` normalization code, the `RoPE` scaling configuration, the `KV` layer schedule, a build log, and a `README` section. Placing the two highest-scoring specs at the beginning and end pushes lower-scoring background excerpts into the center.
-
-The helper below applies that edge-first ordering so you can compare it directly against default descending rank order on identical evaluation cases:
-
-<!-- leetllm: test, output=show -->
-```python title="arrange_context.py"
-from dataclasses import dataclass
-
-@dataclass
-class Document:
-    text: str
-    relevance: float
-
-def arrange_context(
-    system_prompt: str,
-    retrieved_docs: list[Document],
-    user_query: str,
-) -> str:
-    """Put the two strongest chunks at the edges; leave the rest in the middle."""
-    ranked_docs = sorted(retrieved_docs, key=lambda d: d.relevance, reverse=True)
-    head_docs = ranked_docs[:1]
-    tail_docs = ranked_docs[1:2]
-    middle_docs = ranked_docs[2:]
-
-    context = [system_prompt]
-    context.extend(d.text for d in head_docs)
-    context.extend(d.text for d in middle_docs)
-    context.extend(d.text for d in tail_docs)
-    context.append(user_query)
-
-    return "\n\n".join(context)
-
-docs = [
-    Document("Attention module sets eps=1e-6 before softmax scaling.", 0.95),
-    Document("RoPE config scales low-frequency bands via YaRN factor 4.", 0.92),
-    Document("KV layout splits 40 local layers and 8 global layers.", 0.88),
-    Document("Build log excerpt: checkpoint kernels compiled cleanly.", 0.45),
-    Document("README overview section on evaluation scripts.", 0.30),
-]
-
-prompt = arrange_context(
-    system_prompt="Answer using only the repository excerpts below.",
-    retrieved_docs=docs,
-    user_query="How is attention position scaled?",
-)
-print(prompt)
+# 2. Stale vs. consistent RoPE basis in KV cache
+rot = lambda pos, freq: np.array([np.cos(pos * freq), np.sin(pos * freq)])
+q_new = rot(2, 0.5)
+k_stale = rot(1, 1.0)       # Cached before scale changed
+k_fixed = rot(1, 0.5)       # Re-rotated under consistent frequency
+print(f"stale key dot: {np.dot(q_new, k_stale):.6f}  (spurious exact match!)")
+print(f"fixed key dot: {np.dot(q_new, k_fixed):.6f}  (true cos(0.5))")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-Answer using only the repository excerpts below.
+interpolated coords: [0.0, 2048.0, 4096.0, 8191.75]
+stale key dot: 1.000000  (spurious exact match!)
+fixed key dot: 0.877583  (true cos(0.5))
+```
+<!-- leetllm: output:end -->
+
+<figure>
+  <img src="illustrations/_generated/cached_rotation_consistency_dark.png" alt="Two unit-circle plots compare RoPE basis consistency for a query at position 2 with scaled frequency 0.5 (1 radian). A stale cached key stored under unscaled frequency 1 at position 1 also sits at 1 radian, producing dot product 1.000000. Re-rotating the key under scaled frequency 0.5 puts it at 0.5 radians and restores the true dot product cos(0.5) = 0.877583." />
+  <figcaption>Figure 6: Mixing rotary bases in a KV cache causes a stale key at position 1 to collide at 1.0 radian with a scaled query at position 2. Re-rotating under the same frequency restores $\cos(0.5) = 0.877583$.</figcaption>
+</figure>
+
+## Lost in the middle: can the model find the evidence?
+
+Fit and positional range are necessary, but not sufficient. Liu et al. showed that multi-document accuracy often follows a **U-shaped curve**: models retrieve facts reliably near the beginning or end of the prompt while missing identical facts placed in the middle.[^liu2023lost] Later benchmarks (including Chroma's **context rot** study across 18 models) showed that even when depth profiles flatten, adding distractor tokens steadily degrades reasoning accuracy.[^hong2025contextrot]
+
+Three practical layout habits reduce middle dropoff:
+
+1. **Edge-priority packing:** Place the two highest-relevance excerpts at the head (right after instructions) and tail (right before the question), leaving lower-priority background in the middle.
+2. **Keep identifiers intact:** Attach file paths, line ranges, and commit SHAs directly to each excerpt, and keep retrieved text clearly separated from system instructions.
+3. **Chunk and merge:** When distractor noise still degrades recall, extract facts per chunk and synthesize the structured extractions in a clean final pass.
+
+<figure>
+  <img src="illustrations/_generated/context_packing_layout_dark.png" alt="Five ranked code and spec chunks (A 0.95 Attention, B 0.92 RoPE, C 0.88 KV Layout, D 0.45 Logs, E 0.30 README) are reordered into prompt slots so high-relevance evidence sits at the head and tail (A and B) while lower-scoring background chunks fill the center between System instructions and Query." />
+  <figcaption>Figure 7: Edge-priority packing anchors the two top-scoring specifications (A and B) at the start and end of the evidence block, pushing lower-scoring background logs into the center.</figcaption>
+</figure>
+
+<!-- leetllm: test, output=show -->
+```python title="arrange_context.py"
+def pack_edge_first(system, docs, query):
+    ranked = sorted(docs, key=lambda d: d[1], reverse=True)
+    ordered = ranked[:1] + ranked[2:] + ranked[1:2]
+    return "\n\n".join([system, *(text for text, _ in ordered), query])
+
+docs = [
+    ("Attention module sets eps=1e-6 before softmax scaling.", 0.95),
+    ("RoPE config scales low-frequency bands via YaRN factor 4.", 0.92),
+    ("KV layout splits 40 local layers and 8 global layers.", 0.88),
+    ("Build log excerpt: checkpoint kernels compiled cleanly.", 0.45),
+    ("README overview section on evaluation scripts.", 0.30),
+]
+print(pack_edge_first("Use only the excerpts below.", docs, "How is attention position scaled?"))
+```
+
+<!-- leetllm: output:start -->
+```text title="Output" output compact
+Use only the excerpts below.
 
 Attention module sets eps=1e-6 before softmax scaling.
 
@@ -537,63 +290,23 @@ How is attention position scaled?
 ```
 <!-- leetllm: output:end -->
 
-The output puts the normalization constant excerpt first and the RoPE scaling excerpt next to the query, pushing lower-ranked context into the middle. Keep explicit file IDs and delimiters intact in production adapters, treat retrieval scores as ranking keys rather than calibrated probabilities, and evaluate this ordering against unshuffled baselines.
+## Full context vs. retrieval
 
-```checkpoint
-Why does the sample packing function split high-relevance chunks between head and tail?
----
-It keeps the highest-scoring evidence near the beginning and end edges where attention is typically strongest, leaving weaker support in the middle. That edge-first hypothesis neither duplicates facts nor proves universal superiority across every model family, since system framing and query wording shift serialized positions.
-```
-
-#### Repeated key information
-
-If a fact is essential and cheap to restate, put a source-labeled excerpt near the evidence head and near the query. Keep retrieved facts as evidence, not system-level instructions. Duplication consumes tokens and can amplify stale or conflicting facts, so compare with the same unique evidence and evaluate whether the extra copy helps.
-
-#### Chunked processing
-
-If one prompt still holds too much distractor text, process the corpus in chunks and merge partial extractions downstream. Chunking shifts the failure mode from single-pass middle loss to whether your merge logic retains every fact needed for synthesis.
-
-<figure>
-  <img src="illustrations/_generated/context_packing_layout_dark.png" alt="Five ranked code and spec chunks (A 0.95 Attention, B 0.92 RoPE, C 0.88 KV Layout, D 0.45 Logs, E 0.30 README) are reordered into prompt slots so high-relevance evidence sits at the head and tail (A and B) while lower-scoring background chunks fill the center between System instructions and Query." />
-  <figcaption>Figure 7: Relevance-ordered chunks packed by edge priority. The two top-scoring specifications (A at 0.95 and B at 0.92) anchor the head and tail beside System instructions and Query, placing lower-scoring middle support in the center.</figcaption>
-</figure>
-
-The packing policy places the two strongest facts at the prompt edges and lower-priority support in the middle. Test this layout with depth-sliced evaluation; if the model still overlooks key details, tighten retrieval to fewer chunks rather than keeping noisy middle context.
-
-## Fourth gate: should you read everything or retrieve first?
-
-The routing choice starts with the question structure, not the model's maximum window. Ask whether the working corpus fits comfortably with output headroom, whether exact citations or fresh edits matter, whether queries repeat over the same files, and whether the question needs joint synthesis or an exact count.
+Should you stuff the entire codebase into the prompt or use <span data-glossary="rag">retrieval-augmented generation (RAG)</span>? Let the **question structure** decide:
 
 <figure>
   <img src="illustrations/_generated/long_context_decision_dark.png" alt="Three evidence routing paths depend on question structure. A single self-contained packet uses a full-context baseline with recall testing. A targeted single-fact query retrieves top-k labeled chunks for RAG with miss-risk checks. Cross-file questions filter candidates, pack labeled snippets, or aggregate exact counts over all matches." />
-  <figcaption>Figure 8: Routing decisions by query type. Self-contained corpora that fit comfortably can start with full context; large archives with targeted questions use RAG with miss audits; cross-file analysis combines filtering with exact aggregation for counts.</figcaption>
+  <figcaption>Figure 8: Choose the evidence path by query structure: full context for self-contained packets, RAG for targeted lookups across large archives, and deterministic code/SQL aggregation for exact counts.</figcaption>
 </figure>
 
-The core architectural choice compares reading the whole prompt directly against <span data-glossary="rag">retrieval-augmented generation (RAG)</span>. Full context exposes every selected snippet jointly, preserving cross-file relationships at higher prefill compute. RAG narrows the prompt first, trimming generation latency while adding a retrieval stage that can miss relevant definitions.
-
-For one question over a stable specification packet, full context is a clean baseline. For repeated queries over changing repositories or targeted lookups across thousands of files, retrieval is the natural baseline to compare against.
-
 | Factor | Long Context | RAG |
-|--------|-------------|-----|
-| **Latency** | One generation call, though large prefills dominate | Retrieval adds a stage, while shorter prompts speed decode |
-| **Cost** | Pays for packed input on uncached requests | Pays for indexing, retrieval, and selected chunks |
-| **Failure mode** | Evidence present in prompt may be missed by position or distractors | Relevant chunk may be dropped before generation |
-| **Corpus scale** | Constrained by usable prompt budget | Searches repositories larger than one prompt |
-| **Operational work** | Prompt packing, KV prefix reuse, depth evals | <span data-glossary="chunking">Chunking</span>, indexing, ranking, recall evals |
+|---|---|---|
+| **Latency** | Single call, heavy prefill TTFT | Extra retrieval step, fast short prefill |
+| **Failure mode** | Distractors or middle-depth dropoff | Relevant chunk missed by top-$k$ retrieval |
+| **Corpus scale** | Bounded by usable window | Scales to millions of files |
+| **Engineering focus** | Prompt packing, KV prefix reuse, depth evals | <span data-glossary="chunking">Chunking</span>, indexing, recall evals |
 
-Repeated queries over a fixed prefix also split along cache economics. Resending uncached text repeats prefill compute, while keeping it warm occupies GPU cache memory. Neither option provides citations automatically, so keep file paths, line ranges, or symbol versions attached to every excerpt.
-
-```checkpoint
-When should you prefer RAG or hybrid retrieval even if a document technically fits in the model context?
----
-Prefer RAG or hybrid retrieval when queries repeat over a large or fast-changing corpus, when only a sparse subset of files applies, or when distractor volume hurts full-window accuracy. Measure retrieval recall directly against long-context position sensitivity on the same queries.
-```
-
-### A concrete decision example
-
-Suppose a multi-version repository index exceeds a single 128K context window, and a developer asks, “In release `v2`, which module contains more `legacy_softmax` call sites?” A <span data-glossary="top-k">top-k</span> similarity retriever stops after selecting the highest-scoring matches and can invert the true distribution. Counting requires an exhaustive code or AST query over **all** qualifying records, leaving the language model to explain the exact counts.
-
-Semantic similarity scores measure local relevance, not subset completeness. As shown in `complete_counts.py`, the two top-ranked hits (`m1` at 0.99 and `m2` at 0.98) both live in `encoder`, hiding the three lower-scored `v2` matches (`m3`, `m4`, `m5`) in `decoder`:
+> **Key insight:** Never use top-$k$ similarity retrieval to answer a counting or aggregation question (*"Which module has the most `legacy_softmax` calls in `v2`?"*). High-similarity matches often cluster in one module while more numerous, slightly lower-scored matches sit in another. Run exact filters and counts in code or SQL first, then let the model explain the verified table.
 
 <!-- leetllm: test, output=show -->
 ```python title="complete_counts.py"
@@ -610,337 +323,106 @@ records = [
 ]
 v2_legacy = [r for r in records if r[1] == "v2" and r[3] == "legacy_softmax"]
 top_two = sorted(v2_legacy, key=lambda r: r[4], reverse=True)[:2]
-partial = Counter(r[2] for r in top_two)
-complete = Counter(r[2] for r in v2_legacy)
-print(f"top-2 counts: {dict(partial)}")
-print(f"complete counts: {dict(complete)}")
-assert partial.most_common(1)[0][0] != complete.most_common(1)[0][0]
+print("top-2 similarity counts:", dict(Counter(r[2] for r in top_two)))
+print("exact complete counts:  ", dict(Counter(r[2] for r in v2_legacy)))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-top-2 counts: {'encoder': 2}
-complete counts: {'encoder': 2, 'decoder': 3}
+top-2 similarity counts: {'encoder': 2}
+exact complete counts:   {'encoder': 2, 'decoder': 3}
 ```
 <!-- leetllm: output:end -->
 
 <figure>
   <img src="illustrations/_generated/complete_counts_counterexample_dark.png" alt="Seven module scan records show why similarity top-k cannot replace exhaustive counting. Filtering v2 legacy_softmax call sites keeps m1 through m5. Top-2 retrieval selects m1 (0.99) and m2 (0.98), both in encoder (encoder 2, decoder 0), whereas counting all five matches gives encoder 2 and decoder 3." />
-  <figcaption>Figure 9: Why top-k similarity retrieval reverses exact aggregates. Filtering for v2 and legacy_softmax leaves m1 through m5; top-2 selects only encoder (2 vs. 0), whereas scanning every qualifying record yields decoder as the leader (3 vs. 2).</figcaption>
+  <figcaption>Figure 9: Top-2 similarity picks only `encoder` (2 vs. 0), reversing the true count where `decoder` leads (3 vs. 2).</figcaption>
 </figure>
 
-Top-2 selects the wrong winner because high similarity clusters around one module while lower-scored matches accumulate elsewhere. Across large codebases or databases, define deterministic symbol identity, deduplication, and snapshot revision filters in code or SQL, then pass the verified aggregate plus matching identifiers to the model for explanation.
+## Running long contexts on real GPUs
 
-```checkpoint
-Why can't a larger top-k guarantee a correct winner in the module scan example?
----
-Unless retrieval covers every qualifying record under the filter predicates, omitted lower-scoring rows can flip the aggregate total. Run deterministic filters and exact counting in code or SQL first, then let the model explain the verified table and matching file IDs.
-```
+Five system levers turn an infeasible long-context workload into a fast production service:
 
-## Fifth gate: can the chosen path run on real GPUs?
-
-Once the evidence path is chosen, capacity becomes the release constraint. Long-context serving often saturates HBM with KV caches well before model weights fill the device, particularly when multiple long sessions decode concurrently. Every design decision from attention head structure to floating-point cache layout directly controls how many requests fit in memory alongside weights and workspace activations.
-
-### Grouped query attention (GQA)
-
-GQA (Grouped-Query Attention)[^ainslie2023] lowers KV-cache bytes by sharing key/value heads across query groups; full architecture details appear in our [MQA/GQA deep-dive](/learn/multi-query-grouped-query-attention). MHA allocates separate key/value projections for every query head, GQA shares KV heads across groups, and MQA collapses keys and values to a single shared head per layer. Moving from 64 KV heads down to 8 cuts per-token KV storage by 8x, and collapsing to 1 cuts it by 64x, though altering head counts requires training or an evaluated uptraining procedure rather than changing inference flags alone.
-
-Head sharing isn't the only architectural KV cut. <span data-glossary="multi-head-latent-attention">Multi-head latent attention (MLA)</span> caches a compressed latent plus positional-key state rather than full K/V heads. DeepSeek-V2 reports a 93.3% KV-memory reduction versus DeepSeek 67B.[^deepseekv2_2024] That's a comparison of those architectures, not a generic compression ratio. MLA is a trained architecture choice, not a serving flag for a GQA checkpoint.
-
-<!-- leetllm: test, output=show -->
-```python title="kv_head_sharing.py"
-def relative_kv_bytes(query_heads: int, kv_heads: int) -> float:
-    if query_heads <= 0 or kv_heads <= 0 or query_heads % kv_heads:
-        raise ValueError("positive KV heads must divide query heads")
-    return kv_heads / query_heads
-
-
-query_heads = 64
-for label, kv_heads in [("MHA", 64), ("GQA", 8), ("MQA", 1)]:
-    fraction = relative_kv_bytes(query_heads, kv_heads)
-    print(f"{label}: {fraction:.3f}x MHA KV bytes ({1 / fraction:.0f}x smaller)")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-MHA: 1.000x MHA KV bytes (1x smaller)
-GQA: 0.125x MHA KV bytes (8x smaller)
-MQA: 0.016x MHA KV bytes (64x smaller)
-```
-<!-- leetllm: output:end -->
-
-```checkpoint
-Why does GQA matter so much for long context?
----
-The KV cache stores key and value heads, not query heads. Sharing K/V heads across query groups reduces bytes per token, so the savings multiply across long context length and concurrent requests.
-```
-
-### Quantized KV-cache
-
-If the cache still crowds out concurrency, reduce bytes per element. BF16 or FP16 stores each cached element in 2 bytes, whereas an **FP8 KV-cache** uses 1 byte, cutting the 40 GiB BF16 cache down to about 20 GiB. Lower precision trades memory capacity against attention accuracy, so calibrated scales and long-depth benchmarks decide whether the quantization holds for your workload.
-
-| Cache dtype | Bytes per cached element | Relative KV size |
-|-------------|--------------------------|------------------|
-| **BF16 / FP16** | 2 bytes | 1.0x |
-| **FP8** | 1 byte | ~0.5x |
-
-The configuration below follows vLLM's FP8 KV-cache option, where uncalibrated scales default to `1.0` unless calibrated via `llm-compressor` and selected layers can be exempted with `kv_cache_dtype_skip_layers`.[^vllm2026kvquant] Note that a `"sliding_window"` skip rule only applies when matching local layers exist, and FP8 kernels such as FlashAttention 3 quantize queries during attention as well, so verify exact runtime behavior and layer coverage on your target GPU.
-
-```python title="fp8_kv_cache.py"
-from vllm import LLM
-
-llm = LLM(
-    model="your-org/your-model",
-    kv_cache_dtype="fp8",
-    kv_cache_dtype_skip_layers=["sliding_window"],
-)
-```
-
-<!-- leetllm: test, output=show -->
-```python title="concurrent_sequences.py"
-def concurrent_sequences(memory_budget_bytes: int, kv_per_request_bytes: int) -> int:
-    if memory_budget_bytes < 0 or kv_per_request_bytes <= 0:
-        raise ValueError("require nonnegative memory budget and positive per-request cache bytes")
-    return memory_budget_bytes // kv_per_request_bytes
-
-
-cache_budget = 64 * 2**30
-for dtype, kv_gib in [("BF16", 40), ("FP8 candidate", 20)]:
-    slots = concurrent_sequences(cache_budget, kv_gib * 2**30)
-    print(f"{dtype}: at most {slots} full-length request(s) in cache budget")
-assert concurrent_sequences(0, 1) == 0
-assert concurrent_sequences(10, 1) == 10
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-BF16: at most 1 full-length request(s) in cache budget
-FP8 candidate: at most 3 full-length request(s) in cache budget
-```
-<!-- leetllm: output:end -->
+1. **Head sharing (GQA / MLA):** [GQA](/learn/multi-query-grouped-query-attention) cuts KV bytes by $H_q / H_{\text{kv}}$ (8x for 64:8).[^ainslie2023] <span data-glossary="multi-head-latent-attention">Multi-head latent attention (MLA)</span> compresses K/V into a low-rank latent cache; DeepSeek-V2 reported a 93.3% KV-cache reduction relative to DeepSeek 67B.[^deepseekv2_2024] Both are model-architecture choices, not runtime flags.
+2. **Quantized KV cache (FP8):** Halves stored bytes per element from 2 bytes (BF16) to 1 byte (FP8), lifting a 64 GiB KV pool from 1 concurrent 40 GiB request to 3 concurrent 20 GiB requests.[^vllm2026kvquant] Calibrate scales and verify long-depth accuracy after enabling it.
+3. **PagedAttention:** Allocates KV memory in fixed-size non-contiguous pages like virtual memory, eliminating contiguous fragmentation waste without shrinking the raw bytes per token.[^kwon2023]
+4. **Prefix caching:** When multiple questions share a 48K-token repository prefix, reusing cached prefix KV blocks drops prefill work across three queries (`+800`, `+1,200`, `+600` tokens) from `146,600` tokens down to `50,600`, skipping `96,000` duplicate prefill tokens.[^kwon2023][^vllm2026prefix] (Decode steps still read the cached prefix.)
+5. **Context parallelism (Ring Attention / DCP):** When a single ultra-long sequence exceeds one GPU, **Ring Attention** shards sequence blocks across GPUs in a ring and overlaps KV transfers with local FlashAttention.[^liu2024ring] In serving engines such as vLLM's decode context parallelism (DCP), each logical block spans `DCP × physical_block_size` positions: with `DCP = 4` and physical block size `16`, one logical block covers `64` tokens, so a `1,025`-token history allocates `17` logical blocks (`1,088` positions) rather than `65` single-device blocks.[^vllm2026contextParallel]
 
 <figure>
   <img src="illustrations/_generated/cache_capacity_dark.png" alt="A 64 GiB KV cache pool holds only one 40 GiB BF16 128K sequence (leaving 24 GiB unused, short of a second 40 GiB sequence), whereas quantized FP8 KVs at 20 GiB per sequence fit three concurrent sequences with 4 GiB remaining." />
-  <figcaption>Figure 10: Raw KV cache capacity inside a 64 GiB memory pool. One 40 GiB BF16 request leaves 24 GiB idle, whereas three 20 GiB FP8 requests pack cleanly before deducting allocator block rounding, scale metadata, and generation headroom.</figcaption>
+  <figcaption>Figure 10: Inside a 64 GiB KV pool, 40 GiB BF16 fits only 1 full 128K sequence (stranding 24 GiB), while 20 GiB FP8 fits 3 concurrent sequences before allocator and generation headroom.</figcaption>
 </figure>
-
-Use exact integer division on byte counts rather than floating-point ratios (`1.0 // 0.1` evaluates to `9.0` in binary IEEE-754 arithmetic despite equal decimal values). This count gives an upper bound on full-length KV tensors; reserve additional memory for paged-block rounding, quantization scales, temporary workspace buffers, and active output growth when configuring server slot limits.
-
-```checkpoint
-What should you verify after enabling FP8 KV cache?
----
-Verify long-context retrieval, multi-hop reasoning, ordering, and latency on your workload. FP8 can roughly halve KV memory, but poor calibration or unsupported kernels can damage quality or fail to improve throughput.
-```
-
-### PagedAttention (vLLM)
-
-Bytes per token are only half of capacity. A contiguous reservation can strand free memory as requests grow and finish. PagedAttention manages KV in non-contiguous blocks or “pages,” like virtual memory, so fixed-size blocks are allocated on demand (see our [KV cache and PagedAttention deep-dive](/learn/kv-cache-paged-attention-llm-serving)). The vLLM paper describes near-zero waste and sharing for common prefixes in its evaluated workloads.[^kwon2023]
-
-That layout reduces reservation and fragmentation waste, but it does **not** change the intrinsic KV bytes for a model and sequence length. It can make more of the GPU usable; it can't make one 128K sequence weigh less. The paper reported higher throughput in its evaluated serving workloads.[^kwon2023]
-
-### Prefix reuse and prompt caching
-
-A repository QA workflow often prepends the same 48K-token prefix to every query: system instructions, tool schemas, and core module files. Prefix caching reuses materialized KV blocks across requests with identical prefixes instead of recomputing projections from token zero, controlled in vLLM via `enable_prefix_caching=True`.[^kwon2023][^vllm2026prefix] Eliminating duplicate prefill cuts time-to-first-token without enlarging the model's context limit or freeing decode memory bandwidth, because suffix generation steps must still read cached prefix blocks. Prefix hits match only up to the first changed token and disappear upon cache eviction, so store durable conversation history outside volatile KV memory.[^vllm2026prefix]
-
-<!-- leetllm: test, output=show -->
-```python title="prefix_reuse.py"
-def prefill_tokens_without_reuse(shared_prefix: int, unique_suffixes: list[int]) -> int:
-    if shared_prefix < 0 or any(x < 0 for x in unique_suffixes):
-        raise ValueError("token counts must be nonnegative")
-    return sum(shared_prefix + suffix for suffix in unique_suffixes)
-
-
-def prefill_tokens_with_reuse(shared_prefix: int, unique_suffixes: list[int]) -> int:
-    prefill_tokens_without_reuse(shared_prefix, unique_suffixes)
-    return shared_prefix + sum(unique_suffixes) if unique_suffixes else 0
-
-
-shared_prefix = 48_000
-questions = [800, 1_200, 600]
-uncached = prefill_tokens_without_reuse(shared_prefix, questions)
-reused = prefill_tokens_with_reuse(shared_prefix, questions)
-print(f"uncached input tokens processed: {uncached:,}")
-print(f"with reusable prefix candidate: {reused:,}")
-print(f"avoided repeated prefix tokens: {uncached - reused:,}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-uncached input tokens processed: 146,600
-with reusable prefix candidate: 50,600
-avoided repeated prefix tokens: 96,000
-```
-<!-- leetllm: output:end -->
 
 <figure>
   <img src="illustrations/_generated/prefix_reuse_dark.png" alt="Three requests share a 48,000-token prefix plus unique suffixes of 800, 1,200, and 600 tokens. Without prefix caching, prefill computes 146,600 tokens; reusing exact cached prefix blocks computes 50,600 new tokens and skips 96,000 duplicate prefix tokens." />
-  <figcaption>Figure 11: Prefix cache savings across three sequential requests sharing a 48,000-token codebase prefix. Reusing cached blocks drops computed prefill tokens from 146,600 to 50,600 (skipping 96,000 tokens), while decode attention still reads the cached prefix KV blocks on each step.</figcaption>
+  <figcaption>Figure 11: Prefix caching across three queries sharing a 48,000-token codebase cuts computed prefill tokens from 146,600 to 50,600.</figcaption>
 </figure>
-
-### Ring attention across multiple GPUs
-
-PagedAttention reduces memory waste within a single GPU, yet an ultra-long context can still exceed one device's compute or KV residency budget. Ring Attention partitions sequence blocks across GPUs in a communication ring and overlaps remote KV block transfers with local FlashAttention kernels, enabling multi-device execution where interconnect bandwidth governs effective scaling.[^liu2024ring] In serving engines, vLLM documents decode context parallelism (DCP) for GQA and MLA architectures to shard sequence history across existing tensor-parallel ranks, while prefill context parallelism evaluates all-gather versus ring KV exchange.[^vllm2026contextParallel] When auditing paged residency across ranks, track the distinction between physical block size and logical block size (`effective_attention_block_size`): with physical size `16` and `DCP = 4`, each logical block spans `64` tokens, so a `1,025`-token history allocates `17` logical blocks (`1,088` positions) rather than `65` physical blocks (`1,040` positions).[^vllm2026contextParallel]
 
 <figure>
   <img src="illustrations/_generated/context_parallel_block_grid_dark.png" alt="Under decode context parallelism across 4 ranks with physical block size 16, one logical block covers 64 positions (4 x 16). A 1,025-token history allocates 17 logical blocks (1,088 positions), whereas rounding by physical block size 16 yields 65 blocks (1,040 positions)." />
-  <figcaption>Figure 12: Logical block sizing under decode context parallelism (DCP=4, physical block size 16). One logical block spans 64 positions across four rank slices, so a 1,025-token sequence occupies 17 logical blocks (1,088 capacity positions) rather than 65 single-device blocks.</figcaption>
+  <figcaption>Figure 12: With DCP=4 and physical block size 16, each logical block spans 64 positions across four GPUs, allocating 17 logical blocks for a 1,025-token history.</figcaption>
 </figure>
 
 ```checkpoint
 How do PagedAttention and Ring Attention solve different long-context problems?
 ---
-PagedAttention reduces KV allocation waste within a GPU. Ring Attention distributes blockwise attention and KV residency across multiple GPUs using context parallelism.
+PagedAttention eliminates intra-GPU KV allocation fragmentation across sessions. Ring Attention shards a single ultra-long sequence's attention and KV residency across multiple GPUs.
 ```
 
-## Final gate: does it work at the lengths and depths you will serve?
+## Evaluating long-context recall across lengths and depths
 
-Capacity numbers and a successful short prompt never guarantee retrieval quality. **NIAH (Needle-in-a-Haystack)** inserts a target fact, the needle, at controlled relative depths inside unrelated filler tokens and evaluates exact recovery, such as retrieving a normalization constant hidden inside tens of thousands of tokens of surrounding modules.[^kamradt2023niah] Sweeping sequence lengths from 4K to 128K and insertion depths from 0% to 100% maps out a retrieval **heatmap**: uniform recall leaves cool miss cells everywhere, whereas position-sensitive models exhibit sharp middle spikes near 50% depth as prompt length climbs.
+Never trust an advertised context limit or a single pooled average. **NIAH (Needle-in-a-Haystack)** hides a target fact at controlled depths (0% to 100%) across increasing sequence lengths (4K to 128K) to expose middle-depth cliffs,[^kamradt2023niah] while **RULER** extends testing to multi-needle lookup, variable tracking, and cross-span aggregation.[^hsieh2024]
 
 <figure>
   <img src="illustrations/_generated/niah_heatmap_dark.png" alt="A 4-by-5 heatmap shows needle miss rates rising from 1–3% at 4K to 12%, 37%, 72%, 39%, and 13% across depths 0%, 25%, 50%, 75%, and 100% at 128K. Below, the 128K recall curve traces 1 minus miss rate as a characteristic U-shape dipping to 28% in the middle." />
-  <figcaption>Figure 13: Needle-in-a-Haystack miss-rate matrix across context lengths and depths paired with the corresponding 128K recall U-curve (1 minus miss rate), showing severe middle-depth recall dropoff as context length scales.</figcaption>
+  <figcaption>Figure 13: NIAH miss-rate heatmap across lengths and depths paired with the 128K recall U-curve dropping to 28% at 50% depth.</figcaption>
 </figure>
 
-Single-fact NIAH tests simple lookup alone, so benchmarks such as RULER[^hsieh2024] extend evaluation to multi-needle retrieval, multi-hop variable tracking, and cross-span aggregation. Pair retrieval sweeps with position-bucketed perplexity or negative log-likelihood so you spot sudden loss spikes immediately past the pretraining length threshold, and test distractor-heavy inputs as highlighted by Chroma's 2025 **context rot** study of 18 models.[^hong2025contextrot] A reproducible evaluation harness controls exact needle depth while protecting output headroom; the helper below packs integer token sequences so you can audit exact insertion indices, actual depth ratios, and generation room before calling a model.
+Why must you inspect every `(length, depth)` slice instead of averaging? Look at a baseline scoring `(90%, 90%, 90%)` across `(head, middle, tail)` versus a candidate scoring `(100%, 70%, 100%)`: both average `90%`, yet the candidate quietly fails an `85%` middle-depth recall floor!
 
 <!-- leetllm: test, output=show -->
-```python title="place_needle.py" id=needle-packer
-import math
-
-def place_needle(
-    haystack: list[int],
-    needle: list[int],
-    instruction: list[int],
-    context_limit: int,
-    requested_depth: float,
-    max_new_tokens: int,
-) -> tuple[list[int], float]:
-    """Insert needle ids at a requested depth and keep input-plus-output inside the limit."""
-    if context_limit <= 0 or max_new_tokens < 0:
-        raise ValueError("invalid context or generation budget")
-    if not math.isfinite(requested_depth) or not 0 <= requested_depth <= 1:
-        raise ValueError("depth must be finite and between 0 and 1")
-    if not needle:
-        raise ValueError("needle must be nonempty")
-    document_budget = context_limit - max_new_tokens - len(instruction)
-    if document_budget < len(needle):
-        raise ValueError("context limit is too small for instruction, needle, and output")
-
-    filler_budget = document_budget - len(needle)
+```python title="needle_harness_and_slices.py"
+def place_needle(haystack, needle, instruction, limit, depth, max_new_tokens):
+    filler_budget = limit - max_new_tokens - len(instruction) - len(needle)
     clipped = haystack[:filler_budget]
-    insert_idx = int(len(clipped) * requested_depth)
-    document = clipped[:insert_idx] + needle + clipped[insert_idx:]
-    packed = instruction + document
-    if len(packed) + max_new_tokens > context_limit:
-        raise AssertionError("packed prompt plus generation exceeds the context limit")
-    actual_depth = insert_idx / max(len(clipped), 1)
-    return packed, actual_depth
+    idx = int(len(clipped) * depth)
+    packed = instruction + clipped[:idx] + needle + clipped[idx:]
+    return packed, idx / max(len(clipped), 1)
 
-
-packed, depth = place_needle(
-    haystack=list(range(20)),
-    needle=[99, 99],
-    instruction=[1, 2],
-    context_limit=24,
-    requested_depth=0.5,
-    max_new_tokens=4,
-)
-print(packed)
-print(f"tokens={len(packed)} actual_depth={depth:.2f}")
-short, short_depth = place_needle([], [99], [1], 8, 1.0, 2)
-assert short == [1, 99] and short_depth == 0.0
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-[1, 2, 0, 1, 2, 3, 4, 5, 6, 7, 99, 99, 8, 9, 10, 11, 12, 13, 14, 15]
-tokens=20 actual_depth=0.50
-```
-<!-- leetllm: output:end -->
-
-The packed sequence retains 2 instruction tokens, inserts the needle at 50% of the 16 clipped haystack tokens, and reserves 4 generation tokens inside the 24-token limit. Depth is computed over filler tokens alone rather than including instructions or generation tokens; when filler is empty, depth evaluates to zero. Next, probe that harness with a deliberately limited edge reader that scans only the first four and last four document tokens: midpoint failure comes directly from masking the middle span, contrasting with a full-window scan across all three depths.
-
-<!-- leetllm: test, output=show -->
-```python title="depth_probe.py" continue=needle-packer
-def contains(sequence: list[int], target: list[int]) -> bool:
-    return any(sequence[i:i + len(target)] == target
-               for i in range(len(sequence) - len(target) + 1))
+def contains(seq, sub):
+    return any(seq[i:i + len(sub)] == sub for i in range(len(seq) - len(sub) + 1))
 
 needle = [99, 98]
-for requested_depth in (0.0, 0.5, 1.0):
-    packed, actual_depth = place_needle([0] * 30, needle, [1, 2], 24,
-                                       requested_depth, 4)
-    document = packed[2:]
-    full_scan = contains(document, needle)
-    edge_scan = contains(document[:4], needle) or contains(document[-4:], needle)
-    assert full_scan
-    print(f"depth={actual_depth:.1f}: full_scan={full_scan}, edge_scan={edge_scan}")
+for req_depth in (0.0, 0.5, 1.0):
+    packed, actual = place_needle([0] * 30, needle, [1, 2], 24, req_depth, 4)
+    doc = packed[2:]
+    edge_only = contains(doc[:4], needle) or contains(doc[-4:], needle)
+    print(f"depth={actual:.1f}: full_scan={contains(doc, needle)}, edge_only={edge_only}")
+
+for name, slices in [("baseline", (90, 90, 90)), ("candidate", (100, 70, 100))]:
+    rates = [c / 100 for c in slices]
+    print(f"{name:9s}: mean={sum(rates)/3:.0%}, worst_slice={min(rates):.0%}, passes_85%_floor={min(rates) >= 0.85}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-depth=0.0: full_scan=True, edge_scan=True
-depth=0.5: full_scan=True, edge_scan=False
-depth=1.0: full_scan=True, edge_scan=True
+depth=0.0: full_scan=True, edge_only=True
+depth=0.5: full_scan=True, edge_only=False
+depth=1.0: full_scan=True, edge_only=True
+baseline : mean=90%, worst_slice=90%, passes_85%_floor=True
+candidate: mean=90%, worst_slice=70%, passes_85%_floor=False
 ```
 <!-- leetllm: output:end -->
-
-```checkpoint
-Why is a single needle-in-a-haystack result not enough to trust a long-context model?
----
-One needle tests one fact, one distractor style, one position, and often one seed. Real systems need sweeps over positions, lengths, multiple needles, distractor templates, and synthesis tasks such as RULER-style multi-hop reasoning.
-```
-
-In a live model evaluation, log case prompt length, actual depth, needle ID, reference answer, generated output, and scorer outcome alongside negative controls without the needle and multi-hop reasoning tasks. Alongside quality, profile time-to-first-token (TTFT), inter-token latency, peak KV residency, and sustainable concurrency on the target serving stack. Never collapse a retrieval heatmap into a single average before checking individual depth slices: in the comparison below, both runs average 90% across 100-case evaluation slices, yet the candidate boosts edges while failing an 85% floor in the middle:
-
-<!-- leetllm: test, output=show -->
-```python title="same_mean_different_release.py"
-for name, correct in [('baseline', (90, 90, 90)), ('candidate', (100, 70, 100))]:
-    rates = [count / 100 for count in correct]
-    overall = sum(correct) / 300
-    gate = min(rates) >= 0.85
-    print(f"{name}: overall={overall:.0%}, worst depth={min(rates):.0%}, gate={gate}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-baseline: overall=90%, worst depth=90%, gate=True
-candidate: overall=90%, worst depth=70%, gate=False
-```
-<!-- leetllm: output:end -->
-
-The candidate boosts edge recall to 100% while failing the middle-depth floor at 70%. Release gates therefore must evaluate each length and depth cell individually while retaining paired per-example outcomes to catch regressions hidden by pooled averages.[^kamradt2023niah]
 
 <figure>
   <img src="illustrations/_generated/needle_harness_and_release_slices_dark.png" alt="A 24-token needle harness reserves 2 instruction tokens, 16 filler tokens, a 2-token needle, and 4 output tokens. At depth 0.5, an edge reader checking only the first and last 4 tokens misses the middle needle while a full scan passes all depths. Across 100-case evaluation slices, baseline scores 90/90/90 and candidate scores 100/70/100: both average 90%, while the candidate fails an 85% per-depth floor." />
-  <figcaption>Figure 14: Top: 24-token depth harness reserving output headroom while testing middle insertion at depth 0.5 against edge-only and full-window readers. Bottom: Per-depth 100-case recall slices where a candidate scoring 100/70/100 matches the baseline's 90% pooled mean while failing the 85% per-depth floor.</figcaption>
+  <figcaption>Figure 14: Top: 24-token depth harness reserving output headroom and exposing midpoint blindness in an edge-only reader. Bottom: Candidate scoring 100/70/100 matches a 90% mean while failing an 85% per-depth floor.</figcaption>
 </figure>
-
-### Evaluation rubric
-
-- Compute the serialized input/output budget and reject a mandatory-input overflow without silently dropping the latest request.
-- Derive raw KV bytes with KV heads, dtype, sequence length, and concurrency; distinguish logical state from per-device residency and measured traffic.
-- Show why top-k can reverse an exact count, and choose complete aggregation or coverage-tested retrieval according to the question.
-- Design a length/depth evaluation with actual outputs, negative controls, and serving measurements; don't infer effective recall from acceptance alone.
-
-### Follow-up questions
-
-```checkpoint
-What happens when fit_history receives a 14-unit context limit and reserves four output units under its whitespace unit counter?
----
-The mandatory messages cost eleven units, leaving only ten input units. It raises ValueError rather than sending an incomplete request. A real implementation repeats this check with the deployment's serialized token count.
-```
-
-```checkpoint
-Why can an empty query list expose a bug in a prefix-reuse cost estimator?
----
-An empty query list has zero prefill work. Charging the shared prefix unconditionally would overcount, so the example returns zero for empty input and assumes an exact retained prefix for nonempty input.
-```
-
 
 ## What to carry forward
 
-Return to the multi-module repository query. Did the prompt retain the right file version? Did the packer reserve a usable answer budget? Can the checkpoint attend cleanly across extended positions and retrieve facts from every depth slice? Does the serving setup preserve latency targets under concurrent KV residency? An advertised token limit answers only the smallest piece of that checklist, so preserve source file paths and line identifiers outside lossy prose summaries, sum KV cache budgets layer by layer, compute exact aggregates in code or SQL rather than estimating them from top-k similarity hits, and evaluate every optimization across depth-sliced paired benchmarks so pooled averages never mask a localized regression.
+Long-context engineering comes down to five concrete checks: reserve output tokens before packing intact turns, sum KV cache bytes layer by layer, keep RoPE scaling consistent with cached keys, run exact aggregations in code rather than top-$k$ retrieval, and evaluate recall per `(length, depth)` slice alongside TTFT, decode latency, and peak KV residency.
 
 ```mastery-quiz
 [

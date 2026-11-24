@@ -26,10 +26,10 @@
     "Unigram LM loss-minimizing pruning, Viterbi decoding, and subword regularization",
     "vocabulary memory budgets versus sequence compression tradeoffs",
     "multilingual fertility tax and token inflation",
-    "numeric pre-tokenization policies and arithmetic alignment",
+    "numeric pre-tokenization rules and arithmetic alignment",
     "code indentation handling and camelCase identifier fragmentation",
     "glitch tokens and under-trained vocabulary entries",
-    "Unicode normalization policies (NFC versus NFKC)"
+    "Unicode normalization forms (NFC versus NFKC)"
   ],
   "section": "Core LLM Foundations",
   "order": 2
@@ -38,914 +38,211 @@
 
 <!-- leetllm: edition:reference:start -->
 
-Before a language model can process the sentence `rain falls softly`, a tokenizer slices that text into discrete pieces and assigns each piece an integer ID. An ID is a model-local vocabulary index: it selects a row of a learned embedding table $W_E \in \mathbb{R}^{V \times d}$. It isn't a physical memory address or a meaning shared by all models.
+Before a language model sees a single word of `rain falls softly`, its tokenizer slices the text into integer IDs. Each integer is a model-local row address in a learned embedding table $W_E \in \mathbb{R}^{V \times d}$. If ID `5` meant ` falls` during training and a swapped tokenizer assigns ID `5` to ` soft`, every tensor shape still passes while the model silently reads the wrong learned vectors.
 
-Suppose ID `5` represented ` falls` during training, but a replacement tokenizer assigns it to ` soft`. The replacement now selects the vector learned for the wrong piece. Other changes may affect only certain strings, or preserve every encoding; a different file doesn't automatically scramble every ID. The compatibility requirement is that text segmentation, ID meanings, special tokens, and decoding agree with the checkpoint.
-
-Three algorithms do that segmentation: Byte-Pair Encoding (BPE), WordPiece, and Unigram. SentencePiece is a toolkit that implements both BPE and Unigram, along with normalization and decoding. These miniature examples use small model-local IDs rather than a production model's vocabulary. The first choice is coarser than any merge table. Should the model see whole words, characters, or pieces of words?
+Three algorithms power modern subword tokenization: **Byte-Pair Encoding (BPE)**, **WordPiece**, and **Unigram LM** (with **SentencePiece** packaging BPE and Unigram alongside normalization and reversible whitespace encoding).
 
 <figure>
   <img src="illustrations/_generated/tokenization_pipeline_dark.png" alt="Four token pieces rain, ·falls, ·soft, and ly receive model-local row IDs 2, 5, 1, and 6. Each integer selects that row from an eight-row, three-column embedding table, gathering a 4 by 3 input tensor in token order." />
-  <figcaption>Four subword pieces select four rows from an eight-row embedding table. Integer IDs act as model-local row indices, and the gathered vectors keep the original token order.</figcaption>
+  <figcaption>Token IDs index rows of the embedding table $W_E$; swapping IDs without remapping rows points the model at the wrong learned vectors.</figcaption>
 </figure>
 
-## The granularity trade-off: characters, subwords, and words
+## Why subwords win: words vs. characters vs. subwords
 
-Whole words, raw characters, and subword pieces do not fail in the same way. You could feed raw characters, whole words, or subword chunks. Each choice changes sequence length, vocabulary requirements, and coverage.
-
-### Why not whole words? The OOV trade-off
-
-At first glance, splitting text on spaces into whole words (`rain`, `falls`, `softly`) feels intuitive. Natural language, however, has an open, constantly expanding vocabulary:
-
-1. **Out-of-Vocabulary (OOV) failures:** Any rare word, technical jargon, typo, new compound word, or code identifier (like `tokenCount` or `deserialize_payload`) that didn't appear in a fixed word dictionary can't be represented directly. Without a fallback, the tokenizer replaces it with an unknown token (`<UNK>`) and loses that word's identity.
-2. **Vocabulary memory:** A broad word vocabulary can grow to millions of entries. For a vocabulary of $V = 1{,}000{,}000$, hidden dimension $d = 4096$, input embeddings $W_E \in \mathbb{R}^{V \times d}$, and an untied output matrix $W_{\text{head}} \in \mathbb{R}^{V \times d}$ in 16-bit precision, the two tables would consume:
-
-$$
-\text{Memory}_{\text{vocab}} = 2 \times 1,000,000 \times 4096 \times 2\text{ bytes} \approx 16.38\text{ GB}
-$$
-
-That is over 16 GB of weight memory before loading a transformer layer, a substantial fixed cost even though the practical limit depends on the hardware and deployment.
-
-### Why not raw bytes or characters? The quadratic attention cost
-
-Going to the opposite extreme can solve the OOV problem. A byte-level tokenizer needs only 256 base byte values to represent any UTF-8 string, while a character-level tokenizer needs a defined character inventory or fallback. Either approach keeps the base vocabulary small.
-
-The catch is sequence length ($L$). Dense self-attention over a full sequence, as in training or prompt prefill, has a quadratic sequence-length term:
-
-$$
-\text{Attention Compute} = O(L^2 \cdot d)
-$$
-
-With a key-value (KV) cache, attending from one newly generated position to $L$ cached positions instead takes $O(L \cdot d)$ attention work. KV storage grows linearly with cached length, with constants set by the number and size of KV heads and the layer count. In the running example below, character tokenization produces 17 positions while subword segmentation produces 4. Their dense attention score matrices contain $17^2 = 289$ and $4^2 = 16$ cells per head. This 18.1-fold ratio isn't an end-to-end speedup; causal masking and implementations that avoid materializing the full matrix also affect actual work and memory.
-
-### The subword balance
-
-Subword tokenization usually provides a practical balance:
-- High-frequency strings such as `rain` and `falls` can remain single, compact tokens.
-- Rare, technical, or inflected words can decompose into reusable fragments (`soft` + `ly`).
-- Vocabulary size stays fixed after training. At fixed hidden size, vocabulary-weight memory grows linearly with $V$.
+- **Whole words** explode vocabulary memory ($V = 10^6, d = 4096$, untied FP16 input + output tables cost $2 \times 10^6 \times 4096 \times 2 \approx 16.38\text{ GB}$ before layer 0) and collapse unseen words or code identifiers (`deserialize_payload`) into `<UNK>`.
+- **Raw characters or bytes** eliminate `<UNK>` (only 256 byte values cover all UTF-8), but stretch `rain falls softly` from 4 subwords to 17 characters, inflating dense $O(L^2 d)$ attention grids from $4^2 = 16$ cells per head to $17^2 = 289$ cells ($18.1\times$ more pairs!).
+- **Subwords** keep common words intact (`rain`, ` falls`), split rare words into reusable pieces (` soft` + `ly`), and lock vocabulary size $V$ in advance.
 
 <figure>
   <img src="illustrations/_generated/token_granularity_tradeoff_dark.png" alt="Granularity comparison on rain falls softly shows 17 character positions (289 dense attention cells), 4 subword pieces (16 cells), and 3 whole words (9 cells, risking [UNK] on unseen words), alongside common-scale bars comparing quadratic cell counts." />
-  <figcaption>The same 17-character sentence uses 4 subword pieces or 3 words. Its dense attention grids contain 289, 16, or 9 cells per head. Coverage still depends on the base alphabet and fallback policy.</figcaption>
+  <figcaption>Subwords balance vocabulary size against quadratic dense attention cost: 4 pieces (16 cells) vs. 17 characters (289 cells) on the same sentence.</figcaption>
 </figure>
 
-Measure this sequence-length trade-off on the same sentence:
+## Byte Pair Encoding (BPE): bottom-up frequency merges
 
-```text title="sentence.txt"
-rain falls softly
-```
-
-<!-- leetllm: test, deps=numpy, output=show -->
-```python title="01-count-token-units.py"
-import numpy as np
-
-message = "rain falls softly"
-
-characters = list(message)
-words = message.split()
-subwords = ["rain", " falls", " soft", "ly"]
-
-lengths = np.array([len(characters), len(subwords), len(words)], dtype=np.int64)
-cells_per_head = lengths ** 2
-
-print("characters:", int(lengths[0]))
-print("words:", int(lengths[2]))
-print("candidate subwords:", int(lengths[1]), [piece.replace(" ", "·") for piece in subwords])
-print("dense N^2 cells (char, subword, word):", cells_per_head.tolist())
-assert "".join(subwords) == message
-assert cells_per_head.tolist() == [289, 16, 9]
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-characters: 17
-words: 3
-candidate subwords: 4 ['rain', '·falls', '·soft', 'ly']
-dense N^2 cells (char, subword, word): [289, 16, 9]
-```
-<!-- leetllm: output:end -->
-
-The hand-written segmentation reconstructs this sentence in four positions. A word dictionary missing `softly` would lose its identity without a fallback. Neither small example guarantees coverage on arbitrary unseen text: that requires checking the actual base alphabet and unknown-token policy.
-
-## Byte pair encoding: bottom-up frequency merges
-
-Philip Gage originally developed Byte Pair Encoding (BPE) in 1994 as a data compression algorithm that repeatedly replaces the most frequent adjacent pair of bytes with an unused byte symbol.[^gage1994] Sennrich, Haddow, and Birch adapted the algorithm to neural machine translation in 2016, laying the foundation for modern subword modeling.[^sennrich2016]
-
-### How BPE training works
-
-BPE training is a greedy, bottom-up algorithm:
-1. **Initialize the alphabet:** Start with all unique base characters (or bytes) in the training corpus. Every word is represented as a sequence of individual characters.
-2. **Count adjacent pairs:** Count the occurrences of all adjacent symbol pairs across the corpus, weighted by word frequencies.
-3. **Merge the winner:** Find the pair with the highest frequency and merge it into a single new vocabulary token.
-4. **Append to merge rules:** Record the merge rule in an ordered merge table.
-5. **Iterate:** Repeat until reaching the requested vocabulary size or a stopping condition, such as no remaining eligible pairs.
+Originally a 1994 compression trick by Philip Gage[^gage1994] and adapted to NMT by Sennrich et al.,[^sennrich2016] **BPE** builds a vocabulary greedily from the bottom up: start from base characters (or 256 raw UTF-8 bytes in GPT-2's **byte-level BPE**[^radford2019]), count adjacent pairs weighted by word frequency, merge the top pair into a new symbol, recount, and repeat until hitting target vocabulary size $V$. At inference time, BPE replays the frozen ordered merge table without recounting prompt frequencies.
 
 <figure>
   <img src="illustrations/_generated/bpe_merge_steps_dark.png" alt="BPE trains on rain three times, rainy twice, and rail twice. Four successive stages preserve these frequencies. First-seen tie breaking merges r plus a with count seven, ra plus i with count seven, then rai plus n with count five. Weighted token positions fall from thirty to twenty-three, sixteen, and eleven; common-scale bars show that reduction." />
-  <figcaption>On rain ×3, rainy ×2, and rail ×2, the first-seen winner r + a has count 7 and ties a + i. The next selected counts are 7 and 5; recounting after each merge reduces weighted token positions from 30 to 23, 16, and 11.</figcaption>
+  <figcaption>Three BPE merges on `rain` ($\times 3$), `rainy` ($\times 2$), and `rail` ($\times 2$) shrink weighted positions from 30 down to 11.</figcaption>
 </figure>
 
-Tracing this step by step on a small vocabulary:
-
-| Term | Count |
-|---|---:|
-| `rain` | 3 |
-| `rainy` | 2 |
-| `rail` | 2 |
-
-At initialization, the words are `r a i n`, `r a i n y`, and `r a i l`. Their weighted character count is $4\times3 + 5\times2 + 4\times2 = 30$.
-
-The adjacent pairs `r + a` and `a + i` each occur seven times after weighting by word frequency. Our classroom trainer breaks ties by first-seen order, so it merges `r + a` into `ra`. A production trainer must also specify a deterministic tie policy.
-
-Recount the current pieces. The pair `ra + i` occurs seven times, so it becomes `rai`. Recount again: `rai + n` occurs in `rain` three times and `rainy` twice, giving a count of five. That merge creates `rain`. The weighted token count falls from 30 to 23, then 16, then 11.
-
-This three-merge classroom trainer omits end-of-word markers, special-token assignment, vocabulary export, and a general stopping condition. Sennrich's original word-based formulation includes an end-of-word symbol.[^sennrich2016]
+Production BPE adds a **regex pre-tokenizer** (GPT-2, `tiktoken`, Llama 3[^radford2019][^dubey2024][^metaLlama3Tokenizer2024]) so merges never glue letters across punctuation or whitespace boundaries. Because UTF-8 characters span 1 to 4 bytes, byte-level BPE guarantees zero `<UNK>` on arbitrary Unicode, though streaming decoders must buffer incomplete multi-byte characters before calling `.decode("utf-8")`![^bartolo2024undertrainedtokens]
 
 <!-- leetllm: test, output=show -->
-```python title="02-train-mini-bpe.py"
+```python title="bpe-train-replay-and-utf8.py"
 from collections import Counter
 
-frequencies = {
-    "rain": 3,
-    "rainy": 2,
-    "rail": 2,
-}
-state = {tuple(word): count for word, count in frequencies.items()}
-
-def count_pairs(words: dict[tuple[str, ...], int]) -> Counter[tuple[str, str]]:
-    pairs: Counter[tuple[str, str]] = Counter()
-    for pieces, count in words.items():
-        for pair in zip(pieces, pieces[1:]):
-            pairs[pair] += count
-    return pairs
-
-def merge_pair(
-    pieces: tuple[str, ...], pair: tuple[str, str]
-) -> tuple[str, ...]:
-    merged: list[str] = []
-    i = 0
+def merge_pair(pieces: tuple[str, ...], pair: tuple[str, str]) -> tuple[str, ...]:
+    out, i = [], 0
     while i < len(pieces):
-        if i + 1 < len(pieces) and pieces[i : i + 2] == pair:
-            merged.append("".join(pair))
+        if i + 1 < len(pieces) and pieces[i:i + 2] == pair:
+            out.append(pair[0] + pair[1])
             i += 2
         else:
-            merged.append(pieces[i])
+            out.append(pieces[i])
             i += 1
-    return tuple(merged)
+    return tuple(out)
 
-merges: list[tuple[str, str]] = []
+state = {tuple("rain"): 3, tuple("rainy"): 2, tuple("rail"): 2}
+merges = []
 for step in range(3):
-    pair, count = count_pairs(state).most_common(1)[0]
-    state = {merge_pair(pieces, pair): freq for pieces, freq in state.items()}
-    merges.append(pair)
-    print(step + 1, pair, "->", "".join(pair), "count", count)
+    counts = Counter()
+    for pieces, freq in state.items():
+        for pair in zip(pieces, pieces[1:]):
+            counts[pair] += freq
+    winner, top = counts.most_common(1)[0]
+    state = {merge_pair(p, winner): f for p, f in state.items()}
+    merges.append(winner)
+    print(f"merge {step + 1}: {winner} -> {''.join(winner)} (count={top})")
 
-print("learned merges:", merges)
+def encode(word: str) -> list[str]:
+    p = tuple(word)
+    for m in merges:
+        p = merge_pair(p, m)
+    return list(p)
+
+print("replay:", {w: encode(w) for w in ("rain", "rainy", "rail", "airy")})
+raw_bytes = list("関数✨".encode("utf-8"))
+print(f"UTF-8 bytes ({len(raw_bytes)}): round-trip={bytes(raw_bytes).decode('utf-8')!r}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-1 ('r', 'a') -> ra count 7
-2 ('ra', 'i') -> rai count 7
-3 ('rai', 'n') -> rain count 5
-learned merges: [('r', 'a'), ('ra', 'i'), ('rai', 'n')]
+merge 1: ('r', 'a') -> ra (count=7)
+merge 2: ('ra', 'i') -> rai (count=7)
+merge 3: ('rai', 'n') -> rain (count=5)
+replay: {'rain': ['rain'], 'rainy': ['rain', 'y'], 'rail': ['rai', 'l'], 'airy': ['a', 'i', 'r', 'y']}
+UTF-8 bytes (9): round-trip='関数✨'
 ```
 <!-- leetllm: output:end -->
-
-### Replaying merges at inference time
-
-Ordinary deterministic BPE encoding uses fixed learned merge ranks, without fitting new rules to each prompt. This lab replays its three rules in order; production implementations can use more efficient rank-based operations. Learning a new vocabulary piece during serving wouldn't create a trained embedding for it.
-
-For our classroom encoder, that means applying the three saved rules in order:
-
-<!-- leetllm: test, output=show -->
-```python title="03-replay-bpe-merges.py"
-def apply_rule(pieces: list[str], pair: tuple[str, str]) -> list[str]:
-    result: list[str] = []
-    i = 0
-    while i < len(pieces):
-        if i + 1 < len(pieces) and tuple(pieces[i : i + 2]) == pair:
-            result.append("".join(pair))
-            i += 2
-        else:
-            result.append(pieces[i])
-            i += 1
-    return result
-
-rules = [("r", "a"), ("ra", "i"), ("rai", "n")]
-
-def encode(term: str) -> list[str]:
-    pieces = list(term)
-    for rule in rules:
-        pieces = apply_rule(pieces, rule)
-    return pieces
-
-for term in ["rain", "rainy", "rail", "airy"]:
-    print(term, "->", encode(term))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-rain -> ['rain']
-rainy -> ['rain', 'y']
-rail -> ['rai', 'l']
-airy -> ['a', 'i', 'r', 'y']
-```
-<!-- leetllm: output:end -->
-
-The fixed rules encode `rain` as one piece, `rainy` as `rain` plus `y`, and `rail` as `rai` plus `l`. The unseen word `airy` uses four characters from this corpus's base alphabet. The encoder doesn't invent a whole-word merge for it.
-
-Token counts aren't generally additive across arbitrary text chunks: a chunk split can prevent a learned merge. For exact counts and prompt-cache comparisons, encode the actual serialized input. A streaming tokenizer needs a way to retain or revise an unfinished UTF-8 or subword span; concatenating independent chunk encodings doesn't generally reproduce whole-string encoding.
 
 ```checkpoint
-Why can't an inference tokenizer count pair frequencies in the user's prompt to find better merges?
+Why can't an inference BPE tokenizer learn new merges on the fly from the user's prompt?
 ---
-Ordinary BPE encoding follows its fixed learned merge ranks. Fitting rules to each prompt would break that trained input mapping and could create pieces with no trained ID or embedding. Even a different segmentation using existing pieces can change the model's input distribution.
+The checkpoint's embedding rows and output head correspond to fixed learned merge IDs. Inventing new merges at inference creates pieces with no trained embedding row and alters the segmentation distribution the model expects.
 ```
 
-### Byte-level BPE and UTF-8 fallbacks
+## WordPiece, SentencePiece, and Unigram LM
 
-Character BPE with a corpus-derived alphabet can encounter unseen characters. Without an additional fallback, an obscure glyph, emoji, or script may map to `<UNK>`.
-
-GPT-2 uses **byte-level BPE**, whose base alphabet covers all 256 byte values.[^radford2019] Each Unicode scalar value encodes as one to four UTF-8 bytes, so valid Unicode text is representable without an unknown-character token. An API can still reject reserved special-token text or invalid inputs according to its policy.
-
-Llama 2 uses SentencePiece BPE and decomposes unknown UTF-8 characters into bytes.[^touvron2023a] Llama 3 instead uses a tiktoken-based tokenizer, so the two generations don't share the same tokenizer implementation or pre-tokenization rules.[^dubey2024][^metaLlama3Tokenizer2024]
-
-Testing this byte round-trip property on a Japanese string with an emoji:
-
-<!-- leetllm: test, output=show -->
-```python title="04-utf8-byte-round-trip.py"
-message = "関数✨"
-byte_ids = list(message.encode("utf-8"))
-reconstructed = bytes(byte_ids).decode("utf-8")
-
-print("byte count:", len(byte_ids))
-print("first byte ids:", byte_ids[:8])
-print("round trip:", reconstructed)
-assert reconstructed == message
-assert all(0 <= value <= 255 for value in byte_ids)
-
-# A byte token can contain only part of a Unicode character.
-decoded_separately = "".join(
-    bytes([value]).decode("utf-8", errors="replace") for value in byte_ids
-)
-print("per-byte decode exact:", decoded_separately == message)
-assert decoded_separately != message
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-byte count: 9
-first byte ids: [233, 150, 162, 230, 149, 176, 226, 156]
-round trip: 関数✨
-per-byte decode exact: False
-```
-<!-- leetllm: output:end -->
-
-Joining the bytes before UTF-8 decoding preserves this string. Decoding each byte separately with replacement errors loses it: token cuts do not always align with Unicode character divisions.[^bartolo2024undertrainedtokens] Byte fallback guarantees representation rather than compression. A rarely learned script can use several byte tokens per character, increasing sequence length.
-
-### Why regex pre-tokenization is critical
-
-Without pre-tokenization rules, BPE can learn pieces spanning letters, punctuation, or newlines when the training counts favor them. It doesn't necessarily merge every `failed.`, `failed!`, or `failed\n` string. GPT-2's authors report vocabulary waste from such variants and constrain merges by character categories, with an exception for spaces.[^radford2019]
-
-To control which text spans can participate in merges, many production BPE tokenizers apply a **regular expression pre-tokenizer** first. GPT-2 and tiktoken-style encodings use patterns that separate categories such as:
-- Contractions (`'s`, `'t`, `'re`, `'ve`, `'m`, `'ll`, `'d`)
-- Letter sequences
-- Numeric digits
-- Punctuation marks
-- Whitespace runs
-
-Merges stay within the spans produced by that encoding's regex. Don't generalize the listed categories into a universal punctuation rule: Llama 3's letter branch, for example, allows a preceding character outside its letter/number/newline categories. The exact pattern determines which splits occur.[^metaLlama3Tokenizer2024] Inside a span, frequency still picks the winner. Must that winner be a likely unit, or can two frequent pieces win only because each one is common?
-
-## WordPiece: likelihood-driven subword selection
-
-BPE's winner inside those spans is still the most frequent eligible pair. A pair of common pieces can win that count without being a likely unit. WordPiece's published motivation asks about language-model likelihood instead.[^kudo2018a]
-
-Schuster and Nakajima developed WordPiece in 2012 for Japanese and Korean speech recognition, and it later became the tokenizer behind BERT.[^schuster2012][^devlin2019]
-
-### Likelihood intuition and a teaching proxy
-
-That likelihood target scores statistical prediction; linguistic analysis determines whether two fragments form a meaningful morpheme.
-
-Be careful about implementation claims: Google didn't publish BERT's WordPiece trainer. Hugging Face labels its detailed training reconstruction a best guess from the literature. Its classroom reconstruction ranks eligible pairs using this association-score proxy:[^hfWordPieceCourse2026]
-
-For piece-frequency counts and adjacent-pair counts in the current segmentation:
-
-$$
-\operatorname{score}(a, b) = \frac{\operatorname{count}(ab)}{\operatorname{count}(a)\operatorname{count}(b)}
-$$
-
-This ratio favors pairs whose components occur together relative to their individual frequencies. It isn't literally pointwise mutual information, which is a logarithm of normalized joint and marginal probabilities. Nor is it a documented exact likelihood-gain formula for every WordPiece trainer. Compare two **within-word** merge candidates:
-
-| Candidate pair | Pair count | Individual counts | Proxy score | Interpretation |
-|---|---:|---:|---:|---|
-| `rain` + `##bow` | 42 | 50 and 44 | `0.0191` | Higher association score |
-| `t` + `##h` | 90 | 900 and 300 | `0.0003` | Higher count, lower association score |
-
-The proxy selects `rain` + `##bow` despite its lower pair count. A phrase such as `the model` isn't an eligible within-word merge in BERT's pipeline, so comparing those two whole words would cross whitespace instead of staying inside a word.
-
-### Greedy longest-match inference and `##` continuations
-
-BERT's full tokenizer cleans text, separates Chinese characters, splits punctuation and whitespace, and optionally lowercases and strips accents before WordPiece. WordPiece then segments each resulting unit, using `##` to mark continuations in BERT's vocabulary.[^bertTokenizerSource2026] This prefix is a vocabulary convention; it isn't part of the original word.
-
-At inference time, WordPiece matches greedily from left to right using **longest-match-first**:
-
-The next two functions isolate that search. They don't implement BERT's basic tokenizer or its maximum-word-length limit.
-
-<!-- leetllm: test, output=show -->
-```python title="05-wordpiece-longest-match.py"
-def wordpiece_tokenize(word: str, vocabulary: set[str]) -> list[str]:
-    result: list[str] = []
-    start = 0
-    while start < len(word):
-        chosen = None
-        for end in range(len(word), start, -1):
-            candidate = word[start:end]
-            if start > 0:
-                candidate = "##" + candidate
-            if candidate in vocabulary:
-                chosen = candidate
-                start = end
-                break
-        if chosen is None:
-            return ["[UNK]"]
-        result.append(chosen)
-    return result
-
-vocabulary = {"rain", "##bow", "play", "##ing"}
-for term in ["rain", "rainbow", "playing"]:
-    print(term, "->", wordpiece_tokenize(term, vocabulary))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-rain -> ['rain']
-rainbow -> ['rain', '##bow']
-playing -> ['play', '##ing']
-```
-<!-- leetllm: output:end -->
-
-### The greedy dead-end failure
-
-Because BERT-style WordPiece matches greedily without backtracking, it has a notable failure mode: if the longest valid prefix leads to a dead end where no continuation token can finish the word, the tokenizer rejects the entire word and emits `[UNK]`. It won't backtrack to try a shorter initial match, even if a valid full decomposition exists.[^bertTokenizerSource2026]
-
-<!-- leetllm: test, output=show -->
-```python title="06-wordpiece-unknown-token.py"
-def encode_word(word: str, vocabulary: set[str]) -> list[str]:
-    pieces: list[str] = []
-    cursor = 0
-    while cursor < len(word):
-        match = None
-        for end in range(len(word), cursor, -1):
-            candidate = word[cursor:end]
-            if cursor:
-                candidate = "##" + candidate
-            if candidate in vocabulary:
-                match = candidate
-                cursor = end
-                break
-        if match is None:
-            return ["[UNK]"]
-        pieces.append(match)
-    return pieces
-
-vocabulary = {"rain", "##bow", "play"}
-known = encode_word("rainbow", vocabulary)
-missing = encode_word("raincoat", vocabulary)
-
-print("known term:", known)
-print("missing continuation:", missing)
-assert known == ["rain", "##bow"]
-assert missing == ["[UNK]"]
-
-# A complete alternative path exists, but greedy matching won't find it.
-greedy_trap = {"rainb", "rain", "##bow"}
-print("greedy dead end:", encode_word("rainbow", greedy_trap))
-assert "rain" + "bow" == "rainbow"
-assert encode_word("rainbow", greedy_trap) == ["[UNK]"]
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-known term: ['rain', '##bow']
-missing continuation: ['[UNK]']
-greedy dead end: ['[UNK]']
-```
-<!-- leetllm: output:end -->
-
-In `greedy_trap`, `rain` + `##bow` could segment `rainbow` completely. But WordPiece greedily consumes `rainb`, finds no continuation for `ow`, and collapses the whole word to `[UNK]`. The trap still starts from a word that whitespace already isolated. Text without those gaps needs a different cut.
+**WordPiece** (introduced for Japanese/Korean ASR and used in BERT[^schuster2012][^devlin2019]) selects merges by likelihood intuition rather than raw frequency (often illustrated with the association proxy $\text{count}(ab) / (\text{count}(a)\,\text{count}(b))$[^hfWordPieceCourse2026]) and marks word continuations with `##`. At inference, BERT's WordPiece runs **greedy longest-match-first without backtracking**: if a longer prefix (`rainb`) hits a dead end (`##ow` missing), the whole word collapses to `[UNK]` even when `rain` + `##bow` is in the vocabulary![^bertTokenizerSource2026]
 
 <figure>
   <img src="illustrations/_generated/code_tokenization_dark.png" alt="The fixed WordPiece vocabulary has rainb, rain, and continuation piece ##bow. Greedy search takes rainb from rainbow and fails on missing ##ow, so the whole word becomes [UNK]. A second aligned lane shows the valid rain plus ##bow segmentation, which the greedy algorithm never tries." />
-  <figcaption>For this fixed vocabulary, greedy WordPiece chooses rainb and gets stuck. It returns [UNK] for the entire word, even though rain plus ##bow could spell rainbow. That shorter path is not explored.</figcaption>
+  <figcaption>Greedy WordPiece commits to `rainb` and returns `[UNK]` for `rainbow` without backtracking to the valid `rain` + `##bow` split.</figcaption>
 </figure>
 
-## SentencePiece and the Unigram language model
-
-Many BPE and WordPiece pipelines apply whitespace splitting or a language-specific segmenter before learning subwords. Splitting strictly on whitespace is a poor fit for languages that don't delimit every word with spaces, such as Japanese, Chinese, and Thai. SentencePiece instead trains from raw sentences and packages normalization with the model.
-
-Kudo and Richardson's **SentencePiece** toolkit learns from raw sentences without requiring an external word segmenter.[^kudo2018] Its default trainer still prevents pieces from crossing whitespace, script, and number categories.[^sentencepieceModelSpec2026]
-
-### Raw stream processing and reversible whitespace detokenization
-
-SentencePiece treats input text as a continuous raw stream of Unicode characters. It introduces two major innovations:
-1. **Explicit whitespace character:** Spaces in the normalized stream become `▁` (U+2581 Lower One Eighth Block). The default dummy-prefix option also adds an initial marker, so `rain falls` becomes `▁rain▁falls` even without a raw leading space.
-2. **Reversible whitespace encoding:** After normalization, spaces remain explicit in the token stream, so decoding the normalized text is straightforward:
-
-```python title="decode-normalized-text.py"
-decoded = "".join(tokens).removeprefix("▁").replace("▁", " ")
-```
-
-Explicit markers preserve spaces in the normalized stream. This string-join expression illustrates ordinary pieces with the default leading-space convention. Use the actual decoder for model-specific special tokens, byte pieces, and whitespace options. Recovery of normalized text requires that no content was collapsed into an unknown ID. A model without byte fallback can lose unseen characters, and normalization can remove distinctions before segmentation.[^sentencepieceModelSpec2026]
-
-### The Unigram LM: top-down loss-minimizing pruning
-
-SentencePiece can train BPE models and also implements the **Unigram Language Model** described by Kudo (2018a).[^kudo2018a]
-
-Unlike BPE and WordPiece (which build vocabulary bottom-up by iteratively merging characters), Unigram operates **top-down**:
-1. **Initialize an oversized seed vocabulary:** Start with required individual characters plus frequent substrings extracted from the corpus, producing more candidates than the target vocabulary needs.
-2. **Estimate piece probabilities:** Use Expectation-Maximization (EM) to fit the candidate-token probabilities $P(x)$ toward higher corpus log-likelihood. The result depends on initialization and candidate constraints:
-
-$$
-\mathcal{L} = \sum_{s \in \text{corpus}} \log \left( \sum_{\mathbf{x} \in \mathcal{S}(s)} \prod_{x_i \in \mathbf{x}} P(x_i) \right)
-$$
-
-where $\mathcal{S}(s)$ is the set of all valid segmentations of sentence $s$.
-3. **Estimate pruning loss:** Rank candidate pieces by the estimated likelihood reduction from removal. This pruning approximation avoids solving the intractable joint vocabulary/probability optimization exactly.
-4. **Remove a fraction of low-loss pieces:** The paper illustrates keeping 80%. Retain required single-character pieces, which protect coverage of the selected character alphabet, not every future Unicode character.
-5. **Iterate:** Recompute probabilities and repeat until reaching the target vocabulary size $V$.
-
-### Viterbi decoding on candidate lattices
-
-At inference time, an input string can be segmented across dozens of candidate split points. Unigram evaluates complete paths by joint probability:
-
-$$
-\arg\max_{\mathbf{x} \in \mathcal{S}(s)} \prod_{i=1}^{M} P(x_i)
-= \arg\max_{\mathbf{x} \in \mathcal{S}(s)} \sum_{i=1}^{M} \log P(x_i)
-$$
-
-The Viterbi algorithm uses dynamic programming to find the optimal global segmentation without enumerating all combinatorial paths.
+**SentencePiece**[^kudo2018] trains directly on raw Unicode streams (vital for Japanese, Chinese, and Thai) by encoding spaces explicitly as `▁` (U+2581) so detokenization is straightforward (`"".join(tokens).removeprefix("▁").replace("▁", " ")`).[^sentencepieceModelSpec2026] SentencePiece supports both BPE (used in Llama 2[^touvron2023a]) and the **Unigram Language Model**,[^kudo2018a] which works **top-down**: start with an oversized seed vocabulary, fit piece probabilities via EM to maximize $\mathcal{L} = \sum_s \log \sum_{\mathbf{x} \in \mathcal{S}(s)} \prod_i P(x_i)$, prune the lowest-loss pieces, and decode at inference with **Viterbi dynamic programming** to find the globally highest-probability path (avoiding WordPiece's greedy trap and optionally enabling training-time **subword regularization** via posterior sampling $q_\alpha(\mathbf{x} \mid s) \propto \prod P(x_i)^\alpha$).
 
 <figure>
   <img src="illustrations/_generated/sentencepiece_unigram_dark.png" alt="SentencePiece Unigram lattice on ▁rain scores three complete paths: [▁rain] at 0.30 (cost 1.204), [▁, rain] at 0.015 (cost 4.200), and [▁, ra, in] at 0.00009 (cost 9.316). Common-scale negative log cost bars select [▁rain]." />
-  <figcaption>The three legal paths for ▁rain have probabilities 0.30, 0.015, and 0.00009. The bars show negative log costs on a 0 to 10 scale, so Viterbi selects the shortest bar and largest complete-path probability. The vocabulary assigns another 0.40 probability mass to pieces that cannot segment this input; optional training-time sampling can expose other legal paths.</figcaption>
+  <figcaption>Unigram Viterbi scores complete paths by summed negative log-probabilities and selects `['▁rain']` (cost 1.204) over two- and three-piece splits.</figcaption>
 </figure>
 
-### Subword regularization: training with segmentation noise
-
-Unigram also supports **subword regularization**.[^kudo2018a] During model training, instead of always taking the deterministic 1-best Viterbi path, SentencePiece can sample segmentations from the posterior distribution:
-
-$$
-q_\alpha(\mathbf{x} \mid s) \propto \prod_{i=1}^{M} P(x_i)^\alpha,
-\qquad \mathbf{x} \in \mathcal{S}(s)
-$$
-
-where $\alpha$ controls the sampling distribution. A model might see `['▁rain']` in one epoch and `['▁', 'rain']` in the next. This acts as data augmentation over valid segmentations and can make training less sensitive to which valid segmentation appears.
-
-The sampling distribution $q_\alpha$ is normalized over legal paths for this fixed input. Smaller positive $\alpha$ flattens it; larger values concentrate it toward the best path. The original paper studies neural machine translation training. Sampling is an option for model training, not something every pretrained SentencePiece-based LLM used. For reproducible serving, use the checkpoint's intended encoding mode.
-
-Here is a miniature Viterbi decoder with piece probabilities chosen to keep the arithmetic transparent, with a leading space marker prepended to `rain`. This isolates path selection rather than modeling SentencePiece normalization or EM training. The vocabulary probabilities sum to one, including 0.40 on `sun` and `cloud`, which cannot segment this input.
-
 <!-- leetllm: test, deps=numpy, output=show -->
-```python title="07-unigram-viterbi.py"
+```python title="wordpiece-dead-end-and-unigram-viterbi.py"
 import numpy as np
 
-probabilities = {
-    "▁rain": 0.30,
-    "▁": 0.15,
-    "rain": 0.10,
-    "ra": 0.02,
-    "in": 0.03,
-    "sun": 0.20,
-    "cloud": 0.20,
-}
-pieces_list = list(probabilities.keys())
-prob_array = np.array([probabilities[p] for p in pieces_list], dtype=np.float64)
-assert np.isclose(prob_array.sum(), 1.0)
-logp = dict(zip(pieces_list, np.log(prob_array).tolist()))
+def wordpiece(word: str, vocab: set[str]) -> list[str]:
+    out, i = [], 0
+    while i < len(word):
+        match = next(
+            (((("##" if i else "") + word[i:e]), e)
+             for e in range(len(word), i, -1)
+             if (("##" if i else "") + word[i:e]) in vocab),
+            None,
+        )
+        if match is None:
+            return ["[UNK]"]
+        piece, i = match
+        out.append(piece)
+    return out
 
-def viterbi_segment(text: str, scores: dict[str, float]) -> list[str]:
-    n = len(text)
-    if "" in scores:
-        raise ValueError("empty pieces are not supported")
-    if not text:
-        return []
-    if not scores:
-        raise ValueError("no legal segmentation")
-    best = [(0.0, -1, "")] + [(-np.inf, -1, "")] * n
-    max_len = max(map(len, scores))
-    for start in range(n):
-        if best[start][0] == -np.inf:
-            continue
-        for end in range(start + 1, min(n, start + max_len) + 1):
-            piece = text[start:end]
-            if piece not in scores:
-                continue
-            score = best[start][0] + scores[piece]
-            if score > best[end][0]:
-                best[end] = (score, start, piece)
-    if best[n][0] == -np.inf:
-        raise ValueError("no legal segmentation")
-    pieces: list[str] = []
-    cursor = n
-    while cursor > 0:
-        _, prev, piece = best[cursor]
-        pieces.append(piece)
-        cursor = prev
-    pieces.reverse()
-    return pieces
+print("WordPiece greedy trap on 'rainbow':", wordpiece("rainbow", {"rainb", "rain", "##bow"}))
 
-raw_message = "rain"
-marked = "▁" + raw_message
-pieces = viterbi_segment(marked, logp)
-decoded = "".join(pieces).removeprefix("▁").replace("▁", " ")
-
-print("raw:", raw_message)
-print("normalized marker input:", marked)
-print("pieces:", pieces)
-print("decoded:", decoded)
-assert marked == "▁rain"
-assert pieces == ["▁rain"]
-assert decoded == raw_message
+probs = {"▁rain": 0.30, "▁": 0.15, "rain": 0.10, "ra": 0.02, "in": 0.03, "sun": 0.20, "cloud": 0.20}
+logp = {k: float(np.log(v)) for k, v in probs.items()}
+text = "▁rain"
+best = [(0.0, -1, "")] + [(-np.inf, -1, "")] * len(text)
+for s in range(len(text)):
+    for e in range(s + 1, len(text) + 1):
+        piece = text[s:e]
+        if piece in logp and best[s][0] + logp[piece] > best[e][0]:
+            best[e] = (best[s][0] + logp[piece], s, piece)
+pieces, cur = [], len(text)
+while cur > 0:
+    _, cur, p = best[cur]
+    pieces.append(p)
+pieces.reverse()
+print("Unigram Viterbi on '▁rain':", pieces, "score:", round(best[len(text)][0], 3))
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-raw: rain
-normalized marker input: ▁rain
-pieces: ['▁rain']
-decoded: rain
+WordPiece greedy trap on 'rainbow': ['[UNK]']
+Unigram Viterbi on '▁rain': ['▁rain'] score: -1.204
 ```
 <!-- leetllm: output:end -->
 
-`▁rain` stays whole because its log-probability ($-1.204$) beats `▁` plus `rain` ($-1.897 + -2.303 = -4.200$). The three-piece route `▁` + `ra` + `in` scores $0.15 \times 0.02 \times 0.03 = 0.00009$, or $-9.316$ in natural log space. This is global path scoring, not a rule that always chooses the longest piece. Each vocabulary piece also costs an embedding row, and an output row when those weights are untied.
+## Vocabulary economics, Unicode normalization, and production failure modes
 
-## Vocabulary economics: parameter memory vs context efficiency
-
-When designing a tokenizer, how big should $V$ be? Historical checkpoints illustrate different choices: GPT-2 uses 50,257 IDs; Llama 2 uses 32,000.[^radford2019][^touvron2023a] Llama 3's report describes 128K pieces, and its original implementation adds 256 reserved special-token IDs. Gemma 2's report describes 256K entries.[^dubey2024][^metaLlama3Tokenizer2024][^gemma2team2024] Inspect the actual vocabulary and weight shapes, including special IDs and padding, for an exact memory budget.
-
-Every additional vocabulary token represents a trade-off between weight memory and sequence length.
-
-### Calculating the parameter memory bill
-
-For hidden dimension $d_{\text{model}}$, the input embedding table $W_E \in \mathbb{R}^{V \times d_{\text{model}}}$ stores $V \times d_{\text{model}}$ parameters. If the final output projection matrix ($W_{\text{head}}$) is untied (not sharing weights with $W_E$), it stores another $V \times d_{\text{model}}$ parameters:
-
-$$
-\text{Memory}_{\text{vocab}} = 2 \times V \times d_{\text{model}} \times \text{bytes per parameter}
-$$
+Choosing vocabulary size $V$ (32K in Llama 2,[^touvron2023a] 50,257 in GPT-2,[^radford2019] 128K in Llama 3,[^dubey2024] 256K in Gemma 2[^gemma2team2024]) trades static embedding RAM ($2 V d_{\text{model}} b$ for untied FP16 tables: 500 MiB at 32K vs. 2,000 MiB at 128K for $d = 4096$) against shorter sequences. Increasing English compression from Llama 2's 3.17 chars/token to Llama 3's 3.94 chars/token trims sequence length and KV cache by **19.5%** and dense $N^2$ attention cells by **35.3%**.[^dubey2024]
 
 <figure>
   <img src="illustrations/_generated/vocab_comparison_dark.png" alt="Top: untied FP16 table memory at hidden dimension 4096 grows linearly across 8k (125 MiB), 32k (500 MiB), and 128k (2,000 MiB) vocabulary rows. Bottom: increasing English compression from 3.17 to 3.94 characters per token lowers token and KV positions to 80.5% and dense N-squared score cells to 64.7%." />
-  <figcaption>Untied FP16 tables at hidden size 4,096 cost 125, 500, and 2,000 MiB across 8k, 32k, and 128k rows. Below: Llama 3 compression rates on an English sample relative to Llama 2 imply 19.5% fewer token/KV positions and 35.3% fewer dense score cells for fixed text, rather than isolating an end-to-end speedup.[^dubey2024]</figcaption>
+  <figcaption>Larger vocabularies raise embedding-table memory linearly (top) while shortening sequence length and quadratically cutting dense attention cells (bottom).[^dubey2024]</figcaption>
 </figure>
 
-Computing the exact memory footprint across vocabulary sizes:
+Four subtle tokenizer effects show up repeatedly in production:
 
-<!-- leetllm: test, deps=numpy, output=show -->
-```python title="08-vocabulary-memory-budget.py"
-import numpy as np
-
-vocab_sizes = np.array([8_000, 32_000, 128_000], dtype=np.int64)
-hidden_size = 4096
-bytes_per_weight = 2
-
-input_mib = vocab_sizes * hidden_size * bytes_per_weight / (1024**2)
-untied_mib = 2 * input_mib
-
-for v, inp, total in zip(vocab_sizes, input_mib, untied_mib):
-    print(f"{int(v):>6,} tokens: input={inp:>7.1f} MiB input+untied-output={total:>7.1f} MiB")
-
-pos_ratio = 3.17 / 3.94
-print(f"positions ratio: {pos_ratio:.3f}, dense N^2 ratio: {pos_ratio ** 2:.3f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
- 8,000 tokens: input=   62.5 MiB input+untied-output=  125.0 MiB
-32,000 tokens: input=  250.0 MiB input+untied-output=  500.0 MiB
-128,000 tokens: input= 1000.0 MiB input+untied-output= 2000.0 MiB
-positions ratio: 0.805, dense N^2 ratio: 0.647
-```
-<!-- leetllm: output:end -->
-
-### The sequence compression payoff
-
-At 128,000 rows, the untied FP16 budget above is 2,000 MiB (1.953 GiB). A larger, appropriately trained vocabulary can shorten sequences; measure compressed lengths on your corpus to see whether that trade improves compression:
-1. **Sequence and attention savings:** Llama 3's report measures 3.17 versus 3.94 characters per token **on a sample of English data**.[^dubey2024] Treating those reported rates as representative of fixed text gives $1 - 3.17 / 3.94 \approx 19.5\%$ fewer positions and $1 - (3.17 / 3.94)^2 \approx 35.3\%$ fewer conceptual dense attention score cells. That comparison covers two whole tokenizers, including different pre-tokenization, so it doesn't isolate the effect of adding rows. The report also says its 28K added non-English tokens had no impact on English tokenization. These ratios estimate potential reductions for similar text. Measure token counts and end-to-end speed on target requests to quantify the savings.
-2. **KV cache savings:** Holding model architecture and text fixed, 19.5% fewer token positions means 19.5% fewer key and value positions stored for that request.
-3. **Context capacity:** At the reported compression rates, a fixed token window holds about $3.94 / 3.17 \approx 1.243$ times as many characters from the same content distribution. Word counts vary by language and corpus, so character compression shouldn't be converted into a universal words-per-window claim.
-
-## Modern tokenizer failure modes in production
-
-Check the serialized token IDs before concluding what code the model saw. Fragmentation can also arise from the checkpoint's tokenizer, so inspect these four cases before attributing unexpected behavior to the weights.
-
-### 1. Multilingual token inflation ("The fertility tax")
-
-Fertility measures how many tokens a tokenizer requires per word or another chosen text unit. The value depends on both the tokenizer and the evaluation corpus, so comparisons should use parallel content and a consistent unit.
-
-Tokenizers can use far more tokens for some languages than for English. Across parallel FLORES-200 translations, Petrov et al. measured a 15.05-fold token premium for Shan with the `cl100k_base` tokenizer used by ChatGPT and GPT-4 at the time.[^petrov2023] This compares translations with the same underlying content, not identical text. Shan is the widest gap the paper reports for this tokenizer; Italian needs about 1.6 times as many tokens as English.
-
-This creates three measurable risks:
-- **Token cost:** Token-metered input charges scale with token count, although the monetary ratio depends on the provider's pricing policy.
-- **Context capacity:** A higher token ratio leaves proportionally less room for comparable content in a fixed token window.
-- **Latency:** Longer token sequences increase prefill work, and fragmented outputs can require more autoregressive decoding steps. Petrov et al. observed up to roughly twice the processing time for some languages; measure latency on the target model and runtime.[^petrov2023]
-
-Meta's Llama 3 combines the 100K-token tiktoken vocabulary with 28K additional tokens from selected non-English languages. The report describes improved compression and downstream performance for those languages.[^dubey2024]
-
-### 2. Arithmetic and numeric pre-tokenization
-
-Tokenization is one factor that can make multi-digit arithmetic harder. It determines whether digit positions are exposed consistently or hidden inside variable-length pieces, but training data, model capacity, and learned algorithms matter too.
-
-In byte-level BPE tokenizers such as GPT-2's, numeric substrings can be merged into pieces according to learned merge ranks. Similar-looking numbers can therefore split at different positions.
-
-Llama 2 chose a different policy and split numbers into individual digits.[^touvron2023a] Llama 3 doesn't preserve every digit separately. Its official tokenizer uses the regex span `\p{N}{1,3}`, which groups one to three numeric characters before BPE.[^metaLlama3Tokenizer2024]
-
-Single-digit spans expose each column explicitly, while 1-to-3-digit spans limit how much numeric text enters one pre-tokenization chunk. Neither policy guarantees arithmetic correctness. Audit the exact regex and resulting token splits instead of assuming all modern tokenizers use the same rule.
-
-### 3. Code indentation and whitespace handling
-
-In languages such as Python, indentation changes program structure. Four levels of four-space indentation use 16 leading spaces on the deepest line. An encoding with only single-space pieces would spend 16 tokens on that run; other lines can have different indentation depths.
-
-Code-aware tokenizers can learn pieces for multi-space runs. Representing 16 leading spaces as four 4-space pieces reduces indentation from 16 tokens to 4, a 75% reduction for that run. Actual savings depend on the tokenizer vocabulary and the code sample, and a real encoder can do better still: `cl100k_base` encodes 16 leading spaces as one token (checked November 2026).
-
-Exact casing can change which learned pieces match. Our mini-BPE below produces these tokenizations:
-- `tokenCount` $\to$ `['token', 'C', 'o', 'un', 't']` (5 tokens!)
-- `encodePrompt` $\to$ `['encode', 'P', 'rompt']` (3 tokens here)
-
-Its corpus includes some code, but the limited merge budget doesn't learn whole `Count` or `Prompt` pieces. These counts aren't predictions for Llama, GPT, or another checkpoint's tokenizer. On `cl100k_base`, for example, `tokenCount` is two tokens.
-
-### 4. Glitch tokens and under-trained vocabulary entries
-
-Researchers have documented **glitch tokens**, vocabulary entries such as `SolidGoldMagikarp` that can trigger anomalous model behavior.[^bartolo2024undertrainedtokens]
-
-The conclusion the measurements support is narrower than a single causal story. Tokenizer construction and neural model training use different objectives and may use different corpora. A token can enter the vocabulary yet be nearly or entirely absent during model training, leaving it under-trained. Weight-based signatures depend on the architecture: tied and untied input and output embeddings don't receive identical updates. Corpus counts, vector norms, and prompt behavior can help identify candidates, but they don't prove that a particular token received exactly zero gradients or that attention logits saturated.[^bartolo2024undertrainedtokens]
-
-Testing these multilingual and camelCase behaviors on a trained mini-BPE:
-
-<!-- leetllm: test, output=show -->
-```python title="09-audit-token-lengths.py"
-from collections import Counter
-import re
-
-PRETOK = re.compile(r"[^\W\d_]+|\d+|\s+|[^\s]")
-
-def utf8_pieces(text: str) -> tuple[str, ...]:
-    return tuple(bytes([b]).decode("latin-1") for b in text.encode("utf-8"))
-
-def pretok(text: str) -> list[str]:
-    return PRETOK.findall(text)
-
-def count_pairs(words: dict[tuple[str, ...], int]) -> Counter[tuple[str, str]]:
-    pairs: Counter[tuple[str, str]] = Counter()
-    for pieces, count in words.items():
-        for pair in zip(pieces, pieces[1:]):
-            pairs[pair] += count
-    return pairs
-
-def merge_pair(pieces: tuple[str, ...], pair: tuple[str, str]) -> tuple[str, ...]:
-    merged: list[str] = []
-    i = 0
-    while i < len(pieces):
-        if i + 1 < len(pieces) and pieces[i : i + 2] == pair:
-            merged.append(pieces[i] + pieces[i + 1])
-            i += 2
-        else:
-            merged.append(pieces[i])
-            i += 1
-    return tuple(merged)
-
-def encode(text: str, merges: list[tuple[str, str]]) -> list[str]:
-    output: list[str] = []
-    for span in pretok(text):
-        pieces = list(utf8_pieces(span))
-        for pair in merges:
-            pieces = list(merge_pair(tuple(pieces), pair))
-        output.extend(pieces)
-    return output
-
-def visible(pieces: list[str]) -> list[str]:
-    shown: list[str] = []
-    for piece in pieces:
-        raw = piece.encode("latin-1")
-        try:
-            shown.append(raw.decode("ascii").replace(" ", "·"))
-        except UnicodeDecodeError:
-            shown.append("<byte>")
-    return shown
-
-corpus = {
-    "const tokenCount = encodePrompt(prompt).length;": 3,
-    "How do I tokenize this prompt?": 5,
-    "prompt cache failed unexpectedly": 4,
-    "token budget pending": 3,
-    "encode the prompt cache": 3,
-    "failed unexpectedly": 2,
-}
-state: dict[tuple[str, ...], int] = Counter()
-for text, count in corpus.items():
-    for span in pretok(text):
-        state[utf8_pieces(span)] += count
-
-merges: list[tuple[str, str]] = []
-for _ in range(25):
-    pair, _count = count_pairs(state).most_common(1)[0]
-    state = {merge_pair(pieces, pair): freq for pieces, freq in state.items()}
-    merges.append(pair)
-
-samples = {
-    "english": "How do I tokenize this prompt?",
-    "portuguese": "Como tokenizo este prompt?",
-    "japanese": "このプロンプトをトークン化するには？",
-    "typescript": "const tokenCount = encodePrompt(prompt).length;",
-}
-
-english_tokens = len(encode(samples["english"], merges))
-for name, text in samples.items():
-    pieces = encode(text, merges)
-    print(f"{name:>10}: {len(pieces):>2} tokens {len(pieces) / english_tokens:>4.2f}x english")
-    assert "".join(pieces).encode("latin-1").decode("utf-8") == text
-
-typescript = encode(samples["typescript"], merges)
-print("typescript pieces:", visible(typescript))
-assert [len(encode(text, merges)) for text in samples.values()] == [20, 17, 54, 25]
-assert visible(typescript) == [
-    "co", "n", "s", "t", "·", "token", "C", "o", "un", "t",
-    "·", "=", "·", "encode", "P", "rompt", "(", "prompt", ")",
-    ".", "l", "en", "g", "th", ";",
-]
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-   english: 20 tokens 1.00x english
-portuguese: 17 tokens 0.85x english
-  japanese: 54 tokens 2.70x english
-typescript: 25 tokens 1.25x english
-typescript pieces: ['co', 'n', 's', 't', '·', 'token', 'C', 'o', 'un', 't', '·', '=', '·', 'encode', 'P', 'rompt', '(', 'prompt', ')', '.', 'l', 'en', 'g', 'th', ';']
-```
-<!-- leetllm: output:end -->
-
-The regex is a classroom approximation using Unicode word characters, decimal digits, whitespace, and remaining characters. Unlike an ASCII-only letter branch, it keeps this Japanese sentence's letter sequences together. It isn't GPT-2's or Llama 3's exact pattern. Comparing token counts across these four prompts shows:
-- Portuguese reuses `token` in `tokenizo`, keeping token count low (0.85x).
-- Japanese has no learned merges in this ASCII-centric corpus and uses 54 raw byte tokens (2.70x the English prompt).
-- `tokenCount` uses `['token', 'C', 'o', 'un', 't']`; this limited vocabulary has no piece spanning the uppercase suffix.
-
-These ratios cover token counts for four test strings. They give no multilingual or per-word fertility estimate. The English string is also in the tokenizer's training corpus. Evaluate the real checkpoint on separate, representative parallel content before making deployment or cost claims; message formatting and special-token overhead can add tokens beyond raw text.
-
-## Unicode normalization policies: NFC vs NFKC
-
-Two text strings can look identical on screen while holding completely different Unicode code points.
-
-For example, `café` can be written as:
-- **Composed form:** `c` + `a` + `f` + `é` (`\u00E9`, single code point).
-- **Decomposed form:** `c` + `a` + `f` + `e` + `◌́` (`\u0065\u0301`, letter `e` plus combining acute accent).
-
-If the configured tokenizer doesn't unify those forms, visually similar requests can produce different IDs and miss an exact-prefix cache match. If its normalizer already unifies them, they can encode identically. Cache results also depend on the full request prefix and the serving system's policy.
+1. **Multilingual fertility tax:** Parallel FLORES-200 translations can take up to $15\times$ more tokens in low-resource scripts (like Shan on `cl100k_base`) than in English, eating context windows and inflating latency and token bills.[^petrov2023]
+2. **Numeric splitting:** Llama 2 splits every digit individually,[^touvron2023a] while Llama 3 groups 1 to 3 digits via `\p{N}{1,3}`.[^metaLlama3Tokenizer2024] Always check how your tokenizer splits multi-digit numbers before diagnosing arithmetic errors.
+3. **Unicode normalization (`NFC` vs. `NFKC`):** Composed `café` (`\u00E9`) and decomposed `cafe\u0301` look identical on screen yet produce different token IDs unless normalized with `NFC`. Compatibility normalization (`NFKC`, or SentencePiece's `nmt_nfkc`[^sentencepieceNormalization2026]) goes further and folds ligatures like `ﬁle` into `file`, which can silently alter code identifiers.[^unicodeNormalization2026]
+4. **Glitch tokens and tokenizer swaps:** Under-trained vocabulary entries (like `SolidGoldMagikarp`) can trigger anomalous outputs.[^bartolo2024undertrainedtokens] And swapping a tokenizer without remapping both input embeddings $W_E$ and untied output head $W_{\text{head}}$ breaks every row lookup even when $V$ matches!
 
 <figure>
   <img src="illustrations/_generated/normalization_pipeline_dark.png" alt="Composed café has four code points and five UTF-8 bytes. Decomposed cafe plus combining U+0301 has five points and six bytes. NFC and NFKC map both to the same four code points. The ﬁle ligature input has three code points and five bytes, remains unchanged under NFC, and becomes four letters under NFKC. Each cell is one code point." />
-  <figcaption>NFC unifies the two café forms while preserving the fi ligature. NFKC also folds ﬁle into file. Code points, UTF-8 bytes, and tokenizer pieces are separate units; the SentencePiece space marker is not a raw U+0020 space byte.</figcaption>
+  <figcaption>`NFC` unifies composed and decomposed `café` while keeping ligatures distinct; `NFKC` additionally folds `ﬁle` into `file`.</figcaption>
 </figure>
 
-Unicode defines four normalization forms: NFD, NFC, NFKD, and NFKC. Here we compare the two composition forms:[^unicodeNormalization2026]
-- **NFC (Normalization Form C):** Canonical decomposition followed by canonical composition where allowed. Some combining sequences have no precomposed equivalent. NFC preserves compatibility distinctions such as `ﬁ` versus `fi`.
-- **NFKC (Normalization Form Compatibility Composition):** Compatibility decomposition followed by canonical composition where allowed. The ligature `ﬁ` (U+FB01) becomes `f` + `i`, full-width Latin letters and digits become ASCII, and superscript digits become standard digits.
-
-SentencePiece's current default is `nmt_nfkc`, a variant with additional whitespace handling; its implementation doesn't perform every part of standard Unicode NFKC. The model can specify another rule, including `identity`. Default whitespace options remove leading, trailing, and repeated spaces.[^sentencepieceNormalization2026][^sentencepieceModelSpec2026] That matters for code and exact identifiers: don't substitute Python NFKC or assume every SentencePiece checkpoint uses the default.
-
-Testing standard NFC and NFKC in Python makes their differences concrete:
-
-<!-- leetllm: test, output=show -->
-```python title="10-normalize-before-tokenizing.py"
-import unicodedata
-
-composed = "café"
-decomposed = "cafe\u0301"
-ligature = "ﬁle"
-
-print("raw cafe equal:", composed == decomposed)
-print("NFC cafe equal:", unicodedata.normalize("NFC", composed) == unicodedata.normalize("NFC", decomposed))
-print("NFC ligature:", unicodedata.normalize("NFC", ligature))
-print("NFKC ligature:", unicodedata.normalize("NFKC", ligature))
-
-assert composed != decomposed
-assert unicodedata.normalize("NFC", composed) == unicodedata.normalize("NFC", decomposed)
-assert unicodedata.normalize("NFC", ligature) != "file"
-assert unicodedata.normalize("NFKC", ligature) == "file"
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-raw cafe equal: False
-NFC cafe equal: True
-NFC ligature: ﬁle
-NFKC ligature: file
-```
-<!-- leetllm: output:end -->
-
-Use the normalizer bundled with the checkpoint consistently. Adding external normalization can change training-time distinctions, and applying it before every request isn't automatically beneficial. Neither NFC nor NFKC is a general visual-lookalike detector or a complete text-safety policy.
-
-## A tokenizer stays with its checkpoint
-
-Training, inference, whitespace, and fallback do not travel as one package. A swap can keep the algorithm name and still point IDs at the wrong rows:
-
-| Algorithm | Training Approach | Inference Mechanism | Whitespace Handling | Coverage / Fallback |
-|---|---|---|---|---|
-| **BPE** | Bottom-up frequency merging | Ordered merge list replay | Regex pre-tokenization (e.g. GPT-2/4) | Byte-level BPE (BBPE) achieves 100% UTF-8 coverage with zero `<UNK>` |
-| **WordPiece** | Likelihood-motivated vocabulary growth; exact trainer matters | BERT-style greedy longest match using a fixed vocabulary | BERT basic tokenizer handles spaces, punctuation, and configured normalization | `[UNK]` for failed segmentation or a configured length limit |
-| **SentencePiece BPE** | Bottom-up frequency merging | Replays packaged `.model` | Replaces whitespace with `▁` (U+2581) | Configured character coverage with optional byte fallback or `<unk>` |
-| **SentencePiece Unigram** | Probability fitting by EM and approximate vocabulary pruning | Best-path Viterbi, or optional segmentation sampling | Explicit `▁` with configured whitespace normalization | Selected character alphabet; optional byte fallback or `<unk>` |
-
-### Why a tokenizer swap can miss the learned rows
-
-A checkpoint stores learned vectors and projections; the tokenizer bundle defines the mapping between pieces and IDs:
-- Input embedding lookup selects row $i$ from $W_E \in \mathbb{R}^{V \times d_{\text{model}}}$.
-- The final LM head computes dot products against row $i$ of $W_{\text{head}} \in \mathbb{R}^{V \times d_{\text{model}}}$.
-
-Equal vocabulary size doesn't preserve token meanings. An incompatible replacement can severely degrade a model, but not every file change produces gibberish, and full retraining isn't the only possible adaptation. A pure bijective ID renaming can preserve behavior if all vocabulary-indexed weights, special IDs, and associated state are remapped consistently. New segmentation or new pieces generally require model adaptation and evaluation.
-
-Try the simplest case: keep the pieces, reorder their IDs, and observe what happens if the table stays put.
-
 <!-- leetllm: test, deps=numpy, output=show -->
-```python title="11-remap-token-rows.py"
+```python title="normalization-and-id-remap.py"
+import unicodedata
 import numpy as np
 
+# 1. NFC vs NFKC normalization
+print("NFC cafe equal:", unicodedata.normalize("NFC", "café") == unicodedata.normalize("NFC", "cafe\u0301"))
+print("NFC vs NFKC on 'ﬁle':", unicodedata.normalize("NFC", "ﬁle"), "vs", unicodedata.normalize("NFKC", "ﬁle"))
+
+# 2. Swapping token IDs without moving embedding rows breaks lookup
 ids_a = {"prompt": 0, "cache": 1, "failed": 2}
 ids_b = {"failed": 0, "prompt": 1, "cache": 2}
-rows_a = np.array([[1.0, 0.0], [0.0, 1.0], [-1.0, -1.0]], dtype=np.float64)
-message = ["prompt", "cache"]
-
-expected = rows_a[[ids_a[p] for p in message]]
-wrong = rows_a[[ids_b[p] for p in message]]
+rows_a = np.array([[1.0, 0.0], [0.0, 1.0], [-1.0, -1.0]])
 rows_b = np.zeros_like(rows_a)
 for piece, new_id in ids_b.items():
     rows_b[new_id] = rows_a[ids_a[piece]]
-remapped = rows_b[[ids_b[p] for p in message]]
 
-# Tied input/output table evaluated at one fixed hidden vector.
-hidden = np.array([0.8, 0.2], dtype=np.float64)
-logits_a = {piece: float(rows_a[idx] @ hidden) for piece, idx in ids_a.items()}
-logits_b = {piece: float(rows_b[idx] @ hidden) for piece, idx in ids_b.items()}
-
-print("original vectors:", expected.tolist())
-print("new IDs, old table:", wrong.tolist())
-print("new IDs, remapped table:", remapped.tolist())
-print("piece logits preserved:", logits_a == logits_b)
-assert not np.array_equal(wrong, expected)
-assert np.array_equal(remapped, expected)
-assert logits_a == logits_b
+msg = ["prompt", "cache"]
+print("Original rows:", rows_a[[ids_a[p] for p in msg]].tolist())
+print("Swapped IDs, unmoved table:", rows_a[[ids_b[p] for p in msg]].tolist())
+print("Swapped IDs, remapped table:", rows_b[[ids_b[p] for p in msg]].tolist())
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-original vectors: [[1.0, 0.0], [0.0, 1.0]]
-new IDs, old table: [[0.0, 1.0], [-1.0, -1.0]]
-new IDs, remapped table: [[1.0, 0.0], [0.0, 1.0]]
-piece logits preserved: True
+NFC cafe equal: True
+NFC vs NFKC on 'ﬁle': ﬁle vs file
+Original rows: [[1.0, 0.0], [0.0, 1.0]]
+Swapped IDs, unmoved table: [[0.0, 1.0], [-1.0, -1.0]]
+Swapped IDs, remapped table: [[1.0, 0.0], [0.0, 1.0]]
 ```
 <!-- leetllm: output:end -->
 
-The equality applies to piece-associated logits under this fixed hidden vector. No transformer is run here. For an untied model, both input and output tables need the same ID remapping; output biases and other indexed state, if present, also matter. This exercise doesn't license replacing an existing checkpoint's tokenizer with one that splits text differently.
-
-### Production review checklist
-
-| Observed symptom | Possible tokenization cause | Compatible verification or response |
-|---|---|---|
-| Model outputs complete gibberish after deploying a new tokenizer | Token IDs select incompatible rows in $W_E$ | Test known text-to-ID/decoding prompts; pin the verified tokenizer and checkpoint together by artifact hashes |
-| API token costs are unexpectedly higher for some languages | High token-count ratio on parallel content | Audit fertility across target languages and representative corpora |
-| Model repeatedly fails simple multi-digit arithmetic | Numeric token splits may obscure digit positions | Inspect the exact pre-tokenizer regex and tokenization of multi-digit test numbers |
-| Code context window exhausts much faster than expected | Whitespace or identifier fragmentation | Measure the checkpoint's actual encoding; select relevant code context or choose a compatible model trained for the workload |
-| Prompt cache hit rate differs across request paths | Unicode normalization mismatch or bypass | Compare the full serialized prefix and IDs; use the checkpoint's configured preprocessing and the serving system's cache key rules |
-| Model behaves anomalously on specific vocabulary entries | Possible under-trained tokens such as `SolidGoldMagikarp` | Combine corpus-frequency, weight-based, and prompt-behavior audits |
-
-Bundle the chat template and special-token policy with the tokenizer too. Correct piece IDs don't help if one path inserts different role delimiters, beginning/end markers, padding, or truncation. Keep ordinary user text distinct from trusted control-token insertion.
-
-Replay a merge, catch a greedy dead end, and reject a swap that matches only on vocabulary size.
-
-<!-- leetllm: mastery:start -->
-
-## Verify tokenizer compatibility
-
-```checkpoint
-Why should a deployed checkpoint use its verified compatible tokenizer bundle?
----
-The weights associate integer IDs with specific pieces. Changes to those meanings, segmentation, preprocessing, or special-token insertion can break that learned mapping. Equivalent exports can be compatible, and deliberate ID remapping is possible, but a casual tokenizer swap isn't a model adaptation.
-```
-
-```checkpoint
-What does byte fallback solve, and what does it leave unsolved?
----
-Byte fallback makes every valid UTF-8 character representable without an unknown character token (`<UNK>`). Uncommon scripts can still fragment into multiple byte tokens per character, so sequence length and cost vary across languages.
-```
-
-```checkpoint
-What makes a glitch-token hypothesis stronger than one anomalous prompt response?
----
-Evidence should combine low or absent model-training frequency, unusual weight-based indicators, and repeatable prompt behavior. One response does not prove that a token received zero gradient updates or identify a specific attention mechanism.
-```
-
-<!-- leetllm: mastery:end -->
+| Algorithm | Training | Inference | Whitespace | Fallback |
+|---|---|---|---|---|
+| **BPE** | Bottom-up frequency merges | Ordered merge replay | Regex pre-tokenizer | Byte-level BPE (0 `<UNK>`) |
+| **WordPiece** | Likelihood-motivated merges | Greedy longest-match | Basic tokenizer + `##` | `[UNK]` on dead end |
+| **SentencePiece BPE / Unigram** | Raw stream merges or top-down EM pruning | Merge replay or Viterbi | Explicit `▁` (U+2581) | Optional byte fallback or `<unk>` |
 
 ```mastery-quiz
 [
@@ -958,7 +255,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "Row 5 wins and emits rain."
     ],
     "answer": "Row 7 wins and emits rain.",
-    "explanation": "Each prompt piece still selects its original input vector. At this first step the model therefore uses the same hidden vector and the same output weights. Row 7 wins again, and the new tokenizer decodes ID 7 as rain. Reading row 7 as falls uses the old dictionary. Choosing row 5 moves the winning score with the input embedding, even though the output weights are separate. Reading row 5 as rain also uses the old dictionary."
+    "explanation": "Each prompt piece still selects its original input vector. At this first step the model therefore uses the same hidden vector and the same output weights. Row 7 wins again, and the new tokenizer decodes ID 7 as rain."
   },
   {
     "question": "A BPE tokenizer has three merge rules, applied in this order: (a, i), then (r, a), then (ai, n). How does it encode rain?",
@@ -969,7 +266,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "rain"
     ],
     "answer": "r + ain",
-    "explanation": "Start from r, a, i, n. Rule 1 merges a + i, which gives r, ai, n. Rule 2 needs r next to a, but a is now inside ai, so it does nothing. Rule 3 merges ai + n, which gives r, ain. The answer ra + i + n applies (r, a) first and ignores the learned order. The answer r + ai + n stops too early. The answer rain needs a whole-word merge that is not in the list. Encoders replay the fixed list and do not invent merges for a prompt, because a new piece would have no ID or trained embedding."
+    "explanation": "Start from r, a, i, n. Rule 1 merges a + i, which gives r, ai, n. Rule 2 needs r next to a, so it does nothing. Rule 3 merges ai + n, which gives r, ain."
   },
   {
     "question": "A byte-level BPE tokenizer has learned no merges that apply to the string aé✨🙂. These four characters use 1, 2, 3, and 4 UTF-8 bytes. How many tokens does it produce, and are any of them unknown tokens?",
@@ -980,7 +277,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "10 tokens, none of them unknown."
     ],
     "answer": "10 tokens, none of them unknown.",
-    "explanation": "The base alphabet has all 256 byte values, so valid UTF-8 text is representable with no unknown token. With no merges, each byte is one token: 1 + 2 + 3 + 4 = 10. Byte-level coverage therefore guarantees representation, not compression, and text in scripts rare in training can cost several tokens per character. The 4-token answer assumes one token per character. The answers with an unknown token describe a tokenizer with no byte alphabet, which is the problem byte-level BPE solves."
+    "explanation": "The base alphabet covers all 256 byte values, so valid UTF-8 text needs no unknown token. With no merges, each byte is one token: 1 + 2 + 3 + 4 = 10."
   },
   {
     "question": "A team is designing the normalizer for a new tokenizer. Composed café (é as U+00E9) and decomposed café (e plus U+0301) must become the same text, so exact-prefix caching treats them alike. The word ﬁle, written with the ﬁ ligature (U+FB01), must stay different from file, because the two can be different identifiers. Which normalization form meets both needs?",
@@ -991,7 +288,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "NFKC"
     ],
     "answer": "NFC",
-    "explanation": "Both forms unify canonically equivalent text, so both merge the two café spellings. They differ on compatibility characters. NFC leaves the ﬁ ligature alone, while NFKC folds it into f + i, so ﬁle becomes file. Only NFC does both jobs, which rules out NFKC and the two combined answers. For an existing checkpoint, use its bundled normalizer and do not add a new one, because a new one can change the text distinctions that the model saw in training."
+    "explanation": "Both NFC and NFKC unify canonically equivalent café spellings, while only NFC leaves the compatibility ligature ﬁle distinct from file."
   },
   {
     "question": "The only pieces a BERT-style WordPiece tokenizer can match are sun, sunr, ##rise, and ##ay. It encodes sunrise and sunray as separate words. What does it return for each word?",
@@ -1002,7 +299,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "[UNK] for sunrise and [UNK] for sunray."
     ],
     "answer": "[UNK] for sunrise and sunr + ##ay for sunray.",
-    "explanation": "Both words start with sunr, the longest matching piece. In sunrise that leaves ise. No continuation starts there, so the whole word becomes [UNK]. Returning sun + ##rise would require choosing the shorter prefix or going back to it. In sunray, sunr leaves ay, which matches ##ay and completes the word. Returning [UNK] for sunray misses that continuation. Starting both words with sun would explain the split for sunrise and the failure on sunray, where ##ray is missing."
+    "explanation": "Greedy longest-match selects sunr for both words. For sunrise, no ##ise continuation exists so it returns [UNK]; for sunray, ##ay completes the word."
   },
   {
     "question": "In a SentencePiece Unigram model, ▁ marks a space. The vocabulary includes ▁rain (0.02), ▁ (0.15), rain (0.20), ▁ra (0.40), and in (0.01). The only complete paths for ▁rain are ▁rain, ▁ + rain, and ▁ra + in. Which path does deterministic encoding choose, and why?",
@@ -1013,7 +310,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "▁rain, because the longest available piece wins."
     ],
     "answer": "▁ + rain, because the product of its probabilities is the highest.",
-    "explanation": "Viterbi scores whole paths by multiplying piece probabilities, which is the same as adding log-probabilities. The scores are 0.02 for ▁rain, 0.03 for ▁ + rain, and 0.004 for ▁ra + in. So ▁ + rain wins, although it has neither the longest piece nor the most probable first piece. Adding probabilities would favor ▁ra + in (0.41), but a path's probability is a product. Choosing the best first piece ignores that in is rare. Longest match is the WordPiece rule, not the Unigram rule."
+    "explanation": "Viterbi multiplies piece probabilities: 0.02 for ▁rain, 0.03 for ▁ + rain, and 0.004 for ▁ra + in. So ▁ + rain wins."
   },
   {
     "question": "A SentencePiece model encodes `blue  sky✨` with two spaces between blue and sky. It uses default whitespace cleanup and the space marker ▁. Its vocabulary covers both words and the marker, but no piece covers ✨ and byte fallback is off. What can a decoder recover from the token IDs alone?",
@@ -1024,7 +321,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "The double space is kept, and ✨ is lost."
     ],
     "answer": "The double space becomes one space, and ✨ is lost.",
-    "explanation": "Cleanup turns the two spaces between blue and sky into one before the tokenizer inserts ▁. Keeping both spaces would require two surviving spaces to mark. The encoder assigns ✨ the shared unknown ID. Keeping ✨ would require an ID or byte sequence that identifies that character. Decoding recovers one space between the words, but the unknown ID carries no record of which character it replaced."
+    "explanation": "Whitespace cleanup collapses the double space into one, and without byte fallback ✨ maps to `<unk>`, losing its identity."
   },
   {
     "question": "A tokenizer proposal raises the vocabulary from 16,384 to 49,152 for a model with hidden size 2,048, FP16 weights, and an untied output head. On the same corpus, the overall rate rises from 4 to 5 characters per token. How much additional memory do the vocabulary weights need, and by what percentage does the token count fall?",
@@ -1035,7 +332,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "256 MiB more, and 20% fewer positions."
     ],
     "answer": "256 MiB more, and 20% fewer positions.",
-    "explanation": "Each table gains 32,768 rows of 2,048 weights at 2 bytes per weight. That adds 134,217,728 bytes, or 128 MiB, to one table. The separate input and output tables together gain 256 MiB. For every 100 corpus characters, the token count falls from 25 to 20 on average. The drop is 5 out of 25 tokens, or 20%. The 25% figure measures the increase from 4 to 5 characters per token."
+    "explanation": "32,768 new rows × 2,048 × 2 bytes = 128 MiB per table, or 256 MiB across untied input and output tables. Moving from 4 to 5 chars/token shrinks 25 tokens per 100 chars to 20, a 20% drop."
   },
   {
     "question": "BPE training starts from single characters on these words and frequencies: low x3, lot x2, not x1, note x1. After the first merge is applied, which pair is merged next, and what is its count?",
@@ -1046,7 +343,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "lo + w, with count 3"
     ],
     "answer": "lo + w, with count 3",
-    "explanation": "Pairs are weighted by word frequency. The first counts are l + o 5, o + t 4, o + w 3, n + o 2, and t + e 1, so l + o merges first. Then recount, because low and lot now start with lo. The counts become lo + w 3, lo + t 2, n + o 2, o + t 2, and t + e 1, so lo + w merges next. The answer o + t with count 4 is a stale count, because the two occurrences in lot no longer exist. The pair l + o no longer exists after its merge. The answer n + ot comes from counting each word once and ignoring its frequency."
+    "explanation": "First merge is l + o (count 5). After recounting, lo + w has count 3 while lo + t, n + o, and o + t drop to 2."
   },
   {
     "question": "A team plans to replace a checkpoint's tokenizer A with tokenizer B. Which check directly tests whether each piece of text still selects the embedding row the model learned for it?",
@@ -1057,7 +354,7 @@ Evidence should combine low or absent model-training frequency, unusual weight-b
       "Compare the text that B decodes from its own token IDs with the original test strings."
     ],
     "answer": "Compare the token IDs that A and B produce for fixed test strings, including special tokens.",
-    "explanation": "The weights learned a meaning for each ID, so compatibility depends on the same text reaching the same IDs. Comparing IDs from A and B tests that directly. A matching row count shows only that the IDs fit in the table. A round trip tests B against itself, so B can decode perfectly while ID 5 selects the wrong learned vector. A similar average length can hide different segmentation and different ID meanings. Special tokens matter because one wrong control ID can change every request."
+    "explanation": "Compatibility requires identical text-to-ID mappings (including special tokens). Vocabulary size, average length, and self round-trips can all pass while IDs point at the wrong rows."
   }
 ]
 ```
@@ -1333,13 +630,7 @@ You upgrade a tokenizer package. The vocabulary size is unchanged and all tensor
 IDs are row numbers. If the new tokenizer assigns different IDs to the same pieces, or segments text differently, the model reads vectors learned for something else. Shape checks only confirm the table's size. Compare encoded IDs and decoded text on known strings to catch this.
 ```
 
-For that reason, I would treat the tokenizer as part of the model. Ship the tokenizer revision, vocabulary, merge rules, normalizer, special-token map, and chat template together, and pin them to the checkpoint by hash. Then write a handful of test strings with known expected IDs: an ordinary sentence, accents, repeated spaces, indented code, a long number, and text that looks like a reserved marker. Each one guards a real difference. Here is the start of that check, on a real vocabulary, OpenAI's published `cl100k_base` encoding.
-
-```text title="Install first"
-pip install tiktoken==0.14.0
-```
-
-The first run downloads the encoding file. This version is the one behind the printed output, so use it if you want yours to match.
+For that reason, treat the tokenizer as part of the model. Ship the tokenizer revision, vocabulary, merge rules, normalizer, special-token map, and chat template together, and pin them to the checkpoint by hash. Then write a handful of test strings with known expected IDs: an ordinary sentence, accents, repeated spaces, indented code, a long number, and text that looks like a reserved marker. Each one guards a real difference. Here is the start of that check on OpenAI's published `cl100k_base` encoding:
 
 <!-- leetllm: test, deps=tiktoken==0.14.0, output=show, id=reader-tokenizer-golden -->
 ```python title="pin-known-token-ids.py"
@@ -1369,32 +660,32 @@ reserved: [100257]
 
 This real encoder cuts our sentence into three pieces, not the four we made up earlier, and it gives the two spellings of café different IDs, because it does no normalization of its own. Look at the last string. With `disallowed_special=()`, those characters are ordinary text and cost seven IDs. Ask for the reserved meaning on purpose, and the same spelling becomes one ID. A plain `enc.encode("<|endoftext|>")` raises an error, which is the safe default, and the [chat template chapter](/learn/instruction-tuning-chat-templates) shows what can happen without one.
 
-For a Hugging Face checkpoint, load `AutoTokenizer.from_pretrained(name, revision=commit)` and compare `tokenizer.encode(text)` in the same way. This takes an afternoon and prevents the kind of bug that can take far longer to diagnose.
+For a Hugging Face checkpoint, load `AutoTokenizer.from_pretrained(name, revision=commit)` and compare `tokenizer.encode(text)` in the same way.
 
-**If you call a hosted API,** the provider owns the tokenizer, and you may never see an ID. You can't pin it by hash, but you can still count. When we checked in November 2026, OpenAI's endpoint `POST /v1/responses/input_tokens` returned the exact count for a request, including the formatting tokens for roles, and its guide warned that local tokenizers such as `tiktoken` have limits.[^openai2026TokenCounting] `tiktoken` 0.14.0 mapped GPT-5 models to `o200k_base` and had no entry for GPT-6.[^tiktoken014Model2026] Anthropic's `count_tokens` endpoint returned what its guide calls an estimate, and the same guide said that Claude 4.7 and later use a newer tokenizer that produces about 30 percent more tokens for the same text.[^anthropic2026TokenCounting] That is this chapter's dependency bump on someone else's server. So pin the exact model name, log the token counts each response reports, and recount your prompts before you change models.
+**If you call a hosted API,** the provider owns the tokenizer, and you may never see an ID. Use the provider's official token-counting endpoint (such as OpenAI's `POST /v1/responses/input_tokens` or Anthropic's `count_tokens` endpoint) rather than assuming a local `tiktoken` table matches every newer hosted model family.[^openai2026TokenCounting][^tiktoken014Model2026][^anthropic2026TokenCounting] Pin the exact model name, log the token counts each response reports, and recount your prompts before switching models.
 
 ## Vocabulary size has a price
 
-How large should $V$ be? Real models have landed in very different places. GPT-2 uses 50,257 IDs, Llama 2 uses 32,000, and OpenAI's `o200k_base` encoding has about 200,000 (checked November 2026).[^radford2019][^touvron2023a][^tiktoken014Model2026] Llama 3's report describes 128K pieces, with 256 reserved special-token IDs in its original implementation, and Gemma 2's report describes 256K entries.[^dubey2024][^metaLlama3Tokenizer2024][^gemma2team2024] Newer open models spread just as widely: the published configurations of DeepSeek-V4-Pro and Gemma 4 list 129,280 and 262,144 rows (checked November 2026).[^deepseek2026v4modelcard][^gemma431bConfig2026]
+How large should $V$ be? Real models span a wide range: GPT-2 uses 50,257 IDs, Llama 2 uses 32,000, OpenAI's `o200k_base` has about 200,000, Llama 3 uses 128K pieces (plus 256 reserved special IDs), Gemma 2 uses 256K, DeepSeek-V4-Pro lists 129,280, and Gemma 4 lists 262,144 rows.[^radford2019][^touvron2023a][^tiktoken014Model2026][^dubey2024][^metaLlama3Tokenizer2024][^gemma2team2024][^deepseek2026v4modelcard][^gemma431bConfig2026]
 
-More rows cost memory, and they can shorten every sequence. The memory side is simple arithmetic. An input embedding and a separate output table hold about $2Vd$ weights, so at $V=32{,}000$, $d=4{,}096$, and two bytes per weight, the tables alone use 500 MiB. Tying the two tables together halves that.
+More rows cost memory, and they can shorten every sequence. An input embedding and a separate output table hold about $2Vd$ weights, so at $V=32{,}000$, $d=4{,}096$, and two bytes per weight, the tables alone use 500 MiB. Tying the two tables together halves that.
 
 <figure>
   <img src="illustrations/_generated/vocab_comparison_dark.png" alt="Top: untied FP16 table memory at hidden dimension 4096 grows linearly across 8k (125 MiB), 32k (500 MiB), and 128k (2,000 MiB) vocabulary rows. Bottom: increasing English compression from 3.17 to 3.94 characters per token lowers token and KV positions to 80.5% and dense N-squared score cells to 64.7%." />
   <figcaption>Top: untied FP16 budget at width 4,096 split evenly between input and output tables. Below: the rates in Llama 3's report, on an English sample, translated into positions and dense score cells for fixed text.[^dubey2024]</figcaption>
 </figure>
 
-The payoff side comes from Llama 3's report, which measures 3.17 characters per token for the Llama 2 tokenizer against 3.94 for its own on a sample of English data.[^dubey2024] For similar text, that works out to about 19.5% fewer positions, which also shrinks the per-position cache that serving systems keep, and about 35.3% fewer dense attention score cells. That compares two whole tokenizers, not just more rows, and the report says its 28K added non-English tokens had no impact on English tokenization. A fixed token window holds about 1.24 times as many characters. Those are estimates from one English sample.
+The payoff side comes from Llama 3's report, which measures 3.17 characters per token for the Llama 2 tokenizer against 3.94 for its own on a sample of English data.[^dubey2024] For similar text, that works out to about 19.5% fewer positions, which also shrinks the per-position cache that serving systems keep, and about 35.3% fewer dense attention score cells. A fixed token window holds about 1.24 times as many characters.
 
 ## What goes wrong in production
 
 Four failures show up repeatedly once real traffic arrives, and each one looks like a model problem until you inspect the IDs.
 
-**Some languages cost far more.** Petrov et al. call this a token premium: how many times more tokens the same content needs than it does in English. Across parallel FLORES-200 translations, they measured a 15.05-fold premium for Shan with the `cl100k_base` tokenizer used by ChatGPT and GPT-4 at the time, and up to roughly twice the processing time for some languages.[^petrov2023] Shan is the widest gap the paper reports for that tokenizer; Italian needs about 1.6 times as many tokens as English. A higher token count eats the context window and, on most APIs, raises the bill. Part of Llama 3's answer was to add 28K tokens from selected non-English languages to a 100K tiktoken vocabulary, and its report describes better compression and downstream performance for those languages.[^dubey2024] If you serve more than one language, audit counts on parallel content per language. An English-only average hides this completely.
+**Some languages cost far more.** Petrov et al. call this a token premium: how many times more tokens the same content needs than it does in English. Across parallel FLORES-200 translations, they measured a 15.05-fold premium for Shan with `cl100k_base`, and up to roughly twice the processing time for some languages (Italian sits around 1.6x English).[^petrov2023] Part of Llama 3's answer was to add 28K tokens from selected non-English languages to a 100K tiktoken vocabulary.[^dubey2024] If you serve multiple languages, measure token counts on parallel translations per language.
 
-**Numbers get cut in surprising places.** In byte-level BPE tokenizers such as GPT-2's, digits merge according to the learned merge list, so similar-looking numbers can split at different positions. Llama 2 chose to split numbers into single digits.[^touvron2023a] Llama 3 instead groups one to three numeric characters with the regex span `\p{N}{1,3}`.[^metaLlama3Tokenizer2024] Neither policy makes arithmetic correct by itself, because training data and model capacity matter too. When a model struggles with numbers, look at how those numbers tokenize.
+**Numbers get cut in surprising places.** In byte-level BPE tokenizers such as GPT-2's, digits merge according to the learned merge list, so similar-looking numbers can split at different positions. Llama 2 chose to split numbers into single digits,[^touvron2023a] while Llama 3 groups one to three numeric characters with `\p{N}{1,3}`.[^metaLlama3Tokenizer2024] When a model struggles with numbers, inspect how those numbers tokenize.
 
-**Code can surprise you, in both directions.** Four levels of four-space indentation put 16 leading spaces on a line. A tokenizer with only single-space pieces would spend 16 tokens on them, and one that learned four-space pieces would spend 4. Real encoders can do better than either. Here are a few strings from a typical codebase, through `cl100k_base`:
+**Code can surprise you, in both directions.** Four levels of four-space indentation put 16 leading spaces on a line. Real code-aware encoders like `cl100k_base` compress indentation and identifiers aggressively while fragmenting random hex hashes and UUIDs:
 
 <!-- leetllm: test, deps=tiktoken==0.14.0, output=show, id=reader-tokenizer-code -->
 ```python title="count-code-on-a-real-encoder.py"
@@ -1425,16 +716,14 @@ for name, text in strings.items():
 ```
 <!-- leetllm: output:end -->
 
-Indentation and identifiers are cheap here. The expensive part is opaque text, because an encoder has few merges for random hex: this digest costs one token for every 1.7 characters or so, and the count moves a little with each string. If your prompts carry hashes, IDs, or base64, that is where your budget goes. The vocabulary decides all of this, so run your own code through your own encoder before you budget for it.
+Indentation and identifiers are cheap here, while opaque random hex burns one token per 1.7 characters. If your prompts carry hashes, IDs, or base64, that is where your budget goes.
 
-**Some tokens were barely trained.** A tokenizer and a model can be trained on different data, so a piece can enter the vocabulary and then almost never appear during model training. Researchers have documented *glitch tokens* such as `SolidGoldMagikarp` that can trigger anomalous behavior.[^bartolo2024undertrainedtokens] One strange response proves nothing. Check how often the piece appeared in training and whether its vector looks unusual, then try it in a few prompts.
-
-When something looks wrong, this table is where I would start:
+**Some tokens were barely trained.** Because a tokenizer and a model can be trained on different data, a piece can enter the vocabulary and then almost never appear during model training, producing *glitch tokens* such as `SolidGoldMagikarp` that trigger anomalous behavior.[^bartolo2024undertrainedtokens] Combine training frequency, weight norms, and prompt tests to confirm a candidate.
 
 | Symptom | Likely tokenizer cause | First check |
 |---|---|---|
 | Gibberish right after a deploy | IDs select the wrong rows | Compare known text-to-ID test strings, and pin tokenizer and checkpoint by hash |
-| Bill spikes for some languages | High token count on the same content | Audit token counts on parallel translations |
+| Bill spikes for some languages | High token count on the same content | Measure token counts on parallel translations |
 | Simple multi-digit arithmetic fails | Number splits hide digit positions | Read the pre-tokenizer regex and tokenize some sums |
 | Context fills quickly on code | Opaque strings, or a vocabulary with few code pieces | Measure the real encoder on real files |
 | Token counts jump after a hosted model upgrade | The new model has a new tokenizer | Recount with the provider's counting endpoint |

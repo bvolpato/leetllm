@@ -99,7 +99,7 @@ In the vectorized sweep above, `prm_deep_32` reaches `0.91` accuracy but violate
 
 ## How reasoning models work
 
-A reasoning model turns extra sequence length into extra working memory. Instead of predicting an answer immediately after the prompt ends, it emits intermediate derivations, checks candidate hypotheses, and backtracks when an invariant fails before committing to the final answer. Modern reasoning systems combine three mechanisms: long <span data-glossary="chain-of-thought">chain-of-thought</span> traces, multi-branch deliberation with verification, and provider-managed hidden reasoning budgets.
+A reasoning model turns extra sequence length into extra working memory. Instead of predicting an answer immediately after the prompt ends, it emits intermediate derivations, checks candidate hypotheses, and backtracks when a check fails before committing to the final answer. Modern reasoning systems combine three mechanisms: long <span data-glossary="chain-of-thought">chain-of-thought</span> traces, multi-branch deliberation with verification, and provider-managed hidden reasoning budgets.
 
 ### Extended chain-of-thought
 
@@ -162,7 +162,7 @@ turn_truncated: ready=False, visible=0, next_in=620, cost=$0.02155
 ```
 <!-- leetllm: output:end -->
 
-Every API consumer handling reasoning models should gate downstream parsing on `status == "completed"` and `vis_tok > 0` before reading answer text. Notice how `turn_truncated` still incurs `$0.02155` for its 2,000 generated thinking tokens while emitting `0` visible tokens, whereas `turn_completed` carries only `940` tokens into Turn 2 despite generating `2,480` total output tokens. Treating incomplete cutoffs as retryable budget adjustments stops silent blank responses from corrupting agent state.
+Every API consumer handling reasoning models should verify `status == "completed"` and `vis_tok > 0` before reading answer text. Notice how `turn_truncated` still incurs `$0.02155` for its 2,000 generated thinking tokens while emitting `0` visible tokens, whereas `turn_completed` carries only `940` tokens into Turn 2 despite generating `2,480` total output tokens. Treating incomplete cutoffs as retryable budget adjustments stops silent blank responses from corrupting agent state.
 
 ## Core test-time search techniques
 
@@ -499,7 +499,7 @@ Spending identical test-time compute on every prompt wastes latency on easy quer
 | **Multi-file bug localization** | Sequential revision | `2` to `3` test-guided edits | Turns traceback failures into targeted fixes |
 | **Olympiad proof / formal synthesis** | PRM beam search or deep RL CoT | `4,000`+ reasoning tokens | Needed when single-pass probability $p \ll 0.1$ |
 
-When serving live traffic, a difficulty router enforces both a minimum quality floor and a maximum p95 latency SLO per request tier before selecting the lowest-cost eligible policy. Visualizing candidates on latency versus accuracy separates infeasible over-latency tiers (`Deep PRM` at `11.5s` when the SLO is `4.5s`) and under-quality tiers (`1-Pass` and `Bo4` below `80%`) from the feasible Pareto region (`Med Rev` at `3.8s`, `87%`). Implementing that vectorized selection check across easy, medium, and hard difficulty buckets keeps latency within budget while reserving expensive tree search exclusively for truly hard queries.
+When serving live traffic, a difficulty router checks both a minimum quality floor and a maximum p95 latency target per request tier before selecting the lowest-cost eligible strategy. Visualizing candidates on latency versus accuracy separates infeasible over-latency tiers (`Deep PRM` at `11.5s` when the limit is `4.5s`) and under-quality tiers (`1-Pass` and `Bo4` below `80%`) from the feasible Pareto region (`Med Rev` at `3.8s`, `87%`). Implementing that vectorized selection check across easy, medium, and hard difficulty buckets keeps latency within budget while reserving expensive tree search exclusively for truly hard queries.
 
 <figure>
   <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/routing_feasible_set_dark.png" alt="Quadrant chart plotting four inference tiers by p95 latency (seconds) versus solve accuracy, with a 4.5s latency SLO and 80% accuracy floor. Single-pass (0.2s, 56%) and Low Bo4 (1.4s, 74%) fall below quality; Deep PRM (11.5s, 93%) exceeds latency; Med Rev (3.8s, 87%) sits in the feasible Pareto region." />
