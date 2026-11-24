@@ -431,6 +431,51 @@ test("renders shared callout primitives from raw markdown HTML", async () => {
     expect(container.querySelector("[data-callout-variant='warning']")).toBeTruthy()
 })
 
+test("auto-styles semantic callout blockquotes and suppresses auto-generated mermaid captions", async () => {
+    const { container } = render(
+        <MarkdownRenderer
+            content={[
+                "> **Key insight:** Scaling by $\\sqrt{d_k}$ keeps softmax gradients healthy.",
+                "",
+                "> **Common mistake:** Forgetting the causal mask leaks future tokens.",
+                "",
+                `<figure data-diagram-alt="Diagram showing Input and Output." data-diagram-auto="true"><img src="/diagram.png" alt="Diagram showing Input and Output." width="800" height="400" /></figure>`,
+            ].join("\n")}
+        />,
+    )
+    await act(async () => {
+        await Promise.resolve()
+    })
+
+    expect(container.querySelector("[data-callout-variant='insight']")).toBeTruthy()
+    expect(container.querySelector("[data-callout-variant='warning']")).toBeTruthy()
+    expect(screen.getByText("Key insight")).toBeTruthy()
+    expect(screen.getByText("Common mistake")).toBeTruthy()
+    expect(container.querySelector("figcaption")).toBeNull()
+})
+
+test("collapses long code blocks with an expand toggle and strips window chrome from short snippets", async () => {
+    const longCode = Array.from({ length: 50 }, (_, index) => `x_${index} = ${index}`).join("\n")
+    const { container } = render(
+        <MarkdownRenderer
+            content={[
+                "```python\nprint('short')\n```",
+                "",
+                `\`\`\`python title="long_example.py"\n${longCode}\n\`\`\``,
+            ].join("\n")}
+        />,
+    )
+    await act(async () => {
+        await Promise.resolve()
+    })
+
+    expect(container.querySelector("[data-compact-code='true']")).toBeTruthy()
+    const expandButton = screen.getByRole("button", { name: "Show all 50 lines" })
+    expect(expandButton).toBeTruthy()
+    fireEvent.click(expandButton)
+    expect(screen.getByRole("button", { name: "Collapse code" })).toBeTruthy()
+})
+
 test("renders glossary spans as clickable definitions", async () => {
     const { container } = render(
         <MarkdownRenderer

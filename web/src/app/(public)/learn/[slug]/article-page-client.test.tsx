@@ -127,7 +127,7 @@ test("mastery quiz articles do not expose manual completion", () => {
     expect(screen.queryByRole("button", { name: "Mark as Read" })).toBeNull()
 })
 
-test("article sidebar marks current lesson", () => {
+test("article sidebar expands current section and collapses inactive sections until toggled", () => {
     renderWithProgress(
         <ArticlePageClient
             variant="sidebar"
@@ -142,8 +142,15 @@ test("article sidebar marks current lesson", () => {
                         { id: "3", title: "Next", slug: "next" },
                     ],
                 },
+                {
+                    name: "Advanced",
+                    config: { icon: "B", description: "desc", color: "text-primary" },
+                    questions: [
+                        { id: "4", title: "Deep Dive", slug: "deep-dive" },
+                    ],
+                },
             ]}
-            totalCount={3}
+            totalCount={4}
         />
     )
 
@@ -151,4 +158,8 @@ test("article sidebar marks current lesson", () => {
 
     expect(screen.getByRole("navigation", { name: "Foundations lessons" }).contains(currentLink)).toBe(true)
     expect(currentLink.getAttribute("aria-current")).toBe("page")
+    expect(screen.queryByRole("link", { name: "Deep Dive" })).toBeNull()
+
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }))
+    expect(screen.getByRole("link", { name: "Deep Dive" })).toBeTruthy()
 })

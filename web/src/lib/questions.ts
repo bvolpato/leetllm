@@ -16,7 +16,13 @@ import {
 } from "./learning-sections"
 import { loadContentBundle, type ContentBundle } from "./content-bundle"
 import { getQuestionRoute } from "./content-route-index"
-import { isVisibleToAudience, type ContentAudience, type ContentEdition } from "./content-audience"
+import {
+    defaultEditionForAudience,
+    filterContentForAudience,
+    isVisibleToAudience,
+    type ContentAudience,
+    type ContentEdition,
+} from "./content-audience"
 
 // Re-export Reference so existing imports from questions.ts keep working
 export type { Reference } from "./content-utils"
@@ -88,6 +94,7 @@ export interface Question {
     socialImage?: string
     lastModified?: string
     aliases?: string[]
+    hasAlternateEdition?: boolean
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -167,8 +174,63 @@ function getQuestionLastModified(slug: string, paths: string[]): string {
     return fallbackLastModified(paths)
 }
 
-function loadQuestion(questionDir: string, audience: ContentAudience, preloadedBundle?: ContentBundle): Question {
-    const bundle = preloadedBundle ?? loadContentBundle(questionDir, audience)
+const MASTERY_QUIZ_FENCE_RE = /```mastery-quiz[^\n]*\r?\n[\s\S]*?\r?\n```/
+const TRAILING_HANDOFF_RE = /^>[ \t]*\*\*(?:Next|Course complete):\*\*[^\n]*$/im
+
+function extractTrailingHandoff(markdown: string): string | null {
+    const paragraphs = markdown
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+    const last = paragraphs.at(-1)
+    return last && TRAILING_HANDOFF_RE.test(last) ? last : null
+}
+
+function mergeWebsiteReaderCompanionBlocks(readerBody: string, referenceBody: string): string {
+    let merged = readerBody
+        .trimEnd()
+        .replace(/(\(\/learn\/[a-z0-9-]+)\?view=online(\))/g, "$1?edition=reference$2")
+
+    // Always prefer the canonical roadmap handoff from the reference edition when present,
+    // replacing any older handoff line inside a reader block.
+    const referenceHandoff = extractTrailingHandoff(referenceBody)
+    const existingHandoff = extractTrailingHandoff(merged)
+    if (existingHandoff && referenceHandoff) {
+        const handoffIndex = merged.lastIndexOf(existingHandoff)
+        merged = merged.slice(0, handoffIndex).trimEnd()
+    }
+
+    const finalHandoff = referenceHandoff ?? existingHandoff
+    const hasQuiz = MASTERY_QUIZ_FENCE_RE.test(merged)
+
+    if (!hasQuiz) {
+        const referenceQuiz = referenceBody.match(MASTERY_QUIZ_FENCE_RE)?.[0]
+        if (referenceQuiz) {
+            if (!referenceHandoff && existingHandoff) {
+                const handoffIndex = merged.lastIndexOf(existingHandoff)
+                const beforeHandoff = merged.slice(0, handoffIndex).trimEnd()
+                merged = `${beforeHandoff}\n\n${referenceQuiz}\n\n${existingHandoff}`
+                return merged
+            }
+            merged = `${merged}\n\n${referenceQuiz}`
+        }
+    }
+
+    if (finalHandoff && (!existingHandoff || referenceHandoff)) {
+        merged = `${merged}\n\n${finalHandoff}`
+    }
+
+    return merged
+}
+
+function loadQuestion(
+    questionDir: string,
+    audience: ContentAudience,
+    preloadedBundle?: ContentBundle,
+    edition?: ContentEdition,
+): Question {
+    const effectiveEdition = edition ?? defaultEditionForAudience(audience)
+    const bundle = preloadedBundle ?? (edition ? loadContentBundle(questionDir, audience, edition) : loadContentBundle(questionDir, audience))
     if (!bundle) {
         throw new Error(`[CONTENT ERROR] Missing content bundle in ${questionDir}`)
     }
@@ -199,10 +261,15 @@ function loadQuestion(questionDir: string, audience: ContentAudience, preloadedB
     }
     // ──────────────────────────────────────────────────────────────────
 
-    const rawContent = bundle.body
+    const referenceFallbackBody = audience === "website" && effectiveEdition === "reader" && bundle.hasEditionVariants
+        ? filterContentForAudience(bundle.sourceBody, audience, contentPath, "reference")
+        : null
+    const rawContent = referenceFallbackBody
+        ? mergeWebsiteReaderCompanionBlocks(bundle.body, referenceFallbackBody)
+        : bundle.body
     const resolvedRefs = resolveReferencesFromContent(rawContent, contentPath)
     const content = resolveContent(rawContent, questionDir, resolvedRefs, "content.md", bundle.sourceBody)
-    const timeEstimate = estimateReadingTime(rawContent, metadata.difficulty, false)
+    const timeEstimate = estimateReadingTime(bundle.body, metadata.difficulty, false)
 
     const socialBannerPath = join(questionDir, "social_banner.png")
     const socialImage = existsSync(/* turbopackIgnore: true */ socialBannerPath)
@@ -220,10 +287,19 @@ function loadQuestion(questionDir: string, audience: ContentAudience, preloadedB
     metadata.coverImage = coverImage
 
     const learningSections = parseLearningSections(rawContent)
+    const fallbackSections = referenceFallbackBody && (
+        learningSections.rubricPoints.length === 0
+        || learningSections.followUpQuestions.length === 0
+        || learningSections.commonPitfalls.length === 0
+    )
+        ? parseLearningSections(referenceFallbackBody)
+        : null
     const rawRubric = (metadata as Record<string, unknown>).rubricPoints
     let rubricPoints: string[] = []
     if (learningSections.rubricPoints.length > 0) {
         rubricPoints = learningSections.rubricPoints
+    } else if (fallbackSections && fallbackSections.rubricPoints.length > 0) {
+        rubricPoints = fallbackSections.rubricPoints
     } else if (Array.isArray(rawRubric)) {
         rubricPoints = rawRubric.map((item: unknown) => {
             if (typeof item === "string") return item
@@ -233,10 +309,14 @@ function loadQuestion(questionDir: string, audience: ContentAudience, preloadedB
     }
     const followUpQuestions = learningSections.followUpQuestions.length > 0
         ? learningSections.followUpQuestions
-        : metadata.followUpQuestions ?? []
+        : fallbackSections && fallbackSections.followUpQuestions.length > 0
+            ? fallbackSections.followUpQuestions
+            : metadata.followUpQuestions ?? []
     const commonPitfalls = learningSections.commonPitfalls.length > 0
         ? learningSections.commonPitfalls
-        : metadata.commonPitfalls ?? []
+        : fallbackSections && fallbackSections.commonPitfalls.length > 0
+            ? fallbackSections.commonPitfalls
+            : metadata.commonPitfalls ?? []
 
     const lastModifiedPaths = bundle.metadataPath ? [metadataPath, contentPath] : [contentPath]
     const lastModified = getQuestionLastModified(metadata.slug, lastModifiedPaths)
@@ -251,6 +331,7 @@ function loadQuestion(questionDir: string, audience: ContentAudience, preloadedB
         commonPitfalls,
         content,
         lastModified,
+        hasAlternateEdition: Boolean(bundle.hasEditionVariants),
     }
 }
 
@@ -603,7 +684,7 @@ function loadAllQuestions(audience: ContentAudience, edition: ContentEdition): Q
             const metadata = bundle.metadata as QuestionMetadata
             if (metadata.visibility?.website === false) websiteExcludedSlugs.add(metadata.slug)
             if (!isVisibleToAudience(bundle.metadata, audience)) continue
-            allQuestions.push(loadQuestion(questionDir, audience, bundle))
+            allQuestions.push(loadQuestion(questionDir, audience, bundle, edition))
         }
     }
 
@@ -639,7 +720,10 @@ const _questionsCache = new Map<string, Question[]>()
 const _singleQuestionCache = new Map<string, Question>()
 const isDev = process.env.NODE_ENV === 'development'
 
-export function getQuestions(audience: ContentAudience = "website", edition: ContentEdition = "reference"): Question[] {
+export function getQuestions(
+    audience: ContentAudience = "website",
+    edition: ContentEdition = defaultEditionForAudience(audience),
+): Question[] {
     const key = `${audience}:${edition}`
     if (isDev || !_questionsCache.has(key)) {
         resetGlobalRefsCache() // reload references.json in dev
@@ -669,36 +753,41 @@ export function getQuestionsForUser(_legacyAccessFlag: boolean): QuestionSummary
     return getQuestions()
 }
 
-function loadQuestionByIndexedSlug(slug: string): Question | undefined {
+function loadQuestionByIndexedSlug(slug: string, edition?: ContentEdition): Question | undefined {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return undefined
 
-    const cached = _singleQuestionCache.get(slug)
+    const effectiveEdition = edition ?? defaultEditionForAudience("website")
+    const cacheKey = `${slug}:${effectiveEdition}`
+    const cached = _singleQuestionCache.get(cacheKey)
     if (cached) return cached
 
     const route = getQuestionRoute(slug)
     if (!route || route.hidden) return undefined
 
     const questionDir = join(/* turbopackIgnore: true */ CONTENT_DIR, /* turbopackIgnore: true */ route.directory)
-    const bundle = loadContentBundle(questionDir, "website")
+    const bundle = edition
+        ? loadContentBundle(questionDir, "website", edition)
+        : loadContentBundle(questionDir, "website")
     if (!bundle || !isVisibleToAudience(bundle.metadata, "website")) return undefined
 
-    const question = loadQuestion(questionDir, "website", bundle)
+    const question = loadQuestion(questionDir, "website", bundle, effectiveEdition)
     if (question.slug !== route.canonicalSlug) return undefined
     if (question.slug !== slug && !question.aliases?.includes(slug)) return undefined
 
-    _singleQuestionCache.set(question.slug, question)
+    _singleQuestionCache.set(`${question.slug}:${effectiveEdition}`, question)
     for (const alias of question.aliases ?? []) {
-        _singleQuestionCache.set(alias, question)
+        _singleQuestionCache.set(`${alias}:${effectiveEdition}`, question)
     }
     return question
 }
 
-function findQuestionBySlugOrAlias(slug: string): Question | undefined {
-    if (_questionsCache.has("website:reference") || isDev) {
-        return getQuestions().find((q) => q.slug === slug || q.aliases?.includes(slug))
+function findQuestionBySlugOrAlias(slug: string, edition?: ContentEdition): Question | undefined {
+    const effectiveEdition = edition ?? defaultEditionForAudience("website")
+    if (_questionsCache.has(`website:${effectiveEdition}`) || isDev) {
+        return getQuestions("website", effectiveEdition).find((q) => q.slug === slug || q.aliases?.includes(slug))
     }
 
-    return loadQuestionByIndexedSlug(slug)
+    return loadQuestionByIndexedSlug(slug, edition)
 }
 
 export function getCanonicalQuestionSlug(slug: string): string | undefined {
@@ -709,9 +798,13 @@ export function getCanonicalQuestionSlug(slug: string): string | undefined {
  * Get a single question by slug. All lessons are open, so this returns full
  * content for anonymous and logged-in users alike.
  */
-export function getQuestionForUser(slug: string, _legacyAccessFlag: boolean): QuestionSummary | undefined {
+export function getQuestionForUser(
+    slug: string,
+    _legacyAccessFlag: boolean,
+    edition?: ContentEdition,
+): QuestionSummary | undefined {
     void _legacyAccessFlag
-    return findQuestionBySlugOrAlias(slug)
+    return findQuestionBySlugOrAlias(slug, edition)
 }
 
 // ═══════════════════════════════════════════════════════════════

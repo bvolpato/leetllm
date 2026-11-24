@@ -52,8 +52,8 @@ function sanitizeReferences(references: Record<string, Reference>): Record<strin
     )
 }
 
-const WORDS_PER_MINUTE = 260
-const CODE_WORD_WEIGHT = 0.45
+const WORDS_PER_MINUTE = 220
+const CODE_WORD_WEIGHT = 0.35
 const TABLE_CELL_WEIGHT = 0.35
 const MIN_MINUTES_BY_DIFFICULTY: Record<string, number> = {
     Easy: 5,
@@ -61,11 +61,6 @@ const MIN_MINUTES_BY_DIFFICULTY: Record<string, number> = {
     Hard: 9,
 }
 const MIN_BLOG_MINUTES = 5
-const DIFFICULTY_COEFFICIENTS: Record<string, number> = {
-    Easy: 1,
-    Medium: 1.25,
-    Hard: 1.5,
-}
 const WORD_RE = /[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)?/g
 const FENCED_BLOCK_RE = /```[\s\S]*?```/g
 
@@ -171,8 +166,7 @@ export function estimateReadingTime(content: string, difficulty: string = "Mediu
         .reduce((sum, line) => sum + Math.max(0, line.split("|").length - 2), 0)
 
     const weightedWords = proseWords + (codeWords * CODE_WORD_WEIGHT) + (tableCells * TABLE_CELL_WEIGHT)
-    const coefficient = DIFFICULTY_COEFFICIENTS[difficulty] ?? DIFFICULTY_COEFFICIENTS.Medium
-    const estimate = Math.ceil((weightedWords / WORDS_PER_MINUTE) * coefficient)
+    const estimate = Math.ceil(weightedWords / WORDS_PER_MINUTE)
     const minMinutes = isBlog ? MIN_BLOG_MINUTES : (MIN_MINUTES_BY_DIFFICULTY[difficulty] ?? MIN_MINUTES_BY_DIFFICULTY.Medium)
 
     return Math.max(minMinutes, estimate)
@@ -663,7 +657,8 @@ export function resolveDiagrams(markdown: string, contentDir: string, sourceFile
                 return match
             }
 
-            const diagramAlt = summarizeMermaidDiagram(match)
+            const authoredDescription = authoredMermaidDescription(match)
+            const diagramAlt = authoredDescription ?? summarizeMermaidDiagram(match)
             const darkSrc = hasDark ? contentImageUrl(darkPath) : undefined
             const lightSrc = hasLight ? contentImageUrl(lightPath) : undefined
             const initialSrc = darkSrc ?? lightSrc
@@ -681,8 +676,9 @@ export function resolveDiagrams(markdown: string, contentDir: string, sourceFile
                 darkDimensions ? `data-dark-width="${darkDimensions.display.w}" data-dark-height="${darkDimensions.display.h}" data-dark-natural-width="${darkDimensions.natural.w}"` : '',
                 lightDimensions ? `data-light-width="${lightDimensions.display.w}" data-light-height="${lightDimensions.display.h}" data-light-natural-width="${lightDimensions.natural.w}"` : '',
             ].filter(Boolean).join(' ')
+            const autoAttr = authoredDescription ? '' : ' data-diagram-auto="true"'
 
-            return `<figure data-diagram-alt="${htmlAttribute(diagramAlt)}">\n<img src="${htmlAttribute(initialSrc)}" alt="${htmlAttribute(diagramAlt)}" class="max-w-full" data-themed-image="true" ${themeAttrs}${sizeAttrs} />\n</figure>`
+            return `<figure data-diagram-alt="${htmlAttribute(diagramAlt)}"${autoAttr}>\n<img src="${htmlAttribute(initialSrc)}" alt="${htmlAttribute(diagramAlt)}" class="max-w-full" data-themed-image="true" ${themeAttrs}${sizeAttrs} />\n</figure>`
         }
     )
 }

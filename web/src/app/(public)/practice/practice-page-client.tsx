@@ -26,9 +26,9 @@ import type { TheoryQuiz } from "@/lib/theory-quizzes"
 import { cn } from "@/lib/utils"
 
 const difficultyClass: Record<PracticeDifficulty, string> = {
-    Easy: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-    Medium: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-    Hard: "border-red-500/30 bg-red-500/10 text-red-300",
+    Easy: "border-emerald-600/30 bg-emerald-500/15 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+    Medium: "border-amber-600/35 bg-amber-500/15 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+    Hard: "border-red-600/30 bg-red-500/15 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
 }
 
 const difficultyOrder: Array<PracticeDifficulty | "All"> = ["All", "Easy", "Medium", "Hard"]

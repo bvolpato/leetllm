@@ -214,7 +214,7 @@
 .question-content :where(p, li) {
   font-size: inherit;
   line-height: 1.8;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .question-content :where(pre, [data-print-code]) {
@@ -243,6 +243,14 @@
     max-width: 42rem;
     margin-right: auto;
     margin-left: auto;
+  }
+
+  .question-content > figure,
+  .question-content > [data-print-table],
+  .question-content > [data-print-code]:not([data-compact-code="true"]),
+  .question-content > [data-wide-block="true"],
+  .question-content > div:has(> [data-animated-illustration]) {
+    max-width: 54rem;
   }
 }
 
@@ -339,6 +347,8 @@
   color: var(--reading-muted);
   margin-bottom: 0.75rem;
   margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: none !important;
 }
 
 .question-content [data-footnotes] ol {
@@ -426,17 +436,30 @@
   background-size: 64px 64px;
 }
 
+.light .bg-grid {
+  background-image:
+    linear-gradient(oklch(0 0 0 / 3.5%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0 0 0 / 3.5%) 1px, transparent 1px);
+}
+
 /* Glow effect for cards */
 .glow-card {
-  transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+  transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
 }
 
 .glow-card:hover {
   box-shadow:
-    0 0 24px oklch(0.72 0.19 270 / 15%),
-    0 8px 32px oklch(0 0 0 / 30%);
+    0 0 24px oklch(0.72 0.19 270 / 12%),
+    0 8px 28px oklch(0 0 0 / 22%);
   transform: translateY(-2px);
   border-color: oklch(0.72 0.19 270 / 30%);
+}
+
+.light .glow-card:hover {
+  box-shadow:
+    0 4px 20px oklch(0.55 0.22 270 / 8%),
+    0 8px 24px oklch(0 0 0 / 6%);
+  border-color: oklch(0.55 0.22 270 / 28%);
 }
 
 /* Emphasis gradient text */

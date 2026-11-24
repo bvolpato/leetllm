@@ -17,16 +17,26 @@ interface MarkdownRendererProps {
     content: string
     personalizationSlug?: string
     showTableOfContents?: boolean
+    hideInlineTocOnDesktop?: boolean
 }
 
-export function MarkdownRenderer({ content, personalizationSlug, showTableOfContents = false }: MarkdownRendererProps) {
+export function MarkdownRenderer({
+    content,
+    personalizationSlug,
+    showTableOfContents = false,
+    hideInlineTocOnDesktop = false,
+}: MarkdownRendererProps) {
     const markdownComponents = createMarkdownComponents({
         personalizationSlug,
         renderCheckpoint: (question, answer) => <CheckpointAccordion question={question} answer={answer} />,
     })
     const encodedContent = useMemo(() => encodeMarkdownCodeFenceMeta(content), [content])
     return (
-        <MarkdownBody contentKey={content} showTableOfContents={showTableOfContents}>
+        <MarkdownBody
+            contentKey={content}
+            showTableOfContents={showTableOfContents}
+            hideInlineTocOnDesktop={hideInlineTocOnDesktop}
+        >
             <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
                 rehypePlugins={[rehypeKatex, rehypeRaw]}

@@ -54,10 +54,10 @@ let scoreSnapshotRaw: string | null = null
 let scoreSnapshot: Record<string, TheoryQuizResult> = emptyScoreResults
 
 const levelClass: Record<TheoryQuizLevel, string> = {
-    Beginner: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-    Intermediate: "border-sky-500/30 bg-sky-500/10 text-sky-300",
-    Advanced: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-    Expert: "border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300",
+    Beginner: "border-emerald-600/30 bg-emerald-500/15 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+    Intermediate: "border-sky-600/30 bg-sky-500/15 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
+    Advanced: "border-amber-600/35 bg-amber-500/15 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+    Expert: "border-fuchsia-600/30 bg-fuchsia-500/15 text-fuchsia-700 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-300",
 }
 
 function readJsonRecord<T>(key: string, fallback: T): T {

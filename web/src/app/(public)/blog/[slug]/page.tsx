@@ -19,6 +19,7 @@ import { ServerMarkdownRenderer } from "@/components/server-markdown-renderer"
 import { ShareButtons } from "@/components/share-buttons"
 import { ArticleFooterNav } from "@/components/article-footer-nav"
 import { ArticlePrintButton } from "@/components/article-print-button"
+import { ArticleReadingProgressBar } from "@/components/article-reading-progress-bar"
 import { CopyMarkdownButton } from "@/components/copy-markdown-button"
 import { formatReadingTime } from "@/lib/content-utils"
 import { toJsonLd } from "@/lib/utils"
@@ -144,10 +145,11 @@ export default async function BlogPostPage({ params }: PageProps) {
 
     return (
         <div
-            className="print-article mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:py-12"
+            className="print-article learn-reading-page mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:py-12"
             data-print-article
             data-leety-access={post.private ? "link" : undefined}
         >
+            <ArticleReadingProgressBar targetId="blog-content" />
             {!post.private && (
                 <script
                     type="application/ld+json"
@@ -180,7 +182,8 @@ export default async function BlogPostPage({ params }: PageProps) {
                 />
             )}
             <article
-                className="min-w-0"
+                id="blog-content"
+                className="learn-reading-column min-w-0"
                 data-reader-article
                 itemScope
                 itemType="https://schema.org/Article"

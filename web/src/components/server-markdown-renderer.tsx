@@ -68,10 +68,16 @@ function collectInitialHeadings(tree: MarkdownTreeNode, headings: HeadingEntry[]
     visit(tree)
 }
 
-export function ServerMarkdownRenderer({ content, contentKey, showTableOfContents = false }: {
+export function ServerMarkdownRenderer({
+    content,
+    contentKey,
+    showTableOfContents = false,
+    hideInlineTocOnDesktop = false,
+}: {
     content: string
     contentKey: string
     showTableOfContents?: boolean
+    hideInlineTocOnDesktop?: boolean
 }) {
     const components = createMarkdownComponents({
         renderCheckpoint: (question, answer) => (
@@ -102,7 +108,12 @@ export function ServerMarkdownRenderer({ content, contentKey, showTableOfContent
     })
 
     return (
-        <MarkdownBody contentKey={contentKey} showTableOfContents={showTableOfContents} initialHeadings={initialHeadings}>
+        <MarkdownBody
+            contentKey={contentKey}
+            showTableOfContents={showTableOfContents}
+            hideInlineTocOnDesktop={hideInlineTocOnDesktop}
+            initialHeadings={initialHeadings}
+        >
             {markdown}
         </MarkdownBody>
     )

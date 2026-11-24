@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, expect, test, vi } from "vitest"
-import { PersonalizedLessonContent } from "./personalized-lesson-content"
+import {
+    ArticleEditionToggle,
+    ArticleReaderBody,
+    ArticleReaderProvider,
+    ArticleReadingTime,
+    PersonalizedLessonContent,
+} from "./personalized-lesson-content"
 
 const authState = vi.hoisted(() => ({
     current: {
@@ -20,10 +26,15 @@ vi.mock("./markdown-renderer", () => ({
 
 beforeEach(() => {
     vi.restoreAllMocks()
+    window.history.replaceState(null, "", "/learn/attention")
     authState.current = { user: { id: "user-1" }, isLoggedIn: true, authLoaded: true }
 })
 
-test("generates, displays, and toggles a personalized lesson", async () => {
+function openPersonalizePopover() {
+    fireEvent.click(screen.getByRole("button", { name: /^Personalize(?:d)?$/ }))
+}
+
+test("generates, displays, and toggles a personalized lesson from the toolbar popover", async () => {
     const fetchMock = vi.fn()
         .mockResolvedValueOnce(new Response(JSON.stringify({
             profileConfigured: true,
@@ -37,8 +48,9 @@ test("generates, displays, and toggles a personalized lesson", async () => {
     vi.stubGlobal("fetch", fetchMock)
 
     render(<PersonalizedLessonContent slug="attention" content="Canonical explanation" />)
+    openPersonalizePopover()
 
-    fireEvent.click(await screen.findByRole("button", { name: "Personalize" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Generate personalized lesson" }))
     await waitFor(() => expect(screen.getByTestId("rendered-markdown").textContent).toBe("Personalized cowboy explanation"))
     expect(fetchMock.mock.calls[1][1]).toMatchObject({
         method: "POST",
@@ -57,6 +69,7 @@ test("skips personalization requests for anonymous visitors", async () => {
     vi.stubGlobal("fetch", fetchMock)
 
     render(<PersonalizedLessonContent slug="attention" content="Canonical explanation" />)
+    openPersonalizePopover()
 
     const signIn = await screen.findByRole("link", { name: /Sign in to personalize/ })
     expect(signIn.getAttribute("href")).toBe("/login?next=%2Flearn%2Fattention")
@@ -68,6 +81,7 @@ test("waits for auth and shows the anonymous action without fetching after resol
     const fetchMock = vi.fn()
     vi.stubGlobal("fetch", fetchMock)
     const { rerender } = render(<PersonalizedLessonContent slug="attention" content="Canonical explanation" />)
+    openPersonalizePopover()
 
     expect(screen.getByRole("button", { name: /Loading/ }).hasAttribute("disabled")).toBe(true)
     expect(fetchMock).not.toHaveBeenCalled()
@@ -94,6 +108,7 @@ test("clears personalized content immediately when the account logs out", async 
     rerender(<PersonalizedLessonContent slug="attention" content="Canonical explanation" />)
 
     expect(screen.getByTestId("rendered-markdown").textContent).toBe("Canonical explanation")
+    openPersonalizePopover()
     expect(await screen.findByRole("link", { name: /Sign in to personalize/ })).toBeTruthy()
 })
 
@@ -101,10 +116,11 @@ test("fails closed when authentication cannot be verified", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network unavailable")))
 
     render(<PersonalizedLessonContent slug="attention" content="Canonical explanation" />)
+    openPersonalizePopover()
 
     expect((await screen.findByRole("button", { name: /Personalization unavailable/ })).hasAttribute("disabled")).toBe(true)
-    expect(screen.queryByRole("button", { name: "Personalize" })).toBeNull()
-    expect(screen.getByRole("alert").textContent).toContain("Network unavailable")
+    expect(screen.queryByRole("button", { name: "Generate personalized lesson" })).toBeNull()
+    expect(screen.getAllByRole("alert")[0].textContent).toContain("Network unavailable")
 })
 
 test("shows provider errors returned after a streamed response starts", async () => {
@@ -119,8 +135,44 @@ test("shows provider errors returned after a streamed response starts", async ()
     vi.stubGlobal("fetch", fetchMock)
 
     render(<PersonalizedLessonContent slug="attention" content="Canonical explanation" />)
+    openPersonalizePopover()
 
-    fireEvent.click(await screen.findByRole("button", { name: "Personalize" }))
-    expect((await screen.findByRole("alert")).textContent).toContain("Personalization provider timed out")
+    fireEvent.click(await screen.findByRole("button", { name: "Generate personalized lesson" }))
+    await waitFor(() => {
+        expect(screen.getAllByRole("alert").some((node) => node.textContent?.includes("Personalization provider timed out"))).toBe(true)
+    })
     expect(screen.getByTestId("rendered-markdown").textContent).toBe("Canonical explanation")
+})
+
+test("defaults to Reader edition and switches cleanly to Full Reference with URL sync", () => {
+    authState.current = { user: null, isLoggedIn: false, authLoaded: true }
+    render(
+        <ArticleReaderProvider
+            slug="design-production-rag-pipeline"
+            hasAlternateEdition
+            readerTimeEstimate={12}
+            referenceTimeEstimate={34}
+        >
+            <ArticleReadingTime />
+            <ArticleEditionToggle />
+            <ArticleReaderBody
+                readerContent={<div data-testid="edition-body">Concise reader edition</div>}
+                referenceContent={<div data-testid="edition-body">Full reference edition</div>}
+            />
+        </ArticleReaderProvider>,
+    )
+
+    expect(screen.getByTestId("edition-body").textContent).toBe("Concise reader edition")
+    expect(screen.getByText("12 min read")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Reader" }).getAttribute("aria-pressed")).toBe("true")
+
+    fireEvent.click(screen.getByRole("button", { name: "Full Reference" }))
+
+    expect(screen.getByTestId("edition-body").textContent).toBe("Full reference edition")
+    expect(screen.getByText("34 min read")).toBeTruthy()
+    expect(window.location.search).toBe("?edition=reference")
+
+    fireEvent.click(screen.getByRole("button", { name: "Reader" }))
+    expect(screen.getByTestId("edition-body").textContent).toBe("Concise reader edition")
+    expect(window.location.search).toBe("")
 })

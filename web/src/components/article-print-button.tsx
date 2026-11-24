@@ -126,7 +126,15 @@ function prepareArticleLinksForPrint() {
     }
 }
 
-export function ArticlePrintButton({ className }: { className?: string }) {
+export function ArticlePrintButton({
+    className,
+    label = "Print / Save PDF",
+    ariaLabel,
+}: {
+    className?: string
+    label?: string
+    ariaLabel?: string
+}) {
     const [preparing, setPreparing] = useState(false)
 
     async function printArticle() {
@@ -155,12 +163,13 @@ export function ArticlePrintButton({ className }: { className?: string }) {
             disabled={preparing}
             className={cn("gap-2", className)}
             data-print-hidden
+            aria-label={preparing ? "Preparing PDF" : (ariaLabel ?? label)}
             title="Open browser print dialog, then choose Save as PDF"
         >
             {preparing
                 ? <LoaderCircle className="h-4 w-4 animate-spin" />
                 : <Printer className="h-4 w-4" />}
-            {preparing ? "Preparing PDF" : "Print / Save PDF"}
+            {preparing ? "Preparing PDF" : label}
         </Button>
     )
 }

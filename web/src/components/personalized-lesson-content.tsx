@@ -2,10 +2,26 @@
 
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { LoaderCircle, RefreshCw, RotateCcw, Sparkles, Trash2, WandSparkles } from "lucide-react"
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { BookOpen, Clock, Layers, LoaderCircle, RefreshCw, RotateCcw, Sparkles, Trash2, WandSparkles } from "lucide-react"
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from "react"
 import { Button } from "@/components/ui/button"
 import { useIsLoggedIn } from "@/lib/use-is-logged-in"
+import type { ContentEdition } from "@/lib/content-audience"
+
+function formatReadingMinutes(minutes: number): string {
+    if (minutes < 60) return `${minutes} min`
+    const hours = Math.floor(minutes / 60)
+    const remainder = minutes % 60
+    return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`
+}
 
 const DynamicMarkdownRenderer = dynamic(
     () => import("./markdown-renderer").then((mod) => mod.MarkdownRenderer),
@@ -41,46 +57,85 @@ function presetLabel(preset?: PersonalizedPayload["preset"]) {
     return values.length > 0 ? values.join(" + ") : "your saved style"
 }
 
-export function PersonalizedLessonContent({
+interface ArticleReaderContextValue {
+    slug: string
+    edition: ContentEdition
+    setEdition: (next: ContentEdition) => void
+    hasAlternateEdition: boolean
+    activeTimeEstimate: number
+    visibleAuthStatus: "loading" | "authenticated" | "anonymous" | "unavailable"
+    personalized: string | null
+    profileConfigured: boolean | null
+    preset: PersonalizedPayload["preset"]
+    mode: "original" | "personalized"
+    setMode: (next: "original" | "personalized") => void
+    loading: boolean
+    error: string
+    showPersonalized: boolean
+    generate: (regenerate: boolean) => Promise<void>
+    removePersonalized: () => Promise<void>
+}
+
+const ArticleReaderContext = createContext<ArticleReaderContextValue | null>(null)
+
+function useArticleReaderContext() {
+    const context = useContext(ArticleReaderContext)
+    if (!context) {
+        throw new Error("ArticleReader components must be used inside ArticleReaderProvider")
+    }
+    return context
+}
+
+export function ArticleReaderProvider({
     slug,
-    content,
-    canonicalContent,
+    hasAlternateEdition = false,
+    readerTimeEstimate,
+    referenceTimeEstimate,
     children,
 }: {
     slug: string
-    content?: string
-    canonicalContent?: ReactNode
-    children?: ReactNode
+    hasAlternateEdition?: boolean
+    readerTimeEstimate: number
+    referenceTimeEstimate?: number
+    children: ReactNode
 }) {
     const { user, isLoggedIn, authLoaded } = useIsLoggedIn()
     const userId = isLoggedIn ? user?.id ?? null : null
     const identityKey = userId ?? "anonymous"
 
     return (
-        <PersonalizedLessonContentState
+        <ArticleReaderProviderState
             key={`${identityKey}:${slug}`}
             slug={slug}
-            content={content}
-            canonicalContent={canonicalContent ?? children}
+            hasAlternateEdition={hasAlternateEdition}
+            readerTimeEstimate={readerTimeEstimate}
+            referenceTimeEstimate={referenceTimeEstimate}
             userId={userId}
             authLoaded={authLoaded}
-        />
+        >
+            {children}
+        </ArticleReaderProviderState>
     )
 }
 
-function PersonalizedLessonContentState({
+function ArticleReaderProviderState({
     slug,
-    content,
-    canonicalContent,
+    hasAlternateEdition,
+    readerTimeEstimate,
+    referenceTimeEstimate,
     userId,
     authLoaded,
+    children,
 }: {
     slug: string
-    content?: string
-    canonicalContent?: ReactNode
+    hasAlternateEdition: boolean
+    readerTimeEstimate: number
+    referenceTimeEstimate?: number
     userId: string | null
     authLoaded: boolean
+    children: ReactNode
 }) {
+    const [edition, setEditionState] = useState<ContentEdition>("reader")
     const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "anonymous" | "unavailable">("loading")
     const [personalized, setPersonalized] = useState<string | null>(null)
     const [profileConfigured, setProfileConfigured] = useState<boolean | null>(null)
@@ -88,6 +143,31 @@ function PersonalizedLessonContentState({
     const [mode, setMode] = useState<"original" | "personalized">("original")
     const [loading, setLoading] = useState(Boolean(authLoaded && userId))
     const [error, setError] = useState("")
+
+    useEffect(() => {
+        if (!hasAlternateEdition || typeof window === "undefined") return
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("edition") === "reference") {
+            queueMicrotask(() => setEditionState("reference"))
+        }
+    }, [hasAlternateEdition, slug])
+
+    const setEdition = useCallback((next: ContentEdition) => {
+        setEditionState(next)
+        setMode("original")
+        if (typeof window === "undefined") return
+        try {
+            const url = new URL(window.location.href)
+            if (next === "reference") {
+                url.searchParams.set("edition", "reference")
+            } else {
+                url.searchParams.delete("edition")
+            }
+            window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`)
+        } catch {
+            // Updating the query parameter is optional; edition state still switches cleanly.
+        }
+    }, [])
 
     useEffect(() => {
         if (!authLoaded || !userId) return
@@ -177,27 +257,208 @@ function PersonalizedLessonContentState({
 
     const visibleAuthStatus = !authLoaded ? "loading" : !userId ? "anonymous" : authStatus
     const showPersonalized = visibleAuthStatus === "authenticated" && mode === "personalized" && Boolean(personalized)
-    const loginHref = `/login?next=${encodeURIComponent(`/learn/${slug}`)}`
+    const activeTimeEstimate = edition === "reference" && referenceTimeEstimate !== undefined
+        ? referenceTimeEstimate
+        : readerTimeEstimate
 
     return (
-        <>
-            <div data-print-hidden className="reader-prose-block mb-7 rounded-xl border border-primary/20 bg-primary/[0.045] p-3.5 sm:p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex min-w-0 items-start gap-3">
-                        <div className="mt-0.5 rounded-lg border border-primary/20 bg-primary/10 p-2 text-primary">
-                            <WandSparkles className="h-4 w-4" />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-sm font-semibold [color:var(--reading-heading)]">Personalize this lesson</p>
-                            <p className="mt-0.5 text-xs leading-relaxed [color:var(--reading-subtle)]">
-                                {personalized
-                                    ? `Saved version uses ${presetLabel(preset)}. Explanations and teaching visuals adapt while facts stay fixed.`
-                                    : "Adapt explanations and teaching visuals to your background and preferred voice."}
-                            </p>
-                        </div>
-                    </div>
+        <ArticleReaderContext.Provider
+            value={{
+                slug,
+                edition,
+                setEdition,
+                hasAlternateEdition,
+                activeTimeEstimate,
+                visibleAuthStatus,
+                personalized,
+                profileConfigured,
+                preset,
+                mode,
+                setMode,
+                loading,
+                error,
+                showPersonalized,
+                generate,
+                removePersonalized,
+            }}
+        >
+            {children}
+        </ArticleReaderContext.Provider>
+    )
+}
 
-                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+export function ArticleReadingTime() {
+    const { activeTimeEstimate } = useArticleReaderContext()
+    return (
+        <span className="inline-flex items-center gap-1.5 text-sm [color:var(--reading-subtle)]">
+            <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+            {formatReadingMinutes(activeTimeEstimate)} read
+        </span>
+    )
+}
+
+export function ArticleEditionToggle() {
+    const { hasAlternateEdition, edition, setEdition, showPersonalized } = useArticleReaderContext()
+    if (!hasAlternateEdition || showPersonalized) return null
+
+    return (
+        <div
+            data-print-hidden
+            role="group"
+            aria-label="Reading edition"
+            className="inline-flex items-center rounded-full border [border-color:var(--reading-border)] [background:var(--reading-panel-solid)] p-0.5 text-xs shadow-xs"
+        >
+            <button
+                type="button"
+                aria-pressed={edition === "reader"}
+                onClick={() => setEdition("reader")}
+                className={[
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                    edition === "reader"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)]",
+                ].join(" ")}
+            >
+                <BookOpen className="h-3 w-3" aria-hidden="true" />
+                Reader
+            </button>
+            <button
+                type="button"
+                aria-pressed={edition === "reference"}
+                onClick={() => setEdition("reference")}
+                className={[
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                    edition === "reference"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)]",
+                ].join(" ")}
+            >
+                <Layers className="h-3 w-3" aria-hidden="true" />
+                Full Reference
+            </button>
+        </div>
+    )
+}
+
+export function PersonalizeToolbarPopover({ align = "right" }: { align?: "left" | "right" }) {
+    const {
+        slug,
+        visibleAuthStatus,
+        personalized,
+        profileConfigured,
+        preset,
+        mode,
+        setMode,
+        loading,
+        error,
+        showPersonalized,
+        generate,
+        removePersonalized,
+    } = useArticleReaderContext()
+    const [open, setOpen] = useState(false)
+    const containerRef = useRef<HTMLDivElement | null>(null)
+    const loginHref = `/login?next=${encodeURIComponent(`/learn/${slug}`)}`
+
+    useEffect(() => {
+        if (!open) return
+
+        function handlePointerDown(event: MouseEvent) {
+            if (!containerRef.current?.contains(event.target as Node)) {
+                setOpen(false)
+            }
+        }
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") setOpen(false)
+        }
+
+        document.addEventListener("mousedown", handlePointerDown)
+        window.addEventListener("keydown", handleKeyDown)
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown)
+            window.removeEventListener("keydown", handleKeyDown)
+        }
+    }, [open])
+
+    return (
+        <div ref={containerRef} data-print-hidden className="relative inline-flex flex-wrap items-center gap-1.5">
+            {visibleAuthStatus === "authenticated" && personalized && (
+                <div
+                    role="group"
+                    aria-label="Lesson version"
+                    className="inline-flex items-center rounded-full border [border-color:var(--reading-border)] [background:var(--reading-panel-solid)] p-0.5 text-xs shadow-xs"
+                >
+                    <button
+                        type="button"
+                        aria-pressed={mode === "original"}
+                        onClick={() => setMode("original")}
+                        disabled={loading}
+                        className={[
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                            mode === "original"
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)]",
+                        ].join(" ")}
+                    >
+                        <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                        Original
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed={mode === "personalized"}
+                        onClick={() => setMode("personalized")}
+                        disabled={loading}
+                        className={[
+                            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                            mode === "personalized"
+                                ? "bg-primary text-primary-foreground shadow-xs"
+                                : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)]",
+                        ].join(" ")}
+                    >
+                        <Sparkles className="h-3 w-3" aria-hidden="true" />
+                        Personalized
+                    </button>
+                </div>
+            )}
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-expanded={open}
+                aria-haspopup="dialog"
+                onClick={() => setOpen((current) => !current)}
+                className={showPersonalized
+                    ? "gap-1.5 border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+                    : "gap-1.5 border-[color:var(--reading-border)] [color:var(--reading-muted)] hover:[color:var(--reading-heading)]"}
+                title="Personalize this lesson"
+            >
+                {loading ? (
+                    <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                    <WandSparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                <span>{showPersonalized ? "Personalization" : "Personalize"}</span>
+            </Button>
+
+            {open && (
+                <div
+                    role="dialog"
+                    aria-label="Personalize this lesson"
+                    className={[
+                        "absolute top-full z-40 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-xl border [border-color:var(--reading-border)] [background:var(--reading-panel-solid)] p-4 text-left shadow-xl shadow-black/20",
+                        align === "left" ? "left-0" : "right-0",
+                    ].join(" ")}
+                >
+                    <p className="text-sm font-semibold [color:var(--reading-heading)]">
+                        Personalize this lesson
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed [color:var(--reading-subtle)]">
+                        {personalized
+                            ? `Saved version uses ${presetLabel(preset)}. Explanations and teaching visuals adapt while facts stay fixed.`
+                            : "Adapt explanations and teaching visuals to your background and preferred voice."}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                         {visibleAuthStatus === "loading" ? (
                             <Button type="button" variant="outline" size="sm" disabled>
                                 <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
@@ -205,7 +466,9 @@ function PersonalizedLessonContentState({
                             </Button>
                         ) : visibleAuthStatus === "anonymous" ? (
                             <Button asChild variant="outline" size="sm">
-                                <Link href={loginHref}><Sparkles className="h-3.5 w-3.5" /> Sign in to personalize</Link>
+                                <Link href={loginHref}>
+                                    <Sparkles className="h-3.5 w-3.5" /> Sign in to personalize
+                                </Link>
                             </Button>
                         ) : visibleAuthStatus === "unavailable" ? (
                             <Button type="button" variant="outline" size="sm" disabled>
@@ -218,79 +481,119 @@ function PersonalizedLessonContentState({
                             </Button>
                         ) : profileConfigured === false ? (
                             <Button asChild variant="outline" size="sm">
-                                <Link href="/settings/personalization"><Sparkles className="h-3.5 w-3.5" /> Set preferences</Link>
+                                <Link href="/settings/personalization">
+                                    <Sparkles className="h-3.5 w-3.5" /> Set preferences
+                                </Link>
                             </Button>
                         ) : personalized ? (
                             <>
                                 <Button
                                     type="button"
-                                    variant={mode === "original" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setMode("original")}
-                                    disabled={loading}
-                                >
-                                    <RotateCcw className="h-3.5 w-3.5" /> Original
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant={mode === "personalized" ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setMode("personalized")}
-                                    disabled={loading}
-                                >
-                                    <Sparkles className="h-3.5 w-3.5" /> Personalized
-                                </Button>
-                                <Button
-                                    type="button"
                                     variant="outline"
-                                    size="icon-sm"
+                                    size="sm"
                                     aria-label="Regenerate personalized lesson"
                                     title="Regenerate"
                                     onClick={() => void generate(true)}
                                     disabled={loading}
                                 >
                                     {loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                                    Regenerate
                                 </Button>
                                 <Button
                                     type="button"
                                     variant="ghost"
-                                    size="icon-sm"
+                                    size="sm"
                                     aria-label="Delete personalized lesson"
                                     title="Delete personalized version"
                                     onClick={() => void removePersonalized()}
                                     disabled={loading}
                                 >
                                     <Trash2 className="h-3.5 w-3.5" />
+                                    Delete
                                 </Button>
                             </>
                         ) : (
                             <Button type="button" size="sm" onClick={() => void generate(false)} disabled={loading}>
                                 {loading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
-                                {loading ? "Personalizing…" : "Personalize"}
+                                {loading ? "Personalizing..." : "Generate personalized lesson"}
                             </Button>
                         )}
                     </div>
+
+                    {error && (
+                        <p role="alert" className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                            {error}
+                        </p>
+                    )}
                 </div>
-                {error && (
-                    <p role="alert" className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-                        {error}
-                    </p>
-                )}
-            </div>
+            )}
+        </div>
+    )
+}
+
+export function ArticleReaderBody({
+    readerContent,
+    referenceContent,
+    fallbackMarkdown,
+    hideInlineTocOnDesktop = true,
+}: {
+    readerContent?: ReactNode
+    referenceContent?: ReactNode
+    fallbackMarkdown?: string
+    hideInlineTocOnDesktop?: boolean
+}) {
+    const { slug, edition, showPersonalized, personalized, error } = useArticleReaderContext()
+
+    return (
+        <>
+            {error && (
+                <p role="alert" data-print-hidden className="reader-prose-block mb-5 rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-xs text-destructive">
+                    {error}
+                </p>
+            )}
             {showPersonalized && personalized ? (
                 <DynamicMarkdownRenderer
                     content={personalized}
                     showTableOfContents
+                    hideInlineTocOnDesktop={hideInlineTocOnDesktop}
                     personalizationSlug={slug}
                 />
-            ) : canonicalContent !== undefined ? (
-                canonicalContent
-            ) : content !== undefined ? (
+            ) : edition === "reference" && referenceContent !== undefined ? (
+                referenceContent
+            ) : readerContent !== undefined ? (
+                readerContent
+            ) : fallbackMarkdown !== undefined ? (
                 <DynamicMarkdownRenderer
-                    content={content}
+                    content={fallbackMarkdown}
                     showTableOfContents
+                    hideInlineTocOnDesktop={hideInlineTocOnDesktop}
                 />
             ) : null}
         </>
+    )
+}
+
+export function PersonalizedLessonContent({
+    slug,
+    content,
+    canonicalContent,
+    children,
+}: {
+    slug: string
+    content?: string
+    canonicalContent?: ReactNode
+    children?: ReactNode
+}) {
+    return (
+        <ArticleReaderProvider slug={slug} readerTimeEstimate={10}>
+            <div data-print-hidden className="reader-prose-block mb-4 flex items-center justify-end">
+                <PersonalizeToolbarPopover />
+            </div>
+            <ArticleReaderBody
+                readerContent={canonicalContent ?? children}
+                fallbackMarkdown={content}
+                hideInlineTocOnDesktop={false}
+            />
+        </ArticleReaderProvider>
     )
 }

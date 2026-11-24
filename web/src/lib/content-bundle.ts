@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from "fs"
 import { join } from "path"
-import { filterContentForAudience, type ContentAudience, type ContentEdition } from "./content-audience"
+import {
+    defaultEditionForAudience,
+    filterContentForAudience,
+    hasEditionMarkers,
+    type ContentAudience,
+    type ContentEdition,
+} from "./content-audience"
 
 export type ContentBundleMetadata = Record<string, unknown>
 
@@ -10,6 +16,7 @@ export interface ContentBundle {
     sourceBody: string
     contentPath: string
     metadataPath?: string
+    hasEditionVariants?: boolean
 }
 
 const frontmatterPattern = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
@@ -82,7 +89,7 @@ export function materializeEmbeddedIllustrationSources(markdown: string): string
     }).trim()
 }
 
-export function loadContentBundle(articleDir: string, audience?: ContentAudience, edition: ContentEdition = "reference"): ContentBundle | null {
+export function loadContentBundle(articleDir: string, audience?: ContentAudience, edition?: ContentEdition): ContentBundle | null {
     const contentPath = join(articleDir, "content.md")
     const metadataPath = join(articleDir, "metadata.json")
 
@@ -92,9 +99,11 @@ export function loadContentBundle(articleDir: string, audience?: ContentAudience
 
     const source = readFileSync(/* turbopackIgnore: true */ contentPath, "utf-8")
     const parsed = parseJsonFrontmatter(contentPath, source)
+    const effectiveEdition = edition ?? (audience ? defaultEditionForAudience(audience) : "reference")
     const body = audience
-        ? filterContentForAudience(parsed.body, audience, contentPath, edition)
+        ? filterContentForAudience(parsed.body, audience, contentPath, effectiveEdition)
         : parsed.body
+    const hasEditionVariants = hasEditionMarkers(parsed.body)
 
     if (parsed.metadata) {
         return {
@@ -102,6 +111,7 @@ export function loadContentBundle(articleDir: string, audience?: ContentAudience
             body: materializeEmbeddedIllustrationSources(body),
             sourceBody: parsed.body,
             contentPath,
+            hasEditionVariants,
         }
     }
 
@@ -115,5 +125,6 @@ export function loadContentBundle(articleDir: string, audience?: ContentAudience
         sourceBody: parsed.body,
         contentPath,
         metadataPath,
+        hasEditionVariants,
     }
 }

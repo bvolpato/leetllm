@@ -177,3 +177,25 @@ test("records a weekly section check without treating it as another lesson compl
     ])
     expect(fetch).not.toHaveBeenCalledWith("/api/study-state", expect.objectContaining({ method: "POST" }))
 })
+
+test("supports instant per-question feedback and completes once every question is checked", async () => {
+    renderQuiz()
+
+    fireEvent.click(screen.getByLabelText(questions[0].answer))
+    fireEvent.click(screen.getByRole("button", { name: "Check question 1" }))
+
+    expect(screen.getByText("Correct")).toBeTruthy()
+    expect(screen.getAllByText("Explanation 1.").length).toBeGreaterThan(1)
+    expect(screen.queryByText("Mastery check passed")).toBeNull()
+
+    for (let index = 1; index < questions.length; index++) {
+        fireEvent.click(screen.getByLabelText(questions[index].answer))
+        fireEvent.click(screen.getByRole("button", { name: `Check question ${index + 1}` }))
+    }
+
+    expect(screen.getByText("Mastery check passed")).toBeTruthy()
+    expect(screen.getByText(/Score: 5\/5 \(100%\)/)).toBeTruthy()
+    await waitFor(() => {
+        expect(JSON.parse(localStorage.getItem("leetllm_read_articles") ?? "[]")).toContain("tensor-shapes")
+    })
+})

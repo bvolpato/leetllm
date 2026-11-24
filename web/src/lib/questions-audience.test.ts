@@ -42,7 +42,7 @@ afterEach(() => {
 
 async function mockAudienceBundle(metadata: Record<string, unknown> = {}, source = sourceBody) {
     const original = await vi.importActual<typeof import("./content-bundle")>("./content-bundle")
-    const loadContentBundle = vi.fn((directory: string, audience?: ContentAudience, edition: ContentEdition = "reference") => {
+    const loadContentBundle = vi.fn((directory: string, audience?: ContentAudience, edition?: ContentEdition) => {
         const bundle = original.loadContentBundle(directory, audience, edition)
         if (!bundle || directory !== articleDir) return bundle
         return {
@@ -57,7 +57,7 @@ async function mockAudienceBundle(metadata: Record<string, unknown> = {}, source
 }
 
 describe("question audiences", () => {
-    test("isolates reader and reference caches while retaining the complete website", async () => {
+    test("isolates reader and reference caches while defaulting website to reader edition", async () => {
         const source = "<!-- leetllm: edition:reference:start -->Complete derivation.[^hofmann2024Dialect]<!-- leetllm: edition:reference:end -->\n<!-- leetllm: edition:reader:start -->Focused example.[^kusner2017Counterfactual]<!-- leetllm: edition:reader:end -->"
         await mockAudienceBundle({}, source)
         const { getQuestions } = await import("./questions")
@@ -70,7 +70,8 @@ describe("question audiences", () => {
         expect(reference.content).not.toContain("Focused example.")
         expect(Object.keys(reference.references)).toEqual(["hofmann2024Dialect"])
         expect(getQuestions("book", "reader").find(question => question.slug === slug)).toEqual(reader)
-        expect(getQuestions().find(question => question.slug === slug)?.content).toContain("Complete derivation.")
+        expect(getQuestions().find(question => question.slug === slug)?.content).toContain("Focused example.")
+        expect(getQuestions("website", "reference").find(question => question.slug === slug)?.content).toContain("Complete derivation.")
     })
     test("keeps separate text, references, reading time, and learning sections for each output", async () => {
         const loadContentBundle = await mockAudienceBundle()

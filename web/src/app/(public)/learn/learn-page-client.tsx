@@ -59,6 +59,7 @@ export function LearnPageClient({
     const { isRead } = useReadingProgress()
     const { isLoggedIn: clientIsLoggedIn, authLoaded } = useIsLoggedIn()
     const [showSidebar, setShowSidebar] = useState(true)
+    const [sectionOverrides, setSectionOverrides] = useState<Record<string, boolean>>({})
     const [activeVideo, setActiveVideo] = useState<LessonVideo | null>(null)
     const sidebarToggleRef = useRef<HTMLButtonElement>(null)
     const videoTriggerRef = useRef<HTMLButtonElement | null>(null)
@@ -150,45 +151,67 @@ export function LearnPageClient({
                                     <ChevronLeft className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
-                            {/* Section Navigation */}
+                            {/* Section Navigation (collapsible modules, current step expanded by default) */}
                             {sectionsData.map((section, sectionIndex) => {
+                                const isExpanded = sectionOverrides[section.name] ?? (sectionIndex === Math.max(0, currentStepIndex))
+                                const readCount = sectionStats[sectionIndex]?.readCount ?? 0
+
                                 return (
-                                    <div key={section.name}>
-                                        <a
-                                            href={`#${section.name.toLowerCase().replace(/ /g, "-")}`}
-                                            className="flex items-center gap-2 mb-1.5 group rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                                            aria-label={`Jump to step ${sectionIndex + 1}: ${section.name}`}
-                                        >
-                                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-[10px] font-semibold text-primary/90">
-                                                {sectionIndex + 1}
-                                            </span>
-                                            <span className="text-base">{section.config.icon}</span>
-                                            <span className="text-xs font-semibold [color:var(--reading-heading)] group-hover:text-primary transition-colors">
-                                                {section.name}
-                                            </span>
-                                        </a>
-                                        <nav className="mt-2 space-y-0.5" aria-label={`${section.name} topics`}>
-                                            {section.questions.map((q) => {
-                                                const read = isRead(q.slug)
-                                                return (
-                                                    <LessonLink
-                                                        key={q.id}
-                                                        href={`/learn/${q.slug}`}
-                                                        className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${read
-                                                            ? "text-emerald-500/90 hover:text-emerald-500"
-                                                            : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)] hover:bg-card/80"
-                                                            }`}
-                                                    >
-                                                        {read ? (
-                                                            <Check className="h-2.5 w-2.5 flex-shrink-0 text-emerald-400" />
-                                                        ) : (
-                                                            <ChevronRight className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground/60" />
-                                                        )}
-                                                        <span>{q.title}</span>
-                                                    </LessonLink>
-                                                )
-                                            })}
-                                        </nav>
+                                    <div key={section.name} className="space-y-1">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                aria-expanded={isExpanded}
+                                                aria-label={`${isExpanded ? "Collapse" : "Expand"} ${section.name}`}
+                                                onClick={() => setSectionOverrides((prev) => ({ ...prev, [section.name]: !isExpanded }))}
+                                                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground/70 transition-colors hover:bg-card/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                                            >
+                                                <ChevronRight
+                                                    aria-hidden="true"
+                                                    className={`h-3 w-3 transition-transform duration-150 ${isExpanded ? "rotate-90" : ""}`}
+                                                />
+                                            </button>
+                                            <a
+                                                href={`#${section.name.toLowerCase().replace(/ /g, "-")}`}
+                                                className="flex min-w-0 flex-1 items-center gap-1.5 group rounded-md py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                                aria-label={`Jump to step ${sectionIndex + 1}: ${section.name}`}
+                                            >
+                                                <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-[10px] font-semibold text-primary/90">
+                                                    {sectionIndex + 1}
+                                                </span>
+                                                <span className="text-sm leading-none">{section.config.icon}</span>
+                                                <span className="truncate text-xs font-semibold [color:var(--reading-heading)] group-hover:text-primary transition-colors">
+                                                    {section.name}
+                                                </span>
+                                                <span className="ml-auto shrink-0 text-[10px] tabular-nums [color:var(--reading-subtle)]">
+                                                    {readCount}/{section.questions.length}
+                                                </span>
+                                            </a>
+                                        </div>
+                                        {isExpanded && (
+                                            <nav className="mt-1 space-y-0.5 pl-4" aria-label={`${section.name} topics`}>
+                                                {section.questions.map((q) => {
+                                                    const read = isRead(q.slug)
+                                                    return (
+                                                        <LessonLink
+                                                            key={q.id}
+                                                            href={`/learn/${q.slug}`}
+                                                            className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${read
+                                                                ? "text-emerald-600 dark:text-emerald-400 hover:text-emerald-500"
+                                                                : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)] hover:bg-card/80"
+                                                                }`}
+                                                        >
+                                                            {read ? (
+                                                                <Check className="h-2.5 w-2.5 flex-shrink-0 text-emerald-500" />
+                                                            ) : (
+                                                                <ChevronRight className="h-2.5 w-2.5 flex-shrink-0 text-muted-foreground/60" />
+                                                            )}
+                                                            <span>{q.title}</span>
+                                                        </LessonLink>
+                                                    )
+                                                })}
+                                            </nav>
+                                        )}
                                     </div>
                                 )
                             })}

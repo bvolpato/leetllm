@@ -58,17 +58,32 @@ function useRestoreHeadingHash(contentKey: string) {
     }, [contentKey])
 }
 
-export function MarkdownBody({ children, contentKey, showTableOfContents = false, initialHeadings }: {
+export function MarkdownBody({
+    children,
+    contentKey,
+    showTableOfContents = false,
+    hideInlineTocOnDesktop = false,
+    initialHeadings,
+}: {
     children: ReactNode
     contentKey: string
     showTableOfContents?: boolean
+    hideInlineTocOnDesktop?: boolean
     initialHeadings?: HeadingEntry[]
 }) {
     const bodyRef = useRef<HTMLDivElement>(null)
     useRestoreHeadingHash(contentKey)
     return (
         <>
-            {showTableOfContents && <LessonTableOfContents key={initialHeadings ? contentKey : undefined} bodyRef={bodyRef} content={contentKey} initialHeadings={initialHeadings} />}
+            {showTableOfContents && (
+                <LessonTableOfContents
+                    key={initialHeadings ? contentKey : undefined}
+                    bodyRef={bodyRef}
+                    content={contentKey}
+                    initialHeadings={initialHeadings}
+                    hideOnDesktop={hideInlineTocOnDesktop}
+                />
+            )}
             <div ref={bodyRef} className="question-content">{children}</div>
         </>
     )

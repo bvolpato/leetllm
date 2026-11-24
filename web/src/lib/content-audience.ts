@@ -157,8 +157,30 @@ function codeRanges(content: string): Range[] {
     return ranges
 }
 
+export function defaultEditionForAudience(audience: ContentAudience): ContentEdition {
+    return audience === "website" ? "reader" : "reference"
+}
+
+export function hasEditionMarkers(content: string): boolean {
+    if (!/<!--\s*leetllm\s*:?\s*edition/i.test(content)) return false
+    const ranges = codeRanges(content)
+    let rangeIndex = 0
+    for (const match of content.matchAll(/<!--\s*leetllm:\s*edition:(?:reader|reference):start\s*-->/g)) {
+        const start = match.index!
+        while (rangeIndex < ranges.length && ranges[rangeIndex].end <= start) rangeIndex++
+        if (rangeIndex < ranges.length && ranges[rangeIndex].start <= start) continue
+        return true
+    }
+    return false
+}
+
 /** Select annotated passages without rewriting any unannotated Markdown. */
-export function filterContentForAudience(content: string, audience: ContentAudience, source = "<content>", edition: ContentEdition = "reference"): string {
+export function filterContentForAudience(
+    content: string,
+    audience: ContentAudience,
+    source = "<content>",
+    edition: ContentEdition = defaultEditionForAudience(audience),
+): string {
     requireAudience(audience)
     if (edition !== "reader" && edition !== "reference") throw new Error(`Unknown content edition: ${edition}`)
     if (!new RegExp(markerPrefix).test(content)) return content

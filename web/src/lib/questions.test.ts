@@ -683,8 +683,8 @@ describe('Internal Cross-Links', () => {
             validPaths.add(`/practice/${problem.slug}`)
         }
 
-        // Regex: matches markdown links like [text](/some/path) or [text](/some/path#anchor)
-        const INTERNAL_LINK_RE = /\]\(\/([^)#\s]*?)(?:#[^)]*)?\)/g
+        // Regex: matches markdown links like [text](/some/path), [text](/some/path?edition=reference), or [text](/some/path#anchor)
+        const INTERNAL_LINK_RE = /\]\(\/([^)?#\s]*?)(?:[?#][^)]*)?\)/g
 
         const issues: string[] = []
 

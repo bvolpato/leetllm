@@ -102,70 +102,103 @@ function SidebarContent({
 }) {
     const { isRead } = useReadingProgress()
     const [prefetchSlug, setPrefetchSlug] = useState<string | null>(null)
+    const currentSectionName = sections.find((section) => section.questions.some((q) => q.slug === slug))?.name ?? null
+    const [sectionOverrides, setSectionOverrides] = useState<Record<string, boolean>>({})
+
+    function toggleSection(name: string, currentlyExpanded: boolean) {
+        setSectionOverrides((previous) => ({
+            ...previous,
+            [name]: !currentlyExpanded,
+        }))
+    }
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
             {/* Overall Progress */}
             <OverallProgress totalArticles={totalCount} />
 
-            {/* Section navigation */}
-            {sections.map((section) => {
-                const sectionSlugs = section.questions.map((q) => q.slug)
-                const isCurrentSection = section.questions.some((q) => q.slug === slug)
-                const readCount = sectionSlugs.filter(isRead).length
+            {/* Collapsible roadmap sections */}
+            <div className="space-y-1.5">
+                {sections.map((section) => {
+                    const sectionSlugs = section.questions.map((q) => q.slug)
+                    const isCurrentSection = section.name === currentSectionName
+                    const isExpanded = sectionOverrides[section.name] ?? isCurrentSection
+                    const readCount = sectionSlugs.filter(isRead).length
 
-                return (
-                    <div key={section.name}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm">{section.config.icon}</span>
-                            <span
-                                className={`text-xs font-semibold ${isCurrentSection
-                                    ? "text-primary"
-                                    : "[color:var(--reading-heading)]"
-                                    }`}
+                    return (
+                        <div key={section.name} className="rounded-lg">
+                            <button
+                                type="button"
+                                aria-expanded={isExpanded}
+                                onClick={() => toggleSection(section.name, isExpanded)}
+                                className={`flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                                    isCurrentSection
+                                        ? "bg-primary/[0.06] text-primary"
+                                        : "hover:bg-card/70"
+                                }`}
                             >
-                                {section.name}
-                            </span>
-                            <span className="ml-auto text-[11px] [color:var(--reading-subtle)]">
-                                {readCount}/{section.questions.length}
-                            </span>
-                        </div>
-                        <SectionProgress sectionSlugs={sectionSlugs} />
-                        <nav aria-label={`${section.name} lessons`} className="mt-2 space-y-0.5">
-                            {section.questions.map((q) => {
-                                const isCurrent = q.slug === slug
-                                const read = isRead(q.slug)
+                                <ChevronRight
+                                    aria-hidden="true"
+                                    className={`h-3 w-3 flex-shrink-0 text-muted-foreground/70 transition-transform duration-150 ${
+                                        isExpanded ? "rotate-90" : ""
+                                    }`}
+                                />
+                                <span className="text-sm leading-none">{section.config.icon}</span>
+                                <span
+                                    className={`min-w-0 flex-1 truncate text-xs font-semibold ${isCurrentSection
+                                        ? "text-primary"
+                                        : "[color:var(--reading-heading)]"
+                                        }`}
+                                >
+                                    {section.name}
+                                </span>
+                                <span className="ml-1 shrink-0 text-[11px] tabular-nums [color:var(--reading-subtle)]">
+                                    {readCount}/{section.questions.length}
+                                </span>
+                            </button>
+                            {(isExpanded || readCount > 0) && (
+                                <div className="px-1.5 pt-1">
+                                    <SectionProgress sectionSlugs={sectionSlugs} />
+                                </div>
+                            )}
+                            {isExpanded && (
+                                <nav aria-label={`${section.name} lessons`} className="mt-1.5 space-y-0.5 pl-1">
+                                    {section.questions.map((q) => {
+                                        const isCurrent = q.slug === slug
+                                        const read = isRead(q.slug)
 
-                                return (
-                                    <Link
-                                        key={q.id}
-                                        href={`/learn/${q.slug}`}
-                                        prefetch={prefetchSlug === q.slug && !isCurrent ? null : false}
-                                        onMouseEnter={() => setPrefetchSlug(q.slug)}
-                                        onFocus={() => setPrefetchSlug(q.slug)}
-                                        aria-current={isCurrent ? "page" : undefined}
-                                        className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs leading-snug transition-all duration-200 ${isCurrent
-                                            ? "bg-primary/10 text-primary font-medium border border-primary/20"
-                                            : read
-                                                ? "text-emerald-500/90 hover:text-emerald-500"
-                                                : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)] hover:bg-card/60"
-                                            }`}
-                                    >
-                                        {isCurrent ? (
-                                            <ChevronRight className="h-2.5 w-2.5 flex-shrink-0 text-primary" />
-                                        ) : read ? (
-                                            <Check className="h-2.5 w-2.5 flex-shrink-0 text-emerald-400" />
-                                        ) : (
-                                            <span className="w-2.5 h-2.5 rounded-full border border-muted-foreground/60 flex-shrink-0" />
-                                        )}
-                                        <span className="min-w-0 flex-1 break-words">{q.title}</span>
-                                    </Link>
-                                )
-                            })}
-                        </nav>
-                    </div>
-                )
-            })}
+                                        return (
+                                            <Link
+                                                key={q.id}
+                                                href={`/learn/${q.slug}`}
+                                                prefetch={prefetchSlug === q.slug && !isCurrent ? null : false}
+                                                onMouseEnter={() => setPrefetchSlug(q.slug)}
+                                                onFocus={() => setPrefetchSlug(q.slug)}
+                                                aria-current={isCurrent ? "page" : undefined}
+                                                className={`group flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs leading-snug transition-all duration-200 ${isCurrent
+                                                    ? "bg-primary/10 text-primary font-medium border border-primary/20"
+                                                    : read
+                                                        ? "text-emerald-600 dark:text-emerald-400 hover:text-emerald-500"
+                                                        : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)] hover:bg-card/60"
+                                                    }`}
+                                            >
+                                                {isCurrent ? (
+                                                    <ChevronRight className="h-2.5 w-2.5 flex-shrink-0 text-primary" />
+                                                ) : read ? (
+                                                    <Check className="h-2.5 w-2.5 flex-shrink-0 text-emerald-500" />
+                                                ) : (
+                                                    <span className="w-2.5 h-2.5 rounded-full border border-muted-foreground/50 flex-shrink-0" />
+                                                )}
+                                                <span className="min-w-0 flex-1 break-words">{q.title}</span>
+                                            </Link>
+                                        )
+                                    })}
+                                </nav>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
 
             {/* Login CTA */}
             <LoginToTrackPrompt isLoggedIn={isLoggedIn} authLoaded={authLoaded} />

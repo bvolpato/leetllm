@@ -1,8 +1,19 @@
-import { Children, isValidElement, useId, type AnchorHTMLAttributes, type HTMLAttributes, type ReactNode } from "react"
+import { Children, cloneElement, isValidElement, useId, type AnchorHTMLAttributes, type HTMLAttributes, type ReactElement, type ReactNode } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
-import { ChevronDown, Link2 } from "lucide-react"
+import {
+    AlertTriangle,
+    BookmarkCheck,
+    ChevronDown,
+    Compass,
+    FlaskConical,
+    Info,
+    Lightbulb,
+    Link2,
+    Wrench,
+    type LucideIcon,
+} from "lucide-react"
 import { AnimatedIllustration } from "./animated-illustration"
 import { SpeculativeDecodingAnimation } from "./illustrations/speculative-decoding-animated"
 import { PersonalizedMermaidDiagram } from "./personalized-mermaid-diagram"
@@ -194,6 +205,130 @@ export function uniqueHeadingId(text: string, seen: Map<string, number>, preferr
     return count === 0 ? base : `${base}-${count}`
 }
 
+interface SemanticCalloutStyle {
+    label: string
+    icon: LucideIcon
+    container: string
+    accent: string
+    eyebrow: string
+    variant: string
+}
+
+const SEMANTIC_BLOCKQUOTE_STYLES: Record<string, SemanticCalloutStyle> = {
+    "key insight": {
+        label: "Key insight",
+        icon: Lightbulb,
+        container: "border-l-[3px] border-l-violet-500 border border-violet-500/20 bg-violet-500/[0.06] dark:bg-violet-500/[0.08]",
+        accent: "text-violet-600 dark:text-violet-400",
+        eyebrow: "text-violet-700 dark:text-violet-300",
+        variant: "insight",
+    },
+    "intuition": {
+        label: "Intuition",
+        icon: Compass,
+        container: "border-l-[3px] border-l-indigo-500 border border-indigo-500/20 bg-indigo-500/[0.06] dark:bg-indigo-500/[0.08]",
+        accent: "text-indigo-600 dark:text-indigo-400",
+        eyebrow: "text-indigo-700 dark:text-indigo-300",
+        variant: "intuition",
+    },
+    "takeaway": {
+        label: "Takeaway",
+        icon: BookmarkCheck,
+        container: "border-l-[3px] border-l-emerald-500 border border-emerald-500/20 bg-emerald-500/[0.06] dark:bg-emerald-500/[0.08]",
+        accent: "text-emerald-600 dark:text-emerald-400",
+        eyebrow: "text-emerald-700 dark:text-emerald-300",
+        variant: "takeaway",
+    },
+    "production tip": {
+        label: "Production tip",
+        icon: Wrench,
+        container: "border-l-[3px] border-l-teal-500 border border-teal-500/20 bg-teal-500/[0.06] dark:bg-teal-500/[0.08]",
+        accent: "text-teal-600 dark:text-teal-400",
+        eyebrow: "text-teal-700 dark:text-teal-300",
+        variant: "tip",
+    },
+    "research insight": {
+        label: "Research insight",
+        icon: FlaskConical,
+        container: "border-l-[3px] border-l-sky-500 border border-sky-500/20 bg-sky-500/[0.06] dark:bg-sky-500/[0.08]",
+        accent: "text-sky-600 dark:text-sky-400",
+        eyebrow: "text-sky-700 dark:text-sky-300",
+        variant: "research",
+    },
+    "common mistake": {
+        label: "Common mistake",
+        icon: AlertTriangle,
+        container: "border-l-[3px] border-l-amber-500 border border-amber-500/25 bg-amber-500/[0.07] dark:bg-amber-500/[0.09]",
+        accent: "text-amber-600 dark:text-amber-400",
+        eyebrow: "text-amber-800 dark:text-amber-300",
+        variant: "warning",
+    },
+    "warning": {
+        label: "Warning",
+        icon: AlertTriangle,
+        container: "border-l-[3px] border-l-amber-500 border border-amber-500/25 bg-amber-500/[0.07] dark:bg-amber-500/[0.09]",
+        accent: "text-amber-600 dark:text-amber-400",
+        eyebrow: "text-amber-800 dark:text-amber-300",
+        variant: "warning",
+    },
+    "note": {
+        label: "Note",
+        icon: Info,
+        container: "border-l-[3px] border-l-blue-500 border border-blue-500/20 bg-blue-500/[0.05] dark:bg-blue-500/[0.08]",
+        accent: "text-blue-600 dark:text-blue-400",
+        eyebrow: "text-blue-700 dark:text-blue-300",
+        variant: "note",
+    },
+}
+
+function detectSemanticBlockquote(children: ReactNode): {
+    style: SemanticCalloutStyle
+    body: ReactNode
+} | null {
+    const items = Children.toArray(children).filter(
+        (child) => typeof child !== "string" || child.trim() !== "",
+    )
+    const first = items[0]
+    if (!isValidElement<{ children?: ReactNode }>(first)) return null
+
+    const firstChildren = Children.toArray(first.props.children)
+    const leadingIndex = firstChildren.findIndex(
+        (child) => typeof child !== "string" || child.trim() !== "",
+    )
+    if (leadingIndex === -1) return null
+
+    const leading = firstChildren[leadingIndex]
+    if (!isValidElement<{ children?: ReactNode }>(leading)) return null
+
+    const leadingText = headingPlainText(leading.props.children).trim()
+    const match = leadingText.match(
+        /^(Key insight|Common mistake|Production tip|Research insight|Intuition|Takeaway|Warning|Note)\s*:?\s*$/i,
+    )
+    if (!match) return null
+
+    const key = match[1].toLowerCase()
+    const style = SEMANTIC_BLOCKQUOTE_STYLES[key]
+    if (!style) return null
+
+    const remainingInline = firstChildren.slice(leadingIndex + 1).map((node, index) => {
+        if (index === 0 && typeof node === "string") {
+            return node.replace(/^\s*:?\s*/, "")
+        }
+        return node
+    })
+    const hasRemainingInline = remainingInline.some(
+        (node) => typeof node !== "string" || node.trim() !== "",
+    )
+    const updatedFirst = hasRemainingInline
+        ? cloneElement(first as ReactElement<{ children?: ReactNode }>, {}, ...remainingInline)
+        : null
+
+    return {
+        style,
+        body: [updatedFirst, ...items.slice(1)].filter(Boolean),
+    }
+}
+
 function AnchoredHeading({
     as: Tag,
     className,
@@ -211,13 +346,13 @@ function AnchoredHeading({
     const labelId = useId()
 
     return (
-        <Tag id={id} className={className} aria-labelledby={labelId}>
+        <Tag id={id} className={`group ${className}`} aria-labelledby={labelId}>
             <span id={labelId}>{children}</span>
             <a
                 href={`#${encodeURIComponent(id)}`}
                 data-heading-anchor=""
                 aria-labelledby={labelId}
-                className="ml-2 inline-flex h-6 w-6 items-center justify-center align-middle text-inherit no-underline opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 print:hidden"
+                className="ml-2 inline-flex h-6 w-6 items-center justify-center align-middle text-inherit no-underline opacity-0 transition-opacity duration-150 group-hover:opacity-70 hover:!opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 print:hidden"
             >
                 <Link2 aria-hidden="true" className="h-4 w-4" />
             </a>
@@ -325,10 +460,30 @@ export function createMarkdownComponents({
             return <tr className="hover:bg-primary/[0.03] transition-colors">{children}</tr>
         },
 
-        // Blockquotes
+        // Blockquotes (auto-styled semantic callouts when prefixed with a known label)
         blockquote({ children }) {
+            const semantic = detectSemanticBlockquote(children)
+            if (semantic) {
+                const Icon = semantic.style.icon
+                return (
+                    <aside
+                        data-callout-variant={semantic.style.variant}
+                        className={`my-7 rounded-xl px-4 py-3.5 shadow-sm shadow-black/5 ${semantic.style.container}`}
+                    >
+                        <div className="flex items-center gap-2">
+                            <Icon aria-hidden="true" className={`h-4 w-4 shrink-0 ${semantic.style.accent}`} />
+                            <span className={`font-sans text-xs font-semibold uppercase tracking-wider ${semantic.style.eyebrow}`}>
+                                {semantic.style.label}
+                            </span>
+                        </div>
+                        <div className="mt-2 [color:var(--reading-ink)] [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>ul:last-child]:mb-0 [&>ol:last-child]:mb-0">
+                            {semantic.body}
+                        </div>
+                    </aside>
+                )
+            }
             return (
-                <blockquote className="border-l-2 border-primary/60 pl-5 py-1 my-7 bg-primary/[0.045] rounded-r-lg pr-4">
+                <blockquote className="my-7 rounded-r-xl border-l-[3px] border-primary/45 bg-primary/[0.035] py-2 pl-5 pr-4 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0">
                     {children}
                 </blockquote>
             )
@@ -378,13 +533,15 @@ export function createMarkdownComponents({
             node?: unknown
             "data-animated-illustration"?: string
             "data-diagram-alt"?: string
+            "data-diagram-auto"?: string
         }) {
             const animData = props["data-animated-illustration"]
             const diagramAlt = props["data-diagram-alt"]
-            const diagramCaption = diagramAlt?.replace(/^Diagram showing\s+/i, "")
+            const isAutoDiagramCaption = props["data-diagram-auto"] === "true"
+            const diagramCaption = isAutoDiagramCaption ? undefined : diagramAlt?.replace(/^Diagram showing\s+/i, "")
             if (animData) {
                 return (
-                    <div className="my-9 w-full">
+                    <div className="my-9 w-full" data-wide-block="true">
                         <AnimatedIllustration data={animData} />
                     </div>
                 )
@@ -511,7 +668,7 @@ export function createMarkdownComponents({
                     as="h2"
                     id={id}
                     seen={headingIds}
-                    className="text-xl sm:text-[1.45rem] font-bold mt-12 mb-4 [color:var(--reading-heading)] tracking-tight leading-tight"
+                    className="mt-14 mb-5 border-t [border-color:var(--reading-border)]/70 pt-8 text-xl sm:text-[1.48rem] font-bold [color:var(--reading-heading)] tracking-tight leading-tight first:mt-0 first:border-t-0 first:pt-0"
                 >
                     {children}
                 </AnchoredHeading>
@@ -523,7 +680,7 @@ export function createMarkdownComponents({
                     as="h3"
                     id={id}
                     seen={headingIds}
-                    className="text-lg sm:text-[1.18rem] font-semibold mt-9 mb-3 [color:var(--reading-heading)] leading-snug"
+                    className="text-lg sm:text-[1.18rem] font-semibold mt-10 mb-3.5 [color:var(--reading-heading)] leading-snug"
                 >
                     {children}
                 </AnchoredHeading>

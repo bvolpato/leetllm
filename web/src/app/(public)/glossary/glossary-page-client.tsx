@@ -168,7 +168,7 @@ function GlossaryTermLink({
             ].join(" ")}
         >
             <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-                <span className={entry.kind === "code" ? "min-w-0 max-w-full [overflow-wrap:anywhere] font-mono text-[0.9em]" : "min-w-0 max-w-full [overflow-wrap:anywhere] font-medium"}>
+                <span className={entry.kind === "code" ? "min-w-0 max-w-full [overflow-wrap:break-word] font-mono text-[0.9em]" : "min-w-0 max-w-full [overflow-wrap:break-word] font-medium"}>
                     {entry.title}
                 </span>
                 {showImportance && <ImportancePill importance={entry.importance} />}
@@ -488,10 +488,10 @@ export function GlossaryPageClient({
                         Back to terms
                     </Button>
                     {selectedSummary ? (
-                        <article className="rounded-lg border border-border/70 bg-card/55 p-5 shadow-sm sm:p-6">
+                        <article className="rounded-xl border [border-color:var(--reading-border)] [background:var(--reading-panel)] p-6 shadow-sm sm:p-7">
                             <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-                                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                    <h2 ref={detailHeadingRef} tabIndex={-1} className={["max-w-full rounded-sm [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", selectedSummary.kind === "code" ? "font-mono text-2xl font-semibold tracking-tight sm:text-3xl" : "text-3xl font-semibold tracking-tight sm:text-4xl"].join(" ")}>
+                                <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                                    <h2 ref={detailHeadingRef} tabIndex={-1} className={["max-w-full rounded-sm [overflow-wrap:break-word] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50", selectedSummary.kind === "code" ? "font-mono text-2xl font-semibold tracking-tight sm:text-3xl" : "text-3xl font-semibold tracking-tight sm:text-4xl"].join(" ")}>
                                         {selectedSummary.title}
                                     </h2>
                                     <ImportancePill importance={selectedSummary.importance} />

@@ -206,7 +206,7 @@ export function GlossaryTerm({ id, children }: GlossaryTermProps) {
                     aria-label={accessibleLabel}
                     onClick={handleLabelClick}
                     onKeyDown={handleLabelKeyDown}
-                    className="cursor-help rounded-sm underline decoration-primary/70 decoration-1 underline-offset-[0.2em] [text-decoration-style:wavy] transition-[color,text-decoration-color] hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                    className="cursor-help rounded-sm underline decoration-dotted decoration-muted-foreground/45 decoration-1 underline-offset-[0.24em] transition-[color,text-decoration-color] hover:text-primary hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 >
                     <span className={labelClass}>{label}</span>
                 </span>

@@ -10,9 +10,11 @@ const ARTICLE_SIDEBAR_STORAGE_KEY = "leetllm_article_sidebar_visible"
 
 export function ArticleLayoutShell({
     sidebar,
+    rightRail,
     children,
 }: {
     sidebar: React.ReactNode
+    rightRail?: React.ReactNode
     children: React.ReactNode
 }) {
     const pathname = usePathname()
@@ -99,7 +101,7 @@ export function ArticleLayoutShell({
     }
 
     return (
-        <div className="flex gap-8">
+        <div className="flex gap-6 xl:gap-8">
             <a
                 href="#lesson-content"
                 data-print-hidden
@@ -108,7 +110,7 @@ export function ArticleLayoutShell({
                 Skip to lesson
             </a>
             {showSidebar && (
-                <aside data-testid="article-sidebar" data-print-hidden className="hidden xl:block w-60 flex-shrink-0">
+                <aside data-testid="article-sidebar" data-print-hidden className="hidden xl:block w-56 2xl:w-60 flex-shrink-0">
                     <div
                         ref={sidebarScrollRef}
                         className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2 pb-8"
@@ -157,6 +159,18 @@ export function ArticleLayoutShell({
             >
                 {children}
             </div>
+
+            {rightRail && (
+                <aside
+                    data-testid="article-right-rail"
+                    data-print-hidden
+                    className="hidden xl:block w-52 2xl:w-56 flex-shrink-0 print:hidden"
+                >
+                    <div className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pl-2 pb-8">
+                        {rightRail}
+                    </div>
+                </aside>
+            )}
         </div>
     )
 }
