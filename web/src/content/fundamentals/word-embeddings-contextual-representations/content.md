@@ -108,7 +108,7 @@ Remarkably, Levy and Goldberg proved that Skip-gram negative sampling implicitly
 
 <figure>
   <img src="illustrations/_generated/fasttext_subwords_dark.png" alt="FastText character trigrams and vector composition for play and unseen played. Both spellings share &lt;pl, pla, and lay. Play also uses ay&gt; and its whole-word row; unseen played sums the three shared stem vectors with aye, yed, and ed&gt; so its direction aligns closely with play rather than orthogonal terms like river." />
-  <figcaption>FastText composes unseen `played` from character trigrams; sharing `<pl`, `pla`, and `lay` aligns it closely with `play` (cosine 0.612) while keeping `river` orthogonal (0.0).</figcaption>
+  <figcaption>FastText composes unseen <code>played</code> from character trigrams; sharing <code>&lt;pl</code>, <code>pla</code>, and <code>lay</code> aligns it closely with <code>play</code> (cosine 0.612) while keeping <code>river</code> orthogonal (0.0).</figcaption>
 </figure>
 
 <!-- leetllm: test, output=show, deps=numpy -->
