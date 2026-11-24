@@ -181,7 +181,7 @@ At  250 sustained tok/s -> $3.33 / 1M tokens
 ```
 <!-- leetllm: output:end -->
 
-That $10\times$ gap between $\$0.33$ and $\$3.33$ per million tokens is the classic serving trade-off. An interactive chat endpoint caps batch size to hold TTFT and p95 ITL tight, spreading GPU rent over fewer tokens. An offline batch pipeline pushes concurrency right up to the KV pool ceiling to minimize cost per token. Both are optimal for their own <span data-glossary="slo">SLO</span>.
+That $10\times$ gap between \$0.33 and \$3.33 per million tokens is the classic serving trade-off. An interactive chat endpoint caps batch size to hold TTFT and p95 ITL tight, spreading GPU rent over fewer tokens. An offline batch pipeline pushes concurrency right up to the KV pool ceiling to minimize cost per token. Both are optimal for their own <span data-glossary="slo">SLO</span>.
 
 ```checkpoint
 Two teams serve the same 8B model on identical GPUs, yet the interactive chat team pays 5x more per million tokens than the batch pipeline. Why isn't that automatically a bug?

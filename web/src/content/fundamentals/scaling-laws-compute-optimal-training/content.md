@@ -131,7 +131,7 @@ $$
 N_{\text{opt}} \propto C^{0.73}, \qquad D_{\text{opt}} \propto C^{0.27}
 $$
 
-Under that rule, a $100\times$ jump in compute calls for growing parameters nearly $29\times$ while expanding tokens only $3.5\times$. That conclusion shaped the first generation of frontier LLMs: OpenAI trained GPT-3[^brown2020] at 175B parameters on 300B tokens ($1.7:1$ tokens per parameter), and DeepMind trained Gopher at 280B parameters on 300B tokens ($1.07:1$).
+Under that rule, a $100\times$ jump in compute calls for growing parameters nearly $29\times$ while expanding tokens only $3.5\times$. That conclusion shaped the first generation of frontier LLMs: OpenAI trained GPT-3[^brown2020] at 175B parameters on 300B tokens (1.7:1 tokens per parameter), and DeepMind trained Gopher at 280B parameters on 300B tokens (1.07:1).
 
 <!-- leetllm: test, output=show, deps=numpy -->
 ```python title="allocation-exponents.py"
@@ -597,12 +597,12 @@ MoE models decouple total parameters (which govern memory capacity and routing) 
   {
     "question": "In an independent-token model, four answer tokens are independently correct with probability p each. Compare p=0.7 and p=0.8. A small exact-match evaluation reports 0 then 2 complete successes. Which expected whole-answer probabilities and interpretation follow?",
     "options": [
-      "0.2401/0.4096. Small-sample counts alone cannot establish a phase transition.",
+      "0.2401/0.4096. Small-sample counts alone are insufficient to infer a phase transition.",
       "0.7/0.8. Exact-match expectations equal token accuracy.",
       "0.2401/0.4096. The first nonzero count identifies a discontinuity.",
       "0.9919/0.9984. A small sample can jump from zero matches to two as token accuracy improves smoothly."
     ],
-    "answer": "0.2401/0.4096. Small-sample counts alone cannot establish a phase transition.",
+    "answer": "0.2401/0.4096. Small-sample counts alone are insufficient to infer a phase transition.",
     "explanation": "An exact match requires four correct tokens. Independence gives 0.7⁴=0.2401 and 0.8⁴=0.4096. The exact-match curve rises smoothly with p, yet a small evaluation sample can jump from 0 hits to 2 hits without any underlying discontinuity."
   }
 ]
