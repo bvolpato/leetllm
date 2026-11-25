@@ -3,12 +3,20 @@
   "id": "neural-networks-from-scratch",
   "title": "Neural Networks from Scratch",
   "slug": "neural-networks-from-scratch",
-  "section": "Preparation & Prerequisites",
+  "section": "Deep Learning Foundations",
   "category": "Model Architecture",
   "difficulty": "Easy",
-  "order": 2,
+  "order": 1,
   "coverImage": "illustrations/_generated/xor_feature_map_dark.png",
-  "companies": ["Google", "Meta", "OpenAI", "Anthropic", "Microsoft", "Amazon", "Apple"],
+  "companies": [
+    "Google",
+    "Meta",
+    "OpenAI",
+    "Anthropic",
+    "Microsoft",
+    "Amazon",
+    "Apple"
+  ],
   "shortDescription": "Four points reveal why neural networks need hidden layers. Build a network, trace its gradients, train it in NumPy, and reproduce the same computation in PyTorch.",
   "keyConceptsTested": [
     "Weighted sums, biases, and sigmoid outputs",
@@ -24,7 +32,7 @@
 
 Place four points at the corners of a square. Color the bottom-left and top-right corners blue, and the other two orange. Try to draw one straight line that puts both orange points on one side and both blue points on the other. Whichever way you turn the line, one corner ends up on the wrong side.
 
-A small neural network can separate these points. Its hidden layer changes how the points are represented, making a distinction that was awkward in the original coordinates easy in the new ones. We will build that transformation by hand, follow one prediction through every multiplication, and then teach the network to find useful weights itself. The [vectors and matrices lesson](/learn/vectors-matrices-tensors) supplies the dot products; here those calculations become a model that learns.
+A small neural network can separate these points. Its hidden layer changes how the points are represented, making a distinction that was awkward in the original coordinates easy in the new ones. We will build that transformation by hand, follow one prediction through every multiplication, and then teach the network to find useful weights itself. The [vectors and matrices lesson](/learn/numpy-and-tensor-shapes) supplies the dot products; here those calculations become a model that learns.
 
 ## Four examples and a prediction rule
 
@@ -688,4 +696,4 @@ Worked solutions
 ]
 ```
 
-> **Next:** Continue to [CNNs from Scratch](/learn/convolutional-neural-networks-from-scratch). Hidden units turn input measurements into useful features. For images, neighboring pixels carry spatial patterns, and convolution lets the same feature detector look for an edge or texture across the whole image.
+> **Next:** Continue to [PyTorch Training Loops](/learn/pytorch-training-loops).

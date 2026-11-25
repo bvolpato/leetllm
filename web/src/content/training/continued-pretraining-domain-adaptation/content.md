@@ -3,10 +3,10 @@
   "id": "continued-pretraining-domain-adaptation",
   "title": "Continued Pretraining for Domain Shift",
   "slug": "continued-pretraining-domain-adaptation",
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 4,
+  "order": 9,
   "coverImage": "illustrations/_generated/continued_pretraining_dark.png",
   "companies": [
     "OpenAI",
@@ -901,4 +901,4 @@ Lower domain perplexity does not automatically translate into higher end-task ac
 ]
 ```
 
-> **Next:** Continue to [Synthetic Data Pipelines](/learn/synthetic-data-generation-pipelines-llms). Continued pretraining adapts a base model to unlabeled domain text such as research papers and technical documentation, while later SFT and preference stages still need instructions, answers, and rejected answers. The next chapter builds the data engine for that stage: generating, filtering, decontaminating, and versioning synthetic training examples.
+> **Next:** Continue to [Synthetic Data Pipelines](/learn/synthetic-data-generation-pipelines-llms).

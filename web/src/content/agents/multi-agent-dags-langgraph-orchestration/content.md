@@ -19,18 +19,17 @@
   "prerequisites": [
     "structured-output-constrained-generation",
     "agentic-architectures-react-plan-execute",
-    "human-in-the-loop-agent-architecture",
-    "agent-memory-persistence-patterns",
     "agent-failure-states-retry-fallback",
-    "recursive-language-models-rlm"
+    "agent-memory-persistence-patterns",
+    "long-context-engineering-beyond-management"
   ],
   "relatedQuestions": [
     "inference-mechanics-ttft-tps-kv-cache",
     "observability-monitoring-llm-systems",
-    "model-gateways-routing-fallbacks",
+    "llm-cost-engineering-token-economics",
     "agent-evaluation-benchmarks"
   ],
-  "order": 16,
+  "order": 11,
   "keyConceptsTested": [
     "DAGs vs. cyclic state machines",
     "LangGraph StateGraph and Pregel supersteps",
@@ -460,4 +459,4 @@ Finally, keep **orchestration topology** distinct from **wire protocols**. **Mod
 ]
 ```
 
-> **Next:** Continue to [Capstone: Production Agent](/learn/capstone-production-llm-agent). You can now fan out independent workers across typed DAG edges, handle unequal join topologies cleanly, pause for digest-bound human approval, and protect writes behind a single idempotent writer. The capstone integrates those orchestration patterns into a complete production agent system with permission checks, evidence grounding, and trajectory evaluations.
+> **Next:** Continue to [Evaluating AI Agents](/learn/agent-evaluation-benchmarks).

@@ -359,7 +359,7 @@ Swapped IDs, remapped table: [[1.0, 0.0], [0.0, 1.0]]
 ]
 ```
 
-> **Next:** Continue to [Static to Contextual Embeddings](/learn/word-embeddings-contextual-representations). Token IDs select rows in the embedding matrix. Next you'll examine how that table converts integers into geometric vectors, and why a static word vector can't distinguish every meaning of `charge` across contexts.
+> **Next:** Continue to [Static to Contextual Embeddings](/learn/word-embeddings-contextual-representations).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

@@ -29,8 +29,8 @@
     "Trajectory evaluation and runtime budgets",
     "Function calling as the bridge to MCP"
   ],
-  "section": "Applied LLM Engineering",
-  "order": 3
+  "section": "Applied LLM Engineering & RAG",
+  "order": 7
 }
 ---
 
@@ -1191,7 +1191,7 @@ Inside a single process, you saw every link in the chain: strict schema validati
 ]
 ```
 
-> **Next:** Continue to [MCP & Tool Protocol Standards](/learn/mcp-tool-protocol-standards). Your runtime still decides whether to execute each proposal; <span data-glossary="mcp">MCP</span> lets multiple hosts discover `get_release_status` on a shared server without building private adapters for every pair.
+> **Next:** Continue to [MCP & Tool Protocol Standards](/learn/mcp-tool-protocol-standards).
 
 <!-- leetllm: edition:reference:end -->
 
@@ -1426,7 +1426,7 @@ Once the prompt becomes "Compare both releases and promote the safer one," the w
 <figcaption>Each check answers an independent question. The approval binds one person and one version, and deciding the operation key before the write ensures a retry returns the saved result instead of promoting twice.</figcaption>
 </figure>
 
-Writes also face race conditions and retention windows. Use a server-issued revision for conditional writes so stale reads cannot overwrite newer changes (built in [human-in-the-loop architecture](/learn/human-in-the-loop-agent-architecture)). Remember that operation keys protect you only when the target service deduplicates them and only while the key stays retained: Stripe's v1 API, for instance, allows pruning idempotency keys after 24 hours, after which reusing the key starts a fresh request.[^stripe2026IdempotentRequests] [Failure recovery](/learn/agent-failure-states-retry-fallback) walks through reconciling those timeouts.
+Writes also face race conditions and retention windows. Use a server-issued revision for conditional writes so stale reads cannot overwrite newer changes (built in [human-in-the-loop architecture](/learn/agent-failure-states-retry-fallback)). Remember that operation keys protect you only when the target service deduplicates them and only while the key stays retained: Stripe's v1 API, for instance, allows pruning idempotency keys after 24 hours, after which reusing the key starts a fresh request.[^stripe2026IdempotentRequests] [Failure recovery](/learn/agent-failure-states-retry-fallback) walks through reconciling those timeouts.
 
 ## Show the model fewer tools
 
@@ -1478,6 +1478,6 @@ Public benchmarks like BFCL and tau-bench measure single, parallel, and multi-tu
 
 You now have a clean, inspectable interface between model text and live software. Try two extensions on `tool-roundtrip.py`: add a `reranker-v18` result from a different suite and decide what your host should compare, then remove `reranker-v16` from `allowed` and write a response that states clearly what is known and what is missing. The [complete online chapter](/learn/function-calling-tool-use-llms?view=online) adds strict Pydantic validators, provider adapters, parallel read fan-out, and vector tool routing, and the next chapter goes inside the decoder to see how constrained grammars stop malformed arguments from being generated in the first place.
 
-> **Next:** Continue to [Structured Output & Constrained Generation](/learn/structured-output-constrained-generation).
+> **Next:** Continue to [MCP & Tool Protocol Standards](/learn/mcp-tool-protocol-standards).
 
 <!-- leetllm: edition:reader:end -->

@@ -3,10 +3,10 @@
   "id": "linear-algebra-machine-learning-deeper",
   "title": "Linear Algebra for ML",
   "slug": "linear-algebra-machine-learning-deeper",
-  "section": "Math & Statistics",
+  "section": "Math & Tensor Foundations",
   "category": "Model Architecture",
   "difficulty": "Easy",
-  "order": 3,
+  "order": 2,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "OpenAI",
@@ -26,7 +26,7 @@
     "validation of compressed retrieval representations"
   ],
   "prerequisites": [
-    "vectors-matrices-tensors"
+    "numpy-and-tensor-shapes"
   ]
 }
 ---
@@ -34,7 +34,7 @@
 
 Take three short technical documents described by two numbers: whether each contains `code` and whether it contains `prose`. `kernel` is `[1, 0]`, `essay` is `[0, 1]`, and `note` is `[1, 1]`. Compress that tiny table to rank 1, keeping 75% of its total energy, and `kernel` collapses onto the exact same coordinates as `essay`. A search index can no longer tell a kernel guide apart from a prose essay.
 
-That 3x2 table captures the central geometric tradeoff behind embedding compression, PCA, LoRA, and least squares. <span data-glossary="svd">Singular value decomposition</span> (SVD) breaks any matrix into perpendicular input directions paired with nonnegative output strengths, showing exactly which patterns carry energy and which distinctions vanish when you truncate. Building on [vectors, matrices, and tensors](/learn/vectors-matrices-tensors), we will work through SVD, Gram eigendecomposition, least squares, and conditioning by hand on these three rows, then scale the same machinery to <span data-glossary="pytorch">PyTorch</span> weight matrices.
+That 3x2 table captures the central geometric tradeoff behind embedding compression, PCA, LoRA, and least squares. <span data-glossary="svd">Singular value decomposition</span> (SVD) breaks any matrix into perpendicular input directions paired with nonnegative output strengths, showing exactly which patterns carry energy and which distinctions vanish when you truncate. Building on [vectors, matrices, and tensors](/learn/numpy-and-tensor-shapes), we will work through SVD, Gram eigendecomposition, least squares, and conditioning by hand on these three rows, then scale the same machinery to <span data-glossary="pytorch">PyTorch</span> weight matrices.
 
 ## A matrix can hide repeated directions
 
@@ -887,7 +887,7 @@ The geometry of our 3×2 document table ties the entire chapter together: droppi
 ]
 ```
 
-> **Next:** Continue to [Adam, Momentum, Schedulers](/learn/optimization-algorithms-adam-schedulers). There, you'll use this direction-dependent geometry to understand why one step size can work along a shallow direction but fail along a steep one during gradient descent.
+> **Next:** Continue to [Gradients and Backprop](/learn/calculus-gradients-backpropagation-optimization).
 
 <!-- leetllm: edition:reference:end -->
 

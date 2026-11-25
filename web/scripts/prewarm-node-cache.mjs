@@ -10,7 +10,7 @@ const port = 8080;
 const routes = [
   '/',
   '/learn',
-  '/learn/vectors-matrices-tensors',
+  '/learn/numpy-and-tensor-shapes',
   '/blog',
   '/blog/how-we-built-leetllm',
   '/practice',

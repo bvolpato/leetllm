@@ -26,25 +26,21 @@
     "Serving-side latency levers",
     "Latency and cost trade-offs"
   ],
-  "section": "System Design Capstones",
+  "section": "AI System Design",
   "order": 5,
   "prerequisites": [
     "design-multi-tenant-llm-serving-platform",
-    "hybrid-search-dense-sparse-retrieval",
-    "reranking-cross-encoders-rag",
-    "rag-evaluation-faithfulness-relevance",
+    "core-retrieval-algorithms",
+    "design-production-rag-pipeline",
     "advanced-rag-query-rewriting-self-rag",
     "long-context-window-management",
     "llm-deployment-gpu-serving-autoscaling",
-    "semantic-caching-cost-latency-optimization"
+    "llm-cost-engineering-token-economics"
   ],
   "relatedQuestions": [
-    "vision-language-models-clip-beyond",
     "multimodal-llms-architecture-design",
-    "enterprise-rag-security-rbac-access-control",
     "design-production-rag-pipeline",
-    "design-conversational-ai-support-bot",
-    "model-gateways-routing-fallbacks"
+    "llm-cost-engineering-token-economics"
   ]
 }
 ---
@@ -828,4 +824,4 @@ Test on held-out claim-and-span pairs covering negations, dropped conditions, mi
 ]
 ```
 
-> **Next:** Continue to [Vision-Language Models & CLIP](/learn/vision-language-models-clip-beyond). This search design tracks text evidence from source to answer. The next lesson introduces representations for visual evidence, including screenshots and diagrams that text-only retrieval can miss.
+> **Next:** Continue to [Real-Time Voice AI Agent](/learn/design-real-time-voice-ai-agent).

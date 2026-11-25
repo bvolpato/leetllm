@@ -28,8 +28,8 @@
     "Reasoning failure modes and latency-accuracy tradeoffs",
     "ReAct handoff to tool use"
   ],
-  "section": "Applied LLM Engineering",
-  "order": 2
+  "section": "Applied LLM Engineering & RAG",
+  "order": 4
 }
 ---
 
@@ -264,7 +264,7 @@ Notice the denominator: we divide by all $N$ attempts, including unparsed comple
 
 > **Common mistake:** Filtering out unparsed or truncated completions before computing vote share makes a noisy batch look artificially confident. Always keep all $N$ attempts in the denominator, and emit $\hat{a}$ only when it strictly beats every runner-up and clears your threshold $s \ge \tau$.
 
-In Wang et al.'s PaLM-540B experiments on GSM8K, sampling 40 paths lifted accuracy from `56.5%` (greedy CoT) to `74.4%`, a `17.9` percentage-point jump.[^wang2022c] (That `56.5%` baseline differs slightly from Wei et al.'s `56.9%` due to prompt and decoding differences.) Majority agreement also correlates with accuracy on math tasks, though raw vote share is uncalibrated; tune $\tau$ on a held-out validation split and log your exact sampling parameters alongside $N$. See [Decoding Algorithms](/learn/decoding-algorithms) for how temperature and nucleus sampling control path diversity.
+In Wang et al.'s PaLM-540B experiments on GSM8K, sampling 40 paths lifted accuracy from `56.5%` (greedy CoT) to `74.4%`, a `17.9` percentage-point jump.[^wang2022c] (That `56.5%` baseline differs slightly from Wei et al.'s `56.9%` due to prompt and decoding differences.) Majority agreement also correlates with accuracy on math tasks, though raw vote share is uncalibrated; tune $\tau$ on a held-out validation split and log your exact sampling parameters alongside $N$. See [Decoding Algorithms](/learn/decoding-strategies-greedy-beam-nucleus) for how temperature and nucleus sampling control path diversity.
 
 <figure>
   <img src="illustrations/_generated/cot_scratchpad_flow_dark.png" alt="Self-consistency majority voting over 5 sampled reasoning traces. Traces T1 through T3 reach 42, T4 errs to 36, and T5 fails answer extraction. Dividing over all 5 traces gives 60% agreement for 42, below an 80% abstention threshold, whereas omitting T5 would inflate agreement to 75%." />
@@ -884,4 +884,4 @@ Modify the scripts above to watch how voting, search, and strategy selection beh
 ]
 ```
 
-> **Next:** Continue to [Function Calling & Tool Use](/learn/function-calling-tool-use-llms). You can now choose and evaluate a reasoning budget over facts already in the prompt. Next you'll turn a missing observation into a typed tool request that a trusted runtime validates, executes, and logs.
+> **Next:** Continue to [Prompt Optimization with DSPy](/learn/programmatic-prompt-optimization-dspy).

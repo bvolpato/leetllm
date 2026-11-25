@@ -32,8 +32,8 @@
     "Softmax numerical stability (max-shift technique)",
     "Gradients through attention scores and values"
   ],
-  "section": "Transformer Deep Dives",
-  "order": 3
+  "section": "Transformer & Multimodal Architectures",
+  "order": 1
 }
 ---
 
@@ -783,4 +783,4 @@ Try this 2-minute experiment on the two-token NumPy script above: set both rows 
 ]
 ```
 
-> **Next:** Continue to [Vision Transformers and Image Encoders](/learn/vision-transformers-image-encoders). Scaled dot-product attention, including the mask and the $\sqrt{d_k}$ scale, is now a working operator. The next chapter reuses that same bidirectional operation after an image is cut into patch tokens.
+> **Next:** Continue to [Positional Encoding: RoPE & ALiBi](/learn/positional-encoding-rope-alibi).

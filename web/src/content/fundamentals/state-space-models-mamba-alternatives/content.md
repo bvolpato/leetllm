@@ -3,10 +3,10 @@
   "id": "state-space-models-mamba-alternatives",
   "title": "Mamba & State Space Models",
   "slug": "state-space-models-mamba-alternatives",
-  "section": "Inference & Production Scale",
+  "section": "Transformer & Multimodal Architectures",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 24,
+  "order": 5,
   "coverImage": "illustrations/_generated/mamba_vs_transformer_dark.png",
   "companies": [
     "Cartesia",
@@ -28,10 +28,6 @@
   ],
   "prerequisites": [
     "mixture-of-experts-architecture",
-    "long-context-window-management",
-    "long-context-engineering-beyond-management",
-    "flashattention-memory-efficient-attention",
-    "kv-cache-paged-attention-llm-serving",
     "rnns-lstms-grus-sequence-modeling"
   ],
   "relatedQuestions": [
@@ -482,4 +478,4 @@ SSMs trade token-indexed KV tables for compact, learned recurrences, and hybrid 
 ]
 ```
 
-> **Next:** Continue to [Reasoning & Test-Time Compute](/learn/reasoning-models-test-time-compute). Extra generated tokens either grow a KV cache or update a fixed recurrent state. Reasoning models spend those extra tokens on purpose, so the next chapter asks when that <span data-glossary="test-time-compute">test-time compute</span> is worth the decode-memory and latency bill.
+> **Next:** Continue to [Vision Transformers and Image Encoders](/learn/vision-transformers-image-encoders).

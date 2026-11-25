@@ -484,4 +484,4 @@ Drawing 256 samples exposes extreme outliers that maximize the proxy reward's lo
 ]
 ```
 
-> **Next:** Continue to [BPE, WordPiece, and SentencePiece](/learn/tokenization-bpe-wordpiece-sentencepiece). Even general gradient learners first slice raw UTF-8 text into discrete vocabulary units; next, examine how subword tokenizers balance vocabulary size, sequence length, and out-of-vocabulary resilience without hand-written grammar rules.
+> **Next:** Continue to [BPE, WordPiece, and SentencePiece](/learn/tokenization-bpe-wordpiece-sentencepiece).

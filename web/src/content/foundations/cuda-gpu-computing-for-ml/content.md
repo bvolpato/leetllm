@@ -3,10 +3,10 @@
   "id": "cuda-gpu-computing-for-ml",
   "title": "CUDA for ML Training",
   "slug": "cuda-gpu-computing-for-ml",
-  "section": "Computing Foundations",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
-  "difficulty": "Easy",
-  "order": 5,
+  "difficulty": "Hard",
+  "order": 4,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "NVIDIA",
@@ -36,10 +36,12 @@
     "numpy-and-tensor-shapes"
   ],
   "relatedQuestions": [
-    "mps-metal-mac-ml-training",
     "pytorch-training-loops",
     "mixed-precision-training-loss-scaling",
     "distributed-training-fsdp-deepspeed-zero"
+  ],
+  "aliases": [
+    "mps-metal-mac-ml-training"
   ]
 }
 ---
@@ -51,8 +53,9 @@ That same tensor also has to live somewhere. An operation can have the right sha
 
 <span data-glossary="cuda">CUDA</span> is NVIDIA's platform and programming model for running parallel work on NVIDIA GPUs. It doesn't turn every Python line into GPU code. Python still runs on the CPU, while <span data-glossary="pytorch">PyTorch</span> launches GPU functions called <span data-glossary="cuda-kernel">CUDA kernels</span> for tensor operations whose data lives on a CUDA device.[^cudaProgrammingGuide2026]
 
-<div data-callout="info" data-callout-title="Platform path">
-  <p>If you train on a Mac with Apple silicon, continue through this lesson for the shared accelerator concepts, then use <a href="/learn/mps-metal-mac-ml-training">MPS &amp; Metal for ML on Mac</a> for its backend and memory differences.</p>
+<div data-callout="info" data-callout-title="Apple silicon unified memory and PyTorch MPS">
+  <p>On an Apple silicon Mac, CPU and GPU share one physical <span data-glossary="unified-memory">unified memory</span> DRAM pool rather than splitting host RAM and discrete VRAM across PCIe.[^mlx2026] Eliminating the PCIe copy bottleneck lets a single Mac hold larger local models than many entry-level discrete GPUs, though the pool is shared with macOS and active apps (capped by Metal's recommended working-set limit) and unified DRAM bandwidth is typically lower than datacenter HBM, making Apple silicon ideal for local prototyping and small-to-medium runs rather than cluster-scale throughput.</p>
+  <p>In PyTorch, route tensor ops through Apple's <span data-glossary="mps-backend">Metal Performance Shaders (MPS) backend</span> with <code>model.to("mps")</code> and <code>batch.to("mps")</code> after checking <code>torch.backends.mps.is_available()</code>.[^appleMetalPytorch2026][^pytorchMpsBackend2026] Even on shared physical DRAM, PyTorch allocates a distinct device buffer for <code>mps</code> tensors, so CPU and MPS tensors cannot mix in one operation and keeping both copies alive doubles memory use. Watch three practical caveats: Metal lacks <code>float64</code> support (casting NumPy <code>float64</code> arrays to <code>float32</code> avoids an immediate allocation <code>TypeError</code>),[^pytorchMpsTensorAllocation2026] unsupported ops fail unless <code>PYTORCH_ENABLE_MPS_FALLBACK=1</code> is set before importing <code>torch</code> (which detours those ops to CPU with synchronization overhead),[^pytorchMpsEnvVars2026] and MPS execution is asynchronous just like CUDA, so time steps with <code>torch.mps.synchronize()</code>.</p>
 </div>
 
 ## Eight tokens onto two blocks
@@ -648,7 +651,7 @@ The CPU prepares data and launches work. CUDA maps kernels onto grids, blocks, w
 
 Place the sequence batch, check the driver version against a usable PyTorch build, and see whether a slow step is waiting on bytes, math, or a timer that returned too early. If a run fails, inspect shape, then device, then time.
 
-The Mac lesson keeps those checks but changes the hardware picture: Apple silicon doesn't give you a separate VRAM pool copied over PCIe.
+Those same three checks carry over to Apple silicon's `mps` backend: even without a separate PCIe-attached VRAM pool, mismatched `cpu` and `mps` tensors still fail, unified memory still hits a hard ceiling, and unsynchronized timers still undercount asynchronous GPU work.
 
 ```mastery-quiz
 [
@@ -765,7 +768,7 @@ The Mac lesson keeps those checks but changes the hardware picture: Apple silico
 ]
 ```
 
-> **Next:** Continue to [MPS & Metal for ML on Mac](/learn/mps-metal-mac-ml-training). Keep the shape, device, memory, and timing checks while changing the accelerator. Apple silicon uses a different backend and unified memory, which changes how placement and memory pressure behave.
+> **Next:** Continue to [Mixed Precision Training](/learn/mixed-precision-training-loss-scaling).
 
 <!-- leetllm: edition:reference:end -->
 
@@ -791,6 +794,11 @@ A CPU is built for the opposite job. It is tuned for varied work: branches, func
 | Report | Ask for a Python number, write a file | Finish and hand back the value |
 
 Notice the words "its own memory." A discrete GPU has memory of its own, separate from your computer's RAM, often called video RAM (VRAM) or high-bandwidth memory (HBM). A tensor lives in one place at a time. Calling `x.to("cuda")` makes a copy over there, and one operation cannot mix tensors from both sides. That is why a common first error says that your tensors are on different devices. Move the model, and then every field of the batch that the model or the loss uses.
+
+<div data-callout="info" data-callout-title="On a Mac with Apple silicon">
+  <p>Apple silicon skips the split between host RAM and discrete VRAM: its CPU and GPU draw from one shared unified memory pool with no PCIe transfer hop.[^mlx2026] That lets a laptop hold larger models locally than a small discrete card, at two trade-offs: macOS and open apps share the same pool, and unified memory bandwidth sits below the HBM on datacenter GPUs.</p>
+  <p>PyTorch still treats the Mac GPU as a separate device named <code>mps</code> (for Metal Performance Shaders), so you still move both weights and batches with <code>model.to("mps")</code> and <code>x = x.to("mps")</code> after checking <code>torch.backends.mps.is_available()</code>.[^appleMetalPytorch2026][^pytorchMpsBackend2026] Holding a copy on <code>cpu</code> and another on <code>mps</code> uses twice the shared RAM. Three MPS quirks matter in practice: Metal has no <code>float64</code> (cast NumPy arrays to <code>float32</code> first),[^pytorchMpsTensorAllocation2026] missing kernels raise an error unless you launch Python with <code>PYTORCH_ENABLE_MPS_FALLBACK=1</code> (which runs those ops on CPU at a speed cost),[^pytorchMpsEnvVars2026] and timing needs <code>torch.mps.synchronize()</code> for the same asynchronous reason CUDA does.</p>
+</div>
 
 The 24 GB on the rental page is the size of that second memory, and it is a hard ceiling. So let's find out what has to fit under it.
 

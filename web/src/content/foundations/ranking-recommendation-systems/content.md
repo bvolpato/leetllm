@@ -6,11 +6,24 @@
   "section": "Production ML Systems",
   "category": "Evaluation & Benchmarks",
   "difficulty": "Medium",
-  "order": 4,
+  "order": 2,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
-  "companies": ["Amazon", "Netflix", "Spotify", "DoorDash"],
+  "companies": [
+    "Amazon",
+    "Netflix",
+    "Spotify",
+    "DoorDash"
+  ],
   "shortDescription": "Build multi-stage retrieval and ranking pipelines, evaluate list order with NDCG/MRR/MAP, train pairwise and metric-weighted rankers, and debias click logs with IPS.",
-  "keyConceptsTested": ["candidate generation", "pairwise ranking loss", "NDCG", "two-tower recommendation", "position bias", "implicit feedback", "online experimentation"]
+  "keyConceptsTested": [
+    "candidate generation",
+    "pairwise ranking loss",
+    "NDCG",
+    "two-tower recommendation",
+    "position bias",
+    "implicit feedback",
+    "online experimentation"
+  ]
 }
 ---
 
@@ -524,4 +537,4 @@ Run four quick mental (or code) perturbations on our pipeline:
 ]
 ```
 
-> **Next:** Continue to [Forecasting and Anomaly Detection](/learn/forecasting-anomaly-detection). Ranking scores a slate for one request. Next you'll predict values that unfold over time and tell a repeating weekly pattern apart from a real operational surprise.
+> **Next:** Continue to [Forecasting and Anomaly Detection](/learn/forecasting-anomaly-detection).

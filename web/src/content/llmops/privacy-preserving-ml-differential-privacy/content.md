@@ -3,15 +3,35 @@
   "id": "privacy-preserving-ml-differential-privacy",
   "title": "Privacy-Preserving Machine Learning",
   "slug": "privacy-preserving-ml-differential-privacy",
-  "section": "Applied LLM Engineering",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Alignment & Safety",
-  "difficulty": "Medium",
-  "order": 8,
+  "difficulty": "Hard",
+  "order": 13,
   "coverImage": "illustrations/_generated/privacy_mechanism_dark.png",
-  "companies": ["OpenAI", "Anthropic", "Google", "Meta"],
+  "companies": [
+    "OpenAI",
+    "Anthropic",
+    "Google",
+    "Meta"
+  ],
   "shortDescription": "A support copilot recites a private note, and the cause might be training, retrieval, or the prompt. Differential privacy bounds the training path only when the protected unit matches the promise.",
-  "keyConceptsTested": ["differential privacy", "neighboring datasets", "epsilon and delta", "protected unit", "privacy composition", "DP-SGD", "per-example versus per-user clipping", "Gaussian noise", "privacy accounting", "membership inference", "memorization extraction", "DP-LoRA"],
-  "prerequisites": ["responsible-ai-governance-ethics-compliance", "pytorch-training-loops"]
+  "keyConceptsTested": [
+    "differential privacy",
+    "neighboring datasets",
+    "epsilon and delta",
+    "protected unit",
+    "privacy composition",
+    "DP-SGD",
+    "per-example versus per-user clipping",
+    "Gaussian noise",
+    "privacy accounting",
+    "membership inference",
+    "memorization extraction",
+    "DP-LoRA"
+  ],
+  "prerequisites": [
+    "pytorch-training-loops"
+  ]
 }
 ---
 
@@ -584,4 +604,4 @@ The support copilot's training claim has to name the protected unit, the adjacen
 ]
 ```
 
-> **Next:** Continue to [Data Labeling and Human Feedback](/learn/data-labeling-human-feedback-active-learning). Private training depends on well-scoped human data; the next lesson builds labeling and feedback pipelines that preserve data lineage, consent, and reliable supervision.
+> **Next:** Continue to [Data Labeling and Human Feedback](/learn/data-labeling-human-feedback-active-learning).

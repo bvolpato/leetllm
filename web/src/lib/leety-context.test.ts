@@ -14,7 +14,7 @@ describe("getLeetyPageContext", () => {
             canonicalPath: "/learn/numpy-and-tensor-shapes",
             allowAnonymous: false,
         })
-        expect(context?.markdown).toContain("# NumPy")
+        expect(context?.markdown).toContain("# Tensors, Shapes & Matrix Arithmetic")
         expect(context?.markdown.length).toBeGreaterThan(1_000)
     })
 

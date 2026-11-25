@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-16a34a?style=flat-square)](./LICENSE)
 
-> An open-source, first-principles curriculum for AI/ML and LLM engineering: 199 progressive lessons, 47 coding practice problems (Python and Java), 757 glossary entries, a buildable PDF monograph, Vizmatic illustrations and films, and a native iOS/Mac app.
+> An open-source, first-principles curriculum for AI/ML and LLM engineering: 140 progressive lessons, 47 coding practice problems (Python and Java), 757 glossary entries, a buildable PDF monograph, Vizmatic illustrations and films, and a native iOS/Mac app.
 
 LeetLLM is a free, open-source educational project under the [MIT License](./LICENSE). Read online at **[leetllm.com](https://leetllm.com)**, build the curriculum locally, or contribute lessons, visuals, and code.
 
@@ -14,30 +14,28 @@ LeetLLM is a free, open-source educational project under the [MIT License](./LIC
 
 ## What Is Inside
 
-- **199 progressive lessons** across 15 roadmap phases, from Git, Python, NumPy, and linear algebra to FlashAttention, distributed training, alignment, agents, inference serving, and 17 open-source project deep dives.
+- **140 progressive lessons** across 13 focused roadmap phases, from tensors, linear algebra, probability, classical ML, and neural networks to Transformers, distributed training, alignment, RAG, agents, CUDA kernels, LLM inference, and 10 canonical open-source deep dives.
 - **47 coding practice problems** at `/practice` with sample and hidden test suites in Python and Java, backed by an isolated execution sandbox.
 - **757 glossary definitions** linked inline at first technical use.
-- **1,889 scored mastery quiz questions** and end-of-lesson checkpoints.
+- **1,300+ scored mastery quiz questions** and end-of-lesson checkpoints.
 - **Theme-aware Vizmatic illustrations, interactive motion films, and Mermaid diagrams** rendered at build time.
-- **738-page curated PDF handbook** (`./build-book.sh`) and **native SwiftUI iOS / Mac Catalyst app** (`mobile/ios/LeetLLM`).
+- **Curated PDF handbook** (`./build-book.sh`) and **native SwiftUI iOS / Mac Catalyst app** (`mobile/ios/LeetLLM`).
 
 | Phase | Lessons | Focus |
 |-------|--------:|-------|
-| **Computing Foundations** | 9 | Git, Docker, Python, NumPy, CUDA/MPS, data structures, SQL, algorithms |
-| **Math & Statistics** | 9 | Calculus, linear algebra, probability, Bayesian inference, MCMC, optimization, hypothesis testing |
-| **Preparation & Prerequisites** | 13 | Neural networks, CNNs, RNNs, Transformers, language modeling, first AI app |
-| **ML Algorithms & Evaluation** | 15 | Regression, ensembles, learning theory, conformal prediction, VAEs, causal inference, PyTorch |
-| **Production ML Systems** | 6 | Feature pipelines, gradient boosted trees, ranking, forecasting, monitoring |
-| **Core LLM Foundations** | 8 | Tokenization, embeddings, evaluation, file ingestion, chunking |
-| **Applied LLM Engineering** | 25 | RAG, tool use, privacy, context engineering, prompt optimization, observability, caching, routing |
-| **Portfolio Capstones** | 9 | End-to-end systems: ETA prediction, ranking, vision, document QA, evals, classifier, research |
-| **Transformer Deep Dives** | 8 | Attention mechanisms, vision encoders, normalization, interpretability |
-| **Advanced Training & Adaptation** | 17 | Scaling laws, mixed precision, FSDP/ZeRO, training ops, RLHF/DPO/RLVR, distillation, merging |
-| **Advanced Agents & Retrieval** | 17 | GraphRAG, enterprise RBAC, multi-agent orchestration, memory, sandboxing, agent capstone |
-| **Inference & Production Scale** | 31 | GPU hardware, Triton/CUDA kernels, KV paging, continuous batching, speculative decoding, serving |
-| **System Design Capstones** | 10 | Production architecture breakdowns for real AI systems |
-| **AI Lab Interviewing** | 4 | Systems coding, architecture design, behavioral evidence, technical presentations |
-| **Project Deep Dives** | 17 | vLLM, SGLang, FlashAttention, FlashInfer, DeepGEMM, NCCL, Megatron, DeepSpeed, PyTorch, Transformers, Ray, MLflow, SkyRL, slime, DeepEP, Tinker, Light-PEFT |
+| **Math & Tensor Foundations** | 5 | Tensors, linear algebra, gradients/backprop, probability, Bayesian & statistical inference |
+| **Classical ML & Evaluation** | 8 | Regression, classification, trees/GBDTs, clustering/PCA, cross-validation, data pipelines, A/B testing, causality |
+| **Deep Learning Foundations** | 7 | Neural networks from scratch, PyTorch training loops, softmax/cross-entropy, Adam, CNNs, RNNs, VAEs |
+| **Core LLM Foundations** | 11 | Tokenization, embeddings, Transformer end-to-end, language modeling, decoding, perplexity, instruction tuning, benchmarks |
+| **Production ML Systems** | 4 | Point-in-time feature pipelines, ranking/recommendations, forecasting, live drift monitoring |
+| **Applied LLM Engineering & RAG** | 18 | Prompting, DSPy, structured outputs, tool calling, MCP, ingestion, chunking, hybrid retrieval, RAG, evals, guardrails, cost/routing |
+| **Transformer & Multimodal Architectures** | 9 | Scaled dot-product attention, RoPE/ALiBi, LayerNorm, MoE, Mamba, ViTs, VLMs/multimodal, diffusion, interpretability |
+| **Training, Fine-Tuning & Alignment** | 22 | Scaling laws, pretraining data, GPT from scratch, CUDA, mixed precision, FSDP/ZeRO, JAX, SFT, LoRA, DP, RL, RLHF/DPO/RLVR, test-time compute, distillation, merging |
+| **Advanced Agents & Retrieval** | 12 | Vector DB internals (HNSW/IVF), advanced RAG, GraphRAG, ReAct, context engineering, memory, OS/Wasm sandboxing, coding/GUI agents, recovery/HITL, LangGraph, evals |
+| **GPU Systems & LLM Inference** | 23 | KV cache, GQA, PagedAttention, prefix caching, FlashAttention, continuous batching, speculative decoding, quantization, local/edge serving, CUDA/Triton/GEMM kernels, autoscaling, benchmarks |
+| **AI System Design** | 7 | End-to-end production system designs (moderation, code completion, multi-tenant serving, sandboxes, search, voice, reasoning) |
+| **AI Lab Interviewing** | 4 | Python ML systems coding, architecture design, behavioral reasoning, technical presentations |
+| **Project Deep Dives** | 10 | PyTorch, Transformers, vLLM, SGLang, FlashInfer, DeepGEMM, DeepEP, NCCL, Megatron, Ray |
 
 ---
 
@@ -134,17 +132,17 @@ leetllm/
 │   ├── src/
 │   │   ├── app/               # Public pages, auth, dashboard, API routes
 │   │   ├── components/        # UI components (Tailwind CSS + Radix)
-│   │   ├── content/           # 199 lessons + blog + practice + glossary
-│   │   │   ├── foundations/      # Foundations, research methods, and capstones (48)
-│   │   │   ├── preparation/      # Free 0-to-1 prerequisite on-ramp (14)
-│   │   │   ├── fundamentals/     # Transformer and inference fundamentals (42)
-│   │   │   ├── agents/           # Agent systems and orchestration (16)
-│   │   │   ├── retrieval/        # Retrieval and RAG systems (9)
-│   │   │   ├── llmops/           # Evaluation, privacy, deployment, monitoring (18)
-│   │   │   ├── training/         # Training and adaptation (20)
-│   │   │   ├── system-design/    # System design capstones (11)
+│   │   ├── content/           # 140 lessons + blog + practice + glossary
+│   │   │   ├── foundations/      # Math, classical ML, and production ML foundations (22)
+│   │   │   ├── preparation/      # Free 0-to-1 prerequisite on-ramp (11)
+│   │   │   ├── fundamentals/     # Transformer and inference fundamentals (37)
+│   │   │   ├── agents/           # Agent systems and orchestration (13)
+│   │   │   ├── retrieval/        # Retrieval and RAG systems (5)
+│   │   │   ├── llmops/           # Evaluation, privacy, deployment, monitoring (11)
+│   │   │   ├── training/         # Training and adaptation (18)
+│   │   │   ├── system-design/    # System design and multimodal architectures (9)
 │   │   │   ├── interviewing/     # AI lab interview preparation (4)
-│   │   │   ├── projects/         # AI infrastructure project deep dives (17)
+│   │   │   ├── projects/         # AI infrastructure project deep dives (10)
 │   │   │   ├── blog/             # Blog post bundles (23)
 │   │   │   └── practice/         # Coding practice problems (47)
 │   │   └── lib/               # Content loaders, Supabase clients, practice sandbox & proxy

@@ -4,7 +4,7 @@
   "title": "Sentence Embeddings & Contrastive Loss",
   "slug": "sentence-embeddings-contrastive-learning",
   "category": "Embeddings & Vector Search",
-  "difficulty": "Hard",
+  "difficulty": "Medium",
   "coverImage": "social_banner.png",
   "companies": [
     "Google",
@@ -25,8 +25,8 @@
     "STS vs MTEB evaluation and task coverage",
     "Two-stage retrieval: bi-encoder + cross-encoder reranking"
   ],
-  "section": "Transformer Deep Dives",
-  "order": 1
+  "section": "Core LLM Foundations",
+  "order": 4
 }
 ---
 
@@ -536,4 +536,4 @@ Stage 1 (first-stage recall). A cross-encoder can only reorder candidates that e
 ]
 ```
 
-> **Next:** Continue to [Embedding Similarity & Quantization](/learn/embeddings-cosine-dot-product-quantization). InfoNCE, hard negatives, and encoder architecture shape reusable sentence vectors. Next you'll keep those vectors fixed and score them with cosine versus dot product alongside the quantization tradeoffs that govern index memory and recall.
+> **Next:** Continue to [The Transformer Architecture End-to-End](/learn/transformer-architecture-end-to-end).

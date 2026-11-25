@@ -6,11 +6,24 @@
   "section": "Production ML Systems",
   "category": "MLOps & Deployment",
   "difficulty": "Medium",
-  "order": 6,
+  "order": 4,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
-  "companies": ["Google", "Amazon", "Uber", "DoorDash"],
+  "companies": [
+    "Google",
+    "Amazon",
+    "Uber",
+    "DoorDash"
+  ],
   "shortDescription": "Catch stale or broken inputs in real time, distinguish data drift from concept drift, join delayed labels cleanly, and protect model rollouts with canary checks and rollback.",
-  "keyConceptsTested": ["input health", "data drift", "concept drift", "training-serving skew", "delayed labels", "continuous training", "rollback"]
+  "keyConceptsTested": [
+    "input health",
+    "data drift",
+    "concept drift",
+    "training-serving skew",
+    "delayed labels",
+    "continuous training",
+    "rollback"
+  ]
 }
 ---
 
@@ -564,4 +577,4 @@ Not necessarily. The prediction estimated untreated risk, while observed outcome
 ]
 ```
 
-> **Next:** Continue to [The Bitter Lesson & Compute](/learn/bitter-lesson-compute-over-heuristics). These monitoring checks let you test whether a more complex model actually earns its place. Next, examine the historical case for methods that improve with more data and compute rather than more hand-written rules.
+> **Next:** Continue to [Prompt Engineering Fundamentals](/learn/prompt-engineering-fundamentals).

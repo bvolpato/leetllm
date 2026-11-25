@@ -195,9 +195,9 @@ describe("LearningPlanBuilder", () => {
         fireEvent.click(screen.getByRole("button", { name: /Build my plan/i }))
 
         expect(await screen.findByRole("heading", { name: "AI Research Scientist" })).toBeTruthy()
-        expect(screen.getByText("45 lessons")).toBeTruthy()
-        expect(screen.getByText("Pre-register a research question")).toBeTruthy()
-        expect(screen.getByText(/reconstruct every planned comparison and rejection condition before seeing results/i)).toBeTruthy()
+        expect(screen.getByText("35 lessons")).toBeTruthy()
+        expect(screen.getByText("Design a controlled experiment and power plan")).toBeTruthy()
+        expect(screen.getByText(/reconstruct every planned comparison and rejection threshold/i)).toBeTruthy()
         expect(screen.getByRole("link", { name: /Start plan/i }).getAttribute("href")).toBe(
             "/learn/linear-algebra-machine-learning-deeper"
         )
@@ -212,9 +212,9 @@ describe("LearningPlanBuilder", () => {
         fireEvent.click(screen.getByRole("button", { name: /Build my plan/i }))
 
         expect(await screen.findByRole("heading", { name: "Production ML Systems" })).toBeTruthy()
-        expect(screen.getByText("25 lessons")).toBeTruthy()
+        expect(screen.getByText("17 lessons")).toBeTruthy()
         expect(screen.getByRole("link", { name: /Start plan/i }).getAttribute("href")).toBe(
-            "/learn/python-for-ai-engineering"
+            "/learn/numpy-and-tensor-shapes"
         )
     })
 })

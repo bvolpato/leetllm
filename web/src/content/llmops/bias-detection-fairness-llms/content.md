@@ -24,7 +24,7 @@
     "Selective labels and judge position or sycophancy bias",
     "Subgroup calibration, threshold post-processing, and continuous drift gates"
   ],
-  "section": "Applied LLM Engineering",
+  "section": "Applied LLM Engineering & RAG",
   "order": 16
 }
 ---
@@ -494,4 +494,4 @@ Look carefully at what logit-space Platt calibration accomplishes cleanly on hel
 ]
 ```
 
-> **Next:** Continue to [Hallucination Detection & Mitigation](/learn/hallucination-detection-mitigation). Fair routing guarantees consistent treatment across user cohorts, yet a system can still route both groups equally into fluent responses that contradict retrieved facts unless claims are checked individually.
+> **Next:** Continue to [Prompt Injection & Runtime Guardrails](/learn/prompt-injection-defense-strategies).

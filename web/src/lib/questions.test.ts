@@ -63,11 +63,11 @@ describe('Open Content Access', () => {
         expect(getQuestionForUser('does-not-exist', true)).toBeUndefined()
     })
 
-    test('core setup articles are included in public question lookup', () => {
+    test('core foundation articles are included in public question lookup', () => {
         const setupSlugs = [
-            'git-shell-linux-reproducible-ai',
-            'docker-containerization-reproducible-ai',
-            'python-for-ai-engineering',
+            'numpy-and-tensor-shapes',
+            'linear-algebra-machine-learning-deeper',
+            'calculus-gradients-backpropagation-optimization',
         ]
         const publicSlugs = new Set(getQuestions().map(q => q.slug))
 
@@ -264,91 +264,72 @@ describe('Roadmap Ordering', () => {
     const difficultyRank: Record<string, number> = { Easy: 0, Medium: 1, Hard: 2 }
 
     const expectedSectionOrder = [
-        'Computing Foundations',
-        'Math & Statistics',
-        'Preparation & Prerequisites',
-        'ML Algorithms & Evaluation',
-        'Production ML Systems',
+        'Math & Tensor Foundations',
+        'Classical ML & Evaluation',
+        'Deep Learning Foundations',
         'Core LLM Foundations',
-        'Applied LLM Engineering',
-        'Portfolio Capstones',
-        'Transformer Deep Dives',
-        'Advanced Training & Adaptation',
+        'Production ML Systems',
+        'Applied LLM Engineering & RAG',
+        'Transformer & Multimodal Architectures',
+        'Training, Fine-Tuning & Alignment',
         'Advanced Agents & Retrieval',
-        'Inference & Production Scale',
-        'System Design Capstones',
+        'GPU Systems & LLM Inference',
+        'AI System Design',
         'AI Lab Interviewing',
         'Project Deep Dives',
     ]
 
     const preparationOrder = [
-        'git-shell-linux-reproducible-ai',
-        'docker-containerization-reproducible-ai',
-        'python-for-ai-engineering',
         'numpy-and-tensor-shapes',
-        'cuda-gpu-computing-for-ml',
-        'mps-metal-mac-ml-training',
-        'data-structures-for-ai-systems',
-        'sql-databases-data-modeling-ai',
-        'algorithms-complexity-ml-engineers',
-        'calculus-gradients-backpropagation-optimization',
-        'vectors-matrices-tensors',
         'linear-algebra-machine-learning-deeper',
-        'optimization-algorithms-adam-schedulers',
+        'calculus-gradients-backpropagation-optimization',
         'probability-for-machine-learning',
-        'bayesian-inference-priors-posteriors',
-        'statistics-estimation-uncertainty',
-        'distributions-sampling-simulation',
         'hypothesis-tests-confidence-intervals-passk',
+        'linear-regression-from-scratch',
+        'logistic-regression-classification-metrics-from-scratch',
+        'decision-trees-random-forests-gradient-boosting',
+        'clustering-pca-representation-learning',
+        'cross-validation-leakage-generalization',
+        'dataset-pipelines-data-quality',
+        'experiment-design-ab-testing',
+        'causal-inference-confounding-counterfactuals',
         'neural-networks-from-scratch',
-        'convolutional-neural-networks-from-scratch',
-        'training-backpropagation-gradient-descent',
+        'pytorch-training-loops',
         'softmax-cross-entropy-optimization',
+        'optimization-algorithms-adam-schedulers',
+        'convolutional-neural-networks-from-scratch',
         'rnns-lstms-grus-sequence-modeling',
         'autoencoders-vaes-generative-modeling-basics',
-        'transformer-architecture-end-to-end',
-        'language-modeling-next-token-prediction',
-        'gpt-to-modern-llms',
-        'prompt-engineering-fundamentals',
-        'calling-llm-apis-production',
-        'first-ai-app-end-to-end',
-        'llm-lifecycle-training-to-deployment',
     ]
 
     const minimumMustShipSlugs = [
-        'git-shell-linux-reproducible-ai',
-        'docker-containerization-reproducible-ai',
-        'python-for-ai-engineering',
-        'calculus-gradients-backpropagation-optimization',
         'numpy-and-tensor-shapes',
-        'cuda-gpu-computing-for-ml',
-        'data-structures-for-ai-systems',
+        'linear-algebra-machine-learning-deeper',
+        'calculus-gradients-backpropagation-optimization',
         'probability-for-machine-learning',
-        'bayesian-inference-priors-posteriors',
-        'statistics-estimation-uncertainty',
-        'distributions-sampling-simulation',
         'hypothesis-tests-confidence-intervals-passk',
         'linear-regression-from-scratch',
         'cross-validation-leakage-generalization',
         'clustering-pca-representation-learning',
-        'core-retrieval-algorithms',
-        'decoding-algorithms',
         'experiment-design-ab-testing',
-        'pytorch-training-loops',
         'dataset-pipelines-data-quality',
+        'neural-networks-from-scratch',
+        'pytorch-training-loops',
+        'transformer-architecture-end-to-end',
+        'decoding-strategies-greedy-beam-nucleus',
+        'feature-engineering-production-ml',
+        'monitoring-predictive-models',
         'calling-llm-apis-production',
         'first-ai-app-end-to-end',
         'file-ingestion-pdfs-html-ocr-markdown',
+        'core-retrieval-algorithms',
+        'design-production-rag-pipeline',
+        'scaled-dot-product-attention',
+        'cuda-gpu-computing-for-ml',
+        'build-gpt-from-scratch-lab',
         'ai-coding-workflow-with-agents',
-        'capstone-document-qa-product',
-        'capstone-evaluation-dashboard',
-        'capstone-fine-tuned-classifier',
-        'capstone-production-llm-agent',
-        'feature-engineering-production-ml',
-        'monitoring-predictive-models',
-        'capstone-delivery-eta-prediction',
-        'capstone-damaged-package-vision-classifier',
-        'capstone-production-ml-pipeline',
+        'inference-mechanics-ttft-tps-kv-cache',
+        'flashattention-memory-efficient-attention',
     ]
 
     test('sections follow the 0-to-1 learning path', () => {
@@ -374,18 +355,17 @@ describe('Roadmap Ordering', () => {
     test('roadmap keeps dependency milestones in teaching order', () => {
         const slugs = getQuestionsForUser(true).map((q) => q.slug)
 
-        expect(slugs.indexOf('vectors-matrices-tensors')).toBeLessThan(slugs.indexOf('linear-algebra-machine-learning-deeper'))
-        expect(slugs.indexOf('linear-regression-from-scratch')).toBeLessThan(slugs.indexOf('bitter-lesson-compute-over-heuristics'))
-        expect(slugs.indexOf('mcp-tool-protocol-standards')).toBeLessThan(slugs.indexOf('long-context-engineering-beyond-management'))
-        expect(slugs.indexOf('long-context-engineering-beyond-management')).toBeLessThan(slugs.indexOf('prompt-injection-defense-strategies'))
-        expect(slugs.indexOf('experiment-tracking-mlflow-wandb')).toBeLessThan(slugs.indexOf('programmatic-prompt-optimization-dspy'))
-        expect(slugs.indexOf('programmatic-prompt-optimization-dspy')).toBeLessThan(slugs.indexOf('model-versioning-continuous-deployment'))
-        expect(slugs.indexOf('supervised-fine-tuning-pipeline')).toBeLessThan(slugs.indexOf('mixed-precision-training-loss-scaling'))
+        expect(slugs.indexOf('numpy-and-tensor-shapes')).toBeLessThan(slugs.indexOf('linear-algebra-machine-learning-deeper'))
+        expect(slugs.indexOf('linear-regression-from-scratch')).toBeLessThan(slugs.indexOf('neural-networks-from-scratch'))
+        expect(slugs.indexOf('pytorch-training-loops')).toBeLessThan(slugs.indexOf('transformer-architecture-end-to-end'))
+        expect(slugs.indexOf('sentence-embeddings-contrastive-learning')).toBeLessThan(slugs.indexOf('design-production-rag-pipeline'))
+        expect(slugs.indexOf('structured-output-constrained-generation')).toBeLessThan(slugs.indexOf('function-calling-tool-use-llms'))
+        expect(slugs.indexOf('function-calling-tool-use-llms')).toBeLessThan(slugs.indexOf('mcp-tool-protocol-standards'))
         expect(slugs.indexOf('mixed-precision-training-loss-scaling')).toBeLessThan(slugs.indexOf('distributed-training-fsdp-deepspeed-zero'))
-        expect(slugs.indexOf('agent-failure-states-retry-fallback')).toBeLessThan(slugs.indexOf('recursive-language-models-rlm'))
-        expect(slugs.indexOf('recursive-language-models-rlm')).toBeLessThan(slugs.indexOf('multi-agent-dags-langgraph-orchestration'))
-        expect(slugs.indexOf('multi-agent-dags-langgraph-orchestration')).toBeLessThan(slugs.indexOf('capstone-production-llm-agent'))
-        expect(slugs.indexOf('capstone-production-llm-agent')).toBeLessThan(slugs.indexOf('inference-mechanics-ttft-tps-kv-cache'))
+        expect(slugs.indexOf('introduction-to-reinforcement-learning-fundamentals')).toBeLessThan(slugs.indexOf('rlhf-dpo-aligning-language-models'))
+        expect(slugs.indexOf('rlvr-verifiable-rewards-training')).toBeLessThan(slugs.indexOf('reasoning-models-test-time-compute'))
+        expect(slugs.indexOf('agentic-architectures-react-plan-execute')).toBeLessThan(slugs.indexOf('agent-evaluation-benchmarks'))
+        expect(slugs.indexOf('agent-evaluation-benchmarks')).toBeLessThan(slugs.indexOf('inference-mechanics-ttft-tps-kv-cache'))
     })
 
     test('minimum degree-to-job chapters are published in the roadmap', () => {
@@ -461,7 +441,7 @@ describe('Roadmap Ordering', () => {
 
         expect(mlEnd).toBeLessThan(coreStart)
         expect(coreStart).toBeLessThan(coreEnd)
-        expect(toolUse?.section).toBe('Applied LLM Engineering')
+        expect(toolUse?.section).toBe('Applied LLM Engineering & RAG')
         expect(slugs.indexOf('chain-of-thought-advanced-prompting')).toBeLessThan(slugs.indexOf('function-calling-tool-use-llms'))
         expect(slugs.indexOf('function-calling-tool-use-llms')).toBeLessThan(slugs.indexOf('mcp-tool-protocol-standards'))
     })

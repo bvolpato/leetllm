@@ -3,10 +3,10 @@
   "id": "convolutional-neural-networks-from-scratch",
   "title": "CNNs from Scratch",
   "slug": "convolutional-neural-networks-from-scratch",
-  "section": "Preparation & Prerequisites",
+  "section": "Deep Learning Foundations",
   "category": "Model Architecture",
   "difficulty": "Easy",
-  "order": 3,
+  "order": 5,
   "coverImage": "illustrations/_generated/conv_kernels_feature_maps_dark.png",
   "companies": [
     "Google",
@@ -819,4 +819,4 @@ With zero bias, a zero-sum edge kernel gives zero response when its whole window
 ]
 ```
 
-> **Next:** Continue to [Training & Backpropagation](/learn/training-backpropagation-gradient-descent). A CNN score in this lesson comes from fixed kernel weights, including which pooling cell would receive an error signal. The next lesson calculates how prediction error changes those weights so useful detectors are learned from data.
+> **Next:** Continue to [RNNs, LSTMs, GRUs, and Sequence Modeling](/learn/rnns-lstms-grus-sequence-modeling).

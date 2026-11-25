@@ -3,10 +3,10 @@
   "id": "supervised-fine-tuning-pipeline",
   "title": "Supervised Fine-Tuning Pipeline",
   "slug": "supervised-fine-tuning-pipeline",
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 6,
+  "order": 11,
   "coverImage": "illustrations/_generated/sft_pipeline_dark.png",
   "companies": [
     "OpenAI",
@@ -515,7 +515,7 @@ When an SFT run underperforms, check these six failure modes before sweeping lea
 ]
 ```
 
-> **Next:** Continue to [Mixed Precision Training](/learn/mixed-precision-training-loss-scaling). The run masks response tokens, keeps a grouped split honest, and resumes from more than the weights. Arithmetic precision changes those same updates, and dynamic loss scaling adds state a resumable run has to keep.
+> **Next:** Continue to [LoRA & Parameter-Efficient Tuning](/learn/lora-parameter-efficient-fine-tuning).
 
 <!-- leetllm: edition:reference:end -->
 

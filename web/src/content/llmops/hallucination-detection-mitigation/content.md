@@ -3,7 +3,7 @@
   "id": "hallucination-detection-mitigation",
   "title": "Hallucination Detection & Mitigation",
   "slug": "hallucination-detection-mitigation",
-  "section": "Applied LLM Engineering",
+  "section": "Applied LLM Engineering & RAG",
   "category": "Alignment & Safety",
   "difficulty": "Medium",
   "coverImage": "illustrations/_generated/hallucination_pipeline_dark.png",
@@ -15,7 +15,7 @@
     "Microsoft"
   ],
   "shortDescription": "Separate factual claims from retrieved evidence using atomic claim verification, semantic consistency, calibrated NLI scoring, and conformal risk-coverage gates.",
-  "order": 17,
+  "order": 15,
   "keyConceptsTested": [
     "Context faithfulness versus external factual accuracy",
     "Atomic claim decomposition and partial pruning",
@@ -576,4 +576,4 @@ Even well-calibrated verifiers degrade in production when surrounding infrastruc
 ]
 ```
 
-> **Next:** Continue to [LLM Observability & Monitoring](/learn/observability-monitoring-llm-systems). Record claim-level verifier probabilities, pruned clause counts, document chunk identifiers, and abstention decisions inside your GenAI telemetry spans so silent retrieval or calibration drift surfaces quickly in production dashboards.
+> **Next:** Continue to [Bias & Fairness in LLMs](/learn/bias-detection-fairness-llms).

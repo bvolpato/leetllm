@@ -3,12 +3,18 @@
   "id": "first-ai-app-end-to-end",
   "title": "First AI App End-to-End",
   "slug": "first-ai-app-end-to-end",
-  "section": "Preparation & Prerequisites",
+  "section": "Applied LLM Engineering & RAG",
   "category": "MLOps & Deployment",
-  "difficulty": "Easy",
-  "order": 10,
+  "difficulty": "Medium",
+  "order": 3,
   "coverImage": "illustrations/_generated/app_flow_dark.png",
-  "companies": ["OpenAI", "Anthropic", "Google", "Microsoft", "Amazon"],
+  "companies": [
+    "OpenAI",
+    "Anthropic",
+    "Google",
+    "Microsoft",
+    "Amazon"
+  ],
   "shortDescription": "Build a message classifier one layer at a time: train a model, serve predictions over HTTP, add a browser form, handle uncertainty, and stream an LLM fallback.",
   "keyConceptsTested": [
     "Text features, learned weights, and model predictions",
@@ -612,4 +618,4 @@ Receiving local_signal confirms only that the server started a running trace and
 ]
 ```
 
-> **Next:** Continue to [The LLM Lifecycle](/learn/llm-lifecycle-training-to-deployment) to see how local classifiers, generative models, evaluation suites, and deployment monitoring connect across an entire model's lifetime.
+> **Next:** Continue to [CoT, ToT & Self-Consistency Prompting](/learn/chain-of-thought-advanced-prompting).

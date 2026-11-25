@@ -123,7 +123,7 @@ stale entry reused: False
 ```
 <!-- leetllm: output:end -->
 
-Because the cache key includes the policy version, an answer cached from A-v1 can't be returned once A-v2 becomes the current record. Enforce document permissions before sending evidence to the model or another service not authorized to see it. Check them again when a link or tool reads the source. A filter after generation is too late to prevent disclosure through the model request. Scope alone is also insufficient: A-v1 is allowed but stale. The [Document QA capstone](/learn/capstone-document-qa-product) builds the ingestion, retrieval, citation, and abstention path.
+Because the cache key includes the policy version, an answer cached from A-v1 can't be returned once A-v2 becomes the current record. Enforce document permissions before sending evidence to the model or another service not authorized to see it. Check them again when a link or tool reads the source. A filter after generation is too late to prevent disclosure through the model request. Scope alone is also insufficient: A-v1 is allowed but stale. The [Document QA capstone](/learn) builds the ingestion, retrieval, citation, and abstention path.
 
 ### Trusted tools and actions
 
@@ -191,8 +191,8 @@ Choose a study path that matches the work you want to show. These routes suggest
 | Target | Curriculum path | Evidence to finish with |
 |---|---|---|
 | Applied AI | [First AI App End-to-End](/learn/first-ai-app-end-to-end) → [File Ingestion for AI](/learn/file-ingestion-pdfs-html-ocr-markdown) → [Function Calling & Tool Use](/learn/function-calling-tool-use-llms) → [LLM Benchmarks & Limitations](/learn/llm-evaluation-benchmarks-limitations) | Deployed workflow with traces, <span data-glossary="eval-row">eval rows</span>, failure handling, and rollback |
-| Machine-learning or platform engineering | [PyTorch Training Loops](/learn/pytorch-training-loops) → [Dataset Pipelines and Data Quality](/learn/dataset-pipelines-data-quality) → [Model Versioning & Deployment](/learn/model-versioning-continuous-deployment) → [Inference: TTFT, TPS & KV Cache](/learn/inference-mechanics-ttft-tps-kv-cache) | Reproducible train-or-serve path with reliability and performance evidence |
-| Research engineering | [The Transformer Architecture End-to-End](/learn/transformer-architecture-end-to-end) → [Distributed Training: FSDP & ZeRO](/learn/distributed-training-fsdp-deepspeed-zero) → [Capstone: Reproducible ML Study](/learn/capstone-reproducible-research-study) | Baseline, implementation, controlled experiments, uncertainty, and artifacts |
+| Machine-learning or platform engineering | [PyTorch Training Loops](/learn/pytorch-training-loops) → [Dataset Pipelines and Data Quality](/learn/dataset-pipelines-data-quality) → [Model Versioning & Deployment](/learn/observability-monitoring-llm-systems) → [Inference: TTFT, TPS & KV Cache](/learn/inference-mechanics-ttft-tps-kv-cache) | Reproducible train-or-serve path with reliability and performance evidence |
+| Research engineering | [The Transformer Architecture End-to-End](/learn/transformer-architecture-end-to-end) → [Distributed Training: FSDP & ZeRO](/learn/distributed-training-fsdp-deepspeed-zero) → [Capstone: Reproducible ML Study](/learn) | Baseline, implementation, controlled experiments, uncertainty, and artifacts |
 | Data science moving toward AI systems | [Probability for Machine Learning](/learn/probability-for-machine-learning) → [Experiment Design and A/B Testing](/learn/experiment-design-ab-testing) → [PyTorch Training Loops](/learn/pytorch-training-loops) | Analysis or model tied to honest validation and a decision |
 
 Framework names will change. The durable skills are task definition, data and permission scoping, model behavior, evaluation, systems performance, and evidence-backed communication.

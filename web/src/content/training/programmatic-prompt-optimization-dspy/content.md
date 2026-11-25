@@ -6,13 +6,33 @@
   "shortDescription": "A keyword match can reward a RAG answer that cites a paper without supporting the claim. Build a typed DSPy verifier, write a strict metric, separate source-family splits, and control the compiled artifact at runtime.",
   "difficulty": "Medium",
   "category": "Prompt Engineering",
-  "section": "Applied LLM Engineering",
-  "companies": ["Databricks", "Google", "Meta", "Microsoft", "Anthropic"],
-  "prerequisites": ["prompt-engineering-fundamentals", "chain-of-thought-advanced-prompting", "llm-as-judge-automated-evaluation", "experiment-tracking-mlflow-wandb"],
-  "order": 20,
+  "section": "Applied LLM Engineering & RAG",
+  "companies": [
+    "Databricks",
+    "Google",
+    "Meta",
+    "Microsoft",
+    "Anthropic"
+  ],
+  "prerequisites": [
+    "prompt-engineering-fundamentals",
+    "chain-of-thought-advanced-prompting"
+  ],
+  "order": 5,
   "coverImage": "social_banner.png",
-  "keyConceptsTested": ["DSPy signatures and modules", "Metric design", "BootstrapFewShot acceptance", "MIPROv2 instruction and demonstration search", "Selection overfitting", "Compiled artifact and runtime model"],
-  "relatedQuestions": ["experiment-tracking-mlflow-wandb", "llm-as-judge-automated-evaluation", "model-versioning-continuous-deployment", "prompt-engineering-fundamentals"]
+  "keyConceptsTested": [
+    "DSPy signatures and modules",
+    "Metric design",
+    "BootstrapFewShot acceptance",
+    "MIPROv2 instruction and demonstration search",
+    "Selection overfitting",
+    "Compiled artifact and runtime model"
+  ],
+  "relatedQuestions": [
+    "llm-as-judge-automated-evaluation",
+    "observability-monitoring-llm-systems",
+    "prompt-engineering-fundamentals"
+  ]
 }
 ---
 
@@ -20,7 +40,7 @@ A RAG citation verifier reads one retrieved abstract: *Paper `P-4412` reports pe
 
 If you run automated prompt search against that weak evaluator, the optimizer will happily learn to hallucinate citations whenever a paper ID is in context. Fixing that failure requires separating four concerns that giant hand-edited prompt strings usually tangle together: input/output fields, execution flow, instructions, and few-shot demonstrations.
 
-<span data-glossary="dspy">DSPy</span> expresses LLM pipelines as composable Python programs.[^khattab2023] Its optimizers search over instructions and demonstrations against an explicit evaluation metric while keeping your program's control flow fixed. The [experiment-tracking lesson](/learn/experiment-tracking-mlflow-wandb) showed how to record run comparisons; here you will build a citation verifier in DSPy, see how bootstrapping and joint search actually work, catch validation overfitting, and bind the right model to a saved prompt artifact.
+<span data-glossary="dspy">DSPy</span> expresses LLM pipelines as composable Python programs.[^khattab2023] Its optimizers search over instructions and demonstrations against an explicit evaluation metric while keeping your program's control flow fixed. The [experiment-tracking lesson](/learn) showed how to record run comparisons; here you will build a citation verifier in DSPy, see how bootstrapping and joint search actually work, catch validation overfitting, and bind the right model to a saved prompt artifact.
 
 ## Give the program a narrow job
 
@@ -615,4 +635,4 @@ Start from a fresh student with no attached demonstrations. Zero demonstration l
 ]
 ```
 
-> **Next:** Continue to [Model Versioning & Deployment](/learn/model-versioning-continuous-deployment). You'll package the compiled prompt state with its model pin, evaluation results, serving configuration, and previous known-good fallback so the live system matches the tested one.
+> **Next:** Continue to [Structured Output Generation](/learn/structured-output-constrained-generation).

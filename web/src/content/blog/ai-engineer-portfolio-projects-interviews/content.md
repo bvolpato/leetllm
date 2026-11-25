@@ -55,7 +55,7 @@ Try one controlled change, such as preserving headings during chunking. Replay t
 
 Citation presence is easy to check mechanically; citation support is a separate judgment. Start with manually reviewed expected claims for the small corpus. Don't treat a valid source ID as proof that an answer is grounded.
 
-Stop the first version at cited answers and explicit abstentions. Uploads, authentication, and multiple document formats can wait. The [Document QA capstone](/learn/capstone-document-qa-product) expands this into a product with explicit evidence-selection and abstention rules. Evaluate cited answers across a baseline and candidate before trusting a comparison. Did the next change help, or did the report hide a regression?
+Stop the first version at cited answers and explicit abstentions. Uploads, authentication, and multiple document formats can wait. The [Document QA capstone](/learn) expands this into a product with explicit evidence-selection and abstention rules. Evaluate cited answers across a baseline and candidate before trusting a comparison. Did the next change help, or did the report hide a regression?
 
 ## 2. Evaluation dashboard: test the report itself
 
@@ -164,7 +164,7 @@ The candidate fixes missing evidence and policy precedence, but now follows a re
 That changes the acceptance rules after seeing the result and hides a regression. Keep the pinned manifest for this comparison, inspect the attack trace, and fix the isolation failure. If requirements legitimately change, version the new manifest and rerun both systems under it; the old 75% figure tells you nothing about performance on the updated suite.
 ```
 
-For the first dashboard, support importing two result files, rejecting incompatible manifests, and opening failed rows beside their outputs and grading reasons. A static HTML report is enough. The [Eval Dashboard capstone](/learn/capstone-evaluation-dashboard) adds comparison validity and release-gate behavior in more detail. A report can reject a bad comparison and still say nothing about a person in the loop. What happens to an approval after someone edits the draft?
+For the first dashboard, support importing two result files, rejecting incompatible manifests, and opening failed rows beside their outputs and grading reasons. A static HTML report is enough. The [Eval Dashboard capstone](/learn) adds comparison validity and release-gate behavior in more detail. A report can reject a bad comparison and still say nothing about a person in the loop. What happens to an approval after someone edits the draft?
 
 ## 3. Support copilot: bind approval to the exact draft
 
@@ -182,7 +182,7 @@ Demonstrate the approval guarantee with three scenarios:
 
 Persist the state instead of using an in-memory UI toggle. For this portfolio version, the executor only appends to a local outbox. Label that simulation clearly. If you later add real sending, keep the executor outside the model's tool set and validate the approval, recipient, and exact content at execution time.
 
-The [Human-in-the-Loop lesson](/learn/human-in-the-loop-agent-architecture) develops the durable pause-and-resume mechanism. Your project can stay focused on proving that an edit, restart, or duplicate request doesn't bypass review. The same question shows up in a repository. Can a proposed fix stay inside a file scope the assistant is not allowed to widen?
+The [Human-in-the-Loop lesson](/learn/agent-failure-states-retry-fallback) develops the durable pause-and-resume mechanism. Your project can stay focused on proving that an edit, restart, or duplicate request doesn't bypass review. The same question shows up in a repository. Can a proposed fix stay inside a file scope the assistant is not allowed to widen?
 
 ## 4. Repository assistant: repair one bug inside the allowed scope
 

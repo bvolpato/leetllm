@@ -3,9 +3,9 @@
   "id": "agent-evaluation-benchmarks",
   "title": "Evaluating AI Agents",
   "slug": "agent-evaluation-benchmarks",
-  "section": "Applied LLM Engineering",
+  "section": "Advanced Agents & Retrieval",
   "category": "LLM Agents & Tool Use",
-  "difficulty": "Medium",
+  "difficulty": "Hard",
   "coverImage": "illustrations/_generated/benchmark_matrix_dark.png",
   "companies": [
     "OpenAI",
@@ -27,7 +27,7 @@
     "Mapping public benchmarks to product surfaces",
     "Versioned Terminal-Bench and CLI agent evaluation"
   ],
-  "order": 10
+  "order": 12
 }
 ---
 
@@ -1038,4 +1038,4 @@ Reject the invalid repeatability metric before comparing thresholds. A bare less
 ]
 ```
 
-> **Next:** Continue to [Production RAG Pipelines](/learn/design-production-rag-pipeline). The same evaluation discipline applies when an answerer retrieves documents: a fluent citation can still expose evidence the caller wasn't authorized to read. Retrieval, permissions, and abstention need their own private cases.
+> **Next:** Continue to [Inference: TTFT, TPS & KV Cache](/learn/inference-mechanics-ttft-tps-kv-cache).

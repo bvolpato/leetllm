@@ -3,12 +3,17 @@
   "id": "prompt-engineering-fundamentals",
   "title": "Prompt Engineering Fundamentals",
   "slug": "prompt-engineering-fundamentals",
-  "section": "Preparation & Prerequisites",
+  "section": "Applied LLM Engineering & RAG",
   "category": "NLP Fundamentals",
-  "difficulty": "Easy",
-  "order": 8,
+  "difficulty": "Medium",
+  "order": 1,
   "coverImage": "illustrations/_generated/prompting_dark.png",
-  "companies": ["Google", "Meta", "OpenAI", "Anthropic"],
+  "companies": [
+    "Google",
+    "Meta",
+    "OpenAI",
+    "Anthropic"
+  ],
   "shortDescription": "Turn an ambiguous request into a clear task, compare real model responses, and learn how instructions, examples, context, and output checks work together.",
   "keyConceptsTested": [
     "Task definition and label meaning",
@@ -420,4 +425,4 @@ For your own task, start by writing down what a correct answer would mean. Give 
 ]
 ```
 
-> **Next:** Continue to [Calling LLM APIs in Production](/learn/calling-llm-apis-production). You now have a task definition, a prompt, and a way to inspect its answers. The next lesson puts model requests into an application and handles the timeouts, limits, and response formats encountered along the way.
+> **Next:** Continue to [Calling LLM APIs in Production](/learn/calling-llm-apis-production).

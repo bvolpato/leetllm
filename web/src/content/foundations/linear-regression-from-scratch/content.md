@@ -3,9 +3,9 @@
   "id": "linear-regression-from-scratch",
   "title": "Linear Regression from Scratch",
   "slug": "linear-regression-from-scratch",
-  "section": "ML Algorithms & Evaluation",
+  "section": "Classical ML & Evaluation",
   "category": "Model Architecture",
-  "difficulty": "Medium",
+  "difficulty": "Easy",
   "order": 1,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
@@ -34,7 +34,7 @@
 
 Five latency measurements climb smoothly from 118 ms at 100 tokens to 198 ms at 500 tokens. Fit a straight line and you get $R^2 = 0.9965$, which looks like textbook perfection until you zoom in on the residuals and spot a clean arch hiding underneath.
 
-Linear regression is the simplest place to watch the full machinery of machine learning work in plain sight: orthogonal projection, iterative gradient descent, loss-surface geometry, regularization, and held-out evaluation. Building on [linear algebra](/learn/linear-algebra-machine-learning-deeper) and [Training & Backpropagation](/learn/training-backpropagation-gradient-descent), we will derive both the closed-form solution and gradient descent on the same five measurements, watch when a solver breaks, and see why a near-perfect training score can still steer extrapolation off course.
+Linear regression is the simplest place to watch the full machinery of machine learning work in plain sight: orthogonal projection, iterative gradient descent, loss-surface geometry, regularization, and held-out evaluation. Building on [linear algebra](/learn/linear-algebra-machine-learning-deeper) and [Training & Backpropagation](/learn/calculus-gradients-backpropagation-optimization), we will derive both the closed-form solution and gradient descent on the same five measurements, watch when a solver breaks, and see why a near-perfect training score can still steer extrapolation off course.
 
 ## Predicting latency from retrieved evidence
 
@@ -1016,7 +1016,7 @@ The five latencies exhibit a stable update, a diverging update, and a curvature 
 ]
 ```
 
-> **Next:** Continue to [Logistic Regression and Metrics](/learn/logistic-regression-classification-metrics-from-scratch). Linear regression fits continuous numbers like latency. Classification takes those linear scores, maps them through a logistic sigmoid into probabilities, and optimizes cross-entropy loss to decide whether a request succeeds or fails.
+> **Next:** Continue to [Logistic Regression and Metrics](/learn/logistic-regression-classification-metrics-from-scratch).
 
 <!-- leetllm: edition:reference:end -->
 

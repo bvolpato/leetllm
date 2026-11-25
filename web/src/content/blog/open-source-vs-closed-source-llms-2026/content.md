@@ -202,7 +202,7 @@ A public API question retrieves a restricted incident passage. The internal mode
 No. The restricted passage makes the assembled request ineligible under this scenario's data rules. A public question and an approved provider don't authorize that passage's transfer. The gateway needs an eligible internal route or a controlled failure. A newly assembled public-only request would need its own eligibility check and sufficient evidence to answer.
 ```
 
-Record the destination, rule version, source classifications, eligibility result, and fallback reason without copying restricted content into an unrestricted audit system. [Model Gateways, Routing, and Fallbacks](/learn/model-gateways-routing-fallbacks) develops these checks in more detail.
+Record the destination, rule version, source classifications, eligibility result, and fallback reason without copying restricted content into an unrestricted audit system. [Model Gateways, Routing, and Fallbacks](/learn/llm-cost-engineering-token-economics) develops these checks in more detail.
 
 ## Write down what would change the decision
 

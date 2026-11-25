@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 11,
+  "order": 1,
   "coverImage": "illustrations/_generated/tensor_view_strides_dark.png",
   "companies": [
     "PyTorch Foundation",
@@ -32,8 +32,7 @@
   "prerequisites": [
     "pytorch-training-loops",
     "transformer-architecture-end-to-end",
-    "distributed-training-fsdp-deepspeed-zero",
-    "deep-dive-megatron"
+    "distributed-training-fsdp-deepspeed-zero"
   ]
 }
 ---
@@ -773,4 +772,4 @@ Counting backends run FX graphs eagerly and `aot_eager` skips Inductor codegen. 
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - Transformers](/learn/deep-dive-transformers). PyTorch owns tensors, kernels, autograd, compilation, and distributed placement. Hugging Face Transformers layers model families, tokenizers, generation, and checkpoint interoperability on top of that substrate, turning a model repository into a forward pass running on the mechanisms you just traced.
+> **Next:** Continue to [Deep Dive - Transformers](/learn/deep-dive-transformers).

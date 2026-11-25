@@ -1,6 +1,0 @@
-Local Vizmatic artwork. Reproducible source: social_banner.tsx.
-From the repository's web/ directory, render the 1200x630 PNG at scale 1:
-
-pnpm exec tsx -e "import { renderBanner } from './src/content/foundations/batch-streaming-feature-pipelines/social_banner.tsx'; renderBanner('./src/content/foundations/batch-streaming-feature-pipelines/social_banner.png').then(console.log)"
-
-The article's two execution paths share the versioned job_sla_features_v1 definition. Event history supports bounded batch replay and incremental stream updates. Batch produces historical training rows at each row's prediction cutoff; streaming maintains current online state for scoring reads. The replay boundary checks both event time and availability. In the lab, ingestion and serving publication coincide; production replay needs actual feature availability and recorded routing/ordering semantics as described in the article. The diagram does not route latest-only online state backward into historical replay, nor imply that matching column names guarantees parity. No invented latency measurements, external service, or upload.

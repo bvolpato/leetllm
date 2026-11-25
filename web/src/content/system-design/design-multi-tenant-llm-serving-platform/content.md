@@ -6,7 +6,13 @@
   "category": "System Design",
   "difficulty": "Hard",
   "coverImage": "illustrations/_generated/multi_tenant_dark.png",
-  "companies": ["Google", "OpenAI", "Anthropic", "AWS", "Azure"],
+  "companies": [
+    "Google",
+    "OpenAI",
+    "Anthropic",
+    "AWS",
+    "Azure"
+  ],
   "shortDescription": "A long design review and a short incident summary share GPUs, but neither should wait unfairly or see the other's evidence. Design the identity, quota, scheduling, and cache controls.",
   "keyConceptsTested": [
     "Multi-tenant request routing",
@@ -32,19 +38,17 @@
     "continuous-batching-request-scheduling",
     "kv-cache-paged-attention-llm-serving",
     "prefix-caching-prompt-caching",
-    "model-gateways-routing-fallbacks",
+    "llm-cost-engineering-token-economics",
     "lora-parameter-efficient-fine-tuning",
-    "advanced-mlops-devops-ai"
+    "observability-monitoring-llm-systems"
   ],
   "relatedQuestions": [
     "design-llm-powered-search-engine",
-    "enterprise-rag-security-rbac-access-control",
     "design-production-rag-pipeline",
-    "semantic-caching-cost-latency-optimization",
-    "model-versioning-continuous-deployment",
+    "llm-cost-engineering-token-economics",
     "observability-monitoring-llm-systems"
   ],
-  "section": "System Design Capstones",
+  "section": "AI System Design",
   "order": 3
 }
 ---
@@ -731,4 +735,4 @@ Both principals must hold identical permissions over every document embedded in 
 ]
 ```
 
-> **Next:** Continue to [Design a Multi-Tenant Agent Sandbox & Code Interpreter Platform](/learn/design-agent-sandbox-platform). Trusted tenant identity and reader permissions keep A's private postmortem out of B's answer. The next design lets the model run code. That code must not see the host, the metadata service, or the previous job's files, and it has to be ready without a full VM boot.
+> **Next:** Continue to [Design a Multi-Tenant Agent Sandbox & Code Interpreter Platform](/learn/design-agent-sandbox-platform).

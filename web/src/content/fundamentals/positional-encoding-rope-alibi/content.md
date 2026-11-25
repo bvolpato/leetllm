@@ -3,13 +3,11 @@
   "id": "positional-encoding-rope-alibi",
   "title": "Positional Encoding: RoPE & ALiBi",
   "slug": "positional-encoding-rope-alibi",
-  "section": "Transformer Deep Dives",
+  "section": "Transformer & Multimodal Architectures",
   "category": "Transformer Architecture",
   "difficulty": "Hard",
-  "order": 5,
-  "prerequisites": [
-    "vision-transformers-image-encoders"
-  ],
+  "order": 2,
+  "prerequisites": [],
   "coverImage": "social_banner.png",
   "companies": [
     "Google",
@@ -367,4 +365,4 @@ Pick the insertion point that matches your architecture (additive embeddings, Ro
 ]
 ```
 
-> **Next:** Continue to [Layer Normalization: Pre-LN vs Post-LN](/learn/layer-normalization-pre-ln-post-ln). Position methods decide how attention scores depend on index and distance. <span data-glossary="layernorm">Layer normalization</span> decides whether the residual updates that follow those scores stay well scaled as the stack gets deeper.
+> **Next:** Continue to [Layer Normalization: Pre-LN vs Post-LN](/learn/layer-normalization-pre-ln-post-ln).

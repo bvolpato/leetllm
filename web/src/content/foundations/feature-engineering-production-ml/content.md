@@ -1,15 +1,20 @@
 ---
 {
   "id": "feature-engineering-production-ml",
-  "title": "Feature Engineering for Production ML",
+  "title": "Feature Engineering & Point-in-Time Pipelines",
   "slug": "feature-engineering-production-ml",
   "section": "Production ML Systems",
   "category": "MLOps & Deployment",
   "difficulty": "Medium",
   "order": 1,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
-  "companies": ["Amazon", "DoorDash", "Uber", "Google"],
-  "shortDescription": "Build point-in-time features, leak-free encodings, and versioned preprocessing pipelines that produce identical vectors offline and online.",
+  "companies": [
+    "Amazon",
+    "DoorDash",
+    "Uber",
+    "Google"
+  ],
+  "shortDescription": "Build point-in-time features, leak-free encodings, watermarked streaming aggregates, dual offline/online stores, and freshness SLAs that keep training and serving vectors identical.",
   "keyConceptsTested": [
     "point-in-time correctness",
     "temporal leakage",
@@ -17,19 +22,25 @@
     "out-of-fold target encoding",
     "robust scaling",
     "missingness indicators",
+    "dual offline/online feature stores",
+    "watermarks and late-event routing",
+    "freshness SLAs",
     "training-serving skew",
     "CACE principle"
+  ],
+  "aliases": [
+    "batch-streaming-feature-pipelines"
   ]
 }
 ---
 
-A classifier scores 0.98 ROC-AUC in a notebook, then collapses to near-random guessing the day it goes live. Usually the model architecture is fine. The bug lives in the feature table: offline training quietly peeked at future events, fitted a scaler across the entire dataset, or computed a feature slightly differently than the live serving path.
+A classifier scores 0.96 ROC-AUC in a notebook, then mispredicts live traffic the day it ships. Usually the model architecture is fine. The bug lives in the feature pipeline: offline training peeked at future events, fitted a scaler across the full dataset, or computed a feature slightly differently than the live serving path.
 
-Consider a concrete prediction task we will carry through this lesson. At `09:00`, a cluster scheduler predicts whether a running GPU training job (say `J-204`) will finish past its 24-hour completion deadline (its <span data-glossary="sla">service-level agreement (SLA)</span>). In the [dataset-pipeline lesson](/learn/dataset-pipelines-data-quality), rows were already assembled. Here telemetry is still arriving, so every **feature** (a numeric or categorical summary such as `hours_since_last_heartbeat`) must fix its time boundary, scaling parameters, and missing-data rules so the offline training row matches the live serving vector bit for bit.
+Consider one prediction task we will carry through this lesson. At `09:00`, a cluster scheduler predicts whether a running GPU training job (`J-204`) will finish past its 24-hour completion deadline (its <span data-glossary="sla">service-level agreement (SLA)</span>). Unlike the static tables in [dataset pipelines](/learn/dataset-pipelines-data-quality), telemetry here is still arriving. Every **feature** (such as `hours_since_last_heartbeat`) must lock down its time cutoff, scaling constants, missing-data rules, and serving freshness so offline training matches online inference bit for bit.
 
-## The temporal decision barrier and point-in-time correctness
+## Point-in-time correctness and the dual-clock barrier
 
-When a job finishes a day later, its completed database record holds both pre-decision telemetry and post-decision outcomes. Training on an unguarded snapshot lets the model read answers that never exist when the prediction is made:
+When a job finishes a day later, its completed record holds both pre-decision telemetry and post-decision outcomes. Training on an unguarded snapshot exposes answers that never exist at `09:00`:
 
 | Candidate field | Known at `09:00`? | Role |
 | --- | --- | --- |
@@ -37,16 +48,16 @@ When a job finishes a day later, its completed database record holds both pre-de
 | `queued_minutes` | yes | numeric feature |
 | `hours_since_last_heartbeat` | yes | numeric feature |
 | `queue_backlog` | yes | numeric feature |
-| `finished_at` | no | defines the target label (`missed_deadline`) |
+| `finished_at` | no | defines target label (`missed_deadline`) |
 | `post_deadline_alert` | no | excluded: leaks the outcome |
 
-Every feature must respect the <span data-glossary="prediction-timestamp">prediction timestamp</span>. Including a column created after `09:00` causes <span data-glossary="feature-leakage">feature leakage</span>.[^sklearn2026leakage] You can see how dramatically a single post-decision column inflates offline metrics while destroying real performance when that column is unavailable at serving time:
+Any column created after the <span data-glossary="prediction-timestamp">prediction timestamp</span> causes <span data-glossary="feature-leakage">feature leakage</span>.[^sklearn2026leakage] Watch what happens when a post-decision flag enters offline training, then defaults to zero at live `09:00` scoring time:
 
 <!-- leetllm: test, deps=numpy,scikit-learn, output=show -->
 ```python title="leakage-auc-collapse.py"
 import numpy as np
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import log_loss, roc_auc_score
 
 rng = np.random.default_rng(7)
 n = 1000
@@ -57,49 +68,47 @@ backlog = rng.poisson(12, n)
 logit = -2.2 + 0.025 * queued_min + 0.65 * hb_age_h + 0.05 * backlog
 y = rng.binomial(1, 1 / (1 + np.exp(-logit)))
 
-# A post-decision flag correlates heavily with the outcome offline,
-# but is always 0 (unknown) at live 09:00 scoring time.
-post_deadline_flag = np.where(rng.random(n) < 0.92, y, 1 - y)
+# Correlates strongly with y offline, but is always 0 at live 09:00 scoring.
+post_flag = np.where(rng.random(n) < 0.92, y, 1 - y)
 
 X_clean = np.column_stack([queued_min, hb_age_h, backlog])
-X_leaky_train = np.column_stack([X_clean[:700], post_deadline_flag[:700]])
-X_leaky_offline_test = np.column_stack([X_clean[700:], post_deadline_flag[700:]])
-X_leaky_live = np.column_stack([X_clean[700:], np.zeros(300)])
+X_leak_tr = np.column_stack([X_clean[:700], post_flag[:700]])
+X_leak_off = np.column_stack([X_clean[700:], post_flag[700:]])
+X_leak_live = np.column_stack([X_clean[700:], np.zeros(300)])
 
-clean_model = LogisticRegression(max_iter=500).fit(X_clean[:700], y[:700])
-leaky_model = LogisticRegression(max_iter=500).fit(X_leaky_train, y[:700])
+clean_m = LogisticRegression(max_iter=500).fit(X_clean[:700], y[:700])
+leaky_m = LogisticRegression(max_iter=500).fit(X_leak_tr, y[:700])
 
-print(f"clean model offline & live AUC: {roc_auc_score(y[700:], clean_model.predict_proba(X_clean[700:])[:, 1]):.3f}")
-print(f"leaky model offline AUC:        {roc_auc_score(y[700:], leaky_model.predict_proba(X_leaky_offline_test)[:, 1]):.3f}")
-print(f"leaky model live AUC:           {roc_auc_score(y[700:], leaky_model.predict_proba(X_leaky_live)[:, 1]):.3f}")
+for name, m, X_ev in [
+    ("clean offline & live", clean_m, X_clean[700:]),
+    ("leaky offline", leaky_m, X_leak_off),
+    ("leaky live", leaky_m, X_leak_live),
+]:
+    p = m.predict_proba(X_ev)[:, 1]
+    print(f"{name:21s} AUC={roc_auc_score(y[700:], p):.3f}  log_loss={log_loss(y[700:], p):.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-clean model offline & live AUC: 0.806
-leaky model offline AUC:        0.963
-leaky model live AUC:           0.804
+clean offline & live  AUC=0.806  log_loss=0.547
+leaky offline         AUC=0.963  log_loss=0.258
+leaky live            AUC=0.804  log_loss=0.955
 ```
 <!-- leetllm: output:end -->
 
-Because the leaky model puts most of its weight on the post-decision flag, it scores 0.960 offline yet performs *worse* than the clean model live (0.708 vs 0.779) once the missing flag defaults to zero. Sculley et al. highlight these undeclared data dependencies as a core source of ML technical debt because ordinary offline benchmarks reward leakage rather than catching it.[^sculley2015]
+Offline, the leaky model looks stellar (AUC `0.963`, log loss `0.258`) because it loads its weight onto `post_flag`. Once that flag defaults to `0` live, AUC falls to `0.804` (below the clean model's `0.806`) and log loss jumps from `0.547` to `0.955` because missing the flag biases every probability downward. Sculley et al. flag undeclared data dependencies like this as a primary source of ML technical debt because standard offline benchmarks reward leakage rather than catching it.[^sculley2015]
 
 ### Event time versus availability time
 
-Even columns that look legitimate can leak across time. Suppose job `J-204` is scored at `09:00`, and its heartbeat log contains pings at `01:00`, `08:30`, `08:50` (delayed in transit until `09:15`), and `12:00`. A naive join on `event_time <= 09:00` picks `08:50`, even though the scorer could not see that ping at `09:00`.
+Even valid columns leak across time when telemetry arrives late. Suppose `J-204` is scored at `09:00` and its log holds pings at `01:00`, `08:30`, `08:50` (delayed in transit until `09:15`), and `12:00`. A naive join on `event_time <= 09:00` picks `08:50`, even though serving could not see it at `09:00`.
 
-To build a faithful <span data-glossary="point-in-time-join">point-in-time join</span> (a backward `ASOF` lookup), filter on **two clocks**:
-
-- **Event time** ($t_{\text{event}}$): when the telemetry measurement occurred.
-- **Availability time** ($t_{\text{available}}$): when that measurement landed in the serving store.
-
-Within a job's event log $\mathcal{E}_{\text{job}}$, select the latest event that satisfies both cutoffs:
+A faithful <span data-glossary="point-in-time-join">point-in-time join</span> (backward `ASOF`) filters on **two clocks**, event time ($t_{\text{event}}$, when the ping happened) and availability time ($t_{\text{available}}$, when it landed in the store):
 
 $$
 e^* = \operatorname*{arg\,max}_{e \in \mathcal{E}_{\text{job}}:\, t_{\text{event}}(e) \le t_{\text{pred}},\, t_{\text{available}}(e) \le t_{\text{pred}}} t_{\text{event}}(e)
 $$
 
-Time-series feature joins in systems such as Databricks and Feast implement backward `ASOF` matching so historical training queries enforce the same cutoff as live lookups.[^databricks2026pit][^feast2026pit] When late arrivals or backfills happen, filtering by availability time (`filter_by_created_timestamp=True` in Feast, when that column tracks store arrival) prevents delayed telemetry from slipping into earlier rows.[^feast2026pit]
+Databricks and Feast implement backward `ASOF` joins so historical queries mirror live reads; filtering by store arrival (`filter_by_created_timestamp=True` in Feast when populated with arrival time) keeps late backfills out of earlier rows.[^databricks2026pit][^feast2026pit]
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="Heartbeat selection for J-204 at 09:00 UTC checks event and availability times. The 01:00 and 08:30 heartbeats are eligible. The 08:50 heartbeat arriving at 09:15 and the noon heartbeat are excluded. Selecting 08:30 yields age 0.5 hours. Completion after the deadline supplies a later label outside the feature vector." />
@@ -114,37 +123,13 @@ flowchart TB
     G["Future job outcome"]:::warning -. "label only" .-> C
 ```
 
-> **Key insight:** Clipping a negative heartbeat age (from a future `12:00` ping giving `-3.0` hours) to `0.0` does not fix leakage. The clipped zero still tells the model that a heartbeat happened in the future. Exclude ineligible events before computing any feature.
+> **Key insight:** Clipping a negative heartbeat age (from a future `12:00` ping giving `-3.0` hours) to `0.0` does not remove leakage. The clipped zero still signals a future ping. Exclude ineligible events before computing any feature.
 
-```checkpoint
-Would filtering every row at its own prediction timestamp make a random train/test split a faithful test of next month's scheduler traffic?
----
-No. Point-in-time filtering prevents within-row leakage, but a random split still lets the model train on next week's cluster regime and evaluate on yesterday's. Forward-time tasks need chronological splits and matured labels.
-```
+## Numerical scaling, skewness, and missingness
 
-## Numerical transformations: scale, skewness, and missingness
+Raw telemetry brings mismatched scales, heavy tails, and ambiguous nulls. While exact threshold trees are invariant to monotone per-feature rescaling, linear models, neural networks, and distance methods suffer without consistent scaling.
 
-Once future events are excluded, raw numeric telemetry still brings three statistical headaches: wildly different scales, heavy right tails, and ambiguous missing values.
-
-### Standardization, robust scaling, and log compression
-
-If `queued_minutes` spans 0 to 120 while transferred bytes reach trillions, gradient-based models and regularized linear layers become poorly conditioned. Exact threshold trees are invariant to monotone rescaling of a single feature, so scaling matters most for linear models, neural networks, and distance-based methods.
-
-**Z-score standardization** centers and scales using the training mean $\mu$ and standard deviation $\sigma$:
-
-$$
-z = \frac{x - \mu}{\sigma}
-$$
-
-Always fit $\mu$ and $\sigma$ on the training fold alone, then reuse those exact constants on validation and live inputs. Fitting on the combined dataset leaks test distribution statistics into training.
-
-Heavy tails break Z-scores. A single 12,000-minute stuck job drags the mean and standard deviation upward, compressing ordinary waits into a tiny sliver of the standardized axis. **Robust scaling** replaces mean and standard deviation with the median $Q_{50}$ and interquartile range ($\text{IQR} = Q_{75} - Q_{25}$):[^sklearnRobustScaler2026]
-
-$$
-z_{\text{robust}} = \frac{x - Q_{50}}{Q_{75} - Q_{25}}
-$$
-
-For nonnegative right-skewed quantities, $\log(1 + x)$ compresses extreme magnitudes smoothly. Watch all three transforms react to a single 12,000-minute outlier:
+**Z-score standardization** computes $z = (x - \mu)/\sigma$ using constants fitted strictly on the training fold. Heavy tails break Z-scores: one 12,000-minute stuck job inflates $\sigma$ and crushes normal waits together. **Robust scaling** replaces mean and standard deviation with median $Q_{50}$ and interquartile range ($\text{IQR} = Q_{75} - Q_{25}$), $z_{\text{robust}} = (x - Q_{50}) / (Q_{75} - Q_{25})$, while $\log(1 + x)$ smoothly compresses nonnegative right tails:[^sklearnRobustScaler2026]
 
 <!-- leetllm: test, deps=numpy,scikit-learn, output=show -->
 ```python title="robust-scaling-transforms.py"
@@ -152,7 +137,6 @@ import numpy as np
 from sklearn.preprocessing import RobustScaler, StandardScaler
 
 wait_times = np.array([[5.0], [12.0], [18.0], [24.0], [30.0], [42.0], [55.0], [12000.0]])
-
 z_vals = StandardScaler().fit_transform(wait_times).ravel()
 robust_vals = RobustScaler().fit_transform(wait_times).ravel()
 log_vals = np.log1p(wait_times).ravel()
@@ -168,193 +152,82 @@ outlier job (12000m) -> z=+2.646, robust=+416.452, log1p=9.393
 ```
 <!-- leetllm: output:end -->
 
-Notice two distinct behaviors. Under `StandardScaler`, the 12,000-minute outlier inflates $\sigma$ to nearly 4,000 minutes, so the gap between a 5-minute and 42-minute wait shrinks to less than 0.01 units. Under `RobustScaler`, ordinary waits keep healthy spacing (`+0.522` for 42 minutes), while the outlier lands at `+416.452` because robust scaling rescales rather than clips. When you need both stable interior spacing and compressed tails, pair `log1p` (or explicit clipping) with scaling, and keep the quartile convention fixed across offline and online environments.[^pythonQuantiles2026]
+Under `StandardScaler`, the 12,000-minute outlier inflates $\sigma$ to nearly 4,000 minutes, shrinking the 5-to-42-minute span to under 0.01 units. `RobustScaler` preserves clean spacing (`+0.522` at 42 minutes) while rescaling rather than clipping the outlier (`+416.452`). Pair `log1p` (or an explicit cap) with scaling when you need bounded tails, and keep the quartile convention identical offline and online.[^pythonQuantiles2026]
 
 <details>
 <summary>Deep dive: Welford's one-pass running mean and variance</summary>
 
-When computing standardization statistics over streaming telemetry without loading all history into memory, Welford's algorithm updates the mean $\mu_k$ and sum of squared deviations $M_{2,k}$ in one numerically stable pass:[^welford1962]
+To track standardization statistics over streaming telemetry in $O(1)$ memory, Welford's recurrence updates $\mu_k$ and $M_{2,k}$ stably in one pass:[^welford1962]
 
 $$
 \mu_k = \mu_{k-1} + \frac{x_k - \mu_{k-1}}{k}, \quad M_{2,k} = M_{2,k-1} + (x_k - \mu_{k-1})(x_k - \mu_k), \quad \sigma_k^2 = \frac{M_{2,k}}{k}
 $$
 
-Dividing $M_{2,k}$ by $k$ yields population variance; dividing by $k - 1$ (for $k > 1$) yields unbiased sample variance. For example, on `[3, 7, 11]`, the running means are `3, 5, 7`, the $M_2$ increments are `0, 8, 24` ($M_2 = 32$), and the population variance is $32/3$.
+Divide $M_{2,k}$ by $k$ for population variance or $k - 1$ for unbiased sample variance. On `[3, 7, 11]`, $\mu$ steps through `3, 5, 7`, $M_2$ reaches `32`, and population variance is $32/3$.
 
 </details>
 
-### Missingness indicators preserve the measurement gap
+For missing numeric fields like `queue_backlog`, imputing `0.0` alone conflates a healthy empty queue with an unreachable collector. Pair the fill value with a binary **missingness indicator** (`queue_backlog_missing = 1` when null, `0` when present) so the model learns separate weights for each state.
 
-Replacing a missing `queue_backlog` with `0.0` silently merges two very different states: a healthy empty queue (`0.0`) and an unreachable metrics collector (`null`). Pairing an imputed numeric value with a binary missingness indicator keeps both pieces of information intact:
+## Categorical encodings: one-hot and out-of-fold target encoding
 
-$$
-x_{\text{imputed}} = 0.0, \quad x_{\text{missing}} = \begin{cases} 1 & \text{if } x \text{ is null} \\ 0 & \text{if } x \text{ is present} \end{cases}
-$$
+**One-hot encoding** maps known strings (`a100-pool`, `h100-pool`, `other`) to orthogonal unit vectors. Always define the unseen-category rule explicitly: `OneHotEncoder(handle_unknown="ignore")` outputs `[0, 0, 0]`, whereas bucketing unknowns to `"other"` activates `[0, 0, 1]`.[^sklearnOneHot2026]
 
-That extra bit lets a linear or tree model learn separate weights for "measured zero" versus "telemetry unavailable."
-
-```checkpoint
-Welford's algorithm processes readings [3, 7, 11] starting from count 0 and M2 = 0. What final mean, M2, and population variance follow?
-
-1. 7; 16; 16/3.
-2. 7; 32; 16.
-3. 21; 32; 32/3.
-4. 7; 32; 32/3.
----
-**Answer:** 7; 32; 32/3.
-
-The running means are 3, 5, and 7. The M2 increments are 0, 8, and 24, summing to 32. Population variance divides by n = 3 to give 32/3 (sample variance would divide by 2 to give 16).
-```
-
-## Categorical encodings: one-hot pitfalls and smoothed target encoding
-
-Raw category strings like `runner_pool = "a100-pool"` must become numbers. Assigning arbitrary integers `0, 1, 2` invents a fake ordering and spacing for linear models and neural networks.
-
-### One-hot encoding and unseen categories
-
-One-hot encoding allocates an orthogonal indicator per known category:
-
-$$
-\text{a100-pool} \to [1, 0, 0], \quad \text{h100-pool} \to [0, 1, 0], \quad \text{other} \to [0, 0, 1]
-$$
-
-As cardinality grows, one-hot representations expand feature width and force decision trees to isolate high-cardinality groups across many binary splits. You also need an explicit rule for unseen categories arriving at serving time: scikit-learn's `OneHotEncoder(handle_unknown="ignore")` outputs an all-zero vector `[0, 0, 0]`, whereas mapping unknown values to a reserved `"other"` bucket before encoding activates `[0, 0, 1]`.[^sklearnOneHot2026]
-
-```checkpoint
-An encoder knows categories [a, b, other]. An unseen value c arrives. Compare handle_unknown="ignore" with mapping unseen values to other before encoding. What vectors follow?
-
-1. Ignore [0, 0, 1]; explicit [0, 0, 1].
-2. Ignore [0, 0, 0]; explicit [1, 0, 0].
-3. Ignore [0, 0, 0]; explicit [0, 0, 1].
-4. Ignore [1, 1, 1]; explicit [0, 0, 1].
----
-**Answer:** Ignore [0, 0, 0]; explicit [0, 0, 1].
-
-Ignoring unknowns sets every indicator to zero. Explicitly mapping unseen values to the reserved bucket activates the other coordinate.
-```
-
-### Out-of-fold target encoding with m-estimate smoothing
-
-When a feature has hundreds or thousands of categories (such as user IDs, job templates, or runner pools), **target encoding** compresses each category $c$ into an estimate of its conditional target mean $S_c = \mathbb{E}[y \mid X = c]$.
-
-Two traps wait for naive implementations:
-
-1. **Small-sample variance:** A category seen once with `missed_deadline = 1` gets an extreme score of `1.0`.
-2. **Own-label leakage:** Computing a training row's encoding using its own label copies the target straight into the input feature, letting the model memorize rare categories.[^sklearnTargetEncoder2026]
-
-Fix both problems with two distinct tools. First, **m-estimate smoothing** shrinks small-category means toward the prior target mean $\mu$ with smoothing weight $m \ge 0$:
-
-$$
-\hat{S}_c = \frac{n_c \bar{y}_c + m \mu}{n_c + m}
-$$
-
-where $n_c$ is the category count and $\bar{y}_c$ is its sample mean in the fitting data. Second, **out-of-fold (cross-fitted) encoding** computes fold $k$'s category statistics *and prior* $\mu$ using only the other $K - 1$ folds. Watch how naive encoding, in-sample smoothing, and out-of-fold smoothing behave on a rare pool (`l4-pool`):
+For high-cardinality categories (templates, user IDs, or hundreds of pools), **target encoding** replaces each category $c$ with an estimate of $\mathbb{E}[y \mid X = c]$. Naive means suffer from small-sample variance and own-label leakage.[^sklearnTargetEncoder2026] Combine **m-estimate smoothing** ($\hat{S}_c = (n_c \bar{y}_c + m\mu) / (n_c + m)$) with **out-of-fold fitting** (computing fold $k$'s counts and prior $\mu$ strictly from the other $K - 1$ folds). On time-ordered data, replace shuffled folds with **matured historical labels** (earlier jobs whose outcomes arrived by the cutoff):
 
 <!-- leetllm: test, deps=numpy, output=show -->
-```python title="out-of-fold-target-encoding.py"
+```python title="target-encoding-oof-and-temporal.py"
 import numpy as np
 
 pools = np.array(["a100", "a100", "a100", "a100", "h100", "h100", "h100", "l4"])
 y = np.array([0, 0, 1, 0, 1, 1, 1, 1], dtype=float)
 m = 5.0
 
-# 1. Naive & in-sample smoothed (both leak a row's own label)
-global_prior = y.mean()
-naive = {c: y[pools == c].mean() for c in np.unique(pools)}
-smoothed = {
-    c: (y[pools == c].sum() + m * global_prior) / ((pools == c).sum() + m)
-    for c in np.unique(pools)
-}
+prior = y.mean()
+naive_l4 = y[pools == "l4"].mean()
+smooth_l4 = (y[pools == "l4"].sum() + m * prior) / ((pools == "l4").sum() + m)
 
-# 2. Out-of-fold smoothed (neither category sum nor prior sees held-out fold)
 def encode_oof(cats, targets, folds, m=5.0):
     out = np.empty(len(targets))
-    for held_out in folds:
-        fit_mask = np.ones(len(targets), dtype=bool)
-        fit_mask[held_out] = False
-        prior = targets[fit_mask].mean()
-        for idx in held_out:
-            same = fit_mask & (cats == cats[idx])
-            out[idx] = (targets[same].sum() + m * prior) / (same.sum() + m)
+    for held in folds:
+        fit = np.ones(len(targets), dtype=bool)
+        fit[held] = False
+        p = targets[fit].mean()
+        for i in held:
+            same = fit & (cats == cats[i])
+            out[i] = (targets[same].sum() + m * p) / (same.sum() + m)
     return out
 
 folds = ([0, 2, 4, 6], [1, 3, 5, 7])
 oof = encode_oof(pools, y, folds, m)
+y_flip = y.copy()
+y_flip[-1] = 0.0
+print(f"l4 -> naive={naive_l4:.3f}, smoothed={smooth_l4:.3f}, OOF={oof[-1]:.3f}")
+print("OOF invariant to own label flip:", np.isclose(oof[-1], encode_oof(pools, y_flip, folds, m)[-1]))
 
-y_flipped = y.copy()
-y_flipped[-1] = 0.0  # Flip the rare l4 row's label
-
-print(f"l4 encoding -> naive: {naive['l4']:.3f}, smoothed: {smoothed['l4']:.3f}, OOF: {oof[-1]:.3f}")
-print("OOF encoding unchanged when row flips its own label:", np.isclose(oof[-1], encode_oof(pools, y_flipped, folds, m)[-1]))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-l4 encoding -> naive: 1.000, smoothed: 0.688, OOF: 0.750
-OOF encoding unchanged when row flips its own label: True
-```
-<!-- leetllm: output:end -->
-
-Smoothing alone shrinks `l4` from `1.000` to `0.688`, yet its own label still leaked into both the category count and the global prior. Out-of-fold encoding computes the prior (`0.750`) strictly from the other fold, so flipping `l4`'s label leaves its encoded feature completely unchanged. In scikit-learn, `TargetEncoder.fit_transform` performs internal cross-fitting automatically, whereas calling `fit` followed by `transform` on the same training set does not.[^sklearnTargetEncoder2026]
-
-> **Common mistake:** Using shuffled K-fold target encoding on time-ordered data still leaks future labels into earlier rows. On temporal tasks, compute each historical row's target encoding strictly from earlier **matured labels** (jobs scored earlier whose outcomes were already known by prediction time), falling back to a warm-up default when no matured labels exist yet.
-
-Let's verify that forward-time boundary on a short replay where one earlier job's outcome arrives at `t = 8` and another's arrives late at `t = 10`:
-
-<!-- leetllm: test, output=show -->
-```python title="encode-from-matured-labels.py"
-# Each job: (scored_hour, label_available_hour, missed_deadline)
+# Temporal replay: (scored_hour, label_available_hour, missed_deadline)
 history = [(6, 8, 0), (7, 10, 1)]
-
-def forward_encoding(cutoff_hour, m=5.0):
-    matured = [y for scored, avail, y in history if scored < cutoff_hour and avail <= cutoff_hour]
-    if not matured:
-        return None
-    prior = sum(matured) / len(matured)
-    return (sum(matured) + m * prior) / (len(matured) + m)
-
-for hour in (7, 9, 10):
-    print(f"t={hour:02d}:00 -> encoding={forward_encoding(hour)}")
-print(f"leaky (all earlier jobs at t=09:00): {sum(y for _, _, y in history) / len(history)}")
+for hr in (7, 9, 10):
+    mat = [lbl for sc, av, lbl in history if sc < hr and av <= hr]
+    enc = None if not mat else sum(mat) / len(mat)
+    print(f"matured encoding at t={hr:02d}:00 -> {enc}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-t=07:00 -> encoding=None
-t=09:00 -> encoding=0.0
-t=10:00 -> encoding=0.5
-leaky (all earlier jobs at t=09:00): 0.5
+l4 -> naive=1.000, smoothed=0.688, OOF=0.750
+OOF invariant to own label flip: True
+matured encoding at t=07:00 -> None
+matured encoding at t=09:00 -> 0.0
+matured encoding at t=10:00 -> 0.5
 ```
 <!-- leetllm: output:end -->
 
-Even though the second job was scored at `t = 07:00`, its outcome (`1`) is unknown until `t = 10:00`. At `t = 09:00`, only the matured `0` label is eligible.
+Smoothing alone shrinks `l4` from `1.000` to `0.688`, yet leaks `l4`'s own label into the count and prior. Out-of-fold encoding yields `0.750` regardless of `l4`'s label (in scikit-learn, `TargetEncoder.fit_transform` cross-fits automatically[^sklearnTargetEncoder2026]). In the temporal replay, job 2 was scored at `07:00` but its outcome arrives at `10:00`, so at `09:00` only the matured `0` label is visible.
 
-```checkpoint
-A category has one fitting label of 0. With smoothing weight m = 3 and a prior of 0.4, what encoded value results, and did the category sum still use that row's label?
+## Versioned feature pipelines and the CACE principle
 
-1. 0; label excluded.
-2. 0.4; label included.
-3. 0.3; label excluded.
-4. 0.3; label included.
----
-**Answer:** 0.3; label included.
-
-The formula gives (0 + 3 * 0.4) / (1 + 3) = 0.3. Smoothing pulls extreme values toward the prior, but only out-of-fold (or forward-time) fitting removes own-label leakage.
-```
-
-## Feature contracts and strict row validation
-
-A clean mathematical feature definition still fails in production if raw serving payloads arrive with swapped columns, unexpected categories, `NaN` values, or future timestamps. A <span data-glossary="feature-contract">feature contract</span> locks down four things in one versioned preprocessing artifact:
-
-| Feature | Type | Missing & boundary rule |
-| --- | --- | --- |
-| `queued_minutes` | numeric | required, finite, $\ge 0$ |
-| `hours_since_last_heartbeat` | numeric | required, $\ge 0$, capped at `180.0` hours |
-| `queue_backlog` | numeric | impute `0.0` plus `queue_backlog_missing` indicator |
-| `runner_pool` | categorical | required; map unseen pools to `other` before one-hot |
-| `priority_job` | binary | explicit `0`/`1` flag |
-
-Rather than hand-writing fragile dictionary validators that diverge between training notebooks and serving microservices, package the feature schema, clipping, missingness indicator, and category vocabulary into a single fitted scikit-learn `ColumnTransformer` + `Pipeline`. Every learned statistic, fixed cap, and output column order travels with the model:
+Package your <span data-glossary="feature-contract">feature contract</span> (types, unseen-category bucketing, clipping bounds, missingness indicators, and exact output slot order) inside one fitted `ColumnTransformer` + `Pipeline` so training and serving run the exact same code:
 
 <!-- leetllm: test, deps=numpy,pandas,scikit-learn, output=show -->
 ```python title="sklearn-feature-pipeline.py"
@@ -366,94 +239,59 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
 
 KNOWN_POOLS = ["a100-pool", "h100-pool", "other"]
-HEARTBEAT_CAP_H = 180.0
-
-def map_unseen_pools(df):
-    return df.apply(lambda col: col.where(col.isin(KNOWN_POOLS[:2]), "other"))
-
-def clip_heartbeat(X):
-    return np.clip(X, 0.0, HEARTBEAT_CAP_H)
 
 preprocessor = ColumnTransformer(
     transformers=[
-        (
-            "pool",
-            Pipeline([
-                ("bucket", FunctionTransformer(map_unseen_pools)),
-                ("ohe", OneHotEncoder(categories=[KNOWN_POOLS], sparse_output=False)),
-            ]),
-            ["runner_pool"],
-        ),
+        ("pool", Pipeline([
+            ("bucket", FunctionTransformer(lambda df: df.apply(lambda c: c.where(c.isin(KNOWN_POOLS[:2]), "other")))),
+            ("ohe", OneHotEncoder(categories=[KNOWN_POOLS], sparse_output=False)),
+        ]), ["runner_pool"]),
         ("queued", "passthrough", ["queued_minutes"]),
-        ("hb", FunctionTransformer(clip_heartbeat), ["hours_since_last_heartbeat"]),
+        ("hb", FunctionTransformer(lambda X: np.clip(X, 0.0, 180.0)), ["hours_since_last_heartbeat"]),
         ("backlog", SimpleImputer(strategy="constant", fill_value=0.0, add_indicator=True), ["queue_backlog"]),
         ("priority", "passthrough", ["priority_job"]),
     ],
-    remainder="drop",  # Automatically drops non-feature or post-decision columns
+    remainder="drop",
 )
 
 train_df = pd.DataFrame([
     {"runner_pool": "a100-pool", "queued_minutes": 42.0, "hours_since_last_heartbeat": 0.5, "queue_backlog": 18.0, "priority_job": 0, "finished_at": "day3"},
     {"runner_pool": "h100-pool", "queued_minutes": 15.0, "hours_since_last_heartbeat": 2.0, "queue_backlog": np.nan, "priority_job": 1, "finished_at": "day2"},
-])
-preprocessor.fit(train_df)
+]).pipe(lambda d: (preprocessor.fit(d), d)[1])
 
 live_df = pd.DataFrame([
     {"runner_pool": "a100-pool", "queued_minutes": 42.0, "hours_since_last_heartbeat": 0.5, "queue_backlog": 18.0, "priority_job": 0},
     {"runner_pool": "l4-pool", "queued_minutes": 18.0, "hours_since_last_heartbeat": 200.0, "queue_backlog": np.nan, "priority_job": 1},
 ])
 
-X_live = preprocessor.transform(live_df)
-feature_names = ["pool=a100", "pool=h100", "pool=other", "queued_min", "hb_age_h", "backlog", "backlog_missing", "priority"]
-print("columns:", feature_names)
-for row_idx, vec in enumerate(X_live):
-    print(f"row {row_idx}:  ", vec.tolist())
+for i, vec in enumerate(preprocessor.transform(live_df)):
+    print(f"row {i}: {vec.tolist()}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-columns: ['pool=a100', 'pool=h100', 'pool=other', 'queued_min', 'hb_age_h', 'backlog', 'backlog_missing', 'priority']
-row 0:   [1.0, 0.0, 0.0, 42.0, 0.5, 18.0, 0.0, 0.0]
-row 1:   [0.0, 0.0, 1.0, 18.0, 180.0, 0.0, 1.0, 1.0]
+row 0: [1.0, 0.0, 0.0, 42.0, 0.5, 18.0, 0.0, 0.0]
+row 1: [0.0, 0.0, 1.0, 18.0, 180.0, 0.0, 1.0, 1.0]
 ```
 <!-- leetllm: output:end -->
 
-Look at what that single pipeline enforces automatically:
+`remainder="drop"` strips `finished_at`, `l4-pool` lands in `other` (`[0, 0, 1]`), heartbeat `200.0` clips to `180.0`, and missing `queue_backlog` emits `[0.0, 1.0]`. Ahead of `transform`, guard physical invariants: required fields must be non-null, finite, and nonnegative, with `last_heartbeat_at <= prediction_time`.
 
-- `remainder="drop"` guarantees extra columns like `finished_at` never reach the model.
-- `l4-pool` maps cleanly to the reserved `other` coordinate `[0, 0, 1]`.
-- `hours_since_last_heartbeat = 200.0` clips to `180.0`.
-- Missing `queue_backlog` emits `[0.0, 1.0]` (imputed zero plus missingness bit), while measured `18.0` emits `[18.0, 0.0]`.
-- Output column order is locked to the exact 8-slot layout expected by the downstream model weights.
+### Why preprocessing must be versioned with model weights
 
-Before calling `preprocessor.transform` on live requests, add one thin boundary guard for physical invariants that `ColumnTransformer` does not know: verify that required fields (`queued_minutes`, `hours_since_last_heartbeat`, `runner_pool`) are non-null, finite, and nonnegative, and that `last_heartbeat_at <= prediction_time`.
-
-```checkpoint
-What happens if the online serving layer produces the right number of features, but swaps two numeric slots compared to training?
----
-The model runs without throwing a shape error, yet silently multiplies each feature by the wrong learned weight. Packaging the column order inside a versioned preprocessing artifact prevents silent slot swaps.
-```
-
-## Changing preprocessing changes what the model receives
-
-Suppose job `J-188` has a raw heartbeat age of 200 hours. During training, the pipeline clipped heartbeat age at `180.0` hours, so the model's weights learned what `180.0` means. Weeks later, someone raises the live cap to `360.0` hours without retraining. Now `J-188` enters the exact same model weights as `200.0`.
-
-Sculley et al. call this coupling the **CACE principle**: *Changing Anything Changes Everything*.[^sculley2015] Even when model weights stay frozen, altering a clipping cap, imputer fill value, or bucket boundary shifts the coordinate system the weights operate in.
+Suppose `J-188` has a raw heartbeat age of 200 hours. The pipeline trained with a `180.0`-hour cap, and someone later raises the live cap to `360.0` without retraining. Sculley et al. call this **CACE** (*Changing Anything Changes Everything*):[^sculley2015] shifting a cap or fill value alters the coordinate system frozen weights operate in, flipping `J-188` across the 0.50 alert threshold (`0.445` to `0.545`) while leaving fresh jobs untouched.
 
 <figure>
   <img src="illustrations/_generated/cace_cap_dark.png" alt="For the same job with raw heartbeat age 200 hours, a 180-hour cap yields 180 hours while a 360-hour cap yields 200. Two bars show the changed input. On the fixed logistic score curve with backlog 18, the two input points give scores 0.445 and 0.545 on opposite sides of the chosen 0.5 alert threshold. A fresh 0.5-hour input stays unchanged; setting the heartbeat coefficient to zero removes this dependence." />
   <figcaption>Raising the heartbeat cap from 180 to 360 hours moves a 200-hour job's logistic score from 0.445 to 0.545, flipping the decision across the 0.50 alert threshold while leaving fresh jobs untouched.</figcaption>
 </figure>
 
-We can verify that threshold flip directly on the fixed logistic rule:
-
 <!-- leetllm: test, output=show -->
 ```python title="cap-change-score.py"
 import math
 
-def score_job(raw_hb_hours, cap_hours, hb_weight=0.02, backlog=18.0):
-    hb_feature = min(raw_hb_hours, cap_hours)
-    logit = hb_weight * hb_feature + 0.01 * backlog - 4.0
+def score_job(raw_hb, cap, hb_w=0.02, backlog=18.0):
+    logit = hb_w * min(raw_hb, cap) + 0.01 * backlog - 4.0
     return 1.0 / (1.0 + math.exp(-logit))
 
 for cap in (180.0, 360.0):
@@ -470,102 +308,130 @@ fresh job (0.5h) unchanged: True
 ```
 <!-- leetllm: output:end -->
 
-Fresh jobs below both caps never move, and features with zero weight never care. Every job above the old cap shifts across the decision surface. Treat preprocessing parameters as first-class model hyperparameters: version them with the model artifact, and evaluate (or retrain) the paired preprocessing and model whenever either changes.
+## Dual offline/online feature stores
 
-```checkpoint
-A fixed standardizer was fitted on training with mean 10 and standard deviation 2. For input 14, serving silently refits the mean to 14 while keeping scale 2. What original and revised coordinates result?
+Training scans months of telemetry across millions of jobs; live scheduling needs one job's latest state in under 10 ms. A <span data-glossary="feature-store">feature store</span> separates both storage engines behind one shared feature registry:[^feast2026online][^google2026mlops][^googleFeatureServing2026]
 
-1. 2 then 0; breaks the fixed-artifact contract.
-2. 2 then 2; preserves the fixed-artifact contract.
-3. 0 then 2; preserves the fixed-artifact contract.
-4. 7 then 7; breaks the fixed-artifact contract.
----
-**Answer:** 2 then 0; breaks the fixed-artifact contract.
+| Attribute | Offline feature store | Online feature store |
+| --- | --- | --- |
+| Storage engine | Iceberg or Delta over Parquet | Redis, DynamoDB, or entity KV store |
+| Access pattern | Range scans and backward `ASOF` joins | Single-key lookup by `job_id` |
+| Temporal depth | Append-only revision history | Latest materialized row per entity |
+| Workload | Point-in-time training builds | Low-latency scoring and freshness checks |
 
-The fitted transform maps 14 to (14 - 10) / 2 = 2. Silently refitting the mean on live data collapses the coordinate to 0, feeding the model shifted inputs.
+A shared event bus (such as Kafka) fans telemetry to both paths: a stream processor (such as Apache Flink) maintains latest state online while a lakehouse sink archives raw payloads plus arrival times offline.
+
+> **Common mistake:** Never materialize a static elapsed-age float like `hours_since_last_heartbeat = 0.5` in Redis. Store `event_time` instead and compute `(requested_at - event_time)` at request time so elapsed age stays accurate when a job goes quiet.
+
+Protect online state from retries and out-of-order deliveries with two rules:
+
+1. **Monotonic `(event_time, source_version)` checks:** Never let a stale version-1 retry overwrite a newer version-2 correction. If two events share the exact same `(event_time, source_version)` with conflicting payloads, quarantine the entity rather than letting arrival order win.
+2. **Atomic idempotent counters:** Cumulative aggregates (`recent_gpu_resets`) double-count retries under last-write-wins. Commit an event-ID deduplication entry and the counter update in **one atomic database transaction** (with retention TTL exceeding the broker replay window), because Kafka transactions do not make external Redis writes atomic.[^kafkaDeliverySemantics2026]
+
+## Stream windowing, watermarks, and out-of-order events
+
+Rolling aggregates (`failed_heartbeats_1h`) slice unbounded streams into **tumbling** (fixed non-overlapping), **sliding** (overlapping), or **session** (inactivity-gap) windows.[^flinkWindows2026] Event-time windows rely on a **<span data-glossary="watermark">watermark</span>** to decide when to emit.[^beam2026watermarks][^flinkWindows2026] Under bounded out-of-orderness, the watermark trails the highest seen event time by delay budget $\Delta_{\text{delay}}$:
+
+$$
+W(t) = \max_{e \in S}(e.t_{\text{event}}) - \Delta_{\text{delay}}
+$$
+
+In Apache Flink, the periodic generator subtracts one extra millisecond so window ends pass strictly before firing, and multi-partition operators advance by the *minimum* watermark across active shards (so idle partitions need an idleness timeout to avoid stalling downstream emission).[^flinkBoundedWatermarks2026][^flinkWatermarks2026]
+
+Keep **record lag** (distance behind the watermark) separate from **window allowed lateness** (how long a closed window holds state for late arrivals).[^flinkWindows2026] When a late event triggers a revised **whole-window total** (`2`, then `3`), replace the keyed row on strictly higher revisions rather than adding re-emissions:
+
+<!-- leetllm: test, output=show -->
+```python title="watermark-lateness-and-revisions.py"
+from datetime import datetime, timedelta
+
+dt = datetime.fromisoformat
+watermark = dt("2026-05-01T12:20:00")
+max_record_lag = timedelta(minutes=45)
+win_start, win_end = dt("2026-05-01T11:00:00"), dt("2026-05-01T12:00:00")
+win_allowance = timedelta(minutes=30)
+
+late_ping = dt("2026-05-01T11:05:00")
+action = "on-time" if late_ping >= watermark else ("late-update" if watermark - late_ping <= max_record_lag else "quarantine-for-replay")
+win_open = win_start <= late_ping < win_end and watermark < win_end + win_allowance
+print("11:05 ping record-lag action:", action)
+print("11:00-12:00 window still open:", win_open)
+
+emissions = [{"rev": 1, "count": 2}, {"rev": 2, "count": 3}, {"rev": 1, "count": 2}]
+mat = {}
+for row in emissions:
+    prev = mat.get("J-204|11:00")
+    if prev is None or row["rev"] > prev["rev"]:
+        mat["J-204|11:00"] = row
+print("naive sum:", emissions[0]["count"] + emissions[1]["count"], "| materialized:", mat["J-204|11:00"]["count"])
 ```
 
-## Compare the offline row with the live row
+<!-- leetllm: output:start -->
+```text title="Output" output compact
+11:05 ping record-lag action: quarantine-for-replay
+11:00-12:00 window still open: True
+naive sum: 5 | materialized: 3
+```
+<!-- leetllm: output:end -->
 
-Suppose the offline point-in-time table computes `queue_backlog = 18.0` for job `J-204` at `09:00`, while the live serving log captured `0.0`. Both vectors have valid shapes and finite floats, yet the model sees different numbers offline and online. That gap is **training-serving skew**.
+An `11:05` ping lags a `12:20` watermark by 75 minutes (`quarantine-for-replay` under a 45-minute record budget) even while `[11:00, 12:00)` remains open under a 30-minute post-closure allowance.
 
-Three mechanisms cause almost all training-serving skew:
+## Freshness SLAs and offline-online parity
 
-1. **Divergent code paths:** Training features are computed in SQL or Spark, while serving features are reimplemented in Go or Java with subtle differences in rounding, null handling, or timezone boundaries.
-2. **Overwrite-in-place backfills:** Offline queries join against the *current* state of a mutable database table instead of replaying historical snapshots.
-3. **Freshness lag:** Streaming updates fall behind during traffic bursts, leaving the online store serving stale values.
+A 2 ms Redis read still serves stale data if an upstream collector stalls. Track **source progress** (`feature_as_of`) separately from cache write time (`last_updated_at`), and distinguish **freshness lag** (pipeline fell behind) from **heartbeat age** (job genuinely stopped pinging). Enforce explicit **freshness SLA** tiers:
 
-### Feature stores and parity checks
+- **Normal (`<= 15m`):** Score with the primary streaming model.
+- **Fallback (`15m < lag <= 45m`):** Route to a validated fallback model without stale streaming inputs and log degraded mode in the <span data-glossary="tracing">trace</span>.
+- **Abstain (`> 45m`):** Withhold automated scheduling and fall back to deterministic rules.
 
-A **feature store** addresses these gaps with three components: a central **registry** of feature definitions, an **offline store** supporting point-in-time historical joins, and a low-latency **online store** holding the latest entity values.[^feast2026online] Modern managed stores synchronize offline tables to online backends via scheduled or continuous sync pipelines.[^googleFeatureServing2026] For smaller systems, sharing a single versioned preprocessing library and logging live feature vectors directly often eliminates skew without extra infrastructure.
-
-Whichever architecture you choose, verify **offline-online parity** on a sample of logged production requests by replaying the same entities offline at their recorded prediction timestamps and comparing feature vectors directly:
+To catch <span data-glossary="training-serving-skew">training-serving skew</span> (divergent SQL/serving code, overwrite-in-place backfills, or unit bugs), log each live vector, preprocessing version, and <span data-glossary="feature-freshness">feature freshness</span> at inference time, then replay a sample offline at the recorded timestamps:
 
 <!-- leetllm: test, deps=numpy, output=show -->
-```python title="check-parity.py"
+```python title="freshness-and-parity.py"
+from datetime import datetime, timedelta
 import numpy as np
 
-FEATURE_NAMES = ["queued_min", "hb_age_h", "queue_backlog", "priority"]
+def serving_mode(feature_as_of, requested_at):
+    if feature_as_of is None:
+        return "abstain: unknown freshness"
+    lag = requested_at - feature_as_of
+    if lag < timedelta(0):
+        raise ValueError("feature timestamp is in the future")
+    if lag <= timedelta(minutes=15):
+        return "normal scoring"
+    if lag <= timedelta(minutes=45):
+        return "fallback model (degraded)"
+    return "abstain"
 
-def check_parity(offline_vec, online_vec, rtol=1e-5, atol=1e-6):
-    diffs = {}
-    for name, off, on in zip(FEATURE_NAMES, offline_vec, online_vec):
-        if not np.isclose(off, on, rtol=rtol, atol=atol, equal_nan=True):
-            diffs[name] = (float(off), float(on))
-    return diffs
+req = datetime.fromisoformat("2026-05-01T12:00:00")
+for ts in ("2026-05-01T11:52:00", "2026-05-01T11:30:00", "2026-05-01T10:30:00"):
+    print(f"as_of={ts[11:16]} -> {serving_mode(datetime.fromisoformat(ts), req)}")
 
+NAMES = ["queued_min", "hb_age_h", "queue_backlog", "priority"]
 offline = np.array([42.0, 0.5, 18.0, 0.0])
-live_samples = {
+for label, live in {
     "matching":    np.array([42.0, 0.5, 18.0, 0.0]),
     "stale cache": np.array([42.0, 0.5, 0.0, 0.0]),
-    "unit bug":    np.array([42.0, 30.0, 18.0, 0.0]),  # minutes instead of hours
-}
-
-for label, live in live_samples.items():
-    diffs = check_parity(offline, live)
+    "unit bug":    np.array([42.0, 30.0, 18.0, 0.0]),
+}.items():
+    diffs = {n: (float(o), float(l)) for n, o, l in zip(NAMES, offline, live) if not np.isclose(o, l, rtol=1e-5, atol=1e-6, equal_nan=True)}
     print(f"{label:12s} -> passed={not diffs!s:5s} diffs={diffs}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
+as_of=11:52 -> normal scoring
+as_of=11:30 -> fallback model (degraded)
+as_of=10:30 -> abstain
 matching     -> passed=True  diffs={}
 stale cache  -> passed=False diffs={'queue_backlog': (18.0, 0.0)}
 unit bug     -> passed=False diffs={'hb_age_h': (0.5, 30.0)}
 ```
 <!-- leetllm: output:end -->
 
-> **Key insight:** You cannot reconstruct an old online request by querying a latest-only online store later. Log the exact feature vector seen at serving time (along with its preprocessing version and freshness lag), then compare that log against an offline point-in-time replay.
-
-In production, pair periodic parity sampling with three continuous feature-health checks:
-
-| Production signal | What it reveals | Response |
-| --- | --- | --- |
-| Null rate per feature | Upstream telemetry dropped or changed schema | Inspect producer and verify missingness indicator rate |
-| Unseen-category rate | New runner pools or values outside fitted vocabulary | Audit `"other"` bucket volume and schedule refit |
-| Freshness lag | Streaming or batch sync fell behind | Route to a simpler fallback model or abstain past lag limit |
-| Offline/online parity | Replay and captured live vectors disagree | Diff preprocessing versions, units, and availability clocks |
-
-Note the difference between **freshness lag** and **heartbeat age**: a job whose last heartbeat was 4 hours ago in a fully caught-up telemetry stream is genuinely stalled (a real feature signal), whereas a telemetry pipeline lagging 45 minutes behind cannot even tell you whether a heartbeat happened. When freshness lag exceeds a feature's staleness budget, switch to a fallback model built on fresh inputs or abstain rather than scoring with stale numbers.
-
-```checkpoint
-Why can't offline validation accuracy detect training-serving skew?
----
-Offline validation evaluates the model strictly on offline feature tables. If live serving uses different transformation logic, stale caches, or wrong units, the model sees shifted inputs in production that offline evaluation never encounters.
-```
+> **Key insight:** You cannot reconstruct an old online request by querying a latest-only Redis key later. Log the served vector, preprocessing version, and `feature_as_of` at inference time, then compare against offline point-in-time replay while monitoring null rates, unseen-category rates, freshness lag, and parity diffs.
 
 ```mastery-quiz
 [
-  {
-    "question": "A scorer predicts job delay at 14:00. A later export includes a 16:00 completion timestamp and a 16:05 post-deadline alert flag. How should each field be used during training?",
-    "options": [
-      "Both fields as input features.",
-      "Completion as an input feature; alert flag as the target label.",
-      "Completion imputed to zero; alert flag as a missingness bit.",
-      "Completion to derive the target label; alert flag excluded from inputs."
-    ],
-    "answer": "Completion to derive the target label; alert flag excluded from inputs.",
-    "explanation": "Both fields occur after the 14:00 prediction timestamp. Completion defines the eventual target label, while neither post-decision field belongs in the model's feature vector."
-  },
   {
     "question": "At a 10:00 prediction cutoff, heartbeat pings occur at 09:00 (available 09:01), 09:40 (available 09:50), 09:55 (available 10:10), and 10:05 (available 10:06). Which ping is selected, and what is the heartbeat age?",
     "options": [
@@ -575,7 +441,7 @@ Offline validation evaluates the model strictly on offline feature tables. If li
       "09:00; 60 minutes."
     ],
     "answer": "09:40; 20 minutes.",
-    "explanation": "A point-in-time join requires both event time and availability time to be at or before 10:00. The 09:55 ping arrived late at 10:10 and 10:05 is in the future, leaving 09:40 (20 minutes old)."
+    "explanation": "Both event time and availability time must be <= 10:00. The 09:55 ping arrived late at 10:10 and 10:05 is in the future, leaving 09:40 (20 minutes old)."
   },
   {
     "question": "A robust scaler was fitted with median 20 and IQR 8. What transformed value does raw input 100 receive, and does robust scaling clip outliers?",
@@ -586,21 +452,10 @@ Offline validation evaluates the model strictly on offline feature tables. If li
       "12.5; no, it only rescales."
     ],
     "answer": "10; no, it only rescales.",
-    "explanation": "The transformed value is (100 - 20) / 8 = 10. Robust scaling prevents extreme outliers from distorting the center and spread, but it does not bound extreme inputs."
+    "explanation": "(100 - 20) / 8 = 10. Robust scaling protects the center and spread from outliers, but it does not clip extreme values."
   },
   {
-    "question": "A pipeline imputes missing queue_backlog to 0 and adds a binary missingness indicator. What [backlog, missing] pairs represent a measured empty queue versus a missing reading?",
-    "options": [
-      "[0, 1] and [0, 0].",
-      "[0, 0] and [0, 1].",
-      "[0, 0] and [1, 0].",
-      "[0, 1] and [0, 1]."
-    ],
-    "answer": "[0, 0] and [0, 1].",
-    "explanation": "A measured zero keeps the missingness indicator at 0, while an absent measurement receives the imputed 0 alongside a missingness indicator of 1."
-  },
-  {
-    "question": "Two of five jobs in a fitting fold missed their deadlines, and none ran on the held-out job's pool. With m-estimate smoothing weight m = 4, what out-of-fold target encoding does that held-out job receive before and after flipping its own label from 0 to 1?",
+    "question": "Two of five jobs in a fitting fold missed their deadlines, and none ran on the held-out job's pool. With m = 4, what out-of-fold target encoding does that held-out job receive before and after flipping its own label from 0 to 1?",
     "options": [
       "0 then 0.",
       "0 then 1.",
@@ -608,31 +463,31 @@ Offline validation evaluates the model strictly on offline feature tables. If li
       "0.4 then 0.6."
     ],
     "answer": "0.4 then 0.4.",
-    "explanation": "With zero fitting-fold rows in that category, the smoothed estimate shrinks completely to the fitting-fold prior: (0 + 4 * 2/5) / (0 + 4) = 0.4. Because the held-out row is excluded from the fitting fold, flipping its own label leaves its encoding unchanged."
+    "explanation": "With zero fitting-fold rows in that pool, m-estimate smoothing returns the fitting-fold prior (0 + 4 * 0.4) / 4 = 0.4, unaffected by the held-out row's own label."
   },
   {
-    "question": "For an aligned prediction cutoff, offline replay produces queue_backlog = 12 while live serving logged queue_backlog = 4 (with queued = 20 and heartbeat = 0.5 matching). Under linear score 0.01*queued + 0.02*heartbeat + 0.01*backlog, what offline score, live score, and parity verdict follow?",
+    "question": "A stream sink receives whole-window totals for [11:00, 12:00): revision 1 emits count 2, revision 2 emits count 3 after a late arrival, and a retry later redelivers revision 1 (count 2). What should the materialized count be?",
     "options": [
-      "Offline 0.33; live 0.25; fail.",
-      "Offline 0.33; live 0.33; pass.",
-      "Offline 0.25; live 0.33; fail.",
-      "Offline 0.12; live 0.04; pass."
+      "5, by summing revisions 1 and 2.",
+      "7, by summing all three emissions.",
+      "2, because revision 1 arrived last.",
+      "3, by replacing only on strictly higher revision numbers."
     ],
-    "answer": "Offline 0.33; live 0.25; fail.",
-    "explanation": "Queued time and heartbeat contribute 0.20 + 0.01 = 0.21 on both paths. Adding backlog gives 0.33 offline versus 0.25 live, exposing training-serving skew even though both rows contain valid floats."
+    "answer": "3, by replacing only on strictly higher revision numbers.",
+    "explanation": "Whole-window re-emissions replace the keyed row only when revision strictly increases, preventing double-counting and blocking stale retries."
   },
   {
-    "question": "A model was trained with heartbeat age capped at 180 hours. Serving later raises the cap to 360 hours without retraining. Which jobs change their model input, and why does this matter?",
+    "question": "A serving SLA scores normally for lag <= 15m, uses a fallback model for 15m < lag <= 45m, and abstains past 45m. At 12:00, feature_as_of is 11:25 even though Redis rewrote the cache row at 11:59. Which mode applies?",
     "options": [
-      "All jobs change inputs because scaling parameters shift globally.",
-      "Only jobs with raw heartbeat age above 180 hours change inputs, which can push fixed model weights across a decision threshold.",
-      "No jobs change inputs because tree and linear models ignore clipping bounds.",
-      "Only jobs with raw heartbeat age below 180 hours change inputs."
+      "Normal scoring, because Redis updated 1 minute ago.",
+      "Fallback model, because source progress lags by 35 minutes.",
+      "Abstain, because source progress lags by 35 minutes.",
+      "Normal scoring, because cache write time overrides source progress."
     ],
-    "answer": "Only jobs with raw heartbeat age above 180 hours change inputs, which can push fixed model weights across a decision threshold.",
-    "explanation": "Inputs at or below 180 hours are unaffected by raising the cap, while older jobs now pass larger numbers into frozen weights trained on the 180-hour ceiling (the CACE principle)."
+    "answer": "Fallback model, because source progress lags by 35 minutes.",
+    "explanation": "Freshness lag measures source progress (12:00 - 11:25 = 35 minutes), not cache write time, routing the request to the fallback model."
   }
 ]
 ```
 
-> **Next:** [Batch and Streaming Feature Pipelines](/learn/batch-streaming-feature-pipelines) carries these cutoff and availability rules into windowed aggregation, late arrivals, and continuously updated features.
+> **Next:** Continue to [Ranking and Recommendation Systems](/learn/ranking-recommendation-systems).

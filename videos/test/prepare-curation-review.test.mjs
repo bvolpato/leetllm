@@ -34,7 +34,7 @@ const png = Buffer.from(
 );
 const nativePng = createCanvas(1920, 1080).toBuffer('image/png');
 
-async function createCurrentBoundFixture(inputRoot, id = 'bayes') {
+async function createCurrentBoundFixture(inputRoot, id = 'hypothesis-testing') {
   const lesson = await readLesson(
     path.join(videosDirectory, 'lessons', `${id}.lesson.yaml`),
     repositoryRoot,
@@ -294,7 +294,7 @@ test('assignments preserve canonical order, symlink input aliases, and rotated s
     '--output',
     output,
     '--lesson',
-    'bayes',
+    'hypothesis-testing',
     'probability',
     '--shards',
     '6',
@@ -308,12 +308,12 @@ test('assignments preserve canonical order, symlink input aliases, and rotated s
   assert.equal(assignment.rotation, 1);
   assert.deepEqual(
     assignment.lessons.map((lesson) => lesson.id),
-    ['probability', 'bayes'],
+    ['probability', 'hypothesis-testing'],
   );
-  const row = assignment.lessons.find((lesson) => lesson.id === 'bayes');
-  assert.equal(row.id, 'bayes');
-  assert.equal(row.index, 14);
-  assert.equal(row.sourceDirectory, path.resolve(inputAlias, 'bayes'));
+  const row = assignment.lessons.find((lesson) => lesson.id === 'hypothesis-testing');
+  assert.equal(row.id, 'hypothesis-testing');
+  assert.equal(row.index, 6);
+  assert.equal(row.sourceDirectory, path.resolve(inputAlias, 'hypothesis-testing'));
   assert.equal(row.imageInventory.sceneSheets.length, row.scenes.length + 1);
   assert.equal(row.imageInventory.nativeFrames.length, 3);
   assert.equal(row.movieSha256.length, 64);
@@ -326,7 +326,7 @@ test('assignments preserve canonical order, symlink input aliases, and rotated s
   );
   assert.deepEqual(
     assigned.lessons.map((lesson) => lesson.id),
-    ['bayes'],
+    ['hypothesis-testing'],
   );
   const probabilityShard = (assignment.lessons[0].index + 1) % 6;
   const probabilityAssigned = JSON.parse(
@@ -352,11 +352,11 @@ test('stale selected movies fail closed by default and ready-only writes an expl
     output = path.join(temporary, 'blocked');
   await fs.mkdir(input, { recursive: true });
   await createCurrentBoundFixture(input);
-  await fs.writeFile(path.join(input, 'bayes', 'bayes.mp4'), 'changed after receipts');
-  const options = parseArguments(['--input', input, '--output', output, '--lesson', 'bayes']);
+  await fs.writeFile(path.join(input, 'hypothesis-testing', 'hypothesis-testing.mp4'), 'changed after receipts');
+  const options = parseArguments(['--input', input, '--output', output, '--lesson', 'hypothesis-testing']);
   await assert.rejects(
     generateAssignments(options, { cwd: repositoryRoot }),
-    /Refusing to write assignments.*bayes/s,
+    /Refusing to write assignments.*hypothesis-testing/s,
   );
   await assert.rejects(fs.access(output));
 
@@ -372,7 +372,7 @@ test('stale selected movies fail closed by default and ready-only writes an expl
   );
   assert.equal(assignment.status, 'waiting');
   assert.deepEqual(assignment.readyIds, []);
-  assert.deepEqual(assignment.pendingIds, ['bayes']);
+  assert.deepEqual(assignment.pendingIds, ['hypothesis-testing']);
   assert.deepEqual(assignment.lessons, []);
 });
 
@@ -382,7 +382,7 @@ test('assignments accept complete all-frame text-ink coverage and reject partial
   const input = path.join(temporary, 'renders'),
     output = path.join(temporary, 'assignments');
   await createCurrentBoundFixture(input);
-  const reportFile = path.join(input, 'bayes/text-ink-audit.json');
+  const reportFile = path.join(input, 'hypothesis-testing/text-ink-audit.json');
   const report = JSON.parse(await fs.readFile(reportFile));
   report.mode = 'all-frames';
   for (const scene of report.scenes) {
@@ -391,7 +391,7 @@ test('assignments accept complete all-frame text-ink coverage and reject partial
   }
   report.checkedFrames = report.totalFrames;
   await writeJson(reportFile, report);
-  const options = parseArguments(['--input', input, '--output', output, '--lesson', 'bayes']);
+  const options = parseArguments(['--input', input, '--output', output, '--lesson', 'hypothesis-testing']);
   assert.equal((await generateAssignments(options)).status, 'ready');
   report.scenes[0].checkedFrames--;
   report.checkedFrames--;
@@ -407,7 +407,7 @@ test('assignment evidence rejects registered thumbnails posing as native frames'
   t.after(() => fs.rm(temporary, { recursive: true, force: true }));
   const input = path.join(temporary, 'renders');
   await createCurrentBoundFixture(input);
-  const encoded = path.join(input, 'bayes/encoded-review'),
+  const encoded = path.join(input, 'hypothesis-testing/encoded-review'),
     reportFile = path.join(encoded, 'verification.json');
   const report = JSON.parse(await fs.readFile(reportFile)),
     image = report.samples[0].image;
@@ -420,7 +420,7 @@ test('assignment evidence rejects registered thumbnails posing as native frames'
     '--output',
     path.join(temporary, 'assignments'),
     '--lesson',
-    'bayes',
+    'hypothesis-testing',
   ]);
   await assert.rejects(generateAssignments(options), /native frame is not 1920x1080/);
 });
@@ -449,8 +449,8 @@ test('argument parsing rejects invalid shard counts and rotations', () => {
 
 test('argument parsing rejects duplicate IDs and generation rejects unknown selected IDs', async (t) => {
   assert.throws(
-    () => parseArguments(['--input', 'in', '--output', 'out', '--lesson', 'bayes', 'bayes']),
-    /Duplicate lesson ID bayes/,
+    () => parseArguments(['--input', 'in', '--output', 'out', '--lesson', 'hypothesis-testing', 'hypothesis-testing']),
+    /Duplicate lesson ID hypothesis-testing/,
   );
   assert.throws(() => parseArguments(['--input', 'in']), /--output is required/);
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'curation-review-unknown-'));

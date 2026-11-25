@@ -81,7 +81,7 @@ This post offers a clear example. An earlier version of its raw research packet 
 
 Reviewing first-party architecture also needs different evidence from reviewing an external paper. Verify “comments are private” in the SQL policy and “a failed cache purge rolls back the release” in the deployment function and its callers. First-party implementation claims need evidence from the implementation.
 
-For teaching material, the same discipline goes beyond fact checking. “Retrieval improves accuracy” needs a workload, a source set, and an evaluation that can detect stale or irrelevant evidence. [RAG Evaluation](/learn/rag-evaluation-faithfulness-relevance) develops those distinctions. A reviewer judges whether the example helps the reader understand them; counts of headings, citations, and illustrations track coverage. A figure can drift in a more mechanical way too. The sentence changes, and a copied PNG still shows the old arrow. Which source generates the light and dark pages?
+For teaching material, the same discipline goes beyond fact checking. “Retrieval improves accuracy” needs a workload, a source set, and an evaluation that can detect stale or irrelevant evidence. [RAG Evaluation](/learn/design-production-rag-pipeline) develops those distinctions. A reviewer judges whether the example helps the reader understand them; counts of headings, citations, and illustrations track coverage. A figure can drift in a more mechanical way too. The sentence changes, and a copied PNG still shows the old arrow. Which source generates the light and dark pages?
 
 ## One figure source, two theme variants
 

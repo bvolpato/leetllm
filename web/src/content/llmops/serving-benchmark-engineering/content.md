@@ -3,11 +3,17 @@
   "id": "serving-benchmark-engineering",
   "title": "Serving Benchmark Engineering",
   "slug": "serving-benchmark-engineering",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Evaluation & Benchmarks",
   "difficulty": "Hard",
-  "order": 30,
-  "companies": ["NVIDIA", "Google", "Meta", "Microsoft", "Amazon"],
+  "order": 23,
+  "companies": [
+    "NVIDIA",
+    "Google",
+    "Meta",
+    "Microsoft",
+    "Amazon"
+  ],
   "shortDescription": "The server finishes more requests per second, but the first word is slower and some fast answers are invalid. Keep the offered load, the client's timing, and every failure.",
   "keyConceptsTested": [
     "Open-loop and closed-loop load generation",
@@ -25,13 +31,12 @@
     "distributed-inference-data-plane",
     "llm-deployment-gpu-serving-autoscaling",
     "continuous-batching-request-scheduling",
-    "gpu-profiling-correctness-benchmarking"
+    "gpu-kernel-performance-engineering-lab"
   ],
   "relatedQuestions": [
-    "ab-testing-online-evaluation-llms",
+    "experiment-design-ab-testing",
     "observability-monitoring-llm-systems",
-    "llm-evaluation-benchmarks-limitations",
-    "model-versioning-continuous-deployment"
+    "llm-evaluation-benchmarks-limitations"
   ]
 }
 ---
@@ -40,7 +45,7 @@ The server finishes more requests per second, but users wait longer for the firs
 
 A single throughput number can't answer that. A useful serving benchmark preserves the incoming workload, measures the client's experience, and counts which responses actually satisfy the task. It must also notice when the load generator, rather than the server, is overloaded.
 
-[Continuous Batching and Scheduling](/learn/continuous-batching-request-scheduling) explains why prompt processing and generation compete. [GPU Profiling, Correctness, and Benchmarking](/learn/gpu-profiling-correctness-benchmarking) separates kernel timing from broader execution. Here, the measurement scope moves outward to the client, gateway, and serving system, capturing failures and queueing time alongside model work.
+[Continuous Batching and Scheduling](/learn/continuous-batching-request-scheduling) explains why prompt processing and generation compete. [GPU Profiling, Correctness, and Benchmarking](/learn/gpu-kernel-performance-engineering-lab) separates kernel timing from broader execution. Here, the measurement scope moves outward to the client, gateway, and serving system, capturing failures and queueing time alongside model work.
 
 Throughout this chapter, a six-request burst for an incident-response assistant anchors the accounting math and exercises the local cohort scorer.
 
@@ -523,7 +528,7 @@ To support a capacity claim, reproduce the load, retain failures and rejections,
 ]
 ```
 
-> **Next:** Continue to [A/B Testing for LLMs](/learn/ab-testing-online-evaluation-llms). Test whether a serving or model change improves real user outcomes, with stable assignment, statistical uncertainty, and live guardrails.
+> **Next:** Continue to [Content Moderation System](/learn/design-real-time-content-moderation-system).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -837,6 +842,6 @@ Your report shows good attainment, a flat queue, and a scorer that exited cleanl
 Not from that alone. A clean exit checks that the data is complete and consistent. A capacity claim also needs a reproduced load, a representative workload, retained failures and rejections, real quality checks, and a repeated result. Whether it helps users is a further question, answered on live traffic with a stable assignment.
 ```
 
-That's the arc of this part of the book: one request's clocks, the memory it occupies, the work it can reuse, the scheduler it competes in, the weights it reads, the signals that show it working, the release that defines it, the fleet that carries it, and now the measurements that show the whole thing delivers what you promised. [Responsible governance](/learn/responsible-ai-governance-ethics-compliance) takes those measurements into questions of ownership, risk, and oversight. And cost and gateway decisions can then rest on a measured limit in place of a headline throughput number.
+That's the arc of this part of the book: one request's clocks, the memory it occupies, the work it can reuse, the scheduler it competes in, the weights it reads, the signals that show it working, the release that defines it, the fleet that carries it, and now the measurements that show the whole thing delivers what you promised. [Responsible governance](/learn) takes those measurements into questions of ownership, risk, and oversight. And cost and gateway decisions can then rest on a measured limit in place of a headline throughput number.
 
 <!-- leetllm: edition:reader:end -->

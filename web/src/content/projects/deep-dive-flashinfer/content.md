@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 4,
+  "order": 5,
   "companies": [
     "FlashInfer contributors",
     "NVIDIA",
@@ -32,8 +32,7 @@
   "relatedQuestions": [
     "continuous-batching-request-scheduling",
     "prefix-caching-prompt-caching",
-    "model-parallelism-for-llm-inference",
-    "scaling-llm-inference-batching-kv-cache"
+    "model-parallelism-for-llm-inference"
   ],
   "coverImage": "illustrations/_generated/ragged_bsr_cta_dark.png"
 }
@@ -641,4 +640,4 @@ Merging adds normalization mass from both states, double-counting the shared key
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - DeepGEMM](/learn/deep-dive-deepgemm). Trace irregular attention through its pages, its plan, and its composable states before you move on. The tensor-core GEMM kernels sit beside that path, and layout, low-precision scaling, and MoE grouping decide whether the rest of the layer keeps the GPU busy.
+> **Next:** Continue to [Deep Dive - DeepGEMM](/learn/deep-dive-deepgemm).

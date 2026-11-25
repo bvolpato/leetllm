@@ -219,13 +219,13 @@ If the cited rule is wrong, trace whether the source was eligible, retrieved, se
 
 Dense retrieval handles paraphrases and semantic similarity. Sparse retrieval such as BM25 scores lexical matches and can help with identifiers, error codes, and rare names, provided its text analyzer preserves those terms. <span data-glossary="hybrid-search">Hybrid search</span> combines ranked lists, often with Reciprocal Rank Fusion (RRF), which adds reciprocal rank contributions without requiring raw sparse and dense scores to share a scale.[^cormack2009]
 
-If a query mixes "how do I rotate credentials?" with an exact error code, ask which retriever can surface both pieces. Hybrid is a good baseline when paraphrases and exact identifiers matter. Keep it only if evals beat sparse-only and dense-only baselines on the relevant slices. [Hybrid Search](/learn/hybrid-search-dense-sparse-retrieval) covers fusion and <span data-glossary="reranker">reranking</span>.
+If a query mixes "how do I rotate credentials?" with an exact error code, ask which retriever can surface both pieces. Hybrid is a good baseline when paraphrases and exact identifiers matter. Keep it only if evals beat sparse-only and dense-only baselines on the relevant slices. [Hybrid Search](/learn/core-retrieval-algorithms) covers fusion and <span data-glossary="reranker">reranking</span>.
 
 ### 17. How should RAG evaluation separate retrieval from generation?
 
 Retrieval asks whether relevant evidence entered the candidate set and selected context. Recall@k is the fraction of labeled relevant items found in the top $k$. If two passages are relevant and only one appears, recall is $1/2$, while hit rate (at least one relevant result) is 1. Mean reciprocal rank (MRR) rewards the first relevant result appearing early; normalized discounted cumulative gain (nDCG) handles graded relevance and rank. Generation asks whether claims are supported, relevant, complete, and correctly cited.
 
-Use a retrieval slice first: if the needed passage never enters the top $k$, generation has no chance to cite it. RAGAS-style automated metrics and LLM judges can scale review, but their scores need calibration against human-labeled cases.[^es2023][^zheng2023] A final-answer score can't tell whether the first failure was eligibility, retrieval, context assembly, or generation. [RAG Evaluation](/learn/rag-evaluation-faithfulness-relevance) teaches that attribution trace.
+Use a retrieval slice first: if the needed passage never enters the top $k$, generation has no chance to cite it. RAGAS-style automated metrics and LLM judges can scale review, but their scores need calibration against human-labeled cases.[^es2023][^zheng2023] A final-answer score can't tell whether the first failure was eligibility, retrieval, context assembly, or generation. [RAG Evaluation](/learn/design-production-rag-pipeline) teaches that attribution trace.
 
 ### 18. How should you choose a chunking strategy?
 
@@ -350,7 +350,7 @@ Split the answer into claims, then check each claim against allowed evidence. Re
 
 Offline evals provide repeatable release checks across task, safety, retrieval, latency, and cost slices. Public benchmarks can help screen models, but contamination and harness differences limit their value as release gates. Private fixtures and verifiers should match the deployed task.
 
-Define release gates before seeing the candidate's scores. Include rare but consequential failures and plausible abuse alongside average traffic. After passing those gates, use canaries or A/B tests to measure traffic shape, provider errors, latency, and user outcomes the suite misses. Safety or reliability regressions can block rollout even when average quality improves. [A/B Testing for LLMs](/learn/ab-testing-online-evaluation-llms) covers staged decisions, while [Understanding SWE-bench](/blog/swe-bench-deep-dive) shows why harness details change benchmark meaning.
+Define release gates before seeing the candidate's scores. Include rare but consequential failures and plausible abuse alongside average traffic. After passing those gates, use canaries or A/B tests to measure traffic shape, provider errors, latency, and user outcomes the suite misses. Safety or reliability regressions can block rollout even when average quality improves. [A/B Testing for LLMs](/learn/experiment-design-ab-testing) covers staged decisions, while [Understanding SWE-bench](/blog/swe-bench-deep-dive) shows why harness details change benchmark meaning.
 
 ## System design under follow-up pressure
 
@@ -399,7 +399,7 @@ Store raw prompts, documents, or outputs only under an explicit access and reten
 
 Semantic caching embeds a request and reuses a response for a nearby request.[^bang2023] Similar wording doesn't prove equivalent intent, permissions, time sensitivity, or user state. A loose threshold can return a plausible answer that belongs to another policy version or identity.
 
-Treat a semantic cache hit as a proposed reuse. Reuse requires equivalent intent, current authorization, and fresh data. Partition keys by tenant and permission boundary, include model and data versions, and recheck authorization and freshness before serving. Bypass personalized or high-risk requests where equivalence is uncertain, and evaluate false hits alongside hit rate. [Semantic Caching](/learn/semantic-caching-cost-latency-optimization) covers those controls.
+Treat a semantic cache hit as a proposed reuse. Reuse requires equivalent intent, current authorization, and fresh data. Partition keys by tenant and permission boundary, include model and data versions, and recheck authorization and freshness before serving. Bypass personalized or high-risk requests where equivalence is uncertain, and evaluate false hits alongside hit rate. [Semantic Caching](/learn/llm-cost-engineering-token-economics) covers those controls.
 
 ## Advanced model architecture
 
@@ -460,7 +460,7 @@ Report uncertainty, sample size, false-positive and false-negative costs, and in
 
 An enforceable guardrail runs at a trusted boundary: input policy, authorization, tool permission, schema validation, rate or cost limit, output check, circuit breaker, or human approval. A prompt instruction can guide model behavior, but it can't authorize its own side effect.
 
-Log the policy version and decision, test bypasses, and define fail-open or fail-closed behavior for dependency outages. A model-based output classifier can still misclassify content even when trusted code enforces its decision. Keep that uncertainty separate from deterministic permission checks. [Guardrails](/learn/guardrails-safety-filters-production) covers the runtime design.
+Log the policy version and decision, test bypasses, and define fail-open or fail-closed behavior for dependency outages. A model-based output classifier can still misclassify content even when trusted code enforces its decision. Keep that uncertainty separate from deterministic permission checks. [Guardrails](/learn/prompt-injection-defense-strategies) covers the runtime design.
 
 ### 49. What does context engineering include beyond prompt wording?
 

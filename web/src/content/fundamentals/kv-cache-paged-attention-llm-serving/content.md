@@ -34,12 +34,11 @@
     "prefix-caching-prompt-caching",
     "flashattention-memory-efficient-attention",
     "continuous-batching-request-scheduling",
-    "scaling-llm-inference-batching-kv-cache",
     "model-parallelism-for-llm-inference",
     "model-quantization-gptq-awq-gguf",
     "long-context-window-management"
   ],
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "order": 3
 }
 ---
@@ -1080,7 +1079,7 @@ A raw KV payload has a size, a block table has a walk, and packing waste is a di
 ]
 ```
 
-> **Next:** Continue to [Prefix Caching and Prompt Caching](/learn/prefix-caching-prompt-caching). Decide which compatible prefixes may be reused, how cache hits change prefill work, and where the reuse cutoff belongs between tenants.
+> **Next:** Continue to [Prefix Caching and Prompt Caching](/learn/prefix-caching-prompt-caching).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

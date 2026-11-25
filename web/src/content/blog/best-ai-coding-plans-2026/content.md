@@ -55,7 +55,7 @@ At five full developer seats, Devin Teams totals \$280 per month: $80\text{ USD}
 
 > **Purchase check:** GitHub's current plans page links Business and Enterprise subscription paths. Enterprise requires GitHub Enterprise Cloud. Confirm organization eligibility and checkout terms before setting a rollout date.[^github2026copilotplans]
 
-For a team, a higher fee may buy controls your employer requires while leaving the usage allowance unchanged. Before testing, write down the needs that make a plan eligible: single sign-on, seat administration, model restrictions, retention, data-training opt-out, and audit access. A personal subscription may lack your employer's required controls. [Human-in-the-Loop Agent Architecture](/learn/human-in-the-loop-agent-architecture) explains why human approval still matters after procurement approves the tool. Eligibility and commitment are separate decisions. If the workflow is still unproven, does a year paid up front cost less than the months you will actually use?
+For a team, a higher fee may buy controls your employer requires while leaving the usage allowance unchanged. Before testing, write down the needs that make a plan eligible: single sign-on, seat administration, model restrictions, retention, data-training opt-out, and audit access. A personal subscription may lack your employer's required controls. [Human-in-the-Loop Agent Architecture](/learn/agent-failure-states-retry-fallback) explains why human approval still matters after procurement approves the tool. Eligibility and commitment are separate decisions. If the workflow is still unproven, does a year paid up front cost less than the months you will actually use?
 
 ## Annual savings depend on how long you stay
 

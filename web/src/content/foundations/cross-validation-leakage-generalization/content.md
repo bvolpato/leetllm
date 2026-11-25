@@ -3,9 +3,9 @@
   "id": "cross-validation-leakage-generalization",
   "title": "Validation and Leakage",
   "slug": "cross-validation-leakage-generalization",
-  "section": "ML Algorithms & Evaluation",
+  "section": "Classical ML & Evaluation",
   "category": "Evaluation & Benchmarks",
-  "difficulty": "Medium",
+  "difficulty": "Easy",
   "order": 5,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
@@ -26,6 +26,9 @@
     "locked test set",
     "LLM benchmark contamination",
     "generalization"
+  ],
+  "aliases": [
+    "statistical-learning-theory-generalization"
   ]
 }
 ---
@@ -747,4 +750,4 @@ Test your intuition on five quick perturbations:
 ]
 ```
 
-> **Next:** Continue to [Statistical Learning and Generalization](/learn/statistical-learning-theory-generalization). Honest validation splits prevent leaked information from distorting offline scores; next you study why finite samples still vary, how model capacity shapes generalization error, and what guarantees statistical learning theory provides on untouched data.
+> **Next:** Continue to [Dataset Pipelines and Data Quality](/learn/dataset-pipelines-data-quality).

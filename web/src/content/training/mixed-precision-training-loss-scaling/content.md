@@ -25,10 +25,9 @@
     "RL train-inference policy mismatch from low-precision rounding",
     "FP8 as a scaled advanced path"
   ],
-  "section": "Advanced Training & Adaptation",
-  "order": 7,
+  "section": "Training, Fine-Tuning & Alignment",
+  "order": 5,
   "prerequisites": [
-    "supervised-fine-tuning-pipeline",
     "pytorch-training-loops",
     "cuda-gpu-computing-for-ml"
   ]
@@ -744,7 +743,7 @@ Yes. Both micro-batches now hold three valid tokens, so they carry equal weight 
 ]
 ```
 
-> **Next:** Continue to [Distributed Training: FSDP & ZeRO](/learn/distributed-training-fsdp-deepspeed-zero). Ordinary AMP leaves FP32 parameters and <span data-glossary="optimizer-state">optimizer state</span> intact on every GPU; the next lesson shows how FSDP and ZeRO shard that persistent state across ranks.
+> **Next:** Continue to [Distributed Training: FSDP & ZeRO](/learn/distributed-training-fsdp-deepspeed-zero).
 
 <!-- leetllm: edition:reference:end -->
 

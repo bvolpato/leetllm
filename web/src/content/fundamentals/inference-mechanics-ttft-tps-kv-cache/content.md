@@ -6,7 +6,7 @@
   "shortDescription": "A blank chat window and a busy GPU can both be right: prefill and decode hit different limits, and the KV cache decides how many sequences fit.",
   "difficulty": "Hard",
   "category": "Inference Optimization",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "coverImage": "illustrations/_generated/inference_pipeline_dark.png",
   "companies": [
     "OpenAI",
@@ -28,7 +28,6 @@
     "KV cache quantization for concurrency"
   ],
   "prerequisites": [
-    "capstone-production-llm-agent",
     "tokenization-bpe-wordpiece-sentencepiece",
     "scaled-dot-product-attention"
   ],
@@ -37,8 +36,7 @@
     "kv-cache-paged-attention-llm-serving",
     "continuous-batching-request-scheduling",
     "model-quantization-gptq-awq-gguf",
-    "model-parallelism-for-llm-inference",
-    "scaling-llm-inference-batching-kv-cache"
+    "model-parallelism-for-llm-inference"
   ],
   "order": 1
 }
@@ -1055,7 +1053,7 @@ The blank first wait is a different interval from the later token gaps. Long pre
 ]
 ```
 
-> **Next:** Continue to [Multi-Query & Grouped-Query Attention](/learn/multi-query-grouped-query-attention). The KV formula you just used stores $n_{kv}$ heads, not every query head. The next lesson is why models share those K/V heads (MQA and GQA), and what that sharing does to memory, bandwidth, and quality.
+> **Next:** Continue to [Multi-Query & Grouped-Query Attention](/learn/multi-query-grouped-query-attention).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

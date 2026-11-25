@@ -25,7 +25,7 @@
     "Jinja whitespace control and token-level serialization rules"
   ],
   "section": "Core LLM Foundations",
-  "order": 8
+  "order": 10
 }
 ---
 
@@ -448,7 +448,7 @@ B's outputs shift because its queries read A's tokens. Block-causal isolation ke
 ]
 ```
 
-> **Next:** Continue to [Dimensionality Reduction for Embeddings](/learn/dimensionality-reduction-embeddings). The input schema preserves provided context, but it does not select that context. The next lesson examines the high-dimensional <span data-glossary="embedding">embeddings</span> used to find related text, and what changes when you compress those <span data-glossary="vector">vectors</span>.
+> **Next:** Continue to [LLM Benchmarks & Limitations](/learn/llm-evaluation-benchmarks-limitations).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

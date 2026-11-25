@@ -6,7 +6,7 @@
   "section": "Advanced Agents & Retrieval",
   "category": "LLM Agents & Tool Use",
   "difficulty": "Hard",
-  "order": 12,
+  "order": 8,
   "coverImage": "illustrations/_generated/coding_agent_workflow_dark.png",
   "companies": [
     "GitHub",
@@ -28,8 +28,7 @@
   ],
   "prerequisites": [
     "code-generation-agents-sandboxing",
-    "human-in-the-loop-agent-architecture",
-    "guardrails-safety-filters-production"
+    "prompt-injection-defense-strategies"
   ],
   "relatedQuestions": [
     "agent-memory-persistence-patterns",
@@ -42,7 +41,7 @@
 
 A coding agent receives a straightforward bug report for a Python HTTP router: `parse_header_line("X-Forward-Host: api.internal:8443")` raises `ValueError` because `line.split(":")` splits on every colon instead of only the first delimiter. Without a structured harness, an autonomous model can easily wander into adjacent modules, patch the test suite with a mock that strips ports from test strings, and leave `http_parse.py` untouched. The edited tests turn green, yet the production parser still crashes the moment an upstream proxy forwards a host-and-port pair or callback URI.
 
-Reliable coding-agent workflows prevent that silent regression by turning repository editing into an inspectable, feedback-driven engineering loop rather than a single-shot generation pass. Before touching source code, the harness localizes the fault with static syntax indexing, reproduces the crash against unmodified files, isolates trial edits inside an ephemeral working tree, and iterates on real test tracebacks under a strict retry budget. Earlier lessons covered execution sandboxing ([Code Generation & Sandboxing](/learn/code-generation-agents-sandboxing)) and keeping privileged actions outside the model ([Human-in-the-Loop Agent Architecture](/learn/human-in-the-loop-agent-architecture)). Here those pieces come together to support trustworthy repository automation from localization through pull-request review.
+Reliable coding-agent workflows prevent that silent regression by turning repository editing into an inspectable, feedback-driven engineering loop rather than a single-shot generation pass. Before touching source code, the harness localizes the fault with static syntax indexing, reproduces the crash against unmodified files, isolates trial edits inside an ephemeral working tree, and iterates on real test tracebacks under a strict retry budget. Earlier lessons covered execution sandboxing ([Code Generation & Sandboxing](/learn/code-generation-agents-sandboxing)) and keeping privileged actions outside the model ([Human-in-the-Loop Agent Architecture](/learn/agent-failure-states-retry-fallback)). Here those pieces come together to support trustworthy repository automation from localization through pull-request review.
 
 <figure>
   <img src="illustrations/_generated/coding_agent_workflow_dark.png" alt="Directed workflow diagram of a coding agent engineering loop. An issue and traceback enter an AST repo-map ranker, which extracts a compact symbol slice. The agent writes a fail-first test, applies a scoped patch inside an isolated worktree, and runs tests in a sandbox. Exit zero yields a verified diff for human review, while assertion tracebacks return to patch repair within a finite retry budget." />
@@ -533,4 +532,4 @@ Make four rapid checks habitual before approving any agent-authored pull request
 ]
 ```
 
-> **Next:** Continue to [Agent Memory & Persistence](/learn/agent-memory-persistence-patterns). A single coding trajectory relies on working tree snapshots and test traces inside one session; next, you'll separate working context from durable episodic and semantic memory so an agent retains codebase knowledge across sessions cleanly.
+> **Next:** Continue to [Computer-Use / GUI / Browser Agents](/learn/computer-use-gui-browser-agents).

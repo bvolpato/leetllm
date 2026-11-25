@@ -6,7 +6,7 @@
   "section": "Advanced Agents & Retrieval",
   "category": "LLM Agents & Tool Use",
   "difficulty": "Hard",
-  "order": 10,
+  "order": 9,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "Anthropic",
@@ -18,7 +18,7 @@
   "shortDescription": "An agent reading a failed evaluation dashboard can click any button on screen, so the host must ground targets accurately, check every proposed action, and verify the resulting state.",
   "prerequisites": [
     "code-generation-agents-sandboxing",
-    "guardrails-safety-filters-production",
+    "prompt-injection-defense-strategies",
     "agentic-architectures-react-plan-execute"
   ],
   "keyConceptsTested": [
@@ -32,9 +32,8 @@
     "Hybrid agent design: prefer APIs, fall back to computer use only when necessary"
   ],
   "relatedQuestions": [
-    "human-in-the-loop-agent-architecture",
-    "ai-coding-workflow-with-agents",
     "agent-failure-states-retry-fallback",
+    "ai-coding-workflow-with-agents",
     "observability-monitoring-llm-systems",
     "mcp-tool-protocol-standards"
   ]
@@ -783,4 +782,4 @@ A computer-use agent turns a visual interface into a programmable action surface
 ]
 ```
 
-> **Next:** Continue to [Human-in-the-Loop Agent Architecture](/learn/human-in-the-loop-agent-architecture). Here, a write such as updating `model-2048` pauses until a reviewer sees the observation and the intended change. The next chapter makes that pause durable: identity-aware approval, a checkpoint that survives process restart, and a fresh-state check before the write actually runs.
+> **Next:** Continue to [Agent Reliability, Recovery & Human Approval](/learn/agent-failure-states-retry-fallback).

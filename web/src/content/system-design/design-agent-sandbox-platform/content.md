@@ -30,24 +30,22 @@
   ],
   "prerequisites": [
     "code-generation-agents-sandboxing",
-    "local-agent-sandboxing-seatbelt-landlock",
     "design-multi-tenant-llm-serving-platform",
     "llm-deployment-gpu-serving-autoscaling"
   ],
   "relatedQuestions": [
     "code-generation-agents-sandboxing",
-    "local-agent-sandboxing-seatbelt-landlock",
     "design-multi-tenant-llm-serving-platform",
-    "advanced-mlops-devops-ai"
+    "observability-monitoring-llm-systems"
   ],
-  "section": "System Design Capstones",
+  "section": "AI System Design",
   "order": 4
 }
 ---
 
 An agent generates a Python script that installs a plotting library, writes a CSV, and leaves a background worker running. Two seconds later, another tenant opens a fresh session on the same physical machine. Which bytes can the host safely share between them, which state must vanish before reuse, and how do you start the second workspace in milliseconds instead of waiting for a full Linux boot?
 
-In [Local Agent Sandboxing](/learn/local-agent-sandboxing-seatbelt-landlock), Landlock and Seatbelt restricted processes on a single workstation. A multi-tenant cloud sandbox has a harder job: contain untrusted code from competing customers, keep host memory and CPU from collapsing under bursts, and recover cleanly if the control plane crashes mid-run. Throughout this design, we will trace two sandbox instances, A and B, restored from one immutable template through private writes, network calls, and verified teardown.
+In [Local Agent Sandboxing](/learn/code-generation-agents-sandboxing), Landlock and Seatbelt restricted processes on a single workstation. A multi-tenant cloud sandbox has a harder job: contain untrusted code from competing customers, keep host memory and CPU from collapsing under bursts, and recover cleanly if the control plane crashes mid-run. Throughout this design, we will trace two sandbox instances, A and B, restored from one immutable template through private writes, network calls, and verified teardown.
 
 ## Give each session an owner and a readiness check
 
@@ -582,4 +580,4 @@ Mark-and-sweep collectors and reference counters write metadata bits across heap
 ]
 ```
 
-> **Next:** Continue to [LLM-Powered Search Engine](/learn/design-llm-powered-search-engine). You can now trace a code session through resource ownership, readiness, and safe disposal. Search adds a different evidence requirement: a generated answer must preserve the current source, its exceptions, and the reader's access rights.
+> **Next:** Continue to [LLM-Powered Search Engine](/learn/design-llm-powered-search-engine).

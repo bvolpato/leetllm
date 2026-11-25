@@ -6,7 +6,7 @@
   "aliases": [
     "decoder-only-lm-pretraining-lab"
   ],
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
   "order": 3,
@@ -908,4 +908,4 @@ A deterministic sampler draws starts [4, 1, 9, 6] from its initial state. A chec
 ]
 ```
 
-> **Next:** Continue to [JAX for PyTorch Researchers](/learn/jax-for-ml-research). This lab mutates a PyTorch module, an optimizer, and two random generators in place. The JAX chapter makes those changing values explicit returns, then adds compilation and timing.
+> **Next:** Continue to [CUDA for ML Training](/learn/cuda-gpu-computing-for-ml).

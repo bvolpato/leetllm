@@ -3,10 +3,10 @@
   "id": "mixture-of-experts-architecture",
   "title": "Mixture of Experts Architecture",
   "slug": "mixture-of-experts-architecture",
-  "section": "Inference & Production Scale",
+  "section": "Transformer & Multimodal Architectures",
   "category": "Transformer Architecture",
   "difficulty": "Hard",
-  "order": 23,
+  "order": 4,
   "coverImage": "social_banner.png",
   "companies": [
     "Google",
@@ -29,12 +29,8 @@
     "Architecture-specific expert and parameter counts"
   ],
   "prerequisites": [
-    "long-context-window-management",
     "transformer-architecture-end-to-end",
-    "scaled-dot-product-attention",
-    "multi-query-grouped-query-attention",
-    "scaling-llm-inference-batching-kv-cache",
-    "model-parallelism-for-llm-inference"
+    "scaled-dot-product-attention"
   ],
   "relatedQuestions": [
     "state-space-models-mamba-alternatives",
@@ -475,3 +471,5 @@ Large <span data-glossary="prefill">prefill</span> and high-concurrency decode b
 ```
 
 <!-- leetllm: audience:website:start -->> **Next:** Continue to [Mamba & State Space Models](/learn/state-space-models-mamba-alternatives). MoE sparsifies the feed-forward path, but most of these models still mix tokens with attention, so KV-cache growth remains a long-context cost. The next chapter compares selective state-space processing with attention, including why some production MoE backbones already interleave a linear-time mixer.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->> MoE sparsifies the feed-forward path, but models that use attention still incur KV-cache growth as context grows. Some production MoE backbones interleave attention with a linear-time state-space mixer. The online companion's [Mamba & State Space Models](/learn/state-space-models-mamba-alternatives) chapter compares selective state-space processing with attention.<!-- leetllm: audience:book:end -->
+
+> **Next:** Continue to [Mamba & State Space Models](/learn/state-space-models-mamba-alternatives).

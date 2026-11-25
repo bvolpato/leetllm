@@ -6,7 +6,7 @@
   "shortDescription": "Tests pass, but canary latency spikes after a config change. Design an agent that gathers fresh evidence, spends extra reasoning only when needed, and recommends whether to hold, revert, or continue.",
   "difficulty": "Hard",
   "category": "System Design",
-  "section": "System Design Capstones",
+  "section": "AI System Design",
   "coverImage": "illustrations/_generated/reasoning_agent_dark.png",
   "companies": [
     "OpenAI",
@@ -29,12 +29,11 @@
   ],
   "relatedQuestions": [
     "design-real-time-voice-ai-agent",
-    "scaling-llm-inference-batching-kv-cache",
-    "speculative-decoding",
     "continuous-batching-request-scheduling",
+    "speculative-decoding",
     "design-code-completion-system"
   ],
-  "order": 10,
+  "order": 7,
   "keyConceptsTested": [
     "Test-Time Compute",
     "Reasoning Effort Budget",
@@ -770,4 +769,4 @@ Without repeated-state detection, depth limits, and shared reservations, cyclic 
 ]
 ```
 
-> **Next:** Continue to [AI Lab Coding Interview: Python Systems](/learn/ai-lab-coding-interview-python-systems). The controller allocates inference compute, checks evidence, and stops when search stops helping. The next chapter asks you to make those guarantees hold in production-shaped Python: staged requirements, concurrency, and tests you can defend.
+> **Next:** Continue to [AI Lab Coding Interview: Python Systems](/learn/ai-lab-coding-interview-python-systems).

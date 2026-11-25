@@ -11,11 +11,6 @@ import {
 } from '../audit-content-visibility.mjs';
 import { createHash } from 'node:crypto';
 import { DecodedFrameAudit } from '../inspect.mjs';
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
-import { draw as drawLearningTheory } from '../animations/learning-theory.mjs';
-import { drawFrame } from '../lib/scene.mjs';
-import { readLesson, makeSceneTimeline, frameState } from '../lib/lesson.mjs';
-import { resolveSceneCues } from '../lib/narration-cues.mjs';
 
 const rgbaFrame = (width, height, gray = 16) => {
   const data = new Uint8Array(width * height * 4);
@@ -110,72 +105,6 @@ test('isolated and beat-transition misses advise; repeated neighboring non-trans
   );
   assert.equal(classifyVisibilitySamples([visible, miss, miss]).status, 'source-preflight-block');
   assert.equal(classifyVisibilitySamples([visible, visible]).status, 'sampled-visible');
-});
-
-test('actual ticket painter rejects dim content and retains readable current context', async () => {
-  registerLessonFonts();
-  const root = new URL('../../', import.meta.url).pathname;
-  const lesson = await readLesson(root + 'videos/lessons/learning-theory.lesson.yaml', root);
-  const scene = lesson.scenes.find((item) => item.id === 'one-predictor');
-  const sounds = scene.beats.map((beat, beatIndex) => ({
-    beatIndex,
-    words: beat.say.split(/\s+/).map((text, i) => ({ text, start: i * 0.4, end: (i + 1) * 0.4 })),
-  }));
-  const timing = makeSceneTimeline(
-    scene,
-    sounds.map((sound) => sound.words.at(-1).end),
-  );
-  timing.sounds = sounds;
-  timing.visualCues = resolveSceneCues(scene, timing);
-  timing.cueTiming = 'provider-words';
-  const canvas = createCanvas(1920, 1080),
-    ctx = canvas.getContext('2d');
-  // Dim the actual primitive path, leaving drawFrame's heading unchanged.
-  // This is a negative fixture, not a claim to reproduce a historical capture.
-  let dimmedPrimitives = 0;
-  let dimmedRectangles = 0;
-  const dimmedContent = (ctx, scene, state, api) => {
-    const dim =
-      (name) =>
-      (...args) => {
-        dimmedPrimitives++;
-        if (name === 'rect') dimmedRectangles++;
-        ctx.save();
-        ctx.globalAlpha *= 0.22;
-        try {
-          return api[name](...args);
-        } finally {
-          ctx.restore();
-        }
-      };
-    drawLearningTheory(ctx, scene, state, {
-      ...api,
-      ...Object.fromEntries(
-        ['rect', 'text', 'math', 'line', 'circle'].map((name) => [name, dim(name)]),
-      ),
-    });
-  };
-  for (const time of [0.6, 1, 1.5, (timing.beats[0].start + timing.beats[0].end) / 2]) {
-    const state = frameState(timing, time, 0, 1);
-    dimmedPrimitives = 0;
-    drawFrame(ctx, lesson, scene, state, dimmedContent);
-    assert(dimmedPrimitives > 0, 'the negative fixture must reach the actual teaching primitives');
-    assert.equal(
-      evaluateContentVisibility(ctx.getImageData(0, 0, 1920, 1080).data).belowEncodedThreshold,
-      true,
-      `Dimmed teaching content must fail the foreground rule at ${time}s`,
-    );
-    drawFrame(ctx, lesson, scene, state, drawLearningTheory);
-    assert.equal(
-      evaluateContentVisibility(ctx.getImageData(0, 0, 1920, 1080).data).belowEncodedThreshold,
-      false,
-      `Current ticket context should remain visible at ${time}s`,
-    );
-  }
-  assert(
-    dimmedRectangles > 0,
-    'the negative fixture must also dim the collected ticket rectangles',
-  );
 });
 
 test('prepared timing requires complete matching audio evidence; movie progress cannot stale that binding', () => {

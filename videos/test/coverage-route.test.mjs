@@ -11,21 +11,21 @@ const videos = new URL('../', import.meta.url);
 const read = (relative) => readFile(new URL(relative, videos), 'utf8');
 const command = fileURLToPath(new URL('check-coverage.mjs', videos));
 
-test('coverage checks the script and ledger of the requested Estimation edition', async () => {
-  const canvas = parse(await read('lessons/estimation.lesson.yaml'));
-  const stage = parse(await read('stage-lessons/estimation/lesson.yaml'));
+test('coverage checks the script and ledger of the requested A/B Testing edition', async () => {
+  const canvas = parse(await read('lessons/ab-testing.lesson.yaml'));
+  const stage = parse(await read('stage-lessons/ab-testing/lesson.yaml'));
   const article = await read('../web/src/content/' + canvas.source);
-  const canvasLedger = parse(await read('coverage/estimation.yaml'));
+  const canvasLedger = parse(await read('coverage/ab-testing.yaml'));
 
   assert.equal(
-    execFileSync(process.execPath, [command, '--hash', 'estimation', '--mode', 'canvas'], {
+    execFileSync(process.execPath, [command, '--hash', 'ab-testing', '--mode', 'canvas'], {
       encoding: 'utf8',
     }).trim(),
     scriptHash(canvas),
   );
-  assert.deepEqual(await checkLessonCoverage('estimation', { mode: 'canvas' }), {
-    id: 'estimation',
+  assert.deepEqual(await checkLessonCoverage('ab-testing', { mode: 'canvas' }), {
+    id: 'ab-testing',
     ...validateCoverage({ coverage: canvasLedger, lesson: canvas, article }),
   });
-  assert.equal((await checkLessonCoverage('estimation')).summary.script, scriptHash(stage));
+  assert.equal((await checkLessonCoverage('ab-testing')).summary.script, scriptHash(stage));
 });

@@ -28,8 +28,7 @@
   ],
   "prerequisites": [
     "agentic-architectures-react-plan-execute",
-    "ai-coding-workflow-with-agents",
-    "enterprise-rag-security-rbac-access-control"
+    "design-production-rag-pipeline"
   ],
   "relatedQuestions": [
     "agent-failure-states-retry-fallback",
@@ -37,7 +36,7 @@
     "vector-database-internals-hnsw-ivf",
     "observability-monitoring-llm-systems"
   ],
-  "order": 13
+  "order": 6
 }
 ---
 
@@ -602,4 +601,4 @@ Production systems isolate memory in storage using strict composite namespaces (
 ]
 ```
 
-> **Next:** Continue to [Agent Failure & Recovery](/learn/agent-failure-states-retry-fallback). Persistent memory can reload prior debugging notes across sessions, yet recalled text cannot prevent tool timeouts or crash ambiguity during live execution. The next lesson examines retries with <span data-glossary="retry-backoff">backoff</span>, <span data-glossary="circuit-breaker">circuit breakers</span>, fallback chains, and <span data-glossary="workflow-checkpoint">durable workflow checkpoints</span>.
+> **Next:** Continue to [Code Generation & Sandboxing](/learn/code-generation-agents-sandboxing).

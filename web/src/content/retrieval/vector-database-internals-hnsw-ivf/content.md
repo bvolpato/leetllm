@@ -35,9 +35,8 @@
   ],
   "relatedQuestions": [
     "advanced-rag-query-rewriting-self-rag",
-    "hybrid-search-dense-sparse-retrieval",
-    "reranking-cross-encoders-rag",
-    "rag-evaluation-faithfulness-relevance"
+    "core-retrieval-algorithms",
+    "design-production-rag-pipeline"
   ]
 }
 ---
@@ -643,7 +642,7 @@ buffer L=5: ['eu-1', 'eu-2']
   <figcaption>A narrow candidate window (<code>L = 3</code>) underfills <code>k = 2</code> with only <code>eu-1</code>; expanding the scan inside the database recovers <code>eu-2</code> without exposing unauthorized rows to application code.</figcaption>
 </figure>
 
-> **Key insight:** Keep access-control filters *inside* the database or trusted retrieval service, never in application code after fetching raw passages. An index may traverse a disallowed graph node internally without returning it; fetching unauthorized text into application memory exposes it to logs, caches, and traces. See [RAG Security & Access Control](/learn/enterprise-rag-security-rbac-access-control).
+> **Key insight:** Keep access-control filters *inside* the database or trusted retrieval service, never in application code after fetching raw passages. An index may traverse a disallowed graph node internally without returning it; fetching unauthorized text into application memory exposes it to logs, caches, and traces. See [RAG Security & Access Control](/learn/design-production-rag-pipeline).
 
 ```checkpoint
 Why can a selective metadata filter make post-filtering return fewer than k results?
@@ -880,4 +879,4 @@ Always check for `-1` sentinels when fewer than `k` matches exist, propagate del
 ]
 ```
 
-> **Next:** Continue to [Advanced RAG: HyDE & Self-RAG](/learn/advanced-rag-query-rewriting-self-rag). HNSW and IVF decide how an index walks once a query vector exists, but they can't repair a vague or underspecified question. <span data-glossary="query-rewriting">Query rewriting</span>, HyDE, Self-<span data-glossary="rag">RAG</span>, and Corrective RAG act before that walk, and their failures are different from an `ef_search` or `nprobe` miss.
+> **Next:** Continue to [Advanced RAG: HyDE & Self-RAG](/learn/advanced-rag-query-rewriting-self-rag).

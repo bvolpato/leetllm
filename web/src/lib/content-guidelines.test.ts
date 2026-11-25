@@ -229,7 +229,10 @@ function findLiteralEscapedCurrency(markdown: string, bundleId: string) {
     const issues: string[] = []
     const renderedMarkdown = stripNonRenderedFencesPreserveLines(markdown)
 
-    for (const match of renderedMarkdown.matchAll(/`[^`\n]*\\\$[^`\n]*`/g)) {
+    for (const match of renderedMarkdown.matchAll(/`[^`\n]+`/g)) {
+        if (!match[0].includes("\\$")) {
+            continue
+        }
         const line = renderedMarkdown.slice(0, match.index).split("\n").length
         issues.push(`${bundleId}: escaped currency inside inline code on line ${line}`)
     }
@@ -379,10 +382,10 @@ describe("content packaging and rendering regressions", () => {
     const bundles = loadBundles()
     const bundleById = new Map(bundles.map((bundle) => [bundle.id, bundle]))
 
-    test("visible curriculum keeps the canonical 199-lesson path", () => {
+    test("visible curriculum keeps the canonical 140-lesson path", () => {
         const visibleLearnCount = bundles.filter(isVisibleLearnBundle).length
 
-        expect(visibleLearnCount).toBe(199)
+        expect(visibleLearnCount).toBe(140)
     })
 
     test("learn articles end with valid mastery quizzes", () => {
@@ -431,7 +434,7 @@ describe("content packaging and rendering regressions", () => {
 
     test("core curriculum chapters remain available", () => {
         const requiredArticleIds = [
-            "data-structures-for-ai-systems",
+            "numpy-and-tensor-shapes",
             "softmax-cross-entropy-optimization",
             "scaled-dot-product-attention",
             "multi-query-grouped-query-attention",
@@ -777,8 +780,8 @@ describe("content packaging and rendering regressions", () => {
 
     test("inventory covers all learn + blog content.md bodies (excludes glossary/practice)", () => {
         // Curriculum review scope: every published body under content/ except glossary and practice.
-        expect(bundles.length).toBe(222)
+        expect(bundles.length).toBe(163)
         expect(bundles.filter((b) => b.section === "blog").length).toBe(23)
-        expect(bundles.filter(isLearnBundle).length).toBe(199)
+        expect(bundles.filter(isLearnBundle).length).toBe(140)
     })
 })

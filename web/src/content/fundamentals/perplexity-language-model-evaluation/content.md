@@ -26,7 +26,7 @@
     "Leakage-resistant evaluation sets"
   ],
   "section": "Core LLM Foundations",
-  "order": 4
+  "order": 8
 }
 ---
 
@@ -352,7 +352,7 @@ Deploy the post-trained checkpoint. Perplexity tracks unconditional prose likeli
 ]
 ```
 
-> **Next:** Continue to [File Ingestion for AI](/learn/file-ingestion-pdfs-html-ocr-markdown). Score held-out next-token fit, and refuse a contaminated evaluation set. PDFs, HTML, scans, and Markdown still have to become clean, deduplicated text records, because any perplexity run or downstream benchmark is only as trustworthy as the corpus that fed it.
+> **Next:** Continue to [From GPT to Modern LLMs](/learn/gpt-to-modern-llms).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

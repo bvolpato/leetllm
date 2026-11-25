@@ -7,7 +7,7 @@ test('course themes distinguish operational films, math, and projects independen
   assert.equal(operations.palette, 'low');
   assert.equal(operations.group, 'Production ML Systems');
   assert.equal(courseBedPolicy('rope').palette, 'warm');
-  assert.equal(courseBedPolicy('capstone-demand-forecasting-alerts').palette, 'open');
+  assert.equal(courseBedPolicy('agent-architectures').palette, 'open');
   assert.deepEqual(courseBedPolicy('model-monitoring'), operations);
 });
 

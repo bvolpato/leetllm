@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 6,
+  "order": 8,
   "coverImage": "illustrations/_generated/nccl_allreduce_choreography_dark.png",
   "companies": [
     "NVIDIA"
@@ -31,7 +31,7 @@
   ],
   "relatedQuestions": [
     "deep-dive-megatron",
-    "deep-dive-deepspeed",
+    "distributed-training-fsdp-deepspeed-zero",
     "deep-dive-deepep",
     "deep-dive-pytorch"
   ]
@@ -612,4 +612,4 @@ NCCL builds on decades of collective-communication research rather than a single
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - Megatron](/learn/deep-dive-megatron). NCCL gives you the communication substrate. Megatron shows how tensor, pipeline, data, context, and expert parallel groups turn those collectives into one large-model training program.
+> **Next:** Continue to [Deep Dive - Megatron](/learn/deep-dive-megatron).

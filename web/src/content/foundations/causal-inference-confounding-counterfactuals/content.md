@@ -3,15 +3,34 @@
   "id": "causal-inference-confounding-counterfactuals",
   "title": "Causal Inference and Counterfactuals",
   "slug": "causal-inference-confounding-counterfactuals",
-  "section": "ML Algorithms & Evaluation",
+  "section": "Classical ML & Evaluation",
   "category": "Evaluation & Benchmarks",
-  "difficulty": "Medium",
-  "order": 13,
+  "difficulty": "Easy",
+  "order": 8,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
-  "companies": ["OpenAI", "Anthropic", "Google", "Meta"],
+  "companies": [
+    "OpenAI",
+    "Anthropic",
+    "Google",
+    "Meta"
+  ],
   "shortDescription": "A RAG router can score lower overall yet win inside every context tier. Separate routing imbalance from a causal effect, check overlap, and evaluate policies rigorously.",
-  "keyConceptsTested": ["causal inference", "potential outcomes", "counterfactuals", "confounding", "causal graphs", "backdoor adjustment", "average treatment effect", "propensity scores", "positivity", "randomized experiments"],
-  "prerequisites": ["experiment-design-ab-testing", "probability-for-machine-learning"]
+  "keyConceptsTested": [
+    "causal inference",
+    "potential outcomes",
+    "counterfactuals",
+    "confounding",
+    "causal graphs",
+    "backdoor adjustment",
+    "average treatment effect",
+    "propensity scores",
+    "positivity",
+    "randomized experiments"
+  ],
+  "prerequisites": [
+    "experiment-design-ab-testing",
+    "probability-for-machine-learning"
+  ]
 }
 ---
 
@@ -551,4 +570,4 @@ Search click logs suffer heavy position confounding because users click top slot
 ]
 ```
 
-> **Next:** Continue to [PyTorch Training Loops](/learn/pytorch-training-loops). Causal identification separates model gains from routing bias; next you implement the training loop that optimizes those models end to end.
+> **Next:** Continue to [Neural Networks from Scratch](/learn/neural-networks-from-scratch).

@@ -24,8 +24,6 @@
     "Async streaming, executors, and Python concurrency limits"
   ],
   "prerequisites": [
-    "data-structures-for-ai-systems",
-    "algorithms-complexity-ml-engineers",
     "pytorch-training-loops",
     "agent-failure-states-retry-fallback"
   ],
@@ -718,4 +716,4 @@ Work through these companion implementation exercises to build fluency across st
 ]
 ```
 
-> **Next:** Continue to [AI Lab System Design Interview](/learn/ai-lab-system-design-interview). Once you have practiced coding clean KV-cache, attention, and sampling primitives in Python, move up to designing distributed inference fleets and serving architectures across GPUs.
+> **Next:** Continue to [AI Lab System Design Interview](/learn/ai-lab-system-design-interview).

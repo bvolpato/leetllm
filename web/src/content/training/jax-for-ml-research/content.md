@@ -3,10 +3,10 @@
   "id": "jax-for-ml-research",
   "title": "JAX for PyTorch Researchers",
   "slug": "jax-for-ml-research",
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 4,
+  "order": 8,
   "coverImage": "illustrations/_generated/explicit_state_step_dark.png",
   "companies": [
     "Google DeepMind",
@@ -832,4 +832,4 @@ Every JAX training step reduces to the same clear pattern: explicit state in, ex
 ]
 ```
 
-> **Next:** Continue to [Continued Pretraining for Domain Shift](/learn/continued-pretraining-domain-adaptation). A compiled research step still needs its checkpoints and tests. Keep that discipline while adapting a base model on domain text: pin the data and starting checkpoint, then measure domain gain against general-capability regression.
+> **Next:** Continue to [Continued Pretraining for Domain Shift](/learn/continued-pretraining-domain-adaptation).

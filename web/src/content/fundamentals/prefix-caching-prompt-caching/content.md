@@ -3,7 +3,7 @@
   "id": "prefix-caching-prompt-caching",
   "title": "Prefix Caching and Prompt Caching",
   "slug": "prefix-caching-prompt-caching",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
   "order": 4,
@@ -31,10 +31,9 @@
   "relatedQuestions": [
     "flashattention-memory-efficient-attention",
     "continuous-batching-request-scheduling",
-    "semantic-caching-cost-latency-optimization",
+    "llm-cost-engineering-token-economics",
     "design-production-rag-pipeline",
-    "long-context-window-management",
-    "scaling-llm-inference-batching-kv-cache"
+    "long-context-window-management"
   ],
   "coverImage": "illustrations/_generated/prefix_cache_dark.png"
 }
@@ -186,7 +185,7 @@ Three operational facts round out production prefix caching:
 
 1. **Cached does not mean occupied:** In vLLM V1's block pool, completed requests leave blocks **cached but unreferenced** on the free queue.[^vllm2026prefix] In a 1,000-block pool with 450 referenced blocks, 400 cached-unreferenced blocks, and 150 free blocks, **550 blocks are available** for new allocations (allocating 200 blocks evicts at least 50 cached blocks cleanly via LRU without hurting live requests).
 2. **Scope cache keys from verified identity:** Because a cache hit returns faster, sharing a prefix cache across untrusted tenants opens a timing side-channel. Derive the namespace salt (`cache_salt` in vLLM[^vllm2026prefix]) strictly from server-verified authentication, never from an untrusted caller header!
-3. **Prefix cache vs. [semantic answer cache](/learn/semantic-caching-cost-latency-optimization):** Prefix caching reuses exact prompt KV tensors and generates a fresh answer (so editing a guide from 90-day to 30-day rotation automatically misses its old key[^openai2026cacheDiagnostics]). If a bot still quotes the old rule, check whether the prompt renderer actually sent the new guide or whether a separate <span data-glossary="semantic-cache">semantic cache</span> returned an old answer.
+3. **Prefix cache vs. [semantic answer cache](/learn/llm-cost-engineering-token-economics):** Prefix caching reuses exact prompt KV tensors and generates a fresh answer (so editing a guide from 90-day to 30-day rotation automatically misses its old key[^openai2026cacheDiagnostics]). If a bot still quotes the old rule, check whether the prompt renderer actually sent the new guide or whether a separate <span data-glossary="semantic-cache">semantic cache</span> returned an old answer.
 
 <figure>
   <img src="illustrations/_generated/cached_pool_availability_dark.png" alt="A 1,000-block snapshot has 450 referenced, 400 cached but unreferenced, and 150 uncached free blocks. The two unreferenced groups provide 550 available blocks; allocating 200 leaves 350 and replaces at least 50 cached blocks. Actual eviction order can vary, and referenced blocks remain owned." />
@@ -348,7 +347,7 @@ Yes. Blocks preceding the edit (such as static system instructions) still match 
 ]
 ```
 
-> **Next:** Continue to [FlashAttention & Memory Efficiency](/learn/flashattention-memory-efficient-attention). Prefix caching can skip repeated prefill, but a hit still runs attention over those cached KV <span data-glossary="tensor">tensors</span>. <span data-glossary="flashattention">FlashAttention</span> attacks that remaining memory traffic inside each attention kernel.
+> **Next:** Continue to [FlashAttention & Memory Efficiency](/learn/flashattention-memory-efficient-attention).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Model Architecture",
   "difficulty": "Hard",
-  "order": 12,
+  "order": 2,
   "coverImage": "illustrations/_generated/transformers_auto_pipeline_dark.png",
   "companies": [
     "Hugging Face",
@@ -676,4 +676,4 @@ A faster runtime that silently alters the chat template is not an equivalent dep
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - SGLang](/learn/deep-dive-sglang). Transformers' `generate` loop owns one batch and one cache object. SGLang is the runtime that schedules many of those model calls at once, with a radix prefix cache and a token budget that a plain Transformers pipeline doesn't provide.
+> **Next:** Continue to [Deep Dive - vLLM](/learn/deep-dive-vllm).

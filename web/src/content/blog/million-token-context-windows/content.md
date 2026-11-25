@@ -290,4 +290,4 @@ For ten reviews sharing a 900K prefix on GPT-5.6 Sol's long-context rate, ten un
 
 > **Common mistake:** Reusing one giant cold prompt on every turn. Cache a stable prefix when reuse is real. Retrieve or compact when evidence changes.
 
-For the latency regression, success is a correct explanation backed by a before-and-after p99 measurement. Whether that takes three carefully retrieved files or a much larger dependency slice is something you can measure. Choose the smallest evidence set that reliably supports the diagnosis, then test how it behaves under traffic. [Scaling LLM Inference](/learn/scaling-llm-inference-batching-kv-cache) follows that final step into batching and KV-cache pressure.
+For the latency regression, success is a correct explanation backed by a before-and-after p99 measurement. Whether that takes three carefully retrieved files or a much larger dependency slice is something you can measure. Choose the smallest evidence set that reliably supports the diagnosis, then test how it behaves under traffic. [Scaling LLM Inference](/learn/continuous-batching-request-scheduling) follows that final step into batching and KV-cache pressure.

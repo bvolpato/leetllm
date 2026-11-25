@@ -3,12 +3,18 @@
   "id": "speculative-decoding",
   "title": "Speculative Decoding",
   "slug": "speculative-decoding",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 21,
+  "order": 7,
   "coverImage": "illustrations/_generated/draft_verify_dark.png",
-  "companies": ["Google", "DeepMind", "Meta", "Anthropic", "OpenAI"],
+  "companies": [
+    "Google",
+    "DeepMind",
+    "Meta",
+    "Anthropic",
+    "OpenAI"
+  ],
   "shortDescription": "Guess several tokens with a cheap proposer, then accept or correct them so the target's distribution stays the same in exact arithmetic.",
   "keyConceptsTested": [
     "Draft-then-verify protocol",
@@ -22,9 +28,7 @@
     "Prompt lookup decoding"
   ],
   "prerequisites": [
-    "slm-specialization-edge-deployment",
-    "local-llm-deployment-hardware-quantization",
-    "scaling-llm-inference-batching-kv-cache",
+    "continuous-batching-request-scheduling",
     "kv-cache-paged-attention-llm-serving",
     "decoding-strategies-greedy-beam-nucleus"
   ],
@@ -33,7 +37,7 @@
     "prefix-caching-prompt-caching",
     "continuous-batching-request-scheduling",
     "llm-deployment-gpu-serving-autoscaling",
-    "model-gateways-routing-fallbacks",
+    "llm-cost-engineering-token-economics",
     "reasoning-models-test-time-compute"
   ]
 }
@@ -41,7 +45,7 @@
 
 Your large language model finishes reading the prompt in milliseconds, then dribbles out its answer at a frustrating crawl. Every single token stalls waiting for a full pass through tens of billions of weights. What if a tiny draft model could guess five tokens ahead, and the big target model could grade all five at once in roughly the time of a single step, **without changing the output distribution at all**?
 
-That is <span data-glossary="speculative-decoding">speculative decoding</span>.[^leviathan2023][^chen2023a] Whereas the previous chapter deployed a [small language model](/learn/slm-specialization-edge-deployment) to answer queries directly, here a cheap proposer (a smaller model, extra prediction heads, or an n-gram prompt lookup) drafts candidate tokens and an exact rejection-sampling rule accepts the valid prefix and corrects the first mismatch. In exact arithmetic, the output matches sampling from the target model alone, token for token in distribution (even though a fixed PRNG seed takes different random draws).
+That is <span data-glossary="speculative-decoding">speculative decoding</span>.[^leviathan2023][^chen2023a] Whereas the previous chapter deployed a [small language model](/learn/local-llm-deployment-hardware-quantization) to answer queries directly, here a cheap proposer (a smaller model, extra prediction heads, or an n-gram prompt lookup) drafts candidate tokens and an exact rejection-sampling rule accepts the valid prefix and corrects the first mismatch. In exact arithmetic, the output matches sampling from the target model alone, token for token in distribution (even though a fixed PRNG seed takes different random draws).
 
 To see *why* checking five guesses costs almost the same as generating one token, start with the hardware bottleneck.
 
@@ -655,4 +659,4 @@ Test the rejection sampler first on fixed synthetic probability tables (includin
 ]
 ```
 
-> **Next:** Continue to [Long Context Window Management](/learn/long-context-window-management). Speculation can amortize weight traffic, while the model's full, windowed, or recurrent attention determines context work and state. The next chapter examines those memory and quality trade-offs.
+> **Next:** Continue to [Long Context Window Management](/learn/long-context-window-management).

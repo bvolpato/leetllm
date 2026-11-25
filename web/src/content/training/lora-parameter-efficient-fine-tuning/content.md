@@ -33,8 +33,8 @@
     "reward-modeling-from-preference-data",
     "knowledge-distillation-llms"
   ],
-  "section": "Advanced Training & Adaptation",
-  "order": 9
+  "section": "Training, Fine-Tuning & Alignment",
+  "order": 12
 }
 ---
 <!-- leetllm: edition:reference:start -->
@@ -797,7 +797,7 @@ Merged checkpoints take 12 × 9 = 108 GB. A shared base plus twelve adapters tak
 ]
 ```
 
-> **Next:** Continue to [Training Run Operations](/learn/training-run-operations). `sql-lora-v1` showed which weights can move cheaply. Training ops is next because that adapter job still has to survive preemption, keep global batch and learning-rate scaling honest, and justify LoRA versus full SFT, QLoRA, continued pretraining, or distillation before preference training starts.
+> **Next:** Continue to [Privacy-Preserving Machine Learning](/learn/privacy-preserving-ml-differential-privacy).
 
 <!-- leetllm: edition:reference:end -->
 

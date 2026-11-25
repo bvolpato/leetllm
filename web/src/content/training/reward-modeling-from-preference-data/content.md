@@ -3,10 +3,10 @@
   "id": "reward-modeling-from-preference-data",
   "title": "Reward Modeling from Preference Data",
   "slug": "reward-modeling-from-preference-data",
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Alignment & Safety",
   "difficulty": "Hard",
-  "order": 11,
+  "order": 16,
   "coverImage": "illustrations/_generated/reward_modeling_dark.png",
   "companies": [
     "OpenAI",
@@ -854,7 +854,7 @@ The mean is 3 and the sample variance is $(4 + 0 + 4) / 2 = 4$, giving sample st
 ]
 ```
 
-> **Next:** Continue to [RLHF & DPO Alignment](/learn/rlhf-dpo-aligning-language-models). You can now fit a scalar head, distinguish score offsets from scale, and test preference shortcuts. Next, use a reward signal inside PPO with KL control or train directly from labeled pairs with DPO.
+> **Next:** Continue to [RLHF & DPO Alignment](/learn/rlhf-dpo-aligning-language-models).
 
 <!-- leetllm: edition:reference:end -->
 

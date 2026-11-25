@@ -28,22 +28,19 @@
     "FP8 and KV cache quantization"
   ],
   "prerequisites": [
-    "low-precision-gpu-programming",
-    "model-parallelism-for-llm-inference",
-    "scaling-llm-inference-batching-kv-cache",
+    "continuous-batching-request-scheduling",
     "kv-cache-paged-attention-llm-serving",
     "multi-query-grouped-query-attention"
   ],
   "relatedQuestions": [
     "local-llm-deployment-hardware-quantization",
-    "slm-specialization-edge-deployment",
     "llm-deployment-gpu-serving-autoscaling",
     "speculative-decoding",
     "long-context-window-management",
     "knowledge-distillation-llms"
   ],
-  "section": "Inference & Production Scale",
-  "order": 18
+  "section": "GPU Systems & LLM Inference",
+  "order": 9
 }
 ---
 <!-- leetllm: edition:reference:start -->
@@ -459,7 +456,7 @@ for bits in (8, 4, 2):
 ]
 ```
 
-> **Next:** Continue to [Local LLM Deployment](/learn/local-llm-deployment-hardware-quantization). You can now distinguish the quantization method, tensor encoding, and container. The next lesson turns an artifact into a local deployment with measured memory, latency, and task quality.
+> **Next:** Continue to [Local & Edge LLM Deployment](/learn/local-llm-deployment-hardware-quantization).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

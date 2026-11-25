@@ -3,7 +3,7 @@
   "title": "Model Merging and Weight Interpolation",
   "id": "model-merging-weight-interpolation",
   "slug": "model-merging-weight-interpolation",
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
   "coverImage": "illustrations/_generated/model_merging_dark.png",
@@ -23,7 +23,7 @@
     "SLERP and geometric interpolation",
     "mergekit, tokenizer handling, and practical merging workflows"
   ],
-  "order": 17,
+  "order": 22,
   "prerequisites": [
     "knowledge-distillation-llms",
     "lora-parameter-efficient-fine-tuning",
@@ -847,4 +847,4 @@ A high average can mask a broken specialist, and merged weights still store only
 ]
 ```
 
-> **Next:** Continue to [Vector DB Internals: HNSW & IVF](/learn/vector-database-internals-hnsw-ivf). Training, adaptation, distillation, and merging all sit under per-task evaluation checks. Next we move to the systems around those models, starting with retrieval indexes: <span data-glossary="hnsw">HNSW</span>, IVF, and <span data-glossary="product-quantization">Product Quantization</span> decide which evidence reaches a merged assistant under latency and memory limits.
+> **Next:** Continue to [Vector DB Internals: HNSW & IVF](/learn/vector-database-internals-hnsw-ivf).

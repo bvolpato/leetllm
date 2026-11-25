@@ -182,13 +182,12 @@ LAWYER_DISCLAIMER_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 # NONO 2: Non-ops SOC2/compliance/SRE ticket boilerplate (warning only).
 NON_OPS_SECTIONS = frozenset(
     {
-        "Computing Foundations",
-        "Math & Statistics",
-        "Preparation & Prerequisites",
-        "ML Algorithms & Evaluation",
+        "Math & Tensor Foundations",
+        "Classical ML & Evaluation",
+        "Deep Learning Foundations",
         "Core LLM Foundations",
-        "Transformer Deep Dives",
-        "Advanced Training & Adaptation",
+        "Transformer & Multimodal Architectures",
+        "Training, Fine-Tuning & Alignment",
     }
 )
 CORPORATE_TICKET_ROLEPLAY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (

@@ -3,12 +3,18 @@
   "id": "training-run-operations",
   "title": "Training Run Operations",
   "slug": "training-run-operations",
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 10,
+  "order": 7,
   "coverImage": "illustrations/_generated/preempt_resume_contract_dark.png",
-  "companies": ["OpenAI", "Anthropic", "Meta", "Google", "NVIDIA"],
+  "companies": [
+    "OpenAI",
+    "Anthropic",
+    "Meta",
+    "Google",
+    "NVIDIA"
+  ],
   "shortDescription": "Yesterday's weights can reload while the data cursor and warmup start over. Resume the optimizer, batch, and scheduler with the checkpoint that actually reached storage.",
   "keyConceptsTested": [
     "continuation versus weights-only initialization",
@@ -20,11 +26,8 @@
     "adaptation objectives, parameterization, and memory bounds"
   ],
   "prerequisites": [
-    "supervised-fine-tuning-pipeline",
     "mixed-precision-training-loss-scaling",
-    "distributed-training-fsdp-deepspeed-zero",
-    "lora-parameter-efficient-fine-tuning",
-    "continued-pretraining-domain-adaptation"
+    "distributed-training-fsdp-deepspeed-zero"
   ],
   "relatedQuestions": [
     "knowledge-distillation-llms",
@@ -704,4 +707,4 @@ Unlabeled domain text supplies the domain-adaptive objective. Adapter-only speci
 ]
 ```
 
-> **Next:** Continue to [Reward Modeling from Preference Data](/learn/reward-modeling-from-preference-data). Ranked answers become a scalar training signal. That job still dies the same way if its checkpoint, batch, and scheduler do not resume together.
+> **Next:** Continue to [JAX for PyTorch Researchers](/learn/jax-for-ml-research).

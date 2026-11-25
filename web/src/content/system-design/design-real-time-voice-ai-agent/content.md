@@ -6,7 +6,7 @@
   "shortDescription": "A caller asks about incident 4219. Design a real-time voice agent that achieves sub-500ms time-to-first-audio, handles instant barge-in interruption, and reconciles confirmed playout.",
   "difficulty": "Hard",
   "category": "System Design",
-  "section": "System Design Capstones",
+  "section": "AI System Design",
   "coverImage": "illustrations/_generated/voice_agent_dark.png",
   "companies": [
     "OpenAI",
@@ -22,18 +22,17 @@
     "kv-cache-paged-attention-llm-serving",
     "continuous-batching-request-scheduling",
     "speculative-decoding",
-    "model-gateways-routing-fallbacks",
+    "llm-cost-engineering-token-economics",
     "function-calling-tool-use-llms"
   ],
   "relatedQuestions": [
-    "design-conversational-ai-support-bot",
     "design-reasoning-agent-test-time-compute",
     "computer-use-gui-browser-agents",
     "observability-monitoring-llm-systems",
-    "model-gateways-routing-fallbacks",
+    "llm-cost-engineering-token-economics",
     "design-multi-tenant-llm-serving-platform"
   ],
-  "order": 9,
+  "order": 6,
   "keyConceptsTested": [
     "Speech-to-Text",
     "Text-to-Speech",
@@ -806,4 +805,4 @@ A clean demo on wired Ethernet hides almost every real voice failure. Evaluate c
 ]
 ```
 
-> **Next:** Continue to [Reasoning Agent System Design](/learn/design-reasoning-agent-test-time-compute). This chapter kept extra thinking off the first-audio path so a live call could stay interruptible. The last system-design capstone asks the opposite question: when is a request hard enough that extra <span data-glossary="test-time-compute">test-time compute</span>, tools, and evidence checks should run before the system releases an answer or a side effect?
+> **Next:** Continue to [Reasoning Agent System Design](/learn/design-reasoning-agent-test-time-compute).

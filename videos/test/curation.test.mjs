@@ -302,7 +302,7 @@ test('density counts visible context, separates math and numbers, and clips to t
 });
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const fixtureId = 'hybrid-search';
+const fixtureId = 'ab-testing';
 const pixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZtwAAAAASUVORK5CYII=',
   'base64',

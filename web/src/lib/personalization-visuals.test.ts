@@ -89,14 +89,14 @@ describe("personalized visual sources", () => {
         const visuals = extractPersonalizationVisuals(question!.slug, content)
 
         expect(visuals.map(({ id, kind, name }) => ({ id, kind, name }))).toEqual([
-            { id: "V0001", kind: "vizmatic", name: "chapter_flow" },
-            { id: "M0002", kind: "mermaid", name: "content_diagram_0" },
+            { id: "M0001", kind: "mermaid", name: "content_diagram_0" },
+            { id: "V0002", kind: "vizmatic", name: "chapter_flow" },
             { id: "V0003", kind: "vizmatic", name: "paired_test_rule" },
             { id: "V0004", kind: "vizmatic", name: "paired_variance_reduction" },
             { id: "V0005", kind: "vizmatic", name: "interval_overlap" },
             { id: "V0006", kind: "vizmatic", name: "passk_estimation" },
         ])
-        expect(visuals[0].source).toContain("MiniBarChart")
+        expect(visuals[1].source).toContain("MiniBarChart")
         expect(visuals[2].source).toContain("BarChart")
         expect(visuals[4].source).toContain("AxisPlot")
         expect(visuals.every((visual) => visual.canonicalMarkup.startsWith("<figure"))).toBe(true)
@@ -110,7 +110,7 @@ describe("personalized visual sources", () => {
 
         const visuals = extractPersonalizationVisuals(question!.slug, content)
 
-        expect(visuals.length).toBeGreaterThanOrEqual(11)
+        expect(visuals.length).toBeGreaterThanOrEqual(10)
         expect(visuals.length).toBeLessThanOrEqual(16)
     })
 
@@ -354,7 +354,7 @@ A --> B`
             }
         }
 
-        expect(diagrams).toBeGreaterThan(60)
+        expect(diagrams).toBeGreaterThan(30)
         expect(failures).toEqual([])
     })
 

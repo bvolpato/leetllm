@@ -3,40 +3,42 @@
   "id": "decision-trees-random-forests-gradient-boosting",
   "title": "Decision Trees, Forests, and Boosting",
   "slug": "decision-trees-random-forests-gradient-boosting",
-  "section": "ML Algorithms & Evaluation",
+  "section": "Classical ML & Evaluation",
   "category": "Model Architecture",
-  "difficulty": "Medium",
+  "difficulty": "Easy",
   "order": 3,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
-  "companies": ["OpenAI", "Anthropic", "Google", "Meta"],
-  "shortDescription": "Learn how trees discover useful questions, forests combine different answers, and boosting improves a prediction one correction at a time. Fit and inspect each model on flower measurements.",
+  "companies": [
+    "OpenAI",
+    "Anthropic",
+    "Google",
+    "Meta"
+  ],
+  "shortDescription": "Learn how decision trees learn splits, random forests average variance away, and gradient boosting corrects residuals sequentially, then apply chronological splits, Bayes-optimal cost thresholds, and NaN routing.",
   "keyConceptsTested": [
-    "Decision-tree splits, leaf probabilities, and rectangular regions",
-    "Gini impurity, entropy, and weighted impurity decrease",
-    "Tree depth, leaf size, pruning, and held-out evaluation",
-    "Bootstrap sampling, feature subsampling, and out-of-bag predictions",
-    "Forest averaging and correlated prediction errors",
-    "Regression residuals and gradient boosting",
-    "Classification gradients, Newton leaf updates, and regularization",
-    "Permutation importance and local feature attribution",
-    "Missing-value routes and preprocessing conventions"
+    "Decision-tree splits, leaf probabilities, and Gini/entropy gain",
+    "Depth, leaf size, pruning, and held-out evaluation",
+    "Bootstrap sampling, feature subsampling, and out-of-bag checks",
+    "Forest variance reduction vs sequential boosting corrections",
+    "Classification Newton leaf updates and XGBoost split gain",
+    "MDI vs permutation importance and local SHAP attribution",
+    "Chronological splits and point-in-time leakage prevention",
+    "Bayes-optimal cost thresholds under asymmetric errors",
+    "Missing-value NaN routing across GBDT libraries"
+  ],
+  "aliases": [
+    "gradient-boosted-trees-production"
   ]
 }
 ---
 
-Put two flower species on a table and try to tell them apart. Some have narrow petals; others have wider petals. A useful first question might be, "Is the petal at most 1.75 cm wide?" For many flowers, that one measurement nearly settles the answer. For the remaining flowers, another question about petal length may help.
+Put two flower species on a table and try to tell them apart. A crisp first question might be, "Is the petal at most 1.75 cm wide?" For most flowers, that single cutoff settles the answer; for the leftovers, a second question about petal length finishes the job.
 
-A <span data-glossary="decision-tree">decision tree</span> learns questions like these from labeled examples. Training chooses the measurements and cutoffs. Prediction follows the resulting branches until it reaches a **leaf**, where the tree stores an answer. The model resembles a field guide whose identification key was learned from data.
-
-We will fit a tree that distinguishes *versicolor* from *virginica*, inspect why it chooses its first question, and then improve on a single tree in two different ways. A random forest averages trees trained with different views of the data. Gradient boosting builds a prediction gradually, with each new tree correcting what remains wrong.
+A <span data-glossary="decision-tree">decision tree</span> learns these questions from labeled data, routing each input to a **leaf** storing a prediction. We start by fitting one tree on *versicolor* vs *virginica* irises and deriving its split math by hand, then improve on it with parallel **random forests** and sequential **gradient boosting**, and finish with tabular production essentials: chronological splits, Bayes-optimal cost thresholds, and missing-value (`NaN`) routing.
 
 ## Fit one useful question
 
-The Iris dataset includes measured flowers and their species. Scikit-learn bundles it locally, so this example needs no download or service account.[^sklearnIrisDataset2026] We will use the 100 versicolor and virginica flowers, with petal length and width as features. Label `0` means versicolor and label `1` means virginica.
-
-Before fitting, reserve 30 flowers for validation. The remaining 70 flowers contain 35 examples of each species. `stratify=y` preserves that balance in the split. We will reuse this exact split throughout the classifier comparison.
-
-A **decision stump** is a tree with just one question. Fit one and ask it about a flower with a 5.0 cm petal length and a 1.8 cm petal width:
+Scikit-learn bundles the Iris dataset locally.[^sklearnIrisDataset2026] We use the 100 *versicolor* (`0`) and *virginica* (`1`) flowers with petal length and petal width as features, reserving 30 stratified flowers for validation and 70 (35 per species) for training. A **decision stump** asks one question:
 
 <!-- leetllm: test, deps=numpy,scikit-learn, output=show, id=tree-data -->
 ```python title="first-flower-tree.py"
@@ -61,8 +63,7 @@ flower = np.array([[5.0, 1.8]])
 print(f"question: {names[feature]} <= {cut:.2f} cm?")
 print("species:", iris.target_names[1 + stump.predict(flower)[0]])
 print("probabilities [versicolor, virginica]:", stump.predict_proba(flower)[0].round(3))
-print("training accuracy:", round(stump.score(X_train, y_train), 3))
-print("validation accuracy:", round(stump.score(X_valid, y_valid), 3))
+print(f"train accuracy: {stump.score(X_train, y_train):.3f} | valid accuracy: {stump.score(X_valid, y_valid):.3f}")
 ```
 
 <!-- leetllm: output:start -->
@@ -70,53 +71,36 @@ print("validation accuracy:", round(stump.score(X_valid, y_valid), 3))
 question: petal width <= 1.75 cm?
 species: virginica
 probabilities [versicolor, virginica]: [0.031 0.969]
-training accuracy: 0.929
-validation accuracy: 0.967
+train accuracy: 0.929 | valid accuracy: 0.967
 ```
 <!-- leetllm: output:end -->
 
-The trained question uses **width**, even though we supplied both measurements. The new flower's width, 1.8 cm, exceeds 1.75 cm, so it takes the right branch. That leaf contains 31 virginica flowers and one versicolor flower. Its virginica probability is therefore $31/32 \approx 0.969$.
-
-The left branch contains 34 versicolor flowers and four virginica flowers. Every flower reaching it receives the same virginica probability, $4/38 \approx 0.105$. A tree's probability comes from the labels collected in its leaf. Within that leaf, moving slightly left or right does not smoothly change the answer as it would in logistic regression.
+The new flower's 1.8 cm width exceeds 1.75 cm, sending it right into a leaf containing 31 virginica and 1 versicolor ($31/32 \approx 0.969$). The left leaf holds 34 versicolor and 4 virginica ($4/38 \approx 0.105$). Every input in a leaf receives that leaf's class proportion, producing piecewise-constant rectangular regions rather than smooth linear boundaries.
 
 <figure>
   <img src="illustrations/_generated/chapter_flow_dark.png" alt="The 70 training flowers are plotted by petal width and length. A vertical cut at width 1.75 cm separates a left region containing 34 versicolor and four virginica flowers from a right region containing one versicolor and 31 virginica flowers. The regions predict virginica probabilities 0.105 and 0.969." />
-  <figcaption>The first question creates two rectangular regions. Most narrow petals belong to versicolor and most wide petals to virginica, but the remaining mixed labels give deeper branches something to work on.</figcaption>
+  <figcaption>The first question creates two rectangular regions. Most narrow petals belong to versicolor and most wide petals to virginica, while the remaining mixed labels give deeper branches something to work on.</figcaption>
 </figure>
 
-Notice two different thresholds. The **feature cutoff**, 1.75 cm, determines a branch. A **classification threshold**, such as virginica probability at least 0.5, turns the leaf's probability into a class. Changing the latter changes the decision without rebuilding the tree. If the two kinds of classification mistake have different consequences, select that operating threshold using the relevant validation metric.
+Keep two thresholds separate: the **feature cutoff** (1.75 cm) chooses a branch inside the tree, while the **classification threshold** (default 0.5) turns the leaf's probability into a hard class decision without refitting a single split.
 
 ## How training chooses a split
 
-The tree needs a way to compare possible questions. A good question produces children whose labels are less mixed than the parent's labels. **<span data-glossary="gini-impurity">Gini impurity</span>** measures that mixture. If class $k$ occupies fraction $p_k$ of a node, then
+A good split produces children whose labels are purer than the parent. **<span data-glossary="gini-impurity">Gini impurity</span>** measures label mixture from class fractions $p_k$:
 
 $$
-G = 1 - \sum_{k=1}^{K} p_k^2.
+G = 1 - \sum_{k=1}^{K} p_k^2
 $$
 
-For two species, write $p$ for the virginica fraction. The expression becomes $G=2p(1-p)$. A node containing one species has impurity zero. A 50/50 mixture has impurity 0.5. One way to understand the formula is to draw two labels independently from the node's class proportions: $G$ is the probability that they disagree.
-
-Our root contains 35 flowers of each species, so its impurity is $0.5$. For the learned width cutoff, the calculation is:
-
-| Region | Versicolor | Virginica | Gini impurity |
-|---|---:|---:|---:|
-| All training flowers | 35 | 35 | $2(35/70)(35/70)=0.5000$ |
-| Width $\le 1.75$ cm | 34 | 4 | $2(34/38)(4/38)\approx0.1884$ |
-| Width $>1.75$ cm | 1 | 31 | $2(1/32)(31/32)\approx0.0605$ |
-
-We weight each child's impurity by the fraction of flowers it contains. A large mixed child should matter more than a tiny mixed child:
+For binary labels with positive fraction $p$, this simplifies to $G = 2p(1 - p)$: zero for a pure leaf and `0.5` for a 50/50 mix. On our balanced 70-flower root ($G = 0.5000$), cutting width at 1.75 cm yields a 38-flower left child ($G = 2(34/38)(4/38) \approx 0.1884$) and a 32-flower right child ($G = 2(1/32)(31/32) \approx 0.0605$). Weighting each child by its sample share gives:
 
 $$
-G_{\text{children}}
-= \frac{38}{70}(0.1884)+\frac{32}{70}(0.0605)
-\approx 0.1299.
+G_{\text{children}} = \frac{38}{70}(0.1884) + \frac{32}{70}(0.0605) \approx 0.1299
 $$
 
-The **impurity decrease**, or Gini gain, is about $0.5000-0.1299=0.3701$. The cut removes a large part of the original label mixture, while leaving five flowers on the minority side of their respective leaves.
+The **Gini gain** is $0.5000 - 0.1299 = 0.3701$. Alternatively, **entropy** $H = -\sum_k p_k \log_2 p_k$ measures uncertainty in bits, and its weighted decrease is **<span data-glossary="information-gain">information gain</span>**.[^shannon1948] Both reward purity and usually pick similar cuts, though entropy slightly favors isolating pure subsets sooner.
 
-Where do candidate cutoffs come from? Sort the distinct observed widths and examine the gaps. Widths 1.7 and 1.8 cm are adjacent observations here, so 1.75 cm is a convenient midpoint. Any cutoff in $[1.7,1.8)$ gives the same training partition when the comparison is `<=`. Testing more numbers inside that gap cannot reveal another grouping of these training rows.
-
-This small search computes both features' best cuts directly from the data. Its result should agree with the library stump:
+Candidate thresholds sit at midpoints between adjacent sorted feature values (for example, `1.75` between `1.7` and `1.8`). Because split search is greedy (pick the best local cut now, then recurse inside each child), small data changes can alter downstream branches. Exact split search confirms scikit-learn's stump:
 
 <!-- leetllm: test, continue=tree-data, output=show, id=tree-split -->
 ```python title="search-the-feature-gaps.py"
@@ -127,29 +111,21 @@ def gini(labels):
 
 def best_split(X, y):
     best = None
-    for column in range(X.shape[1]):
-        values = np.unique(X[:, column])
-        candidates = (values[:-1] + values[1:]) / 2
-        for threshold in candidates:
-            left = X[:, column] <= threshold
-            child_impurity = (
-                left.mean() * gini(y[left])
-                + (~left).mean() * gini(y[~left])
-            )
-            gain = gini(y) - child_impurity
+    for col in range(X.shape[1]):
+        vals = np.unique(X[:, col])
+        for threshold in (vals[:-1] + vals[1:]) / 2:
+            left = X[:, col] <= threshold
+            gain = gini(y) - (left.mean() * gini(y[left]) + (~left).mean() * gini(y[~left]))
             if best is None or gain > best["gain"]:
-                best = {"feature": column, "threshold": threshold, "gain": gain}
+                best = {"feature": col, "threshold": threshold, "gain": gain}
     return best
 
 
-for column, name in enumerate(names):
-    candidate = best_split(X_train[:, [column]], y_train)
-    print(f"{name}: cut={candidate['threshold']:.2f}, gain={candidate['gain']:.4f}")
+for col, name in enumerate(names):
+    cand = best_split(X_train[:, [col]], y_train)
+    print(f"{name:12s}: cut={cand['threshold']:.2f}, gain={cand['gain']:.4f}")
 
 chosen = best_split(X_train, y_train)
-left = X_train[:, chosen["feature"]] <= chosen["threshold"]
-for side, labels in [("left", y_train[left]), ("right", y_train[~left])]:
-    print(f"{side}: counts={np.bincount(labels).tolist()}, P(virginica)={labels.mean():.3f}")
 assert chosen["feature"] == stump.tree_.feature[0]
 assert np.isclose(chosen["threshold"], stump.tree_.threshold[0])
 ```
@@ -157,35 +133,11 @@ assert np.isclose(chosen["threshold"], stump.tree_.threshold[0])
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
 petal length: cut=4.75, gain=0.3478
-petal width: cut=1.75, gain=0.3701
-left: counts=[34, 4], P(virginica)=0.105
-right: counts=[1, 31], P(virginica)=0.969
+petal width : cut=1.75, gain=0.3701
 ```
 <!-- leetllm: output:end -->
 
-This is a greedy choice: choose the best question *now*, then repeat the search separately inside each child. The algorithm does not search every possible complete tree. Two locally attractive choices can lead to different later structures, which helps explain why a small change in the training data can produce a visibly different tree.
-
-The teaching implementation rescans the labels for each candidate. With $D$ features and $N$ rows, that takes roughly $O(DN^2)$ work at one node, plus sorting. Efficient implementations update class counts as a sorted threshold moves; histogram methods group feature values into bins before searching. The objective is the same idea, but the bookkeeping is much faster.[^sklearn2026treemissing]
-
-### Entropy gives another measure of mixture
-
-**Entropy** measures uncertainty in bits when we use base-two logarithms:[^shannon1948]
-
-$$
-H = -\sum_{k=1}^{K}p_k\log_2p_k.
-$$
-
-A pure node has zero entropy; an evenly mixed binary node has one bit. The expression $0\log 0$ contributes zero, its limiting value. Replacing Gini with entropy gives the same weighted-child calculation, and the decrease is called **<span data-glossary="information-gain">information gain</span>**.
-
-The criteria often choose similar cuts, but their preferences are not identical. Consider a balanced node with 24 labels. Cut A isolates four class-0 labels and leaves eight class-0 plus twelve class-1 labels. Cut B produces two twelve-row leaves with class proportions 3/9 and 9/3. Gini gains are 0.100 and 0.125, favoring B. Entropy gains are about 0.191 and 0.189, favoring A. Both reward purity, with slightly different tradeoffs between pure and partially mixed children.
-
-## Grow branches, then check new flowers
-
-After the first cut, repeat the search inside each child. A question about petal length produces a horizontal cut in our plot; another width question produces a vertical cut. A path through several questions describes the intersection of those half-planes, so an ordinary numeric tree divides the feature plane into rectangles.
-
-This geometry is useful when the answer depends on conditions: a feature may matter only after another feature falls in a certain range. A straight boundary can be represented by a linear model with one equation, while a tree approximates a diagonal with a staircase of rectangles. Depth gives it more steps, at the cost of estimating each region from fewer examples.
-
-Fit several depths and compare both training and validation accuracy. The leaf count tells us how much the model has subdivided the original 70 flowers:
+Because trees compare feature orderings rather than distances, linear rescaling (cm to mm) leaves every partition identical and makes standard feature scaling unnecessary. Note that deeper trees subdivide the plane into finer rectangles, which can fit training exceptions without improving validation accuracy. Control complexity with `max_depth`, `min_samples_leaf`, or cost-complexity pruning (`ccp_alpha`).[^sklearn2026treemissing]
 
 <!-- leetllm: test, continue=tree-split, output=show, id=tree-depth -->
 ```python title="depth-and-new-flowers.py"
@@ -206,33 +158,19 @@ depth=None leaves= 8 train=0.986 valid=0.967
 ```
 <!-- leetllm: output:end -->
 
-Extra branches give the model room to fit exceptions. In this run, validation accuracy stays at 0.967 while training accuracy rises. Even the unrestricted tree stops short of perfect training accuracy: the measurements `[4.8, 1.8]` occur for both species. More branches cannot separate identical inputs; another useful measurement could.
+Even the unrestricted tree stops at `0.986` training accuracy because `[4.8, 1.8]` appears with both species labels in training.
 
-Branches can also isolate a measurement error or an unusual training flower in a tiny leaf. **Overfitting** means that this extra detail improves the fit to training examples without transferring well to new ones. Comparing the two accuracy columns lets us see what happens in this particular run instead of assuming every deeper tree must be worse.
+## Random forests combine decorrelated trees
 
-Three controls are especially useful:
+A single greedy tree has high variance: perturbing a few training rows can shift top splits. A **random forest** stabilizes predictions by training $B$ trees independently in parallel with two sources of diversity: each tree trains on a **bootstrap sample** drawn with replacement from the $N$ training rows, and each split searches only a random subset of features (`max_features`) so one dominant feature cannot force every tree down the same path.[^breiman2001] Scikit-learn averages the trees' leaf class probabilities.[^sklearn2026forestmissing]
 
-- `max_depth` limits how many successive questions a path can ask.
-- `min_samples_leaf` requires enough flowers in each final region to support its prediction.
-- `ccp_alpha` controls cost-complexity pruning, trading training fit against the number of leaves. A larger penalty favors a smaller tree.[^sklearn2026treemissing]
+If each tree's prediction for a fixed input has variance $\sigma^2$ and pairwise correlation $\rho$, the variance of their $B$-tree average is:
 
-Tune those choices on validation data or cross-validation. After choosing them, use a separate test set for the final performance estimate. Our 30 held-out flowers are a validation set because we inspect them while comparing models.
+$$
+\operatorname{Var}(\bar{T}) = \rho\sigma^2 + \frac{1 - \rho}{B}\sigma^2
+$$
 
-### Why trees usually do not need feature scaling
-
-Changing petal width from centimeters to millimeters multiplies every value and the learned cutoff by ten. The same flowers still take each branch. A tree's split search uses ordering and label counts, so ordinary standardization is unnecessary.
-
-A strictly increasing transformation preserves candidate *training partitions*. A nonlinear transformation can change where a midpoint falls for an unseen value: between training values 1 and 4, the midpoint is 2.5, while the midpoint after squaring is 8.5. An unseen value 2.8 is above the first cutoff but its square, 7.84, is below the second. This distinction matters when interpreting claims of exact invariance; the familiar linear changes of units preserve the cutoff geometry too.
-
-## Forests combine different trees
-
-Imagine asking several field guides to identify the same flower. If they all ask the same questions and make the same mistake, collecting more answers adds little. If they make different mistakes, combining their answers can be more stable than trusting one guide.
-
-A **random forest** creates useful variety in two places. Each tree receives a **bootstrap sample**, drawn with replacement from the training rows, so some flowers repeat and others are omitted. At each split, the tree considers a randomly selected subset of features. A dominant feature therefore cannot force every member down the same sequence of questions.[^breiman2001]
-
-The trees are fitted separately and can be trained in parallel. For classification, scikit-learn averages their class probabilities. Here a tree's contribution is its leaf's species proportion, and the forest's probability is the mean of those contributions.[^sklearn2026forestmissing]
-
-Fit 100 trees, with at least two training observations per leaf and one candidate feature per split. The code finds a validation flower on which the members disagree, then verifies that their average equals the forest's reported probability:
+Adding trees drives the second term toward zero, leaving the correlation floor $\rho\sigma^2$; lowering $\rho$ via feature subsampling is why forests beat plain bagging. Meanwhile, each bootstrap draw omits roughly $(1 - 1/N)^N \to e^{-1} \approx 36.8\%$ of training rows. Predicting each training row using only trees that omitted it yields the **out-of-bag (OOB)** score, a quick sanity check (though never a substitute for time-ordered or group splits).
 
 <!-- leetllm: test, continue=tree-depth, output=show, id=tree-forest -->
 ```python title="watch-the-forest-average.py"
@@ -242,75 +180,36 @@ forest = RandomForestClassifier(
     n_estimators=100, min_samples_leaf=2, max_features=1,
     oob_score=True, random_state=0,
 ).fit(X_train, y_train)
-member_scores = np.array([
-    member.predict_proba(X_valid)[:, 1] for member in forest.estimators_
-])
-example = member_scores.var(axis=0).argmax()
-print("flower [length, width]:", X_valid[example].tolist())
-print("first five tree scores:", member_scores[:5, example].round(3).tolist())
-print("mean of all 100:", round(member_scores[:, example].mean(), 3))
-print("forest score:", round(forest.predict_proba(X_valid)[example, 1], 3))
-print("validation accuracy:", round(forest.score(X_valid, y_valid), 3))
-print("out-of-bag accuracy:", round(forest.oob_score_, 3))
+member_scores = np.array([m.predict_proba(X_valid)[:, 1] for m in forest.estimators_])
+ex = int(member_scores.var(axis=0).argmax())
+print("contested flower [length, width]:", X_valid[ex].tolist())
+print("first 5 tree scores:", member_scores[:5, ex].round(3).tolist())
+print(f"forest mean={forest.predict_proba(X_valid)[ex, 1]:.3f} | valid acc={forest.score(X_valid, y_valid):.3f} | OOB={forest.oob_score_:.3f}")
 assert np.allclose(member_scores.mean(axis=0), forest.predict_proba(X_valid)[:, 1])
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-flower [length, width]: [5.1, 1.5]
-first five tree scores: [0.25, 0.25, 0.0, 0.0, 0.429]
-mean of all 100: 0.556
-forest score: 0.556
-validation accuracy: 1.0
-out-of-bag accuracy: 0.929
+contested flower [length, width]: [5.1, 1.5]
+first 5 tree scores: [0.25, 0.25, 0.0, 0.0, 0.429]
+forest mean=0.556 | valid acc=1.000 | OOB=0.929
 ```
 <!-- leetllm: output:end -->
 
-Averaging probabilities keeps more information than first turning every score into a hard vote. For example, scores 0.2, 0.8, and 0.8 average to 0.6; thresholding each at 0.5 and counting votes gives two out of three. They are different combination rules. Breiman's original forest classifier used majority voting; the library above uses probability averaging.
-
 <figure>
   <img src="illustrations/_generated/ensemble_contrast_dark.png" alt="A forest fits trees separately and averages their probability scores. Boosting starts with one prediction and adds fitted corrections in sequence. The forest branches are parallel; each boosting stage depends on the prediction from the previous stage." />
-  <figcaption>A forest combines independently fitted members. Boosting changes the target of each new tree using the ensemble's current errors, so the order of fitting matters.</figcaption>
+  <figcaption>A forest combines independently fitted members in parallel. Boosting changes the target of each new tree using the ensemble's current errors, so round order matters.</figcaption>
 </figure>
 
-### Why averaging helps
+## Gradient boosting corrects errors sequentially
 
-For a fixed flower, imagine refitting models on many possible training samples. A tree's prediction varies from sample to sample. Suppose each member's prediction has variance $\sigma^2$ and every pair has correlation $\rho$. For $B$ members, the variance of their mean is
-
-$$
-\operatorname{Var}(\bar T)
-= \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2.
-$$
-
-The formula comes from adding $B$ individual variances and $B(B-1)$ pairwise covariances, then dividing by $B^2$. With $\sigma^2=0.04$, $\rho=0.25$, and $B=10$, the result is $0.01+0.003=0.013$. Ten members have reduced variability substantially. As more members are added, the shared component $0.01$ remains. That is why forests seek disagreement as well as strong individual trees.
-
-Here the variance is over the training and fitting procedure for one fixed input. It explains a stabilizing mechanism; classification accuracy also depends on whether the average lands on the correct side of the decision threshold. More members do not replace useful features, representative labels, or evaluation.
-
-### Flowers left out of a bootstrap become extra checks
-
-A particular training flower has probability $(1-1/N)^N$ of being omitted from a bootstrap sample of $N$ draws. For large $N$, this approaches $e^{-1}\approx0.368$. Thus a tree leaves out about 37% of the original rows.
-
-An **out-of-bag (OOB)** prediction for a flower uses only members whose bootstrap did not contain it. The forest can assemble such predictions across its training set to estimate performance without fitting those members on the evaluated row. A full-forest prediction of a training flower is different: it also includes trees that saw that flower.
-
-The printed OOB score is useful for checking this training procedure. Use a time-based or group-based split when future periods or related samples are the real generalization challenge; random row omission does not create that separation. A very small forest may also omit too few trees for some rows, which is one reason the example uses 100 members.
-
-## Boosting improves a prediction through corrections
-
-A forest asks many models the original question. **Gradient boosting** asks a new question at each round: "What correction would improve the prediction we already have?" The answer is another small tree, added to the ensemble.[^friedman2001gbm]
-
-It is easiest to see with a numerical target. Suppose three plants receive 1, 2, and 5 hours of sunlight per day and grow 10, 20, and 60 mm in a week. Start with one prediction for every plant: their mean growth, 30 mm. The residuals, actual minus predicted, are $[-20,-10,+30]$ mm.
-
-A regression stump can split the first two plants from the third. The first leaf's mean residual is $(-20-10)/2=-15$; the other leaf's correction is $+30$. The fitted correction asks us to lower two predictions and raise the third.
-
-A learning rate of 0.1 applies one tenth of that correction:
+Rather than averaging independent models, **gradient boosting** builds a prediction additively: start with a constant prediction $F_0(x)$ and let each new small tree $h_m(x)$ predict the correction that reduces current loss, scaled by a learning rate (shrinkage) $\eta$:[^friedman2001gbm]
 
 $$
-F_1(x)=F_0(x)+0.1h_1(x),
+F_m(x) = F_{m-1}(x) + \eta h_m(x)
 $$
 
-so the predictions become $[28.5,28.5,33.0]$. The next round recomputes residuals against these new predictions. It does not keep fitting the original residuals.
-
-This program fits the correction trees, rather than supplying their answers. Run it to see the first four rounds:
+Take three plants receiving 1, 2, and 5 hours of daily sunlight that grow 10, 20, and 60 mm in a week. Start at their mean, `30` mm; residuals (actual minus predicted) are `[-20, -10, +30]`. A regression stump splits the first two plants (mean residual `-15`) from the third (`+30`). At learning rate $\eta = 0.10$, predictions step to `[28.5, 28.5, 33.0]`, and round 2 recomputes fresh residuals against those updated predictions:
 
 <!-- leetllm: test, deps=numpy,scikit-learn, output=show, id=tree-regression -->
 ```python title="grow-a-prediction.py"
@@ -319,21 +218,15 @@ from sklearn.tree import DecisionTreeRegressor
 
 sunlight = np.array([[1.0], [2.0], [5.0]])
 growth = np.array([10.0, 20.0, 60.0])
-prediction = np.full(3, growth.mean())
-rate = 0.10
-print("round=0", prediction.round(2).tolist())
-for round_number in range(1, 5):
-    residual = growth - prediction
-    correction_tree = DecisionTreeRegressor(max_depth=1, random_state=0).fit(sunlight, residual)
-    correction = correction_tree.predict(sunlight)
-    prediction += rate * correction
-    mse = np.mean((growth - prediction) ** 2)
-    print(f"round={round_number} prediction={prediction.round(2).tolist()} MSE={mse:.2f}")
+pred = np.full(3, growth.mean())
+for step in range(1, 5):
+    tree = DecisionTreeRegressor(max_depth=1, random_state=0).fit(sunlight, growth - pred)
+    pred += 0.10 * tree.predict(sunlight)
+    print(f"round={step} prediction={pred.round(2).tolist()} MSE={np.mean((growth - pred) ** 2):.2f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-round=0 [30.0, 30.0, 30.0]
 round=1 prediction=[28.5, 28.5, 33.0] MSE=381.17
 round=2 prediction=[27.15, 27.15, 35.7] MSE=311.91
 round=3 prediction=[25.94, 25.94, 38.13] MSE=255.82
@@ -343,132 +236,42 @@ round=4 prediction=[24.84, 24.84, 40.32] MSE=210.38
 
 <figure>
   <img src="illustrations/_generated/boosting_residual_step_dark.png" alt="Plant growth targets 10, 20, and 60 mm start from predictions of 30 mm. A fitted stump assigns residual corrections minus 15, minus 15, and plus 30. Applying one tenth of those corrections moves the predictions to 28.5, 28.5, and 33 mm." />
-  <figcaption>The vertical gaps are the errors still to be corrected. A small learning rate moves each prediction partway toward its fitted correction; later rounds recompute the remaining gaps.</figcaption>
+  <figcaption>Vertical gaps are the remaining residuals. Learning rate 0.10 moves each prediction partway toward its fitted correction, and subsequent rounds target the shrunken gaps.</figcaption>
 </figure>
 
-Regression trees choose their splits using squared error, and each leaf predicts the mean target in its region. For the original targets $[10,20,60]$, the unsplit mean-squared error is $466.67$. Splitting into $[10,20]$ and $[60]$ produces means 15 and 60, with weighted child error $(2/3)25+(1/3)0=16.67$. The gain is 450.
+### Classification boosting, Newton leaves, and XGBoost gain
 
-These are means of squared training errors, so the denominator in a node is its row count $N$, rather than the $N-1$ used for an unbiased sample-variance estimate. A singleton leaf has zero training error. For squared loss, fitting a regression tree to residuals applies exactly the same mechanism to the errors instead of to the original targets.
+For binary classification, boosting updates log-odds $F(x)$ and maps them to probabilities via $p(x) = \sigma(F(x)) = 1 / (1 + e^{-F(x)})$. Under binary cross-entropy loss $L(y, F) = -y\ln\sigma(F) - (1-y)\ln(1-\sigma(F))$, the first derivative with respect to $F$ is $g_i = p_i - y_i$ and the second derivative (curvature) is $h_i = p_i(1 - p_i)$.
 
-The learning rate is also called **shrinkage**. Smaller steps usually require more rounds. In this example, using 0.05 for four rounds leaves more training error than using 0.10 for four rounds, because we have moved a shorter distance. Choose the rate, tree depth, and stopping round together by measuring validation performance.
-
-## Classification boosting corrects logits
-
-Return to the flowers. For binary classification, the ensemble maintains a logit $F(x)$ and converts it to a virginica probability using the sigmoid:
+Each round fits a tree to the negative gradients (pseudo-residuals) $y_i - p_i$, then sets each leaf's logit update via a one-step Newton update:
 
 $$
-p(x)=\sigma(F(x))=\frac{1}{1+e^{-F(x)}}.
+\gamma_j = \frac{\sum_{i \in I_j}(y_i - p_i)}{\sum_{i \in I_j} p_i(1 - p_i)}
 $$
 
-A positive correction raises the logit and therefore raises the probability. A negative correction lowers both. With cross-entropy loss,
+On our balanced 70 flowers starting at $p_i = 0.5$ ($F_0 = 0$), the width `<= 1.75` split sends 38 rows left (residual sum `-15`) and 32 rows right (residual sum `+15`), with every row contributing curvature `0.25`. Thus $\gamma_{\text{left}} = -15 / 9.5 = -1.579$ and $\gamma_{\text{right}} = +15 / 8.0 = +1.875$. Scaling by $\eta = 0.1$ nudges probabilities gently to `0.461` and `0.547`.
+
+**XGBoost** extends this second-order view into split selection itself.[^chen2016xgboost][^xgboostTreeObjective2026] Collecting gradient sums $G_j = \sum_{i \in I_j} g_i$ and curvature sums $H_j = \sum_{i \in I_j} h_i$ with $L_2$ leaf penalty $\lambda$ and split penalty $\gamma_{\text{split}}$ gives the regularized leaf value and split gain:
 
 $$
-L(y,F)=-y\ln\sigma(F)-(1-y)\ln(1-\sigma(F)),
+w_j^* = -\frac{G_j}{H_j + \lambda},
+\qquad
+\text{gain} = \frac{1}{2}\left[\frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{(G_L + G_R)^2}{H_L + H_R + \lambda}\right] - \gamma_{\text{split}}
 $$
 
-its derivative with respect to $F$ is $p-y$. The **negative gradient**, also called a pseudo-residual, is therefore $y-p$. A virginica flower with $y=1$ and current probability 0.2 asks for a positive correction of 0.8. A versicolor flower with $y=0$ and current probability 0.8 asks for a negative correction of -0.8.
+Compare all five flower models on the identical validation split (standardizing only inside the logistic pipeline so validation statistics never leak):[^sklearnGradientBoostingMechanics2026]
 
-This is gradient descent in **function space**: the quantities we improve are predictions on the training examples. We fit a tree to approximate the desired corrections, then add the tree to the prediction function.[^friedman2001gbm]
-
-### Work through the first classification update
-
-Our 70 training labels are balanced, so the best constant starting probability is 0.5, corresponding to logit zero. A residual stump again chooses width 1.75 cm. Its left leaf contains four positive labels and 34 negative labels; its residuals sum to $4-38(0.5)=-15$. The right leaf's residuals sum to $31-32(0.5)=+15$.
-
-To choose a useful step in logit units, a Newton update also uses the second derivative, $p(1-p)$. For leaf $j$,
-
-$$
-\gamma_j=\frac{\sum_{i\in I_j}(y_i-p_i)}{\sum_{i\in I_j}p_i(1-p_i)}.
-$$
-
-At the initial probability 0.5, every row contributes 0.25 to the denominator. The left update is $-15/(38\times0.25)\approx-1.579$; the right update is $15/(32\times0.25)=1.875$. Apply learning rate 0.1 to those logits and convert back to probabilities:
-
-<!-- leetllm: test, continue=tree-forest, output=show, id=tree-newton -->
-```python title="first-classification-correction.py"
-from sklearn.tree import DecisionTreeRegressor
-
-p = np.full(len(y_train), 0.5)
-residual = y_train - p
-hessian = p * (1 - p)
-correction_tree = DecisionTreeRegressor(max_depth=1, random_state=0).fit(X_train, residual)
-leaf_ids = correction_tree.apply(X_train)
-for leaf in np.unique(leaf_ids):
-    members = leaf_ids == leaf
-    step = residual[members].sum() / hessian[members].sum()
-    updated_logit = 0.1 * step
-    updated_probability = 1 / (1 + np.exp(-updated_logit))
-    print(f"rows={members.sum():2d} step={step:+.3f} probability={updated_probability:.3f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-rows=38 step=-1.579 probability=0.461
-rows=32 step=+1.875 probability=0.547
-```
-<!-- leetllm: output:end -->
-
-The probabilities have moved from 0.5 toward the appropriate species. They have not jumped immediately to the ordinary stump's leaf frequencies of 0.105 and 0.969. Boosting adds a correction to an existing score, and shrinkage controls how much of that correction to use.
-
-A Newton step minimizes a local quadratic approximation of the loss. Later rounds rebuild the residuals and curvature at the new probabilities. Modern boosting libraries handle that repeated calculation, along with controls on depth, sampling, and regularization.
-
-Fit a complete classifier and inspect several stages. Here `max_depth=2` permits interactions between successive questions, while `staged_predict_proba` lets us inspect the model as trees are added:
-
-<!-- leetllm: test, continue=tree-newton, output=show, id=tree-boosting -->
-```python title="follow-classification-boosting.py"
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.metrics import log_loss
-
-booster = GradientBoostingClassifier(
-    n_estimators=50, learning_rate=0.1, max_depth=2,
-    min_samples_leaf=2, random_state=0,
-).fit(X_train, y_train)
-train_stages = booster.staged_predict_proba(X_train)
-valid_stages = booster.staged_predict_proba(X_valid)
-for number, (train_p, valid_p) in enumerate(zip(train_stages, valid_stages), start=1):
-    if number in [1, 10, 50]:
-        print(f"trees={number:2d} train loss={log_loss(y_train, train_p):.3f} "
-              f"validation loss={log_loss(y_valid, valid_p):.3f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-trees= 1 train loss=0.612 validation loss=0.609
-trees=10 train loss=0.257 validation loss=0.228
-trees=50 train loss=0.077 validation loss=0.057
-```
-<!-- leetllm: output:end -->
-
-Log loss evaluates the probabilities, including how confidently the model makes errors. Accuracy evaluates the final class decisions. A probability can improve without crossing 0.5, so these metrics need not move together. Stop adding trees according to the validation objective that matters for the task.[^sklearnGradientBoostingMechanics2026]
-
-### How XGBoost uses gradients and curvature
-
-The Newton calculation also explains an important part of XGBoost. For a proposed tree, collect gradient sums $G_j=\sum_i(p_i-y_i)$ and curvature sums $H_j=\sum_i p_i(1-p_i)$ in each leaf. With an $L_2$ penalty $\lambda$ on leaf values, the optimal leaf value for the quadratic approximation is[^xgboostTreeObjective2026]
-
-$$
-w_j^*=-\frac{G_j}{H_j+\lambda}.
-$$
-
-The penalty enlarges the denominator, shrinking the update. A proposed split into left and right leaves receives the score
-
-$$
-\text{gain}=\frac12\left[
-\frac{G_L^2}{H_L+\lambda}
-+\frac{G_R^2}{H_R+\lambda}
--\frac{(G_L+G_R)^2}{H_L+H_R+\lambda}
-\right]-\gamma_{\text{split}}.
-$$
-
-The first two terms reward the two children's fit. The third subtracts the parent's fit, and $\gamma_{\text{split}}$ charges for the additional leaf. Once the charge is subtracted, a positive gain favors the split. XGBoost uses these gradient and curvature statistics during split search, whereas our small Newton example first chose regions by squared error on the pseudo-residuals. This difference can change which tree is grown.
-
-## Compare models on the same flowers
-
-We now have several ways to map the same measurements to a species. Compare them with a logistic-regression baseline, using the same training and validation rows for every candidate. Standardization belongs inside the logistic pipeline; its fitted statistics come only from the training data.
-
-<!-- leetllm: test, continue=tree-boosting, output=show, id=tree-comparison -->
+<!-- leetllm: test, continue=tree-forest, output=show, id=tree-comparison -->
 ```python title="compare-the-fitted-models.py"
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+booster = GradientBoostingClassifier(
+    n_estimators=50, learning_rate=0.1, max_depth=2, min_samples_leaf=2, random_state=0,
+)
 models = {
     "logistic": make_pipeline(StandardScaler(), LogisticRegression()),
     "stump": stump,
@@ -478,286 +281,238 @@ models = {
 }
 for name, model in models.items():
     model.fit(X_train, y_train)
-    print(f"{name:9} accuracy={model.score(X_valid, y_valid):.3f} "
-          f"log loss={log_loss(y_valid, model.predict_proba(X_valid)):.3f}")
+    print(f"{name:9s} acc={model.score(X_valid, y_valid):.3f} log_loss={log_loss(y_valid, model.predict_proba(X_valid)):.3f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-logistic  accuracy=0.967 log loss=0.102
-stump     accuracy=0.967 log loss=0.145
-deep tree accuracy=0.967 log loss=1.201
-forest    accuracy=1.000 log loss=0.047
-boosting  accuracy=0.967 log loss=0.057
+logistic  acc=0.967 log_loss=0.102
+stump     acc=0.967 log_loss=0.145
+deep tree acc=0.967 log_loss=1.201
+forest    acc=1.000 log_loss=0.047
+boosting  acc=0.967 log_loss=0.057
 ```
 <!-- leetllm: output:end -->
 
-A confident wrong leaf can have a large log-loss penalty even if its accuracy looks respectable. A forest can soften individual tree predictions by averaging; boosting can gradually change both the probabilities and the regions. Neither operation makes a larger model the automatic winner. Read the resulting errors, and use repeated or cross-validated comparisons when a few flowers can change the ranking.
+Look at `deep tree`: identical `0.967` accuracy to `boosting`, yet `21x` worse log loss (`1.201` vs `0.057`) because one pure leaf makes a maximally confident mistake. Always track probability quality alongside accuracy.
 
-The two ensemble mechanisms also address different aspects of fitting:
-
-| Question | Random forest | Gradient boosting |
+| Dimension | Random forest | Gradient boosting |
 |---|---|---|
-| What does each member learn? | Original targets on perturbed data | A correction based on the current ensemble |
-| How are members combined? | Average their scores | Add their scaled corrections |
-| Which work can run independently? | Separate trees | Work within a round; rounds depend on earlier predictions |
-| What controls flexibility? | Depth, leaf size, feature sampling | Depth, rate, rounds, sampling, penalties |
-| What does adding members do? | Stabilizes an average | Continues changing the fitted function |
+| Target per tree | Original labels on bootstrap data | Current negative gradients (residuals) |
+| Combination rule | Average member probabilities | Sum shrinkage-scaled corrections |
+| Training parallelism | Trees fit independently in parallel | Rounds are sequential; split search parallelizes inside a round |
+| Adding more trees | Stabilizes variance toward $\rho\sigma^2$ | Continues fitting training loss (needs early stopping) |
 
-For squared-error regression, prediction error can be decomposed into squared bias, variance across training samples, and outcome noise:
+For squared-error regression, expected error splits into squared bias, estimation variance, and noise: $\mathbb{E}[(Y - \hat{f}_D(x))^2] = (\mathbb{E}_D[\hat{f}_D(x)] - f_*(x))^2 + \operatorname{Var}_D(\hat{f}_D(x)) + \sigma_\epsilon^2$. Forests primarily cut variance; boosting primarily cuts bias.
 
-$$
-\mathbb E[(Y-\hat f_D(x))^2]
-=(\mathbb E_D[\hat f_D(x)]-f_*(x))^2
-+\operatorname{Var}_D(\hat f_D(x))+\sigma_\epsilon^2.
-$$
+## Feature importance and local SHAP attribution
 
-Here $Y=f_*(x)+\epsilon$, with zero-mean noise independent of the training set $D$. The formula helps explain why averaging variable trees can help and why adding corrective functions can reduce approximation error. In classification, inspect the chosen probability or decision metric directly; the squared-error decomposition is not a formula for classification accuracy.
-
-## Find out which features the model uses
-
-A tree library's default **mean decrease in impurity** (MDI) importance sums the training impurity reductions credited to each feature. It is fast and useful for seeing what the fitted trees split on. A feature with many distinct values, however, offers many opportunities to fit chance patterns.[^sklearn2026permutation]
-
-We can make that effect visible with a controlled experiment. Generate labels, a binary feature that agrees with them 70% of the time, and an independent continuous noise feature. Fit a forest on 40 rows and evaluate it on 2,000 new rows from the same process. The model computes its own predictions; the experiment lets us know which feature actually contains signal.
+A tree library's default **mean decrease in impurity (MDI)** sums training split gains per feature. High-cardinality continuous noise offers hundreds of candidate cutoffs to overfit training quirks, stealing MDI credit from true binary signals.[^sklearn2026permutation] **Permutation importance** instead shuffles one column on *held-out validation rows* and measures the metric drop:
 
 <!-- leetllm: test, deps=numpy,scikit-learn, output=show -->
-```python title="training-importance-versus-new-data.py"
+```python title="mdi-vs-permutation-importance.py"
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.inspection import permutation_importance
-from sklearn.metrics import f1_score
 
 rng = np.random.default_rng(1)
 def make_rows(n):
-    labels = rng.integers(0, 2, size=n)
-    signal = np.where(rng.random(n) < 0.70, labels, 1 - labels)
-    noise = rng.random(n)
-    return np.column_stack([signal, noise]), labels
+    y = rng.integers(0, 2, size=n)
+    signal = np.where(rng.random(n) < 0.70, y, 1 - y)
+    return np.column_stack([signal, rng.random(n)]), y
 
 train_x, train_y = make_rows(40)
 valid_x, valid_y = make_rows(2000)
-model = RandomForestClassifier(
-    n_estimators=20, max_depth=5, max_features=1, random_state=0,
-).fit(train_x, train_y)
-importance = permutation_importance(
-    model, valid_x, valid_y, scoring="f1", n_repeats=15, random_state=0,
-)
-print(f"held-out F1={f1_score(valid_y, model.predict(valid_x)):.3f}")
-for index, name in enumerate(["binary signal", "continuous noise"]):
-    print(f"{name}: MDI={model.feature_importances_[index]:.3f}; "
-          f"permutation drop={importance.importances_mean[index]:.3f} "
-          f"shuffle SD={importance.importances_std[index]:.3f}")
+rf = RandomForestClassifier(n_estimators=20, max_depth=5, max_features=1, random_state=0).fit(train_x, train_y)
+perm = permutation_importance(rf, valid_x, valid_y, scoring="f1", n_repeats=15, random_state=0)
+for idx, name in enumerate(["binary signal", "continuous noise"]):
+    print(f"{name:16s}: MDI={rf.feature_importances_[idx]:.3f} | valid perm drop={perm.importances_mean[idx]:.3f} (+/- {perm.importances_std[idx]:.3f})")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-held-out F1=0.575
-binary signal: MDI=0.080; permutation drop=0.097 shuffle SD=0.007
-continuous noise: MDI=0.920; permutation drop=0.003 shuffle SD=0.007
+binary signal   : MDI=0.080 | valid perm drop=0.097 (+/- 0.007)
+continuous noise: MDI=0.920 | valid perm drop=0.003 (+/- 0.007)
 ```
 <!-- leetllm: output:end -->
 
-**Permutation importance** shuffles one feature across validation rows and measures the change in a selected metric. In this run, the noise feature receives most of the training split credit, but shuffling it barely changes held-out F1. Shuffling the binary signal causes a much larger drop. The two methods answer different questions: what helped the training splits, and what this fitted model needs to perform on new rows.
+> **Key insight:** Pure continuous noise grabbed `92%` of training MDI credit, yet shuffling it on validation data moved F1 by only `0.003`. Use validation permutation importance (grouping strongly correlated columns) to measure what a fitted model actually relies on.[^sklearn2026multicollinear]
 
-The reported standard deviation comes from repeated shuffles of the same model and validation batch. Correlated features require extra care: another feature may preserve much of the same information after one is shuffled. Grouping related features can reveal a dependence that single-column shuffles hide.[^sklearn2026multicollinear]
+To explain a *single* prediction $f(x)$, **SHAP** decomposes it into a baseline plus additive feature credits $f(x) = \phi_0 + \sum_j \phi_j(x)$.[^lundberg2017][^shapTreeExplainer2026] Using the training rows as an interventional background for our width-only stump on `[5.0, 1.8]`, averaging the marginal effect of setting each feature first vs second yields baseline `0.500`, length `+0.000`, and width `+0.469`, reconstructing `0.969` exactly. In production, `TreeExplainer` computes these attributions in polynomial time; always record whether explanations live in log-odds or probability units.
 
-### Explain one flower's score
+## Production GBDTs: chronological splits, cost thresholds, and NaN routing
 
-For an individual prediction, **SHAP** decomposes a chosen model output into a baseline plus feature contributions:[^lundberg2017]
+Three operational traps separate a clean notebook benchmark from a reliable production boosted-tree model: temporal leakage, naive `0.50` thresholding, and inconsistent missing-value routing.
+
+### 1. Freeze the clock before training
+
+For time-ordered tabular events (such as GPU training jobs risking missed deadlines, fraud alerts, or churn), randomly shuffling rows leaks correlated outages and seasonal drift across train and test.[^sklearn2026leakage] Always freeze a strictly **<span data-glossary="train-validation-test-split">time-ordered split</span>**:
+
+| Split | Period | Role |
+|---|---|---|
+| Train | Jan-Mar | Fit splits and leaf weights using point-in-time features |
+| Validation | April | Pick stopping round and decision threshold |
+| Test | May | Score the frozen model and threshold once |
+
+Every feature must be available at prediction time, and labels must mature before the split cutoff (a March job still running on April 1 cannot leak its outcome into an April 1 training window).
+
+### 2. Choose a Bayes-optimal cost threshold, not 0.50
+
+AUC ranks predictions across all cutoffs, but deployment acts at one threshold $\tau$. Suppose alerting on an on-time job costs $C_{\text{FP}} = 8$, missing a standard deadline costs $C_{\text{FN}} = 60$, and missing a priority deadline costs $C_{\text{FN}} = 150$. For true risk $p(x) = P(y = 1 \mid x)$, alerting has expected cost $(1 - p(x))C_{\text{FP}}$ while staying quiet costs $p(x)C_{\text{FN}}$. Alerting is cheaper whenever:
 
 $$
-f(x)=\phi_0+\sum_j\phi_j(x).
+(1 - p(x))C_{\text{FP}} \le p(x)C_{\text{FN}}
+\implies
+p(x) \ge \frac{C_{\text{FP}}}{C_{\text{FP}} + C_{\text{FN}}} = \tau^*
 $$
 
-The contributions depend on how we define an absent feature. Here use the training flowers as an **interventional background**: hold the features we know at the new flower's values and fill the others from each background row, then average the predictions.[^shapTreeExplainer2026]
+Plugging in the costs gives **Bayes-optimal thresholds** of $\tau^*_{\text{standard}} = 8 / 68 \approx 0.118$ and $\tau^*_{\text{priority}} = 8 / 158 \approx 0.051$. Default `0.50` is optimal only when false positives and false negatives cost the same. On validation, search all unique predicted probabilities rather than a coarse grid (`[0.15, 0.25, 0.40]`), compare against trivial baselines like **always-alert**, and verify recall floors on critical slices (`priority`, `large_model`) before opening the future test split.
 
-With two features, each contribution averages two changes: adding that feature first, and adding it after the other feature. We can calculate the complete result directly. Our stump uses width alone, so petal length should receive zero credit under this background calculation:
+### 3. Handle `NaN` routing deliberately across libraries
 
-<!-- leetllm: test, continue=tree-comparison, output=show -->
-```python title="explain-the-stumps-prediction.py"
-flower = np.array([5.0, 1.8])
-def value(known):
-    completed = X_train.copy()
-    for feature in known:
-        completed[:, feature] = flower[feature]
-    return stump.predict_proba(completed)[:, 1].mean()
+Missing measurements behave very differently across tree libraries, and mixing sparse zeros with `NaN` silently changes predictions:
 
-base = value([])
-length_only, width_only, both = value([0]), value([1]), value([0, 1])
-length_credit = 0.5 * ((length_only - base) + (both - width_only))
-width_credit = 0.5 * ((width_only - base) + (both - length_only))
-print(f"baseline={base:.3f} length={length_credit:+.3f} width={width_credit:+.3f}")
-print(f"reconstructed probability={base + length_credit + width_credit:.3f}")
-assert np.isclose(base + length_credit + width_credit, both)
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-baseline=0.500 length=+0.000 width=+0.469
-reconstructed probability=0.969
-```
-<!-- leetllm: output:end -->
-
-The baseline is 0.5 and width contributes about +0.469, reconstructing the right leaf's 0.969 probability. This explains the model's computation for the flower. Checking whether its species label is correct is a separate comparison with the observed label.
-
-For larger models, TreeExplainer computes these attributions efficiently. Record the background, `feature_perturbation`, and `model_output`: contributions to log odds have different units from contributions to probability. An explainer that conditions on correlated measurements can assign different contributions because observing one measurement conveys information about another. The choice should match the question the explanation is meant to answer.
-
-## Handle missing measurements deliberately
-
-A missing petal width still needs a route through a fitted tree. Some estimators learn whether missing rows should go left or right; others require preprocessing. The same consideration applies to sparse inputs, where an absent entry may mean a missing measurement or a numeric zero.
-
-| Estimator or representation | Behavior to account for |
+| Implementation | Missing-value behavior |
 |---|---|
-| Scikit-learn decision trees with supported classification criteria and `splitter="best"` | Learn missing-value directions. If the feature had no missing training values, prediction sends a missing value toward the child with more samples.[^sklearn2026treemissing] |
-| Scikit-learn random forests | Support learned missing-value directions through their trees.[^sklearn2026forestmissing] |
-| XGBoost tree boosters with default `missing=NaN` | An absent sparse entry is missing; an explicitly stored zero is a value.[^xgboostFaq2026] |
-| LightGBM with default `zero_as_missing=false` | Absent sparse entries count as zero. Setting `zero_as_missing=true` makes zeros and absent entries count as missing.[^lightgbm2026missing] |
+| `GradientBoostingClassifier` (classic sklearn) | Rejects `NaN` with `ValueError`; requires explicit imputation |
+| `HistGradientBoostingClassifier` (sklearn) | Learns `NaN` split directions natively; unseen serving-time `NaN` routes to the larger child[^sklearnHistGradientBoosting2026] |
+| `DecisionTreeClassifier` / `RandomForestClassifier` | Learn missing directions on supported criteria (`splitter="best"`)[^sklearn2026treemissing][^sklearn2026forestmissing] |
+| XGBoost (`missing=NaN`) | Learns default branch per split; absent sparse entries are missing, explicit `0` is a value[^chen2016xgboost][^xgboostFaq2026] |
+| LightGBM (`zero_as_missing=false`) | Absent sparse entries count as zero unless `zero_as_missing=true` is enabled[^lightgbm2026missing] |
 
-When replacing a preprocessing step or estimator, replay inputs containing a genuine zero, a missing value, and an absent sparse entry. Compare the resulting routes before assuming the new representation preserves the old meaning. Our flower dataset is complete, so these decisions arise when we extend the example to measurements collected less consistently.
+Trees also predict constants outside their outermost training splits, so never expect a tree leaf to extrapolate linear trends beyond observed feature ranges.
 
-Trees also make constant predictions outside their outermost splits. A petal wider than any training flower follows the same final branch as other sufficiently wide petals. In regression, the corresponding leaf mean remains constant too. Use that behavior consciously when a task requires extrapolation beyond the measured range.
+Put all three production mechanics together in one runnable check: a time-ordered Jan-Mar / April / May job dataset (with `+0.18` May log-odds drift), `GradientBoostingClassifier` vs `HistGradientBoostingClassifier` on `NaN`, and exact April cost-threshold tuning evaluated once on unseen May jobs:
 
-## Try a change and explain the result
+<!-- leetllm: test, deps=numpy,scikit-learn, output=show -->
+```python title="production-gbdt-chronological-cost-nan.py"
+import numpy as np
+from sklearn.ensemble import GradientBoostingClassifier, HistGradientBoostingClassifier
+from sklearn.metrics import roc_auc_score
 
-The chapter's models all start from the same question: can petal measurements distinguish two species? A stump creates one useful partition. A deeper tree divides mixed regions further. A forest combines different fitted partitions, while boosting keeps adding corrections to its current prediction.
+# 1. NaN routing: classic GradientBoostingClassifier vs HistGradientBoostingClassifier
+nan_X = np.array([[0.0], [1.0], [np.nan], [3.0]])
+nan_y = np.array([0, 0, 1, 1])
+try:
+    GradientBoostingClassifier(random_state=11).fit(nan_X, nan_y)
+    classic_ok = True
+except ValueError:
+    classic_ok = False
+hist_nan = HistGradientBoostingClassifier(max_iter=2, min_samples_leaf=1, early_stopping=False, random_state=11).fit(nan_X, nan_y)
+print(f"classic GBDT accepts NaN: {classic_ok} | HistGBDT accepts NaN: {bool(np.isfinite(hist_nan.predict_proba([[np.nan]])).all())}")
 
-> **Key insight:** Mean decrease in impurity (MDI) rewards high-cardinality noise features that split the training set finely; **permutation importance** on held-out data measures what the fitted model actually relies on to generalize.
+# 2. Chronological Jan-Mar -> April -> May split with mild May drift (+0.18 logit)
+rng = np.random.default_rng(11)
+def make_jobs(n, drift=0.0):
+    input_gb = rng.integers(40, 1601, n)
+    hb_age = rng.integers(1, 41, n)
+    backlog = rng.integers(0, 31, n)
+    priority = rng.integers(0, 2, n)
+    large = (input_gb >= 900).astype(int)
+    logit = -5.2 + 0.13 * hb_age + 0.07 * backlog + 0.85 * priority + 0.75 * large + drift
+    y = rng.binomial(1, 1.0 / (1.0 + np.exp(-logit)))
+    return np.column_stack([input_gb, hb_age, backlog, priority, large]), y
 
-Change `min_samples_leaf` in the forest from 2 to 10 and inspect both probabilities and accuracy. Larger leaves pool more flowers, smoothing away extreme predictions from tiny leaves. Then lower the booster's learning rate from 0.1 to 0.05 at 50 rounds and see how the slower shrinkage shifts training and validation log loss.
+X_tr, y_tr = make_jobs(360)
+X_va, y_va = make_jobs(140)
+X_te, y_te = make_jobs(140, drift=0.18)
 
-```checkpoint
-A node contains eight versicolor flowers and two virginica flowers. What probability does its leaf assign to virginica, and what is its Gini impurity?
----
-The virginica probability is 2/10 = 0.2. Gini is 2 × 0.2 × 0.8 = 0.32. The probability describes one class; impurity describes the mixture of all labels in the leaf.
+def total_cost(X, y, scores, tau):
+    pred = (scores >= tau).astype(int)
+    pri = X[:, 3] == 1
+    miss = (y == 1) & (pred == 0)
+    fa = (y == 0) & (pred == 1)
+    return int(150 * np.sum(miss & pri) + 60 * np.sum(miss & ~pri) + 8 * np.sum(fa))
+
+clf = HistGradientBoostingClassifier(max_iter=50, learning_rate=0.08, max_depth=3, min_samples_leaf=10, random_state=11).fit(X_tr, y_tr)
+va_scores = clf.predict_proba(X_va)[:, 1]
+cutoffs = np.r_[0.0, np.unique(va_scores), np.nextafter(1.0, 2.0)]
+best_tau = float(min(cutoffs, key=lambda t: (total_cost(X_va, y_va, va_scores, t), t)))
+
+te_scores = clf.predict_proba(X_te)[:, 1]
+print(f"April tuned threshold: {best_tau:.4f} (April cost={total_cost(X_va, y_va, va_scores, best_tau)} vs default 0.50={total_cost(X_va, y_va, va_scores, 0.50)})")
+print(
+    f"May test (AUC={roc_auc_score(y_te, te_scores):.3f}) -> "
+    f"tuned={total_cost(X_te, y_te, te_scores, best_tau)} | "
+    f"default 0.50={total_cost(X_te, y_te, te_scores, 0.50)} | "
+    f"always-alert={total_cost(X_te, y_te, np.ones(len(y_te)), 0.50)}"
+)
 ```
 
-```checkpoint
-Why can a forest give a different answer when one training flower is removed, even though no prediction-time code changed?
----
-Removing the flower changes the data available to the bootstrap samples and split searches. Some learned thresholds and leaf proportions can change. The prediction procedure is unchanged, but the learned trees it follows are different.
+<!-- leetllm: output:start -->
+```text title="Output" output compact
+classic GBDT accepts NaN: False | HistGBDT accepts NaN: True
+April tuned threshold: 0.0264 (April cost=556 vs default 0.50=3030)
+May test (AUC=0.893) -> tuned=464 | default 0.50=1668 | always-alert=680
 ```
+<!-- leetllm: output:end -->
+
+Look at that May test payoff: the exact same model (`AUC = 0.893`) costs `1,668` at the default `0.50` cutoff, worse than blindly alerting on every job (`680`). Tuning the cutoff on April validation to `0.0264` slashes unseen May cost by more than `3.5x` to `464`, beating always-alert cleanly.
 
 ```checkpoint
-In the plant-growth example, a fitted residual tree proposes -15 mm for a plant currently predicted to grow 30 mm. What happens at learning rates 0.1 and 0.05?
+False alarms cost 10 and missed failures cost 90. What is the Bayes-optimal probability threshold, and does changing it require retraining the booster?
 ---
-The new predictions are 30 + 0.1(-15) = 28.5 mm and 30 + 0.05(-15) = 29.25 mm. The smaller rate applies less of the same fitted correction in this round.
+tau* = 10 / (10 + 90) = 0.10. Changing the operating threshold uses the existing calibrated probabilities without refitting any trees.
 ```
-
-## Check your understanding
 
 ```mastery-quiz
 [
   {
     "question": "A balanced ten-row node splits into a pure four-row child and a six-row child with five positive labels and one negative label. What is the Gini gain?",
     "options": [
+      "1/3",
       "1/2",
       "1/6",
-      "1/3",
       "13/36"
     ],
     "answer": "1/3",
-    "explanation": "The parent has Gini 1/2. The mixed child has Gini 2(5/6)(1/6)=5/18. Its weight is 6/10, giving total child impurity 1/6. The gain is 1/2−1/6=1/3. Averaging the children equally would ignore their different sizes."
+    "explanation": "Parent Gini is 1/2. The pure child has Gini 0 and the mixed child has Gini 2(5/6)(1/6) = 5/18. Weighting by 6/10 gives child impurity 1/6, so gain is 1/2 - 1/6 = 1/3."
   },
   {
-    "question": "An exact stump trainer sees feature values [2, 4, 9, 15]. Which midpoint thresholds represent its distinct training partitions?",
+    "question": "A training row appeared in bootstrap samples for trees 1 and 3, but not trees 2 and 4. Which trees form its out-of-bag prediction, and what does OOB still miss on time-ordered data?",
     "options": [
-      "3, 6.5, 12",
-      "2, 4, 9, 15",
-      "3, 5.5, 8.5",
-      "1, 2.5, 3"
+      "Trees 2 and 4; OOB does not isolate future time periods or temporal drift.",
+      "Trees 1 and 3; OOB isolates future time periods automatically.",
+      "All four trees; OOB only removes feature subsampling.",
+      "Trees 2 and 4; OOB replaces the need for any validation or test split."
     ],
-    "answer": "3, 6.5, 12",
-    "explanation": "Average adjacent distinct values: (2+4)/2, (4+9)/2, and (9+15)/2. Any threshold inside the same gap gives the same training grouping; the midpoint is a representative cutoff."
+    "answer": "Trees 2 and 4; OOB does not isolate future time periods or temporal drift.",
+    "explanation": "OOB averages only trees whose bootstrap omitted that row (trees 2 and 4). Because rows are omitted randomly across dates, OOB still mixes past and future periods."
   },
   {
-    "question": "A tree asks whether width is at most 1.75 cm. Its left leaf gives virginica probability 0.3. The classification threshold changes from 0.5 to 0.2. What changes?",
+    "question": "Ten rows in a classification boosting leaf all have current probability 0.5; seven have label 1 and three have label 0. What is the unshrunk Newton leaf step sum(y - p) / sum(p(1 - p))?",
     "options": [
-      "The width cutoff moves to 0.2 cm",
-      "The left leaf's probability rises to 0.5",
-      "The tree refits using the new threshold",
-      "The left leaf is now classified as virginica"
-    ],
-    "answer": "The left leaf is now classified as virginica",
-    "explanation": "The fitted feature cutoff and leaf probability stay the same. A probability of 0.3 is below the old operating threshold and above the new one, so the resulting class changes."
-  },
-  {
-    "question": "A deeper tree raises training accuracy from 0.93 to 1.00 while validation accuracy falls from 0.95 to 0.87. What is the most useful next comparison?",
-    "options": [
-      "Keep the deeper tree because its leaves are pure",
-      "Compare depth, leaf-size, or pruning settings on the same validation split",
-      "Refit on the validation labels before comparing both trees there",
-      "Change the random seed until the deeper tree wins"
-    ],
-    "answer": "Compare depth, leaf-size, or pruning settings on the same validation split",
-    "explanation": "The extra training detail transferred poorly on this split. Complexity controls test whether pooling more observations improves transfer. Fitting on validation labels or searching for a favorable split would make that comparison unreliable."
-  },
-  {
-    "question": "Three forest members predict probabilities 0.1, 0.6, and 0.8. What does probability averaging return?",
-    "options": [
-      "0.60",
-      "0.67",
-      "0.50",
-      "0.80"
-    ],
-    "answer": "0.50",
-    "explanation": "The mean is (0.1+0.6+0.8)/3=0.5. Turning each probability into a vote at 0.5 gives 2/3, a different rule. The middle value is 0.6 and the largest is 0.8; neither is the average."
-  },
-  {
-    "question": "A training flower appeared in the bootstrap samples for trees 1 and 3, but not trees 2 and 4. Which members form its out-of-bag prediction?",
-    "options": [
-      "Trees 2 and 4",
-      "Trees 1 and 3",
-      "All four trees",
-      "Only whichever tree has the largest leaf"
-    ],
-    "answer": "Trees 2 and 4",
-    "explanation": "An OOB prediction uses only trees that did not train on that row. Averaging all four would include members whose fitting data contained the evaluated flower."
-  },
-  {
-    "question": "Predictions are [40, 40, 40]. A fitted residual tree predicts [-10, 5, 20]. With learning rate 0.2, what are the updated predictions?",
-    "options": [
-      "[30, 45, 60]",
-      "[38, 41, 44]",
-      "[42, 39, 36]",
-      "[-2, 1, 4]"
-    ],
-    "answer": "[38, 41, 44]",
-    "explanation": "Add the scaled correction to the current prediction: [40−2,40+1,40+4]. Using the entire correction omits shrinkage; subtracting it moves in the opposite direction; reporting only the correction discards the current model."
-  },
-  {
-    "question": "Ten rows in a boosting leaf all have probability 0.5. Seven labels are 1 and three are 0. What is the unshrunk Newton step, sum(y−p)/sum(p(1−p))?",
-    "options": [
+      "0.80",
       "0.20",
       "0.70",
-      "8.00",
-      "0.80"
+      "8.00"
     ],
     "answer": "0.80",
-    "explanation": "Residuals sum to 7(0.5)+3(−0.5)=2. Curvature sums to 10(0.25)=2.5. The step is 2/2.5=0.8 logit units. The mean residual is 0.2, which is a different quantity."
+    "explanation": "Residuals sum to 7(0.5) + 3(-0.5) = 2.0, and curvature sums to 10(0.25) = 2.5, giving a Newton step of 2.0 / 2.5 = 0.80 logit units."
   },
   {
-    "question": "A noise feature gets MDI importance 0.9. Shuffling it on validation data barely changes F1, while shuffling another feature causes a large drop. What best explains the result?",
+    "question": "A continuous noise feature receives 0.92 training MDI importance, while shuffling it on validation data changes F1 by 0.003. What explains the discrepancy?",
     "options": [
-      "The two importance methods must rank features identically",
-      "MDI credited training splits; the shuffle checks what the fitted model needs on validation rows",
-      "Permutation importance refitted the forest and removed the noise feature",
-      "A high MDI value measures how strongly the feature causes the label"
+      "Many candidate cutoffs let continuous noise earn training split credit, whereas validation permutation measures what the fitted model needs to generalize.",
+      "Permutation importance retrained the forest without the noise feature.",
+      "MDI and permutation importance always disagree on continuous features.",
+      "Validation F1 is insensitive to features used near the root of trees."
     ],
-    "answer": "MDI credited training splits; the shuffle checks what the fitted model needs on validation rows",
-    "explanation": "Many candidate cuts can give continuous noise substantial training credit. Permutation importance evaluates the already-fitted model after shuffling one column; it does not retrain the model or measure causal effects."
+    "answer": "Many candidate cutoffs let continuous noise earn training split credit, whereas validation permutation measures what the fitted model needs to generalize.",
+    "explanation": "High-cardinality noise gives greedy split search many chances to overfit training rows (inflating MDI). Permutation importance evaluates the already-fitted model on held-out data."
   },
   {
-    "question": "A stump uses width alone. Its background mean probability is 0.4 and a new flower scores 0.7. Under the chapter's interventional calculation, what are the length and width contributions?",
+    "question": "A production alert system charges 8 per false alarm and 150 per missed priority deadline, and serving rows occasionally contain NaN values. Which combination is sound?",
     "options": [
-      "Length +0.3; width 0",
-      "Length +0.15; width +0.15",
-      "Length 0; width +0.3",
-      "Length 0; width +0.7"
+      "Use a chronological train/valid/test split, tune a cost-optimal threshold near 8/158 (about 0.051) on validation, and use HistGradientBoostingClassifier (or explicit NaN handling) instead of raw classic GradientBoostingClassifier.",
+      "Randomly shuffle all months for 5-fold CV, keep the default 0.50 threshold, and pass NaN directly to classic GradientBoostingClassifier.",
+      "Tune the threshold on May test data using coarse values [0.25, 0.50, 0.75] after imputing NaN with 0.",
+      "Select the model with highest training AUC and rely on OOB accuracy to set the threshold."
     ],
-    "answer": "Length 0; width +0.3",
-    "explanation": "Fixing length never changes this stump's output. Width accounts for the increase from baseline 0.4 to prediction 0.7, so its contribution is +0.3. The contributions reconstruct a model output, not the true species label."
+    "answer": "Use a chronological train/valid/test split, tune a cost-optimal threshold near 8/158 (about 0.051) on validation, and use HistGradientBoostingClassifier (or explicit NaN handling) instead of raw classic GradientBoostingClassifier.",
+    "explanation": "Chronological splits prevent temporal leakage, asymmetric costs place the Bayes-optimal cutoff at C_FP / (C_FP + C_FN) = 8/158 = 0.051, and HistGradientBoostingClassifier handles NaN natively whereas classic GradientBoostingClassifier raises ValueError."
   }
 ]
 ```
 
-> **Next:** Continue to [Reinforcement Learning Basics](/learn/introduction-to-reinforcement-learning-fundamentals). These models learn a mapping from measurements to labeled answers. Reinforcement learning adds actions that change what happens next, such as a robot choosing moves through a grid and learning from the rewards along its route.
+> **Next:** Continue to [Clustering and PCA](/learn/clustering-pca-representation-learning).

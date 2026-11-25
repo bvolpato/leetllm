@@ -517,7 +517,7 @@ test('runtime snapshot uses supported version flags for media tools', () => {
 async function inspectionFixture(t) {
   const output = await mkdtemp(join(tmpdir(), 'leetllm-batch-inspection-'));
   t.after(() => rm(output, { recursive: true, force: true }));
-  const id = 'reranking',
+  const id = 'ab-testing',
     repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
   const lessonFile = join(repositoryRoot, 'videos/lessons', `${id}.lesson.yaml`);
   const lesson = await readLesson(lessonFile, repositoryRoot);

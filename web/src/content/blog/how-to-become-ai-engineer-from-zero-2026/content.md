@@ -98,7 +98,7 @@ The function assumes string inputs from a form or command-line argument and norm
 
 Try accepting several reports from a file next. Include a malformed record and decide whether to reject the file or report the bad row separately. Keep that decision in a test. You're ready to expand when you can explain an error, locate the line that caused it, and change the program without breaking its existing behavior.
 
-[Git, Shell, Linux for AI](/learn/git-shell-linux-reproducible-ai) and [Python for AI Engineering](/learn/python-for-ai-engineering) connect these foundations to larger AI projects. Don't rush past them because the program isn't “AI” yet. You'll use the same debugging skills when a model call fails.
+[Git, Shell, Linux for AI](/learn) and [Python for AI Engineering](/learn) connect these foundations to larger AI projects. Don't rush past them because the program isn't “AI” yet. You'll use the same debugging skills when a model call fails.
 
 ## Add a model where fixed rules stop being useful
 
@@ -167,7 +167,7 @@ Start with proportions, averages, variability, and sampling. If two prompt versi
 
 When studying retrieval, vectors, dot products, and norms explain what a similarity measure computes. When training models, add derivatives, gradients, loss functions, data splits, and overfitting. Follow the deeper math and training path if your target work needs it; don't postpone it indefinitely behind application features.
 
-Research-oriented learners can branch here or earlier. Reproduce one small result, compare it with a baseline, and change one factor while holding the rest fixed. Save the data split, configuration, environment, and results. An experiment that disproves your initial idea can still show good work if its method and limits are clear. [Capstone: Reproducible ML Study](/learn/capstone-reproducible-research-study) develops that approach without making a product deployment a prerequisite for research.
+Research-oriented learners can branch here or earlier. Reproduce one small result, compare it with a baseline, and change one factor while holding the rest fixed. Save the data split, configuration, environment, and results. An experiment that disproves your initial idea can still show good work if its method and limits are clear. [Capstone: Reproducible ML Study](/learn) develops that approach without making a product deployment a prerequisite for research.
 
 ## Deploy a small service you can turn off and recover
 
@@ -175,7 +175,7 @@ For the product path, try running the app outside your development session. Pick
 
 Make a health route that doesn't spend money on a model call. Restrict access to the demo, limit requests, and set a spending limit where your provider supports one. Save a known-working code and prompt version, deploy a change, and practice restoring the earlier version. Test with sample reports throughout.
 
-You don't need to claim “production scale.” State what you actually tested: the environment, workload, request durations, failure cases, and costs observed. If only one person has used it, say so. [Model Versioning & Deployment](/learn/model-versioning-continuous-deployment) expands the release process when you need it.
+You don't need to claim “production scale.” State what you actually tested: the environment, workload, request durations, failure cases, and costs observed. If only one person has used it, say so. [Model Versioning & Deployment](/learn/observability-monitoring-llm-systems) expands the release process when you need it.
 
 A working demo still doesn't say how to pace the rest of the learning, or whether one timeline fits every starting point.
 

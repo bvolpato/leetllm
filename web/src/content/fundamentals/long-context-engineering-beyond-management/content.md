@@ -3,9 +3,9 @@
   "id": "long-context-engineering-beyond-management",
   "title": "Context Engineering",
   "slug": "long-context-engineering-beyond-management",
-  "section": "Applied LLM Engineering",
+  "section": "Advanced Agents & Retrieval",
   "category": "LLM Agents & Tool Use",
-  "difficulty": "Medium",
+  "difficulty": "Hard",
   "order": 5,
   "coverImage": "illustrations/_generated/context_engineering_loop_dark.png",
   "companies": [
@@ -40,9 +40,11 @@
     "long-context-window-management",
     "design-production-rag-pipeline",
     "advanced-rag-query-rewriting-self-rag",
-    "rag-evaluation-faithfulness-relevance",
     "prefix-caching-prompt-caching",
     "agent-memory-persistence-patterns"
+  ],
+  "aliases": [
+    "recursive-language-models-rlm"
   ]
 }
 ---
@@ -862,7 +864,7 @@ A compact prompt only earns trust when the kept items actually solve the task an
 ]
 ```
 
-> **Next:** Continue to [Prompt Injection Defense](/learn/prompt-injection-defense-strategies). Context curation decides which evidence, tools, and skill files reach the model, while prompt injection defense adds origin tracking and permission controls when untrusted external text enters that working set.
+> **Next:** Continue to [Agent Memory & Persistence](/learn/agent-memory-persistence-patterns).
 
 <!-- leetllm: edition:reference:end -->
 

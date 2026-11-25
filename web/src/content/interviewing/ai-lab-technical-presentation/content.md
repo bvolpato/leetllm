@@ -27,7 +27,7 @@
     "ai-lab-behavioral-interview",
     "design-code-completion-system",
     "mcp-tool-protocol-standards",
-    "model-versioning-continuous-deployment"
+    "observability-monitoring-llm-systems"
   ],
   "relatedQuestions": [
     "ai-lab-system-design-interview",
@@ -372,4 +372,4 @@ Answer the active question cleanly, deliver the central tradeoff, walk through t
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - vLLM](/learn/deep-dive-vllm). Practice the same habit of connecting architecture to evidence as you inspect a serving engine's scheduling and memory management.
+> **Next:** Continue to [Deep Dive - PyTorch](/learn/deep-dive-pytorch).

@@ -3,10 +3,10 @@
   "id": "dataset-pipelines-data-quality",
   "title": "Dataset Pipelines and Data Quality",
   "slug": "dataset-pipelines-data-quality",
-  "section": "ML Algorithms & Evaluation",
+  "section": "Classical ML & Evaluation",
   "category": "MLOps & Deployment",
-  "difficulty": "Medium",
-  "order": 15,
+  "difficulty": "Easy",
+  "order": 6,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "OpenAI",
@@ -888,4 +888,4 @@ A versioned manifest locks raw snapshots, cleaning rules, grouped splits, and SH
 ]
 ```
 
-> **Next:** Continue to [Feature Engineering for Production ML](/learn/feature-engineering-production-ml). With schema validation, grouped splits, and versioned manifests protecting the raw records, make sure every feature computed from them stays identical between historical training and live inference.
+> **Next:** Continue to [Experiment Design and A/B Testing](/learn/experiment-design-ab-testing).

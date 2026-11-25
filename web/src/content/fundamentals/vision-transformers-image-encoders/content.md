@@ -3,10 +3,10 @@
   "id": "vision-transformers-image-encoders",
   "title": "Vision Transformers and Image Encoders",
   "slug": "vision-transformers-image-encoders",
-  "section": "Transformer Deep Dives",
+  "section": "Transformer & Multimodal Architectures",
   "category": "Multimodal Models",
   "difficulty": "Hard",
-  "order": 4,
+  "order": 6,
   "prerequisites": [
     "scaled-dot-product-attention"
   ],
@@ -384,4 +384,4 @@ $(224/16)^2 = 196$ patches plus 1 `[CLS]` and 4 registers = **201 encoder slots*
 ]
 ```
 
-> **Next:** Continue to [Positional Encoding: RoPE & ALiBi](/learn/positional-encoding-rope-alibi). ViT's learned 1D table is one way to stamp slot identity onto tokens. The next chapter compares that additive-table idea with sinusoidal encodings, <span data-glossary="rope">RoPE</span> rotations, and <span data-glossary="alibi">ALiBi</span>'s distance bias, and why those choices matter when sequence length changes.
+> **Next:** Continue to [Vision-Language & Multimodal Architectures](/learn/multimodal-llms-architecture-design).

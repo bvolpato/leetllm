@@ -3,7 +3,7 @@
   "id": "scaling-laws-compute-optimal-training",
   "title": "Scaling Laws & Compute-Optimal Training",
   "slug": "scaling-laws-compute-optimal-training",
-  "section": "Advanced Training & Adaptation",
+  "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
   "prerequisites": [
@@ -608,4 +608,4 @@ MoE models decouple total parameters (which govern memory capacity and routing) 
 ]
 ```
 
-> **Next:** Continue to [Pre-training Data at Scale](/learn/pre-training-data-pipelines-scale). Your fitted law and declared assumptions produce a candidate token budget. The next chapter asks how to extract, filter, deduplicate, mix, and pack useful data to meet it.
+> **Next:** Continue to [Pre-training Data at Scale](/learn/pre-training-data-pipelines-scale).

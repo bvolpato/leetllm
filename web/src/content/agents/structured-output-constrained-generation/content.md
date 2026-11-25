@@ -3,9 +3,9 @@
   "id": "structured-output-constrained-generation",
   "title": "Structured Output Generation",
   "slug": "structured-output-constrained-generation",
-  "section": "Advanced Agents & Retrieval",
+  "section": "Applied LLM Engineering & RAG",
   "category": "LLM Agents & Tool Use",
-  "difficulty": "Hard",
+  "difficulty": "Medium",
   "coverImage": "illustrations/_generated/probability_mask_dark.png",
   "companies": [
     "OpenAI",
@@ -16,11 +16,9 @@
   ],
   "shortDescription": "An evaluation log needs a typed run ID and status, yet prompting for JSON still produces chat. Mask illegal tokens during decoding, align subwords with grammars, and verify claims against trusted records.",
   "prerequisites": [
-    "function-calling-tool-use-llms",
-    "decoding-strategies-greedy-beam-nucleus",
-    "enterprise-rag-security-rbac-access-control"
+    "decoding-strategies-greedy-beam-nucleus"
   ],
-  "order": 5,
+  "order": 6,
   "keyConceptsTested": [
     "Structured Generation",
     "JSON Mode",
@@ -37,10 +35,9 @@
   ],
   "relatedQuestions": [
     "agentic-architectures-react-plan-execute",
-    "guardrails-safety-filters-production",
-    "function-calling-tool-use-llms",
     "prompt-injection-defense-strategies",
-    "model-gateways-routing-fallbacks"
+    "function-calling-tool-use-llms",
+    "llm-cost-engineering-token-economics"
   ]
 }
 ---
@@ -1226,7 +1223,7 @@ Structured output generation gives probabilistic models a reliable data interfac
 ]
 ```
 
-> **Next:** Continue to [ReAct & Plan-and-Execute](/learn/agentic-architectures-react-plan-execute). A schema gives an agent loop reliable fields to inspect, including tool arguments that your runtime can validate before any side effect. The next chapter compares <span data-glossary="react">ReAct</span> for tightly coupled tool use with Plan-and-Execute for longer workflows, where typed schemas keep each step checkable.
+> **Next:** Continue to [Function Calling & Tool Use](/learn/function-calling-tool-use-llms).
 
 <!-- leetllm: edition:reference:end -->
 
@@ -1514,6 +1511,6 @@ Once a grammar is compiled, per-token masking overhead is tiny: XGrammar reports
 
 You can now trace every link of structured output reliability, from raw logit masking and compiled DFA bitmasks through whole-token traversal, token healing, strict JSON decoding, local Pydantic validation, and host-side factual and permission checks. When a structured pipeline breaks in production, that chain tells you immediately whether to adjust token budgets, fix an adapter, or tighten a semantic check. Continue to [Agentic Architectures: ReAct & Plan-and-Execute](/learn/agentic-architectures-react-plan-execute) to compose validated tool calls and structured states inside step-limited agent loops.
 
-> **Next:** Continue to [Agentic Architectures: ReAct & Plan-and-Execute](/learn/agentic-architectures-react-plan-execute).
+> **Next:** Continue to [Function Calling & Tool Use](/learn/function-calling-tool-use-llms).
 
 <!-- leetllm: edition:reader:end -->

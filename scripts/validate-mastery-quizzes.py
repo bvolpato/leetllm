@@ -20,19 +20,17 @@ THEORY_QUIZZES_PATH = ROOT / "web" / "src" / "data" / "theory-quizzes.json"
 MIN_QUESTIONS = 3
 MAX_QUESTIONS = 10
 LEARN_SECTIONS = {
-    "Computing Foundations",
-    "Math & Statistics",
-    "Preparation & Prerequisites",
-    "ML Algorithms & Evaluation",
-    "Production ML Systems",
+    "Math & Tensor Foundations",
+    "Classical ML & Evaluation",
+    "Deep Learning Foundations",
     "Core LLM Foundations",
-    "Applied LLM Engineering",
-    "Portfolio Capstones",
-    "Transformer Deep Dives",
-    "Advanced Training & Adaptation",
+    "Production ML Systems",
+    "Applied LLM Engineering & RAG",
+    "Transformer & Multimodal Architectures",
+    "Training, Fine-Tuning & Alignment",
     "Advanced Agents & Retrieval",
-    "Inference & Production Scale",
-    "System Design Capstones",
+    "GPU Systems & LLM Inference",
+    "AI System Design",
     "AI Lab Interviewing",
     "Project Deep Dives",
 }

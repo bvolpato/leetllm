@@ -22,8 +22,8 @@
     "Reward hacking and held-out human preference evaluation",
     "Alignment variants (IPO, KTO, ORPO, SimPO, GRPO)"
   ],
-  "section": "Advanced Training & Adaptation",
-  "order": 12,
+  "section": "Training, Fine-Tuning & Alignment",
+  "order": 17,
   "coverImage": "social_banner.png",
   "prerequisites": [
     "supervised-fine-tuning-pipeline",
@@ -659,7 +659,7 @@ Human comparisons are expensive and hard to scale to every edge case. **Constitu
 ]
 ```
 
-> **Next:** Continue to [Constitutional AI & Red Teaming](/learn/constitutional-ai-automated-red-teaming). RLHF and DPO steer a policy with preference comparisons, human or otherwise. The next chapter writes those rules as a constitution, uses AI critique and ranking to scale the labels, then red-teams the result to see which safeguards actually hold.
+> **Next:** Continue to [Constitutional AI & Red Teaming](/learn/constitutional-ai-automated-red-teaming).
 
 <!-- leetllm: edition:reference:end -->
 

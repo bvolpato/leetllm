@@ -3,7 +3,7 @@
   "id": "multi-query-grouped-query-attention",
   "title": "Multi-Query & Grouped-Query Attention",
   "slug": "multi-query-grouped-query-attention",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
   "order": 2,
@@ -385,4 +385,4 @@ cached single-step & 2-token chunk parity: exact | compact K shape: (2, 2, 6, 4)
 ]
 ```
 
-> **Next:** Continue to [KV Cache & PagedAttention](/learn/kv-cache-paged-attention-llm-serving). We have counted the state an attention architecture needs. Next, trace how an engine allocates that state, shares prefixes, and manages page reservations as requests arrive and finish.
+> **Next:** Continue to [KV Cache & PagedAttention](/learn/kv-cache-paged-attention-llm-serving).

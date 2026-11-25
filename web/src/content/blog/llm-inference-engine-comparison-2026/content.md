@@ -274,4 +274,4 @@ Warm each engine the same way and hold model semantics constant. Test cold start
 
 The table turns the earlier trade-offs into a starting rule. It doesn't replace the bake-off: every row still asks you to prove compatibility, SLO behavior, and operational fit.
 
-Separate a local package from a shared server. Reject a comparison that reports only raw tokens per second, and name which part of the request path a runtime still has to prove. The engine is only one control surface. [Scaling LLM Inference](/learn/scaling-llm-inference-batching-kv-cache) connects that choice to batching, KV-cache sizing, quantization, disaggregation, and the throughput-latency-cost operating point.
+Separate a local package from a shared server. Reject a comparison that reports only raw tokens per second, and name which part of the request path a runtime still has to prove. The engine is only one control surface. [Scaling LLM Inference](/learn/continuous-batching-request-scheduling) connects that choice to batching, KV-cache sizing, quantization, disaggregation, and the throughput-latency-cost operating point.

@@ -3,11 +3,16 @@
   "id": "mcp-tool-protocol-standards",
   "title": "MCP & Tool Protocol Standards",
   "slug": "mcp-tool-protocol-standards",
-  "section": "Applied LLM Engineering",
+  "section": "Applied LLM Engineering & RAG",
   "category": "LLM Agents & Tool Use",
   "difficulty": "Medium",
   "coverImage": "illustrations/_generated/mcp_architecture_dark.png",
-  "companies": ["Anthropic", "Google", "Microsoft", "OpenAI"],
+  "companies": [
+    "Anthropic",
+    "Google",
+    "Microsoft",
+    "OpenAI"
+  ],
   "shortDescription": "Follow a tool request from an AI host to an MCP server, then learn where compatibility, authorization, and trust checks belong.",
   "keyConceptsTested": [
     "Reusable protocol implementations versus connections",
@@ -24,7 +29,7 @@
     "Untrusted metadata and tool-list changes",
     "Evaluating complete tool-use trajectories"
   ],
-  "order": 4
+  "order": 8
 }
 ---
 
@@ -777,4 +782,4 @@ Measure task completion, refusal accuracy, grounding, latency, and token overhea
 ]
 ```
 
-> **Next:** Continue to [Context Engineering](/learn/long-context-engineering-beyond-management). Decide which tool results, resources, and prompts belong in the next model call. A valid MCP response is an input to that decision, not an instruction to trust everything it contains.
+> **Next:** Continue to [File Ingestion for AI](/learn/file-ingestion-pdfs-html-ocr-markdown).

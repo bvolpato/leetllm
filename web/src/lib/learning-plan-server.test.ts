@@ -14,7 +14,7 @@ import { getTracks } from "./tracks"
 
 describe("weekly checks across every learning plan", () => {
     test("omits an excluded milestone prerequisite and its milestone without changing the remaining IDs", () => {
-        const slug = "docker-containerization-reproducible-ai"
+        const slug = "calculus-gradients-backpropagation-optimization"
         const snapshot = questionLoader.getQuestions().map(question => question.slug === slug
             ? { ...question, visibility: { website: false } }
             : question)

@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 5,
+  "order": 6,
   "coverImage": "illustrations/_generated/sm100_tile_path_dark.png",
   "shortDescription": "Four expert groups hold 416 useful rows, yet alignment can reserve 640. DeepGEMM is the kernel library that makes the padding, scale, and Mega MoE overlap choice explicit.",
   "keyConceptsTested": [
@@ -701,4 +701,4 @@ Verify that the reference baseline actually imported and ran; otherwise mark the
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - NCCL](/learn/deep-dive-nccl). DeepGEMM showed how specialized GPU kernels turn hardware layouts into measured tensor throughput, including Mega MoE's NVLink overlap for expert-parallel tokens. <span data-glossary="nccl">NCCL</span> provides the general collective layer that moves gradients and activations across GPUs before <span data-glossary="nvidia-megatron">Megatron</span> assembles both into a distributed training stack.
+> **Next:** Continue to [Deep Dive - DeepEP](/learn/deep-dive-deepep).

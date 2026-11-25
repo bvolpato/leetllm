@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "MLOps & Deployment",
   "difficulty": "Hard",
-  "order": 9,
+  "order": 10,
   "coverImage": "illustrations/_generated/ray_core_execution_dark.png",
   "companies": [
     "Anyscale",
@@ -26,13 +26,12 @@
     "Task retry versus actor state recovery"
   ],
   "prerequisites": [
-    "deep-dive-deepspeed",
+    "distributed-training-fsdp-deepspeed-zero",
     "deep-dive-vllm",
-    "deep-dive-skyrl",
+    "rlvr-verifiable-rewards-training",
     "llm-deployment-gpu-serving-autoscaling"
   ],
   "relatedQuestions": [
-    "deep-dive-mlflow",
     "deep-dive-pytorch",
     "deep-dive-vllm",
     "distributed-training-fsdp-deepspeed-zero"
@@ -366,4 +365,4 @@ Confirm producers and consumers run on distinct nodes, observe inter-node object
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - MLflow](/learn/deep-dive-mlflow). Ray tracks execution and resource placement. MLflow records the experiment inputs, parameters, metrics and artifacts needed to compare the results of those executions.
+> **Course complete:** You have reached the end of the core curriculum. Explore more topics or review any section on the [LeetLLM roadmap](/learn).

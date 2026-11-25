@@ -166,23 +166,6 @@
       ]
     },
     {
-      "id": "streaming-feature-watermark",
-      "representation": "simulation",
-      "title": "Streaming feature watermark",
-      "meaning": "A streaming feature advances through event time while late arrivals remain distinguishable from on-time state.",
-      "family": "streaming feature state",
-      "brief": "Replay the J-204 heartbeat fixture at successive cutoffs, compare state known to the live service with later batch history, show the watermark and late-arrival path, and reconcile online state to a versioned offline row. Keep event time, ingestion time, and feature availability separate.",
-      "pitfalls": [
-        "Event time before a cutoff does not imply the event was ingested or readable by that cutoff.",
-        "A heartbeat age alone does not establish a worker failure or deadline miss.",
-        "Late events require an explicit correction or replay policy; do not silently rewrite past decisions.",
-        "Batch and streaming paths need the same feature meaning and retained state history for faithful replay."
-      ],
-      "sourcePaths": [
-        "web/src/content/foundations/batch-streaming-feature-pipelines/content.md"
-      ]
-    },
-    {
       "id": "recommendation-candidate-slate",
       "representation": "simulation",
       "title": "Recommendation candidate slate",
@@ -268,24 +251,6 @@
       ]
     },
     {
-      "id": "estimation-interval",
-      "representation": "simulation",
-      "title": "From sample labels to an interval on a population rate",
-      "meaning": "A point estimate describes one sample. Repeated-sample variation, a score interval, and the sample design determine how it informs a population quantity.",
-      "family": "Sampling and uncertainty",
-      "brief": "Animate one hundred reviewed flags into sixteen positives, then replay independent batches at a fixed rate. Compare sample-size spread, invert a binomial score test to form the Wilson interval, and show why the Wald interval collapses at zero of ten. Add a stratified queue where weighting slice rates by population shares reconstructs the target. Keep labels, sample unit, target population, point estimate, interval, and calibration prediction distinct throughout.",
-      "pitfalls": [
-        "A sample fraction is not the exact population rate.",
-        "A confidence interval is not a posterior probability for fixed endpoints.",
-        "Bootstrap resampling cannot create outcomes absent from the observed sample.",
-        "A narrow interval does not fix an unrepresentative sample or compromised labels.",
-        "Wilson coverage is approximate and depends on the binomial sampling model."
-      ],
-      "sourcePaths": [
-        "web/src/content/foundations/statistics-estimation-uncertainty/content.md"
-      ]
-    },
-    {
       "id": "paired-outcomes",
       "representation": "simulation",
       "title": "Testing a paired model comparison",
@@ -310,24 +275,6 @@
             "Inspect the cases behind the average"
           ]
         }
-      ]
-    },
-    {
-      "id": "generalization-curve",
-      "representation": "simulation",
-      "title": "Why training accuracy can rise while generalization falls",
-      "meaning": "Empirical performance on a finite sample estimates performance on a target distribution only under assumptions about sampling and model selection.",
-      "family": "Learning theory and generalization",
-      "brief": "Start with forty independently sampled labeled examples and a fixed predictor, then show how a finite-sample Hoeffding bound follows from bounded zero-one loss. Let a search over one thousand candidate prompts select the smallest training error and animate the union-bound penalty. Compare training and held-out curves as capacity grows, then rotate a boundary through points to show shattering and connect it to VC dimension. Keep the worked finite-class bound separate from asymptotic, VC, and Rademacher guarantees.",
-      "pitfalls": [
-        "The held-out set must be independent of model and prompt selection for its usual evaluation role.",
-        "Hoeffding's inequality needs independent observations and bounded losses.",
-        "A union bound requires each candidate's valid bound and becomes looser as the candidate class grows.",
-        "A VC-dimension result is a capacity-based bound, not a forecast of a particular model's score.",
-        "Distribution shift and leakage can invalidate the sampling assumptions."
-      ],
-      "sourcePaths": [
-        "web/src/content/foundations/statistical-learning-theory-generalization/content.md"
       ]
     },
     {
@@ -382,24 +329,6 @@
       ],
       "sourcePaths": [
         "web/src/content/foundations/clustering-pca-representation-learning/content.md"
-      ]
-    },
-    {
-      "id": "latent-responsibilities",
-      "representation": "simulation",
-      "title": "Fitting a Gaussian mixture with hidden component labels",
-      "meaning": "Expectation-maximization alternates posterior responsibility calculations with weighted parameter updates to seek a local likelihood optimum.",
-      "family": "Latent-variable estimation",
-      "brief": "Place observations on a one-dimensional axis under a two-component Gaussian mixture with known fixed numeric initialization. In the E-step, calculate each component's weighted Gaussian density and normalize them into responsibilities for every point. In the M-step, recompute mixture weights, means, and variances from those same responsibilities, then plot the updated mixture and log likelihood. Repeat a second iteration and show that EM is a local optimization procedure; keep its component posteriors distinct from VAE encoder approximations.",
-      "pitfalls": [
-        "Responsibilities use both the component likelihood and the current mixture weight.",
-        "Each observation's component responsibilities sum to one.",
-        "The M-step uses responsibility-weighted sufficient statistics from the E-step.",
-        "Likelihood can have local optima and degenerate Gaussian solutions without constraints or regularization.",
-        "EM's responsibilities are not a variational autoencoder's approximate posterior family."
-      ],
-      "sourcePaths": [
-        "web/src/content/foundations/probabilistic-generative-models-em/content.md"
       ]
     },
     {
@@ -534,24 +463,6 @@
       ]
     },
     {
-      "id": "acl-gate",
-      "representation": "simulation",
-      "title": "Authorize the searchable set before returning evidence",
-      "meaning": "The trusted retrieval boundary uses current principal, tenant, and document grants to constrain the candidate universe before ranking or returning text.",
-      "family": "secure-retrieval",
-      "brief": "For an operations analyst's signing-key query, resolve tenant and group membership from trusted state, apply ACL eligibility inside the retrieval boundary, rank only eligible candidates, and send only permitted records to prompt assembly. Keep the restricted passage within the store throughout.",
-      "pitfalls": [
-        "Filtering returned text after it has crossed into application memory",
-        "Trusting tenant or role fields supplied by the request body or model",
-        "Assuming semantic similarity implies authorization",
-        "Assuming permission to read a document authorizes the action it describes",
-        "Presenting approximate filtered search as a recall guarantee"
-      ],
-      "sourcePaths": [
-        "web/src/content/retrieval/enterprise-rag-security-rbac-access-control/content.md"
-      ]
-    },
-    {
       "id": "instruction-boundary",
       "representation": "simulation",
       "title": "Let evidence inform the answer without granting authority",
@@ -566,23 +477,6 @@
       ],
       "sourcePaths": [
         "web/src/content/agents/prompt-injection-defense-strategies/content.md"
-      ]
-    },
-    {
-      "id": "approval-receipt",
-      "representation": "simulation",
-      "title": "Resume one reviewed action safely",
-      "meaning": "A durable approval binds an eligible reviewer and decision to the exact serialized action, evidence digest, version, expiry, and execution preconditions.",
-      "family": "agent-security",
-      "brief": "Move a model-promotion proposal through proposed, pending, authorized, executing, and receipt states. Animate the action digest and live revision check; a changed version becomes stale, an edit needs fresh review, and a lost reply requires reconciliation by the original operation identity.",
-      "pitfalls": [
-        "Using an unbound approved Boolean that can be reused for another action",
-        "Treating authorized as executed",
-        "Holding volatile process state open while a human reviews",
-        "Replaying an external write without an idempotency contract or reconciliation"
-      ],
-      "sourcePaths": [
-        "web/src/content/agents/human-in-the-loop-agent-architecture/content.md"
       ]
     },
     {

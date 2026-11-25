@@ -3,10 +3,10 @@
   "id": "distributed-inference-data-plane",
   "title": "Distributed Inference Data Plane",
   "slug": "distributed-inference-data-plane",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 29,
+  "order": 12,
   "shortDescription": "An 8,192-token prompt moves 2.50 GiB of KV state, not a small routing note. See why a correct-looking copy can still be unsafe to reuse.",
   "keyConceptsTested": [
     "Control plane and data plane ownership",
@@ -21,8 +21,6 @@
     "Phase-level observability and SLO budgets"
   ],
   "prerequisites": [
-    "gpu-failure-operations",
-    "llm-deployment-gpu-serving-autoscaling",
     "model-parallelism-for-llm-inference",
     "kv-cache-paged-attention-llm-serving"
   ],
@@ -30,7 +28,6 @@
     "serving-benchmark-engineering",
     "continuous-batching-request-scheduling",
     "prefix-caching-prompt-caching",
-    "advanced-mlops-devops-ai",
     "observability-monitoring-llm-systems",
     "design-multi-tenant-llm-serving-platform"
   ],
@@ -547,4 +544,4 @@ The total grows from $8{,}320$ positions, exactly $520$ blocks, to $8{,}321$ pos
 ]
 ```
 
-> **Next:** Continue to [Serving Benchmark Engineering](/learn/serving-benchmark-engineering). Put these byte budgets, ownership rules, and timing stages under load, then measure how much offered work meets the serving objectives.
+> **Next:** Continue to [Accelerator Architecture Field Guide](/learn/accelerator-architecture-field-guide).

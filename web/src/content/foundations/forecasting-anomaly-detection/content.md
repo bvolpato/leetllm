@@ -6,11 +6,27 @@
   "section": "Production ML Systems",
   "category": "Evaluation & Benchmarks",
   "difficulty": "Medium",
-  "order": 5,
+  "order": 3,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
-  "companies": ["Google", "OpenAI", "Datadog", "Netflix"],
+  "companies": [
+    "Google",
+    "OpenAI",
+    "Datadog",
+    "Netflix"
+  ],
   "shortDescription": "Forecast time-ordered demand without leakage, calibrate prediction intervals with pinball loss and conformal methods, and turn forecast errors into high-signal alerts.",
-  "keyConceptsTested": ["time series decomposition", "seasonal naive forecast", "rolling origin validation", "MAE", "pinball loss", "prediction interval", "anomaly alert"]
+  "keyConceptsTested": [
+    "time series decomposition",
+    "seasonal naive forecast",
+    "rolling origin validation",
+    "MAE",
+    "pinball loss",
+    "prediction interval",
+    "anomaly alert"
+  ],
+  "aliases": [
+    "conformal-prediction-uncertainty-sets"
+  ]
 }
 ---
 
@@ -319,7 +335,7 @@ $$
 \alpha_{t+1} = \alpha_t + \gamma\left(\alpha - \mathbf{1}\{Y_t \notin I_t\}\right)
 $$
 
-Whenever an observation misses the band, $\alpha_t$ drops (widening future intervals); when outcomes stay inside, $\alpha_t$ edges back up (tightening intervals). See [Conformal Prediction and Uncertainty](/learn/conformal-prediction-uncertainty-sets) for the full derivation.
+Whenever an observation misses the band, $\alpha_t$ drops (widening future intervals); when outcomes stay inside, $\alpha_t$ edges back up (tightening intervals). See [Conformal Prediction and Uncertainty](/learn/forecasting-anomaly-detection) for the full derivation.
 
 ## Calibrate an error band from earlier days
 
@@ -646,4 +662,4 @@ Notice what happens if you shrink the half-width from `±3` to `±2`: Tuesday's 
 ]
 ```
 
-> **Next:** Continue to [Monitoring Predictive Models](/learn/monitoring-predictive-models). A versioned forecast candidate turns unusual future errors into review artifacts. Monitoring puts that candidate on a live clock: <span data-glossary="feature-freshness">feature freshness</span>, delayed labels, and whether a newer model should replace or <span data-glossary="rollback">roll back</span> the current release.
+> **Next:** Continue to [Monitoring Predictive Models](/learn/monitoring-predictive-models).

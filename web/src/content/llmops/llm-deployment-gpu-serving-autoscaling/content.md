@@ -26,10 +26,9 @@
     "Cost optimization: spot instances, multi-tenancy",
     "Latency metrics: TTFT, ITL/TBT, and TPOT"
   ],
-  "section": "Inference & Production Scale",
-  "order": 27,
+  "section": "GPU Systems & LLM Inference",
+  "order": 20,
   "prerequisites": [
-    "advanced-mlops-devops-ai",
     "inference-mechanics-ttft-tps-kv-cache",
     "kv-cache-paged-attention-llm-serving",
     "continuous-batching-request-scheduling",
@@ -39,10 +38,8 @@
   "relatedQuestions": [
     "distributed-inference-data-plane",
     "serving-benchmark-engineering",
-    "ab-testing-online-evaluation-llms",
+    "experiment-design-ab-testing",
     "llm-cost-engineering-token-economics",
-    "model-gateways-routing-fallbacks",
-    "semantic-caching-cost-latency-optimization",
     "design-multi-tenant-llm-serving-platform",
     "design-reasoning-agent-test-time-compute"
   ]
@@ -51,7 +48,7 @@
 <!-- leetllm: edition:reference:start -->
 At 8:59, a single warm GPU handles incident summaries without accumulating a backlog. At 9:00, a release freeze sends 100 requests to the endpoint in one burst. Queue age begins to climb, first-token latency breaches interactive budgets, and reactive replica scaling starts provisioning new machines minutes after callers have timed out. High GPU utilization alone never tells you whether to add replicas, throttle incoming load, or adjust batch memory; you need the end-to-end request path, the per-request memory footprint, and the clock on which new GPUs actually become ready.
 
-[Advanced MLOps and DevOps for AI](/learn/advanced-mlops-devops-ai) covered promotion gates, artifact lineage, <span data-glossary="rollout">rollout</span> policy, and automated <span data-glossary="rollback">rollback</span> triggers. Serving engineering extends that discipline to live <span data-glossary="gpu">GPU</span> fleets so promoted checkpoints stay within latency and cost targets under shifting production traffic. Unlike a stateless HTTP service that releases memory once a handler returns, an inference engine keeps multi-gigabyte model weights resident in HBM and holds attention keys and values across every generated <span data-glossary="token">token</span>. That **<span data-glossary="kv-cache">KV cache</span>** sets the concurrency ceiling in standard transformers, while hybrid models with linear-attention layers add a fixed per-request recurrent state alongside it.
+[Advanced MLOps and DevOps for AI](/learn/observability-monitoring-llm-systems) covered promotion gates, artifact lineage, <span data-glossary="rollout">rollout</span> policy, and automated <span data-glossary="rollback">rollback</span> triggers. Serving engineering extends that discipline to live <span data-glossary="gpu">GPU</span> fleets so promoted checkpoints stay within latency and cost targets under shifting production traffic. Unlike a stateless HTTP service that releases memory once a handler returns, an inference engine keeps multi-gigabyte model weights resident in HBM and holds attention keys and values across every generated <span data-glossary="token">token</span>. That **<span data-glossary="kv-cache">KV cache</span>** sets the concurrency ceiling in standard transformers, while hybrid models with linear-attention layers add a fixed per-request recurrent state alongside it.
 
 Production inference teams monitor three complementary latency quantities and attach <span data-glossary="slo">service-level objectives (SLOs)</span> to each. **Time To First Token (TTFT)** measures elapsed time from request arrival to the first emitted token. It combines queue wait, any cold startup delay, and the compute-heavy **<span data-glossary="prefill">prefill</span>** pass across prompt tokens. **Inter-Token Latency (ITL)**, often called Time Between Tokens (TBT), records individual gaps between consecutive outputs so p95 and p99 percentiles expose pauses hidden inside averages. Always check what your collector samples: in vLLM, `vllm:inter_token_latency_seconds` records gaps between streamed output events that can hold multiple tokens.[^vllm2026metrics] **Time Per Output Token (TPOT)** divides total generation time after the first token by `(output_tokens - 1)` when at least two tokens are produced, summarizing average streaming throughput while tail <span data-glossary="itl">ITL</span> tracks decode stalls.
 
@@ -816,7 +813,7 @@ Base every architectural upgrade on measured latency telemetry rather than rules
 ]
 ```
 
-> **Next:** Continue to [GPU Failure Operations](/learn/gpu-failure-operations). Autoscaling adds replicas when traffic climbs, but cluster health depends on draining faulty GPUs out of service before hardware errors corrupt generations or wedge schedulers.
+> **Next:** Continue to [GPU Failure Operations](/learn/gpu-failure-operations).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -826,7 +823,7 @@ Eighty of those requests are going to expire before help arrives. Each caller gi
 
 This timing mismatch defines GPU serving and surprises engineers accustomed to stateless web fleets. A lightweight web container boots in seconds, making reactive autoscaling fast enough for sudden spikes. A GPU pod must wait on accelerator allocation, gigabytes of image layers, checkpoint loads, and runtime warmup before it serves token one. **Desired replicas** describe a future plan, whereas **ready capacity** serves requests right now, and most of this chapter examines how to measure that gap, size warm headroom, and shed traffic you cannot rescue in time.
 
-The [release chapter](/learn/model-versioning-continuous-deployment) settled which model combination should serve. Now we need healthy GPUs running that combination before user deadlines expire.
+The [release chapter](/learn/observability-monitoring-llm-systems) settled which model combination should serve. Now we need healthy GPUs running that combination before user deadlines expire.
 
 ## Two loops on two clocks
 

@@ -3,10 +3,10 @@
   "id": "long-context-window-management",
   "title": "Long Context Window Management",
   "slug": "long-context-window-management",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 22,
+  "order": 8,
   "coverImage": "illustrations/_generated/context_strategies_dark.png",
   "companies": [
     "Google",
@@ -28,7 +28,7 @@
   ],
   "prerequisites": [
     "speculative-decoding",
-    "scaling-llm-inference-batching-kv-cache",
+    "continuous-batching-request-scheduling",
     "kv-cache-paged-attention-llm-serving",
     "prefix-caching-prompt-caching",
     "flashattention-memory-efficient-attention",
@@ -37,7 +37,6 @@
   "relatedQuestions": [
     "long-context-engineering-beyond-management",
     "multi-query-grouped-query-attention",
-    "rag-evaluation-faithfulness-relevance",
     "design-production-rag-pipeline",
     "advanced-rag-query-rewriting-self-rag",
     "llm-deployment-gpu-serving-autoscaling"
@@ -539,4 +538,4 @@ Long-context engineering comes down to five concrete checks: reserve output toke
 ]
 ```
 
-> **Next:** Continue to [Mixture of Experts Architecture](/learn/mixture-of-experts-architecture). Long context exposed the cost of attention and retained state. MoE changes the feed-forward work by routing tokens to selected experts; its resident weights, communication, and attention cache still need separate accounting.
+> **Next:** Continue to [Model Quantization: GPTQ, AWQ & GGUF](/learn/model-quantization-gptq-awq-gguf).

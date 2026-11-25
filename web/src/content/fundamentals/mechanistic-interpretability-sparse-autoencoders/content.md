@@ -3,10 +3,10 @@
   "id": "mechanistic-interpretability-sparse-autoencoders",
   "title": "Mechanistic Interpretability",
   "slug": "mechanistic-interpretability-sparse-autoencoders",
-  "section": "Transformer Deep Dives",
+  "section": "Transformer & Multimodal Architectures",
   "category": "Transformer Architecture",
   "difficulty": "Hard",
-  "order": 7,
+  "order": 9,
   "prerequisites": [
     "layer-normalization-pre-ln-post-ln"
   ],
@@ -381,4 +381,4 @@ Before naming a latent "the refusal feature" or using it for safety monitoring, 
 ]
 ```
 
-> **Next:** Continue to [Decoding Strategies: Greedy to Nucleus](/learn/decoding-strategies-greedy-beam-nucleus). SAE features live in the residual stream that later unembeds into logits. Decoding is the method that turns those logits into the next token, so the same internal direction can look very different once greedy, beam, or <span data-glossary="top-p">nucleus sampling</span> chooses what actually appears.
+> **Next:** Continue to [Scaling Laws & Compute-Optimal Training](/learn/scaling-laws-compute-optimal-training).

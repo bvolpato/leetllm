@@ -235,6 +235,6 @@ Use the provider's dated changelog to identify the release mapping; a requested 
 
 If Flash succeeds on source lookup but fails the parser case, you've learned something more useful than "cheap models handle easy tasks." You have a candidate task-specific routing rule and a failure set for the next experiment. Confirm it on held-out cases before a scoped canary, and keep a rollback route that respects the same data rules.
 
-[LLM Cost Engineering](/learn/llm-cost-engineering-token-economics) develops the usage ledger. [Model Gateways, Routing, and Fallbacks](/learn/model-gateways-routing-fallbacks) covers enforcing those routing rules.
+[LLM Cost Engineering](/learn/llm-cost-engineering-token-economics) develops the usage ledger. [Model Gateways, Routing, and Fallbacks](/learn/llm-cost-engineering-token-economics) covers enforcing those routing rules.
 
 DeepSeek's releases give teams specific alternatives to measure. They do not show that US labs are being displaced, or that one provider is the right destination for every high-risk task. A deployment decision needs the dated artifact, effective runtime settings, and accepted work per dollar. The launch narrative cannot provide those final measurements.

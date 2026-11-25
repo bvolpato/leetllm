@@ -36,8 +36,8 @@
     "gpu-kernel-performance-engineering-lab",
     "llm-deployment-gpu-serving-autoscaling"
   ],
-  "section": "Inference & Production Scale",
-  "order": 15
+  "section": "GPU Systems & LLM Inference",
+  "order": 18
 }
 ---
 
@@ -365,4 +365,4 @@ Always check target microarchitecture and toolkit tables before shipping: NVIDIA
 ]
 ```
 
-> **Next:** Continue to [GPU Runtime Execution Lab](/learn/gpu-runtime-execution-lab). Low-precision kernels still depend on launch order, stream ownership, and synchronization. Next measure those runtime costs, remove avoidable host gaps, and prove replay remains correct.
+> **Next:** Continue to [GPU Runtime Execution Lab](/learn/gpu-runtime-execution-lab).

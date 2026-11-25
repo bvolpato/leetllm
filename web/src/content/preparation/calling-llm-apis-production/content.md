@@ -3,10 +3,10 @@
   "id": "calling-llm-apis-production",
   "title": "Calling LLM APIs in Production",
   "slug": "calling-llm-apis-production",
-  "section": "Preparation & Prerequisites",
+  "section": "Applied LLM Engineering & RAG",
   "category": "MLOps & Deployment",
-  "difficulty": "Easy",
-  "order": 9,
+  "difficulty": "Medium",
+  "order": 2,
   "coverImage": "illustrations/_generated/api_contract_dark.png",
   "companies": [
     "OpenAI",
@@ -888,4 +888,4 @@ Provider usage totals already include cached-prefix and reasoning subsets. Subtr
 ]
 ```
 
-> **Next:** Continue to [First AI App End-to-End](/learn/first-ai-app-end-to-end) to wire a fast local classifier, Pydantic validation, SQLite trace persistence, and progressive SSE streaming into a deployable FastAPI service.
+> **Next:** Continue to [First AI App End-to-End](/learn/first-ai-app-end-to-end).

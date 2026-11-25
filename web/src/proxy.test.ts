@@ -15,9 +15,9 @@ describe("public lesson navigation", () => {
 
     test.each([
         ["GET", "/learn"],
-        ["GET", "/learn/vectors-matrices-tensors"],
-        ["HEAD", "/learn/vectors-matrices-tensors"],
-        ["GET", "/learn/vectors-matrices-tensors.md"],
+        ["GET", "/learn/numpy-and-tensor-shapes"],
+        ["HEAD", "/learn/numpy-and-tensor-shapes"],
+        ["GET", "/learn/numpy-and-tensor-shapes.md"],
     ])("serves static %s %s without waiting for authentication", async (method, pathname) => {
         const request = new NextRequest(`https://leetllm.com${pathname}`, {
             method,
@@ -58,8 +58,8 @@ describe("public lesson navigation", () => {
         ["GET", "/dashboard"],
         ["GET", "/settings/personalization"],
         ["GET", "/login"],
-        ["POST", "/learn/vectors-matrices-tensors"],
-        ["GET", "/learn/vectors-matrices-tensors/account"],
+        ["POST", "/learn/numpy-and-tensor-shapes"],
+        ["GET", "/learn/numpy-and-tensor-shapes/account"],
     ])("preserves authentication for %s %s", async (method, pathname) => {
         const request = new NextRequest(`https://leetllm.com${pathname}`, {
             method,
@@ -98,6 +98,17 @@ describe("content redirects", () => {
         expect(response.status).toBe(308)
         expect(response.headers.get("location")).toBe(
             "https://leetllm.com/blog/run-qwen36-local-unsloth-gguf?source=bookmark"
+        )
+    })
+
+    test("permanently redirects merged lesson aliases and preserves query parameters", async () => {
+        const request = new NextRequest("https://leetllm.com/learn/vectors-matrices-tensors?source=bookmark")
+
+        const response = await proxy(request)
+
+        expect(response.status).toBe(308)
+        expect(response.headers.get("location")).toBe(
+            "https://leetllm.com/learn/numpy-and-tensor-shapes?source=bookmark"
         )
     })
 

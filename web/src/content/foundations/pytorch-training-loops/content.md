@@ -3,10 +3,10 @@
   "id": "pytorch-training-loops",
   "title": "PyTorch Training Loops",
   "slug": "pytorch-training-loops",
-  "section": "ML Algorithms & Evaluation",
+  "section": "Deep Learning Foundations",
   "category": "Fine-Tuning & Training",
-  "difficulty": "Medium",
-  "order": 14,
+  "difficulty": "Easy",
+  "order": 2,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "OpenAI",
@@ -15,7 +15,10 @@
     "Meta"
   ],
   "shortDescription": "A falling loss can hide a broken sequence-classifier loop, so follow one batch through logits, gradients, validation, and a checkpoint that still matches after reload.",
-  "prerequisites": ["training-backpropagation-gradient-descent", "softmax-cross-entropy-optimization", "cross-validation-leakage-generalization"],
+  "prerequisites": [
+    "calculus-gradients-backpropagation-optimization",
+    "cross-validation-leakage-generalization"
+  ],
   "keyConceptsTested": [
     "TensorDataset and DataLoader",
     "raw logits and CrossEntropyLoss",
@@ -40,7 +43,7 @@ The [causal reasoning](/learn/causal-inference-confounding-counterfactuals) less
 
 <span data-glossary="pytorch">PyTorch</span> doesn't hide this learning cycle behind a monolithic `.fit()` call: you write the loop yourself. That imperative design makes every tensor, gradient, and memory buffer inspectable at runtime. Later, when you scale up to fine-tune a large language model or run distributed training across multiple nodes, the fundamental handoffs remain identical: batches, <span data-glossary="logits">logits</span>, loss, <span data-glossary="gradient">gradients</span>, <span data-glossary="optimizer">optimizer</span> updates, validation passes, and durable checkpoints.[^pytorch2019][^pytorch2026optimization]
 
-The gradient descent and cross-entropy concepts build on [backpropagation](/learn/training-backpropagation-gradient-descent) and [softmax classification](/learn/softmax-cross-entropy-optimization). Here we turn them into executable PyTorch code. Every snippet runs self-contained on CPU with fixed seeds so you can verify each state transition directly.
+The gradient descent and cross-entropy concepts build on [backpropagation](/learn/calculus-gradients-backpropagation-optimization) and [softmax classification](/learn/softmax-cross-entropy-optimization). Here we turn them into executable PyTorch code. Every snippet runs self-contained on CPU with fixed seeds so you can verify each state transition directly.
 
 ## Turn a sequence into tensors
 
@@ -1139,7 +1142,7 @@ Break one step in the runnable examples, then verify how each change alters the 
 ]
 ```
 
-> **Next:** Continue to [Dataset Pipelines and Data Quality](/learn/dataset-pipelines-data-quality). You can now train, validate, and reload a classifier from prepared tensors. Next you'll turn messy raw records into versioned train, validation, and test artifacts that those tensors can honestly come from.
+> **Next:** Continue to [Softmax, Cross-Entropy & Optimization](/learn/softmax-cross-entropy-optimization).
 
 <!-- leetllm: edition:reference:end -->
 

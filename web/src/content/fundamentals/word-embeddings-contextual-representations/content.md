@@ -370,4 +370,4 @@ No. BPE splits rare words into reusable subword IDs, but each ID still indexes o
 ]
 ```
 
-> **Next:** Continue to [Perplexity & Model Evaluation](/learn/perplexity-language-model-evaluation). Contextual hidden states feed the output projection to produce next-token probabilities, which perplexity turns into a quantitative measure of held-out model fit.
+> **Next:** Continue to [Sentence Embeddings & Contrastive Loss](/learn/sentence-embeddings-contrastive-learning).

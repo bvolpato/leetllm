@@ -17,7 +17,7 @@ afterEach(() => {
 describe("learning tracks", () => {
     test("omits intentionally invisible canonical lessons from public tracks while retaining contiguous numbering", () => {
         vi.stubEnv("NODE_ENV", "production")
-        const slug = "python-for-ai-engineering"
+        const slug = "numpy-and-tensor-shapes"
         const snapshot = getQuestions().filter(question => question.slug !== slug)
         const original = routeIndex.getQuestionRoute
         vi.spyOn(routeIndex, "getQuestionRoute").mockImplementation(candidate => {
@@ -33,7 +33,7 @@ describe("learning tracks", () => {
     })
 
     test("CLI exports honor source visibility when NODE_ENV is unset and the indexed route is stale", () => {
-        const slug = "python-for-ai-engineering"
+        const slug = "numpy-and-tensor-shapes"
         const snapshot = getQuestions().filter(question => question.slug !== slug)
         const directory = mkdtempSync(join(tmpdir(), "leetllm-track-cli-"))
         fixtureDirs.push(directory)
@@ -83,8 +83,8 @@ describe("learning tracks", () => {
         expect(track).toBeDefined()
 
         const lessons = getTrackLessons(track!)
-        expect(lessons[0].slug).toBe("inference-mechanics-ttft-tps-kv-cache")
-        expect(lessons.at(-1)?.slug).toBe("ab-testing-online-evaluation-llms")
+        expect(lessons[0].slug).toBe("llm-cost-engineering-token-economics")
+        expect(lessons.at(-1)?.slug).toBe("serving-benchmark-engineering")
         expect(lessons.map((lesson) => lesson.index)).toEqual(
             Array.from({ length: lessons.length }, (_, index) => index + 1)
         )
@@ -107,21 +107,21 @@ describe("learning tracks", () => {
         }
     })
 
-    test("production ML track covers data contracts through monitored deployment", () => {
+    test("production ML track covers data quality through monitored deployment", () => {
         const track = getTrackBySlug("production-ml-systems")
         expect(track).toBeDefined()
         expect(track?.lessonSlugs).toEqual(expect.arrayContaining([
             "dataset-pipelines-data-quality",
             "feature-engineering-production-ml",
-            "batch-streaming-feature-pipelines",
+            "ranking-recommendation-systems",
+            "forecasting-anomaly-detection",
             "monitoring-predictive-models",
-            "model-versioning-continuous-deployment",
         ]))
-        expect(track?.lessonSlugs[0]).toBe("python-for-ai-engineering")
-        expect(track?.lessonSlugs.at(-1)).toBe("capstone-production-ml-pipeline")
+        expect(track?.lessonSlugs[0]).toBe("numpy-and-tensor-shapes")
+        expect(track?.lessonSlugs.at(-1)).toBe("monitoring-predictive-models")
     })
 
-    test("research scientist track covers method, implementation, agents, evaluation, and publication", () => {
+    test("research scientist track covers method, implementation, training, evaluation, and reasoning", () => {
         const track = getTrackBySlug("ai-research-scientist")
         expect(track).toBeDefined()
         expect(track?.lessonSlugs).toEqual(expect.arrayContaining([
@@ -132,24 +132,21 @@ describe("learning tracks", () => {
             "introduction-to-reinforcement-learning-fundamentals",
             "rlhf-dpo-aligning-language-models",
             "rlvr-verifiable-rewards-training",
-            "agent-evaluation-benchmarks",
             "llm-as-judge-automated-evaluation",
             "synthetic-data-generation-pipelines-llms",
-            "ab-testing-online-evaluation-llms",
             "cuda-gpu-computing-for-ml",
             "mixed-precision-training-loss-scaling",
             "distributed-training-fsdp-deepspeed-zero",
             "llm-evaluation-benchmarks-limitations",
             "mechanistic-interpretability-sparse-autoencoders",
-            "capstone-reproducible-research-study",
+            "reasoning-models-test-time-compute",
         ]))
         expect(track?.lessonSlugs[0]).toBe("linear-algebra-machine-learning-deeper")
         expect(track?.lessonSlugs).toEqual(expect.arrayContaining([
             "dataset-pipelines-data-quality",
-            "experiment-tracking-mlflow-wandb",
             "instruction-tuning-chat-templates",
             "data-labeling-human-feedback-active-learning",
         ]))
-        expect(track?.lessonSlugs.at(-1)).toBe("capstone-reproducible-research-study")
+        expect(track?.lessonSlugs.at(-1)).toBe("reasoning-models-test-time-compute")
     })
 })

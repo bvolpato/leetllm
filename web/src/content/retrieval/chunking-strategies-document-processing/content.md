@@ -23,98 +23,55 @@
     "Google",
     "Jina"
   ],
-  "section": "Core LLM Foundations",
-  "order": 6
+  "section": "Applied LLM Engineering & RAG",
+  "order": 10
 }
 ---
 
 <!-- leetllm: edition:reference:start -->
 
-Suppose your ingestion pipeline extracted a single critical sentence from `incident-runbook-v3.pdf` (covered in [File Ingestion for AI](/learn/file-ingestion-pdfs-html-ocr-markdown)):
+Suppose your ingestion pipeline extracted a key specification cleanly from `inference-api-spec-v2.md` (covered in [File Ingestion for AI](/learn/file-ingestion-pdfs-html-ocr-markdown)):
 
-> `incident-runbook-v3.pdf`, page 7: **<span data-glossary="rollback">Rollback</span> failure: page on-call within 15 minutes with deploy ID.**
+> `inference-api-spec-v2.md`, section 4.2: **Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames.**
 
-To answer a question about that rule, the model needs the trigger condition, the 15-minute deadline, and the required deploy ID together. Split the sentence so one chunk holds `"Rollback failure: page on-call within"` and the next holds `"15 minutes with deploy ID"`, and neither retrieved passage tells the whole story.
+To answer a developer's question about connection drops, the language model needs the trigger (`idle SSE connections`), the threshold (`90 seconds`), and the exception (`without heartbeat frames`) together. Slice the sentence so one chunk holds `"Streaming timeout: close idle SSE connections after"` and the next holds `"90 seconds without heartbeat frames."`, and neither chunk alone tells the truth.
 
-<span data-glossary="chunking">Chunking</span> divides source documents into the units a retriever indexes and returns to a generator in <span data-glossary="rag">retrieval-augmented generation (RAG)</span>.[^lewis2020] Where you place each cut directly determines what a retrieved passage can support.
+<span data-glossary="chunking">Chunking</span> divides source documents into the units a retriever indexes and returns in <span data-glossary="rag">retrieval-augmented generation (RAG)</span>.[^lewis2020] Where you place each cut directly determines both what a query matches and what the model can truthfully state.
 
 <figure>
-  <img src="illustrations/_generated/chunking_strategies_dark.png" alt="Two size-6 windows overlap by two words: the first ends after 15, and the next reuses within 15 before completing minutes with deploy ID. A hit on the first window carries the condition and number but lacks the full deadline and ID. Both retain page=7 metadata; a heading-aware section keeps the whole rule together." />
-  <figcaption>Two six-word windows with a two-word overlap split the sentence between `15` and `minutes`. A heading-aware section keeps the trigger, deadline, and deploy ID together alongside the page 7 locator.</figcaption>
+  <img src="illustrations/_generated/chunking_strategies_dark.png" alt="Fixed-size overlapping windows sever a specification mid-clause between a number and its unit, whereas heading-aware section chunking keeps the full condition, threshold, exception, and source locator intact." />
+  <figcaption>Fixed windows split a rule right between its numeric threshold and its qualifying clause. A heading-aware section keeps the condition, value, and source locator together.</figcaption>
 </figure>
 
-## What a useful chunk must preserve
+## What an answerable chunk preserves
 
-Before comparing splitters, define what an answerable passage looks like for a real query: *"A rollback failed after deploy `pay-742`. When do I page, and what ID do I include?"*
+Before comparing splitters, define what a complete passage looks like for a concrete query: *"Why did my idle streaming connection close, and how do I keep it open?"*
 
-| Candidate retrieval unit | Searchable? | Answerable? | Problem |
+| Candidate chunk | Searchable? | Answerable? | Defect |
 | --- | ---: | ---: | --- |
-| `Rollback failure: page on-call within` | yes | no | deadline and required ID are missing |
-| `15 minutes with deploy ID. Routine deploy notes: archive within 14 days.` | yes | no | trigger condition is missing and an unrelated rule is mixed in |
-| `Rollback failure: page on-call within 15 minutes with deploy ID.` | yes | yes | keeps condition, deadline, and required ID together |
+| `Streaming timeout: close idle SSE connections after` | yes | no | Drops the 90-second limit and heartbeat exception |
+| `90 seconds without heartbeat frames. Batch retention: expire JSONL outputs after 14 days.` | yes | no | Drops the SSE trigger and mixes in an unrelated retention rule |
+| `Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames.` | yes | yes | Keeps trigger, threshold, and exception intact |
 
-Small fragments can still serve as sharp search targets if a downstream step reliably expands them into their parent section before generation. Either way, evaluate the complete text that reaches the model under your actual context budget.
+Small chunks still work well as sharp search targets when a downstream step reliably expands them into their parent section before generation. Always evaluate the complete assembled text that actually enters the generator under your context budget.
 
-<!-- leetllm: test, output=show -->
+## Fixed windows and the real cost of overlap
 
-```python title="check-answerable-chunks.py"
-from dataclasses import dataclass
+The simplest splitter walks across text in fixed windows of $N$ <span data-glossary="token">tokens</span> with overlap $O$, advancing by stride $N - O$. The examples below split on whitespace so cut boundaries stay easy to inspect; in production, always count lengths with your <span data-glossary="embedding">embedding</span> model's tokenizer (including prepended headings and special tokens) so oversized inputs are never silently truncated.
 
+What does increasing overlap actually buy? Our streaming-timeout rule is 12 words long. Inside a 7-word window, ramping overlap from 0 to 4 nearly doubles the total indexed words while keeping complete coverage of the 12-word rule at zero:
 
-@dataclass(frozen=True)
-class Chunk:
-    chunk_id: str
-    text: str
-    source_id: str
-    locator: str
+<!-- leetllm: test, output=show, deps=numpy -->
+```python title="fixed-windows-and-overlap-cost.py"
+import numpy as np
 
 
-def is_answerable(chunk: Chunk) -> bool:
-    required = ["rollback failure", "15 minutes", "deploy id"]
-    lowered = chunk.text.lower()
-    return all(phrase in lowered for phrase in required)
-
-
-chunks = [
-    Chunk("broken-condition", "Rollback failure: page on-call within", "incident-runbook-v3.pdf", "page=7"),
-    Chunk("broken-window", "15 minutes with deploy ID. Routine deploy notes archive within 14 days.", "incident-runbook-v3.pdf", "page=7"),
-    Chunk("complete", "Rollback failure: page on-call within 15 minutes with deploy ID.", "incident-runbook-v3.pdf", "page=7"),
-]
-
-results = [is_answerable(chunk) for chunk in chunks]
-for chunk, ok in zip(chunks, results):
-    print(f"{chunk.chunk_id}: answerable={ok}")
-assert results == [False, False, True]
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-broken-condition: answerable=False
-broken-window: answerable=False
-complete: answerable=True
-```
-<!-- leetllm: output:end -->
-
-A keyword check catches dropped clauses cleanly, though real evaluations also inspect negation and exceptions (`"do not page within 15 minutes"` matches all three phrases while flipping the meaning).
-
-## Fixed windows sever logical units
-
-The simplest splitter slices text into fixed-size windows of $N$ <span data-glossary="token">tokens</span> with overlap $O$, advancing by stride $N - O$.
-
-The examples below split on whitespace so cut positions are easy to read. In production, always count lengths with your <span data-glossary="embedding">embedding</span> model's actual tokenizer (including prepended headings and special tokens) so oversized inputs are never silently truncated.
-
-With $N = 6$ and $O = 2$ over our 17-word excerpt, the first window stops right between `15` and `minutes`:
-
-<!-- leetllm: test, output=show -->
-
-```python title="split-fixed-windows.py"
 def fixed_windows(text: str, size: int, overlap: int) -> list[str]:
-    if size <= 0 or overlap < 0 or overlap >= size:
+    if not 0 <= overlap < size:
         raise ValueError("require size > overlap >= 0")
     words = text.split()
-    step = size - overlap
     chunks = []
-    for start in range(0, len(words), step):
+    for start in range(0, len(words), size - overlap):
         end = min(start + size, len(words))
         chunks.append(" ".join(words[start:end]))
         if end == len(words):
@@ -122,983 +79,596 @@ def fixed_windows(text: str, size: int, overlap: int) -> list[str]:
     return chunks
 
 
-policy = (
-    "Rollback failure page on-call within 15 minutes with deploy ID. "
-    "Routine deploy notes archive within 14 days."
+spec = (
+    "Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames. "
+    "Batch retention: expire JSONL outputs after 14 days."
 )
+for i, chunk in enumerate(fixed_windows(spec, size=6, overlap=2)):
+    print(f"win[{i}]: {chunk}")
 
-for index, chunk in enumerate(fixed_windows(policy, size=6, overlap=2)):
-    print(f"{index}: {chunk}")
+full_rule = ("streaming timeout", "90 seconds", "heartbeat frames")
+short_fact = ("90 seconds without heartbeat",)
+
+for overlap in (0, 2, 4):
+    chunks = fixed_windows(spec, size=7, overlap=overlap)
+    indexed_words = sum(len(c.split()) for c in chunks)
+    has_rule = sum(all(p in c.lower() for p in full_rule) for c in chunks)
+    has_short = sum(all(p in c.lower() for p in short_fact) for c in chunks)
+    print(f"size=7 overlap={overlap}: chunks={len(chunks)} words={indexed_words:2d} full_rule={has_rule} short_fact={has_short}")
+    assert has_rule == 0
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-0: Rollback failure page on-call within 15
-1: within 15 minutes with deploy ID.
-2: deploy ID. Routine deploy notes archive
-3: notes archive within 14 days.
+win[0]: Streaming timeout: close idle SSE connections
+win[1]: SSE connections after 90 seconds without
+win[2]: seconds without heartbeat frames. Batch retention:
+win[3]: Batch retention: expire JSONL outputs after
+win[4]: outputs after 14 days.
+size=7 overlap=0: chunks=3 words=20 full_rule=0 short_fact=1
+size=7 overlap=2: chunks=4 words=26 full_rule=0 short_fact=1
+size=7 overlap=4: chunks=6 words=40 full_rule=0 short_fact=1
 ```
 <!-- leetllm: output:end -->
 
-Window 3 (`notes archive within 14 days.`) shows a second problem: a trailing fragment loses the subject (`Routine deploy notes`) that tells you what the 14-day rule governs.
-
-```checkpoint
-Why can't the trailing `notes archive within 14 days.` window serve as sufficient evidence by itself?
----
-It drops the subject ("Routine deploy notes") that determines when the 14-day archive rule applies. It can only work as a search candidate if a later step expands it to the full section before generation.
-```
-
-What does increasing overlap actually buy? Our rollback rule is 10 words long. In a 7-word window, ramping overlap from 0 to 4 nearly doubles the indexed words while keeping complete coverage at zero:
-
-<!-- leetllm: test, output=show -->
-
-```python title="measure-overlap-cost-and-coverage.py"
-def fixed_windows(text: str, size: int, overlap: int) -> list[str]:
-    if size <= 0 or overlap < 0 or overlap >= size:
-        raise ValueError("require size > overlap >= 0")
-    words = text.split()
-    step = size - overlap
-    chunks = []
-    for start in range(0, len(words), step):
-        end = min(start + size, len(words))
-        chunks.append(" ".join(words[start:end]))
-        if end == len(words):
-            break
-    return chunks
-
-
-def carries_rollback_rule(text: str) -> bool:
-    lowered = text.lower()
-    return all(term in lowered for term in ["rollback failure", "15 minutes", "deploy id"])
-
-
-policy = "Rollback failure page on-call within 15 minutes with deploy ID. Routine deploy notes archive within 14 days."
-for overlap in [0, 2, 4]:
-    chunks = fixed_windows(policy, size=7, overlap=overlap)
-    complete = sum(carries_rollback_rule(chunk) for chunk in chunks)
-    indexed_words = sum(len(chunk.split()) for chunk in chunks)
-    print(f"overlap={overlap}: chunks={len(chunks)} indexed_words={indexed_words} complete={complete}")
-    assert complete == 0
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-overlap=0: chunks=3 indexed_words=17 complete=0
-overlap=2: chunks=3 indexed_words=21 complete=0
-overlap=4: chunks=5 indexed_words=33 complete=0
-```
-<!-- leetllm: output:end -->
+Look at `win[4]` (`outputs after 14 days.`): a trailing fragment drops its subject (`Batch retention: expire JSONL`) so the 14-day window floats without context. Meanwhile, overlap 2 rescues the 4-word phrase `"90 seconds without heartbeat"` at the cost of 6 extra words, yet no amount of overlap can ever fit a 12-word rule inside a 7-word window.
 
 <figure>
-  <img src="illustrations/_generated/chunking_comparison_dark.png" alt="Three interval maps show how size-7 windows cover the same 17 runbook words. Overlap 0, 2, and 4 index 17, 21, and 33 words in 3, 3, and 5 chunks. Coverage strip intensity rises as words repeat across windows; the rollback rule spans words 1–10, so no seven-word window contains it." />
-  <figcaption>Overlap 0, 2, and 4 index 17, 21, and 33 words across 3, 3, and 5 chunks. Darker bands mark repeated words; because the 10-word rule exceeds the 7-word window, overlap duplicates text without ever capturing the full rule.</figcaption>
+  <img src="illustrations/_generated/chunking_comparison_dark.png" alt="Three interval maps compare size-7 windows across overlaps 0, 2, and 4. Higher overlap duplicates more tokens across chunks, darkening the repeated coverage bands, yet a multi-word rule longer than the window never fits inside any single window." />
+  <figcaption>Higher overlap multiplies indexed tokens (roughly 1 / (1 - O/N)), giving short facts a second chance across boundaries while never fitting a fact longer than the window itself.</figcaption>
 </figure>
 
-> **Key insight:** Overlap gives facts *shorter* than the window a second chance to land unbroken, at an indexing cost of roughly $1 / (1 - O/N)$ (so 20% overlap indexes ~25% more tokens). It can never fit a fact longer than the window itself.
+> **Key insight:** Overlap multiplies indexed tokens by roughly $1 / (1 - O/N)$ (20% overlap embeds ~25% more tokens). It rescues facts *shorter* than the window that straddled a cut; it can never capture a fact longer than the window.
 
-In fact, Bennani and Moslonka found no measurable answer-quality lift from overlap in their Natural Questions experiments with sentence-aware splitting and SPLADE retrieval.[^bennani2026chunking] Measure overlap on your own queries before paying the storage and latency overhead.
+Bennani and Moslonka found no measurable answer-quality gain from up to 20% overlap on Natural Questions with sentence-aware splitting and SPLADE retrieval.[^bennani2026chunking] Measure overlap on your own labeled queries before paying the storage and latency tax.
 
-## Prefer document structure when you have it
+## Split on document structure first
 
-Rather than slicing across headings and trying to glue fragments back together with overlap, split along the document's existing structure first.
+Technical documentation, API references, and research papers already mark logical boundaries with headings, tables, paragraphs, and fenced code blocks. Use that structure before falling back to fixed windows.
 
-For plain prose without headings, LangChain's `RecursiveCharacterTextSplitter` provides a pragmatic fallback: it tries paragraph breaks (`"\n\n"`), line breaks (`"\n"`), spaces (`" "`), and finally characters (`""`) in order.[^langchain2023] Remember two defaults: it measures length with Python `len` (characters) unless you pass a tokenizer-backed `length_function`, and its default separators do not detect sentence boundaries.
+For plain prose without headings, LangChain's `RecursiveCharacterTextSplitter` tries paragraph breaks (`"\n\n"`), line breaks (`"\n"`), spaces (`" "`), and characters (`""`) in sequence.[^langchain2023] Watch two defaults: it counts Python characters (`len`) unless you pass a tokenizer-backed `length_function`, and its default separators do not detect sentence boundaries.
 
-When headings are available, keep each heading attached to its body text so the condition stays searchable:
+Keep three structural rules intact when splitting technical docs:
+
+1. **Prepend headings to body text:** Attach each Markdown heading (or heading hierarchy) to the embedded string while storing raw text and source locators separately so citations stay verbatim.
+2. **Keep table headers with every row group:** Detaching `| /v1/batches | 100 MB | 24h |` from `| Endpoint | Max Payload | TTL |` strips every cell of its meaning. Repeat column headers on every split group.
+3. **Never split fenced code blocks mid-function, and enforce hard size caps:** If an oversized section must be split under a hard cap (for instance, 15 words at max size 7), distribute words evenly (`5, 5, 5`) rather than merging a 1-word tail into an 8-word overflow that exceeds the embedding limit.
 
 <!-- leetllm: test, output=show -->
-
-```python title="split-markdown-policy-sections.py"
+```python title="structure-aware-spec-splitting.py"
+import math
+import re
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class PolicyChunk:
+class SpecChunk:
     heading: str
     body: str
     indexed_text: str
     locator: str
 
 
-def headed_chunks(markdown: str, source_locator: str) -> list[PolicyChunk]:
-    chunks: list[PolicyChunk] = []
-    heading = "Document"
-    body: list[str] = []
+def split_markdown_sections(markdown: str, source: str) -> list[SpecChunk]:
+    chunks, heading, buf = [], "Document", []
 
     def flush() -> None:
-        if any(line.strip() for line in body):
-            body_text = "\n".join(body).strip()
-            chunks.append(
-                PolicyChunk(
-                    heading,
-                    body_text,
-                    f"{heading}\n{body_text}",
-                    f"{source_locator};section={len(chunks)}",
-                )
-            )
-        body.clear()
+        text = "\n".join(buf).strip()
+        if text:
+            chunks.append(SpecChunk(heading, text, f"{heading}\n{text}", f"{source}#sec={len(chunks)}"))
+        buf.clear()
 
     for line in markdown.strip().splitlines():
         if line.startswith("## "):
             flush()
-            heading = line[3:]
+            heading = line[3:].strip()
         else:
-            body.append(line)
+            buf.append(line)
     flush()
     return chunks
 
 
-policy = """## Rollback failure
-Page on-call within 15 minutes with deploy ID.
-## Routine deploy notes
-Archive within 14 days after release."""
+def split_table_with_headers(lines: list[str], heading: str, max_rows: int = 2) -> list[str]:
+    header, sep, rows = lines[0], lines[1], lines[2:]
+    return [
+        f"{heading}\n{header}\n{sep}\n" + "\n".join(rows[i:i + max_rows])
+        for i in range(0, len(rows), max_rows)
+    ]
 
-for chunk in headed_chunks(policy, "page=7"):
-    print(chunk.indexed_text.replace("\n", " | "), "|", chunk.locator)
-```
 
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-Rollback failure | Page on-call within 15 minutes with deploy ID. | page=7;section=0
-Routine deploy notes | Archive within 14 days after release. | page=7;section=1
-```
-<!-- leetllm: output:end -->
+def balanced_cap_split(text: str, max_words: int) -> list[tuple[str, tuple[int, int]]]:
+    spans = list(re.finditer(r"\S+", text))
+    count = math.ceil(len(spans) / max_words)
+    base, extra = divmod(len(spans), count)
+    out, cursor = [], 0
+    for i in range(count):
+        n = base + int(i < extra)
+        s, e = spans[cursor].start(), spans[cursor + n - 1].end()
+        out.append((text[s:e], (s, e)))
+        cursor += n
+    return out
 
-Tables require the same structural care: detaching a data row from its column header strips every cell of its meaning. When a large table must be split across chunks, repeat the column header on every row group and keep the table's source locator:
 
-<!-- leetllm: test, output=show -->
+doc = """## Streaming timeout
+Close idle SSE connections after 90 seconds without heartbeat frames.
+## Batch retention
+Expire completed JSONL output files after 14 days."""
 
-```python title="keep-policy-table-with-header.py"
+for ch in split_markdown_sections(doc, "inference-api-spec-v2.md"):
+    print(ch.locator, "|", ch.indexed_text.replace("\n", " :: "))
+
 table = [
-    "| Condition | Window | Required evidence |",
+    "| Endpoint | Max Payload | Timeout |",
     "| --- | --- | --- |",
-    "| Rollback failure | 15 minutes | Deploy ID |",
-    "| Routine deploy notes | 14 days | Release summary |",
+    "| /v1/embeddings | 16 MB | 30s |",
+    "| /v1/chat/completions | 32 MB | 90s |",
+    "| /v1/batches | 100 MB | 24h |",
 ]
+table_chunks = split_table_with_headers(table, "API Endpoint Limits", max_rows=2)
+print("Table groups:", len(table_chunks), "| all carry header:", all("| Endpoint |" in g for g in table_chunks))
 
-
-def table_chunk(lines: list[str], heading: str) -> dict[str, str]:
-    if len(lines) < 3:
-        raise ValueError("need column names, separator, and at least one row")
-    return {
-        "heading": heading,
-        "text": heading + "\n" + "\n".join(lines),
-        "quality_check": "header_present" if lines[0].startswith("| Condition |") else "review",
-    }
-
-
-chunk = table_chunk(table, "Runbook windows")
-print(chunk["heading"], chunk["quality_check"], f"rows={len(table) - 2}")
-print("15 minutes" in chunk["text"] and "Deploy ID" in chunk["text"])
-assert chunk["quality_check"] == "header_present"
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-Runbook windows header_present rows=2
-True
-```
-<!-- leetllm: output:end -->
-
-When a single section still exceeds your embedding size limit, preserve the hard size cap instead of merging a tiny tail past the ceiling. For example, 15 words split at max size 7 naively produce `7, 7, 1`; merging the last two creates an 8-word overflow. Distributing words evenly (`5, 5, 5`) respects the hard cap while recording exact character spans:
-
-<!-- leetllm: test, output=show -->
-
-```python title="split-long-section-with-metadata.py"
-import math
-import re
-
-
-def section_windows(
-    text: str, heading: str, source: str, size: int, min_tail_words: int
-) -> list[dict]:
-    if not 0 < min_tail_words <= size:
-        raise ValueError("require 0 < min_tail_words <= size")
-    words = list(re.finditer(r"\S+", text))
-    if not words:
-        return []
-    count = math.ceil(len(words) / size)
-    base, extra = divmod(len(words), count)
-    children = []
-    cursor = 0
-    for index in range(count):
-        length = base + int(index < extra)
-        start = words[cursor].start()
-        end = words[cursor + length - 1].end()
-        children.append({
-            "text": text[start:end],
-            "heading": heading,
-            "source": source,
-            "span": (start, end),
-            "needs_review": length < min_tail_words,
-            "chunk_id": f"{source}:chars={start}-{end}",
-        })
-        cursor += length
-    return children
-
-
-children = section_windows(
-    "Page on-call within 15 minutes with deploy ID. Include the service name and rollback attempt.",
-    heading="Rollback failure",
-    source="incident-runbook-v3.pdf:page=7;section=0",
-    size=7,
-    min_tail_words=4,
+balanced = balanced_cap_split(
+    "Close idle SSE connections after 90 seconds unless clients send periodic keepalive heartbeat frames over HTTP.",
+    max_words=7,
 )
-
-for child in children:
-    print(child["chunk_id"], "|", child["heading"], "|", child["text"])
+print("Balanced spans:", [(len(t.split()), span) for t, span in balanced])
+assert all(len(t.split()) <= 7 for t, _ in balanced)
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-incident-runbook-v3.pdf:page=7;section=0:chars=0-30 | Rollback failure | Page on-call within 15 minutes
-incident-runbook-v3.pdf:page=7;section=0:chars=31-58 | Rollback failure | with deploy ID. Include the
-incident-runbook-v3.pdf:page=7;section=0:chars=59-93 | Rollback failure | service name and rollback attempt.
+inference-api-spec-v2.md#sec=0 | Streaming timeout :: Close idle SSE connections after 90 seconds without heartbeat frames.
+inference-api-spec-v2.md#sec=1 | Batch retention :: Expire completed JSONL output files after 14 days.
+Table groups: 2 | all carry header: True
+Balanced spans: [(6, (0, 35)), (5, (36, 72)), (5, (73, 110))]
 ```
 <!-- leetllm: output:end -->
 
-Notice that `heading` and `source` provide <span data-glossary="provenance">source tracking</span>, yet child 0 (`Page on-call within 15 minutes`) still dropped `deploy ID`. To keep split children usable, either prepend the section heading into the embedded string or expand every matched child back to its full parent section before generation.
+## Parent-child retrieval: search small, answer big
 
-## Evaluate chunking with labeled questions
+Often the sharpest embedding target is a single sentence, while the generator needs the entire surrounding section (including caveats and parameter tables). **Parent-child retrieval** indexes narrow child spans for matching and expands each hit to its parent section before generation.[^langchain_parent_document_retriever]
 
-Test every chunking strategy against labeled queries before touching your vector database. A simple word-overlap scorer makes the effect of fragmentation immediately visible:
+<figure>
+  <img src="illustrations/_generated/parent_child_evidence_dark.png" alt="A query matches a narrow indexed child span, then follows its pointer to expand and return the complete cited parent section with its source locator." />
+  <figcaption>The retriever matches a compact child excerpt, then follows its pointer to assemble the complete cited parent section for generation.</figcaption>
+</figure>
 
-| Chunk | Matching query terms | Contains answer? |
-| --- | ---: | ---: |
-| complete rollback rule | 4 / 4 | yes |
-| rollback-condition fragment | 2 / 4 | no |
-| routine archive rule | 1 / 4 | no |
+Expansion introduces three serving-time invariants:
+1. **Deduplicate parents** when two matched children point to the same parent section.
+2. **Verify version agreement and caller permissions** on the parent itself.
+3. **Reject budget overflows** (or drop lower-ranked parents) rather than silently truncating a parent mid-clause.
 
 <!-- leetllm: test, output=show -->
-
-```python title="retrieve-complete-evidence.py"
-import re
-
-
-def terms(text: str) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", text.lower()))
-
-
-def retrieve(query: str, chunks: list[dict[str, str]]) -> dict[str, str]:
-    query_terms = terms(query)
-    return max(chunks, key=lambda chunk: len(query_terms & terms(chunk["text"])))
-
-
-query = "rollback failure deploy minutes"
-chunks = [
-    {"id": "rollback-rule", "text": "Rollback failure: page on-call within 15 minutes with deploy ID."},
-    {"id": "routine-rule", "text": "Routine deploy notes: archive within 14 days."},
+```python title="parent-child-expansion.py"
+parents = {
+    "sec-4-2": {
+        "text": "Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames. Send `: ping` every 30 seconds.",
+        "source": "inference-api-spec-v2.md",
+        "version": 2,
+    },
+}
+hits = [
+    {"text": "90 seconds without heartbeat frames", "parent_id": "sec-4-2", "version": 2},
+    {"text": "Send `: ping` every 30 seconds", "parent_id": "sec-4-2", "version": 2},
 ]
 
-hit = retrieve(query, chunks)
-print(hit["id"], hit["text"])
-assert hit["id"] == "rollback-rule"
+
+def expand_parents(matches: list[dict], allowed: set[str], word_budget: int) -> list[dict]:
+    selected = {}
+    for m in matches:
+        pid = m["parent_id"]
+        if pid not in allowed:
+            raise PermissionError("parent access denied")
+        parent = parents[pid]
+        if m["version"] != parent["version"]:
+            raise ValueError("stale child-to-parent version")
+        selected[pid] = parent
+    if sum(len(p["text"].split()) for p in selected.values()) > word_budget:
+        raise ValueError("context budget exceeded")
+    return list(selected.values())
+
+
+expanded = expand_parents(hits, allowed={"sec-4-2"}, word_budget=25)
+print(f"child_hits={len(hits)} -> deduplicated_parents={len(expanded)}")
+print("expanded:", expanded[0]["text"])
+
+for label, args in [
+    ("stale", ([{**hits[0], "version": 1}], {"sec-4-2"}, 25)),
+    ("denied", (hits, set(), 25)),
+    ("overflow", (hits, {"sec-4-2"}, 10)),
+]:
+    try:
+        expand_parents(*args)
+    except (ValueError, PermissionError) as err:
+        print(f"{label}: {err}")
+assert len(expanded) == 1
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-rollback-rule Rollback failure: page on-call within 15 minutes with deploy ID.
+child_hits=2 -> deduplicated_parents=1
+expanded: Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames. Send `: ping` every 30 seconds.
+stale: stale child-to-parent version
+denied: parent access denied
+overflow: context budget exceeded
 ```
 <!-- leetllm: output:end -->
 
-Compare broken fixed windows against section-aware chunks on the same query:
+## Semantic chunking and late chunking
 
-<!-- leetllm: test, output=show -->
+Structure-aware splitting plus parent expansion handles most technical corpora cleanly. Reach for heavier splitters only when labeled errors reveal a specific failure:
 
-```python title="compare-chunking-configurations.py"
-import re
+| Observed failure | Technique | What to verify |
+| --- | --- | --- |
+| Long unstructured prose drifts across topics | Semantic boundary detection | Hard size cap and labeled recall vs. sentence splits |
+| Short matched span misses caveats | Parent-child expansion | Deduplication, version match, and token budget |
+| Pronouns depend on earlier paragraphs | Late chunking | Encoder token-state access and permission isolation |
 
+Bennani and Moslonka observed that sentence-preserving splits matched semantic chunking up to ~5,000 tokens of retrieved context on Natural Questions.[^bennani2026chunking] Always benchmark the simpler structural baseline first.
 
-def terms(text: str) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", text.lower()))
+**Semantic chunking** embeds adjacent sentences and proposes a split wherever cosine similarity drops below a tuned threshold. **Late chunking** solves cross-sentence coreference (such as a paper introducing *"Rotary Position Embeddings (RoPE)"* and later saying *"the method"*): Günther et al. run the full document through the <span data-glossary="transformer">transformer</span> encoder first, then mean-pool contextual token states inside each chunk span.[^gunther2024]
 
+<figure>
+  <img src="illustrations/_generated/late_vs_early_chunking_dark.png" alt="Side-by-side comparison of early and late chunking on an eight-word sequence split into 3, 3, and 2 tokens. Early chunking restricts self-attention to block-diagonal chunk spans, while late chunking applies full-sequence attention before pooling token states into chunk vectors." />
+  <figcaption>Early chunking restricts self-attention to isolated spans. Late chunking encodes the full sequence first and pools token hidden states afterward, letting each vector absorb surrounding document context.</figcaption>
+</figure>
 
-def top_chunk(query: str, chunks: list[str]) -> str:
-    query_terms = terms(query)
-    return max(chunks, key=lambda text: len(query_terms & terms(text)))
+Keep three constraints in mind for late chunking:
+1. **Vectors gain context, raw text does not:** The stored chunk still reads `"the method"`, so the generator still needs parent expansion to name RoPE clearly.
+2. **Encoder requirements:** You need access to token-level hidden states plus exact character-to-token offset alignment (unlike ColBERT late interaction, late chunking still stores a single pooled vector per chunk).[^gunther2024]
+3. **Permission isolation:** Never encode public and restricted sections in the same transformer forward pass, because cross-token attention lets restricted text shape the public chunk's vector even if the restricted chunk is filtered out later.
 
+## Evaluate splitters at a fixed generation budget
 
-query = "rollback failure deploy id"
-expected = "Rollback failure: page on-call within 15 minutes with deploy ID."
+> **Common mistake:** Comparing chunking strategies at equal `top_k` biases results toward giant chunks because five 800-token sections supply four times more text than five 200-token chunks. Hold the **final generation token budget** fixed, and anchor ground-truth labels to stable character spans in the normalized source document rather than volatile chunk IDs.
+
+The script below compares broken fixed windows against heading-aware sections using `TfidfVectorizer` cosine retrieval and a semantic-boundary check over technical paper sentences:
+
+<!-- leetllm: test, output=show, deps=numpy,scikit-learn -->
+```python title="evaluate-splitters-and-semantic-cuts.py"
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+query = "idle SSE connection timeout seconds heartbeat"
+required_phrases = ("sse connections", "90 seconds", "heartbeat")
+
 configs = {
-    "broken-fixed": [
-        "Rollback failure: page on-call within",
-        "15 minutes with deploy ID. Routine deploy notes: archive within 14 days.",
+    "broken_fixed": [
+        "Streaming timeout: close idle SSE connections after",
+        "90 seconds without heartbeat frames. Batch retention: expire JSONL outputs after 14 days.",
     ],
-    "section-aware": [
-        "Rollback failure: page on-call within 15 minutes with deploy ID.",
-        "Routine deploy notes: archive within 14 days.",
+    "heading_aware": [
+        "Streaming timeout\nClose idle SSE connections after 90 seconds without heartbeat frames.",
+        "Batch retention\nExpire completed JSONL output files after 14 days.",
     ],
 }
 
 for name, chunks in configs.items():
-    hit = top_chunk(query, chunks)
-    print(f"{name}: complete={expected in hit}")
-```
+    vec = TfidfVectorizer(stop_words="english")
+    mat = vec.fit_transform(chunks)
+    top_hit = chunks[int(np.argmax(cosine_similarity(vec.transform([query]), mat)[0]))]
+    answerable = all(p in top_hit.lower() for p in required_phrases)
+    print(f"{name:14} | answerable={answerable} | hit={top_hit.splitlines()[0]}")
 
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-broken-fixed: complete=False
-section-aware: complete=True
-```
-<!-- leetllm: output:end -->
-
-Expand into a small labeled regression suite covering multiple sections, tables, and exceptions:
-
-<!-- leetllm: test, output=show -->
-
-```python title="run-chunk-regression-suite.py"
-import re
-
-
-def terms(text: str) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", text.lower()))
-
-
-def retrieve(query: str, chunks: list[dict[str, str]]) -> dict[str, str]:
-    query_terms = terms(query)
-    return max(chunks, key=lambda chunk: len(query_terms & terms(chunk["text"])))
-
-
-chunks = [
-    {"id": "rollback", "text": "Rollback failure: page on-call within 15 minutes with deploy ID."},
-    {"id": "routine", "text": "Routine deploy notes: archive within 14 days."},
-    {"id": "commander", "text": "Commander handoff requires the active incident channel."},
-]
-cases = [
-    ("rollback failure deploy id", "rollback", "15 minutes"),
-    ("routine deploy archive", "routine", "14 days"),
-    ("commander incident channel", "commander", "active incident"),
-]
-
-passed = 0
-for query, expected_id, evidence in cases:
-    hit = retrieve(query, chunks)
-    ok = hit["id"] == expected_id and evidence in hit["text"]
-    passed += int(ok)
-    print(query, "PASS" if ok else "FAIL")
-print(f"summary={passed}/{len(cases)}")
-assert passed == len(cases)
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-rollback failure deploy id PASS
-routine deploy archive PASS
-commander incident channel PASS
-summary=3/3
-```
-<!-- leetllm: output:end -->
-
-> **Common mistake:** Comparing two chunking strategies at equal `top_k` biases the test toward larger chunks because five long sections pack far more tokens than five short chunks. Hold the final generation token budget fixed and label ground truth by stable source spans rather than volatile chunk IDs.
-
-## Search small, answer with enough context
-
-Often the ideal unit for semantic search is a crisp sentence, while the ideal unit for generation is the surrounding section. **Parent-child retrieval** indexes small child spans for matching and expands each hit to its parent section before sending context to the model.[^langchain_parent_document_retriever]
-
-<figure>
-  <img src="illustrations/_generated/parent_child_evidence_dark.png" alt="Page 7 contains the complete rollback section. A split stores 15 minutes with deploy ID as an indexed child; an engineer query searches that child, and its pointer returns the full cited parent section with the page locator." />
-  <figcaption>The retriever matches a narrow child excerpt, then follows its pointer to return the complete cited parent section and page locator.</figcaption>
-</figure>
-
-Expansion introduces three checks you must enforce at serving time: deduplicate multiple children pointing to the same parent, verify version agreement and caller permissions on the parent itself, and reject overflow instead of silently truncating a rule mid-sentence:
-
-<!-- leetllm: test, output=show -->
-
-```python title="expand-child-match-to-parent-context.py"
-parents = {
-    "rollback": {
-        "text": "Rollback failure: page on-call within 15 minutes with deploy ID. Include the service name.",
-        "source": "incident-runbook-v3.pdf", "locator": "page=7", "version": 3,
-    },
-}
-children = [
-    {"text": "15 minutes with deploy ID", "parent_id": "rollback", "version": 3},
-    {"text": "Include the service name", "parent_id": "rollback", "version": 3},
-]
-
-
-def expand(matches: list[dict], allowed_parent_ids: set[str], word_budget: int) -> list[dict]:
-    selected = {}
-    for match in matches:
-        parent_id = match["parent_id"]
-        if parent_id not in allowed_parent_ids:
-            raise PermissionError("parent access denied")
-        parent = parents[parent_id]
-        if match["version"] != parent["version"]:
-            raise ValueError("stale child-to-parent link")
-        selected[parent_id] = parent
-    if sum(len(parent["text"].split()) for parent in selected.values()) > word_budget:
-        raise ValueError("context budget exceeded; select smaller complete evidence")
-    return list(selected.values())
-
-
-context = expand(children, allowed_parent_ids={"rollback"}, word_budget=20)
-print(f"child_hits={len(children)} parent_copies={len(context)}")
-print(context[0]["text"])
-assert "Rollback failure" in context[0]["text"]
-
-failure_cases = [
-    ("stale", [{**children[0], "version": 2}], {"rollback"}, 20,
-     ValueError, "stale child-to-parent link"),
-    ("denied", children, set(), 20, PermissionError, "parent access denied"),
-    ("too small", children, {"rollback"}, 10,
-     ValueError, "context budget exceeded; select smaller complete evidence"),
-]
-for name, matches, allowed, budget, expected_error, expected_message in failure_cases:
-    try:
-        expand(matches, allowed, budget)
-    except expected_error as error:
-        assert str(error) == expected_message
-        print(f"{name}: {error}")
-    else:
-        raise AssertionError(f"{name} returned context instead of rejecting")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-child_hits=2 parent_copies=1
-Rollback failure: page on-call within 15 minutes with deploy ID. Include the service name.
-stale: stale child-to-parent link
-denied: parent access denied
-too small: context budget exceeded; select smaller complete evidence
-```
-<!-- leetllm: output:end -->
-
-You can also prepend source and section headers to each child's embedded string so short spans remain unambiguous during search (while keeping the raw source text separate for accurate citations):
-
-<!-- leetllm: test, output=show -->
-
-```python title="prepend-section-context.py"
-def indexed_text(heading: str, text: str, source: str) -> str:
-    return f"Source: {source}\nSection: {heading}\n{text}"
-
-
-child = indexed_text(
-    heading="Rollback failure",
-    text="Page on-call within 15 minutes with deploy ID.",
-    source="Incident Runbook",
-)
-print(child)
-assert "Section: Rollback failure" in child
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-Source: Incident Runbook
-Section: Rollback failure
-Page on-call within 15 minutes with deploy ID.
-```
-<!-- leetllm: output:end -->
-
-## Semantic boundaries and late chunking
-
-Structure-aware splitting handles most handbooks cleanly. Reach for more complex splitters only when labeled failures show a specific gap:
-
-| Observed failure | Candidate technique | What to measure |
-| --- | --- | --- |
-| Single long paragraph shifts topics | Semantic transition detection | Hard size cap and labeled-query recall |
-| Short hit lacks surrounding rule | Parent-child expansion | Deduplication and generation token budget |
-| Short child is ambiguous out of context | Contextual header prefix | Retrieval lift vs. plain baseline |
-| Pronouns depend on earlier paragraphs | Late chunking | Encoder support, latency, and permission scope |
-
-Bennani and Moslonka observed that sentence-preserving splits matched semantic chunking up to roughly 5k tokens of retrieved context on Natural Questions.[^bennani2026chunking] Always benchmark simple structural splits first.
-
-**Semantic chunking** compares embeddings of adjacent sentences and inserts a split wherever cosine similarity drops below a threshold:
-
-<!-- leetllm: test, output=show -->
-
-```python title="find-semantic-split-candidates.py"
-import re
-import numpy as np
-
-
-def vector(sentence: str) -> np.ndarray:
-    words = set(re.findall(r"[a-z0-9]+", sentence.lower()))
-    return np.array([
-        float(sum(word in words for word in ["rollback", "deploy", "minutes", "id"])),
-        float(sum(word in words for word in ["commander", "handoff", "channel"])),
-    ], dtype=np.float64)
-
-
-def cosine(left: np.ndarray, right: np.ndarray) -> float | None:
-    norm_l = np.linalg.norm(left)
-    norm_r = np.linalg.norm(right)
-    if norm_l == 0.0 or norm_r == 0.0:
-        return None
-    return float(np.dot(left, right) / (norm_l * norm_r))
-
-
+# Semantic similarity drop between topic-coherent vs topic-shifted sentences
 sentences = [
-    "Rollback failures require deploy IDs.",
-    "Page on-call within 15 minutes.",
-    "Commander handoff uses the active incident channel.",
+    "Rotary position embeddings rotate query and key pairs by token index.",
+    "The rotary matrix preserves relative position inside dot-product attention.",
+    "KV cache paging allocates fixed blocks to eliminate external memory fragmentation.",
 ]
+s_vec = TfidfVectorizer(stop_words="english").fit_transform(sentences).toarray()
+for i in range(len(sentences) - 1):
+    sim = float(cosine_similarity(s_vec[i:i + 1], s_vec[i + 1:i + 2])[0, 0])
+    action = "split" if sim < 0.15 else "keep"
+    print(f"boundary {i}->{i + 1}: cosine={sim:.2f} -> {action}")
 
-for left, right in zip(sentences, sentences[1:]):
-    similarity = cosine(vector(left), vector(right))
-    if similarity is None:
-        print("unknown: review split")
-    else:
-        print(f"{similarity:.2f}", "split" if similarity < 0.50 else "keep together")
+assert not all(p in configs["broken_fixed"][0].lower() for p in required_phrases)
+assert all(p in configs["heading_aware"][0].lower() for p in required_phrases)
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-1.00 keep together
-0.00 split
+broken_fixed   | answerable=False | hit=Streaming timeout: close idle SSE connections after
+heading_aware  | answerable=True | hit=Streaming timeout
+boundary 0->1: cosine=0.14 -> split
+boundary 1->2: cosine=0.00 -> split
 ```
 <!-- leetllm: output:end -->
 
-**Late chunking** tackles a different problem: cross-sentence references like *"Berlin"* followed later by *"the city."* Instead of embedding each chunk independently, Günther et al. pass the full document (or a long window) through the <span data-glossary="transformer">transformer</span> encoder first, then mean-pool the contextual token embeddings inside each chunk span.[^gunther2024]
+## Production chunking checklist
 
-<figure>
-  <img src="illustrations/_generated/late_vs_early_chunking_dark.png" alt="Side-by-side comparison of early and late chunking on an eight-word sentence split into spans of three, three, and two words. On the left (early), attention is constrained to block-diagonal spans so pooled states h4 to h6 lack sentence context. On the right (late), full cross-attention allows pooled states h4 to h6 to carry context from the entire sentence." />
-  <figcaption>Early chunking restricts self-attention to each 3/3/2 span independently. Late chunking encodes the full sequence first and pools token states 4 through 6 afterward, letting each chunk vector carry surrounding document context.</figcaption>
-</figure>
-
-Keep three constraints in mind for late chunking:
-1. **Vectors improve, text does not:** The chunk text still reads `"the city"`, so the generator still needs parent expansion or antecedent context to write a clear answer.
-2. **Token-state access required:** You need an encoder exposing token-level hidden states and careful character-to-token offset alignment (unlike ColBERT late interaction, late chunking still stores a single pooled vector per chunk).[^gunther2024]
-3. **Permission isolation:** Never encode public text and restricted text in the same shared transformer pass, because attention allows restricted tokens to shape the public chunk's vector even if the restricted text is filtered later.
-
-## Indexing checklist for production chunks
-
-| Design choice | Recommended starting point | What to verify |
+| Decision | Default starting point | What to check |
 | --- | --- | --- |
-| Default split strategy | Heading-aware sections with recursive fallback | Answerable-chunk rate on labeled queries |
-| Size budget | Measure full indexed text with the embedding tokenizer | Zero silent truncation; token count ≠ word count |
-| Tables | Repeat headers with every row group | Exact-value queries preserve column roles |
-| Overlap | Off for complete sections; test only on prose fallbacks | Index growth, duplicates, and recall lift |
-| Metadata | Source ID, locator, heading, <span data-glossary="checksum">checksum</span> | Every cited answer maps back to its source span |
-| Next step | Parent expansion before semantic or late chunking | Concrete missed queries justifying extra complexity |
-
-Before writing chunks to an index, verify that every chunk has non-empty text, required metadata, a content checksum, and passes quality review:
-
-<!-- leetllm: test, output=show -->
-
-```python title="validate-indexable-chunks.py"
-from hashlib import sha256
-
-
-chunks = [
-    {
-        "id": "rollback",
-        "text": "Rollback failure: page on-call within 15 minutes with deploy ID.",
-        "source": "incident-runbook-v3.pdf",
-        "locator": "page=7;section=0",
-        "heading": "Rollback failure",
-        "quality": "ready",
-    },
-    {
-        "id": "broken",
-        "text": "15 minutes with deploy ID.",
-        "source": "incident-runbook-v3.pdf",
-        "locator": "page=7;section=1",
-        "heading": "Fragment",
-        "quality": "review",
-    },
-]
-
-for chunk in chunks:
-    chunk["chunk_checksum"] = sha256(chunk["text"].encode()).hexdigest()
-
-required_metadata = ("source", "locator", "heading", "chunk_checksum")
-indexable = [
-    chunk for chunk in chunks
-    if chunk.get("quality") == "ready"
-    and bool(chunk.get("text", "").strip())
-    and all(chunk.get(field) for field in required_metadata)
-]
-print(f"indexable={[chunk['id'] for chunk in indexable]}")
-print(f"blocked={len(chunks) - len(indexable)}")
-assert [chunk["id"] for chunk in indexable] == ["rollback"]
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-indexable=['rollback']
-blocked=1
-```
-<!-- leetllm: output:end -->
-
-## Practice: test chunking limits
-
-1. Change the fixed-window size to 10 with overlap 0. Check the resulting chunk lengths and how many complete rollback rules survive.
-2. Run `section_windows` on 15 words with `size=7` and `min_tail_words=6`. Why can't every child satisfy both rules, and which rule must win?
-3. Add `"No action is required."` to the semantic split script. What happens to its vector, and why shouldn't that alone trigger a split?
-4. In `expand-child-match-to-parent-context.py`, mutate one child's version to 2, remove permission, then lower `word_budget` to 10. Confirm each case raises an error before returning context, while two valid hits still deduplicate to one parent.
-
-```checkpoint
-Compare your answers
----
-Size 10 produces chunks of 10 and 7 words, capturing one complete rollback rule. For 15 words under a hard cap of 7, you need at least 3 chunks, which cannot all hold 6 words (3 × 6 = 18 > 15); the hard cap wins and short chunks are flagged for review. The unfamiliar sentence maps to [0, 0], making cosine undefined rather than zero. Parent expansion rejects stale links, denied permissions, and budget overflows rather than returning truncated text.
-```
-
-```checkpoint
-Both halves of the paging sentence are retrieved from the same approved source version and are provided in source order. Must the answer fail because neither half is complete alone? What changes if the first half is omitted to fit the context budget?
----
-Together in source order, the two halves provide the complete rule. If the condition-bearing first half is dropped to fit the context budget, the remaining deadline and ID lose their trigger condition. Always check coverage on the final assembled context, not raw retrieval hits.
-```
+| **Primary splitter** | Heading- and table-aware splitting with recursive fallback | Answerable-chunk rate on labeled queries |
+| **Token budget** | Measure full embedded string (heading + body + special tokens) with embedder tokenizer | Zero silent truncation |
+| **Tables & code** | Repeat column headers on row splits; keep fenced blocks intact | Exact-value and API-parameter queries |
+| **Overlap** | Off for complete sections; benchmark on prose fallbacks | Token inflation $1/(1 - O/N)$ vs. recall lift |
+| **Metadata** | `source_id`, `locator`, `heading`, `version`, SHA-256 <span data-glossary="checksum">checksum</span> | Verbatim citations back to normalized spans |
+| **Advanced splitters** | Parent expansion first; semantic/late chunking only on measured misses | Fair comparison at a fixed generation token budget |
 
 ```mastery-quiz
 [
   {
-    "question": "An engineer asks, “Backup job B873 failed. How soon should I page, and which ID should I include?” The only passage the model receives comes from page 8 of the current operations runbook. Its full text reads, “If that happens, page within 10 minutes and include the job ID.” Which property fails for this query?",
+    "question": "A fixed splitter processes 20 words with window size 8 and overlap 3, stopping once a window reaches the end. What are the zero-based start offsets and total indexed word occurrences?",
     "options": [
-      "Answerability",
-      "Searchability",
-      "Data lineage",
-      "Freshness"
-    ],
-    "answer": "Answerability",
-    "explanation": "The passage gives a ten-minute deadline and asks for the job ID, yet “if that happens” could refer to a failed backup or a failed restore. The model needs the antecedent trigger to know whether the rule applies to B873."
-  },
-  {
-    "question": "A fixed splitter processes 20 words with size 8 and overlap 3. It stops when a window reaches the source end. What are the zero-based start offsets and the total number of word occurrences indexed?",
-    "options": [
-      "Starts [0, 3, 6, 9, 12], totaling 40 words.",
       "Starts [0, 5, 10, 15], totaling 29 words.",
+      "Starts [0, 3, 6, 9, 12], totaling 40 words.",
       "Starts [0, 8, 16], totaling 20 words.",
       "Starts [0, 5, 10, 15], totaling 32 words."
     ],
     "answer": "Starts [0, 5, 10, 15], totaling 29 words.",
-    "explanation": "Each window advances by 8 − 3 = 5 words. The first three windows hold 8 words each and 5 words remain at offset 15, totaling 24 + 5 = 29 words."
+    "explanation": "Stride is 8 - 3 = 5. Windows cover [0:8], [5:13], [10:18], and [15:20], totaling 8 + 8 + 8 + 5 = 29 indexed words."
   },
   {
-    "question": "A 23-word document contains a rule spanning 12 consecutive words. Nine-word windows with overlaps of 0, 3, and 6 index 23, 32, and 53 word occurrences, respectively. The retriever can return several windows. What follows about coverage of the rule?",
+    "question": "An API spec contains a 12-word constraint. A splitter uses 9-word windows with overlaps of 0, 3, and 6. What holds for single-chunk coverage versus assembled multi-chunk context?",
     "options": [
-      "At overlap 6, one hit can contain the rule. For several hits, check their combined coverage after applying the evidence budget.",
-      "At overlap 6, one hit can contain the rule. Record a coverage failure whenever each of several returned hits lacks part of the rule.",
-      "At every overlap, one hit is too short. For several hits, check their combined coverage after applying the evidence budget.",
-      "At every overlap, one hit is too short. Record a coverage failure whenever each of several returned hits lacks part of the rule."
+      "No single 9-word window can hold the 12-word constraint at any overlap, though multiple retrieved windows assembled in order can cover it.",
+      "Overlap 6 allows a single window to hold all 12 words.",
+      "Overlap 3 fits all 12 words into one chunk without extra index growth.",
+      "Even multiple assembled windows can never cover a 12-word constraint."
     ],
-    "answer": "At every overlap, one hit is too short. For several hits, check their combined coverage after applying the evidence budget.",
-    "explanation": "A 12-word rule cannot fit inside a 9-word window at any overlap. Multiple returned windows can still cover all 12 words together, so inspect the assembled context that reaches the generator."
+    "answer": "No single 9-word window can hold the 12-word constraint at any overlap, though multiple retrieved windows assembled in order can cover it.",
+    "explanation": "Overlap never expands window width beyond 9 words. Coverage must still be evaluated on the final assembled context budget reaching the model."
   },
   {
-    "question": "A Markdown runbook has separate Rollback failure and Routine deploy notes sections, and each complete section fits the embedding budget. The baseline must preserve each condition with its rule in a separate indexed unit, retain source attribution, and avoid parent-expansion work or duplicated text. Which representation satisfies that requirement?",
+    "question": "An embedding tokenizer counts 47 body tokens, 4 prepended heading tokens, and 2 special tokens, while the encoder limit is 48 tokens. What happens if you embed without resplitting?",
     "options": [
-      "Split sentences, store headings in metadata, and expand to the parent when a child ranks highly against the question.",
-      "Merge both sections into one page chunk, preserve the locator, and use reranking to distinguish the two conditions.",
-      "Apply recursive windows across both sections, and add overlap until each deadline appears twice in the searchable index.",
-      "Create one chunk per section, prepend its heading to indexed text, and retain source and locator fields for citation."
+      "Total input is 53 tokens, exceeding the 48-token cap by 5 tokens and silently truncating the tail.",
+      "Total input is 47 tokens, fitting safely inside the 48-token limit.",
+      "Total input is 49 tokens because headings are excluded from attention.",
+      "The encoder automatically expands its positional limit to 53 tokens."
     ],
-    "answer": "Create one chunk per section, prepend its heading to indexed text, and retain source and locator fields for citation.",
-    "explanation": "Prepending each heading keeps the trigger condition attached to its deadline in searchable text, while source and locator metadata preserve citations without duplication."
+    "answer": "Total input is 53 tokens, exceeding the 48-token cap by 5 tokens and silently truncating the tail.",
+    "explanation": "Count body + prepended heading + special tokens (47 + 4 + 2 = 53 > 48) with the embedder's actual tokenizer so trailing conditions are never silently truncated."
   },
   {
-    "question": "A returned table row group must be self-contained in its indexed text, with no later metadata or header expansion. It contains `Backup failure | 10 minutes | Job ID` but omits `Condition | Window | Required evidence`. Which correction restores its meaning?",
+    "question": "Two matched child chunks point to parent P (18 generator tokens), and a third points to parent Q (11 tokens). Both parents are permitted and current, and the evidence budget is 25 tokens. Under deduplicated whole-parent packing, what is the cost and decision?",
     "options": [
-      "Repeat the prior data row beside this row, using neighboring examples as the source of the missing column meanings.",
-      "Keep the header with relevant rows, and carry the table heading and locator for retrieval context and source citation.",
-      "Index cells independently, retaining column names as metadata for later generation rather than in their searchable text.",
-      "Embed the row without labels, and preserve its checksum as integrity evidence from which the column roles follow."
+      "29 tokens; reject overflow (or send only top-ranked P) rather than truncating Q mid-clause.",
+      "47 tokens; reject both parents.",
+      "29 tokens; truncate Q to 7 tokens so both fit.",
+      "18 tokens; Q is ignored automatically."
     ],
-    "answer": "Keep the header with relevant rows, and carry the table heading and locator for retrieval context and source citation.",
-    "explanation": "Without column names, `10 minutes` and `Job ID` lose their roles. Repeating the header on every row group preserves table semantics alongside heading and locator metadata."
+    "answer": "29 tokens; reject overflow (or send only top-ranked P) rather than truncating Q mid-clause.",
+    "explanation": "Deduplicating P counts its 18 tokens once, plus 11 for Q = 29 tokens > 25. Keep whole parents intact instead of cutting mid-specification."
   },
   {
-    "question": "An embedder-tokenizer measurement gives 47 body tokens, 4 added heading tokens, and 2 special tokens. The model limit is 48. Which ingestion result follows?",
+    "question": "During late chunking, a public API guide and an internal restricted architecture note are encoded in one shared transformer forward pass before mean-pooling each span. Filtering removes the restricted chunk at query time. What security flaw remains?",
     "options": [
-      "49 tokens: count body and special tokens; reject the encoded input as one position over the 48-token limit.",
-      "47 tokens: count the body but exclude retrieval labels and special tokens; accept it within the 48-token limit.",
-      "53 tokens: count body, heading, and special tokens; reject or split it as five positions over the 48-token limit.",
-      "48 tokens: clamp the measured count to the model maximum; accept its vector as representing the complete input."
+      "Self-attention let restricted tokens influence the public chunk's pooled vector, so the public section must be re-encoded within public context alone.",
+      "None, because filtering the restricted chunk text removes all influence.",
+      "Only the restricted chunk's vector is affected; public vectors stay isolated.",
+      "Late chunking uses independent block-diagonal attention so no cross-leakage occurs."
     ],
-    "answer": "53 tokens: count body, heading, and special tokens; reject or split it as five positions over the 48-token limit.",
-    "explanation": "47 + 4 + 2 = 53 tokens, which exceeds the 48-token ceiling by 5. Always measure the complete final input with the embedding tokenizer so silent truncation never drops trailing conditions."
-  },
-  {
-    "question": "A regression case for a ferry cancellation rule expects record ID `ferry-v3` and checks for the phrase `48 hours`. Search returns `ferry-v2`, whose text reads `Cancel ferry bookings at least 48 hours before departure.` How should the ID check and phrase check score this hit?",
-    "options": [
-      "The ID check passes and the phrase check fails.",
-      "Both checks pass.",
-      "The ID check fails and the phrase check passes.",
-      "Both checks fail."
-    ],
-    "answer": "The ID check fails and the phrase check passes.",
-    "explanation": "The returned ID (`ferry-v2`) mismatches `ferry-v3`, so the source check fails, while the phrase `48 hours` is present so the text check passes. Both checks must pass for the regression case to succeed."
-  },
-  {
-    "question": "Two child hits point to parent P, which contains 18 generator tokens. A third points to parent Q, which contains 11. Both parents are current and permitted. The host sends whole parents, deduplicates them, and has 25 tokens for evidence. What does the full expansion cost, and can the host send both parents?",
-    "options": [
-      "29 tokens. Send both parents.",
-      "47 tokens. Reject the pair.",
-      "29 tokens. Reject the pair.",
-      "47 tokens. Send both parents."
-    ],
-    "answer": "29 tokens. Reject the pair.",
-    "explanation": "Deduplicating P counts its 18 tokens once, plus 11 for Q = 29 tokens, which exceeds the 25-token budget. Rejecting the overflow avoids truncating a parent mid-rule."
-  },
-  {
-    "question": "A semantic splitter receives consecutive vectors [2, 0], [1, 1], and [0, 0]. It proposes a cut for cosine similarity below 0.8 and sends undefined values to review. What happens at each split point?",
-    "options": [
-      "At the first split point, cut (cosine ≈ 0.707). At the second, cut (cosine = 0).",
-      "At the first split point, cut (cosine ≈ 0.707). At the second, review (cosine undefined).",
-      "At the first split point, keep together (cosine = 1). At the second, review (cosine undefined).",
-      "At the first split point, keep together (cosine = 1). At the second, cut (cosine = 0)."
-    ],
-    "answer": "At the first split point, cut (cosine ≈ 0.707). At the second, review (cosine undefined).",
-    "explanation": "Between [2, 0] and [1, 1], cosine is 2 / (2 * sqrt(2)) ≈ 0.707 < 0.8, triggering a cut. With [0, 0], norm is zero so cosine is undefined and routes to review."
-  },
-  {
-    "question": "A public returns policy says, “Send the package to the assigned depot.” A restricted note names the depot. An encoder reads both passages together, then averages the public sentence's token states into one vector. A filter returns only the public sentence. How should the system handle the vector and a public query asking which depot to use?",
-    "options": [
-      "Keep the stored vector after filtering. Cite the public sentence as the source of the depot name.",
-      "Re-encode the sentence using public context alone. Cite the public sentence as the source of the depot name.",
-      "Keep the stored vector after filtering. Require a permitted passage that names the depot.",
-      "Re-encode the sentence using public context alone. Require a permitted passage that names the depot."
-    ],
-    "answer": "Re-encode the sentence using public context alone. Require a permitted passage that names the depot.",
-    "explanation": "Shared encoding lets restricted tokens influence the public sentence's vector even after text filtering, so re-encode within public context alone. Because the public sentence never names the depot, the answer still requires a permitted source that does."
+    "answer": "Self-attention let restricted tokens influence the public chunk's pooled vector, so the public section must be re-encoded within public context alone.",
+    "explanation": "Full-sequence self-attention mixes token representations across the entire input window. Keep shared late-chunking passes strictly inside one permission boundary."
   }
 ]
 ```
 
-> **Next:** Continue to [LLM Benchmarks & Limitations](/learn/llm-evaluation-benchmarks-limitations) to examine what evaluation scores measure in practice. Finding the right chunk is one half of the pipeline; checking whether a model uses it accurately is the next.
+> **Next:** Continue to [Embedding Similarity & Quantization](/learn/embeddings-cosine-dot-product-quantization).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
 
-The paging rule made it out of the PDF intact. We can read it in the record, and we trust it:
+The API specification made it out of the Markdown parser intact:
 
-> Rollback failure: page on-call within 15 minutes with deploy ID.
+> Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames.
 
-Then we split the document into pieces for search, and the pipeline does something that looks harmless. One piece ends with `Rollback failure: page on-call within`, and the next begins with `15 minutes with deploy ID.` Now the engineer asks, "A rollback failed after deploy `pay-742`. When do I page, and what ID do I include?" The second piece can easily rank first: it shares "deploy" and "ID" with the question, and a search by meaning may well notice that it holds a time limit. So it goes to the model. The model reads a sentence with a deadline and a requirement, and nothing to say what they apply to.
+Then the chunking step runs, and it does something that looks harmless. One chunk ends with `Streaming timeout: close idle SSE connections after`, and the next begins with `90 seconds without heartbeat frames.` A developer asks, "Why did my idle SSE connection close, and how do I keep it alive?" The second chunk matches `seconds` and `heartbeat` cleanly and ranks first. The model receives a timeout and an exception with nothing stating which protocol or condition they belong to.
 
-Nothing crashed. Every stage did its job, the deadline survived extraction, and the retrieved passage scores well. The answer still fails, because the cut landed in the middle of the only sentence that mattered.
+Nothing crashed. Extraction succeeded, the vector index returned a high-scoring hit, and the answer still failed because the boundary landed right across the one sentence that mattered.
 
-Chunking decides how documents get divided into the units a search system returns. Retrieval-augmented generation, or RAG, works by selecting passages from outside the model and handing them to it along with the question,[^lewis2020] so these cuts determine two things at once: what a query can match, and what a matched passage can tell the model. This chapter carries the same runbook through three approaches, from fixed windows to document structure to searching small and returning more, and measures each one by what finally reaches the model.
+Chunking decides how documents are carved into the units a retriever indexes and hands to a language model in retrieval-augmented generation (RAG).[^lewis2020] Those cuts control two jobs at once: what a query can match, and what the matched text actually tells the model. Every embedding model also enforces a hard token ceiling while compressing an entire chunk into one vector; `all-MiniLM-L6-v2`, for example, outputs 384 dimensions and truncates inputs past 256 word pieces by default.[^allMiniLM2026]
 
-One piece of machinery shapes all of this. An embedding model turns a whole passage into one vector, a list of a few hundred numbers, so that passages with similar meanings land near each other. [Hybrid search](/learn/hybrid-search-dense-sparse-retrieval) runs a real one. For now you need two facts. The model accepts a limited number of tokens, and a long passage gets squeezed into one vector just as a short one does. `all-MiniLM-L6-v2`, a common small model, produces 384 numbers and by default cuts its input at 256 word pieces.[^allMiniLM2026] That cap is the embedding limit you will see in the rest of this chapter.
+## Define answerability before choosing a chunk size
 
-## Decide what success looks like before you cut
+It is tempting to treat chunk size as a tuning dial and ask whether 512 tokens beats 256. Start instead with what a complete passage must hold for a real question. For our streaming-timeout question, the model needs three pieces connected: the idle SSE trigger, the 90-second limit, and the heartbeat exception.
 
-It is tempting to treat chunk size as a tuning knob, and start by asking whether 512 tokens beats 256. A better opening question is what a correct passage looks like for a real question. To answer the engineer, the model needs three things connected: the rollback-failure condition, the 15-minute deadline, and the deploy-ID requirement.
+| Text reaching the model | What is missing? |
+| --- | --- |
+| `Streaming timeout: close idle SSE connections after` | The 90-second limit and heartbeat exception |
+| `90 seconds without heartbeat frames.` | Which connection type and trigger the rule governs |
+| The complete timeout sentence | Nothing for this question |
 
-| Text the model receives | What is missing? |
-|---|---|
-| Rollback failure: page on-call within | The deadline and the required ID |
-| 15 minutes with deploy ID | What situation any of this applies to |
-| The complete paging sentence | Nothing, for this question |
+That framing frees up your design: a short fragment can still serve as a crisp search target as long as a downstream step expands it into its full section before generation. What counts is the assembled text that reaches the model after expansion, deduplication, permission checks, and token budgeting.
 
-This gives us a sharper test than any similarity score. It also frees up the design. The complete sentence can arrive in one chunk, or it can be assembled from several source spans the caller may read. Small pieces are fine as search targets as long as some later step restores their context. What matters is what the model receives after every serving step has run: expansion, deduplication, permission checks, and budget limits.
+## Fixed windows, and what overlap actually buys
 
-Two common misunderstandings live here. A page number in a citation helps a person find the original, but it does nothing for a model whose context lacks the deadline. And a stored pointer to a parent section is only a route to more text. Until the serving path follows it, the model has not seen a word of that section.
-
-## Fixed windows, and what overlap really buys
-
-The simplest splitter walks across the text in fixed steps. A window of size $N$ with overlap $O$ advances by $N-O$ positions, so that neighboring chunks share some text. Overlap is the standard first remedy for edge fragmentation problems, and it is worth seeing exactly what it does.
-
-The next program splits a seventeen-word rule on whitespace so every boundary is easy to inspect; in production, measure chunk lengths with the embedding model's subword tokenizer including prepended headings and special tokens.
+The simplest splitter steps across text in fixed windows of size $N$ with overlap $O$, advancing by stride $N - O$. The short program below splits a 20-word API excerpt on whitespace so every cut stays visible; in production, always measure lengths with the embedding model's tokenizer (including prepended headings and special tokens).
 
 <!-- leetllm: test, output=show, id=reader-chunking-windows -->
-```python title="see-a-window-cut-the-rule.py"
-def windows(text, size, overlap):
+```python title="window-cuts-and-overlap.py"
+def windows(text: str, size: int, overlap: int) -> list[str]:
     if not 0 <= overlap < size:
         raise ValueError("require size > overlap >= 0")
     words = text.split()
-    result = []
+    out = []
     for start in range(0, len(words), size - overlap):
         end = min(start + size, len(words))
-        result.append(" ".join(words[start:end]))
+        out.append(" ".join(words[start:end]))
         if end == len(words):
             break
-    return result
+    return out
 
-text = ("Rollback failure page on-call within 15 minutes with deploy "
-        "ID. Routine deploy notes archive within 14 days.")
-RULE = ["rollback failure", "15 minutes", "deploy id"]
-FACT = ["15 minutes with deploy id"]
+text = (
+    "Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames. "
+    "Batch retention: expire JSONL outputs after 14 days."
+)
+FULL_RULE = ("streaming timeout", "90 seconds", "heartbeat frames")
+SHORT_FACT = ("90 seconds without heartbeat",)
 
-def holding(chunks, phrases):
-    return sum(all(p in chunk.lower() for p in phrases)
-               for chunk in chunks)
+for idx, chunk in enumerate(windows(text, 6, 2)):
+    print(f"{idx}: {chunk}")
 
-for index, chunk in enumerate(windows(text, 6, 2)):
-    print(f"{index}: {chunk}")
-for overlap in [0, 2, 4]:
-    chunks = windows(text, 7, overlap)
-    words = sum(len(chunk.split()) for chunk in chunks)
-    rule, fact = holding(chunks, RULE), holding(chunks, FACT)
-    print(f"overlap={overlap}: words={words} rule={rule} fact={fact}")
+for ov in (0, 2, 4):
+    chunks = windows(text, 7, ov)
+    total_words = sum(len(c.split()) for c in chunks)
+    full = sum(all(p in c.lower() for p in FULL_RULE) for c in chunks)
+    short = sum(all(p in c.lower() for p in SHORT_FACT) for c in chunks)
+    print(f"overlap={ov}: words={total_words:2d} full_rule={full} short_fact={short}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-0: Rollback failure page on-call within 15
-1: within 15 minutes with deploy ID.
-2: deploy ID. Routine deploy notes archive
-3: notes archive within 14 days.
-overlap=0: words=17 rule=0 fact=0
-overlap=2: words=21 rule=0 fact=1
-overlap=4: words=33 rule=0 fact=1
+0: Streaming timeout: close idle SSE connections
+1: SSE connections after 90 seconds without
+2: seconds without heartbeat frames. Batch retention:
+3: Batch retention: expire JSONL outputs after
+4: outputs after 14 days.
+overlap=0: words=20 full_rule=0 short_fact=1
+overlap=2: words=26 full_rule=0 short_fact=1
+overlap=4: words=40 full_rule=0 short_fact=1
 ```
 <!-- leetllm: output:end -->
 
-The first window ends right after `15`, so the number has been separated from its unit. Now look at the bottom three lines, which run windows of seven words at three levels of overlap. Overlap climbs from 0 to 4, indexed words almost double from 17 to 33, and the count of chunks holding the complete rule stays at zero.
-
-Of course it does. The rule is ten words long and the window holds seven. No amount of sliding will fit a ten-word fact into a seven-word window. Overlap cannot make a window bigger, and it charges you for every repeated word.
-
-Now try a fact that fits, in the `fact` column. `15 minutes with deploy ID` is five words, and overlap 0 cuts it in two. Overlap 2 saves it for four extra words. Overlap 4 saves it too, for sixteen extra words. That is what overlap buys: a second chance for facts shorter than the window, at a price you can count.
+Look at the bottom three lines. Ramping overlap from 0 to 4 nearly doubles indexed words from 20 to 38 while `full_rule` stays pinned at zero. A 12-word specification can never fit inside a 7-word window, no matter how far you slide it. Overlap *does* rescue the 4-word `short_fact` (`90 seconds without heartbeat`), because that phrase is shorter than the window.
 
 <figure>
-  <img src="illustrations/_generated/chunking_comparison_dark.png" alt="Three interval maps show size-7 windows over the same 17 runbook words. Overlap 0, 2, and 4 store 17, 21, and 33 words in 3, 3, and 5 chunks. A strip under each map darkens where words repeat across windows. The rollback rule spans words 1 to 10, so no seven-word window holds the whole rule at any overlap." />
-  <figcaption>Overlap 0, 2, and 4 index 17, 21, and 33 words across 3, 3, and 5 chunks. Darker strips mark words stored in more windows. The ten-word rule spans the shaded region and never fits inside a single seven-word window, so for this rule the extra copies buy nothing.</figcaption>
+  <img src="illustrations/_generated/chunking_comparison_dark.png" alt="Interval maps compare size-7 windows at overlaps 0, 2, and 4, showing darker bands of repeated tokens as overlap rises while a rule wider than the window never fits inside any single chunk." />
+  <figcaption>Higher overlap repeats tokens across adjacent windows, rescuing short facts that straddled a cut while never fitting a specification longer than the window itself.</figcaption>
 </figure>
 
-For long documents the cost has a simple form. Ignoring end effects, an overlap fraction $r=O/N$ multiplies the text you process by about $1/(1-r)$, so a 20% overlap means about 25% more text to embed and store. Experiments by Bennani and Moslonka give good reason to check whether overlap helps on your workload: across up to 20% overlap on Natural Questions, with chunks of 50 to 500 tokens and context budgets from 500 to 10,000 tokens, answer quality did not measurably move.[^bennani2026chunking] Their retriever was SPLADE, a learned form of word matching that [Hybrid search](/learn/hybrid-search-dense-sparse-retrieval) covers. Their explanation depends on sentence-aware splitting and that retriever, so test overlap on your own runbooks with your own retriever instead of copying a default.
+On long documents, overlap fraction $r = O / N$ multiplies embedded tokens by roughly $1 / (1 - r)$, so 20% overlap embeds ~25% more text. Bennani and Moslonka tested up to 20% overlap on Natural Questions with sentence-aware splitting and SPLADE retrieval and found no measurable answer-quality lift.[^bennani2026chunking] Measure overlap on your own queries instead of turning it on by default.
 
 ```checkpoint
-You split a 10,000-token document into windows of 200 tokens with 40 tokens of overlap. About how many tokens do you embed, and how long can a fact be and still be sure of landing whole inside one window?
+You split a 10,000-token API manual into 200-token windows with 40 tokens of overlap. Roughly how many tokens do you embed, and how long can a fact be and still be sure to land unbroken in one window?
 ---
-The overlap fraction is $40/200=0.2$, so you embed about $10{,}000/(1-0.2)=12{,}500$ tokens. Windows start every 160 tokens, so any fact of about 40 tokens or fewer always fits inside one. A longer fact up to 200 tokens fits only if the cuts happen to fall well, and anything over 200 never fits.
+Overlap fraction is $40 / 200 = 0.2$, so you embed about $10{,}000 / 0.8 = 12{,}500$ tokens. Because adjacent windows overlap by 40 tokens, any fact of up to 40 tokens always lands intact inside at least one window; facts between 41 and 200 tokens depend on alignment, and anything past 200 tokens never fits.
 ```
 
-## Use the structure ingestion preserved
+## Use the structure the document already has
 
-Here is the frustrating part. The document already knows where its rules begin and end. Suppose the source groups the paging action under a heading called `Rollback failure`, and ingestion kept that heading. A fixed window throws it away and then tries to rediscover the relationship by repeating text.
+Technical manuals, API references, and papers already mark where each topic starts and ends. Throwing away Markdown headings and tables only to patch boundaries with overlap solves a problem you created yourself.
 
-So use it. Keep the section as one retrieval unit whenever it fits the embedding limit, and prepend its heading to the text you index. The body can then begin with "Page on-call," and the condition stays attached. Store the original span and locator separately from that search text, so the added label never turns into a false quotation when you cite the source.
+Keep each complete section as one retrieval unit whenever it fits the embedding limit, and prepend its heading to the embedded string while storing the raw text and locator separately for clean citations. For tables that exceed one chunk, repeat the column header row with every row group so numeric cells never lose their units or column names.
 
-We wrote the records below by hand. They show what a structure-aware adapter should give you: each section with its heading, body, source, and locator.
-
-<!-- leetllm: test, output=show, id=reader-chunking-sections -->
-```python title="index-preserved-sections.py"
-import re
+<!-- leetllm: test, output=show, deps=numpy,scikit-learn, id=reader-chunking-sections -->
+```python title="reader-headed-sections.py"
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 sections = [
-    {"id": "rollback", "heading": "Rollback failure",
-     "body": "Page on-call within 15 minutes with deploy ID.",
-     "source": "incident-runbook-v3.pdf",
-     "locator": "page=7;section=0"},
-    {"id": "archive", "heading": "Routine deploy notes",
-     "body": "Archive within 14 days after release.",
-     "source": "incident-runbook-v3.pdf",
-     "locator": "page=7;section=1"},
+    {"id": "sse-timeout", "heading": "Streaming timeout",
+     "body": "Close idle SSE connections after 90 seconds without heartbeat frames.",
+     "locator": "inference-api-spec-v2.md#sec=4.2"},
+    {"id": "batch-retention", "heading": "Batch retention",
+     "body": "Expire completed JSONL output files after 14 days.",
+     "locator": "inference-api-spec-v2.md#sec=4.3"},
 ]
-for s in sections:
-    s["indexed_text"] = s["heading"] + "\n" + s["body"]
+indexed = [f"{s['heading']}\n{s['body']}" for s in sections]
 
-def terms(text):
-    return set(re.findall(r"[a-z0-9]+", text.lower()))
-
-query = "rollback failure deploy minutes"
-hit = max(sections, key=lambda section:
-          len(terms(query) & terms(section["indexed_text"])))
-print(hit["id"], hit["locator"])
-print(hit["indexed_text"].replace("\n", " | "))
+vec = TfidfVectorizer(stop_words="english")
+sims = cosine_similarity(vec.fit_transform(["streaming SSE timeout heartbeat"]), vec.transform(indexed))[0]
+best = sections[int(np.argmax(sims))]
+print(best["id"], best["locator"])
+print(f"{best['heading']} | {best['body']}")
+assert best["id"] == "sse-timeout"
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-rollback page=7;section=0
-Rollback failure | Page on-call within 15 minutes with deploy ID.
+sse-timeout inference-api-spec-v2.md#sec=4.2
+Streaming timeout | Close idle SSE connections after 90 seconds without heartbeat frames.
 ```
 <!-- leetllm: output:end -->
 
-This scorer counts shared words, which keeps our attention on the cut itself before any vector index enters the picture. The heading makes the condition searchable, and the returned body brings the deadline and the ID along with it. Compare that with a candidate that ranks just as well and ends before `15 minutes`.
+When a single section exceeds the embedding limit, fall back to a structure-aware recursive splitter (such as LangChain's `RecursiveCharacterTextSplitter`, which tries paragraph breaks, line breaks, spaces, and characters in order; always pass a tokenizer-backed length function instead of raw character `len`).[^langchain2023]
 
-Tables need the same care. Split `Rollback failure | 15 minutes | Deploy ID` away from `Condition | Window | Required evidence`, and the values lose their roles. When a table is too long for one chunk, repeat the column names with each group of rows, keep the table's locator, and keep any qualifiers that apply to the whole table.
+Watch three details inside oversized sections:
 
-## When a section is too big
+1. **Tables and fenced code blocks:** Splitting a single data row away from its column header strips every cell of its role. When a specification table is too tall for one chunk, repeat the column header row (and any table-wide units or footnotes) on every row group:
 
-Some sections will exceed your embedding limit, and you will need a fallback inside them. LangChain's recursive splitter is the usual starting point: it tries paragraph breaks, then line breaks, then spaces, then individual characters.[^langchain2023] Know its defaults before you trust it. Its length function counts characters unless you say otherwise, which is a different budget from tokens, and nothing in its default separator list understands sentences.
+| Split strategy | Indexed chunk text | Preserves meaning? |
+| --- | --- | --- |
+| Naive row cut | `/v1/batches`, `100 MB`, `24h` (no header row) | No: `100 MB` and `24h` lose their column roles |
+| Header-preserving split | `Endpoint`, `Max Payload`, `Timeout` + `/v1/batches`, `100 MB`, `24h` | Yes: every value stays tied to its column name |
 
-Measure the final string you will embed, after adding headings, with the tokenizer of the embedding model. Then check the returned context again with the generator's tokenizer, since the two models can have different tokenizers and different limits.
+Apply the same discipline to fenced code blocks in SDK guides: splitting mid-function separates parameter types and imports from the logic that uses them, so treat each fenced block as an atomic unit unless it alone exceeds the encoder cap.
+2. **Short tails vs. hard caps:** Suppose you split a 15-word sentence under a hard 7-word cap. You need at least 3 chunks, so you cannot simultaneously enforce a 6-word minimum ($3 \times 6 = 18 > 15$). Resist the urge to glue a 1-word tail onto the previous chunk and silently create an 8-word overflow; instead distribute evenly (`5, 5, 5`) or flag the short chunk for parent expansion so the embedder never truncates trailing tokens.
+3. **Stable evaluation spans:** Chunk IDs change every time you tweak a splitter. Anchor your labeled test sets to half-open character offsets in a specific normalized version of the source document so every splitter experiment stays directly comparable, and keep the raw verbatim span separate from any prepended search heading so citations always quote the source faithfully.
 
-Short tails force a choice, and it pays to make that choice on purpose. Say you split fifteen words into non-overlapping chunks of at most seven. You need at least three chunks. You might also want every chunk to have at least six words, so nothing looks too small to be useful, but that is impossible, since three such chunks need eighteen words. The tempting fix is to merge the tail into its neighbor, which quietly creates an eight-word chunk and breaks the cap you set in the first place. Keep the hard cap. Flag the short piece, and either pick a different representation or require expansion whenever it is retrieved.
+## Search small, return the full section
 
-Finally, keep track of where each chunk came from in terms that survive change. Store half-open character offsets into a specific normalized version of the source, along with a map back to the raw document. Chunk IDs change whenever your splitter changes, so label your evaluation sets by source span. Otherwise every improvement to your splitter invalidates your test data, and you can no longer compare before and after.
-
-## Search small, return more
-
-Here is an idea that dissolves much of the chunk-size argument: the best unit to search and the best unit to read need not be the same.
-
-A short sentence often makes a sharp search target, because a vector for one precise idea is less diluted than a vector for a whole page. That same short sentence makes a poor thing to hand a model. Parent-child retrieval takes both sides seriously. It indexes the small child for matching, and it returns the larger parent section for generation.[^langchain_parent_document_retriever]
-
-For our runbook, the child `15 minutes with deploy ID` points to the complete rollback section. The engineer's question matches the child, and the model reads the whole rule.
+A short sentence often makes a sharper vector target than a whole page, yet a short sentence rarely holds all the caveats a model needs. **Parent-child retrieval** bridges the two: index compact child spans for search, then follow each match's `parent_id` to load the full parent section for generation.[^langchain_parent_document_retriever]
 
 <figure>
-  <img src="illustrations/_generated/parent_child_evidence_dark.png" alt="A query about a failed rollback on deploy pay-742 matches the short indexed child 15 minutes with deploy ID. After checks that the link is current, the caller may read the parent, and the section fits the budget, its pointer returns the complete rollback section from page 7 of incident-runbook-v3.pdf." />
-  <figcaption>The index stores a short child for matching. A query that hits it follows the pointer back to the complete rollback section, which is what the model reads and what the answer cites.</figcaption>
+  <img src="illustrations/_generated/parent_child_evidence_dark.png" alt="A query matches a short indexed child excerpt, verifies version and permissions, and expands to return the complete cited parent section." />
+  <figcaption>The index searches compact child spans; a hit follows its pointer back to the full parent section for the generator and citation map.</figcaption>
 </figure>
 
-That pointer is new machinery, and it has its own ways to fail. The parent may have changed since the child was indexed. The caller may be allowed to read one and not the other. Two children of the same parent may both match, and you should send one copy of the parent rather than two. Several parents together may overflow your context budget. This small expansion function checks all four, and the output shows one success followed by each failure in turn.
+Every pointer introduces failure modes you must guard at serving time: deduplicate parents when multiple children match, confirm the child and parent share the same version, check caller permissions on the parent, and reject budget overflows instead of silently chopping off the final sentence.
 
 <!-- leetllm: test, output=show, id=reader-chunking-parent -->
-```python title="resolve-a-permitted-complete-parent.py"
-parents = {"rollback": {
-    "version": 3,
-    "text": ("Rollback failure: page on-call within 15 minutes "
-             "with deploy ID."),
-}}
+```python title="reader-parent-expand.py"
+parents = {
+    "sec-4-2": {
+        "version": 2,
+        "text": "Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames.",
+    }
+}
 
-def expand(matches, allowed, word_budget):
+def expand(matches: list[dict], allowed: set[str], word_budget: int) -> list[dict]:
     selected = {}
-    for match in matches:
-        parent_id = match["parent"]
-        if parent_id not in allowed:
+    for m in matches:
+        pid = m["parent"]
+        if pid not in allowed:
             raise PermissionError("parent access denied")
-        parent = parents[parent_id]
-        if match["version"] != parent["version"]:
+        parent = parents[pid]
+        if m["version"] != parent["version"]:
             raise ValueError("stale parent link")
-        selected[parent_id] = parent
-    words = sum(len(p["text"].split()) for p in selected.values())
-    if words > word_budget:
+        selected[pid] = parent
+    if sum(len(p["text"].split()) for p in selected.values()) > word_budget:
         raise ValueError("complete context exceeds budget")
     return list(selected.values())
 
-hits = [{"parent": "rollback", "version": 3}] * 2
-print("parent copies:", len(expand(hits, {"rollback"}, 20)))
-for matches, allowed, budget in [
-    ([{"parent": "rollback", "version": 2}], {"rollback"}, 20),
-    (hits, set(), 20), (hits, {"rollback"}, 5),
+hits = [{"parent": "sec-4-2", "version": 2}] * 2
+print("deduplicated parents:", len(expand(hits, {"sec-4-2"}, 20)))
+for case in [
+    ([{"parent": "sec-4-2", "version": 1}], {"sec-4-2"}, 20),
+    (hits, set(), 20),
+    (hits, {"sec-4-2"}, 6),
 ]:
     try:
-        expand(matches, allowed, budget)
-    except (ValueError, PermissionError) as error:
-        print(error)
+        expand(*case)
+    except (ValueError, PermissionError) as err:
+        print(err)
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Output" output compact
-parent copies: 1
+deduplicated parents: 1
 stale parent link
 parent access denied
 complete context exceeds budget
 ```
 <!-- leetllm: output:end -->
 
-Each of those errors protects a different property: the link is current, the reader is allowed, and the complete text fits. Notice that the budget failure raises an error instead of cutting the parent down to size. Silent truncation can remove the exact condition that expansion was meant to restore. If a parent is too large, choose a smaller complete unit, or report that you lack enough context. The real version counts budget with the generator's tokenizer, and it reserves room for instructions, the question, and the output.
-
 ```checkpoint
-Search returns children from three parents, ranked first to third, of 300, 300, and 500 tokens, and your context budget is 1,000 tokens. `expand` raises an error. A teammate suggests cutting the third parent down to 400 tokens so that everything fits. What would you do?
+Search matches children from three API sections (300, 300, and 500 generator tokens) under a 1,000-token evidence budget. A teammate suggests truncating the third section to 400 tokens so all three fit. Why is that risky?
 ---
-Do not cut it, since the 100 tokens you remove may hold the condition that the expansion was meant to restore. Send the two highest-ranked parents, which use 600 tokens, record that the third was dropped, and check whether the answer still has what it needs. If the third parent holds a required condition, report that you lack enough context.
+Cutting the final 100 tokens can slice off the exact caveat or exception that parent expansion was supposed to restore. Send the top two complete sections (600 tokens), log that the third was skipped due to budget, or use smaller complete subsections.
 ```
 
-## Reach for fancier splitting only when something fails
+## Save semantic and late chunking for measured misses
 
-Two more sophisticated techniques come up constantly, and both solve specific problems. Save them until your measurements show you have those problems. Bennani and Moslonka report that sentence-preserving splits matched semantic chunking up to roughly five thousand tokens of retrieved context in their Wikipedia setup, which is a useful reminder to measure the simple option first.[^bennani2026chunking]
+Two heavier techniques come up constantly, and both target narrow failure modes. Because sentence-preserving splits matched semantic chunking up to ~5,000 tokens of context on Natural Questions,[^bennani2026chunking] ship structural splitting and parent expansion first.
 
-**Semantic chunking** places cuts where the embeddings of neighboring sentences change sharply. This can help when one paragraph drifts between topics. Its threshold needs tuning on labeled cases, and it can detach things you wanted kept together, such as an exception from its rule, or a pronoun from what it refers to. A sentence the model represents poorly gives you no real signal about a topic change either, so inspect the cuts before you trust them.
+- **Semantic chunking** embeds adjacent sentences and inserts a cut where cosine similarity drops sharply. It helps on long unstructured prose that drifts across topics, though poorly calibrated thresholds can sever an exception from its rule, and out-of-vocabulary sentences can produce noisy vectors that trigger false cuts.
+- **Late chunking** runs a full document through the transformer encoder first and mean-pools token hidden states inside each chunk span, letting a later paragraph mentioning `"the method"` inherit context from an earlier definition of `"Rotary Position Embeddings (RoPE)"`.[^gunther2024] Remember two limits: the stored *text* still says `"the method"` (so generation still needs parent context to name RoPE explicitly), and you must never encode public and restricted text in the same forward pass, because cross-token attention lets restricted tokens bleed into the public chunk's vector even if the restricted chunk is filtered out at query time.
 
-**Late chunking** addresses a different problem. Consider a passage that mentions Berlin and later says "the city." Chunked and embedded separately, that later sentence has no idea which city. Late chunking runs the longer text through the encoder first, then averages the token representations falling inside each chunk, so the vector for "the city" can reflect the earlier mention of Berlin.[^gunther2024]
+<figure>
+  <img src="illustrations/_generated/late_vs_early_chunking_dark.png" alt="Comparison of early chunking with block-diagonal attention isolated per chunk versus late chunking with full-sequence self-attention before pooling each chunk span." />
+  <figcaption>Early chunking isolates attention inside each chunk; late chunking encodes the full sequence first and pools span hidden states afterward so pronouns and references carry document context.</figcaption>
+</figure>
 
-Two details limit what this buys you. The vector improved, but the text did not. The returned chunk still says "the city," so the model needs the antecedent from some other step. And the technique requires an embedding model that exposes token-level states, an input that fits the encoder, and care with offsets between source text and tokens. Averaging vectors from chunks that were encoded separately gives you none of this, since those vectors formed without seeing each other.
+## Fair benchmarking at a fixed token budget
 
-Late chunking also has a security consequence that is easy to miss. If a public paragraph is encoded alongside a restricted one, its vector is shaped by the restricted text. Filtering what you display does nothing about that. Keep shared encoder inputs inside one permission and trust scope, and record which context produced each vector.
+Never compare two splitters at equal `top_k`: five huge sections feed far more text to the generator than five short children. Fix the **final generation token budget**, label ground truth by stable source spans, and track five numbers side by side: retrieval hit rate, assembled-context answerability, duplicate-text ratio, query latency, and index size. Include real edge cases in your regression set: conditions split from thresholds, table rows detached from headers, code snippets cut mid-function, and exceptions sitting at the end of long sections.
 
-## Compare what finally reaches the model
+Start with heading- and table-aware splitting, recursive fallback inside oversized sections, and parent expansion where sections run long. Let concrete, labeled misses justify any extra complexity beyond that clean baseline.
 
-When you do compare splitters, the comparison has to be fair, but the common way of doing it is not. Comparing at equal top-$k$ favors long chunks: five long sections can consume far more of your context budget than five short children. So fix a token budget for generation, run each splitter through the same retrieval and assembly path, and evaluate what comes out at the end.
-
-Use labeled questions with known source versions and answer-bearing spans, and measure five things: whether the right passage was found, whether the assembled context is enough to answer, how much duplicate text it holds, latency, and index size. Include the failures from this chapter in your test set: a condition split from its deadline, a table cut away from its header, an exception lost at the end of a section.
-
-If you are starting today, here is what I would ship first. Split on document structure, prepend headings, fall back to a recursive splitter inside oversized sections, and add parent expansion for documents where sections are long. Leave semantic and late chunking out until a labeled failure asks for them. Every later comparison then has a clean baseline to beat.
-
-The runbook now has a traceable path from source record to complete, permitted context. The next step is to build the service around that path. [Production RAG](/learn/design-production-rag-pipeline) follows one real request from a caller's question through retrieval to a cited answer, and shows where it can still go wrong.
-
+> **Next:** Continue to [Embedding Similarity & Quantization](/learn/embeddings-cosine-dot-product-quantization).
 <!-- leetllm: edition:reader:end -->

@@ -3,10 +3,10 @@
   "id": "file-ingestion-pdfs-html-ocr-markdown",
   "title": "File Ingestion for AI",
   "slug": "file-ingestion-pdfs-html-ocr-markdown",
-  "section": "Core LLM Foundations",
+  "section": "Applied LLM Engineering & RAG",
   "category": "RAG & Retrieval",
   "difficulty": "Medium",
-  "order": 5,
+  "order": 9,
   "coverImage": "illustrations/_generated/ingestion_pipeline_dark.png",
   "companies": [
     "OpenAI",
@@ -814,7 +814,7 @@ Yes. Because text digests do not track authorization lists, unchanged text still
 ]
 ```
 
-> **Next:** Continue to [Chunking Strategies](/learn/chunking-strategies-document-processing). Extracted slices now carry page locators, checksums, and verification flags; next you decide whether `"Prefill stall"` and `"15 seconds with batch ID"` stay inside the same retrieval chunk when queries search for timeout thresholds.
+> **Next:** Continue to [Chunking Strategies](/learn/chunking-strategies-document-processing).
 
 <!-- leetllm: edition:reference:end -->
 

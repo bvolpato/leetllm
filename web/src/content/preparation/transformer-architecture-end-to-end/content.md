@@ -3,9 +3,9 @@
   "id": "transformer-architecture-end-to-end",
   "title": "The Transformer Architecture End-to-End",
   "slug": "transformer-architecture-end-to-end",
-  "section": "Preparation & Prerequisites",
+  "section": "Core LLM Foundations",
   "category": "Transformer Architecture",
-  "difficulty": "Easy",
+  "difficulty": "Medium",
   "order": 5,
   "coverImage": "illustrations/_generated/transformer_full_architecture_dark.png",
   "companies": [
@@ -980,7 +980,7 @@ The residual has 12 entries and the FFN update has 18. More importantly, additio
 ]
 ```
 
-> **Next:** Continue to [Language Modeling & Next Tokens](/learn/language-modeling-next-token-prediction). You can now run the decoder forward path on `function returns the` and obtain next-token logits. Next you'll shift token sequences into inputs and targets, then apply the <span data-glossary="cross-entropy">cross-entropy</span> objective introduced earlier at every predicted position.
+> **Next:** Continue to [Language Modeling & Next Tokens](/learn/language-modeling-next-token-prediction).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->

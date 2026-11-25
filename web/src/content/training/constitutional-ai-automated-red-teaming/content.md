@@ -6,7 +6,12 @@
   "category": "Alignment & Safety",
   "difficulty": "Hard",
   "coverImage": "illustrations/_generated/constitutional_ai_dark.png",
-  "companies": ["Anthropic", "OpenAI", "Google DeepMind", "Meta"],
+  "companies": [
+    "Anthropic",
+    "OpenAI",
+    "Google DeepMind",
+    "Meta"
+  ],
   "shortDescription": "Trace Constitutional AI from critique and revision to AI preference labels, then build honest red-team evaluations that separate model failures, false refusals, and judge errors.",
   "keyConceptsTested": [
     "Constitutional AI critique-revision loop",
@@ -20,8 +25,8 @@
     "Multi-turn evaluation",
     "Authorization and defense in depth"
   ],
-  "section": "Advanced Training & Adaptation",
-  "order": 13,
+  "section": "Training, Fine-Tuning & Alignment",
+  "order": 18,
   "prerequisites": [
     "rlhf-dpo-aligning-language-models",
     "reward-modeling-from-preference-data",
@@ -800,7 +805,7 @@ Record the prohibited proposal as a model behavior failure if it breaks your rub
 ]
 ```
 
-> **Next:** Continue to [RLVR & Verifiable Rewards](/learn/rlvr-verifiable-rewards-training). Compare preference-based supervision with rewards computed by an executable verifier, and examine what deterministic checkers still leave unverified.
+> **Next:** Continue to [RLVR & Verifiable Rewards](/learn/rlvr-verifiable-rewards-training).
 
 <!-- leetllm: edition:reference:end -->
 

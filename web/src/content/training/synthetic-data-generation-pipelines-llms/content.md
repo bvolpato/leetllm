@@ -30,8 +30,8 @@
     "Data flywheel: iterative generator and verifier loops",
     "Shard byte identity, trusted manifests, and SHA-256 limits"
   ],
-  "section": "Advanced Training & Adaptation",
-  "order": 5,
+  "section": "Training, Fine-Tuning & Alignment",
+  "order": 10,
   "prerequisites": [
     "instruction-tuning-chat-templates",
     "dataset-pipelines-data-quality",
@@ -872,4 +872,4 @@ Y adds depth (making the CSV task harder); Z adds breadth (introducing an adjace
 ]
 ```
 
-> **Next:** Continue to [Supervised Fine-Tuning Pipeline](/learn/supervised-fine-tuning-pipeline). Accepted, versioned rows are still data. Next, turn them into an SFT run with the right chat template, loss mask, adaptation method, and evaluation plan, then test whether the trained checkpoint learned the intended behavior.
+> **Next:** Continue to [Supervised Fine-Tuning Pipeline](/learn/supervised-fine-tuning-pipeline).

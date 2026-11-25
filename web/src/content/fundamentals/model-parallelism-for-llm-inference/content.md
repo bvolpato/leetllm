@@ -3,10 +3,10 @@
   "id": "model-parallelism-for-llm-inference",
   "title": "Model Parallelism for LLM Inference",
   "slug": "model-parallelism-for-llm-inference",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 8,
+  "order": 11,
   "coverImage": "illustrations/_generated/inference_parallelism_dark.png",
   "shortDescription": "When a 70 GB weight file exceeds one GPU, sharding buys memory and spends it on traffic between devices.",
   "keyConceptsTested": [
@@ -19,7 +19,6 @@
     "Per-rank memory and SLO eligibility"
   ],
   "prerequisites": [
-    "scaling-llm-inference-batching-kv-cache",
     "continuous-batching-request-scheduling",
     "kv-cache-paged-attention-llm-serving",
     "multi-query-grouped-query-attention"
@@ -400,4 +399,4 @@ Evaluate every candidate topology in three steps:
 ]
 ```
 
-> **Next:** Continue to [Accelerator Architecture Field Guide](/learn/accelerator-architecture-field-guide). Model parallelism describes how work is split. The next lesson maps those shards onto real accelerator execution units, memory systems, and interconnects so placement decisions start from hardware evidence instead of product names.
+> **Next:** Continue to [Distributed Inference Data Plane](/learn/distributed-inference-data-plane).

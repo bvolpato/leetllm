@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 7,
+  "order": 9,
   "coverImage": "illustrations/_generated/rank_lattice_dark.png",
   "companies": [
     "NVIDIA",
@@ -581,4 +581,4 @@ Microbatches per replica halve, widening the pipeline bubble even as replicated 
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - DeepSpeed](/learn/deep-dive-deepspeed). Megatron decided which ranks share which NCCL group, then sharded optimizer state on the data-parallel axis. DeepSpeed takes that ownership question further: ZeRO stages, offload, and an engine that owns the training step.
+> **Next:** Continue to [Deep Dive - Ray](/learn/deep-dive-ray).

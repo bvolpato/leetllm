@@ -3,10 +3,10 @@
   "id": "gpu-runtime-execution-lab",
   "title": "GPU Runtime Execution Lab",
   "slug": "gpu-runtime-execution-lab",
-  "section": "Inference & Production Scale",
+  "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 16,
+  "order": 19,
   "shortDescription": "When short CUDA kernels finish before the host submits the next one, streams, events, and graphs close that gap only if completion and addresses stay correct.",
   "keyConceptsTested": [
     "Host enqueue and device completion",
@@ -27,7 +27,7 @@
     "SGLang"
   ],
   "prerequisites": [
-    "gpu-profiling-correctness-benchmarking",
+    "gpu-kernel-performance-engineering-lab",
     "gpu-compilers-kernel-languages",
     "low-precision-gpu-programming"
   ],
@@ -35,7 +35,7 @@
     "low-precision-gpu-programming",
     "deep-dive-vllm",
     "deep-dive-sglang",
-    "scaling-llm-inference-batching-kv-cache"
+    "continuous-batching-request-scheduling"
   ]
 }
 ---
@@ -639,4 +639,4 @@ Host-enqueue gaps, missing dependencies, and long kernels leave different traces
 ]
 ```
 
-> **Next:** [AI-Generated Kernel Engineering](/learn/ai-generated-kernel-engineering) asks how to evaluate a generated kernel when correctness, submission costs, and measurement scope all affect the result.
+> **Next:** Continue to [GPU Serving & Autoscaling](/learn/llm-deployment-gpu-serving-autoscaling).

@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 13,
+  "order": 4,
   "coverImage": "illustrations/_generated/sglang_runtime_stack_dark.png",
   "shortDescription": "GPU use falls, and two requests that shared a prefix now prefill apart. Follow that lost time through SGLang's cache, scheduler, and decode path.",
   "keyConceptsTested": [
@@ -511,4 +511,4 @@ Check whether mixed-chunk batching is actually enabled, inspect real batch trace
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - slime](/learn/deep-dive-slime). Serving a fixed model made cache ownership central. An RL rollout system adds changing weights, so request lifetimes must also agree with policy versions and trainer synchronization.
+> **Next:** Continue to [Deep Dive - FlashInfer](/learn/deep-dive-flashinfer).

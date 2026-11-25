@@ -6,7 +6,14 @@
   "category": "Evaluation & Benchmarks",
   "difficulty": "Medium",
   "coverImage": "illustrations/_generated/llm_judge_dark.png",
-  "companies": ["Google", "OpenAI", "Anthropic", "Meta", "Cohere", "Scale AI"],
+  "companies": [
+    "Google",
+    "OpenAI",
+    "Anthropic",
+    "Meta",
+    "Cohere",
+    "Scale AI"
+  ],
   "shortDescription": "Two ServeSpec configuration replies satisfy a memory limit rule, yet string matching cannot show which engineers can execute cleanly.",
   "keyConceptsTested": [
     "Deterministic checks versus semantic judgments",
@@ -17,8 +24,8 @@
     "Human agreement, Cohen's kappa, and coverage",
     "Conversation state and held-out uncertainty"
   ],
-  "section": "Applied LLM Engineering",
-  "order": 15
+  "section": "Applied LLM Engineering & RAG",
+  "order": 14
 }
 ---
 <!-- leetllm: edition:reference:start -->
@@ -717,7 +724,7 @@ Version every moving component together: judge checkpoint, rubric prompt, refere
 ]
 ```
 
-> **Next:** Continue to [Bias & Fairness in LLMs](/learn/bias-detection-fairness-llms). Checking judge stability and reviewer alignment does not show whether equivalent user prompts across dialects and demographic cues receive systematically uneven treatment in practice.
+> **Next:** Continue to [Hallucination Detection & Mitigation](/learn/hallucination-detection-mitigation).
 <!-- leetllm: edition:reference:end -->
 <!-- leetllm: edition:reader:start -->
 
@@ -1030,6 +1037,6 @@ Two sampling traps quietly break this bound: re-running the same 50 prompts six 
 
 Start an automated evaluator in low-cost advisory roles where mistakes are inexpensive, such as surfacing borderline drafts for engineering inspection while leaving hard access, schema, and permission rules under deterministic code. As measured human alignment, slice coverage, and adversarial robustness mature, you can expand its scope toward ranking prompt candidates and guarding regression suites. Always require reviewers to anchor preferences like `stepwise` over `compact` in clear rubric observations so winning examples feed back into concrete generator improvements.
 
-Finally, recognize that routing evaluation traces to an external or hosted judge replicates internal serving specs, user queries, and configuration parameters onto an evaluation path. Apply identical access controls and data retention rules across judge inputs and reviewer exports. Everything covered on retrieval and evaluation so far assumed document permissions always behave correctly; [Retrieval security](/learn/enterprise-rag-security-rbac-access-control) drops that assumption and tracks restricted context across every interface where leaks happen.
+Finally, recognize that routing evaluation traces to an external or hosted judge replicates internal serving specs, user queries, and configuration parameters onto an evaluation path. Apply identical access controls and data retention rules across judge inputs and reviewer exports. Everything covered on retrieval and evaluation so far assumed document permissions always behave correctly; [Retrieval security](/learn/design-production-rag-pipeline) drops that assumption and tracks restricted context across every interface where leaks happen.
 
 <!-- leetllm: edition:reader:end -->

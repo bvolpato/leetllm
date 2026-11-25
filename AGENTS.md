@@ -2,7 +2,7 @@
 
 ## Architecture
 
-AI curriculum platform with 199 visible progressive lessons covering AI/ML and LLM engineering. Next.js 16+ application with Supabase backend and Cloud Run deployment.
+AI curriculum platform with 140 visible progressive lessons covering AI/ML and LLM engineering. Next.js 16+ application with Supabase backend and Cloud Run deployment.
 
 **Live:** https://leetllm.com
 
@@ -26,7 +26,7 @@ leetllm.com/
 │   ├── src/
 │   │   ├── app/            # Pages & API routes
 │   │   ├── components/     # Reusable UI
-│   │   ├── content/        # 199 visible lessons + hidden/quarantined lessons + blog
+│   │   ├── content/        # 140 visible lessons + blog + practice + glossary
 │   │   └── lib/            # Supabase, content loader
 │   └── tools/              # Build-time tools (illustrations, diagrams)
 ├── supabase/schema/        # Database migrations
@@ -37,7 +37,7 @@ leetllm.com/
 
 ## Content Model
 
-- **199 visible lessons** across 15 progressive roadmap phases
+- **140 visible lessons** across 13 progressive roadmap phases
 - **Per-article:** content.md with JSON frontmatter + illustrations/ (legacy metadata.json bundles remain readable)
 - **Canonical article order:** `web/src/lib/questions.ts` owns `ROADMAP_SECTION_SEQUENCE` and `SECTION_ROADMAP_SLUG_ORDER`; update both when moving lessons so roadmap, prev/next, and "keep reading" order stays correct.
 

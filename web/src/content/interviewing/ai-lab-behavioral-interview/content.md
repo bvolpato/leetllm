@@ -25,15 +25,13 @@
   ],
   "prerequisites": [
     "observability-monitoring-llm-systems",
-    "responsible-ai-governance-ethics-compliance",
-    "model-versioning-continuous-deployment",
     "ai-lab-system-design-interview"
   ],
   "relatedQuestions": [
     "llm-as-judge-automated-evaluation",
-    "guardrails-safety-filters-production",
+    "prompt-injection-defense-strategies",
     "agent-failure-states-retry-fallback",
-    "ab-testing-online-evaluation-llms"
+    "experiment-design-ab-testing"
   ]
 }
 ---
@@ -312,4 +310,4 @@ Testing every story in your portfolio against the diagnostic table below closes 
 ]
 ```
 
-> **Next:** Continue to [AI Lab Technical Presentation](/learn/ai-lab-technical-presentation). Expand one defensible project into a talk where a listener can question the decision, the mechanism, and what the numbers actually prove.
+> **Next:** Continue to [AI Lab Technical Presentation](/learn/ai-lab-technical-presentation).

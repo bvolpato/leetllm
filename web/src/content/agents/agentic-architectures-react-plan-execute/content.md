@@ -6,7 +6,13 @@
   "category": "LLM Agents & Tool Use",
   "difficulty": "Hard",
   "coverImage": "illustrations/_generated/react_loop_dark.png",
-  "companies": ["OpenAI", "Google", "Anthropic", "Microsoft", "Meta"],
+  "companies": [
+    "OpenAI",
+    "Google",
+    "Anthropic",
+    "Microsoft",
+    "Meta"
+  ],
   "shortDescription": "Follow a debugging agent through real tool results, build its control loop, and turn independent checks into a parallel plan. Then add memory, replanning, and search.",
   "keyConceptsTested": [
     "Observation-driven tool selection",
@@ -18,7 +24,7 @@
     "Routing, Reflexion, self-consistency, and tree search"
   ],
   "section": "Advanced Agents & Retrieval",
-  "order": 6
+  "order": 4
 }
 ---
 
@@ -540,12 +546,12 @@ The architecture follows the task's information flow. In our debugging example, 
 ]
 ```
 
-> **Next:** Continue to [Guardrails & Safety Filters](/learn/guardrails-safety-filters-production). The control loop now connects model choices to real tools. Next, place checks around the inputs, outputs, and actions that can affect the surrounding application.
+> **Next:** Continue to [Context Engineering](/learn/long-context-engineering-beyond-management).
 
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
 
-> **Next:** Continue to [Long-Context Engineering](/learn/long-context-engineering-beyond-management). An investigation needs to carry its useful findings forward. The next chapter develops how to select and organize that context as the task grows.
+> **Next:** Continue to [Context Engineering](/learn/long-context-engineering-beyond-management).
 
 <!-- leetllm: edition:reader:end -->
