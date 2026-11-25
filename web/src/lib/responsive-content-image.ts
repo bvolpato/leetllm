@@ -1,6 +1,9 @@
-const RESPONSIVE_IMAGE_WIDTHS = [320, 640, 960, 1280, 1600] as const
-const VERSION_PATTERN = /^(?:1|[a-f0-9]{12})$/
-const RESPONSIVE_ENCODER_VERSION = "2"
+import {
+    buildPublicResponsiveWebpUrl,
+    parseContentImageUrl,
+    RESPONSIVE_ENCODER_VERSION,
+    RESPONSIVE_IMAGE_WIDTHS,
+} from "./content-assets"
 
 /** Offer cached WebP variants only when intrinsic pixels are known. */
 export function getResponsiveContentImageProps(
@@ -8,30 +11,37 @@ export function getResponsiveContentImageProps(
     intrinsicWidth?: number,
     sizes = "100vw",
 ): { srcSet?: string; sizes?: string } {
-    if (!src || !src.startsWith("/cdn/content-image/") || src.includes("#")
+    if (!src || src.includes("#")
         || !Number.isInteger(intrinsicWidth) || !intrinsicWidth || intrinsicWidth <= 0) return {}
 
-    const [pathname, rawQuery = ""] = src.split("?", 2)
-    if (!pathname.endsWith(".png") || !pathname.slice("/cdn/content-image/".length).includes("/_generated/")) {
+    const parsed = parseContentImageUrl(src)
+    if (!parsed) return {}
+    if (parsed.kind === "local" && !src.startsWith("/cdn/content-image/")) return {}
+    if (!parsed.relativePath.endsWith(".png") || !parsed.relativePath.includes("/_generated/")) {
         return {}
     }
 
-    const search = new URLSearchParams(rawQuery)
-    const entries = Array.from(search.entries())
-    if (entries.some(([key]) => key !== "v") || search.getAll("v").length > 1) return {}
-
-    const version = search.get("v")
-    if (version !== null && !VERSION_PATTERN.test(version)) return {}
-
     const candidateWidths = RESPONSIVE_IMAGE_WIDTHS.filter((width) => width <= intrinsicWidth)
-    const candidates = candidateWidths.map((width) => {
-        const query = new URLSearchParams({ w: String(width) })
-        if (version !== null) query.set("v", version)
-        query.set("cv", RESPONSIVE_ENCODER_VERSION)
-        return `${pathname}?${query.toString()} ${width}w`
-    })
+    let candidates: string[]
 
-    if (version !== null && !RESPONSIVE_IMAGE_WIDTHS.some((width) => width === intrinsicWidth)) {
+    if (parsed.kind === "cdn") {
+        if (!parsed.origin || !parsed.version) return {}
+        const origin = parsed.origin
+        const version = parsed.version
+        candidates = candidateWidths.map((width) =>
+            `${buildPublicResponsiveWebpUrl(origin, parsed.relativePath, version, width)} ${width}w`,
+        )
+    } else {
+        const pathname = src.split("?", 1)[0]
+        candidates = candidateWidths.map((width) => {
+            const query = new URLSearchParams({ w: String(width) })
+            if (parsed.version !== null) query.set("v", parsed.version)
+            query.set("cv", RESPONSIVE_ENCODER_VERSION)
+            return `${pathname}?${query.toString()} ${width}w`
+        })
+    }
+
+    if (parsed.version !== null && !RESPONSIVE_IMAGE_WIDTHS.some((width) => width === intrinsicWidth)) {
         candidates.push(`${src} ${intrinsicWidth}w`)
     }
     if (candidates.length === 0) return {}

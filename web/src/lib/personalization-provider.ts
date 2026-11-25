@@ -332,6 +332,7 @@ export async function generateStructuredJson<T>({
             route.provider === "codex"
             && process.env.NODE_ENV === "test"
             && !process.env.CODEX_AUTH_JSON_B64
+            && !process.env.CODEX_RUNNER_URL
         ) {
             continue
         }

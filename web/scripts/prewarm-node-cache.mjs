@@ -22,7 +22,10 @@ const routes = [
   { path: '/api/search/learn?q=attention', expectedStatus: 200 },
   { path: '/api/glossary?q=attention', expectedStatus: 200 },
   { path: '/api/glossary/ab-testing', expectedStatus: 200 },
-  { path: '/cdn/content-image/blog/how-we-built-leetllm/illustrations/_generated/content_pipeline_dark.png?w=640', expectedStatus: 200 },
+  {
+    path: '/cdn/content-image/blog/how-we-built-leetllm/illustrations/_generated/content_pipeline_dark.png?w=640',
+    expectedStatus: process.env.NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN ? 308 : 200,
+  },
   { path: '/nonexistent-prewarm-404', expectedStatus: 404 },
 ];
 const server = spawn(process.execPath, ['server.js'], {
@@ -98,6 +101,7 @@ try {
   if (!ready) throw new Error(`Production cache preparation did not become ready: ${errorOutput}`);
   for (const { path: route, expectedStatus } of routes) {
     const response = await fetch(`http://127.0.0.1:${port}${route}`, {
+      redirect: 'manual',
       signal: AbortSignal.timeout(5000),
     });
     await response.arrayBuffer();

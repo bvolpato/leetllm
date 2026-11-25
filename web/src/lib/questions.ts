@@ -8,6 +8,7 @@ import {
     resolveContent,
     resolveReferencesFromContent,
     contentImageUrl,
+    hasContentMediaFile,
     normalizeContentImageUrl,
 } from "./content-utils"
 import {
@@ -264,7 +265,7 @@ function loadQuestion(
     const timeEstimate = estimateReadingTime(bundle.body, metadata.difficulty, false)
 
     const socialBannerPath = join(questionDir, "social_banner.png")
-    const socialImage = existsSync(/* turbopackIgnore: true */ socialBannerPath)
+    const socialImage = hasContentMediaFile(socialBannerPath)
         ? contentImageUrl(socialBannerPath)
         : undefined
 

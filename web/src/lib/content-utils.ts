@@ -2,6 +2,7 @@ import { createHash } from "crypto"
 import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from "fs"
 import { join, relative, sep } from "path"
 import { decodeHTMLAttribute } from "entities"
+import { buildPublicContentAssetUrl, getContentAssetsOrigin } from "./content-assets"
 
 // ═══════════════════════════════════════════════════════════════
 //  SHARED TYPES
@@ -188,10 +189,12 @@ type PngDimensions = {
     display: { w: number; h: number }
 }
 
-type PrebuiltImageManifestEntry = {
+export type PrebuiltImageManifestEntry = {
     v: string
     w?: number
     h?: number
+    pub?: 1
+    rw?: 1
 }
 
 let prebuiltImagesCache: Record<string, PrebuiltImageManifestEntry> | null = null
@@ -200,6 +203,10 @@ const contentImageVersionCache = new Map<string, { sig: string; version: string 
 
 function isProductionEnv(): boolean {
     return process.env.NODE_ENV === "production"
+}
+
+function shouldUsePrebuiltImageManifest(): boolean {
+    return isProductionEnv() || Boolean(getContentAssetsOrigin())
 }
 
 function getPrebuiltImageManifest(): Record<string, PrebuiltImageManifestEntry> {
@@ -214,15 +221,28 @@ function getPrebuiltImageManifest(): Record<string, PrebuiltImageManifestEntry> 
     return prebuiltImagesCache
 }
 
+export function getContentImageManifestEntry(relativePath: string): PrebuiltImageManifestEntry | undefined {
+    if (!shouldUsePrebuiltImageManifest()) return undefined
+    return getPrebuiltImageManifest()[relativePath]
+}
+
+export function resetPrebuiltImageManifestCacheForTests(): void {
+    prebuiltImagesCache = null
+}
+
 function prebuiltImageEntry(absolutePath: string): PrebuiltImageManifestEntry | undefined {
-    if (!isProductionEnv()) return undefined
+    if (!shouldUsePrebuiltImageManifest()) return undefined
     const rel = relative(CONTENT_DIR, absolutePath).split(sep).join("/")
     if (!rel || rel.startsWith("..") || rel.startsWith("/")) return undefined
     return getPrebuiltImageManifest()[rel]
 }
 
-function hasContentFile(absolutePath: string): boolean {
+export function hasContentMediaFile(absolutePath: string): boolean {
     return Boolean(prebuiltImageEntry(absolutePath)) || existsSync(/* turbopackIgnore: true */ absolutePath)
+}
+
+function hasContentFile(absolutePath: string): boolean {
+    return hasContentMediaFile(absolutePath)
 }
 
 function pngDimensions(filePath: string): PngDimensions | null {
@@ -295,6 +315,10 @@ export function contentImageUrl(absolutePath: string): string {
     const rel = relative(CONTENT_DIR, absolutePath).split(sep).join("/")
     const prebuilt = prebuiltImageEntry(absolutePath)
     if (prebuilt?.v) {
+        const assetsOrigin = getContentAssetsOrigin()
+        if (assetsOrigin && prebuilt.pub === 1) {
+            return buildPublicContentAssetUrl(assetsOrigin, rel, prebuilt.v)
+        }
         return `/cdn/content-image/${rel}?v=${prebuilt.v}`
     }
     let version = "1"
@@ -379,7 +403,7 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
             [`${theme}Captions`, join(contentDir, "illustrations", "_generated", `${base}_${theme}.vtt`)],
             [`${theme}Fallback`, join(contentDir, "illustrations", "_generated", `${base}_${theme}.png`)],
         ]))
-        if (existsSync(/* turbopackIgnore: true */ filmManifest) && Object.values(filmFiles).every(path => existsSync(/* turbopackIgnore: true */ path))) {
+        if (existsSync(/* turbopackIgnore: true */ filmManifest) && Object.values(filmFiles).every(path => hasContentFile(path))) {
             const metadata = JSON.parse(readFileSync(/* turbopackIgnore: true */ filmManifest, 'utf-8'))
             const filmData = JSON.stringify({
                 kind: 'film',
@@ -403,10 +427,10 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
         const lightFallback = join(contentDir, "illustrations", "_generated", `${base}_light.png`)
         if (
             existsSync(/* turbopackIgnore: true */ animationManifest) &&
-            existsSync(/* turbopackIgnore: true */ darkGif) &&
-            existsSync(/* turbopackIgnore: true */ lightGif) &&
-            existsSync(/* turbopackIgnore: true */ darkFallback) &&
-            existsSync(/* turbopackIgnore: true */ lightFallback)
+            hasContentFile(darkGif) &&
+            hasContentFile(lightGif) &&
+            hasContentFile(darkFallback) &&
+            hasContentFile(lightFallback)
         ) {
             const rawAlt = altManifest[base] || markdownAlt
             const metadata = JSON.parse(readFileSync(/* turbopackIgnore: true */ animationManifest, 'utf-8'))

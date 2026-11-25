@@ -10,6 +10,7 @@ import { dirname, join } from "path"
 import { afterEach, describe, expect, test } from "vitest"
 import {
     RUNTIME_CONTENT_MANIFEST_FILENAME,
+    collectRuntimeContent,
     runtimeContentManifestDigest,
     serializeRuntimeContentManifest,
     validateRuntimeContent,
@@ -86,5 +87,39 @@ describe("runtime content manifest", () => {
         const { source, runtime } = fixture()
         mutate(runtime)
         expect(() => validateRuntimeContent(source, runtime)).toThrow(error)
+    })
+
+    test("offloads public binary media while keeping private blog media and generated JSON manifests", () => {
+        const root = mkdtempSync(join(tmpdir(), "leetllm-runtime-cdn-"))
+        temporaryRoots.push(root)
+        const source = join(root, "source")
+        const runtime = join(root, "runtime")
+
+        write(source, "references.json", "{}\n")
+        write(
+            source,
+            "blog/public-post/content.md",
+            '---\n{"id":"1","title":"Public","slug":"public-post","publishedAt":"2026-01-01","excerpt":"x","tags":["AI"],"author":{"name":"A"}}\n---\nBody\n',
+        )
+        write(source, "blog/public-post/social_banner.png", "public-banner-bytes")
+        write(source, "blog/public-post/illustrations/_generated/fig_dark.png", "public-png-bytes")
+        write(source, "blog/public-post/illustrations/_generated/alt.json", '{"fig":"alt"}\n')
+        write(
+            source,
+            "blog/private-post/content.md",
+            '---\n{"id":"2","title":"Private","slug":"private-post","publishedAt":"2026-01-01","excerpt":"x","tags":["AI"],"author":{"name":"A"},"private":true}\n---\nBody\n',
+        )
+        write(source, "blog/private-post/social_banner.png", "private-banner-bytes")
+        write(source, "blog/private-post/illustrations/_generated/secret_dark.png", "private-png-bytes")
+
+        const manifest = collectRuntimeContent(source, runtime, { offloadPublicMedia: true })
+        const paths = manifest.files.map(({ path }) => path)
+
+        expect(paths).toContain("blog/public-post/content.md")
+        expect(paths).toContain("blog/public-post/illustrations/_generated/alt.json")
+        expect(paths).not.toContain("blog/public-post/social_banner.png")
+        expect(paths).not.toContain("blog/public-post/illustrations/_generated/fig_dark.png")
+        expect(paths).toContain("blog/private-post/social_banner.png")
+        expect(paths).toContain("blog/private-post/illustrations/_generated/secret_dark.png")
     })
 })

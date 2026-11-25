@@ -2,9 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs"
 import { tmpdir } from "os"
 import { dirname, join } from "path"
 import sharp from "sharp"
-import { afterEach, describe, expect, test } from "vitest"
+import { afterEach, describe, expect, test, vi } from "vitest"
 import { serveContentImage } from "./content-image-response"
 import { getResponsiveContentImageProps } from "./responsive-content-image"
+import { resetPrebuiltImageManifestCacheForTests } from "./content-utils"
 
 const temporaryDirectories: string[] = []
 
@@ -48,6 +49,8 @@ async function makeFallbackDiagramPng() {
 }
 
 afterEach(() => {
+    vi.unstubAllEnvs()
+    resetPrebuiltImageManifestCacheForTests()
     for (const directory of temporaryDirectories.splice(0)) {
         rmSync(directory, { recursive: true, force: true })
     }
@@ -141,8 +144,26 @@ describe("getResponsiveContentImageProps", () => {
         "/api/content-image/lesson/illustrations/_generated/flow.png?v=1",
         "https://leetllm.com/cdn/content-image/lesson/illustrations/_generated/flow.png?v=1",
         "/cdn/content-image/lesson/illustrations/_generated/flow.png?v=too-long",
+        "https://assets.leetllm.com/v1/0123456789ab/blog/example/social_banner.png",
+        "https://untrusted.example.com/v1/0123456789ab/lesson/illustrations/_generated/flow_dark.png",
     ])("leaves non-eligible image source %j unchanged", (src) => {
         expect(getResponsiveContentImageProps(src, 1600)).toEqual({})
+    })
+
+    test("builds immutable R2 CDN WebP srcSet for trusted assets.leetllm.com PNG URLs", () => {
+        expect(getResponsiveContentImageProps(
+            "https://assets.leetllm.com/v1/0123456789ab/lesson/illustrations/_generated/flow_dark.png",
+            1700,
+            "(min-width: 768px) 720px, 100vw",
+        )).toEqual({
+            srcSet: [
+                ...[320, 640, 960, 1280, 1600].map(
+                    (width) => `https://assets.leetllm.com/v1/0123456789ab-w${width}-cv2/lesson/illustrations/_generated/flow_dark.png.webp ${width}w`,
+                ),
+                "https://assets.leetllm.com/v1/0123456789ab/lesson/illustrations/_generated/flow_dark.png 1700w",
+            ].join(", "),
+            sizes: "(min-width: 768px) 720px, 100vw",
+        })
     })
 })
 
@@ -340,5 +361,47 @@ describe("serveContentImage responsive variants", () => {
         expect(Buffer.from(await original.arrayBuffer())).toEqual(source)
         expect(unversioned.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=300")
         expect(invalidVersion.status).toBe(400)
+    })
+
+    test("redirects missing public media to assets.leetllm.com while keeping private media 404 when absent", async () => {
+        vi.stubEnv("NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN", "https://assets.leetllm.com")
+        resetPrebuiltImageManifestCacheForTests()
+
+        const emptyDir = mkdtempSync(join(tmpdir(), "leetllm-cdn-redirect-"))
+        temporaryDirectories.push(emptyDir)
+
+        const publicSegments = ["blog", "how-we-built-leetllm", "illustrations", "_generated", "content_pipeline_dark.png"]
+        const originalRedirect = await serveContentImage(
+            publicSegments,
+            new URL(`https://leetllm.com/cdn/content-image/${publicSegments.join("/")}`),
+            emptyDir,
+        )
+        expect(originalRedirect.status).toBe(308)
+        expect(originalRedirect.headers.get("location")).toMatch(
+            /^https:\/\/assets\.leetllm\.com\/v1\/[a-f0-9]{12}\/blog\/how-we-built-leetllm\/illustrations\/_generated\/content_pipeline_dark\.png$/,
+        )
+        expect(originalRedirect.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=3600")
+
+        const webpRedirect = await serveContentImage(
+            publicSegments,
+            new URL(`https://leetllm.com/cdn/content-image/${publicSegments.join("/")}?w=640&cv=2`),
+            emptyDir,
+        )
+        expect(webpRedirect.status).toBe(308)
+        expect(webpRedirect.headers.get("location")).toMatch(
+            /^https:\/\/assets\.leetllm\.com\/v1\/[a-f0-9]{12}-w640-cv2\/blog\/how-we-built-leetllm\/illustrations\/_generated\/content_pipeline_dark\.png\.webp$/,
+        )
+
+        const privateSegments = [
+            "blog",
+            "glm-53-training-masterclass-3c1efdc30f7c0d3341d5",
+            "social_banner.png",
+        ]
+        const privateMissing = await serveContentImage(
+            privateSegments,
+            new URL(`https://leetllm.com/cdn/content-image/${privateSegments.join("/")}`),
+            emptyDir,
+        )
+        expect(privateMissing.status).toBe(404)
     })
 })

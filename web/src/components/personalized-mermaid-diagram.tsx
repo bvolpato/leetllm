@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { useTheme } from "next-themes"
+import { isSafeContentImageFallbackUrl } from "@/lib/content-assets"
 import { IllustrationViewer } from "./illustration-viewer"
 
 const MAX_MERMAID_SOURCE_CHARS = 20_000
@@ -39,11 +40,7 @@ interface MermaidMetadata {
 }
 
 function safeFallbackPath(value: unknown) {
-    return typeof value === "string"
-        && /^\/(?:cdn|api)\/content-image\/[A-Za-z0-9_./?=-]+$/.test(value)
-        && !value.includes("..")
-        ? value
-        : undefined
+    return isSafeContentImageFallbackUrl(value) ? value : undefined
 }
 
 function parsePersonalizedMermaidSource(source: string) {

@@ -66,6 +66,7 @@ Do not submit a bare clean or detached production worktree when generated conten
 - `--fast`: Fast deploy mode.
 - `--rebuild`: Force a clean container build and dependency refresh.
 - `--with-sandbox`: Also rebuild and deploy the isolated `leetllm-sandbox` Cloud Run service before deploying the web app.
+- `--with-codex`: Also rebuild and deploy the isolated `leetllm-codex` Cloud Run service before deploying the web app.
 
 ## Infrastructure
 
@@ -73,23 +74,26 @@ Do not submit a bare clean or detached production worktree when generated conten
 |-----------|---------|
 | **Platform** | Google Cloud Run |
 | **Region** | us-central1 |
-| **Web Service** | `leetllm` (SA: `leetllm-runtime@<project>.iam.gserviceaccount.com`) |
-| **Practice Sandbox** | `leetllm-sandbox` (Gen2, IAM-only, SA: `leetllm-sandbox@<project>.iam.gserviceaccount.com`, 0 IAM roles, 0 secrets) |
+| **Web Service** | `leetllm` (SA: `leetllm-runtime@<project>.iam.gserviceaccount.com`, `--min 0`) |
+| **Practice Sandbox** | `leetllm-sandbox` (Gen2, IAM-only, SA: `leetllm-sandbox@<project>.iam.gserviceaccount.com`, 0 IAM roles, 0 secrets, `--min 0`) |
+| **Codex Runner** | `leetllm-codex` (Gen1, IAM-only, SA: `leetllm-codex@<project>.iam.gserviceaccount.com`, secret-scoped to `leetllm-codex-auth-json-b64` only, `--min 0`) |
 | **Project** | Configured via `GCLOUD_PROJECT` / `secrets/deploy.env` |
 | **Port** | 8080 |
 | **Domain** | leetllm.com (Cloudflare) |
+| **Public content media** | Cloudflare R2 `leetllm-assets`, served through `assets.leetllm.com` (`/v1/<hash>/...`) |
 | **Lesson videos** | Cloudflare R2 `leetllm-videos`, served through `videos.leetllm.com` |
 
-Deploy the isolated practice sandbox directly with:
+Deploy the isolated services directly with:
 
 ```bash
 ./scripts/deploy-sandbox.sh
+./scripts/deploy-codex.sh
 ```
 
-`deploy.sh` ensures `leetllm-sandbox` exists, binds `roles/run.invoker` on `leetllm-sandbox` solely to `leetllm-runtime`, and configures `PRACTICE_RUNNER_URL` plus `PRACTICE_RUNNER_REQUIRE_REMOTE=true` on the web service. The web container image omits Python and OpenJDK so untrusted practice code never executes beside runtime secrets.
+`deploy.sh` ensures `leetllm-sandbox` and `leetllm-codex` exist, binds `roles/run.invoker` on both services solely to `leetllm-runtime`, and configures `PRACTICE_RUNNER_URL`, `PRACTICE_RUNNER_REQUIRE_REMOTE=true`, `CODEX_RUNNER_URL`, and `NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN=https://assets.leetllm.com` on the web service. The web container image omits Python, OpenJDK, `@openai/codex`, and public binary content media (PNG/GIF/MP4/VTT), keeping private/draft blog media and JSON manifests on disk while syncing public media and responsive WebP variants incrementally to Cloudflare R2 (`scripts/sync-content-assets-r2.mjs`).
 
 Deployment purges only `leetllm.com` and `www.leetllm.com`, preserving the separate
-immutable video cache. See [video delivery](./docs/video-delivery.md) for uploads,
+immutable content media (`assets.leetllm.com`) and video (`videos.leetllm.com`) caches. See [video delivery](./docs/video-delivery.md) for video uploads,
 verification and the article availability manifest.
 
 ## Cloudflare Lesson HTML

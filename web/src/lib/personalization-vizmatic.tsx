@@ -1,5 +1,6 @@
 import React from "react"
 import { Resvg } from "@resvg/resvg-js"
+import { isSafeContentImageFallbackUrl } from "./content-assets"
 import {
     Badge,
     BadgePill,
@@ -389,10 +390,7 @@ export function validatePersonalizedVizmaticSpec(value: unknown): value is Perso
 }
 
 function isSafeFallbackPath(value: unknown): value is string {
-    return typeof value === "string"
-        && value.length <= 500
-        && /^\/(?:cdn|api)\/content-image\/[A-Za-z0-9_./?=-]+$/.test(value)
-        && !value.includes("..")
+    return isSafeContentImageFallbackUrl(value)
 }
 
 export function validatePersonalizedVizmaticTheme(value: unknown): value is ThemeMode {

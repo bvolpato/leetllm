@@ -7,9 +7,11 @@ import {
     resolveContent,
     resolveReferencesFromContent,
     contentImageUrl,
+    hasContentMediaFile,
     normalizeContentImageUrl,
     pngNaturalSize,
 } from "./content-utils"
+import { parseContentImageUrl } from "./content-assets"
 import { loadContentBundle } from "./content-bundle"
 import { getBlogRoute } from "./content-route-index"
 import { isVisibleToAudience, type ContentAudience } from "./content-audience"
@@ -61,17 +63,16 @@ export type BlogPostSummary = Omit<BlogPost, "content"> & { content: string }
 const BLOG_DIR = join(process.cwd(), "src", "content", "blog")
 const CONTENT_DIR = join(process.cwd(), "src", "content")
 
-function contentImageAsset(src: string | undefined): { src: string; naturalWidth?: number } | undefined {
-    if (!src?.startsWith("/cdn/content-image/")) return undefined
+function contentImageAssetByRelativePath(relativePath: string | undefined): { src: string; naturalWidth?: number } | undefined {
+    if (!relativePath) return undefined
 
-    const pathname = src.split("?", 1)[0]
-    const segments = pathname.slice("/cdn/content-image/".length).split("/")
+    const segments = relativePath.split("/")
     if (segments.some((segment) => !segment || segment.split(".").some((part) => !/^[A-Za-z0-9_-]+$/.test(part)))) {
         return undefined
     }
 
     const filePath = join(/* turbopackIgnore: true */ CONTENT_DIR, ...segments)
-    if (!existsSync(/* turbopackIgnore: true */ filePath)) return undefined
+    if (!hasContentMediaFile(filePath)) return undefined
     return {
         src: contentImageUrl(filePath),
         naturalWidth: pngNaturalSize(filePath)?.w,
@@ -82,21 +83,20 @@ function coverImageMetadata(src: string | undefined): {
     themeUrls?: { dark?: string; light?: string }
     naturalWidths?: { dark?: number; light?: number }
 } | undefined {
-    if (!src) return undefined
+    const parsed = parseContentImageUrl(src)
+    if (!parsed) return undefined
 
-    const queryStart = src.indexOf("?")
-    const pathname = queryStart === -1 ? src : src.slice(0, queryStart)
-    const query = queryStart === -1 ? "" : src.slice(queryStart)
-    const themeMatch = pathname.match(/_(dark|light)\.png$/)
-    const darkSrc = themeMatch
-        ? `${pathname.replace(/_(dark|light)\.png$/, "_dark.png")}${query}`
-        : src
-    const lightSrc = themeMatch
-        ? `${pathname.replace(/_(dark|light)\.png$/, "_light.png")}${query}`
+    const relativePath = parsed.relativePath
+    const themeMatch = relativePath.match(/_(dark|light)\.png$/)
+    const darkRel = themeMatch
+        ? relativePath.replace(/_(dark|light)\.png$/, "_dark.png")
+        : relativePath
+    const lightRel = themeMatch
+        ? relativePath.replace(/_(dark|light)\.png$/, "_light.png")
         : undefined
 
-    const dark = contentImageAsset(darkSrc)
-    const light = contentImageAsset(lightSrc)
+    const dark = contentImageAssetByRelativePath(darkRel)
+    const light = contentImageAssetByRelativePath(lightRel)
     if (!dark && !light) return undefined
 
     if (!themeMatch) {
@@ -144,7 +144,7 @@ function loadBlogPost(postDir: string): BlogPost | null {
     const timeEstimate = estimateReadingTime(rawContent, "Medium", true)
 
     const socialBannerPath = join(postDir, "social_banner.png")
-    const hasSocialBanner = existsSync(/* turbopackIgnore: true */ socialBannerPath)
+    const hasSocialBanner = hasContentMediaFile(socialBannerPath)
     const socialImage = hasSocialBanner
         ? contentImageUrl(socialBannerPath)
         : undefined

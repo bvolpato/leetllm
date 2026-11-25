@@ -1,0 +1,62 @@
+# Isolated on-demand Codex execution service (`leetllm-codex`).
+# Keeps the 271 MiB Codex binary and OAuth credentials out of the public `leetllm` web image.
+ARG NODE_IMAGE=node:22-alpine
+
+FROM ${NODE_IMAGE} AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV CODEX_MAX_CONCURRENT_GENERATIONS=4
+
+# Install Codex CLI and prune headless-unused sub-binaries and runtime package managers.
+RUN npm install --global @openai/codex@0.156.1 \
+      --before="$(node -e 'process.stdout.write(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())')" && \
+    npm cache clean --force && \
+    CODEX_VENDOR="/usr/local/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl" && \
+    rm -rf \
+      "${CODEX_VENDOR}/codex-resources/voice" \
+      "${CODEX_VENDOR}/codex-resources/zsh" \
+      "${CODEX_VENDOR}/codex-resources/bwrap" \
+      "${CODEX_VENDOR}/codex-path" \
+      "${CODEX_VENDOR}/bin/codex-code-mode-host" \
+      /usr/local/lib/node_modules/npm \
+      /usr/local/lib/node_modules/corepack \
+      /opt/yarn-* \
+      /usr/local/bin/npm \
+      /usr/local/bin/npx \
+      /usr/local/bin/yarn \
+      /usr/local/bin/yarnpkg \
+      /usr/local/bin/corepack && \
+    codex --version && \
+    addgroup --system --gid 1001 codex && \
+    adduser --system --uid 1001 -G codex codex && \
+    mkdir -p /app/.node-compile-cache && \
+    chown codex:codex /app/.node-compile-cache
+
+# Copy only the zero-dependency runner modules.
+COPY --chown=codex:codex web/src/lib/codex-runner-core.ts ./web/src/lib/codex-runner-core.ts
+COPY --chown=codex:codex services/codex-runner/server.ts ./services/codex-runner/server.ts
+
+ENV NODE_COMPILE_CACHE=/app/.node-compile-cache
+USER codex
+
+# Prewarm V8 compile cache for fast scale-from-zero boot.
+RUN node -e ' \
+  const { spawn } = require("node:child_process"); \
+  const child = spawn(process.execPath, ["services/codex-runner/server.ts"], { env: { ...process.env, PORT: "18080" }, stdio: "inherit" }); \
+  (async () => { \
+    for (let i = 0; i < 100; i++) { \
+      try { \
+        const res = await fetch("http://127.0.0.1:18080/health"); \
+        if (res.ok) { child.kill("SIGTERM"); return; } \
+      } catch {} \
+      await new Promise(r => setTimeout(r, 25)); \
+    } \
+    child.kill("SIGKILL"); \
+    process.exit(1); \
+  })(); \
+'
+
+EXPOSE 8080
+CMD ["node", "services/codex-runner/server.ts"]

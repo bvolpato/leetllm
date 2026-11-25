@@ -23,6 +23,8 @@ GCP_PROJECT="${GCLOUD_PROJECT:-}"
 GCP_REGION="${GCP_REGION:-us-central1}"
 SERVICE_NAME="${SERVICE_NAME:-leetllm}"
 PRACTICE_SANDBOX_SERVICE="${PRACTICE_SANDBOX_SERVICE:-leetllm-sandbox}"
+CODEX_RUNNER_SERVICE="${CODEX_RUNNER_SERVICE:-leetllm-codex}"
+CONTENT_ASSETS_ORIGIN="${CONTENT_ASSETS_ORIGIN:-https://assets.leetllm.com}"
 IMAGE_REPOSITORY="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT}/cloud-run-source-deploy/${SERVICE_NAME}"
 RUNTIME_SERVICE_ACCOUNT="${RUNTIME_SERVICE_ACCOUNT:-leetllm-runtime@${GCP_PROJECT}.iam.gserviceaccount.com}"
 GEMINI_SECRET="leetllm-gemini-api-key"
@@ -64,6 +66,7 @@ Options:
                     Still installs missing deps and renders changed/missing illustrations and diagrams via cache.
   --rebuild         Force a clean container build, including base/system dependency refresh.
   --with-sandbox    Also rebuild and deploy the isolated leetllm-sandbox service before web deploy.
+  --with-codex      Also rebuild and deploy the isolated leetllm-codex service before web deploy.
   -h, --help        Show this help.
 
 Environment (or gitignored secrets/deploy.env; see deploy.env.example):
@@ -82,6 +85,7 @@ EOF
 FAST_DEPLOY=0
 FORCE_REBUILD=0
 DEPLOY_SANDBOX=0
+DEPLOY_CODEX=0
 for arg in "$@"; do
     case "$arg" in
         --account=*)
@@ -104,6 +108,9 @@ for arg in "$@"; do
             ;;
         --with-sandbox)
             DEPLOY_SANDBOX=1
+            ;;
+        --with-codex)
+            DEPLOY_CODEX=1
             ;;
         -h|--help)
             usage
@@ -318,8 +325,8 @@ if [ -f "$DIR/web/.env.local" ]; then
             CLOUDFLARE_CACHE_PURGER="${line#CLOUDFLARE_CACHE_PURGER=}"
             continue
         fi
-        # Server credentials and local-only ADC overrides stay out of Cloud Run env.
-        if [[ "$line" == GEMINI_API_KEY=* || "$line" == SUPABASE_SERVICE_ROLE_KEY=* || "$line" == RESEND_API_KEY=* || "$line" == CODEX_AUTH_JSON_B64=* || "$line" == PRACTICE_RUNNER_URL=* || "$line" == PRACTICE_RUNNER_REQUIRE_REMOTE=* || "$line" == GOOGLE_APPLICATION_CREDENTIALS=* ]]; then
+        # Server credentials and local-only overrides stay out of Cloud Run env.
+        if [[ "$line" == GEMINI_API_KEY=* || "$line" == SUPABASE_SERVICE_ROLE_KEY=* || "$line" == RESEND_API_KEY=* || "$line" == CODEX_AUTH_JSON_B64=* || "$line" == CODEX_RUNNER_URL=* || "$line" == CODEX_RUNNER_AUTH_TOKEN=* || "$line" == PRACTICE_RUNNER_URL=* || "$line" == PRACTICE_RUNNER_REQUIRE_REMOTE=* || "$line" == NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN=* || "$line" == GOOGLE_APPLICATION_CREDENTIALS=* ]]; then
             continue
         fi
         key="${line%%=*}"
@@ -355,6 +362,11 @@ printf 'PRACTICE_RUNNER_URL: "%s"\n' "$PRACTICE_RUNNER_URL" >> "$DEPLOY_ENV_FILE
 printf 'PRACTICE_RUNNER_REQUIRE_REMOTE: "true"\n' >> "$DEPLOY_ENV_FILE"
 echo "   Bound isolated practice sandbox: $PRACTICE_RUNNER_URL (require_remote=true)"
 
+if [ -n "$CONTENT_ASSETS_ORIGIN" ]; then
+    printf 'NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN: "%s"\n' "$CONTENT_ASSETS_ORIGIN" >> "$DEPLOY_ENV_FILE"
+    echo "   Configured public content media CDN: $CONTENT_ASSETS_ORIGIN"
+fi
+
 if [ -n "${IOS_PRIVATE_BLOG_EMAIL:-}" ] && ! grep -q '^IOS_PRIVATE_BLOG_EMAIL:' "$DEPLOY_ENV_FILE"; then
     printf 'IOS_PRIVATE_BLOG_EMAIL: "%s"\n' "$IOS_PRIVATE_BLOG_EMAIL" >> "$DEPLOY_ENV_FILE"
 fi
@@ -368,21 +380,6 @@ gcloud secrets add-iam-policy-binding "$RESEND_SECRET" \
     --member "serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
     --role roles/secretmanager.secretAccessor \
     --quiet >/dev/null
-
-CODEX_SECRET_BINDING=""
-if gcloud secrets describe "$CODEX_AUTH_SECRET" --project "$GCP_PROJECT" >/dev/null 2>&1; then
-    CODEX_SECRET_BINDING=",CODEX_AUTH_JSON_B64=${CODEX_AUTH_SECRET}:latest"
-    gcloud secrets add-iam-policy-binding "$CODEX_AUTH_SECRET" \
-        --project "$GCP_PROJECT" \
-        --member "serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
-        --role roles/secretmanager.secretAccessor \
-        --quiet >/dev/null
-    gcloud secrets add-iam-policy-binding "$CODEX_AUTH_SECRET" \
-        --project "$GCP_PROJECT" \
-        --member "serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
-        --role roles/secretmanager.secretVersionAdder \
-        --quiet >/dev/null
-fi
 
 if [ -f "$CODEX_AUTH_FILE" ]; then
     if [ "$(stat -c '%a' "$CODEX_AUTH_FILE")" != "600" ]; then
@@ -410,24 +407,34 @@ if [ -f "$CODEX_AUTH_FILE" ]; then
         base64 -w 0 < "$CODEX_AUTH_FILE" \
             | gcloud secrets versions add "$CODEX_AUTH_SECRET" --project "$GCP_PROJECT" --data-file=- --quiet >/dev/null
     fi
-    gcloud secrets add-iam-policy-binding "$CODEX_AUTH_SECRET" \
-        --project "$GCP_PROJECT" \
-        --member "serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
-        --role roles/secretmanager.secretAccessor \
-        --quiet >/dev/null
-    gcloud secrets add-iam-policy-binding "$CODEX_AUTH_SECRET" \
-        --project "$GCP_PROJECT" \
-        --member "serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
-        --role roles/secretmanager.secretVersionAdder \
-        --quiet >/dev/null
-    CODEX_SECRET_BINDING=",CODEX_AUTH_JSON_B64=${CODEX_AUTH_SECRET}:latest"
     echo "   Synced isolated Codex credentials to Secret Manager"
-elif [ -z "$CODEX_SECRET_BINDING" ]; then
-    echo "   Codex credentials absent; personalization will use Gemini fallback"
 fi
 
-if [ -n "$CODEX_SECRET_BINDING" ]; then
-    printf 'CODEX_AUTH_SECRET_RESOURCE: "projects/%s/secrets/%s"\n' "$GCP_PROJECT" "$CODEX_AUTH_SECRET" >> "$DEPLOY_ENV_FILE"
+CODEX_SECRET_BINDING=""
+if gcloud secrets describe "$CODEX_AUTH_SECRET" --project "$GCP_PROJECT" >/dev/null 2>&1; then
+    if [ "$DEPLOY_CODEX" -eq 1 ] || ! gcloud run services describe "$CODEX_RUNNER_SERVICE" \
+        --project "$GCP_PROJECT" --region "$GCP_REGION" >/dev/null 2>&1; then
+        echo "   Ensuring isolated Codex runner (${CODEX_RUNNER_SERVICE}) is deployed..."
+        "$DIR/scripts/deploy-codex.sh" --project="$GCP_PROJECT" --region="$GCP_REGION"
+    fi
+    CODEX_RUNNER_URL=$(gcloud run services describe "$CODEX_RUNNER_SERVICE" \
+        --project "$GCP_PROJECT" \
+        --region "$GCP_REGION" \
+        --format="value(status.url)")
+    if [ -z "$CODEX_RUNNER_URL" ]; then
+        echo "❌ Error: Could not resolve isolated Codex runner URL for ${CODEX_RUNNER_SERVICE}." >&2
+        exit 1
+    fi
+    gcloud run services add-iam-policy-binding "$CODEX_RUNNER_SERVICE" \
+        --project "$GCP_PROJECT" \
+        --region "$GCP_REGION" \
+        --member "serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
+        --role "roles/run.invoker" \
+        --quiet >/dev/null
+    printf 'CODEX_RUNNER_URL: "%s"\n' "$CODEX_RUNNER_URL" >> "$DEPLOY_ENV_FILE"
+    echo "   Bound isolated Codex runner: $CODEX_RUNNER_URL"
+else
+    echo "   Codex credentials absent; personalization will use Gemini fallback"
 fi
 
 if ! gcloud secrets versions access latest \
@@ -579,6 +586,23 @@ if ! pnpm diagrams:build; then
 fi
 echo "   Diagrams up to date"
 
+if [ -n "$CONTENT_ASSETS_ORIGIN" ]; then
+    echo ""
+    echo "☁️  Step 4b/8: Syncing public content media to Cloudflare R2 (${CONTENT_ASSETS_ORIGIN})..."
+    cd "$DIR/web"
+    if ! pnpm content-images:build; then
+        echo ""
+        echo "   ❌ Content image manifest generation failed."
+        exit 1
+    fi
+    cd "$DIR"
+    if ! node "$DIR/scripts/sync-content-assets-r2.mjs"; then
+        echo ""
+        echo "   ❌ Cloudflare R2 content media sync failed. Fix the upload error before deploying."
+        exit 1
+    fi
+fi
+
 # ── Step 5: Build and deploy ─────────────────────────────────
 echo ""
 echo "🐳 Step 5/8: Building and deploying..."
@@ -627,7 +651,7 @@ if [ "$IMAGE_DIGEST" = "-" ]; then
         --config "$BUILD_CONTEXT_DIR/source/cloudbuild.yaml" \
         --project "$GCP_PROJECT" \
         --region "$GCP_REGION" \
-        --substitutions "_IMAGE_REPOSITORY=$IMAGE_REPOSITORY,_IMAGE_TAG=$IMAGE_TAG,_NODE_IMAGE=$NODE_IMAGE,_NEXT_CACHE_KEY=$NEXT_CACHE_KEY,_REBUILD=$FORCE_REBUILD" \
+        --substitutions "_IMAGE_REPOSITORY=$IMAGE_REPOSITORY,_IMAGE_TAG=$IMAGE_TAG,_NODE_IMAGE=$NODE_IMAGE,_NEXT_CACHE_KEY=$NEXT_CACHE_KEY,_REBUILD=$FORCE_REBUILD,_CONTENT_ASSETS_ORIGIN=$CONTENT_ASSETS_ORIGIN" \
         --quiet 2>&1 | tee "$BUILD_LOG"
     BUILD_EXIT=${PIPESTATUS[0]}
     set -e
@@ -689,7 +713,7 @@ if ! DOCKER_CONFIG="$RUNTIME_IMAGE_DOCKER_CONFIG" gcloud auth configure-docker \
     exit 1
 fi
 cd "$DIR/web"
-if ! DOCKER_CONFIG="$RUNTIME_IMAGE_DOCKER_CONFIG" pnpm runtime-image:validate -- "$DEPLOY_IMAGE"; then
+if ! DOCKER_CONFIG="$RUNTIME_IMAGE_DOCKER_CONFIG" NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN="$CONTENT_ASSETS_ORIGIN" pnpm runtime-image:validate -- "$DEPLOY_IMAGE"; then
     echo "❌ Immutable runtime image validation failed. Cloud Run was not changed."
     exit 1
 fi

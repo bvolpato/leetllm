@@ -11,7 +11,8 @@ if (!image || !/^[a-z0-9][a-z0-9._:/-]*@sha256:[0-9a-f]{64}$/i.test(image)) {
     throw new Error("Usage: pnpm runtime-image:validate -- <repository>@sha256:<digest>")
 }
 
-const expectedManifest = buildRuntimeContentManifest(join(process.cwd(), "src", "content"))
+const offloadPublicMedia = (process.env.NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN ?? "https://assets.leetllm.com").trim().length > 0
+const expectedManifest = buildRuntimeContentManifest(join(process.cwd(), "src", "content"), { offloadPublicMedia })
 const expectedManifestDigest = runtimeContentManifestDigest(expectedManifest)
 
 const validator = String.raw`

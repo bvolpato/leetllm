@@ -1,7 +1,11 @@
 import { createHash } from "crypto"
-import { readdirSync, readFileSync, writeFileSync } from "fs"
-import { basename, join, relative, resolve, sep } from "path"
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs"
+import { basename, dirname, join, relative, resolve, sep } from "path"
 import { fileURLToPath } from "url"
+import {
+    createBundlePublicClassifier,
+    isTrackedContentMedia,
+} from "./generate-content-image-manifest"
 
 export const RUNTIME_CONTENT_MANIFEST_FILENAME = ".runtime-content-manifest.json"
 
@@ -15,6 +19,16 @@ export type RuntimeContentManifest = {
     version: 1
     algorithm: "sha256"
     files: RuntimeContentManifestEntry[]
+}
+
+export type RuntimeContentOptions = {
+    /**
+     * When true, binary media belonging to public bundles (delivered via R2 CDN
+     * `assets.leetllm.com`) are omitted from `/runtime-content` while private/draft
+     * media and all `_generated/*.json` manifests stay on container disk.
+     * Defaults to `Boolean(process.env.NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN?.trim())`.
+     */
+    offloadPublicMedia?: boolean
 }
 
 function walk(directory: string): string[] {
@@ -49,6 +63,27 @@ export function isRuntimeContentPath(path: string): boolean {
         || path.includes("/assets/")
 }
 
+function shouldOffloadPublicMedia(options?: RuntimeContentOptions): boolean {
+    if (options?.offloadPublicMedia !== undefined) return options.offloadPublicMedia
+    return Boolean(process.env.NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN?.trim())
+}
+
+function selectRuntimeFiles(sourceRoot: string, options?: RuntimeContentOptions): Array<{ path: string; relativePath: string }> {
+    const offloadPublicMedia = shouldOffloadPublicMedia(options)
+    const isPublicMedia = offloadPublicMedia ? createBundlePublicClassifier(sourceRoot) : null
+
+    return walk(sourceRoot)
+        .map((path) => ({ path, relativePath: portableRelativePath(sourceRoot, path) }))
+        .filter(({ relativePath }) => {
+            if (!isRuntimeContentPath(relativePath)) return false
+            if (isPublicMedia && isTrackedContentMedia(relativePath) && isPublicMedia(relativePath)) {
+                return false
+            }
+            return true
+        })
+        .sort((left, right) => left.relativePath.localeCompare(right.relativePath))
+}
+
 function manifestEntry(root: string, path: string): RuntimeContentManifestEntry {
     const content = readFileSync(path)
     return {
@@ -58,12 +93,12 @@ function manifestEntry(root: string, path: string): RuntimeContentManifestEntry 
     }
 }
 
-export function buildRuntimeContentManifest(sourceRoot: string): RuntimeContentManifest {
-    const files = walk(sourceRoot)
-        .map((path) => ({ path, relativePath: portableRelativePath(sourceRoot, path) }))
-        .filter(({ relativePath }) => isRuntimeContentPath(relativePath))
+export function buildRuntimeContentManifest(
+    sourceRoot: string,
+    options?: RuntimeContentOptions,
+): RuntimeContentManifest {
+    const files = selectRuntimeFiles(sourceRoot, options)
         .map(({ path }) => manifestEntry(sourceRoot, path))
-        .sort((left, right) => left.path.localeCompare(right.path))
 
     return { version: 1, algorithm: "sha256", files }
 }
@@ -83,8 +118,27 @@ function mismatchSummary(label: string, paths: string[]): string {
     return `\n${label}:\n${displayed}${remainder}`
 }
 
-export function validateRuntimeContent(sourceRoot: string, runtimeRoot: string): RuntimeContentManifest {
-    const expected = buildRuntimeContentManifest(sourceRoot)
+export function collectRuntimeContent(
+    sourceRoot: string,
+    runtimeRoot: string,
+    options?: RuntimeContentOptions,
+): RuntimeContentManifest {
+    const selected = selectRuntimeFiles(sourceRoot, options)
+    mkdirSync(runtimeRoot, { recursive: true })
+    for (const { path, relativePath } of selected) {
+        const target = join(runtimeRoot, relativePath)
+        mkdirSync(dirname(target), { recursive: true })
+        copyFileSync(path, target)
+    }
+    return validateRuntimeContent(sourceRoot, runtimeRoot, options)
+}
+
+export function validateRuntimeContent(
+    sourceRoot: string,
+    runtimeRoot: string,
+    options?: RuntimeContentOptions,
+): RuntimeContentManifest {
+    const expected = buildRuntimeContentManifest(sourceRoot, options)
     const actualEntries = walk(runtimeRoot)
         .filter((path) => basename(path) !== RUNTIME_CONTENT_MANIFEST_FILENAME)
         .map((path) => manifestEntry(runtimeRoot, path))
@@ -123,14 +177,20 @@ export function validateRuntimeContent(sourceRoot: string, runtimeRoot: string):
 
 function main(): void {
     const sourceRoot = join(process.cwd(), "src", "content")
-    const runtimeDirectory = process.argv.slice(2).find((argument) => argument !== "--")
+    const args = process.argv.slice(2).filter((argument) => argument !== "--")
+    const collect = args.includes("--collect")
+    const runtimeDirectory = args.find((argument) => !argument.startsWith("--"))
     if (!runtimeDirectory) {
-        throw new Error("Usage: tsx scripts/validate-runtime-content.ts <runtime-content-directory>")
+        throw new Error("Usage: tsx scripts/validate-runtime-content.ts [--collect] <runtime-content-directory>")
     }
 
-    const manifest = validateRuntimeContent(sourceRoot, resolve(runtimeDirectory))
+    const resolvedRuntime = resolve(runtimeDirectory)
+    const manifest = collect
+        ? collectRuntimeContent(sourceRoot, resolvedRuntime)
+        : validateRuntimeContent(sourceRoot, resolvedRuntime)
+    const mode = shouldOffloadPublicMedia() ? "public media offloaded to CDN" : "local media bundled"
     console.log(
-        `Runtime content OK: ${manifest.files.length} files, manifest sha256=${runtimeContentManifestDigest(manifest)}`,
+        `Runtime content OK (${mode}): ${manifest.files.length} files, manifest sha256=${runtimeContentManifestDigest(manifest)}`,
     )
 }
 

@@ -1,0 +1,39 @@
+steps:
+  - id: build-and-push-codex
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        readonly image="${_IMAGE_REPOSITORY}:${_IMAGE_TAG}"
+        readonly latest="${_IMAGE_REPOSITORY}:latest"
+        readonly cache="${_IMAGE_REPOSITORY}:buildcache"
+
+        docker buildx create --driver docker-container --name codex-builder --use
+        docker buildx inspect --bootstrap
+
+        cache_from=()
+        if docker buildx imagetools inspect "$$cache" >/dev/null 2>&1; then
+          cache_from=(--cache-from "type=registry,ref=$$cache")
+        fi
+
+        docker buildx build \
+          --platform linux/amd64 \
+          --pull \
+          --build-arg "NODE_IMAGE=${_NODE_IMAGE}" \
+          "$${cache_from[@]}" \
+          --cache-to "type=registry,ref=$$cache,mode=max,oci-mediatypes=true,image-manifest=true" \
+          -f Dockerfile.codex \
+          --tag "$$image" \
+          --tag "$$latest" \
+          --push \
+          .
+
+substitutions:
+  _NODE_IMAGE: node:22-alpine
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s

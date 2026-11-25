@@ -11,6 +11,7 @@ import {
     generateCodexStructuredJson,
     isCodexPersonalizationConfigured,
     parseCodexPersonalizationModel,
+    resetCodexRemoteTokenCacheForTests,
 } from "./codex-personalization"
 
 let testDirectory: string
@@ -40,6 +41,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+    resetCodexRemoteTokenCacheForTests()
     await disposeCodexPersonalizationRuntime()
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
@@ -381,4 +383,87 @@ process.stdin.on("end", () => {
 
     expect(failure).toBeInstanceOf(CodexPersonalizationError)
     expect(failure).toMatchObject({ code: "rate_limited", status: 429, retryable: true })
+})
+
+describe("remote CODEX_RUNNER_URL mode", () => {
+    test("reports configured without local CODEX_AUTH_JSON_B64 when CODEX_RUNNER_URL is set", async () => {
+        vi.stubEnv("CODEX_AUTH_JSON_B64", "")
+        vi.stubEnv("CODEX_RUNNER_URL", "https://leetllm-codex.example.run.app")
+
+        expect(await isCodexPersonalizationConfigured()).toBe(true)
+    })
+
+    test("calls remote runner with cached Cloud Run ID token and forwards usage", async () => {
+        vi.stubEnv("CODEX_AUTH_JSON_B64", "")
+        vi.stubEnv("CODEX_RUNNER_URL", "https://leetllm-codex.example.run.app")
+
+        const payload = Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3_600 })).toString("base64url")
+        const idToken = `header.${payload}.sig`
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(new Response(idToken, { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({
+                value: { answer: "remote-ok" },
+                usage: {
+                    promptTokenCount: 100,
+                    cachedContentTokenCount: 60,
+                    candidatesTokenCount: 25,
+                    thoughtsTokenCount: 10,
+                    totalTokenCount: 135,
+                },
+                providerModelId: "codex/gpt-6-luna:high",
+            }), { status: 200, headers: { "Content-Type": "application/json" } }))
+        vi.stubGlobal("fetch", fetchMock)
+
+        const onUsage = vi.fn()
+        const result = await generateCodexStructuredJson<{ answer: string }>({
+            model: "codex/gpt-6-luna:high",
+            systemInstruction: "Return JSON.",
+            prompt: "Explain FlashAttention.",
+            schema: { type: "object" },
+            stableWorkspaceId: "leety",
+            onUsage,
+        })
+
+        expect(result.value).toEqual({ answer: "remote-ok" })
+        expect(result.providerModelId).toBe("codex/gpt-6-luna:high")
+        expect(result.usage?.totalTokenCount).toBe(135)
+        expect(onUsage).toHaveBeenCalledWith(result.usage)
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            1,
+            "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=https%3A%2F%2Fleetllm-codex.example.run.app",
+            expect.objectContaining({ headers: { "Metadata-Flavor": "Google" } }),
+        )
+        expect(fetchMock).toHaveBeenNthCalledWith(
+            2,
+            new URL("https://leetllm-codex.example.run.app/generate"),
+            expect.objectContaining({
+                method: "POST",
+                headers: expect.objectContaining({
+                    Authorization: `Bearer ${idToken}`,
+                    "Content-Type": "application/json",
+                }),
+            }),
+        )
+    })
+
+    test.each([
+        [429, { errorCode: "rate_limited" }, "rate_limited", true],
+        [504, { errorCode: "timeout" }, "timeout", true],
+        [503, { errorCode: "auth" }, "auth", false],
+        [403, {}, "auth", false],
+    ] as const)("maps remote status %d into CodexPersonalizationError %s", async (status, body, expectedCode, retryable) => {
+        vi.stubEnv("CODEX_AUTH_JSON_B64", "")
+        vi.stubEnv("CODEX_RUNNER_URL", "https://leetllm-codex.example.run.app")
+        vi.stubEnv("CODEX_RUNNER_AUTH_TOKEN", "static-test-token")
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(
+            new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }),
+        ))
+
+        await expect(generateCodexStructuredJson({
+            model: "codex/gpt-6-luna:high",
+            systemInstruction: "Return JSON.",
+            prompt: "Input",
+            schema: { type: "object" },
+        })).rejects.toMatchObject({ code: expectedCode, retryable })
+    })
 })

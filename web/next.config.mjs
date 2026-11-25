@@ -29,6 +29,13 @@ const nextConfig = {
       { pathname: "/cdn/content-image/**" },
       { pathname: "/api/content-image/**" },
     ],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "assets.leetllm.com",
+        pathname: "/v1/**",
+      },
+    ],
   },
 
   // Public keys — safe to inline. Ensures they're available at Docker build
@@ -42,6 +49,8 @@ const nextConfig = {
       "sb_publishable_V3ypGIDT6S2k5jIuCyQ3Ww_kLLLfAEj",
     NEXT_PUBLIC_SITE_URL:
       process.env.NEXT_PUBLIC_SITE_URL || "https://leetllm.com",
+    NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN:
+      process.env.NEXT_PUBLIC_CONTENT_ASSETS_ORIGIN || "",
   },
 
   // ── URL Rewrites ────────────────────────────────────────────────

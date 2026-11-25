@@ -5,6 +5,12 @@ import { open, readFile, realpath, stat } from "fs/promises"
 import { isAbsolute, join, relative, resolve } from "path"
 import sharp from "sharp"
 import { NextResponse } from "next/server"
+import {
+    buildPublicContentAssetUrl,
+    buildPublicResponsiveWebpUrl,
+    getContentAssetsOrigin,
+} from "./content-assets"
+import { getContentImageManifestEntry } from "./content-utils"
 
 const RESPONSIVE_WIDTHS = new Set([320, 640, 960, 1280, 1600])
 const VERSION_PATTERN = /^(?:1|[a-f0-9]{12})$/
@@ -350,6 +356,32 @@ export async function serveContentImage(
         filePath = await realpath(/* turbopackIgnore: true */ unresolvedPath)
     } catch (error) {
         if (isNotFoundError(error)) {
+            const assetsOrigin = getContentAssetsOrigin()
+            const manifestEntry = assetsOrigin ? getContentImageManifestEntry(fullPath) : undefined
+            if (assetsOrigin && manifestEntry?.pub === 1 && manifestEntry.v) {
+                const requestedVersion = responsiveRequest ? responsiveRequest.version : originalVersion
+                const useResponsiveWebp = Boolean(
+                    responsiveRequest
+                    && manifestEntry.rw === 1
+                    && manifestEntry.w
+                    && responsiveRequest.width <= manifestEntry.w,
+                )
+                const targetUrl = useResponsiveWebp && responsiveRequest
+                    ? buildPublicResponsiveWebpUrl(assetsOrigin, fullPath, manifestEntry.v, responsiveRequest.width)
+                    : buildPublicContentAssetUrl(assetsOrigin, fullPath, manifestEntry.v)
+                const cacheControl = requestedVersion === manifestEntry.v
+                    ? "public, max-age=31536000, immutable"
+                    : "public, max-age=300, s-maxage=3600"
+                return NextResponse.redirect(targetUrl, {
+                    status: 308,
+                    headers: {
+                        "Cache-Control": cacheControl,
+                        "CDN-Cache-Control": cacheControl,
+                        "Cloudflare-CDN-Cache-Control": cacheControl,
+                        "X-Content-Type-Options": "nosniff",
+                    },
+                })
+            }
             return NextResponse.json({ error: "Not found" }, { status: 404 })
         }
         return NextResponse.json({ error: "Read error" }, { status: 500 })

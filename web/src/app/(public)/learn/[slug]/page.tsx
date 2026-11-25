@@ -56,12 +56,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     let imgWidth = 1200
     let imgHeight = 630
 
+    const dims = getImageDimensions(ogImage)
+    if (dims) {
+        imgWidth = dims.width
+        imgHeight = dims.height
+    }
     if (ogImage.startsWith("/cdn/content-image/") || ogImage.startsWith("/api/content-image/")) {
-        const dims = getImageDimensions(ogImage)
-        if (dims) {
-            imgWidth = dims.width
-            imgHeight = dims.height
-        }
         ogImage = `https://leetllm.com${ogImage}`
     } else if (ogImage.startsWith("/")) {
         ogImage = `https://leetllm.com${ogImage}?v=1`

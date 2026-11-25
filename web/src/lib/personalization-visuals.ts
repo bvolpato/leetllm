@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { jsonrepair } from "jsonrepair"
 import { filterContentForAudience } from "./content-audience"
+import { isSafeContentImageFallbackUrl } from "./content-assets"
 import { getQuestionRoute } from "./content-route-index"
 
 export type PersonalizationVisualKind = "mermaid" | "vizmatic"
@@ -73,7 +74,7 @@ function captionFromFigure(markup: string) {
 function figureFallbackSources(markup: string) {
     const sources = [...markup.matchAll(/\bsrc=(?:"([^"]+)"|'([^']+)')/gi)]
         .map((match) => decodeHtml(match[1] ?? match[2] ?? ""))
-        .filter((source) => source.startsWith("/cdn/content-image/"))
+        .filter((source) => isSafeContentImageFallbackUrl(source))
     const dark = sources.find((source) => /_dark\.[A-Za-z0-9]+(?:\?|$)/.test(source)) ?? sources[0]
     const light = sources.find((source) => /_light\.[A-Za-z0-9]+(?:\?|$)/.test(source)) ?? sources[0]
     return {
