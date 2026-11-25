@@ -15,7 +15,10 @@ type DeferredCodeContentProps = {
     lineNumberStyle?: CSSProperties
     lineNumberClassName?: string
     showLineNumbers?: boolean
+    startingLineNumber?: number
+    highlightLines?: ReadonlySet<number>
     printAware?: boolean
+    hideRegionRole?: boolean
 }
 
 let syntaxModulePromise: Promise<SyntaxModule> | undefined
@@ -40,7 +43,10 @@ export function DeferredCodeContent({
     lineNumberStyle,
     lineNumberClassName,
     showLineNumbers = false,
+    startingLineNumber = 1,
+    highlightLines,
     printAware = false,
+    hideRegionRole = false,
 }: DeferredCodeContentProps) {
     const targetRef = useRef<HTMLDivElement | null>(null)
     const [syntaxModule, setSyntaxModule] = useState<SyntaxModule | null>(null)
@@ -83,12 +89,12 @@ export function DeferredCodeContent({
     return (
         <div
             ref={targetRef}
-            tabIndex={0}
-            role="region"
-            aria-label={`${label} code block`}
+            tabIndex={hideRegionRole ? undefined : 0}
+            role={hideRegionRole ? undefined : "region"}
+            aria-label={hideRegionRole ? undefined : `${label} code block`}
             className={className}
             style={style}
-            data-code-region
+            data-code-region={hideRegionRole ? undefined : ""}
         >
             {language && syntaxModule ? (
                 <syntaxModule.SyntaxHighlighter
@@ -100,6 +106,19 @@ export function DeferredCodeContent({
                     language={language}
                     PreTag="div"
                     showLineNumbers={showLineNumbers}
+                    startingLineNumber={startingLineNumber}
+                    wrapLines={Boolean(highlightLines && highlightLines.size > 0)}
+                    lineProps={highlightLines && highlightLines.size > 0
+                        ? (lineNumber: number) => highlightLines.has(lineNumber)
+                            ? {
+                                style: {
+                                    display: "block",
+                                    backgroundColor: isDark ? "rgba(56, 189, 248, 0.09)" : "rgba(37, 99, 235, 0.07)",
+                                    boxShadow: "inset 2px 0 0 0 var(--primary)",
+                                },
+                            }
+                            : { style: { display: "block" } }
+                        : undefined}
                     lineNumberStyle={lineNumberStyle}
                     customStyle={{
                         margin: 0,
@@ -136,7 +155,7 @@ export function DeferredCodeContent({
                         >
                             {code.split("\n").map((_, index) => (
                                 <span key={index} style={{ display: "block", lineHeight: "inherit" }}>
-                                    {index + 1}
+                                    {startingLineNumber + index}
                                 </span>
                             ))}
                         </span>

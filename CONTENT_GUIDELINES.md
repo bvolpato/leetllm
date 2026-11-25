@@ -44,9 +44,12 @@ Never shoehorn bureaucratic vocabulary or corporate ticket theater into math, ML
 - **Ban compliance dialect in non-ops prose:** replace `fixture`, `contract`, `boundary`, `admit`/`admission`, `receipt`, `provenance`, `authority`, `establish` (hedging), `supplied`, `bounded`, `fail-closed`, `governed`, `policy`, `gate`, `audit`, `ledger`, and `needn't` with plain technical English. Keep narrow literal exceptions (`pytest fixture`, `decision/token/word boundary`, API/schema contract, formal data lineage, IAM authorization, RL `policy`, LSTM/SwiGLU `gate`, and genuine ops/serving/security lessons).
 - **Use domain-native examples:** familiar English words and sentences for NLP/attention (`"The dog chased the cat"`), image tensors and kernels for vision, gridworlds and MDPs for RL, vectors/matrices/distributions for math and stats, tiles/warps/SRAM/HBM/KV blocks for GPU and serving, repos/diffs/tests for coding agents, and docs/chunks/citations for RAG.
 
-### NONO 3: Zero-ML Mocks and `isinstance` Type-Police Boilerplate
+### NONO 3: Zero-ML Mocks, Pocket-Calculator Filler, and `isinstance` Type-Police Boilerplate
 
 Never fake ML code with unused `import numpy as np`, 200-line CRUD dict validators, hardcoded model answers, or walls of `isinstance(x, bool)`, `type(x) not in (int, float)`, and repetitive `math.isfinite(...)` checks. Use real, runnable **NumPy, PyTorch, scikit-learn, SciPy**, or crisp algorithmic code that genuinely computes the mechanism. Reserve validation boilerplate strictly for schema-validation, data-quality, or numerical-stability lessons.
+
+- **Only include code when it teaches mechanism:** Never insert a Python block solely to multiply three constants, assert an obvious sum, or print a small lookup table that a one-line equation or Markdown table explains faster.
+- **Highlight the mechanism and fold runnable scaffolding (GitHub PR-diff style):** Keep scripts runnable end to end, but tuck non-teaching setup (imports, dataclasses, fixture data, and trailing print/assert harnesses) behind clickable `...` edge expanders using `# fold:start <label>` / `# fold:end` comment pairs or `focus="12-26"` fence metadata (longer Python blocks also auto-fold leading imports and trailing print/assert drivers unless `nofold` is set). Readers see the core 10 to 30 lines immediately and click `...` to inspect the full runnable scaffolding.
 
 ### NONO 4: Kitchen-Sink Scope Creep in Core and Easy Lessons
 

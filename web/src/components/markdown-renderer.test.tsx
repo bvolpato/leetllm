@@ -730,4 +730,61 @@ describe("heading anchors", () => {
             window.location.hash = ""
         }
     })
+
+    test("renders GitHub-style expandable fold edges for # fold markers and focus ranges", async () => {
+        const snippet = [
+            '```python title="attention.py"',
+            "# fold:start imports & fixtures",
+            "import math",
+            "q = [1.0, 2.0]",
+            "# fold:end",
+            "def score(a, b):",
+            "    return sum(x * y for x, y in zip(a, b)) / math.sqrt(len(a))",
+            "# fold:start example run",
+            "print(score(q, q))",
+            "# fold:end",
+            "```",
+        ].join("\n")
+
+        const { container } = render(<MarkdownRenderer content={snippet} />)
+        await act(async () => {
+            await Promise.resolve()
+        })
+
+        expect(container.querySelector('[data-code-folded="true"]')).toBeTruthy()
+        expect(screen.getByRole("button", { name: /Expand 2 hidden lines: imports & fixtures/i })).toBeTruthy()
+        expect(screen.getByRole("button", { name: /Expand 1 hidden line: example run/i })).toBeTruthy()
+        expect(container.textContent).not.toContain("# fold:start")
+
+        fireEvent.click(screen.getByRole("button", { name: /Expand 2 hidden lines: imports & fixtures/i }))
+        expect(screen.queryByRole("button", { name: /Expand 2 hidden lines: imports & fixtures/i })).toBeNull()
+        expect(screen.getByRole("button", { name: /Expand 1 hidden line: example run/i })).toBeTruthy()
+
+        fireEvent.click(screen.getByRole("button", { name: /Full code \(5L\)/i }))
+        expect(screen.getByRole("button", { name: /Fold setup/i })).toBeTruthy()
+        expect(container.querySelector('[data-code-folded="true"]')).toBeNull()
+    })
+
+    test("folds surrounding context when focus fence metadata is specified", async () => {
+        const snippet = [
+            '```python title="loss.py" focus="4-5"',
+            "import torch",
+            "logits = torch.tensor([2.0, 1.0])",
+            "target = torch.tensor(0)",
+            "log_probs = logits - torch.logsumexp(logits, dim=-1)",
+            "loss = -log_probs[target]",
+            "assert loss.item() > 0",
+            "print(round(loss.item(), 4))",
+            "```",
+        ].join("\n")
+
+        const { container } = render(<MarkdownRenderer content={snippet} />)
+        await act(async () => {
+            await Promise.resolve()
+        })
+
+        expect(container.querySelector('[data-code-fold-toggle="top"]')).toBeTruthy()
+        expect(container.querySelector('[data-code-fold-toggle="bottom"]')).toBeTruthy()
+        expect(container.textContent).toContain("log_probs = logits - torch.logsumexp")
+    })
 })

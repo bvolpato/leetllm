@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState, type ImgHTMLAttributes } from "react"
+import { useEffect, useMemo, useState, type ImgHTMLAttributes } from "react"
 import { useTheme } from "next-themes"
-import { Check, ChevronDown, ChevronUp, Copy } from "lucide-react"
+import { Check, ChevronDown, ChevronsUpDown, ChevronUp, Copy } from "lucide-react"
 import { DeferredCodeContent } from "./deferred-code-content"
 import { IllustrationViewer } from "./illustration-viewer"
 import { resolvePrismLanguage } from "./prism-language"
+import { buildCodeFoldPlan } from "@/lib/code-folding"
 import { MAX_CONTENT_IMAGE_HEIGHT_PX } from "@/lib/content-media"
 import { getResponsiveContentImageProps } from "@/lib/responsive-content-image"
 
@@ -60,31 +61,141 @@ function CodeCopyButton({ code }: { code: string }) {
 const COLLAPSE_LINE_THRESHOLD = 45
 const PLAIN_TEXT_LANGUAGES = new Set(["text", "plaintext", "txt", "output"])
 
+function FoldEdgeBar({
+    hiddenCount,
+    label,
+    edge,
+    onExpand,
+}: {
+    hiddenCount: number
+    label: string
+    edge: "top" | "middle" | "bottom"
+    onExpand: () => void
+}) {
+    const Icon = edge === "top" ? ChevronUp : edge === "bottom" ? ChevronDown : ChevronsUpDown
+    const lineWord = hiddenCount === 1 ? "line" : "lines"
+    const borderClass =
+        edge === "top"
+            ? "border-b"
+            : edge === "bottom"
+                ? "border-t"
+                : "border-y"
+
+    return (
+        <button
+            type="button"
+            onClick={onExpand}
+            data-code-fold-toggle={edge}
+            data-print-hidden
+            aria-label={`Expand ${hiddenCount} hidden ${lineWord}: ${label}`}
+            className={`group flex w-full items-center gap-3 ${borderClass} [border-color:var(--reading-border)]/70 [background:var(--reading-code-header)]/55 px-4 py-1.5 text-left font-mono text-[11.5px] [color:var(--reading-subtle)] transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 print:hidden`}
+        >
+            <span
+                aria-hidden="true"
+                className="inline-flex w-8 shrink-0 items-center justify-center gap-0.5 rounded px-1 py-0.5 [background:var(--reading-border)]/45 text-[11px] font-bold tracking-widest [color:var(--reading-muted)] group-hover:bg-primary/20 group-hover:text-primary"
+            >
+                <Icon className="h-3 w-3" />
+            </span>
+            <span className="truncate font-sans text-xs font-medium">
+                <span aria-hidden="true" className="mr-1.5 font-mono tracking-widest opacity-70">
+                    ···
+                </span>
+                {hiddenCount} hidden {lineWord} ({label})
+            </span>
+            <span className="ml-auto hidden shrink-0 font-sans text-[11px] opacity-75 group-hover:opacity-100 sm:inline">
+                Click to expand
+            </span>
+        </button>
+    )
+}
+
 export function MarkdownCodeBlock({ code: codeString, language, meta = { bare: false, compact: false, output: false } }: {
     code: string
     language?: { label: string; highlighterLanguage: string }
-    meta?: { bare: boolean; compact: boolean; output: boolean; title?: string }
+    meta?: { bare: boolean; compact: boolean; output: boolean; noFold?: boolean; focus?: string; title?: string }
 }) {
     const isDark = useContentDarkTheme()
     const [expanded, setExpanded] = useState(false)
-    const lineCount = codeString.split("\n").length
-    const isCollapsible = lineCount > COLLAPSE_LINE_THRESHOLD
+    const [expandedFolds, setExpandedFolds] = useState<ReadonlySet<string>>(() => new Set())
+
+    const foldPlan = useMemo(
+        () =>
+            buildCodeFoldPlan(codeString, {
+                language: language?.label,
+                focus: meta.focus,
+                noFold: meta.noFold,
+                output: meta.output,
+                compact: meta.compact,
+                bare: meta.bare,
+            }),
+        [codeString, language?.label, meta.focus, meta.noFold, meta.output, meta.compact, meta.bare],
+    )
+
+    const cleanCode = foldPlan.cleanCode
+    const lineCount = foldPlan.totalLines
+    const visibleUnfoldedLines = foldPlan.segments.reduce(
+        (sum, seg) => (seg.kind === "visible" || expandedFolds.has(seg.id) ? sum + seg.lines.length : sum),
+        0,
+    )
+    const hasActiveFolds = foldPlan.hasFolds && foldPlan.segments.some(
+        (seg) => seg.kind === "folded" && !expandedFolds.has(seg.id),
+    )
+    const allFoldsExpanded = foldPlan.hasFolds && !hasActiveFolds
+    const isCollapsible = !hasActiveFolds && visibleUnfoldedLines > COLLAPSE_LINE_THRESHOLD
     const isPlainOrOutput = meta.output || !language || PLAIN_TEXT_LANGUAGES.has(language.label)
     const isShortUntitled = !meta.title && lineCount <= 4
     const showWindowChrome = !meta.bare && !isPlainOrOutput && !isShortUntitled
 
+    const toggleAllFolds = () => {
+        if (allFoldsExpanded) {
+            setExpandedFolds(new Set())
+            setExpanded(false)
+        } else {
+            setExpandedFolds(
+                new Set(foldPlan.segments.filter((s) => s.kind === "folded").map((s) => s.id)),
+            )
+            setExpanded(true)
+        }
+    }
+
+    const expandFoldSegment = (id: string) => {
+        setExpandedFolds((prev) => {
+            const next = new Set(prev)
+            next.add(id)
+            return next
+        })
+    }
+
     if (language) {
         const label = meta.title ?? (meta.output ? "Output" : language.label)
         const prismLanguage = resolvePrismLanguage(language.highlighterLanguage)
+        const showLineNumbers = Boolean(prismLanguage) && !meta.output && !isShortUntitled
         const frameClassName = meta.compact
             ? "-mt-4 mb-5 rounded-xl overflow-hidden border [border-color:var(--reading-border)] shadow-sm shadow-black/5"
             : "my-7 rounded-xl overflow-hidden border [border-color:var(--reading-border)] shadow-sm shadow-black/5"
+        const codeBlockStyle = {
+            margin: 0,
+            background: "var(--reading-code-bg)",
+            colorScheme: isDark ? ("dark" as const) : ("light" as const),
+            fontFamily: CODE_FONT_FAMILY,
+            lineHeight: "1.7",
+            textShadow: "none",
+        }
+        const lineNumberStyle = {
+            minWidth: "2.5em",
+            paddingRight: "1em",
+            color: "light-dark(rgba(0,0,0,0.28), rgba(255,255,255,0.24))",
+            userSelect: "none" as const,
+            fontSize: "0.8rem",
+        }
+        const lineNumberClassName = "leading-[calc(1.7*0.85rem)] md:leading-[calc(1.7*0.95rem)] max-[640px]:text-[0.8125rem] max-[640px]:leading-[calc(1.65*0.8125rem)] print:text-[8.5pt] print:leading-[1.45]"
 
         return (
             <div
                 className={frameClassName}
                 data-code-output={meta.output ? "true" : undefined}
-                data-compact-code={isShortUntitled && !isCollapsible ? "true" : undefined}
+                data-compact-code={isShortUntitled && !isCollapsible && !foldPlan.hasFolds ? "true" : undefined}
+                data-code-folded={hasActiveFolds ? "true" : undefined}
                 data-print-code
             >
                 {!meta.bare && (
@@ -106,60 +217,123 @@ export function MarkdownCodeBlock({ code: codeString, language, meta = { bare: f
                             : "min-w-0 flex-1 truncate text-xs font-semibold font-mono [color:var(--reading-muted)]"}>
                             {label}
                         </span>
-                        {isCollapsible && (
+                        {foldPlan.hasFolds ? (
+                            <button
+                                type="button"
+                                onClick={toggleAllFolds}
+                                data-print-hidden
+                                className="inline-flex shrink-0 items-center gap-1 rounded-md border [border-color:var(--reading-border)] px-2 py-1 font-sans text-[11px] font-medium [color:var(--reading-muted)] transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 print:hidden"
+                            >
+                                <ChevronsUpDown className="h-3 w-3" aria-hidden="true" />
+                                {allFoldsExpanded ? "Fold setup" : `Full code (${lineCount}L)`}
+                            </button>
+                        ) : isCollapsible && (
                             <span data-print-hidden className="hidden text-[11px] font-mono [color:var(--reading-subtle)] sm:inline">
                                 {lineCount} lines
                             </span>
                         )}
-                        <CodeCopyButton code={codeString} />
+                        <CodeCopyButton code={cleanCode} />
                     </div>
                 )}
-                <div className={isCollapsible && !expanded ? "relative max-h-[28rem] overflow-hidden print:max-h-none print:overflow-visible" : "relative"}>
-                    <DeferredCodeContent
-                        code={codeString}
-                        language={prismLanguage}
-                        label={label}
-                        isDark={isDark}
-                        printAware
-                        showLineNumbers={Boolean(prismLanguage) && !meta.output && !isShortUntitled}
-                        className={isShortUntitled
-                            ? "max-w-full overflow-x-auto px-5 py-3.5 text-[0.85rem] leading-[1.7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 md:text-[0.95rem]"
-                            : "max-w-full overflow-x-auto p-5 text-[0.85rem] leading-[1.7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 md:text-[0.95rem]"}
-                        style={{
-                            margin: 0,
-                            background: "var(--reading-code-bg)",
-                            colorScheme: isDark ? "dark" : "light",
-                            fontFamily: CODE_FONT_FAMILY,
-                            lineHeight: "1.7",
-                            textShadow: "none",
-                        }}
-                        codeStyle={{ fontFamily: CODE_FONT_FAMILY, textShadow: "none" }}
-                        lineNumberStyle={{
-                            minWidth: "2.5em",
-                            paddingRight: "1em",
-                            color: "light-dark(rgba(0,0,0,0.28), rgba(255,255,255,0.24))",
-                            userSelect: "none",
-                            fontSize: "0.8rem",
-                        }}
-                        lineNumberClassName="leading-[calc(1.7*0.85rem)] md:leading-[calc(1.7*0.95rem)] max-[640px]:text-[0.8125rem] max-[640px]:leading-[calc(1.65*0.8125rem)] print:text-[8.5pt] print:leading-[1.45]"
-                    />
-                    {isCollapsible && !expanded && (
-                        <div
-                            data-print-hidden
-                            className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-[var(--reading-code-bg)] via-[var(--reading-code-bg)]/90 to-transparent pt-16 pb-3 print:hidden"
-                        >
-                            <button
-                                type="button"
-                                onClick={() => setExpanded(true)}
-                                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border [border-color:var(--reading-border)] [background:var(--reading-panel-solid)] px-3.5 py-1.5 font-sans text-xs font-medium [color:var(--reading-heading)] shadow-sm transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                {foldPlan.hasFolds && !allFoldsExpanded ? (
+                    <div
+                        tabIndex={0}
+                        role="region"
+                        aria-label={`${label} code block`}
+                        data-code-region
+                        className="relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50"
+                        style={{ background: "var(--reading-code-bg)" }}
+                    >
+                        {foldPlan.segments.map((segment) => {
+                            if (segment.kind === "folded" && !expandedFolds.has(segment.id)) {
+                                return (
+                                    <div key={segment.id}>
+                                        <FoldEdgeBar
+                                            hiddenCount={segment.lines.length}
+                                            label={segment.label}
+                                            edge={segment.edge}
+                                            onExpand={() => expandFoldSegment(segment.id)}
+                                        />
+                                        <div className="hidden print:block">
+                                            <DeferredCodeContent
+                                                code={segment.lines.join("\n")}
+                                                language={prismLanguage}
+                                                label={label}
+                                                isDark={isDark}
+                                                printAware
+                                                hideRegionRole
+                                                showLineNumbers={showLineNumbers}
+                                                startingLineNumber={segment.startLine}
+                                                className="max-w-full overflow-x-auto px-5 py-1.5 text-[0.85rem] leading-[1.7] md:text-[0.95rem]"
+                                                style={codeBlockStyle}
+                                                codeStyle={{ fontFamily: CODE_FONT_FAMILY, textShadow: "none" }}
+                                                lineNumberStyle={lineNumberStyle}
+                                                lineNumberClassName={lineNumberClassName}
+                                            />
+                                        </div>
+                                    </div>
+                                )
+                            }
+
+                            return (
+                                <DeferredCodeContent
+                                    key={segment.id}
+                                    code={segment.lines.join("\n")}
+                                    language={prismLanguage}
+                                    label={label}
+                                    isDark={isDark}
+                                    printAware
+                                    hideRegionRole
+                                    showLineNumbers={showLineNumbers}
+                                    startingLineNumber={segment.startLine}
+                                    highlightLines={segment.kind === "visible" ? segment.highlightedLines : undefined}
+                                    className="max-w-full overflow-x-auto px-5 py-3 text-[0.85rem] leading-[1.7] md:text-[0.95rem]"
+                                    style={codeBlockStyle}
+                                    codeStyle={{ fontFamily: CODE_FONT_FAMILY, textShadow: "none" }}
+                                    lineNumberStyle={lineNumberStyle}
+                                    lineNumberClassName={lineNumberClassName}
+                                />
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className={isCollapsible && !expanded ? "relative max-h-[28rem] overflow-hidden print:max-h-none print:overflow-visible" : "relative"}>
+                        <DeferredCodeContent
+                            code={cleanCode}
+                            language={prismLanguage}
+                            label={label}
+                            isDark={isDark}
+                            printAware
+                            showLineNumbers={showLineNumbers}
+                            highlightLines={foldPlan.hasFocusHighlights
+                                ? foldPlan.segments.find((s) => s.kind === "visible")?.highlightedLines
+                                : undefined}
+                            className={isShortUntitled
+                                ? "max-w-full overflow-x-auto px-5 py-3.5 text-[0.85rem] leading-[1.7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 md:text-[0.95rem]"
+                                : "max-w-full overflow-x-auto p-5 text-[0.85rem] leading-[1.7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50 md:text-[0.95rem]"}
+                            style={codeBlockStyle}
+                            codeStyle={{ fontFamily: CODE_FONT_FAMILY, textShadow: "none" }}
+                            lineNumberStyle={lineNumberStyle}
+                            lineNumberClassName={lineNumberClassName}
+                        />
+                        {isCollapsible && !expanded && (
+                            <div
+                                data-print-hidden
+                                className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center bg-gradient-to-t from-[var(--reading-code-bg)] via-[var(--reading-code-bg)]/90 to-transparent pt-16 pb-3 print:hidden"
                             >
-                                <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-                                Show all {lineCount} lines
-                            </button>
-                        </div>
-                    )}
-                </div>
-                {isCollapsible && expanded && (
+                                <button
+                                    type="button"
+                                    onClick={() => setExpanded(true)}
+                                    className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border [border-color:var(--reading-border)] [background:var(--reading-panel-solid)] px-3.5 py-1.5 font-sans text-xs font-medium [color:var(--reading-heading)] shadow-sm transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                                >
+                                    <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                                    Show all {lineCount} lines
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {isCollapsible && expanded && !foldPlan.hasFolds && (
                     <div
                         data-print-hidden
                         className="flex justify-center border-t [border-color:var(--reading-border)]/70 [background:var(--reading-code-header)]/65 py-2 print:hidden"

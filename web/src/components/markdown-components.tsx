@@ -94,6 +94,8 @@ type CodeFenceMeta = {
     bare: boolean
     compact: boolean
     output: boolean
+    noFold: boolean
+    focus?: string
     title?: string
 }
 
@@ -156,6 +158,7 @@ function parseCodeFenceMetaValue(rawMeta: string): CodeFenceMeta {
         bare: false,
         compact: false,
         output: false,
+        noFold: false,
     }
     const tokenPattern = /([A-Za-z][A-Za-z0-9_-]*)(?:=(?:"([^"]*)"|'([^']*)'|([^\s]+)))?/g
 
@@ -170,6 +173,10 @@ function parseCodeFenceMetaValue(rawMeta: string): CodeFenceMeta {
         } else if (key === "output") {
             meta.output = true
             meta.compact = true
+        } else if (key === "nofold") {
+            meta.noFold = true
+        } else if (key === "focus" && value) {
+            meta.focus = value
         } else if ((key === "title" || key === "filename") && value) {
             meta.title = value
         }
