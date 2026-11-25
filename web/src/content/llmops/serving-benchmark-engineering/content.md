@@ -6,7 +6,7 @@
   "section": "GPU Systems & LLM Inference",
   "category": "Evaluation & Benchmarks",
   "difficulty": "Hard",
-  "order": 23,
+  "order": 16,
   "companies": [
     "NVIDIA",
     "Google",
@@ -28,14 +28,14 @@
     "Reproducible benchmark records"
   ],
   "prerequisites": [
-    "distributed-inference-data-plane",
+    "model-parallelism-for-llm-inference",
     "llm-deployment-gpu-serving-autoscaling",
     "continuous-batching-request-scheduling",
     "gpu-kernel-performance-engineering-lab"
   ],
   "relatedQuestions": [
     "experiment-design-ab-testing",
-    "observability-monitoring-llm-systems",
+    "llm-deployment-gpu-serving-autoscaling",
     "llm-evaluation-benchmarks-limitations"
   ]
 }
@@ -528,7 +528,7 @@ To support a capacity claim, reproduce the load, retain failures and rejections,
 ]
 ```
 
-> **Next:** Continue to [Content Moderation System](/learn/design-real-time-content-moderation-system).
+> **Next:** Continue to [Code Completion System](/learn/design-code-completion-system).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -553,7 +553,7 @@ Our running example is a six-request incident-assistant trace:
 | r05 | 800 | 2,048 | natural stop, cap 512 | policy B | background |
 | r06 | 1,900 | 480 | natural stop, cap 128 | runbook A | interactive |
 
-Six requests is small, but every row is there for a reason. The long prompt at r03 lands 60 ms ahead of a short request, so it can [interfere with it](/learn/continuous-batching-request-scheduling). The background r05 can hold decode state for a long time. And r01, r02, and r06 share a runbook, which might [save real work](/learn/prefix-caching-prompt-caching) if compatible entries are warm. Repeating a prompt isn't wrong in itself, as long as you don't pass off a cache-friendly test as an unrelated production mix.
+Six requests is small, but every row is there for a reason. The long prompt at r03 lands 60 ms ahead of a short request, so it can [interfere with it](/learn/continuous-batching-request-scheduling). The background r05 can hold decode state for a long time. And r01, r02, and r06 share a runbook, which might [save real work](/learn/kv-cache-paged-attention-llm-serving) if compatible entries are warm. Repeating a prompt isn't wrong in itself, as long as you don't pass off a cache-friendly test as an unrelated production mix.
 
 Pin the tokenizer and template. Keep output caps separate from actual lengths, since a cap isn't an observed length. Forcing exact lengths by ignoring end-of-sequence tokens can isolate scheduler behavior, but that makes it a stress test of execution shape, which says nothing about natural task completion.
 

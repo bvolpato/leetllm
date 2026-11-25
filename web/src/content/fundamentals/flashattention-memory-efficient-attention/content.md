@@ -26,7 +26,7 @@
     "Backend eligibility and causal alignment"
   ],
   "prerequisites": [
-    "prefix-caching-prompt-caching",
+    "kv-cache-paged-attention-llm-serving",
     "scaled-dot-product-attention",
     "inference-mechanics-ttft-tps-kv-cache"
   ],
@@ -35,10 +35,10 @@
     "kv-cache-paged-attention-llm-serving",
     "multi-query-grouped-query-attention",
     "model-parallelism-for-llm-inference",
-    "long-context-window-management"
+    "positional-encoding-rope-alibi"
   ],
   "section": "GPU Systems & LLM Inference",
-  "order": 5,
+  "order": 4,
   "aliases": [
     "deep-dive-flashattention"
   ]

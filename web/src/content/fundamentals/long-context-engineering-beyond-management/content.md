@@ -32,15 +32,14 @@
     "Paired curation evaluation and critical-case regressions"
   ],
   "prerequisites": [
-    "prompt-engineering-fundamentals",
-    "function-calling-tool-use-llms",
-    "mcp-tool-protocol-standards"
+    "chain-of-thought-advanced-prompting",
+    "function-calling-tool-use-llms"
   ],
   "relatedQuestions": [
-    "long-context-window-management",
+    "positional-encoding-rope-alibi",
     "design-production-rag-pipeline",
     "advanced-rag-query-rewriting-self-rag",
-    "prefix-caching-prompt-caching",
+    "kv-cache-paged-attention-llm-serving",
     "agent-memory-persistence-patterns"
   ],
   "aliases": [

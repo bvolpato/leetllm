@@ -3,10 +3,10 @@
   "id": "ai-lab-coding-interview-python-systems",
   "title": "AI Lab Coding Interview: Python Systems",
   "slug": "ai-lab-coding-interview-python-systems",
-  "section": "AI Lab Interviewing",
+  "section": "AI System Design & Interviewing",
   "category": "MLOps & Deployment",
   "difficulty": "Hard",
-  "order": 1,
+  "order": 6,
   "coverImage": "illustrations/_generated/paged_kv_allocator_dark.png",
   "companies": [
     "Frontier AI Labs",
@@ -28,10 +28,9 @@
     "agent-failure-states-retry-fallback"
   ],
   "relatedQuestions": [
-    "ai-coding-workflow-with-agents",
     "code-generation-agents-sandboxing",
     "continuous-batching-request-scheduling",
-    "observability-monitoring-llm-systems"
+    "llm-deployment-gpu-serving-autoscaling"
   ]
 }
 ---

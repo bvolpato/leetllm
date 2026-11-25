@@ -34,7 +34,7 @@
     "agent-failure-states-retry-fallback",
     "multi-agent-dags-langgraph-orchestration",
     "vector-database-internals-hnsw-ivf",
-    "observability-monitoring-llm-systems"
+    "llm-deployment-gpu-serving-autoscaling"
   ],
   "order": 6
 }

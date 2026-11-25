@@ -4,7 +4,6 @@ import { createCanvas } from '@napi-rs/canvas';
 import { registerLessonFonts } from '../lib/fonts.mjs';
 import { drawFrame } from '../lib/scene.mjs';
 import { draw as synthetic } from '../animations/synthetic-data.mjs';
-import { draw as prompt } from '../animations/prompt-optimization.mjs';
 registerLessonFonts();
 
 function foreground(draw, id, cue) {
@@ -34,8 +33,6 @@ function foreground(draw, id, cue) {
 
 for (const [draw, id, cue] of [
   [synthetic, 'downstream-trial', 'suite-slices'],
-  [prompt, 'search-budget', 'host-caps'],
-  [prompt, 'engine-requests', 'engine-provenance'],
 ]) {
   test(`${id} retains visual premises before the next spoken construction`, () => {
     assert(

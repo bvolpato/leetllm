@@ -31,12 +31,11 @@
     "Shard byte identity, trusted manifests, and SHA-256 limits"
   ],
   "section": "Training, Fine-Tuning & Alignment",
-  "order": 10,
+  "order": 7,
   "prerequisites": [
-    "instruction-tuning-chat-templates",
-    "dataset-pipelines-data-quality",
+    "cross-validation-leakage-generalization",
     "llm-as-judge-automated-evaluation",
-    "continued-pretraining-domain-adaptation"
+    "pre-training-data-pipelines-scale"
   ],
   "relatedQuestions": [
     "supervised-fine-tuning-pipeline",

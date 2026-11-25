@@ -192,7 +192,7 @@ Start the shared-server shortlist with vLLM when you need broad model coverage, 
 
 Its design combines paged KV memory, <span data-glossary="continuous-batching">continuous batching</span>, chunked prefill, parallel execution, and automatic prefix caching (APC). APC reuses matching prompt KV state to skip prefill work. The engine still decodes each new answer.[^vllm2026prefix] Both vLLM and SGLang support shared-prefix reuse.
 
-A fair comparison therefore measures both engines with prefix caching enabled, compatible cache isolation, and cache-aware routing. [Prefix Caching and Prompt Caching](/learn/prefix-caching-prompt-caching) covers the hit-rate mechanics. Use [Deep Dive - vLLM](/learn/deep-dive-vllm) when scheduler, block-pool, or preemption behavior is part of the decision.
+A fair comparison therefore measures both engines with prefix caching enabled, compatible cache isolation, and cache-aware routing. [Prefix Caching and Prompt Caching](/learn/kv-cache-paged-attention-llm-serving) covers the hit-rate mechanics. Use [Deep Dive - vLLM](/learn/deep-dive-vllm) when scheduler, block-pool, or preemption behavior is part of the decision.
 
 ### SGLang
 

@@ -29,12 +29,12 @@
     "linear-algebra-machine-learning-deeper"
   ],
   "relatedQuestions": [
-    "training-run-operations",
+    "distributed-training-fsdp-deepspeed-zero",
     "reward-modeling-from-preference-data",
     "knowledge-distillation-llms"
   ],
   "section": "Training, Fine-Tuning & Alignment",
-  "order": 12
+  "order": 9
 }
 ---
 <!-- leetllm: edition:reference:start -->
@@ -464,7 +464,7 @@ Each failure pattern points to a specific axis in the adapter setup:
 - **Rank grows, cost rises, but quality stalls:** Rank may not be the bottleneck, or fixed $\alpha$ is shrinking $\alpha/r$. Hold $\alpha/r$ constant, check data formatting, and test `use_rslora=True` for high-rank runs.[^kalajdzievski2023][^huggingface2026peftlora]
 - **Unexpected inference latency:** A single-task deployment still running unmerged adapters pays extra kernel launches. Merge with `merge_and_unload()` so inference runs one dense layer.
 - **Multi-GPU training stalls or fails with `device_map="auto"`:** That setting belongs to Accelerate's Big Model Inference path, not distributed training. Use <span data-glossary="fsdp">FSDP</span>, <span data-glossary="deepspeed">DeepSpeed</span>, or QLoRA instead.[^huggingface2026acceleratebigmodel]
-- **OOM with a tiny adapter on a sharded base:** <!-- leetllm: audience:website:start -->Adapters don't eliminate FSDP / <span data-glossary="zero">ZeRO</span> peak memory from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and budget for both gathered frozen layer weights and full activations.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->Adapters don't eliminate FSDP / <span data-glossary="zero">ZeRO</span> peak memory from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and budget for both gathered frozen layer weights and full activations. The online companion's [Training Run Operations](/learn/training-run-operations) chapter covers resuming after preemption and exporting checkpoints.<!-- leetllm: audience:book:end -->
+- **OOM with a tiny adapter on a sharded base:** <!-- leetllm: audience:website:start -->Adapters don't eliminate FSDP / <span data-glossary="zero">ZeRO</span> peak memory from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and budget for both gathered frozen layer weights and full activations.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->Adapters don't eliminate FSDP / <span data-glossary="zero">ZeRO</span> peak memory from [distributed training](/learn/distributed-training-fsdp-deepspeed-zero). Build the optimizer from `requires_grad=True` tensors only, wrap at block granularity, and budget for both gathered frozen layer weights and full activations. The online companion's [Training Run Operations](/learn/distributed-training-fsdp-deepspeed-zero) chapter covers resuming after preemption and exporting checkpoints.<!-- leetllm: audience:book:end -->
 - **New special tokens never appear in outputs:** Adding tokenizer IDs does not resize model tensors. Call `resize_token_embeddings(len(tokenizer))` before wrapping, and explicitly unfreeze or select the affected input embedding and `lm_head` rows (`all-linear` excludes `lm_head`).[^huggingface2026peftlora]
 - **Shape mismatches at runtime:** Verify $A \in \mathbb{R}^{r \times d_{\text{in}}}$ and $B \in \mathbb{R}^{d_{\text{out}} \times r}$, especially on grouped-query attention models where $k_{\text{proj}}$ and $v_{\text{proj}}$ are narrower than $q_{\text{proj}}$.
 
@@ -797,7 +797,7 @@ Merged checkpoints take 12 × 9 = 108 GB. A shared base plus twelve adapters tak
 ]
 ```
 
-> **Next:** Continue to [Privacy-Preserving Machine Learning](/learn/privacy-preserving-ml-differential-privacy).
+> **Next:** Continue to [Reinforcement Learning Basics](/learn/introduction-to-reinforcement-learning-fundamentals).
 
 <!-- leetllm: edition:reference:end -->
 
@@ -1027,6 +1027,6 @@ The adapter costs $r(d_{\mathrm{in}}+d_{\mathrm{out}}) = 32 \times (4096 + 1024)
 
 You can now budget a fine-tune by component, factor an update down to a size that fits, explain why $B$ starts at zero, and choose placement and rank from the shape of a failure. You also know when to merge and when to share a base.
 
-A small adapter makes one job cheap to train, but a real run still has to survive preemption, keep batch size and learning rate consistent as it scales, and justify LoRA over full fine-tuning, QLoRA, or distillation. The next chapter, [Training Run Operations](/learn/training-run-operations), covers how to run, resume, and judge that job; after it, [reward modeling](/learn/reward-modeling-from-preference-data) turns comparisons between answers into a score you can train against.
+A small adapter makes one job cheap to train, but a real run still has to survive preemption, keep batch size and learning rate consistent as it scales, and justify LoRA over full fine-tuning, QLoRA, or distillation. The next chapter, [Training Run Operations](/learn/distributed-training-fsdp-deepspeed-zero), covers how to run, resume, and judge that job; after it, [reward modeling](/learn/reward-modeling-from-preference-data) turns comparisons between answers into a score you can train against.
 
 <!-- leetllm: edition:reader:end -->

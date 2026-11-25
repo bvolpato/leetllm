@@ -98,20 +98,17 @@ ROADMAP_SECTION_SEQUENCE, SECTION_ROADMAP_SLUG_ORDER = load_canonical_curriculum
 SECTION_ORDER = {section: index for index, section in enumerate(ROADMAP_SECTION_SEQUENCE)}
 
 SECTION_CONFIG = {
-    "Math & Tensor Foundations": {"icon": "🛠️", "color": "#22d3ee"},
     "Math & Tensor Foundations": {"icon": "📊", "color": "#38bdf8"},
-    "Deep Learning Foundations": {"icon": "📚", "color": "#a3e635"},
     "Classical ML & Evaluation": {"icon": "🧮", "color": "#fbbf24"},
-    "Production ML Systems": {"icon": "📈", "color": "#f59e0b"},
+    "Deep Learning Foundations": {"icon": "📚", "color": "#a3e635"},
     "Core LLM Foundations": {"icon": "🧪", "color": "#34d399"},
     "Applied LLM Engineering & RAG": {"icon": "🧰", "color": "#60a5fa"},
-    "AI System Design": {"icon": "🎓", "color": "#f87171"},
     "Transformer & Multimodal Architectures": {"icon": "🧠", "color": "#a78bfa"},
     "Training, Fine-Tuning & Alignment": {"icon": "🧬", "color": "#fb7185"},
     "Advanced Agents & Retrieval": {"icon": "🤖", "color": "#c084fc"},
     "GPU Systems & LLM Inference": {"icon": "⚡", "color": "#facc15"},
-    "AI System Design": {"icon": "🏗️", "color": "#fb923c"},
-    "AI Lab Interviewing": {"icon": "🎤", "color": "#e879f9"},
+    "AI System Design & Interviewing": {"icon": "🏗️", "color": "#fb923c"},
+    "Project Deep Dives": {"icon": "🔬", "color": "#22d3ee"},
     "Blog": {"icon": "✍️", "color": "#94a3b8"},
 }
 

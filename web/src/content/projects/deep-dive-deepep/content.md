@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 7,
+  "order": 6,
   "coverImage": "illustrations/_generated/deepep_token_journey_dark.png",
   "shortDescription": "A token can reach two experts on different GPUs and still return to the wrong row. DeepEP is the low-latency dispatch and combine communication library that orchestrates these MoE transfers across NVLink and RDMA.",
   "keyConceptsTested": [

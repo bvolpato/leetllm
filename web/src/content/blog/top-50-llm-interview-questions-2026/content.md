@@ -101,7 +101,7 @@ Compare token counts for the same prompts under each model's own tokenizer. Name
 
 A retrieval query containing "port" exposes the distinction. Static embeddings such as word2vec assign one vector to that vocabulary item regardless of its sentence.[^mikolov2013] An LLM's input embedding lookup is also context-free, but <span data-glossary="transformer">Transformer</span> layers update token states using surrounding positions. When "port" has the same token ID, a shipping report and a networking trace start with the same lookup vector but can produce different contextual states.[^devlin2019]
 
-An <span data-glossary="embedding">embedding</span> model turns a selected contextual state or pooled sequence into a retrieval vector. That pooling choice and training objective matter, so an arbitrary hidden state isn't automatically a good semantic-search embedding. If near-duplicates collide or opposite senses rank together, inspect the embedding checkpoint and pooling contract before blaming the index. [Contextual Embeddings](/learn/word-embeddings-contextual-representations) follows the transformation.
+An <span data-glossary="embedding">embedding</span> model turns a selected contextual state or pooled sequence into a retrieval vector. That pooling choice and training objective matter, so an arbitrary hidden state isn't automatically a good semantic-search embedding. If near-duplicates collide or opposite senses rank together, inspect the embedding checkpoint and pooling contract before blaming the index. [Contextual Embeddings](/learn/sentence-embeddings-contrastive-learning) follows the transformation.
 
 ### 8. Rankings flipped after switching cosine for dot product. What broke?
 
@@ -300,7 +300,7 @@ Polling an unfinished job twice can be correct if the runtime enforces a deadlin
 
 Model Context Protocol (MCP) defines client-server messages and discovery for prompts, resources, and tools. In the 2026-07-28 stateless specification, requests carry per-request protocol and capability metadata, and servers declare supported versions and capabilities through `server/discover` rather than a stateful initialization handshake.[^mcp_server_overview2026][^mcp_architecture2026][^mcp_discover2026] Tools expose executable functions, resources expose contextual data, and prompts expose user-selectable templates.
 
-Now ask what happens when a discovered tool can write to a database. Discovery isn't authorization. The host must enforce its consent and execution policy, and the server must enforce access to its own resources.[^mcp_tools2026] Identity, permissions, timeouts, validation, and audit still need implementation. Even passing schema validation only establishes argument shape, not permission to execute. [MCP Standards](/learn/mcp-tool-protocol-standards) follows those trust boundaries.
+Now ask what happens when a discovered tool can write to a database. Discovery isn't authorization. The host must enforce its consent and execution policy, and the server must enforce access to its own resources.[^mcp_tools2026] Identity, permissions, timeouts, validation, and audit still need implementation. Even passing schema validation only establishes argument shape, not permission to execute. [MCP Standards](/learn/function-calling-tool-use-llms) follows those trust boundaries.
 
 ### 28. When does a multi-agent design earn its complexity?
 
@@ -377,7 +377,7 @@ Cancel obsolete requests when the cursor moves, cache reusable context, cap prom
 
 Start with policy categories and the cost of false positives and false negatives for each one. Deterministic rules and small classifiers can handle clear cases; richer models can review ambiguity; humans can own appeals and high-risk uncertainty.
 
-One global threshold hides category-specific harm. Track precision, recall, calibration, latency, appeal reversals, and slice performance by policy class. [Content Moderation Design](/learn/design-real-time-content-moderation-system) turns those measurements into a tiered architecture.
+One global threshold hides category-specific harm. Track precision, recall, calibration, latency, appeal reversals, and slice performance by policy class. [Content Moderation Design](/learn/prompt-injection-defense-strategies) turns those measurements into a tiered architecture.
 
 ## Production operation
 
@@ -393,7 +393,7 @@ Normalize by successful, accepted work rather than raw tokens. A cheaper call th
 
 Trace queue time, TTFT, ITL, token counts, model and configuration version, route decision, retrieval IDs and scores, tool inputs and error classes, policy version, and final outcome. Self-hosted serving also needs GPU utilization, batch shape, free KV blocks, and preemption.
 
-Store raw prompts, documents, or outputs only under an explicit access and retention policy. A useful trace identifies whether retrieval, context assembly, model behavior, a tool, or timeout owned the failure without creating a second data leak. [LLM Observability](/learn/observability-monitoring-llm-systems) defines that trace.
+Store raw prompts, documents, or outputs only under an explicit access and retention policy. A useful trace identifies whether retrieval, context assembly, model behavior, a tool, or timeout owned the failure without creating a second data leak. [LLM Observability](/learn/llm-deployment-gpu-serving-autoscaling) defines that trace.
 
 ### 40. When is semantic caching unsafe?
 
@@ -448,13 +448,13 @@ Safety claims become useful only when they survive an adversarial case and end a
 
 Constitutional AI uses a written set of principles to have a model critique and revise responses, producing supervised examples, then uses AI-generated preference comparisons during reinforcement learning from AI feedback.[^bai2022]
 
-The constitution remains a human-authored policy artifact. Coverage gaps, conflicts between principles, evaluator errors, and deployment context still need review and red-team evidence. Review failed cases the principles missed alongside the document itself. [Constitutional AI](/learn/constitutional-ai-automated-red-teaming) follows the pipeline.
+The constitution remains a human-authored policy artifact. Coverage gaps, conflicts between principles, evaluator errors, and deployment context still need review and red-team evidence. Review failed cases the principles missed alongside the document itself. [Constitutional AI](/learn/rlhf-dpo-aligning-language-models) follows the pipeline.
 
 ### 47. How do you audit bias without hiding it in one score?
 
 Start with a product-specific harm definition, then test slices where the harm could differ. Benchmark prompts, counterfactual swaps, and production outcome audits expose different failure types.[^parrish2022][^zhao2018]
 
-Report uncertainty, sample size, false-positive and false-negative costs, and intersectional slices. Averages can improve while a small group regresses, so make the affected slice visible beside the aggregate. [Bias and Fairness](/learn/bias-detection-fairness-llms) connects measurement to mitigation.
+Report uncertainty, sample size, false-positive and false-negative costs, and intersectional slices. Averages can improve while a small group regresses, so make the affected slice visible beside the aggregate. [Bias and Fairness](/learn/llm-evaluation-benchmarks-limitations) connects measurement to mitigation.
 
 ### 48. What makes a guardrail enforceable?
 
@@ -478,4 +478,4 @@ Eliminate options that fail data, license, deployment, or operating constraints.
 
 You should be able to say which object changed: weights, cache, retrieved evidence, tool state, or the score itself. Pick one question and answer it in 90 seconds without notes. Then change one constraint: longer context, stale permissions, higher concurrency, a stricter latency target, or an irreversible tool. Write down which part of your first answer broke and which metric would make you reverse the new design. The opening memory estimate is one of those reversals. Concurrency can move from 4 to 40 while the weights stay fixed, and the cache is what you have to resize.
 
-[AI Lab System Design Interview](/learn/ai-lab-system-design-interview) provides requirement, scale, reliability, and rollout drills. [AI Lab Coding Interview](/learn/ai-lab-coding-interview-python-systems) turns the same reasoning into stateful Python systems, while [AI Lab Technical Presentation](/learn/ai-lab-technical-presentation) focuses on defending mechanisms, failures, evidence, and ownership without overclaiming.
+[AI Lab System Design Interview](/learn/ai-lab-system-design-interview) provides requirement, scale, reliability, and rollout drills. [AI Lab Coding Interview](/learn/ai-lab-coding-interview-python-systems) turns the same reasoning into stateful Python systems, while [AI Lab Technical Presentation](/learn/ai-lab-system-design-interview) focuses on defending mechanisms, failures, evidence, and ownership without overclaiming.

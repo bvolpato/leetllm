@@ -12,7 +12,7 @@
   ],
   "prerequisites": [],
   "relatedQuestions": [
-    "observability-monitoring-llm-systems"
+    "llm-deployment-gpu-serving-autoscaling"
   ],
   "shortDescription": "Control LLM unit economics by separating semantic hits from KV prefix reads, cascading fast-to-frontier routes with schema-preserving fallbacks, and sizing cohort budgets.",
   "keyConceptsTested": [
@@ -24,7 +24,7 @@
     "Interactive traffic versus asynchronous batch evaluation lanes",
     "Cohort spend attribution, budget sensitivity, and Rule-of-Three sizing"
   ],
-  "order": 18,
+  "order": 11,
   "aliases": [
     "semantic-caching-cost-latency-optimization",
     "model-gateways-routing-fallbacks"

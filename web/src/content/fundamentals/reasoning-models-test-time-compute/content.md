@@ -6,7 +6,7 @@
   "section": "Training, Fine-Tuning & Alignment",
   "category": "Reasoning & Scaling",
   "difficulty": "Hard",
-  "order": 20,
+  "order": 14,
   "coverImage": "illustrations/_generated/test_time_compute_dark.png",
   "companies": [
     "OpenAI",
@@ -30,7 +30,6 @@
     "mixture-of-experts-architecture"
   ],
   "relatedQuestions": [
-    "observability-monitoring-llm-systems",
     "llm-deployment-gpu-serving-autoscaling",
     "design-reasoning-agent-test-time-compute",
     "llm-cost-engineering-token-economics",

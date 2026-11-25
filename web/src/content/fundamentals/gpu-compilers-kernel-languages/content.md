@@ -6,7 +6,7 @@
   "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 16,
+  "order": 12,
   "shortDescription": "A correct kernel can still stall on its first call or fail because no image matches the GPU. The evidence is in the compiler artifacts.",
   "keyConceptsTested": [
     "CUDA compilation trajectory",
@@ -31,7 +31,7 @@
   "prerequisites": [
     "gpu-parallel-primitives-lab",
     "gpu-kernel-performance-engineering-lab",
-    "accelerator-architecture-field-guide"
+    "cuda-gpu-computing-for-ml"
   ],
   "relatedQuestions": [
     "gemm-naive-cuda-tensor-cores",

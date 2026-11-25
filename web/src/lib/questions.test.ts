@@ -268,14 +268,12 @@ describe('Roadmap Ordering', () => {
         'Classical ML & Evaluation',
         'Deep Learning Foundations',
         'Core LLM Foundations',
-        'Production ML Systems',
         'Applied LLM Engineering & RAG',
         'Transformer & Multimodal Architectures',
         'Training, Fine-Tuning & Alignment',
         'Advanced Agents & Retrieval',
         'GPU Systems & LLM Inference',
-        'AI System Design',
-        'AI Lab Interviewing',
+        'AI System Design & Interviewing',
         'Project Deep Dives',
     ]
 
@@ -290,9 +288,8 @@ describe('Roadmap Ordering', () => {
         'decision-trees-random-forests-gradient-boosting',
         'clustering-pca-representation-learning',
         'cross-validation-leakage-generalization',
-        'dataset-pipelines-data-quality',
         'experiment-design-ab-testing',
-        'causal-inference-confounding-counterfactuals',
+        'feature-engineering-production-ml',
         'neural-networks-from-scratch',
         'pytorch-training-loops',
         'softmax-cross-entropy-optimization',
@@ -312,22 +309,18 @@ describe('Roadmap Ordering', () => {
         'cross-validation-leakage-generalization',
         'clustering-pca-representation-learning',
         'experiment-design-ab-testing',
-        'dataset-pipelines-data-quality',
         'neural-networks-from-scratch',
         'pytorch-training-loops',
         'transformer-architecture-end-to-end',
         'decoding-strategies-greedy-beam-nucleus',
         'feature-engineering-production-ml',
-        'monitoring-predictive-models',
-        'calling-llm-apis-production',
-        'first-ai-app-end-to-end',
-        'file-ingestion-pdfs-html-ocr-markdown',
+        'chunking-strategies-document-processing',
         'core-retrieval-algorithms',
         'design-production-rag-pipeline',
         'scaled-dot-product-attention',
         'cuda-gpu-computing-for-ml',
         'build-gpt-from-scratch-lab',
-        'ai-coding-workflow-with-agents',
+        'code-generation-agents-sandboxing',
         'inference-mechanics-ttft-tps-kv-cache',
         'flashattention-memory-efficient-attention',
     ]
@@ -360,7 +353,7 @@ describe('Roadmap Ordering', () => {
         expect(slugs.indexOf('pytorch-training-loops')).toBeLessThan(slugs.indexOf('transformer-architecture-end-to-end'))
         expect(slugs.indexOf('sentence-embeddings-contrastive-learning')).toBeLessThan(slugs.indexOf('design-production-rag-pipeline'))
         expect(slugs.indexOf('structured-output-constrained-generation')).toBeLessThan(slugs.indexOf('function-calling-tool-use-llms'))
-        expect(slugs.indexOf('function-calling-tool-use-llms')).toBeLessThan(slugs.indexOf('mcp-tool-protocol-standards'))
+        expect(slugs.indexOf('function-calling-tool-use-llms')).toBeLessThan(slugs.indexOf('design-production-rag-pipeline'))
         expect(slugs.indexOf('mixed-precision-training-loss-scaling')).toBeLessThan(slugs.indexOf('distributed-training-fsdp-deepspeed-zero'))
         expect(slugs.indexOf('introduction-to-reinforcement-learning-fundamentals')).toBeLessThan(slugs.indexOf('rlhf-dpo-aligning-language-models'))
         expect(slugs.indexOf('rlvr-verifiable-rewards-training')).toBeLessThan(slugs.indexOf('reasoning-models-test-time-compute'))
@@ -434,16 +427,16 @@ describe('Roadmap Ordering', () => {
     test('tool-use topics stay in applied engineering after shared ML and core foundations', () => {
         const all = getQuestionsForUser(true)
         const slugs = all.map(q => q.slug)
-        const mlEnd = slugs.indexOf('dataset-pipelines-data-quality')
-        const coreStart = slugs.indexOf('bitter-lesson-compute-over-heuristics')
-        const coreEnd = slugs.indexOf('instruction-tuning-chat-templates')
+        const mlEnd = slugs.indexOf('feature-engineering-production-ml')
+        const coreStart = slugs.indexOf('tokenization-bpe-wordpiece-sentencepiece')
+        const coreEnd = slugs.indexOf('llm-evaluation-benchmarks-limitations')
         const toolUse = all.find(q => q.slug === 'function-calling-tool-use-llms')
 
         expect(mlEnd).toBeLessThan(coreStart)
         expect(coreStart).toBeLessThan(coreEnd)
         expect(toolUse?.section).toBe('Applied LLM Engineering & RAG')
         expect(slugs.indexOf('chain-of-thought-advanced-prompting')).toBeLessThan(slugs.indexOf('function-calling-tool-use-llms'))
-        expect(slugs.indexOf('function-calling-tool-use-llms')).toBeLessThan(slugs.indexOf('mcp-tool-protocol-standards'))
+        expect(slugs.indexOf('function-calling-tool-use-llms')).toBeLessThan(slugs.indexOf('design-production-rag-pipeline'))
     })
 
     test('every roadmap article ends with an explicit next callout', () => {

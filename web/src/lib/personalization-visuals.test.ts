@@ -354,7 +354,7 @@ A --> B`
             }
         }
 
-        expect(diagrams).toBeGreaterThan(30)
+        expect(diagrams).toBeGreaterThanOrEqual(25)
         expect(failures).toEqual([])
     })
 

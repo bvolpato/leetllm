@@ -23,18 +23,17 @@
     "Actor-to-inference weight synchronization (NCCL vs disk)",
     "DeepSeek-R1 multi-stage pipeline and RLVR vs. distillation"
   ],
-  "order": 19,
+  "order": 13,
   "coverImage": "illustrations/_generated/rlvr_pipeline_dark.png",
   "prerequisites": [
-    "constitutional-ai-automated-red-teaming",
     "rlhf-dpo-aligning-language-models",
     "reward-modeling-from-preference-data",
     "supervised-fine-tuning-pipeline"
   ],
   "relatedQuestions": [
     "knowledge-distillation-llms",
-    "model-merging-weight-interpolation",
-    "programmatic-prompt-optimization-dspy",
+    "lora-parameter-efficient-fine-tuning",
+    "chain-of-thought-advanced-prompting",
     "reasoning-models-test-time-compute"
   ],
   "aliases": [

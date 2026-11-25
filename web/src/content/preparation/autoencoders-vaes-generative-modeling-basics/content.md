@@ -450,4 +450,4 @@ Four checks catch most VAE training bugs early:
 ]
 ```
 
-> **Next:** Continue to [The Bitter Lesson & Compute](/learn/bitter-lesson-compute-over-heuristics).
+> **Next:** Continue to [BPE, WordPiece, and SentencePiece](/learn/tokenization-bpe-wordpiece-sentencepiece).

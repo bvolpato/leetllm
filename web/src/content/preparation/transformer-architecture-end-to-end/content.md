@@ -6,7 +6,7 @@
   "section": "Core LLM Foundations",
   "category": "Transformer Architecture",
   "difficulty": "Medium",
-  "order": 5,
+  "order": 3,
   "coverImage": "illustrations/_generated/transformer_full_architecture_dark.png",
   "companies": [
     "Google",
@@ -26,6 +26,10 @@
     "Feed-forward sublayers, residual connections, and normalization",
     "Encoder-only, decoder-only, and encoder-decoder visibility rules",
     "Diagnosing mask leakage and shape errors"
+  ],
+  "aliases": [
+    "gpt-to-modern-llms",
+    "llm-lifecycle-training-to-deployment"
   ]
 }
 ---
@@ -129,34 +133,9 @@ Each token produces three learned projections:
 - A **key** advertises what a position contains.
 - A **value** carries information if the query matches its key.
 
-Why separate queries, keys, and values instead of using $X X^T$? Direct self-matching gives symmetric raw scores, but row-wise softmax can already give asymmetric weights because rows have different denominators. A causal mask adds another asymmetry. Separate learned query and key maps let the model choose a richer matching rule, while the value map independently chooses what information to mix.[^vaswani2017]
+Why separate queries, keys, and values instead of computing $X X^T$ directly? Direct self-matching forces symmetric raw scores (though row-wise softmax can still produce asymmetric weights when row denominators differ). Separate learned query and key projections let the model learn an asymmetric matching rule, while the value projection independently decides what information to extract.[^vaswani2017]
 
-Check the distinction with two rows. Before masking, the off-diagonal scores are both one. Will their normalized weights also match?
-
-<!-- leetllm: test, deps=numpy, output=show -->
-```python title="symmetric-scores-asymmetric-weights.py"
-import numpy as np
-
-x = np.array([[1.0, 0.0], [1.0, 1.0]])
-scores = x @ x.T
-exp = np.exp(scores - scores.max(axis=-1, keepdims=True))
-weights = exp / exp.sum(axis=-1, keepdims=True)
-print("symmetric scores:", bool(np.allclose(scores, scores.T)))
-print("symmetric weights:", bool(np.allclose(weights, weights.T)))
-print("opposite weights:", np.round([weights[0, 1], weights[1, 0]], 3))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-symmetric scores: True
-symmetric weights: False
-opposite weights: [0.5   0.269]
-```
-<!-- leetllm: output:end -->
-
-For one head, $W_q$ and $W_k$ map `d_model` to key width $d_k$. $W_v$ maps to value width $d_v$, which does not have to equal $d_k$. Our examples choose equal head widths for all three projections.
-
-Comparing three query rows against three key rows produces a `[3, 3]` score matrix. At this stage the `the` row scores all three keys, and the causal mask will remove any forbidden entries next.
+For one head, $W_q$ and $W_k$ map `d_model` to key width $d_k$, and $W_v$ maps to value width $d_v$ (usually equal to $d_k$). Comparing three query rows against three key rows produces a `[3, 3]` score matrix whose causal mask removes future entries next.
 
 To see the multiplication, take one two-feature <span data-glossary="attention-head">attention head</span>. These handpicked arrays isolate the dot product and differ from the learned projections used by the complete model later:
 
@@ -226,11 +205,9 @@ $$
 \operatorname{Var}(q \cdot k) = \sum_{i=1}^{d_k} \operatorname{Var}(q_i k_i) = d_k
 $$
 
-Under those assumptions, the raw dot product's standard deviation is $\sqrt{d_k}$: eight at width 64, or about 11.31 at width 128. Score ranges depend on $d_k$ and the learned projections. Large score gaps make softmax nearly one-hot, where its Jacobian entries $\frac{\partial s_i}{\partial z_j} = s_i(\delta_{ij}-s_j)$ become small and can approach zero, allowing gradients to shrink.[^vaswani2017]
+Under those assumptions, the raw dot product's standard deviation grows as $\sqrt{d_k}$: 8 at width 64, or about 11.31 at width 128. Large score gaps push softmax near one-hot saturation, where its Jacobian entries $\frac{\partial s_i}{\partial z_j} = s_i(\delta_{ij}-s_j)$ collapse toward zero and shrink gradients.[^vaswani2017] Dividing by $\sqrt{d_k}$ keeps unit variance at initialization so attention starts in a responsive gradient regime.
 
-Dividing by $\sqrt{d_k}$ gives variance one in this statistical model. Learned, correlated query and key components may violate those assumptions. Scaling controls a width-related variance effect, while gradients still depend on the learned projections and surrounding layers.
-
-Their base model used $d_{\text{model}}=512$ with $h=8$ heads, so each head had $d_k=64$. The calculation below compares the unscaled and scaled versions of concrete scores `[12.4, 9.1, 3.8]`:
+The original Transformer used $d_{\text{model}}=512$ with $h=8$ heads ($d_k=64$). Compare unscaled versus scaled softmax on scores `[12.4, 9.1, 3.8]`:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="why-scale-attention.py"
@@ -768,6 +745,30 @@ For this autocomplete task, a decoder-only design gives a direct training and ge
 4. **Predictable scaling**: Language-model loss follows smooth power-law trends across model size, data, and compute, which helps teams budget training runs.[^kaplan2020]
 
 In self-attention, queries, keys, and values come from one sequence. In encoder-decoder **<span data-glossary="cross-attention">cross-attention</span>**, decoder queries read keys and values produced by the encoder. A plain decoder-only text generator has no separate source sequence, so its core path is causal self-attention.
+
+## From GPT-1 to modern decoder architectures
+
+The causal decoder above became the blueprint for modern large language models through four milestones:
+
+1. **GPT-1 (2018, 117M):** Generative pretraining on BooksCorpus followed by per-task linear heads and supervised fine-tuning.[^radford2018]
+2. **GPT-2 (2019, 1.5B):** Moved normalization to Pre-LN with a final `ln_f` and showed zero-shot task transfer from prompt cues (`TL;DR:`) without updating weights.[^radford2019]
+3. **GPT-3 (2020, 175B on 300B tokens):** Unlocked **in-context few-shot learning**, where prompt demonstrations steer next-token predictions with zero gradient updates.[^brown2020]
+4. **InstructGPT (2022) and modern alignment:** Base decoders extend documents rather than following instructions. Three-stage RLHF (SFT, reward modeling, PPO) and later preference objectives like DPO turned raw text predictors into conversational assistants.[^ouyang2022] Match base checkpoints to fine-tuning and instruct/chat checkpoints (with their exact chat templates[^huggingface2026chattemplates]) to interactive turns, and remember that **"open weights"** means downloadable tensors under specific license terms rather than unrestricted open source.[^meta2023OriginalLlamaRelease][^osi2024]
+
+### Modern block upgrades, KV cache compression, and MoE
+
+Frontier decoders kept the exact same residual-stream skeleton while upgrading four internal components for training stability and serving efficiency:
+
+- **Pre-LN + RMSNorm, RoPE, and SwiGLU:** Modern stacks like LLaMA and Gemma combine Pre-LN with RMSNorm (dropping mean-centering), SwiGLU gated FFNs at width $\frac{8}{3}d$, and RoPE rotations where $R_{\Theta, m}^\top R_{\Theta, n} = R_{\Theta, n - m}$ makes dot products depend strictly on relative offset $n - m$.[^touvron2023][^su2021][^shazeer2020]
+- **Prefill, decode, and Grouped-Query Attention (GQA):** Serving runs in two distinct phases: **prefill** processes all $T$ prompt tokens in parallel (compute-bound, high weight reuse) and populates each layer's <span data-glossary="kv-cache">KV cache</span>; **decode** emits one token per step (memory-bandwidth bound at small batch sizes). For batch $B$, sequence length $L$, and $P$ bytes per element (2 for FP16/BF16), raw KV cache memory scales directly with KV head count:
+
+$$
+\text{Memory}_{\text{KV}} = 2 \times B \times L \times n_{\text{layers}} \times n_{\text{kv\_heads}} \times d_{\text{head}} \times P
+$$
+
+  Sharing KV heads across query groups cuts that payload linearly: Multi-Query Attention (**MQA**, $n_{\text{kv}} = 1$)[^shazeer2019] and Grouped-Query Attention (**GQA**, $g$ shared KV heads)[^ainslie2023] shrink cache footprint by $n_q / n_{\text{kv}}$. At $B=8, L=8192$, 32 layers, $d_{\text{head}}=128$, BF16, 32-head MHA uses **32 GiB**, 8-head GQA drops to **8 GiB**, and MQA drops to **1 GiB**.
+- **Sparse Mixture-of-Experts (MoE):** Replaces each dense FFN with $E$ experts and a router executing only the top-$k$ per token (for example, Mixtral 8x7B holds **47B total parameters** while running **13B active parameters** per token).[^jiang2024] Active parameters govern per-token FLOPs, while **all total parameters** must fit in resident GPU VRAM unless offloaded.
+- **Long context and lost-in-the-middle recall:** Accepting 128k or 1M tokens reflects input capacity, not flat recall. Liu et al. swept an answer-bearing passage across 20 retrieved slots and observed a **U-shaped curve** with sharp recall drops in the middle.[^liu2023lost] Place decisive evidence near the start or end of the prompt and run controlled slot sweeps when evaluating long-context workloads.
 
 ## Diagnose a broken forward pass
 
@@ -1338,7 +1339,12 @@ Our model has one or two blocks, tiny width, and six vocabulary rows. Now scale 
 | DeepSeek-V4-Pro | 61 | 7,168 | 128 | 129,280 |
 | Gemma 4 31B | 60 | 5,376 | 32 | 262,144 |
 
-These dimensions come from each model's published report or configuration.[^gpt2XlConfig2019][^dubey2024][^metaLlama3Tokenizer2024][^gptOss120bConfig2025][^deepseek2026v4modelcard][^gemma431bConfig2026] Newer designs bend a few of the rules you just learned. A head's width is no longer always $d/h$: gpt-oss-120b sets it to 64, not 45. Masks have changed too. The same model alternates full attention with a sliding window that reads only the last 128 positions, 18 blocks of each. A sliding window still can't read the future, so the test you just ran still applies.
+These dimensions come from each model's published report or configuration.[^gpt2XlConfig2019][^dubey2024][^metaLlama3Tokenizer2024][^gptOss120bConfig2025][^deepseek2026v4modelcard][^gemma431bConfig2026] Watching the family evolve from 2018 to today shows how the same decoder loop absorbed four major upgrades:
+
+- **From completion to assistants:** GPT-1 (117M) pretrained and fine-tuned per task;[^radford2018] GPT-2 (1.5B) adopted Pre-LN and solved tasks zero-shot from prompts;[^radford2019] GPT-3 (175B) unlocked few-shot in-context learning with frozen weights;[^brown2020] and InstructGPT used RLHF to turn raw text continuation into instruction following.[^ouyang2022] Base checkpoints still extend documents, whereas instruct checkpoints expect their exact chat template, and "open weights" carry specific licenses rather than automatic open-source status.[^huggingface2026chattemplates][^osi2024]
+- **Leaner attention and KV caches:** Serving splits into parallel **prefill** (populating the KV cache across all prompt tokens) and step-by-step **decode** (streaming weights and cached keys/values from GPU memory). Grouped-Query Attention (GQA) lets multiple query heads share a single KV head, shrinking raw KV cache memory ($2 \cdot B \cdot L \cdot n_{\text{layers}} \cdot n_{\text{kv}} \cdot d_{\text{head}} \cdot P$) by $4\times$ to $8\times$ with near-MHA quality.[^ainslie2023]
+- **Sparse experts and sliding windows:** Mixture-of-Experts (MoE) layers replace one dense FFN with many experts and route each token to top-$k$ (so active parameters govern per-token FLOPs while *total* parameters still determine resident GPU VRAM).[^jiang2024] Other models bend head rules too: gpt-oss-120b sets head width to 64 (not $d/h = 45$) and alternates full attention with a 128-token causal sliding window.
+- **Long context is not uniform recall:** A 128k context window accepts long prompts, yet retrieval accuracy often follows a U-shaped "lost in the middle" curve, peaking at the beginning and end of the prompt.[^liu2023lost] Put key evidence near those edges and test recall across positions.
 
 **If you only call hosted models,** none of this is yours to inspect. You get text and token counts back, not hidden states, so you can't change a future token and compare. Providers generally publish a context window and a price, not block counts or widths. The picture still pays off. Every position you send has to pass through every block at least once, unless a cache already holds that work, which is why long prompts cost real compute, and the last row of scores is what a decoder draws from, even on a server you never see.
 

@@ -772,4 +772,4 @@ Counting backends run FX graphs eagerly and `aot_eager` skips Inductor codegen. 
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - Transformers](/learn/deep-dive-transformers).
+> **Next:** Continue to [Deep Dive - vLLM](/learn/deep-dive-vllm).

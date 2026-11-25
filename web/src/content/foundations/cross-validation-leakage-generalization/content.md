@@ -28,7 +28,8 @@
     "generalization"
   ],
   "aliases": [
-    "statistical-learning-theory-generalization"
+    "statistical-learning-theory-generalization",
+    "dataset-pipelines-data-quality"
   ]
 }
 ---
@@ -106,9 +107,17 @@ Why is `fallback_triggered_at` invalid even though it appears on every completed
 The classifier scores the request before fallback orchestration runs. Feeding downstream routing timestamps into the model gives it a consequence of its own decision, turning offline evaluation into an impossible hindsight simulator.
 ```
 
+### Schema validation, normalization, and label-conflict quarantine
+
+Leak-free splits also depend on cleaning raw records *before* partitioning them. Two prompt rows reading `"Build is still failing"` and `"  BUILD is still failing  "` look distinct to a naive row splitter; if one lands in train and the other in test, holdout accuracy rewards exact memorization. Guard dataset ingestion with three checks:
+
+1. **Layered schema validation:** Enforce **structural checks** (strict types via Pydantic `StrictInt`/`StrictStr` or Pandera schemas so booleans or strings never coerce silently into IDs),[^pydanticStrict2026][^panderaSchemas2026] **domain checks** (valid label vocabularies and numeric bounds), and **distributional checks** (sudden null or class-balance spikes). Schema checks catch malformed rows, not human annotation errors.
+2. **Deterministic normalization and exact fingerprinting:** Archive raw text untouched, then compute a normalized equivalence key using Unicode compatibility folding (`NFKC`), `casefold()`, and whitespace collapse, hashed with SHA-256.[^unicodeNormalization2026] Normalization collapses harmless casing and spacing noise while preserving semantic negations like `"not"` (verify case-sensitive tokens such as code identifiers before dropping duplicates).
+3. **Conflicting-label quarantine:** If identical normalized prompts carry disagreeing labels (`escalate` vs. `standard`), never keep the first row silently. Quarantine the entire conflicting group for review so annotation drift does not poison training or test scores.
+
 ## Train, validation, and test have different jobs
 
-Valid features are only half the story. Fitting weights, choosing thresholds, and estimating final generalization each require a distinct role:[^hastie2009]
+Valid features and clean rows are only half the story. Fitting weights, choosing thresholds, and estimating final generalization each require a distinct role:[^hastie2009]
 
 | Partition | Allowed operation | Disallowed mistake |
 | :--- | :--- | :--- |
@@ -117,29 +126,6 @@ Valid features are only half the story. Fitting weights, choosing thresholds, an
 | **Test** | Score one frozen candidate on prespecified metrics | Iterating on test errors and claiming the new score is independent |
 
 For time-ordered traffic, assign chronological windows cleanly: fit on January through June, choose the operating threshold on July, and evaluate once on locked August data.
-
-<!-- leetllm: test, deps=numpy, output=show -->
-```python title="make-a-locked-time-split.py"
-import numpy as np
-
-# Two prompt episodes per calendar month across months 1..8 (Jan..Aug)
-months = np.repeat(np.arange(1, 9), 2)
-train_idx = np.flatnonzero(months <= 6)
-val_idx = np.flatnonzero(months == 7)
-test_idx = np.flatnonzero(months == 8)
-
-print(f"train prompts = {len(train_idx)} (months {months[train_idx].min()}..{months[train_idx].max()})")
-print(f"valid prompts = {len(val_idx)} (month {months[val_idx][0]})")
-print(f"test  prompts = {len(test_idx)} (month {months[test_idx][0]}, locked)")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-train prompts = 12 (months 1..6)
-valid prompts = 2 (month 7)
-test  prompts = 2 (month 8, locked)
-```
-<!-- leetllm: output:end -->
 
 ```mermaid
 flowchart TB
@@ -189,57 +175,11 @@ rare-class warning captured cleanly
 ```
 <!-- leetllm: output:end -->
 
-Suppose five folds produce F1 scores `[0.67, 0.75, 0.58, 0.83, 0.71]`. Report the mean and fold spread together (and specify whether you averaged per-fold F1 or pooled out-of-fold counts, because nonlinear ratios can differ between the two):
-
-<!-- leetllm: test, deps=numpy, output=show -->
-```python title="summarize-cross-validation-folds.py"
-import numpy as np
-
-fold_f1 = np.array([0.67, 0.75, 0.58, 0.83, 0.71])
-mean_f1 = float(fold_f1.mean())
-std_f1 = float(fold_f1.std(ddof=1))
-
-print("fold F1 =", fold_f1.tolist())
-print(f"mean F1 = {mean_f1:.2f}")
-print(f"std  F1 = {std_f1:.2f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-fold F1 = [0.67, 0.75, 0.58, 0.83, 0.71]
-mean F1 = 0.71
-std  F1 = 0.09
-```
-<!-- leetllm: output:end -->
+Suppose five folds produce F1 scores `[0.67, 0.75, 0.58, 0.83, 0.71]` (mean `0.71`, sample std `0.09`). Always report the mean and fold spread together, and specify whether you averaged per-fold F1 or pooled out-of-fold confusion counts, because nonlinear ratios can differ between the two.
 
 ## Target leakage: when a feature steals the answer key
 
-**Target leakage** happens when an input feature is derived from the target or recorded after the decision. Below, an honest pre-decision rule scores `0.75` on eight prompts, whereas peeking at a post-review column jumps straight to `1.00`:
-
-<!-- leetllm: test, deps=numpy,scikit-learn, output=show -->
-```python title="future-field-leakage.py"
-import numpy as np
-from sklearn.metrics import accuracy_score
-
-ambiguity = np.array([1.4, -0.2, 0.8, 0.1, 1.1, -0.5, 0.3, 0.6])
-rule_match = np.array([0, 1, 0, 1, 0, 1, 0, 1])
-y = np.array([1, 0, 1, 0, 1, 0, 0, 1])
-
-# Decision-time score uses only prompt ambiguity and rule match known at inference
-honest_pred = (ambiguity - 0.9 * rule_match > 0).astype(int)
-# Post-decision field mirrors the outcome label after review completes
-leaked_pred = y.copy()
-
-print(f"decision-time accuracy={accuracy_score(y, honest_pred):.2f} preds={honest_pred.tolist()}")
-print(f"future-field  accuracy={accuracy_score(y, leaked_pred):.2f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-decision-time accuracy=0.75 preds=[1, 0, 1, 0, 1, 0, 1, 0]
-future-field  accuracy=1.00
-```
-<!-- leetllm: output:end -->
+**Target leakage** happens when an input feature is derived from the target or recorded after the decision. For example, a pre-decision rule built only from prompt ambiguity and keyword matches might score `0.75` accuracy on eight prompts, whereas adding a post-review column recorded after human moderation jumps offline accuracy straight to `1.00`, then collapses to random guessing in serving where that column is absent.
 
 Whenever an offline metric looks suspiciously close to `1.00`, check feature timestamps, duplicate rows, and label construction before trusting the model.
 
@@ -286,6 +226,8 @@ held-out-user group accuracy = 0.00
 <!-- leetllm: output:end -->
 
 > **Common mistake:** Dropping the `user_id` column does not remove user leakage; writing style, locale, timestamps, and workspace metadata still identify returning accounts. Group the split by `user_id` explicitly, and combine with a time cutoff when predicting future unseen users.
+
+On a static snapshot, `GroupKFold` or `GroupShuffleSplit` keeps every turn of a user or conversation thread together. For growing datasets where new conversations arrive daily, assign partitions deterministically by hashing the group key (for example, `int(sha256(conversation_id)[:8], 16) % 100` mapped to `< 70` train, `70..84` validation, `85..99` test) so existing splits stay stable as new data lands, then verify split class balance right after assignment.
 
 ```checkpoint
 Why should every prompt from the same user stay in the same fold when testing generalization to new users?
@@ -553,11 +495,30 @@ split docs first   shared docs = []
 ```
 <!-- leetllm: output:end -->
 
-At <span data-glossary="pretraining">pretraining</span> scale, teams combine three contamination diagnostics:
+At <span data-glossary="pretraining">pretraining</span> scale, teams combine three contamination and near-duplicate diagnostics:
 
-1. **Exact $n$-gram screening:** GPT-3 screened 13-word overlaps (adjusting to 8–13 words for shorter tasks),[^brown2020] and Llama 3 checked 8-gram token overlap, flagging 85% of HellaSwag and seeing a 14.8-point clean-vs-full gap on Llama 3 8B.[^dubey2024]
-2. **MinHash and dense embeddings:** MinHash catches near-duplicate edits at scale,[^broder1997] while embedding search spots paraphrases that drop shared $n$-grams.
-3. **Loss screening and fresh benchmarks:** Unusually low perplexity flags suspect items for inspection, though boilerplate also scores low.[^codeContaminationCountermeasures2024] Dynamic benchmarks like LiveBench[^white2024][^livebenchRepository2026] and contest-dated sets like LiveCodeBench[^jain2024][^livecodebenchRepository2026] keep fresh tasks past training cutoffs.
+1. **Exact $n$-gram screening:** GPT-3 screened 13-word overlaps (adjusting to 8 to 13 words for shorter tasks, after an earlier filter bug missed long-document matches and forced four benchmark withdrawals),[^brown2020] and Llama 3 checked 8-gram token overlap, flagging 85% of HellaSwag and observing a 14.8-point clean-vs-full gap on Llama 3 8B.[^dubey2024]
+2. **Shingling, MinHash, and LSH:** Adding a single word changes a SHA-256 hash completely, so near-duplicate checks represent each document as a set of word $n$-grams (shingles) and estimate **Jaccard similarity** $J(A, B) = |A \cap B| / |A \cup B|$. **MinHash** compresses each shingle set into $K$ minimum hash ranks satisfying $P(s_k(A) = s_k(B)) = J(A, B)$.[^broder1997] **Locality-Sensitive Hashing (LSH)** splits $K = br$ ranks into $b$ bands of $r$ rows so pairs become candidates if any full band matches:
+
+$$
+P(\text{candidate} \mid s) = 1 - (1 - s^r)^b
+$$
+
+   FineWeb's $b = 14, r = 8$ setup creates a steep S-curve (5.3% candidate recall at $J=0.50$, 77.2% at $J=0.75$, 98.8% at $J=0.85$).[^penedo2024] Remember that thresholded similarity is **not transitive** ($A \approx B$ and $B \approx C$ does not imply $A \approx C$), so merging connected components blindly collapses distinct documents. Pair MinHash with dense embeddings to catch paraphrases that share few $n$-grams. At pretraining scale, careful deduplication pays off sharply: Lee et al. cut memorization roughly tenfold while preserving benchmark accuracy, and Dolma combined Bloom filters across URL, document, and paragraph scopes.[^lee2022][^soldaini2024]
+3. **Loss screening and fresh benchmarks:** Unusually low perplexity flags suspect items for inspection, though boilerplate also scores low and black-box probes like Min-K% offer noisy signals rather than definitive proof on rewritten prompts.[^codeContaminationCountermeasures2024][^samuel2025Contamination] Dynamic benchmarks like LiveBench[^white2024][^livebenchRepository2026] and contest-dated sets like LiveCodeBench[^jain2024][^livecodebenchRepository2026] keep fresh tasks past training cutoffs.
+
+### PII scrubbing, corpus filtering, and dataset manifests
+
+Clean evaluation also requires controlling what enters the training corpus in the first place:
+
+- **PII detection and redaction:** Because language models memorize rare strings, scrub emails, phone numbers, and internal IDs using layered regex, NER, and toolkits like Presidio, either dropping PII-heavy pages or substituting typed placeholders (`<EMAIL>`).[^presidio2023][^soldaini2024]
+- **Heuristic and perplexity filtering:** Drop broken HTML and repetitive boilerplate using length and repetition checks tuned so code and non-English slices survive, paired with reference-model perplexity scoring (as in CCNet):[^wenzek2019][^penedo2024]
+
+$$
+\text{PPL}(X) = \exp\left( -\frac{1}{N} \sum_{i=1}^N \log P(x_i \mid x_{<i}) \right)
+$$
+
+- **Lineage and immutable manifests:** Record source origin, license, execution lineage (such as OpenLineage events),[^openLineageRun2026] rejection-reason counts, and full SHA-256 digests of the final dataset and quarantine logs in a versioned manifest before training begins.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="ngram-contamination-smoke-test.py"
@@ -750,4 +711,4 @@ Test your intuition on five quick perturbations:
 ]
 ```
 
-> **Next:** Continue to [Dataset Pipelines and Data Quality](/learn/dataset-pipelines-data-quality).
+> **Next:** Continue to [Experiment Design and A/B Testing](/learn/experiment-design-ab-testing).

@@ -6,7 +6,7 @@
   "section": "Training, Fine-Tuning & Alignment",
   "category": "Alignment & Safety",
   "difficulty": "Hard",
-  "order": 16,
+  "order": 11,
   "coverImage": "illustrations/_generated/reward_modeling_dark.png",
   "companies": [
     "OpenAI",
@@ -27,16 +27,16 @@
     "when DPO bypasses explicit reward models"
   ],
   "prerequisites": [
-    "training-run-operations",
+    "distributed-training-fsdp-deepspeed-zero",
     "lora-parameter-efficient-fine-tuning",
-    "supervised-fine-tuning-pipeline",
-    "instruction-tuning-chat-templates",
-    "data-labeling-human-feedback-active-learning"
+    "supervised-fine-tuning-pipeline"
   ],
   "relatedQuestions": [
     "rlhf-dpo-aligning-language-models",
-    "rlvr-verifiable-rewards-training",
-    "constitutional-ai-automated-red-teaming"
+    "rlvr-verifiable-rewards-training"
+  ],
+  "aliases": [
+    "data-labeling-human-feedback-active-learning"
   ]
 }
 ---
@@ -63,51 +63,27 @@ That scalar score drives two post-training workflows:
 
 <span data-glossary="dpo">Direct Preference Optimization (DPO)</span> uses the exact analytic link between a reward function and its KL-regularized optimal policy to express rewards as policy-to-reference log-ratios, turning pairwise loss directly into a policy objective without a separate scorer.[^rafailov2023] Explicit reward models remain valuable whenever you want fast reusable scoring across fresh rollouts, best-of-$N$ ranking, or shared feedback alongside executable verifiers and generative judges.[^lambert2024rlvr]
 
-## Preference data anatomy and validation pipeline
+## Preference data, annotation rubrics, and inter-annotator agreement
 
-Pairwise cross-entropy fits whatever ordering sits in the dataset, including prompt mismatches, collapsed duplicates, and systematic annotator habits. Inspecting raw preference records early saves compute from degenerate comparisons.
+Pairwise cross-entropy fits whatever ordering sits in the dataset, including prompt mismatches, ambiguous guidelines, and systematic rater habits. High-signal reward models start with crisp **annotation rubrics**, measured **inter-annotator agreement (IAA)**, and targeted **active learning** before a single gradient runs.
 
-### Standard and conversational preference formats
+### Rubrics, Cohen's kappa, and active learning
 
-Explicit-prompt datasets store one shared `prompt` alongside `chosen` and `rejected` completions, guaranteeing identical context tokens on both sides and making prompt-grouped splitting simple:
+Write a concrete rubric ranking criteria in order (for example: factual and numerical accuracy > safety > completeness > concision), with explicit tie definitions and boundary examples, and redact PII or credentials before routing transcripts to raters.[^presidio2023] Never measure rater reliability by raw percent agreement alone, since imbalanced classes inflate raw match. **<span data-glossary="cohens-kappa">Cohen's kappa</span> ($\kappa$)** corrects two-rater observed agreement $p_o$ for chance agreement $p_e$:[^cohen1960][^sklearn2026kappa]
 
-```json title="preference_pair.json"
-{
-  "prompt": "How do you prevent exponential overflow when implementing softmax in Python?",
-  "chosen": "Subtract max(z) from each logit before calling exp(z) so the largest exponent is zero.",
-  "rejected": "Cast the output array to float64 after calling exp(z) so large values fit safely."
-}
-```
+$$
+\kappa = \frac{p_o - p_e}{1 - p_e}
+$$
 
-Multi-turn dialogues store full role-tagged message lists for `chosen` and `rejected`. Both transcripts must match token for token through the system prompt and prior turns, diverging only at the final assistant reply:
+Use **Fleiss' kappa** for $m \ge 3$ raters per item[^statsmodels2026Fleiss] and **Krippendorff's alpha** ($\alpha = 1 - D_o / D_e$) when rater counts vary, labels are missing, or ratings are ordinal.[^krippendorff2011alpha] Watch two caveats: high $\kappa$ checks consistency rather than truth (two raters can both pick the longer buggy reply), and on rare classes a 96.7% raw match (`[[114, 2], [2, 2]]`) yields only $\kappa = 0.483$ (the **prevalence paradox**), so always inspect the confusion matrix and calibrate raters against gold examples.
 
-```json title="chat_preference_pair.json"
-{
-  "chosen": [
-    {"role": "system", "content": "Give concise, numerically accurate Python advice."},
-    {"role": "user", "content": "How do you prevent exponential overflow when implementing softmax in Python?"},
-    {"role": "assistant", "content": "Subtract max(z) from each logit before calling exp(z) so the largest exponent is zero."}
-  ],
-  "rejected": [
-    {"role": "system", "content": "Give concise, numerically accurate Python advice."},
-    {"role": "user", "content": "How do you prevent exponential overflow when implementing softmax in Python?"},
-    {"role": "assistant", "content": "Cast the output array to float64 after calling exp(z) so large values fit safely."}
-  ]
-}
-```
+Because expert review is expensive, spend labeling budget with **active learning** rather than uniform random draws:[^settles2010survey] prioritize high-uncertainty pairs (margins near $\Delta \approx 0$), high-disagreement prompts under **Query-by-Committee** (bootstrap or ensemble disagreement), and **hybrid diversity batches** that combine uncertainty with embedding-space core-set distance so one batch does not waste budget on near-duplicate prompts.[^sener2018coreset] When scaling with an LLM-as-a-judge, calibrate against blinded human gold slices, swap A/B positions to catch position bias,[^zheng2023] and ship versioned dataset manifests.[^gebru2021]
 
-Hugging Face TRL's `RewardTrainer` accepts both plain strings and conversational message lists. Conversational rows pass through the tokenizer's <span data-glossary="chat-template">chat template</span>, whereas raw strings concatenate directly without conversation delimiters.[^trl2026RewardTrainerV117]
+### Preference formats, pair checks, and prompt-grouped splits
 
-### Pair checks before training
+Explicit-prompt datasets store one shared `prompt` with `chosen` and `rejected` strings; multi-turn dialogues store full role-tagged message lists whose system prompt and earlier turns match token for token, diverging only at the final assistant reply. TRL's `RewardTrainer` formats conversational lists through the tokenizer's <span data-glossary="chat-template">chat template</span> and concatenates plain strings directly.[^trl2026RewardTrainerV117]
 
-Before batching pairs into gradient updates, check four data properties so gradients reflect response quality rather than preprocessing defects:
-
-- **Identical context prefix:** Both completions share the exact same prompt, system instructions, tool declarations, and template delimiters.
-- **Distinct tokenized inputs:** If whitespace normalization, templating, or truncation collapses `chosen` and `rejected` into identical token IDs and masks, a deterministic shared scorer outputs identical scores, giving zero margin and zero gradient. Check uniqueness both before and after tokenization.
-- **Labels matching the objective:** Winner-only Bradley-Terry loss expects strict preferences; ties and noisy disagreements need soft targets or dedicated tie-aware losses rather than silent dropping.
-- **Candidate lineage:** Store generator checkpoint, decoding temperature, and reviewer cohort so later slice checks can trace source artifacts.
-
-Watch how three common data defects filter out before training:
+Before training, verify four properties: **identical context prefixes**, **distinct tokenized inputs** (if truncation or normalization collapses both completions to the same token IDs, a shared scorer yields zero margin and zero gradient), **objective-matched labels** (strict wins for Bradley-Terry; soft targets or tie-aware losses for ties and contested votes), and **candidate lineage** (generator checkpoint, temperature, rater cohort). Also group train/validation splits by `prompt_id`: one prompt with $K = 4$ ranked responses expands into $\binom{4}{2} = 6$ pairs that leak across random splits. InstructGPT placed all $\binom{K}{2}$ pairs from one prompt into one batch item and averaged within the prompt so a $K = 9$ prompt (36 pairs) never outweighed a $K = 2$ prompt by 36x.[^ouyang2022]
 
 <!-- leetllm: test, output=show, output_title="Pair hygiene output" -->
 ```python title="preference_pair_checks.py"
@@ -145,35 +121,6 @@ kept=['a']
 rejected={'context_mismatch': 1, 'identical_candidates': 1, 'tie_or_abstention': 1}
 ```
 <!-- leetllm: output:end -->
-
-### Choose an evaluation split that matches generalization
-
-One prompt with $K = 4$ ranked responses expands into $\binom{4}{2} = 6$ pairs. Splitting those rows randomly leaks the same prompt and completions into both train and validation, turning validation accuracy into memorization. Group comparisons by `prompt_id` (and near-duplicate prompt clusters) when testing generalization to unseen prompts, or explicitly label a response-held-out split when evaluating new replies to fixed prompts.
-
-<!-- leetllm: test, output=show, output_title="Grouped split output" -->
-```python title="grouped_preference_split.py"
-pairs = [
-    {"pair_id": "a-b", "prompt_id": "softmax-17"},
-    {"pair_id": "a-c", "prompt_id": "softmax-17"},
-    {"pair_id": "d-e", "prompt_id": "attention-04"},
-    {"pair_id": "f-g", "prompt_id": "pooling-09"},
-]
-eval_prompts = {"softmax-17"}
-
-train = [p for p in pairs if p["prompt_id"] not in eval_prompts]
-validation = [p for p in pairs if p["prompt_id"] in eval_prompts]
-overlap = {p["prompt_id"] for p in train} & {p["prompt_id"] for p in validation}
-
-print(f"train_pairs={len(train)} eval_pairs={len(validation)} prompt_overlap={sorted(overlap)}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Grouped split output" output compact
-train_pairs=2 eval_pairs=2 prompt_overlap=[]
-```
-<!-- leetllm: output:end -->
-
-> **Key insight:** InstructGPT ranked $K = 4$ to $K = 9$ completions per prompt and placed all $\binom{K}{2}$ pairs from one prompt into a single batch item, scoring each completion once and averaging the pairwise losses within the prompt.[^ouyang2022] Without within-prompt averaging, a prompt with $K = 9$ candidates carries 36 times the loss weight of a prompt with $K = 2$.
 
 ## Turning a language model into a scalar scorer
 
@@ -523,41 +470,7 @@ Static validation splits only score completions drawn from past policies. Once R
 
 ### The Goodhart mechanism and Gao et al. scaling laws
 
-Gao et al. measured reward overoptimization cleanly by using a large **gold reward model** both to label preferences and to grade policies optimized against a smaller proxy scorer.[^gao2023scaling] As optimization pressure (KL budget or $\log N$ in best-of-$N$) grew, proxy reward climbed monotonically while gold reward rose, peaked, and collapsed.
-
-You can reproduce that exact Goodhart peak-and-collapse curve right here in NumPy. Suppose candidate completions have true quality $r_{\text{gold}} \sim \mathcal{N}(0, 1)$ and an imperfect proxy adds a spurious shortcut feature $s$ that correlates only weakly with truth (or adds heavy-tailed proxy error when $s$ grows large). Best-of-$N$ selection picks $\arg\max_i r_{\text{proxy}}(y_i)$; watch proxy reward keep climbing while true gold reward peaks around $N = 16$ and then falls:
-
-<!-- leetllm: test, deps=numpy, output=show, output_title="Best-of-N Goodhart overoptimization" -->
-```python title="goodhart_best_of_n.py"
-import numpy as np
-
-rng = np.random.default_rng(7)
-trials = 4000
-
-for n in (1, 4, 16, 64, 512):
-    # True quality plus a spurious shortcut (e.g., verbosity) that hurts quality when extreme.
-    true_skill = rng.normal(0.0, 1.0, size=(trials, n))
-    shortcut = rng.normal(0.0, 1.0, size=(trials, n))
-    gold = true_skill - 0.35 * np.maximum(0.0, shortcut - 1.0) ** 2
-    proxy = 0.8 * true_skill + 0.6 * shortcut + rng.normal(0.0, 0.25, size=(trials, n))
-
-    best_idx = np.argmax(proxy, axis=1)
-    chosen_proxy = proxy[np.arange(trials), best_idx].mean()
-    chosen_gold = gold[np.arange(trials), best_idx].mean()
-    print(f"N={n:3d} | mean proxy={chosen_proxy:+.3f} | mean gold={chosen_gold:+.3f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Best-of-N Goodhart overoptimization" output compact
-N=  1 | mean proxy=-0.025 | mean gold=-0.040
-N=  4 | mean proxy=+1.036 | mean gold=+0.731
-N= 16 | mean proxy=+1.823 | mean gold=+1.230
-N= 64 | mean proxy=+2.413 | mean gold=+1.585
-N=512 | mean proxy=+3.143 | mean gold=+1.927
-```
-<!-- leetllm: output:end -->
-
-At $N = 16$ and $N = 64$, filtering improves gold quality dramatically (+1.12). Push selection to $N = 512$ and the proxy leaps to +3.12 while true gold quality drops back below $N = 4$ (+0.73), because extreme search selects candidates with extreme shortcut values.
+Gao et al. measured reward overoptimization cleanly by using a large **gold reward model** both to label preferences and to grade policies optimized against a smaller proxy scorer.[^gao2023scaling] As optimization pressure (KL budget or $\log N$ in best-of-$N$) grew, proxy reward climbed monotonically while gold reward rose, peaked, and collapsed once search began selecting candidates with extreme shortcut values.
 
 Four failure modes drive this breakdown in real LLM post-training:
 
@@ -614,43 +527,7 @@ The ensemble mean is 5 and the standard deviation is 0, so the penalized score s
 
 ### Auditing fresh policy rollouts before optimization
 
-Static held-out accuracy only inspects historical completions, whereas fresh-rollout evaluation tests whether the reward model accurately ranks what the current policy emits right now. Before scaling into a large RL run, sample fresh rollouts from the target policy, check length skew and annotator agreement, and run a small monitored RL trial with stop rules independent of the proxy reward:
-
-<!-- leetllm: test, deps=numpy, output=show, output_title="Length-skew and agreement check" -->
-```python title="reward_slice_diagnostics.py"
-import numpy as np
-
-# Check whether winning completions are systematically longer on a validation slice.
-chosen_rewards = np.array([1.8, 2.4, 1.6])
-rejected_rewards = np.array([0.7, 1.1, 0.3])
-chosen_tokens = np.array([36, 58, 33])
-rejected_tokens = np.array([19, 22, 14])
-
-margins = chosen_rewards - rejected_rewards
-print(f"pair_accuracy={float((margins > 0).mean()):.2f} | mean_margin={float(margins.mean()):.2f}")
-print(f"all_winners_longer={bool(np.all(chosen_tokens > rejected_tokens))} -> add length-reversed eval pairs")
-
-# Separate unanimous pairs from contested votes before strict Bradley-Terry training.
-votes = {
-    "clear_bugfix": ["chosen", "chosen", "chosen"],
-    "style_only": ["chosen", "rejected", "chosen"],
-    "ambiguous_format": ["chosen", "rejected", "tie"],
-}
-for pair_id, labels in votes.items():
-    share = labels.count("chosen") / len(labels)
-    action = "strict_bt" if share == 1.0 else "soft_target_or_review"
-    print(f"  {pair_id:17s}: chosen_share={share:.2f} -> {action}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Length-skew and agreement check" output compact
-pair_accuracy=1.00 | mean_margin=1.23
-all_winners_longer=True -> add length-reversed eval pairs
-  clear_bugfix     : chosen_share=1.00 -> strict_bt
-  style_only       : chosen_share=0.67 -> soft_target_or_review
-  ambiguous_format : chosen_share=0.33 -> soft_target_or_review
-```
-<!-- leetllm: output:end -->
+Static held-out accuracy only inspects historical completions, whereas fresh-rollout evaluation tests whether the reward model accurately ranks what the current policy emits right now. Before scaling into a large RL run, sample fresh rollouts from the target policy, check whether winning completions are systematically longer (requiring length-reversed eval pairs), separate unanimous votes from contested ties for soft-target training, and run a small monitored RL trial with stop rules independent of the proxy reward.
 
 ## Standardized evaluation: RewardBench and RewardBench 2
 
@@ -866,7 +743,21 @@ That is the central hazard of reward modeling, and RL magnifies it. A flawed sco
 
 Why train a reward model when supervised demonstrations are simpler? Because comparing two answers to the same prompt is far easier for reviewers than writing gold replies from scratch. InstructGPT trained its scalar reward model on rankings of this form,[^ouyang2022] producing a single score per completed answer that drives both best-of-$N$ selection and online RL.
 
-Our running example asks how to prevent exponential overflow in Python's `softmax(z)`. Response A (`chosen`) gives the real fix: subtract `max(z)` before `exp(z)`. Response B (`rejected`) looks polished yet advises casting to `float64` *after* `exp(z)` has already overflowed. Let's build the scorer, check what its numbers actually mean, and watch how easily shortcuts sneak in.
+Our running example asks how to prevent exponential overflow in Python's `softmax(z)`. Response A (`chosen`) gives the real fix: subtract `max(z)` before `exp(z)`. Response B (`rejected`) looks polished yet advises casting to `float64` *after* `exp(z)` has already overflowed. Let's inspect how reliable preference labels get collected, build the scorer, check what its numbers mean, and expose shortcuts before RL amplifies them.
+
+## Collect reliable preferences: rubrics, agreement, and active learning
+
+A reward model can only be as sharp as the human or AI labels behind it. Start with a written **annotation rubric** that ranks criteria in priority order (accuracy before style, explicit tie rules, worked boundary cases) and redact PII or secrets before sending transcripts to raters.[^presidio2023]
+
+Measure **inter-annotator agreement (IAA)** beyond raw percent match, which exaggerates reliability whenever one label dominates. For two raters, **Cohen's kappa ($\kappa$)** adjusts observed agreement $p_o$ by chance agreement $p_e$:[^cohen1960]
+
+$$
+\kappa = \frac{p_o - p_e}{1 - p_e}
+$$
+
+Extend to $m \ge 3$ raters with **Fleiss' kappa**,[^statsmodels2026Fleiss] or use **Krippendorff's alpha** ($\alpha = 1 - D_o / D_e$) when rater counts vary or annotations have missing entries.[^krippendorff2011alpha] Remember two traps: high $\kappa$ confirms consistency rather than correctness (two raters can consistently reward verbose mistakes), and rare classes trigger the **prevalence paradox** (96.7% raw match can yield $\kappa = 0.483$), so always inspect the confusion matrix and score raters on gold checks.
+
+Because expert review is costly, use **active learning** to pick the most informative prompts instead of sampling uniformly:[^settles2010survey] query uncertain pairs near zero margin, high-disagreement pairs under a **Query-by-Committee** ensemble, and embedding-diverse batches via core-set selection so you do not pay to label near-duplicates.[^sener2018coreset] When augmenting with an LLM judge, calibrate against blinded human gold pairs, swap A/B positions to detect position bias,[^zheng2023] and freeze versioned dataset manifests.[^gebru2021]
 
 ## From language model to scorer
 

@@ -37,14 +37,12 @@ export type Section =
     | "Classical ML & Evaluation"
     | "Deep Learning Foundations"
     | "Core LLM Foundations"
-    | "Production ML Systems"
     | "Applied LLM Engineering & RAG"
     | "Transformer & Multimodal Architectures"
     | "Training, Fine-Tuning & Alignment"
     | "Advanced Agents & Retrieval"
     | "GPU Systems & LLM Inference"
-    | "AI System Design"
-    | "AI Lab Interviewing"
+    | "AI System Design & Interviewing"
     | "Project Deep Dives"
 export type Category =
     | "Transformer Architecture"
@@ -143,14 +141,12 @@ const VALID_SECTIONS = new Set<string>([
     "Classical ML & Evaluation",
     "Deep Learning Foundations",
     "Core LLM Foundations",
-    "Production ML Systems",
     "Applied LLM Engineering & RAG",
     "Transformer & Multimodal Architectures",
     "Training, Fine-Tuning & Alignment",
     "Advanced Agents & Retrieval",
     "GPU Systems & LLM Inference",
-    "AI System Design",
-    "AI Lab Interviewing",
+    "AI System Design & Interviewing",
     "Project Deep Dives",
 ])
 const VALID_DIFFICULTIES = new Set<string>(["Easy", "Medium", "Hard"])
@@ -337,14 +333,12 @@ const ROADMAP_SECTION_SEQUENCE: Section[] = [
     "Classical ML & Evaluation",
     "Deep Learning Foundations",
     "Core LLM Foundations",
-    "Production ML Systems",
     "Applied LLM Engineering & RAG",
     "Transformer & Multimodal Architectures",
     "Training, Fine-Tuning & Alignment",
     "Advanced Agents & Retrieval",
     "GPU Systems & LLM Inference",
-    "AI System Design",
-    "AI Lab Interviewing",
+    "AI System Design & Interviewing",
     "Project Deep Dives",
 ]
 const SECTION_ORDER: Record<Section, number> = ROADMAP_SECTION_SEQUENCE.reduce(
@@ -370,9 +364,8 @@ const SECTION_ROADMAP_SLUG_ORDER: Record<Section, string[]> = {
         "decision-trees-random-forests-gradient-boosting",
         "clustering-pca-representation-learning",
         "cross-validation-leakage-generalization",
-        "dataset-pipelines-data-quality",
         "experiment-design-ab-testing",
-        "causal-inference-confounding-counterfactuals",
+        "feature-engineering-production-ml",
     ],
     "Deep Learning Foundations": [
         "neural-networks-from-scratch",
@@ -384,41 +377,24 @@ const SECTION_ROADMAP_SLUG_ORDER: Record<Section, string[]> = {
         "autoencoders-vaes-generative-modeling-basics",
     ],
     "Core LLM Foundations": [
-        "bitter-lesson-compute-over-heuristics",
         "tokenization-bpe-wordpiece-sentencepiece",
-        "word-embeddings-contextual-representations",
         "sentence-embeddings-contrastive-learning",
         "transformer-architecture-end-to-end",
         "language-modeling-next-token-prediction",
         "decoding-strategies-greedy-beam-nucleus",
         "perplexity-language-model-evaluation",
-        "gpt-to-modern-llms",
-        "instruction-tuning-chat-templates",
         "llm-evaluation-benchmarks-limitations",
     ],
-    "Production ML Systems": [
-        "feature-engineering-production-ml",
-        "ranking-recommendation-systems",
-        "forecasting-anomaly-detection",
-        "monitoring-predictive-models",
-    ],
     "Applied LLM Engineering & RAG": [
-        "prompt-engineering-fundamentals",
-        "calling-llm-apis-production",
-        "first-ai-app-end-to-end",
         "chain-of-thought-advanced-prompting",
-        "programmatic-prompt-optimization-dspy",
         "structured-output-constrained-generation",
         "function-calling-tool-use-llms",
-        "mcp-tool-protocol-standards",
-        "file-ingestion-pdfs-html-ocr-markdown",
         "chunking-strategies-document-processing",
         "embeddings-cosine-dot-product-quantization",
         "core-retrieval-algorithms",
         "design-production-rag-pipeline",
         "llm-as-judge-automated-evaluation",
         "hallucination-detection-mitigation",
-        "bias-detection-fairness-llms",
         "prompt-injection-defense-strategies",
         "llm-cost-engineering-token-economics",
     ],
@@ -440,22 +416,15 @@ const SECTION_ROADMAP_SLUG_ORDER: Record<Section, string[]> = {
         "cuda-gpu-computing-for-ml",
         "mixed-precision-training-loss-scaling",
         "distributed-training-fsdp-deepspeed-zero",
-        "training-run-operations",
-        "jax-for-ml-research",
-        "continued-pretraining-domain-adaptation",
         "synthetic-data-generation-pipelines-llms",
         "supervised-fine-tuning-pipeline",
         "lora-parameter-efficient-fine-tuning",
-        "privacy-preserving-ml-differential-privacy",
-        "data-labeling-human-feedback-active-learning",
         "introduction-to-reinforcement-learning-fundamentals",
         "reward-modeling-from-preference-data",
         "rlhf-dpo-aligning-language-models",
-        "constitutional-ai-automated-red-teaming",
         "rlvr-verifiable-rewards-training",
         "reasoning-models-test-time-compute",
         "knowledge-distillation-llms",
-        "model-merging-weight-interpolation",
     ],
     "Advanced Agents & Retrieval": [
         "vector-database-internals-hnsw-ivf",
@@ -465,8 +434,6 @@ const SECTION_ROADMAP_SLUG_ORDER: Record<Section, string[]> = {
         "long-context-engineering-beyond-management",
         "agent-memory-persistence-patterns",
         "code-generation-agents-sandboxing",
-        "ai-coding-workflow-with-agents",
-        "computer-use-gui-browser-agents",
         "agent-failure-states-retry-fallback",
         "multi-agent-dags-langgraph-orchestration",
         "agent-evaluation-benchmarks",
@@ -475,45 +442,31 @@ const SECTION_ROADMAP_SLUG_ORDER: Record<Section, string[]> = {
         "inference-mechanics-ttft-tps-kv-cache",
         "multi-query-grouped-query-attention",
         "kv-cache-paged-attention-llm-serving",
-        "prefix-caching-prompt-caching",
         "flashattention-memory-efficient-attention",
         "continuous-batching-request-scheduling",
         "speculative-decoding",
-        "long-context-window-management",
         "model-quantization-gptq-awq-gguf",
         "local-llm-deployment-hardware-quantization",
         "model-parallelism-for-llm-inference",
-        "distributed-inference-data-plane",
-        "accelerator-architecture-field-guide",
         "gpu-kernel-performance-engineering-lab",
         "gpu-parallel-primitives-lab",
         "gpu-compilers-kernel-languages",
         "gemm-naive-cuda-tensor-cores",
         "low-precision-gpu-programming",
-        "gpu-runtime-execution-lab",
         "llm-deployment-gpu-serving-autoscaling",
-        "gpu-failure-operations",
-        "observability-monitoring-llm-systems",
         "serving-benchmark-engineering",
     ],
-    "AI System Design": [
-        "design-real-time-content-moderation-system",
+    "AI System Design & Interviewing": [
         "design-code-completion-system",
         "design-multi-tenant-llm-serving-platform",
-        "design-agent-sandbox-platform",
         "design-llm-powered-search-engine",
         "design-real-time-voice-ai-agent",
         "design-reasoning-agent-test-time-compute",
-    ],
-    "AI Lab Interviewing": [
         "ai-lab-coding-interview-python-systems",
         "ai-lab-system-design-interview",
-        "ai-lab-behavioral-interview",
-        "ai-lab-technical-presentation",
     ],
     "Project Deep Dives": [
         "deep-dive-pytorch",
-        "deep-dive-transformers",
         "deep-dive-vllm",
         "deep-dive-sglang",
         "deep-dive-flashinfer",
@@ -521,7 +474,6 @@ const SECTION_ROADMAP_SLUG_ORDER: Record<Section, string[]> = {
         "deep-dive-deepep",
         "deep-dive-nccl",
         "deep-dive-megatron",
-        "deep-dive-ray",
     ],
 }
 
@@ -770,7 +722,7 @@ export const sectionConfig: Record<Section, { icon: string; description: string;
     },
     "Classical ML & Evaluation": {
         icon: "🧮",
-        description: "Build core predictive models from scratch and learn why splits, metrics, experiments, and causality decide real performance.",
+        description: "Build core predictive models from scratch and learn how splits, metrics, feature pipelines, and A/B experiments decide real performance.",
         color: "text-amber-400",
     },
     "Deep Learning Foundations": {
@@ -780,17 +732,12 @@ export const sectionConfig: Record<Section, { icon: string; description: string;
     },
     "Core LLM Foundations": {
         icon: "🧪",
-        description: "Trace text through tokenization, embeddings, the Transformer block, decoding, perplexity, and instruction tuning.",
+        description: "Trace text through tokenization, contrastive embeddings, the Transformer block, next-token modeling, decoding, perplexity, and benchmarks.",
         color: "text-emerald-400",
-    },
-    "Production ML Systems": {
-        icon: "📦",
-        description: "Take models beyond notebooks with point-in-time feature pipelines, ranking, forecasting, and live drift monitoring.",
-        color: "text-teal-400",
     },
     "Applied LLM Engineering & RAG": {
         icon: "🧰",
-        description: "Build grounded LLM applications with prompting, structured outputs, tool calling, hybrid retrieval, evaluation, and cost control.",
+        description: "Build grounded LLM systems with chain-of-thought prompting, constrained decoding, tool calling, chunking, hybrid retrieval, and evaluation.",
         color: "text-blue-400",
     },
     "Transformer & Multimodal Architectures": {
@@ -800,7 +747,7 @@ export const sectionConfig: Record<Section, { icon: string; description: string;
     },
     "Training, Fine-Tuning & Alignment": {
         icon: "🧬",
-        description: "Pretrain, adapt, and align language models with scaling laws, CUDA, FSDP, LoRA, RLHF, DPO, RLVR, distillation, and model merging.",
+        description: "Pretrain, adapt, and align language models with scaling laws, CUDA, FSDP, SFT, LoRA, RLHF, DPO, RLVR, reasoning, and distillation.",
         color: "text-rose-400",
     },
     "Advanced Agents & Retrieval": {
@@ -813,19 +760,14 @@ export const sectionConfig: Record<Section, { icon: string; description: string;
         description: "Eliminate serving bottlenecks from KV caches, PagedAttention, FlashAttention, and CUDA kernels to quantization and fleet autoscaling.",
         color: "text-yellow-400",
     },
-    "AI System Design": {
+    "AI System Design & Interviewing": {
         icon: "🏗️",
-        description: "Design complete production AI systems end to end, balancing latency, accuracy, isolation, and cost tradeoffs.",
+        description: "Design production AI systems end to end and sharpen Python ML systems coding and architecture depth for AI lab loops.",
         color: "text-orange-400",
-    },
-    "AI Lab Interviewing": {
-        icon: "🎤",
-        description: "Sharpen Python systems coding, ML system design, behavioral reasoning, and technical presentation skills for AI lab loops.",
-        color: "text-fuchsia-400",
     },
     "Project Deep Dives": {
         icon: "🔬",
-        description: "Read the architecture behind canonical open-source AI systems from PyTorch and vLLM to FlashInfer, DeepGEMM, NCCL, and Megatron.",
+        description: "Read the architecture behind canonical open-source AI systems from PyTorch and vLLM to FlashInfer, DeepGEMM, DeepEP, NCCL, and Megatron.",
         color: "text-cyan-300",
     },
 }

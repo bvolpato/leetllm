@@ -24,14 +24,12 @@ LEARN_SECTIONS = {
     "Classical ML & Evaluation",
     "Deep Learning Foundations",
     "Core LLM Foundations",
-    "Production ML Systems",
     "Applied LLM Engineering & RAG",
     "Transformer & Multimodal Architectures",
     "Training, Fine-Tuning & Alignment",
     "Advanced Agents & Retrieval",
     "GPU Systems & LLM Inference",
-    "AI System Design",
-    "AI Lab Interviewing",
+    "AI System Design & Interviewing",
     "Project Deep Dives",
 }
 QUIZ_RE = re.compile(r"^```mastery-quiz\s*\n([\s\S]*?)\n```[ \t]*$", re.MULTILINE)

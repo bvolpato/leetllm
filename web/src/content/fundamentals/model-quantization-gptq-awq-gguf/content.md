@@ -36,11 +36,11 @@
     "local-llm-deployment-hardware-quantization",
     "llm-deployment-gpu-serving-autoscaling",
     "speculative-decoding",
-    "long-context-window-management",
+    "positional-encoding-rope-alibi",
     "knowledge-distillation-llms"
   ],
   "section": "GPU Systems & LLM Inference",
-  "order": 9
+  "order": 7
 }
 ---
 <!-- leetllm: edition:reference:start -->
@@ -791,6 +791,6 @@ Your four-bit candidate shows the same perplexity and cuts the weights from 54 G
 Check task behavior on held-out inputs from the reloaded file, such as schema validity and tool arguments, because perplexity can miss those failures. On users, quantizing the weights doesn't shrink the cache, but it does free room for it. On the 80 GB card from the [inference chapter](/learn/inference-mechanics-ttft-tps-kv-cache), 13.92 GB of weights leaves about 58 GB for the cache where 54 GB left 18, so on memory alone your colleague is close, at about 3.2 times. Whether those users get acceptable latency depends on decode work and scheduling, so measure that before you promise anything.
 ```
 
-Passing these checks gets the model to production, but it doesn't keep it healthy there. The next task is to find out whether this exact artifact goes on meeting your standards once real requests flow, and to be able to investigate quickly when it doesn't. [Observability](/learn/observability-monitoring-llm-systems) connects each answer a user received to the versions that produced it.
+Passing these checks gets the model to production, but it doesn't keep it healthy there. The next task is to find out whether this exact artifact goes on meeting your standards once real requests flow, and to be able to investigate quickly when it doesn't. [Observability](/learn/llm-deployment-gpu-serving-autoscaling) connects each answer a user received to the versions that produced it.
 
 <!-- leetllm: edition:reader:end -->

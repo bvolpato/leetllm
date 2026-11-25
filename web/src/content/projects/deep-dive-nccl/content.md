@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 8,
+  "order": 7,
   "coverImage": "illustrations/_generated/nccl_allreduce_choreography_dark.png",
   "companies": [
     "NVIDIA"

@@ -6,7 +6,7 @@
   "shortDescription": "A caller asks about incident 4219. Design a real-time voice agent that achieves sub-500ms time-to-first-audio, handles instant barge-in interruption, and reconciles confirmed playout.",
   "difficulty": "Hard",
   "category": "System Design",
-  "section": "AI System Design",
+  "section": "AI System Design & Interviewing",
   "coverImage": "illustrations/_generated/voice_agent_dark.png",
   "companies": [
     "OpenAI",
@@ -27,12 +27,12 @@
   ],
   "relatedQuestions": [
     "design-reasoning-agent-test-time-compute",
-    "computer-use-gui-browser-agents",
-    "observability-monitoring-llm-systems",
+    "agentic-architectures-react-plan-execute",
+    "llm-deployment-gpu-serving-autoscaling",
     "llm-cost-engineering-token-economics",
     "design-multi-tenant-llm-serving-platform"
   ],
-  "order": 6,
+  "order": 4,
   "keyConceptsTested": [
     "Speech-to-Text",
     "Text-to-Speech",

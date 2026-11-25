@@ -116,13 +116,13 @@ If the provider supports structured outputs, use a schema to constrain the expec
 
 Start without a real model by returning a **mock**, a controlled substitute response. Make it return a valid summary, malformed output, and a timeout. This lets you test your error handling without network access or API charges. Later, run a small set of real calls within a budget you chose in advance. Mock tests validate application logic; real model calls let you evaluate model quality.
 
-[Calling LLM APIs in Production](/learn/calling-llm-apis-production) covers this step. One provider and an inexpensive model are enough to learn the basics. Turn the summary function into a product surface a person can use. What has to surround that call before you can tell whether the feature helps?
+[Calling LLM APIs in Production](/learn/structured-output-constrained-generation) covers this step. One provider and an inexpensive model are enough to learn the basics. Turn the summary function into a product surface a person can use. What has to surround that call before you can tell whether the feature helps?
 
 ## Make one feature usable, then check whether it helps
 
 Give the report assistant a form, a loading state, a result, and an error message. Connect that form to a backend route such as `POST /reports/summarize`. Keep the provider key on the server, not in browser code. If you save reports, use sample reports while learning and understand who can read or delete them.
 
-FastAPI is one Python option with typed request and response models.[^fastapi_docs] Choose a framework you can inspect and debug. [First AI App End-to-End](/learn/first-ai-app-end-to-end) walks through the connections.
+FastAPI is one Python option with typed request and response models.[^fastapi_docs] Choose a framework you can inspect and debug. [First AI App End-to-End](/learn/design-production-rag-pipeline) walks through the connections.
 
 Now test the whole request. Submit a report, force the mocked provider to time out, and check that the page stops loading and explains the failure. A request ID should let you find the corresponding server event. Avoid silently replacing an error with a plausible-looking summary.
 
@@ -153,7 +153,7 @@ Semantic search uses <span data-glossary="embedding">embeddings</span>, numerica
 
 Keep incident IDs and runbook source IDs distinct. A shared runbook may apply to thousands of incidents; requiring its source ID to equal `INC-123` would discard useful guidance. Test a similar incident with a different ID, an outdated runbook, and a question the documents don't answer. Verify that each cited passage supports the answer; a matching file name alone is insufficient.
 
-Only after that works should you add difficult file formats, more advanced retrieval, or larger collections. [File Ingestion for AI](/learn/file-ingestion-pdfs-html-ocr-markdown) is the next step when extracting the source text itself becomes a problem.
+Only after that works should you add difficult file formats, more advanced retrieval, or larger collections. [File Ingestion for AI](/learn/chunking-strategies-document-processing) is the next step when extracting the source text itself becomes a problem.
 
 Tools are another optional extension. Start with a read-only incident lookup. If the assistant later creates tickets, validate arguments, enforce the caller's permissions in application code, require approval for the write, and prevent accidental duplicates. Authorize each tool call in application code using the caller's identity and policy. [Function Calling & Tool Use](/learn/function-calling-tool-use-llms) explains that authorization check. Learn integration protocols after the local interaction works.
 
@@ -175,7 +175,7 @@ For the product path, try running the app outside your development session. Pick
 
 Make a health route that doesn't spend money on a model call. Restrict access to the demo, limit requests, and set a spending limit where your provider supports one. Save a known-working code and prompt version, deploy a change, and practice restoring the earlier version. Test with sample reports throughout.
 
-You don't need to claim “production scale.” State what you actually tested: the environment, workload, request durations, failure cases, and costs observed. If only one person has used it, say so. [Model Versioning & Deployment](/learn/observability-monitoring-llm-systems) expands the release process when you need it.
+You don't need to claim “production scale.” State what you actually tested: the environment, workload, request durations, failure cases, and costs observed. If only one person has used it, say so. [Model Versioning & Deployment](/learn/llm-deployment-gpu-serving-autoscaling) expands the release process when you need it.
 
 A working demo still doesn't say how to pace the rest of the learning, or whether one timeline fits every starting point.
 

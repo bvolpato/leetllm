@@ -27,7 +27,7 @@
     "Multi-axis quality, latency, and cost thresholds"
   ],
   "section": "Core LLM Foundations",
-  "order": 11
+  "order": 7
 }
 ---
 
@@ -288,7 +288,7 @@ paired (14 fix, 4 reg): mcnemar_p=0.0309 | boot_95ci=[+0.010, +0.090]
 ```
 <!-- leetllm: output:end -->
 
-> **Key insight:** A 95% confidence interval reflects long-run coverage across repeated independent draws, not a 95% posterior probability on one run.[^nistConfidenceIntervals2026] Log dataset snapshot, split history, retrieval settings, prompt/chat template hash, model snapshot, decoding flags, judge swap rates, slice bounds, and latency/cost budgets in every report, and revisit [instruction tuning and chat templates](/learn/instruction-tuning-chat-templates) when formatting errors appear.
+> **Key insight:** A 95% confidence interval reflects long-run coverage across repeated independent draws, not a 95% posterior probability on one run.[^nistConfidenceIntervals2026] Log dataset snapshot, split history, retrieval settings, prompt/chat template hash, model snapshot, decoding flags, judge swap rates, slice bounds, and latency/cost budgets in every report, and revisit [instruction tuning and chat templates](/learn/supervised-fine-tuning-pipeline) when formatting errors appear.
 
 ```checkpoint
 A launch report claims Candidate B lifted accuracy from 97% to 99%, yet the run widened retrieval from top-3 to top-5 chunks and tuned the LLM judge on holdout `template-pin` rows. What must rerun before shipping?
@@ -356,7 +356,7 @@ The score reflects a whole-system change plus development exposure rather than a
 ]
 ```
 
-> **Next:** Continue to [Feature Engineering & Point-in-Time Pipelines](/learn/feature-engineering-production-ml).
+> **Next:** Continue to [CoT, ToT & Self-Consistency Prompting](/learn/chain-of-thought-advanced-prompting).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -544,6 +544,6 @@ Across 400 identical queries, a candidate fixes 14 baseline misses and introduce
 On the 18 discordant pairs, exact two-sided McNemar yields p ≈ 0.031 against equal accuracy, though all 4 regressions need manual review. On the 19/20 critical slice, the 95% Wilson lower bound sits near 0.76, signaling real uncertainty around that failure trace before shipping.
 ```
 
-You now have the measurement machinery to read public leaderboards accurately, hold harnesses comparable, compute unbiased `pass@k`, prevent contamination, and quantify uncertainty on slices and paired model upgrades. Because retrieved specifications remain trustworthy only when source documents enter the index cleanly, continue with [file ingestion across PDFs, HTML, OCR, and Markdown](/learn/file-ingestion-pdfs-html-ocr-markdown).
+You now have the measurement machinery to read public leaderboards accurately, hold harnesses comparable, compute unbiased `pass@k`, prevent contamination, and quantify uncertainty on slices and paired model upgrades. Because retrieved specifications remain trustworthy only when source documents enter the index cleanly, continue with [file ingestion across PDFs, HTML, OCR, and Markdown](/learn/chunking-strategies-document-processing).
 
 <!-- leetllm: edition:reader:end -->

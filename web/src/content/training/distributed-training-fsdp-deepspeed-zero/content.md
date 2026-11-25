@@ -32,7 +32,8 @@
   "section": "Training, Fine-Tuning & Alignment",
   "order": 6,
   "aliases": [
-    "deep-dive-deepspeed"
+    "deep-dive-deepspeed",
+    "training-run-operations"
   ]
 }
 ---
@@ -277,16 +278,31 @@ Four DeepSpeed rules prevent silent bugs:
 
 Default to **FSDP2** for native PyTorch tooling, `DeviceMesh` TP/PP composition, and DCP whenever GPU HBM or `CPUOffloadPolicy()` suffices. Choose **DeepSpeed** when NVMe spillover via ZeRO-Infinity is essential or you are extending a DeepSpeed stack. In legacy FSDP1 codebases, `FULL_SHARD` maps to `reshard_after_forward=True`, `SHARD_GRAD_OP` to `reshard_after_forward=False`, `HYBRID_SHARD` to a 2D `DeviceMesh`, and `limit_all_gathers=True` is a CPU peak-memory rate limiter (not an overlap knob).
 
-## Checkpointing: resumable state vs consolidated export
+## Checkpointing, PyTorch DCP, and failure recovery
+
+At cluster scale, hardware faults become routine rather than exceptional. If a single device has mean time between failures $\text{MTBF}_{\text{device}}$, $N$ independent devices fail at:
+
+$$
+\text{MTBF}_{\mathrm{cluster}} = \frac{\text{MTBF}_{\mathrm{device}}}{N}
+$$
+
+Across thousands of GPUs, interruptions happen every few hours (Meta reported 419 unexpected interruptions across its 54-day Llama 3 405B run on 16K H100s).[^dubey2024] Fast, atomic checkpointing and topology-flexible recovery are therefore core distributed-training infrastructure.
 
 | Goal | Required state | Verification check |
 |---|---|---|
 | **Resume training** | Sharded weights, Adam moments ($m_t, v_t$), step counters, LR scheduler, RNG, dataloader cursor (`client_state`) | Next resumed parameter update matches an uninterrupted run |
 | **Export for inference** | Consolidated weights plus model/tokenizer config (no optimizer state) | Forward outputs on fixed inputs match within tolerance |
 
+**PyTorch Distributed Checkpoint (DCP)** writes per-rank shards in parallel and automatically **reshards** model and optimizer state across different world sizes or topologies on restore (for example, resuming a 16-GPU checkpoint on 12 or 32 GPUs without a single-node consolidation bottleneck).[^pytorch2026dcp][^pytorchDcpAsync2026] When overlapping I/O with `async_save`, distinguish two completion points:
+
+1. **Staging completion:** Live GPU tensors have been copied into pinned host memory, so training ranks can safely resume forward/backward passes without mutating the snapshot.
+2. **Storage completion:** Every shard has flushed to durable storage and the manifest pointer has been published atomically (`fsync` plus atomic rename on POSIX filesystems, or a generation-matched pointer update on object stores).[^google2026storagePreconditions] Only after storage completion is a checkpoint durable and safe to mark as `latest`.
+
+Treat preemption signals (`SIGTERM`) as a hard deadline budget covering step finish (or clean abort), staging, flush, and atomic publish. Always align the **stateful dataloader cursor** to the exact completed optimizer step stored in the checkpoint: pairing step-$t$ weights with a prefetched cursor past step $t$ silently drops the intervening microbatches.[^torchdata2026statefulLoader]
+
 In DeepSpeed, **every rank** must call `engine.save_checkpoint(save_dir, tag)` with one shared tag (rank-0-only calls hang; per-rank timestamps fragment directories), and ZeRO-3 reloads must target a fresh engine.[^deepspeed2026source] Export dense ZeRO weights for inference with `zero_to_fp32.py` (`get_fp32_state_dict_from_zero_checkpoint`, budgeting full-model CPU RAM); for world-size changes, use Universal Checkpointing (`ds_to_universal.py`) or PyTorch DCP.[^deepspeedCheckpointDocs2026][^deepspeedUniversalCheckpointing2026]
 
-Matching the first resumed loss never proves a valid training resume: a weights-only reload computes the exact same step-4 loss yet takes a different AdamW step because moments reset:
+Matching the first resumed loss never confirms a valid training resume: a weights-only reload computes the exact same step-4 loss yet takes a different AdamW step because moments reset:
 
 <!-- leetllm: test, deps=torch, output=show, output_title="Checkpoint continuation output" -->
 ```python title="checkpoint_next_update.py"
@@ -376,15 +392,17 @@ p=64, m=256: overhead= 24.61%, idle=19.75%
   <figcaption>GPipe and plain 1F1B share identical bubble ratios; 1F1B cuts peak live activation sets per stage to $\min(m, p - i)$.</figcaption>
 </figure>
 
-## Sizing and debugging a real run
+## Sizing, scaling, and debugging a real run
 
 Always size above the static model-state floor. For 70B under ZeRO-3 (`1,120 GB`), $1{,}120 / 80 = \mathbf{14\text{ GPUs}}$ leaves 0 GB for activations, gathered layers, and allocator overhead. Adding a profiled `18 GB/GPU` transient budget pushes 16 GPUs to `70 + 18 = 88 GB` (OOM), whereas 24 GPUs (`46.7 + 18 = 64.7 GB`) and 32 GPUs (`35.0 + 18 = 53.0 GB`) run comfortably.
+
+When node failures shrink the cluster, keep global batch size constant by adjusting `gradient_accumulation_steps` rather than silently altering update dynamics. If you intentionally scale global batch size by multiplier $\kappa$ under Adam, Malladi et al.'s SDE scaling rule adjusts learning rate, betas, and epsilon together ($\eta' = \sqrt{\kappa}\,\eta$, $\beta'_i = 1 - \kappa(1 - \beta_i)$, $\epsilon' = \epsilon / \sqrt{\kappa}$), subject to diminishing returns once batch size passes the gradient noise scale $\mathcal{B}_{\mathrm{simple}} = \operatorname{Tr}(\Sigma) / \|G\|^2$.[^malladi2022adaptiveScaling][^mccandlish2018] Before committing to a multi-day run, rehearse a restart drill: interrupt a short job, resume across a changed GPU count, and verify step $t+1$ weights, moments, and dataloader cursor match the uninterrupted run.
 
 When distributed runs fail, turn symptoms into profiler checks:[^pytorchNcclEnvironment2026][^megatronCoreParallelism2026]
 - **NCCL hang/timeout:** Read the *earliest* failing rank log with `TORCH_NCCL_DUMP_ON_TIMEOUT=1` and positive `TORCH_NCCL_TRACE_BUFFER_SIZE`; check dynamic MoE gather alignment.
 - **Startup OOM:** Instantiate on `torch.device("meta")` (FSDP2) or `deepspeed.zero.Init()` (DeepSpeed) before loading shards.
 - **Exposed collectives in `torch.profiler`:** Tune block granularity, prefetching, or switch to hybrid sharding / intra-node TP.
-- **Loss shift after scaling out:** Audit global batch ($B_{\text{micro}} \times m \times DP$), unequal-rank token weighting, `grad_accum_dtype`, and managed `engine.step()` cadence.
+- **Loss shift after scaling out or resuming:** Audit global batch ($B_{\text{micro}} \times m \times DP$), unequal-rank token weighting, `grad_accum_dtype`, managed `engine.step()` cadence, and dataloader cursor alignment.
 
 ```mastery-quiz
 [
@@ -446,4 +464,4 @@ When distributed runs fail, turn symptoms into profiler checks:[^pytorchNcclEnvi
 ]
 ```
 
-> **Next:** Continue to [Training Run Operations](/learn/training-run-operations).
+> **Next:** Continue to [Synthetic Data Pipelines](/learn/synthetic-data-generation-pipelines-llms).

@@ -6,7 +6,7 @@
   "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 7,
+  "order": 6,
   "coverImage": "illustrations/_generated/draft_verify_dark.png",
   "companies": [
     "Google",
@@ -33,8 +33,8 @@
     "decoding-strategies-greedy-beam-nucleus"
   ],
   "relatedQuestions": [
-    "long-context-window-management",
-    "prefix-caching-prompt-caching",
+    "positional-encoding-rope-alibi",
+    "kv-cache-paged-attention-llm-serving",
     "continuous-batching-request-scheduling",
     "llm-deployment-gpu-serving-autoscaling",
     "llm-cost-engineering-token-economics",
@@ -659,4 +659,4 @@ Test the rejection sampler first on fixed synthetic probability tables (includin
 ]
 ```
 
-> **Next:** Continue to [Long Context Window Management](/learn/long-context-window-management).
+> **Next:** Continue to [Model Quantization: GPTQ, AWQ & GGUF](/learn/model-quantization-gptq-awq-gguf).

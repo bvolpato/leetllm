@@ -32,8 +32,8 @@
   "relatedQuestions": [
     "image-generation-diffusion-models",
     "design-real-time-voice-ai-agent",
-    "computer-use-gui-browser-agents",
-    "file-ingestion-pdfs-html-ocr-markdown",
+    "agentic-architectures-react-plan-execute",
+    "chunking-strategies-document-processing",
     "vision-transformers-image-encoders",
     "prompt-injection-defense-strategies"
   ],

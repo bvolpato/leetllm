@@ -26,7 +26,10 @@
     "Two-stage retrieval: bi-encoder + cross-encoder reranking"
   ],
   "section": "Core LLM Foundations",
-  "order": 4
+  "order": 2,
+  "aliases": [
+    "word-embeddings-contextual-representations"
+  ]
 }
 ---
 
@@ -38,9 +41,43 @@ A **<span data-glossary="embedding">sentence embedding</span>** compresses an en
 |---|---|---|
 | "How does RoPE encode token position?" | "Rotate query and key pairs by angle mθ so dot products encode relative offset." | "Add learned absolute position tables before the first attention layer." |
 
+## From static word tables to contextual representations
+
+Before encoding whole passages, NLP built representations for individual words through a trainable lookup matrix $E \in \mathbb{R}^{V \times d}$, where token ID $i$ selects row $E[i]$. Those coordinates come from the **distributional hypothesis**: words appearing in similar neighborhoods (`apple` and `pear` near `sweet`; `river` and `lake` near `water`) land near one another in vector space.
+
+### Static word vectors: PPMI-SVD, Word2Vec, GloVe, and FastText
+
+Early dense vectors compressed global co-occurrence counts using **Positive Pointwise Mutual Information (PPMI)** and truncated <span data-glossary="svd">SVD</span>:[^deerwester1990]
+
+$$
+\text{PMI}(w, c) = \log \frac{\#(w, c) \cdot N}{\#(w)\, \#(c)}, \qquad \text{PPMI}(w, c) = \max(\text{PMI}(w, c), 0)
+$$
+
+Three landmark methods then made static word vectors scalable without factoring a dense $V \times V$ matrix upfront:
+
+- **Word2Vec (CBOW and Skip-gram with Negative Sampling):**[^mikolov2013][^mikolov2013NegativeSampling] Slides a local context window over raw text (CBOW predicts the center word from neighbors; Skip-gram predicts neighbors from the center word) and replaces a full-vocabulary softmax with binary classification against $k$ noise draws:
+
+$$
+\mathcal{L}_{\text{SGNS}} = -\log \sigma(u \cdot v_+) - \sum_{n \in \mathcal{N}} \log \sigma(-u \cdot v_n)
+$$
+
+  Levy and Goldberg proved that Skip-gram negative sampling implicitly factorizes the shifted PMI matrix $\text{PMI}(w, c) - \log k$, unifying predictive embeddings with matrix factorization.[^levy2014]
+- **GloVe (Global Vectors):**[^pennington2014] Aggregates global co-occurrence counts $X_{ij}$ once and fits weighted least squares on nonzero entries ($w_i \cdot \tilde{w}_j + b_i + \tilde{b}_j \approx \log X_{ij}$), using $f(x) = \min((x / x_{\max})^{3/4}, 1)$ so neither rare noise nor ubiquitous stop words dominate.
+- **FastText (Subword Composition):**[^bojanowski2017] Learns vectors for boundary-marked character $n$-grams (`<pl`, `pla`, `lay`, `ay>`) alongside whole words, letting unseen inflections like `played` compose from shared stem subwords instead of falling back to an `<UNK>` row.
+
+Watch one distributional quirk: high static cosine does not imply synonymy. Antonyms like `hot` and `cold` appear in nearly identical contexts (`hot/cold water`) and routinely sit right next to each other.
+
+### Breaking the polysemy ceiling with context
+
+Static tables hit a hard ceiling on **polysemy**: `"She saw the bank by the river"` and `"He paid the loan at the bank"` assign the exact same token ID to `bank`, returning one compromise vector for both senses. **<span data-glossary="contextual-representation">Contextual representations</span>** pass lookup rows through sequence layers that mix each token with its neighbors:
+
+1. **ELMo:** Runs forward and backward 2-layer LSTMs over character-CNN inputs and blends layers with task-learned softmax weights ($\text{ELMo}_k = \gamma \sum_{j=0}^{2} s_j h_{k, j}$).[^peters2018]
+2. **BERT:** Uses bidirectional Transformer self-attention so every token (`bank`) attends freely to both left and right context (`river` or `loan`).[^devlin2019]
+3. **GPT:** Applies a lower-triangular <span data-glossary="causal-mask">causal mask</span> so position 0 (`bank`) sees only itself while trailing positions integrate the full prefix.[^radford2018]
+
 ## Why pooling static words or raw BERT fails
 
-[Word embeddings](/learn/word-embeddings-contextual-representations) give every <span data-glossary="token">token</span> a vector. The quickest way to build a sentence vector is <span data-glossary="mean-pooling">mean pooling</span>: average the token vectors. Why isn't that enough on its own?
+Word embeddings give every <span data-glossary="token">token</span> a vector. The quickest way to build a sentence vector is <span data-glossary="mean-pooling">mean pooling</span>: average the token vectors. Why isn't that enough on its own?
 
 First, averaging **static** word vectors is commutative ($A + B = B + A$), so `"compiler calls linker"` and `"linker calls compiler"` collapse to the exact same vector! Second, taking a raw `[CLS]` vector straight out of pretrained BERT fails even worse: BERT was trained for joint pair classification, not independent cosine search. In the original SBERT benchmarks across seven semantic textual similarity (STS) tasks, raw BERT `[CLS]` scored just **29.19** (Spearman $\times 100$) and mean-pooled BERT scored **54.81**, both trailing simple averaged GloVe vectors at **61.32**.[^reimers2019]
 
@@ -66,7 +103,12 @@ A: [0.8, 0.133, 0.1] B: [0.8, 0.133, 0.1] identical: True
 ```
 <!-- leetllm: output:end -->
 
-Pretrained contextual representations also suffer from **<span data-glossary="anisotropy">anisotropy</span>**, crowding vectors into a narrow cone where unrelated pairs share high baseline cosine scores.[^ethayarajh2019] (Anisotropy alone is not fatal if relative ordering stays sharp; `intfloat/e5-base-v2`, for example, places most cosines between $0.7$ and $1.0$ while ranking accurately.[^e5BaseV2Card2026]) Contrastive training fixes the geometry directly by balancing two forces on the unit hypersphere $\mathcal{S}^{d-1}$:[^wang2020]
+Pretrained contextual representations also bring two geometric traps when plugged directly into vector search:
+
+- **<span data-glossary="anisotropy">Anisotropy</span>:** Unfinetuned hidden states in BERT, ELMo, and GPT-2 crowd into a narrow cone sharing a large mean direction $\mu$.[^ethayarajh2019] Two opposing residuals around a shared mean `[10, 0]`, namely `[10, 1]` and `[10, -1]`, produce a raw cosine of `0.980`, flipping to `-1.000` only after subtracting $\mu$. (Anisotropy alone is not fatal if relative ordering stays sharp; `intfloat/e5-base-v2`, for example, places most cosines between $0.7$ and $1.0$ while ranking accurately.[^e5BaseV2Card2026])
+- **Unaligned coordinate spaces:** Matching vector width $d$ never guarantees matching geometry across checkpoints. Even a clean $90^\circ$ orthogonal rotation preserves every internal distance inside Model B while scrambling search if a query from Model A hits an index built with Model B. Pin checkpoint revision, preprocessing, and similarity metric together, and re-index whenever you change encoders.
+
+Contrastive training fixes sentence geometry directly by balancing two forces on the unit hypersphere $\mathcal{S}^{d-1}$:[^wang2020]
 
 1. **Alignment:** Pull positive pairs $(x, x^+)$ together by minimizing $\mathcal{L}_{\text{align}} = \mathbb{E}[\|f(x) - f(x^+)\|_2^2] = 2 - 2\,\mathbb{E}[f(x)^\top f(x^+)]$.
 2. **Uniformity:** Spread unrelated representations across the sphere by minimizing $\mathcal{L}_{\text{uniform}}(t) = \log \mathbb{E}[\exp(-t\|f(x) - f(y)\|_2^2)]$.

@@ -107,18 +107,18 @@ describe("learning tracks", () => {
         }
     })
 
-    test("production ML track covers data quality through monitored deployment", () => {
+    test("production ML track covers splits, features, training, and monitored deployment", () => {
         const track = getTrackBySlug("production-ml-systems")
         expect(track).toBeDefined()
         expect(track?.lessonSlugs).toEqual(expect.arrayContaining([
-            "dataset-pipelines-data-quality",
+            "cross-validation-leakage-generalization",
+            "experiment-design-ab-testing",
             "feature-engineering-production-ml",
-            "ranking-recommendation-systems",
-            "forecasting-anomaly-detection",
-            "monitoring-predictive-models",
+            "pytorch-training-loops",
+            "llm-deployment-gpu-serving-autoscaling",
         ]))
         expect(track?.lessonSlugs[0]).toBe("numpy-and-tensor-shapes")
-        expect(track?.lessonSlugs.at(-1)).toBe("monitoring-predictive-models")
+        expect(track?.lessonSlugs.at(-1)).toBe("llm-deployment-gpu-serving-autoscaling")
     })
 
     test("research scientist track covers method, implementation, training, evaluation, and reasoning", () => {
@@ -127,7 +127,7 @@ describe("learning tracks", () => {
         expect(track?.lessonSlugs).toEqual(expect.arrayContaining([
             "hypothesis-tests-confidence-intervals-passk",
             "experiment-design-ab-testing",
-            "jax-for-ml-research",
+            "build-gpt-from-scratch-lab",
             "scaling-laws-compute-optimal-training",
             "introduction-to-reinforcement-learning-fundamentals",
             "rlhf-dpo-aligning-language-models",
@@ -143,9 +143,9 @@ describe("learning tracks", () => {
         ]))
         expect(track?.lessonSlugs[0]).toBe("linear-algebra-machine-learning-deeper")
         expect(track?.lessonSlugs).toEqual(expect.arrayContaining([
-            "dataset-pipelines-data-quality",
-            "instruction-tuning-chat-templates",
-            "data-labeling-human-feedback-active-learning",
+            "cross-validation-leakage-generalization",
+            "supervised-fine-tuning-pipeline",
+            "reward-modeling-from-preference-data",
         ]))
         expect(track?.lessonSlugs.at(-1)).toBe("reasoning-models-test-time-compute")
     })

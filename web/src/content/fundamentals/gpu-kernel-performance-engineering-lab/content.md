@@ -6,7 +6,7 @@
   "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 14,
+  "order": 10,
   "companies": [
     "NVIDIA",
     "OpenAI",
@@ -29,7 +29,6 @@
     "performance and recovery evidence artifacts"
   ],
   "prerequisites": [
-    "accelerator-architecture-field-guide",
     "cuda-gpu-computing-for-ml"
   ],
   "relatedQuestions": [
@@ -40,14 +39,15 @@
   ],
   "aliases": [
     "gpu-profiling-correctness-benchmarking",
-    "ai-generated-kernel-engineering"
+    "ai-generated-kernel-engineering",
+    "gpu-runtime-execution-lab"
   ]
 }
 ---
 
 You edit four lines of CUDA, recompile, and kernel latency drops 40%. Then verification runs and flags thousands of NaNs because your kernel skipped part of the grid and returned early. Performance engineering starts with a causal hypothesis, changes one mechanism at a time, proves correctness on edge and full shapes, and trusts the timer only after hardware counters and sanitizers agree.
 
-In this lab you optimize an out-of-place single-precision ($N \times N$) matrix transpose. With zero floating-point math, every launch reads and writes each element once, isolating memory coalescing, shared-memory bank conflicts, barriers, and benchmark discipline cleanly. It combines concepts from [CUDA for ML Training](/learn/cuda-gpu-computing-for-ml) and [Accelerator Architecture Field Guide](/learn/accelerator-architecture-field-guide) inside one reproducible workflow.
+In this lab you optimize an out-of-place single-precision ($N \times N$) matrix transpose. With zero floating-point math, every launch reads and writes each element once, isolating memory coalescing, shared-memory bank conflicts, barriers, and benchmark discipline cleanly. It combines concepts from [CUDA for ML Training](/learn/cuda-gpu-computing-for-ml) and [Accelerator Architecture Field Guide](/learn/cuda-gpu-computing-for-ml) inside one reproducible workflow.
 
 ## Keep one experiment stable
 
@@ -347,6 +347,60 @@ Before reusing shared-memory tiling on another kernel, match the parallel primit
   <img src="illustrations/_generated/dependency_selects_primitive_dark.png" alt="For mismatch flags [0, 1, 0, 1, 1, 0] at indices [0, 1, 2, 3, 4, 5], a reduction sums flags to scalar count 3. An exclusive scan computes prefix offsets [0, 0, 1, 1, 2, 3] and writes failing indices 1, 3, and 4 into compacted slots [1, 3, 4]. A transpose preserves all six values (a through f) while swapping a 2x3 layout to 3x2." />
   <figcaption>A reduction counts total mismatches (3); an exclusive scan computes destination offsets `[0, 0, 1, 1, 2, 3]` to compact failing indices `[1, 3, 4]`; a transpose remaps 2D coordinates without combining values.</figcaption>
 </figure>
+
+## Overlap work with streams, events, and CUDA Graphs
+
+Optimizing a kernel's memory path removes stalls *inside* the kernel, yet Nsight Systems traces of small-batch LLM decode often reveal a different culprit: tiny idle gaps *between* kernels because the GPU finishes one operation before the CPU finishes submitting the next. Closing runtime launch overhead requires understanding stream ordering, event dependencies, and CUDA Graph capture/replay.[^cudaProgrammingGuide2026][^nvidia2026CudaGraphsGuide]
+
+### Two clocks, stream ordering, and event handoffs
+
+Every GPU launch runs on two overlapping clocks: **host submission time** (CPU enqueue loop, returning asynchronously before the GPU executes) and **device elapsed time** (CUDA-event span on the stream, including any inter-kernel idle gaps inside the markers). Never add host submission time and device event time together; measure end-to-end synchronized wall time separately.
+
+Operations inside one CUDA stream execute strictly in FIFO issue order. Operations on distinct streams can overlap copies and independent kernels when three rules hold:
+
+1. **Avoid the legacy default stream trap:** Under default legacy semantics, stream 0 (the NULL stream) implicitly synchronizes with every blocking stream in the same CUDA context. Create explicit non-blocking streams with `cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking)` and use **pinned host memory** (`cudaMallocHost`) for asynchronous H2D/D2H transfers so host copies do not serialize compute.[^nvidia2026StreamSync]
+2. **Coordinate cross-stream dependencies with events:** Record a marker after producer work (`cudaEventRecord(ready, copy_stream)`), then enqueue a device-side wait on the consumer (`cudaStreamWaitEvent(compute_stream, ready, 0)`) without stalling the CPU. Always record *before* waiting: an unrecorded event represents empty work and adds no dependency.[^cudaRuntimeEvents2026]
+3. **Protect allocation lifetimes across streams:** Keep shared buffers alive until consumer streams finish (using `tensor.record_stream(consumer_stream)` in PyTorch so the caching allocator never recycles a buffer while a consumer kernel is still queued).[^pytorchCudaSemantics2026]
+
+### CUDA Graphs capture, replay, and bucketed pools
+
+When short decode kernels are launch-bound, **CUDA Graphs** record a stream's kernel DAG once (`cudaStreamBeginCapture` / `torch.cuda.graph()`), validate and compile it (`cudaGraphInstantiate`), and replay the entire sequence in one host submission (`cudaGraphLaunch`).[^nvidia2026CudaGraphsGuide][^pytorchCudaSemantics2026] Graph capture pays off once per-iteration savings amortize upfront capture and instantiation:
+
+$$
+\text{Break-even Iterations} = \frac{\text{Setup Cost}}{\text{Eager Time} - \text{Replay Time}}
+$$
+
+If eager execution takes `18 µs/iter`, graph replay takes `12 µs/iter` (`6 µs` saved), and setup takes `12 ms`, both break even at `2,000` iterations (`36 ms`), and iteration `2,001` wins.
+
+> **Common mistake:** Rebinding `x = new_tensor` before calling `graph.replay()`. Captured graphs bake exact tensor **virtual addresses** into node arguments, so rebinding a Python variable leaves the graph reading stale memory. Retain static buffers and copy fresh inputs in place (`static_x.copy_(new_tensor)`) on the stream before replay.
+
+Because continuous batching varies batch sizes dynamically, serving engines (vLLM, SGLang) pre-capture **bucketed graph pools** (e.g., batch sizes `[1, 2, 4, 8, 16]`), pad live batches up to the next bucket, and fall back to eager mode for outliers.[^vllm2026cudagraphs] Zero-padding alone is never enough for correctness: an affine op like $2x + 1$ turns dummy zeros into `1`, and unmasked dummy slots can corrupt reductions or live KV-cache entries unless every reduction and cache write masks padded positions explicitly:
+
+<!-- leetllm: test, deps=numpy, output=show -->
+```python title="graph-amortization-and-padding.py"
+from math import floor
+import numpy as np
+
+# 1. CUDA Graph break-even iterations (12 ms setup, 18 us eager -> 12 us replay)
+first_win = floor(12_000 / (18 - 12)) + 1
+print(f"CUDA Graph break-even: iter 2000 (36 ms) | first net win: iter {first_win}")
+
+# 2. Bucketed graph pool (6 valid inputs padded to bucket 8; affine (2x+1)^2)
+inputs = np.array([1, 2, 3, 4, 5, 6], dtype=np.int64)
+padded = np.pad(inputs, (0, 8 - inputs.size))
+valid_mask = np.arange(8) < inputs.size
+out = (2 * padded + 1) ** 2
+ref, unmasked, masked = int(((2 * inputs + 1) ** 2).sum()), int(out.sum()), int(np.where(valid_mask, out, 0).sum())
+assert masked == ref and unmasked != ref
+print(f"bucket=8 (6 valid): ref={ref}, unmasked_pad={unmasked} (wrong!), masked={masked}")
+```
+
+<!-- leetllm: output:start -->
+```text title="Output" output compact
+CUDA Graph break-even: iter 2000 (36 ms) | first net win: iter 2001
+bucket=8 (6 valid): ref=454, unmasked_pad=456 (wrong!), masked=454
+```
+<!-- leetllm: output:end -->
 
 ## Report the result you measured
 

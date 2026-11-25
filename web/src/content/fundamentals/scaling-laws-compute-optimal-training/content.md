@@ -29,6 +29,9 @@
     "The data wall and finite public-text availability",
     "Test-time compute as a new scaling axis",
     "Scaling law extrapolation for new architectures"
+  ],
+  "aliases": [
+    "bitter-lesson-compute-over-heuristics"
   ]
 }
 ---
@@ -42,6 +45,17 @@ Before comparing any two scaling curves, nail down the three variables:
 - **Parameters ($N$):** The declared trainable weight count. Check whether a study includes <span data-glossary="embedding">embedding</span> and output-projection tables (tying input and output embeddings saves memory, not vocabulary-projection arithmetic).
 - **Training tokens ($D$):** Total <span data-glossary="subword-tokenization">subword</span> token presentations seen during training. Keep this distinct from unique corpus size, because repeating tokens over multiple epochs follows a different decay curve than fresh text.
 - **Compute ($C$):** Total useful training FLOPs, distinct from wall-clock time, accelerator peak throughput, or cloud dollars.
+
+### Why scale beats hand-crafted heuristics: the Bitter Lesson
+
+Why do empirical power laws over raw compute govern modern AI so reliably? In 2019, Rich Sutton distilled seventy years of AI history into *The Bitter Lesson*: whenever hardware grows by orders of magnitude, general methods built on **learning** and **search** overtake systems built on hand-crafted human knowledge.[^sutton2019]
+
+The same crossover repeated across every major field:
+
+- **Search over heuristics:** In chess, hand-tuned grandmaster evaluation tables beat shallow search at low compute, until massively parallel alpha-beta search (Deep Blue) and self-play Monte Carlo tree search (AlphaZero) threw away human board heuristics altogether.[^silver2017] Even on a toy 5x6 Connect-Four board, pure terminal alpha-beta search loses every game at depth 1 against hand-tuned tactical weights, then overtakes them by depth 2 and pulls decisively ahead at depth 6 solely by expanding more nodes per move.
+- **Learned representations over fixed bases:** In computer vision and speech, hand-engineered SIFT and HOG features won when datasets and GPUs were small, then hit an irreducible ceiling while convolutional networks and MLPs kept driving error down as data and compute grew.[^krizhevsky2012] A fixed degree-2 polynomial basis on a nonlinear classification task plateaus near 91% accuracy whether you give it 120 or 1,600 samples, whereas a small learned MLP climbs past 98% on the same data.
+
+Hand-crafted rules win on day one under scarce compute, which is why the lesson feels bitter: they bake human assumptions into rigid ceilings, whereas general learners and search procedures convert every tenfold jump in FLOPs into a higher capability curve.[^sutton2019] Scaling laws make that intuition quantitative for neural language models.
 
 ### Where the 6ND shortcut comes from
 
@@ -354,7 +368,9 @@ Aggressive overtraining runs straight into a new constraint: how much high-quali
 
 To push beyond fresh web text, labs rely on disciplined multi-epoch schedules, verifier-checked synthetic data, and multimodal corpora (code, video, audio). Every substitute changes learning efficiency, so fresh-text scaling slopes must be re-measured on the new mix.
 
-At deployment time, <span data-glossary="test-time-compute">test-time compute</span> adds an orthogonal scaling axis: instead of freezing all FLOPs into pre-trained weights, spend extra inference compute per hard prompt via longer reasoning chains (as in DeepSeek-R1[^deepseekai2025]), parallel candidate sampling, or verifier-guided search. Snell et al.[^snell2024] showed that routing extra test-time compute to harder math problems allowed a smaller model to match a single-pass model roughly $14\times$ its size under matched compute budgets. Because sampling $k$ candidates multiplies generation FLOPs linearly ($2 N L_{\text{out}} k$), an 8B model generating 512 tokens across 1, 4, and 16 candidates burns $8.19 \times 10^{12}$, $3.28 \times 10^{13}$, and $1.31 \times 10^{14}$ generation FLOPs per request, trading upfront training scale for per-query latency and spend.
+At deployment time, <span data-glossary="test-time-compute">test-time compute</span> restores the search half of the Bitter Lesson: instead of freezing all FLOPs into pre-trained weights, spend extra inference compute per hard prompt via longer reasoning chains (as in DeepSeek-R1[^deepseekai2025]), parallel Best-of-$N$ sampling, or verifier-guided search. Snell et al.[^snell2024] showed that routing extra test-time compute to harder math problems allowed a smaller model to match a single-pass model roughly $14\times$ its size under matched compute budgets. Because sampling $k$ candidates multiplies generation FLOPs linearly ($2 N L_{\text{out}} k$), an 8B model generating 512 tokens across 1, 4, and 16 candidates burns $8.19 \times 10^{12}$, $3.28 \times 10^{13}$, and $1.31 \times 10^{14}$ generation FLOPs per request.
+
+Verifier quality sets the ceiling on how far test-time search scales. Under Best-of-$N$ sampling, ranking candidates with an **exact verifier** (unit tests, compilers, or proof checkers) pushes true pass rates monotonically toward `1.0`, whereas maximizing an **imperfect proxy reward** eventually triggers **Goodhart overoptimization**: true accuracy peaks at modest $k$ and then *drops* at large $k$ as extreme samples exploit reward-model loopholes.[^cobbe2021][^lightman2023]
 
 ## Running a scaling study in practice
 
@@ -479,13 +495,14 @@ Check held-out prediction error across wide N and D coverage, then run an interm
 
 ## Where scaling laws break down
 
-Scaling laws are empirical regularities, not laws of physics. Four boundaries matter most when turning a curve into a production decision:
+Scaling laws are empirical regularities, not laws of physics. Six boundaries matter most when turning a curve into a production decision:
 
 - **Extreme overtraining bends early curves:** Sardana et al. trained 47 models up to 10,000 tokens per parameter and found that laws fitted strictly below 100:1 systematically overstated gains under severe overtraining.[^sardana2024]
 - **Theoretical FLOPs are not hardware bills:** $6ND$ ignores attention, collectives, and Model FLOPs Utilization (MFU). Measure tokens per GPU-second and dollar cost directly on the target cluster.
 - **Low cross-entropy is not deployed capability:** Held-out cross-entropy (and perplexity $\exp(L)$) tracks next-token fit, not instruction following, tool use, or safety. Budget separately for SFT, preference optimization (<span data-glossary="rlhf">RLHF</span>[^ouyang2022]), and task benchmarks.
 - **Metric artifacts can mimic "emergent abilities":** Wei et al.[^wei2022b] highlighted tasks whose exact-match accuracy stayed near zero before jumping sharply with scale. Schaeffer et al.[^schaeffer2023] showed how discontinuous metrics turn smooth per-token gains into apparent cliffs: if a 5-token answer succeeds independently with probability $p$ per token, exact-match accuracy is $p^5$, which stays near zero on small eval sets until $p$ climbs high enough. Switching to smooth partial-credit metrics often reveals continuous progress.
 - **Non-dense architectures need their own variables:** For <span data-glossary="mixture-of-experts">Mixture-of-Experts (MoE)</span> ([lesson](/learn/mixture-of-experts-architecture)), total weights drive VRAM while active experts plus shared layers drive per-token FLOPs. For [State Space Models (SSMs)](/learn/state-space-models-mamba-alternatives), fixed-size recurrent state changes the sequence-length scaling profile. Fit proxy curves on the actual architecture rather than reusing dense-transformer constants.
+- **Where inductive bias and explicit structure still win:** Neither scaling laws nor *The Bitter Lesson* mean "never design structure."[^sutton2025] Hardware-friendly inductive biases (self-attention, causal masking, RoPE, GQA) make gradient scaling cheaper without hard-coding task answers; low-data and edge-latency regimes still reward strong priors; and exact invariants (cryptography, arithmetic, SQL schema checks, permissions) belong in deterministic code rather than approximate probabilities at any scale.
 
 ```checkpoint
 Why can't you blindly apply dense-transformer scaling laws to MoE models?

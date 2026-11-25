@@ -18,7 +18,7 @@
   "prerequisites": [
     "decoding-strategies-greedy-beam-nucleus"
   ],
-  "order": 6,
+  "order": 2,
   "keyConceptsTested": [
     "Structured Generation",
     "JSON Mode",

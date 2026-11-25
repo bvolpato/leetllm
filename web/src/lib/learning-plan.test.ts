@@ -106,8 +106,8 @@ describe("buildLearningPlan", () => {
         const plan = build({ goal: "research", level: "advanced", weeklyHours: 6 })
 
         expect(plan.track.slug).toBe("ai-research-scientist")
-        expect(plan.track.lessons).toHaveLength(35)
-        expect(plan.weeks.flatMap((week) => week.lessons)).toHaveLength(35)
+        expect(plan.track.lessons).toHaveLength(28)
+        expect(plan.weeks.flatMap((week) => week.lessons)).toHaveLength(28)
         expect(plan.track.lessons.at(-1)?.slug).toBe("reasoning-models-test-time-compute")
         expect(plan.weeks.flatMap((week) => week.activities)
             .filter((activity) => activity.kind === "coding")
@@ -124,8 +124,8 @@ describe("buildLearningPlan", () => {
         const plan = build({ goal: "ml", level: "working", weeklyHours: 6 })
 
         expect(plan.track.slug).toBe("production-ml-systems")
-        expect(plan.track.lessons).toHaveLength(17)
-        expect(plan.track.lessons.at(-1)?.slug).toBe("monitoring-predictive-models")
+        expect(plan.track.lessons).toHaveLength(13)
+        expect(plan.track.lessons.at(-1)?.slug).toBe("llm-deployment-gpu-serving-autoscaling")
     })
 
     test("adds a deduplicated foundations bridge for beginners", () => {
@@ -133,10 +133,10 @@ describe("buildLearningPlan", () => {
         const slugs = plan.track.lessons.map((lesson) => lesson.slug)
 
         expect(slugs[0]).toBe("numpy-and-tensor-shapes")
-        expect(slugs).toContain("file-ingestion-pdfs-html-ocr-markdown")
+        expect(slugs).toContain("chunking-strategies-document-processing")
         expect(slugs).toContain("design-production-rag-pipeline")
         expect(new Set(slugs).size).toBe(slugs.length)
-        expect(slugs.length).toBeGreaterThanOrEqual(25)
+        expect(slugs.length).toBeGreaterThanOrEqual(20)
         expect(plan.weeks.length).toBeGreaterThanOrEqual(8)
         expect(plan.foundationBridgeLessonCount).toBeGreaterThan(0)
         expect(plan.foundationBridgeLessonCount + tracks.find((track) => track.slug === "rag-and-search-systems")!.lessons.length).toBe(slugs.length)
@@ -240,14 +240,14 @@ describe("buildLearningPlan", () => {
     test("moves an optional diagnostic before a full final week with newly unlocked practice", () => {
         const track = tracks.find((candidate) => candidate.slug === "training-and-alignment")!
         const slugs = [
-            "dataset-pipelines-data-quality",
             "pytorch-training-loops",
+            "scaling-laws-compute-optimal-training",
             "pre-training-data-pipelines-scale",
             "build-gpt-from-scratch-lab",
             "supervised-fine-tuning-pipeline",
             "lora-parameter-efficient-fine-tuning",
+            "reward-modeling-from-preference-data",
             "rlhf-dpo-aligning-language-models",
-            "constitutional-ai-automated-red-teaming",
             "rlvr-verifiable-rewards-training",
             "knowledge-distillation-llms",
         ]

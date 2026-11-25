@@ -36,7 +36,7 @@
   ],
   "relatedQuestions": [
     "design-real-time-voice-ai-agent",
-    "computer-use-gui-browser-agents",
+    "agentic-architectures-react-plan-execute",
     "vision-transformers-image-encoders",
     "mixed-precision-training-loss-scaling",
     "model-quantization-gptq-awq-gguf",

@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 9,
+  "order": 8,
   "coverImage": "illustrations/_generated/rank_lattice_dark.png",
   "companies": [
     "NVIDIA",
@@ -581,4 +581,4 @@ Microbatches per replica halve, widening the pipeline bubble even as replicated 
 ]
 ```
 
-> **Next:** Continue to [Deep Dive - Ray](/learn/deep-dive-ray).
+> **Course complete:** Return to the [full learning path](/learn) to review any chapter or coding practice problem.

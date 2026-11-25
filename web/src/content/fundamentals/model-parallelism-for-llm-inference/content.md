@@ -6,7 +6,7 @@
   "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 11,
+  "order": 9,
   "coverImage": "illustrations/_generated/inference_parallelism_dark.png",
   "shortDescription": "When a 70 GB weight file exceeds one GPU, sharding buys memory and spends it on traffic between devices.",
   "keyConceptsTested": [
@@ -24,13 +24,13 @@
     "multi-query-grouped-query-attention"
   ],
   "relatedQuestions": [
-    "accelerator-architecture-field-guide",
+    "cuda-gpu-computing-for-ml",
     "model-quantization-gptq-awq-gguf",
     "llm-deployment-gpu-serving-autoscaling",
     "local-llm-deployment-hardware-quantization",
     "distributed-training-fsdp-deepspeed-zero",
     "mixture-of-experts-architecture",
-    "long-context-window-management"
+    "positional-encoding-rope-alibi"
   ],
   "companies": [
     "NVIDIA",
@@ -40,6 +40,9 @@
     "Google",
     "DeepSeek",
     "Z.AI"
+  ],
+  "aliases": [
+    "distributed-inference-data-plane"
   ]
 }
 ---
@@ -133,6 +136,12 @@ In an 80-layer dense model (`2` all-reduces per layer), every decode step runs *
   <img src="illustrations/_generated/collective_communication_ledger_dark.png" alt="Execution timeline and cost breakdown for an 80-layer TP=4 BF16 workload at batch 8 versus PP=2. Top timelines compare low-overhead NVLink TP execution, PCIe collective stalls, and single-handoff PP=2 execution. Bottom bars show that 96 KiB ring transfers take only 0.05 ms per step at 300 GB/s, dwarfed by 0.80 ms to 3.20 ms of serial collective launch overhead at 5 to 20 microseconds per call." />
   <figcaption>At small decode batches, 160 collectives spend 0.8–3.2 ms in launch/sync overhead versus just 0.05 ms transferring 96 KiB payloads across NVLink.</figcaption>
 </figure>
+
+### Collective contracts and NCCL completion boundaries
+
+Inside a replica, ranks coordinate through three core <span data-glossary="nccl">NCCL</span> primitives: **all-reduce** sums partials and writes the full vector to every rank, **reduce-scatter** sums partials and gives each rank its assigned slice, and **all-gather** concatenates slices in rank order.[^nccl2026collectives] Every participating rank must submit the exact same collective sequence (operation, count, dtype, and order): swapping two same-shaped reductions silently combines different layers without a shape error, and cancelling one rank's call hangs its peers.[^nccl2026groups]
+
+> **Common mistake:** Treating a returning `ncclAllReduce` CPU call as a completed GPU result. Host enqueue, `ncclGroupEnd` / nonblocking `ncclInProgress` issue completion, and CUDA stream completion are three separate milestones; downstream kernels must wait on the CUDA stream or completion event.[^nccl2026streams]
 
 ## Pipeline parallelism
 
@@ -255,6 +264,48 @@ combined output: [1.25, 2.5, 3.75, 6.0, 12.5, 19.5]
   <img src="illustrations/_generated/expert_dispatch_combine_dark.png" alt="Expert dispatch load skew and token T3 combine path. Top bar chart shows Device 0 (E0, E1) handling 8 token-expert assignments (1.33x average) versus 4 on Device 1 (E2, E3). Bottom flow tracks T3 (input 4) through E0 (0.75 x 4 = 3.0) and E2 (0.25 x 12 = 3.0) back to combined output 6.0." />
   <figcaption>Dynamic routing sends 8 assignments to Device 0 vs. 4 to Device 1 (1.33x skew), while Token T3 splits across E0 and E2 and recombines to 6.0.</figcaption>
 </figure>
+
+## Prefill-decode disaggregation and KV transfer
+
+Running long prompt prefills on the same GPU as active decode streams stalls ongoing token generation. **Prefill-decode disaggregation** (introduced by Splitwise and DistServe, and deployed with transfer layers such as NVIDIA NIXL and Mooncake) splits a serving fleet into dedicated prefill and decode pools linked over NVLink or RDMA.[^patel2023][^zhong2024][^qin2024][^nixl2026architecture] That separation replaces prefill-decode interference with a new distributed data-plane problem: moving gigabytes of prompt KV state safely and fast enough to meet TTFT.
+
+### KV wire volume, link bottlenecks, and block reservations
+
+Take an 8,192-token prompt on an 80-layer, 8-KV-head GQA model ($d_h = 128$, BF16). Each token stores $2 \times 80 \times 8 \times 128 \times 2 = 320\text{ KiB}$, so the full prompt transfers **2.50 GiB** (`2,684,354,560` bytes). Under `TP=2`, each rank holds `1.25 GiB`, yet both shards still cross the handoff:
+
+- **Link bottleneck:** Over one shared `25 GB/s` path, serial transfer takes $2.684 / 25 = 107.4\text{ ms}$ (capping steady-state throughput at `9.31` transfers/s even if prefill completes `40 req/s`!). Two *independent* `25 GB/s` links finish concurrently in `53.7 ms`; dividing each shard by one shared NIC falsely doubles capacity.
+- **Payload vs. rounded reservation:** At 16 tokens per block (`5 MiB` model-wide), 8,192 prompt tokens plus a 128-token output budget reserve `520` blocks (`2,600 MiB`). Adding a single prompt token (`8,193`) adds `320 KiB` of real payload but bumps the reservation by a full `5 MiB` block (`521` blocks, `2,605 MiB`).
+
+### Transfer manifests, RDMA quiescence, and critical-path overlap
+
+A fast RDMA copy into an incompatible or already-reassigned buffer silently corrupts generation. Reliable disaggregated handoffs run a four-stage protocol over a separate control plane:
+
+1. **Reserve before prefill:** Charge rounded prompt-plus-output VRAM on the decode group under a monotonic local lease before starting prefill, avoiding wasted prefill compute when decode memory is full.
+2. **Validate the manifest:** Match the sender's manifest against the reservation: server-issued attempt ID, model/LoRA tuple, canonical token digest, dtype and block layout, and **complete unique `(rank, block)` coverage** (receiving `1,024` notifications with block 0 duplicated and block 1 missing must fail commit).
+3. **Quarantine on timeout (RDMA quiescence):** Lease expiry revokes pending commit immediately, *not* physical RDMA access. Keep retired buffers quarantined and charged against decode capacity until the transport confirms transfer abort (`abort_ack`) and all GPU readers finish; reclaiming VRAM on timeout alone lets late in-flight RDMA writes overwrite the next request's KV cache.
+4. **Overlap and measure end-to-end TTFT:** Streaming finished layers over RDMA while later prefill layers still compute hides transfer latency (starting a `107.4 ms` transfer `70 ms` before a `310 ms` prefill ends drops first-token latency from `445.4 ms` to `375.4 ms`, given `28 ms` commit+decode). Always compute end-to-end TTFT p99 from joined request traces rather than adding unrelated per-phase p99 percentiles.
+
+<!-- leetllm: test, output=show -->
+```python title="disaggregated-kv-handoff.py"
+bytes_per_tok = 2 * 80 * 8 * 128 * 2
+payload = 8192 * bytes_per_tok  # 2.50 GiB
+reserve = lambda p, o: ((p + o + 15) // 16) * 16 * bytes_per_tok
+
+transfer_ms = payload / 25e9 * 1000.0
+serial_ttft = 310.0 + transfer_ms + 28.0
+overlapped_ttft = max(310.0, 240.0 + transfer_ms) + 28.0
+print(f"8K KV payload={payload / 1024**3:.2f} GiB | 8192+128 reserve={reserve(8192, 128) // 1024**2} MiB | +1 tok={reserve(8193, 128) // 1024**2} MiB")
+print(f"25 GB/s shared={transfer_ms:.1f} ms (max {25e9 / payload:.2f} req/s) | 2x independent={transfer_ms / 2:.1f} ms")
+print(f"TTFT serial={serial_ttft:.1f} ms vs 70ms layer-overlapped={overlapped_ttft:.1f} ms")
+```
+
+<!-- leetllm: output:start -->
+```text title="Output" output compact
+8K KV payload=2.50 GiB | 8192+128 reserve=2600 MiB | +1 tok=2605 MiB
+25 GB/s shared=107.4 ms (max 9.31 req/s) | 2x independent=53.7 ms
+TTFT serial=445.4 ms vs 70ms layer-overlapped=375.4 ms
+```
+<!-- leetllm: output:end -->
 
 ## Multi-GPU serving Pareto trade-offs
 
@@ -399,4 +450,4 @@ Evaluate every candidate topology in three steps:
 ]
 ```
 
-> **Next:** Continue to [Distributed Inference Data Plane](/learn/distributed-inference-data-plane).
+> **Next:** Continue to [GPU Profiling & Kernel Optimization Lab](/learn/gpu-kernel-performance-engineering-lab).

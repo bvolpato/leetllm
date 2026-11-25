@@ -37,19 +37,17 @@
     "llm-deployment-gpu-serving-autoscaling",
     "continuous-batching-request-scheduling",
     "kv-cache-paged-attention-llm-serving",
-    "prefix-caching-prompt-caching",
     "llm-cost-engineering-token-economics",
-    "lora-parameter-efficient-fine-tuning",
-    "observability-monitoring-llm-systems"
+    "lora-parameter-efficient-fine-tuning"
   ],
   "relatedQuestions": [
     "design-llm-powered-search-engine",
     "design-production-rag-pipeline",
     "llm-cost-engineering-token-economics",
-    "observability-monitoring-llm-systems"
+    "llm-deployment-gpu-serving-autoscaling"
   ],
-  "section": "AI System Design",
-  "order": 3
+  "section": "AI System Design & Interviewing",
+  "order": 2
 }
 ---
 
@@ -735,4 +733,4 @@ Both principals must hold identical permissions over every document embedded in 
 ]
 ```
 
-> **Next:** Continue to [Design a Multi-Tenant Agent Sandbox & Code Interpreter Platform](/learn/design-agent-sandbox-platform).
+> **Next:** Continue to [LLM-Powered Search Engine](/learn/design-llm-powered-search-engine).

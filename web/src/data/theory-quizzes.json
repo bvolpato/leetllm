@@ -166,7 +166,7 @@
     "estimatedMinutes": 12,
     "sections": [
       "Core LLM Foundations",
-      "Production ML Systems",
+      "Classical ML & Evaluation",
       "Applied LLM Engineering & RAG",
       "Advanced Agents & Retrieval"
     ],
@@ -256,7 +256,7 @@
         "explanation": "Structured generation constrains shape only. The application still checks citations, trusted records, business rules, caller permissions, refusals, and truncation."
       },
       {
-        "section": "Production ML Systems",
+        "section": "Classical ML & Evaluation",
         "question": "An agent benchmark passes 90% of final answers, but unsafe tool calls rise on requests with untrusted instructions. Which release gate is strongest?",
         "options": [
           "Use only aggregate final-answer accuracy; unsafe trajectories are rare noise even when action traces regress.",
@@ -280,7 +280,7 @@
         "explanation": "Similar wording doesn't imply equivalent evidence or permission. Cache admission and invalidation must include principal, source freshness, and policy context."
       },
       {
-        "section": "Production ML Systems",
+        "section": "Classical ML & Evaluation",
         "question": "A RAG answer is wrong, but the final text alone looks fluent. Which trace lets an engineer localize the fault?",
         "options": [
           "Provider name and total prompt tokens; intermediate context and policy state add little to diagnosis or safe replay.",
@@ -327,12 +327,12 @@
       "Transformer & Multimodal Architectures",
       "Training, Fine-Tuning & Alignment",
       "GPU Systems & LLM Inference",
-      "AI System Design"
+      "AI System Design & Interviewing"
     ],
     "questions": [
       {
         "section": "GPU Systems & LLM Inference",
-        "question": "A serving path uses 16 KV-storing layers, 4 KV heads, head dimension 256, 4,096 tokens, and FP16. Using 2 \u00d7 L \u00d7 n_kv \u00d7 d_h \u00d7 s \u00d7 p, what is one sequence's cache?",
+        "question": "A serving path uses 16 KV-storing layers, 4 KV heads, head dimension 256, 4,096 tokens, and FP16. Using 2 × L × n_kv × d_h × s × p, what is one sequence's cache?",
         "options": [
           "About 0.27 GB (0.25 GiB), before runtime buffers and non-attention state.",
           "About 1.61 GB, because 24 query heads must each store separate K/V tensors.",
@@ -340,7 +340,7 @@
           "About 16 GB, because the cache scales with total parameters rather than tokens."
         ],
         "answer": "About 0.27 GB (0.25 GiB), before runtime buffers and non-attention state.",
-        "explanation": "The formula gives 2 \u00d7 16 \u00d7 4 \u00d7 256 \u00d7 4,096 \u00d7 2 bytes. GQA uses four KV heads, not the 24 query heads, and the result is about 0.25 GiB per active sequence."
+        "explanation": "The formula gives 2 × 16 × 4 × 256 × 4,096 × 2 bytes. GQA uses four KV heads, not the 24 query heads, and the result is about 0.25 GiB per active sequence."
       },
       {
         "section": "GPU Systems & LLM Inference",
@@ -392,15 +392,15 @@
       },
       {
         "section": "Training, Fine-Tuning & Alignment",
-        "question": "A square projection is 4096 \u00d7 4096, and LoRA rank is 16. How many trainable adapter values replace the full update?",
+        "question": "A square projection is 4096 × 4096, and LoRA rank is 16. How many trainable adapter values replace the full update?",
         "options": [
           "65,536, because only matrix A is trained and B is implicit.",
-          "131,072, from 16\u00d74096 + 4096\u00d716, versus 16,777,216 full-matrix values.",
+          "131,072, from 16×4096 + 4096×16, versus 16,777,216 full-matrix values.",
           "262,144, because rank 16 requires four matrices for Q, K, V, and O.",
           "16,777,216, because freezing the base doesn't reduce update parameters."
         ],
-        "answer": "131,072, from 16\u00d74096 + 4096\u00d716, versus 16,777,216 full-matrix values.",
-        "explanation": "LoRA learns A with 16\u00d74096 values and B with 4096\u00d716 values. The frozen base still runs in the forward pass, but gradients and optimizer state are needed only for the adapter."
+        "answer": "131,072, from 16×4096 + 4096×16, versus 16,777,216 full-matrix values.",
+        "explanation": "LoRA learns A with 16×4096 values and B with 4096×16 values. The frozen base still runs in the forward pass, but gradients and optimizer state are needed only for the adapter."
       },
       {
         "section": "Training, Fine-Tuning & Alignment",
@@ -483,14 +483,14 @@
     "description": "Platform design, rollout judgment, agent safety, multimodal architecture, cost, governance, and operational tradeoffs.",
     "estimatedMinutes": 12,
     "sections": [
-      "AI System Design",
+      "AI System Design & Interviewing",
       "GPU Systems & LLM Inference",
       "Applied LLM Engineering & RAG",
-      "AI Lab Interviewing"
+      "Advanced Agents & Retrieval"
     ],
     "questions": [
       {
-        "section": "AI System Design",
+        "section": "AI System Design & Interviewing",
         "question": "A tenant-scoped prefix is identical across two customers, but the packed context includes tenant-specific policy text. Which cache boundary is safe?",
         "options": [
           "Key cache entries by tenant and authorization context; shared GPU capacity still needs quotas and eviction.",
@@ -514,7 +514,7 @@
         "explanation": "Failure codes carry different causes. Respect Retry-After and the application deadline for temporary overload, while authentication and credit failures need correction rather than more traffic."
       },
       {
-        "section": "Production ML Systems",
+        "section": "Classical ML & Evaluation",
         "question": "A new model wins offline but its 5% canary increases unsafe completions and p95 latency. What should the rollout controller do?",
         "options": [
           "Expand to 100% so more traffic averages away the small canary sample.",
@@ -574,7 +574,7 @@
         "explanation": "Graphs add entities, edges, extraction errors, and upkeep. Compare them with a flat hybrid baseline on relationship-heavy tasks before accepting that complexity."
       },
       {
-        "section": "AI System Design",
+        "section": "AI System Design & Interviewing",
         "question": "A VLM must inspect high-resolution screenshots, but projected visual tokens consume most of the context and slow TTFT. Which design tradeoff is appropriate?",
         "options": [
           "Send raw pixels as text; text tokenization removes the visual-token budget.",
@@ -586,7 +586,7 @@
         "explanation": "Visual encoders turn pixels into a manageable representation, but compression can lose spatial evidence. Measure grounding and visual recall beside prefill, KV, and end-to-end latency."
       },
       {
-        "section": "AI System Design",
+        "section": "AI System Design & Interviewing",
         "question": "A diffusion service starts from Gaussian noise and must honor a text condition without copying a training image. Which core path should the design expose?",
         "options": [
           "Iterative learned denoising through a schedule, with conditioning guidance and provenance checks.",
@@ -607,7 +607,7 @@
           "$0.98, because provider rates are charged per request rather than per million tokens."
         ],
         "answer": "$0.00098, plus fields for model, prompt version, latency, retries, cache usage, and status.",
-        "explanation": "The calculation is 250\u00d72/1,000,000 plus 80\u00d76/1,000,000, which equals $0.00098. A useful trace also explains retries, cache hits, routing, and privacy without storing raw prompts."
+        "explanation": "The calculation is 250×2/1,000,000 plus 80×6/1,000,000, which equals $0.00098. A useful trace also explains retries, cache hits, routing, and privacy without storing raw prompts."
       },
       {
         "section": "Applied LLM Engineering & RAG",
@@ -622,7 +622,7 @@
         "explanation": "Reviewers need to reconstruct what changed, which evidence supported it, who approved the risk, and where the artifact was deployed. Aggregate claims can't provide that chain."
       },
       {
-        "section": "AI Lab Interviewing",
+        "section": "AI System Design & Interviewing",
         "question": "An iOS learner app must open lessons and theory quizzes on a flight, then sync progress after login. Which product boundary fits?",
         "options": [
           "Fetch every lesson live; offline login can't work, so quizzes should be disabled.",

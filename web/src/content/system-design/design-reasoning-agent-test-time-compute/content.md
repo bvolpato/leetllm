@@ -6,7 +6,7 @@
   "shortDescription": "Tests pass, but canary latency spikes after a config change. Design an agent that gathers fresh evidence, spends extra reasoning only when needed, and recommends whether to hold, revert, or continue.",
   "difficulty": "Hard",
   "category": "System Design",
-  "section": "AI System Design",
+  "section": "AI System Design & Interviewing",
   "coverImage": "illustrations/_generated/reasoning_agent_dark.png",
   "companies": [
     "OpenAI",
@@ -22,10 +22,9 @@
     "chain-of-thought-advanced-prompting",
     "rlhf-dpo-aligning-language-models",
     "kv-cache-paged-attention-llm-serving",
-    "prefix-caching-prompt-caching",
     "agentic-architectures-react-plan-execute",
     "agent-evaluation-benchmarks",
-    "observability-monitoring-llm-systems"
+    "llm-deployment-gpu-serving-autoscaling"
   ],
   "relatedQuestions": [
     "design-real-time-voice-ai-agent",
@@ -33,7 +32,7 @@
     "speculative-decoding",
     "design-code-completion-system"
   ],
-  "order": 7,
+  "order": 5,
   "keyConceptsTested": [
     "Test-Time Compute",
     "Reasoning Effort Budget",

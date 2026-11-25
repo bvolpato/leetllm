@@ -30,7 +30,7 @@
     "Multi-metric deployment evaluation"
   ],
   "section": "Training, Fine-Tuning & Alignment",
-  "order": 21,
+  "order": 15,
   "prerequisites": [
     "rlvr-verifiable-rewards-training",
     "supervised-fine-tuning-pipeline",
@@ -39,8 +39,8 @@
   ],
   "relatedQuestions": [
     "rlvr-verifiable-rewards-training",
-    "model-merging-weight-interpolation",
-    "programmatic-prompt-optimization-dspy",
+    "lora-parameter-efficient-fine-tuning",
+    "chain-of-thought-advanced-prompting",
     "model-quantization-gptq-awq-gguf"
   ]
 }
@@ -476,4 +476,4 @@ Ship a distilled student only when it clears *every* target threshold simultaneo
 ]
 ```
 
-> **Next:** Continue to [Model Merging and Weight Interpolation](/learn/model-merging-weight-interpolation).
+> **Next:** Continue to [Vector DB Internals: HNSW & IVF](/learn/vector-database-internals-hnsw-ivf).

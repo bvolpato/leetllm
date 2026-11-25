@@ -32,7 +32,7 @@
     "Unicode normalization forms (NFC versus NFKC)"
   ],
   "section": "Core LLM Foundations",
-  "order": 2
+  "order": 1
 }
 ---
 
@@ -359,7 +359,7 @@ Swapped IDs, remapped table: [[1.0, 0.0], [0.0, 1.0]]
 ]
 ```
 
-> **Next:** Continue to [Static to Contextual Embeddings](/learn/word-embeddings-contextual-representations).
+> **Next:** Continue to [Sentence Embeddings & Contrastive Loss](/learn/sentence-embeddings-contrastive-learning).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -658,7 +658,7 @@ reserved: [100257]
 ```
 <!-- leetllm: output:end -->
 
-This real encoder cuts our sentence into three pieces, not the four we made up earlier, and it gives the two spellings of café different IDs, because it does no normalization of its own. Look at the last string. With `disallowed_special=()`, those characters are ordinary text and cost seven IDs. Ask for the reserved meaning on purpose, and the same spelling becomes one ID. A plain `enc.encode("<|endoftext|>")` raises an error, which is the safe default, and the [chat template chapter](/learn/instruction-tuning-chat-templates) shows what can happen without one.
+This real encoder cuts our sentence into three pieces, not the four we made up earlier, and it gives the two spellings of café different IDs, because it does no normalization of its own. Look at the last string. With `disallowed_special=()`, those characters are ordinary text and cost seven IDs. Ask for the reserved meaning on purpose, and the same spelling becomes one ID. A plain `enc.encode("<|endoftext|>")` raises an error, which is the safe default, and the [chat template chapter](/learn/supervised-fine-tuning-pipeline) shows what can happen without one.
 
 For a Hugging Face checkpoint, load `AutoTokenizer.from_pretrained(name, revision=commit)` and compare `tokenizer.encode(text)` in the same way.
 

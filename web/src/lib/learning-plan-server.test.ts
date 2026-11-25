@@ -112,6 +112,6 @@ describe("weekly checks across every learning plan", () => {
         }
 
         expect(planCount).toBe(72)
-        expect(checkCount).toBeGreaterThan(500)
+        expect(checkCount).toBeGreaterThan(450)
     }, 20000)
 })

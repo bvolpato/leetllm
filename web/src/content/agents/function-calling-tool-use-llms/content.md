@@ -30,7 +30,10 @@
     "Function calling as the bridge to MCP"
   ],
   "section": "Applied LLM Engineering & RAG",
-  "order": 7
+  "order": 3,
+  "aliases": [
+    "mcp-tool-protocol-standards"
+  ]
 }
 ---
 
@@ -87,51 +90,22 @@ In OpenAI strict mode, every property must appear in `required`, optional fields
 
 > **Common mistake:** Leaving `tool_choice="required"` active after the tool result comes back traps the loop. Switch back to `auto` or `none` once the model has enough evidence to answer.[^openai2026_function_calling]
 
-<!-- leetllm: test, output=show -->
-
-```python title="define-release-status-tool.py"
-TOOL = {
-    "name": "get_release_status",
-    "description": "Read live deployment status for one release. Do not use for promotion.",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "release_id": {"type": "string"},
-            "include_gates": {"type": "boolean"},
-        },
-        "required": ["release_id"],
-        "additionalProperties": False,
-    },
-}
-
-# OpenAI strict mode: every property is required; optional values allow null.
-STRICT_PARAMETERS = {
+```json title="release-status-strict-schema.json"
+{
+  "name": "get_release_status",
+  "description": "Read live deployment status for one release. Do not use for promotion.",
+  "strict": true,
+  "parameters": {
     "type": "object",
     "properties": {
-        "release_id": {"type": "string"},
-        "include_gates": {"type": ["boolean", "null"]},
+      "release_id": { "type": "string" },
+      "include_gates": { "type": ["boolean", "null"] }
     },
     "required": ["release_id", "include_gates"],
-    "additionalProperties": False,
+    "additionalProperties": false
+  }
 }
-
-parameters = TOOL["parameters"]
-print(f"tool_name: {TOOL['name']}")
-print(f"logical_required: {parameters['required']}")
-print(f"accepts_extra_fields: {parameters['additionalProperties']}")
-print(f"strict_required: {STRICT_PARAMETERS['required']}")
-print(f"include_gates_strict_type: {STRICT_PARAMETERS['properties']['include_gates']['type']}")
 ```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-tool_name: get_release_status
-logical_required: ['release_id']
-accepts_extra_fields: False
-strict_required: ['release_id', 'include_gates']
-include_gates_strict_type: ['boolean', 'null']
-```
-<!-- leetllm: output:end -->
 
 A schema describes valid structure so the model knows what to emit and your runtime can reject malformed inputs. Ownership and execution permissions remain separate runtime checks.
 
@@ -636,48 +610,7 @@ Even well-formed calls fail when a model uses a stale field name, queries a miss
 | Timeout on an idempotent read | Retry inside the runtime with <span data-glossary="retry-backoff">backoff</span> and one overall deadline | Handle in code; do not ask the model to guess new arguments |
 | Lost reply from a write | Reconcile against the target service using the original operation ID | Never issue a fresh write just because the response dropped |
 
-Here, returning a clear missing-field error lets the model fix its call on turn 2:
-
-<!-- leetllm: test, output=show -->
-
-```python title="correct-a-rejected-call.py"
-RELEASES = {"reranker-v16": {"status": "canary_failed"}}
-
-
-def execute(call: dict) -> dict:
-    if call.get("name") != "get_release_status":
-        return {"ok": False, "error": "tool not allowed"}
-    args = call.get("args", {})
-    unknown = sorted(set(args) - {"release_id"})
-    if unknown:
-        return {"ok": False, "error": f"unknown fields: {unknown}"}
-    if "release_id" not in args:
-        return {"ok": False, "error": "required field: release_id"}
-    release_id = args["release_id"]
-    if release_id not in RELEASES:
-        return {"ok": False, "error": "unknown release"}
-    return {"ok": True, "status": RELEASES[release_id]["status"]}
-
-
-model_attempts = [
-    {"name": "get_release_status", "args": {}},
-    {"name": "get_release_status", "args": {"release_id": "reranker-v16"}},
-]
-for turn, call in enumerate(model_attempts, start=1):
-    observation = execute(call)
-    print(f"turn_{turn}: {observation}")
-    if observation["ok"]:
-        break
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-turn_1: {'ok': False, 'error': 'required field: release_id'}
-turn_2: {'ok': True, 'status': 'canary_failed'}
-```
-<!-- leetllm: output:end -->
-
-A correction earns another turn only when the proposal actually changes. Fingerprint each rejected call by `(name, args)` (ignoring fresh transport call IDs) so a stuck loop stops immediately instead of burning tokens and latency:
+Returning a concise missing-field or unknown-field error lets the model repair a malformed call on the next turn, but a correction earns another turn only when the proposal actually changes. Fingerprint each rejected call by `(name, args)` (ignoring fresh transport call IDs) so a stuck loop stops immediately instead of burning tokens and latency:
 
 <!-- leetllm: test, output=show -->
 
@@ -1005,76 +938,30 @@ for case in (good, bad_order, bad_semantics, bad_text, bad_link, failed_read):
 ```
 <!-- leetllm: output:end -->
 
-Notice `failed_read`: even when stale `release_id` and `status` fields remain in the payload, `ok: False` still fails the trajectory, and checking `ok is True` also catches truthy non-booleans like `1`. Across a batch of recorded runs, verify aggregate quality alongside hard ceilings on safety violations, rounds, latency, and cost. Validating each log record with strict Pydantic first guarantees that corrupted entries (such as negative violation counts canceling out real violations, or `NaN` latencies) raise an error instead of silently passing:
+Notice `failed_read`: even when stale `release_id` and `status` fields remain in the payload, `ok: False` still fails the trajectory, and checking `ok is True` also catches truthy non-booleans like `1`. Across a batch of recorded runs inside your <span data-glossary="eval-harness">evaluation harness</span>, validate every log record with strict Pydantic first (rejecting negative violation counts that would cancel out real violations, or `NaN` latencies) before checking aggregate pass rate alongside hard ceilings on unauthorized reads (`0`), unsafe writes (`0`), rounds, latency, and cost.
 
-<!-- leetllm: test, deps=pydantic, output=show -->
+## Scaling across apps: Model Context Protocol (MCP)
 
-```python title="evaluate-runtime-budgets.py"
-from pydantic import BaseModel, ConfigDict, Field
+Inside one application, local Python dispatchers work well. Once $M$ AI applications (a CLI, a dashboard, an IDE assistant) each need $N$ shared services (deployments, metrics, approvals, search), hand-written integrations grow as $M \times N$ custom adapters. The **<span data-glossary="mcp">Model Context Protocol (MCP)</span>** standardizes the wire format and discovery layer: each **host** embeds one MCP **client**, and each capability exposes one MCP **server**, shrinking protocol maintenance from $M \times N$ adapters to $M + N$ implementations while keeping every one of the $M \times N$ authorization relationships explicit.[^mcp_rc_2026][^mcp_architecture2026]
 
+MCP rides on **JSON-RPC 2.0**, where every request carries a method name and an integer or string `id` used strictly to correlate one request with its reply (never as a session or user identity).[^mcp_base2026] Three server primitives cover distinct caller patterns:[^mcp_server_overview2026]
 
-class RunRecord(BaseModel):
-    model_config = ConfigDict(strict=True)
-    passed: bool
-    unauthorized_reads: int = Field(ge=0)
-    unsafe_writes: int = Field(ge=0)
-    rounds: int = Field(ge=1)
-    latency_ms: float = Field(ge=0, allow_inf_nan=False)
-    cost_cents: float = Field(ge=0, allow_inf_nan=False)
+| Primitive | Discovery & invocation | Who controls it | Role |
+| :--- | :--- | :--- | :--- |
+| **Tools** | `tools/list`, `tools/call` | Model proposes; host authorizes | Side-effecting or parameterized operations with `inputSchema`[^mcp_tools2026] |
+| **Resources** | `resources/list`, `resources/read` | Application / host | Read-only URI-addressed context (logs, configs, docs)[^mcp_resources2026] |
+| **Prompts** | `prompts/list`, `prompts/get` | User | Reusable workflow templates with declared arguments |
 
+Keep two error channels distinct on the wire: **JSON-RPC protocol errors** (`error` object for unknown tools, invalid params, or transport failures) versus **tool execution errors** (`result.isError: true` so the model can see domain failures like an unreachable downstream API and adjust cleanly).[^mcp_tools2026]
 
-raw_runs = [
-    {"passed": True, "unauthorized_reads": 0, "unsafe_writes": 0, "rounds": 2, "latency_ms": 430, "cost_cents": 2.1},
-    {"passed": True, "unauthorized_reads": 0, "unsafe_writes": 0, "rounds": 2, "latency_ms": 510, "cost_cents": 2.4},
-    {"passed": False, "unauthorized_reads": 0, "unsafe_writes": 0, "rounds": 3, "latency_ms": 680, "cost_cents": 3.8},
-    {"passed": True, "unauthorized_reads": 0, "unsafe_writes": 0, "rounds": 2, "latency_ms": 470, "cost_cents": 2.2},
-]
+### Transports and trust boundaries
 
-runs = [RunRecord.model_validate(row) for row in raw_runs]
-success_rate = sum(run.passed for run in runs) / len(runs)
-unauthorized_reads = sum(run.unauthorized_reads for run in runs)
-unsafe_writes = sum(run.unsafe_writes for run in runs)
-max_rounds = max(run.rounds for run in runs)
-max_latency_ms = max(run.latency_ms for run in runs)
-max_cost_cents = max(run.cost_cents for run in runs)
+MCP ships two primary transports with different threat models:
 
-latency_budget_ms = 600
-cost_budget_cents = 3.0
-ready = (
-    success_rate >= 0.75
-    and unauthorized_reads == 0
-    and unsafe_writes == 0
-    and max_rounds <= 3
-    and max_latency_ms <= latency_budget_ms
-    and max_cost_cents <= cost_budget_cents
-)
+- **stdio:** The host spawns a local server subprocess and exchanges newline-delimited JSON-RPC over `stdin`/`stdout` (diagnostic logs must go strictly to `stderr` so they never corrupt framing).[^mcp_stdio2026] Because local servers run code under the user's environment, confirm the exact command before launch and sandbox filesystem and network access.
+- **Streamable HTTP:** Remote servers expose a single HTTP endpoint supporting JSON replies and SSE streaming.[^mcp_http2026] Validate the `Origin` header on local or browser-reachable servers to block DNS rebinding, bind OAuth bearer tokens tightly to the server's own audience, and never perform blind token passthrough to downstream APIs.[^mcp_authorization2026][^mcp_security_best_practices2025]
 
-print(f"success_rate: {success_rate:.0%}")
-print(f"unauthorized_reads: {unauthorized_reads}")
-print(f"unsafe_writes: {unsafe_writes}")
-print(f"max_rounds: {max_rounds}")
-print(f"max_latency_ms: {max_latency_ms:.0f} (budget {latency_budget_ms})")
-print(f"max_cost_cents: {max_cost_cents:.1f} (budget {cost_budget_cents:.1f})")
-print(f"release_candidate: {ready}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-success_rate: 75%
-unauthorized_reads: 0
-unsafe_writes: 0
-max_rounds: 3
-max_latency_ms: 680 (budget 600)
-max_cost_cents: 3.8 (budget 3.0)
-release_candidate: False
-```
-<!-- leetllm: output:end -->
-
-Even though aggregate accuracy hits 75% with zero safety violations, the third run breaches both the 600 ms latency cap and the 3.0-cent cost cap, holding back the release. Run these same budget and safety checks inside your <span data-glossary="eval-harness">evaluation harness</span> over held-out tasks, live model calls, and <span data-glossary="sandbox">sandboxed</span> tool outputs before shipping.
-
-## From local functions to reusable tools
-
-Inside a single process, you saw every link in the chain: strict schema validation, project-scoped reads, approval-bound idempotent writes, capped retries, parallel read fan-out, and trajectory scoring. Once multiple assistants need the same deployment, metrics, and search tools, maintaining private per-app adapters stops scaling. Sharing tools across hosts cleanly requires a standard protocol that preserves those exact permission checks.
+Connecting an MCP server never relaxes the core rule: **the model proposes; your host and server authorize.** Treat server-supplied tool descriptions as untrusted input that can hide steering text, treat annotations like `readOnlyHint` as unverified hints rather than access grants, pin discovered tool catalogs against silent mid-session changes (`notifications/tools/list_changed`), and isolate tool-list caches by caller tenant and permission context.[^mcp_tools2026][^mcp_caching2026]
 
 ```mastery-quiz
 [
@@ -1191,7 +1078,7 @@ Inside a single process, you saw every link in the chain: strict schema validati
 ]
 ```
 
-> **Next:** Continue to [MCP & Tool Protocol Standards](/learn/mcp-tool-protocol-standards).
+> **Next:** Continue to [Chunking Strategies](/learn/chunking-strategies-document-processing).
 
 <!-- leetllm: edition:reference:end -->
 
@@ -1201,7 +1088,7 @@ A release engineer asks your assistant, "Did `reranker-v17` pass its evaluation,
 
 To answer honestly, a language model has to ask external software for evidence. One rule organizes every tool-using system: **the model proposes, and your code decides.** The model emits a structured tool-call proposal, and at that moment nothing has executed. Your code reads the parsed call fields, checks arguments and permissions, runs an allowed function, and hands back the result.
 
-This rule covers **application-defined tools** dispatched by your own code. Providers also offer hosted tools such as web search or code execution that run inside the provider's service without your dispatcher in between, so verify who runs a hosted tool, what it can reach, and whose credentials it holds before turning it on.[^openai2026_function_calling][^anthropic2026ToolCalls] Where [Constitutional AI and red teaming](/learn/constitutional-ai-automated-red-teaming) shape a model's behavior during training, here we build the surrounding program assuming the model will occasionally propose the wrong call.
+This rule covers **application-defined tools** dispatched by your own code. Providers also offer hosted tools such as web search or code execution that run inside the provider's service without your dispatcher in between, so verify who runs a hosted tool, what it can reach, and whose credentials it holds before turning it on.[^openai2026_function_calling][^anthropic2026ToolCalls] Where [Constitutional AI and red teaming](/learn/rlhf-dpo-aligning-language-models) shape a model's behavior during training, here we build the surrounding program assuming the model will occasionally propose the wrong call.
 
 ## Follow one request from question to answer
 
@@ -1446,7 +1333,9 @@ Routing adds one new failure mode: hiding a tool needed for step 2 of a multi-st
 
 ## When tools live on another server: MCP
 
-Suppose three assistants each need four shared services: deployments, release rules, metrics, and traffic, which takes $3 \times 4 = 12$ custom adapters by hand. The **Model Context Protocol (MCP)** standardizes that plumbing: you write one MCP **server** per service and one **client** integration per **host** (your application), reducing those 12 pairings to $3 + 4 = 7$ pieces.[^mcp_anthropic2024][^mcp_rc_2026][^mcp_architecture2026] A client calls `tools/list` to discover schemas (under `inputSchema`) and `tools/call` to execute a tool:[^mcp_tools2026][^mcp_base2026]
+Suppose three assistants each need four shared services: deployments, release rules, metrics, and traffic, which takes $3 \times 4 = 12$ custom adapters by hand. The **Model Context Protocol (MCP)** standardizes that plumbing: you write one MCP **server** per service and one **client** integration per **host** (your application), reducing those 12 pairings to $3 + 4 = 7$ pieces while keeping all 12 authorization boundaries explicit.[^mcp_anthropic2024][^mcp_rc_2026][^mcp_architecture2026]
+
+MCP rides on JSON-RPC 2.0 and exposes three server primitives: **tools** (`tools/list`, `tools/call`) proposed by the model and authorized by the host, **resources** (`resources/list`, `resources/read`) for application-controlled read-only context, and **prompts** (`prompts/list`, `prompts/get`) for user-selected templates.[^mcp_server_overview2026][^mcp_tools2026][^mcp_base2026] Local servers speak newline-delimited JSON-RPC over **stdio** (writing logs strictly to `stderr`), while remote servers use **Streamable HTTP** with OAuth/bearer auth and strict `Origin` validation against DNS rebinding.[^mcp_stdio2026][^mcp_http2026]
 
 ```json title="mcp-tools-call.json"
 {
@@ -1478,6 +1367,6 @@ Public benchmarks like BFCL and tau-bench measure single, parallel, and multi-tu
 
 You now have a clean, inspectable interface between model text and live software. Try two extensions on `tool-roundtrip.py`: add a `reranker-v18` result from a different suite and decide what your host should compare, then remove `reranker-v16` from `allowed` and write a response that states clearly what is known and what is missing. The [complete online chapter](/learn/function-calling-tool-use-llms?view=online) adds strict Pydantic validators, provider adapters, parallel read fan-out, and vector tool routing, and the next chapter goes inside the decoder to see how constrained grammars stop malformed arguments from being generated in the first place.
 
-> **Next:** Continue to [MCP & Tool Protocol Standards](/learn/mcp-tool-protocol-standards).
+> **Next:** Continue to [Chunking Strategies](/learn/chunking-strategies-document-processing).
 
 <!-- leetllm: edition:reader:end -->

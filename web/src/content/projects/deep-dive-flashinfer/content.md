@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 5,
+  "order": 4,
   "companies": [
     "FlashInfer contributors",
     "NVIDIA",
@@ -31,7 +31,7 @@
   ],
   "relatedQuestions": [
     "continuous-batching-request-scheduling",
-    "prefix-caching-prompt-caching",
+    "kv-cache-paged-attention-llm-serving",
     "model-parallelism-for-llm-inference"
   ],
   "coverImage": "illustrations/_generated/ragged_bsr_cta_dark.png"

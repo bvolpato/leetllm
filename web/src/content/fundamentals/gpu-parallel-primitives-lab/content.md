@@ -6,7 +6,7 @@
   "section": "GPU Systems & LLM Inference",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 15,
+  "order": 11,
   "companies": [
     "NVIDIA",
     "OpenAI",

@@ -26,7 +26,7 @@
     "Leakage-resistant evaluation sets"
   ],
   "section": "Core LLM Foundations",
-  "order": 8
+  "order": 6
 }
 ---
 
@@ -352,7 +352,7 @@ Deploy the post-trained checkpoint. Perplexity tracks unconditional prose likeli
 ]
 ```
 
-> **Next:** Continue to [From GPT to Modern LLMs](/learn/gpt-to-modern-llms).
+> **Next:** Continue to [LLM Benchmarks & Limitations](/learn/llm-evaluation-benchmarks-limitations).
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
@@ -471,7 +471,7 @@ Here is what a valid comparison looks like, and what a tempting invalid one look
 
 Even a perfectly controlled comparison speaks only for its corpus. Paloma was built because one held-out distribution can hide large gaps elsewhere: a model that looks healthy on one source can look much worse on another under the same protocol.[^almazrouei2024] So report important domains separately. A biomedical score is not a Python code score, and a large easy slice can dominate an average while another domain regresses.
 
-Two more objective traps come up in practice. Chat models raise the question of which text you are scoring: a full transcript with system and user turns, or only the assistant's spans given that context. Those answer different questions, so use the [template from the last chapter](/learn/instruction-tuning-chat-templates) to define the exact stream, then report the spans. And masked models such as BERT predict masked positions using text on both sides. A pseudo-perplexity from masking each position separately is a useful number with its own label, and you shouldn't rank it against a causal model's score.[^salazar2020MaskedScoring]
+Two more objective traps come up in practice. Chat models raise the question of which text you are scoring: a full transcript with system and user turns, or only the assistant's spans given that context. Those answer different questions, so use the [template from the last chapter](/learn/supervised-fine-tuning-pipeline) to define the exact stream, then report the spans. And masked models such as BERT predict masked positions using text on both sides. A pseudo-perplexity from masking each position separately is a useful number with its own label, and you shouldn't rank it against a causal model's score.[^salazar2020MaskedScoring]
 
 ## Aggregate the loss exactly once
 

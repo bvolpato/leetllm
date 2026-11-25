@@ -24,24 +24,22 @@
     "KV cache reuse for prefix matching"
   ],
   "prerequisites": [
-    "design-real-time-content-moderation-system",
+    "prompt-injection-defense-strategies",
     "llm-deployment-gpu-serving-autoscaling",
     "speculative-decoding",
-    "prefix-caching-prompt-caching",
     "kv-cache-paged-attention-llm-serving",
     "continuous-batching-request-scheduling",
-    "long-context-window-management"
+    "positional-encoding-rope-alibi"
   ],
   "relatedQuestions": [
     "design-multi-tenant-llm-serving-platform",
-    "ai-coding-workflow-with-agents",
     "code-generation-agents-sandboxing",
-    "computer-use-gui-browser-agents",
+    "agentic-architectures-react-plan-execute",
     "agent-evaluation-benchmarks",
     "function-calling-tool-use-llms"
   ],
-  "section": "AI System Design",
-  "order": 2
+  "section": "AI System Design & Interviewing",
+  "order": 1
 }
 ---
 

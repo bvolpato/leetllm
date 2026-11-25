@@ -167,7 +167,7 @@ describe("LearningPlanBuilder", () => {
 
         expect(await screen.findByRole("heading", { name: "RAG and Search Systems" })).toBeTruthy()
         expect(screen.getByRole("link", { name: /Start plan/i }).getAttribute("href")).toBe(
-            "/learn/word-embeddings-contextual-representations"
+            "/learn/sentence-embeddings-contrastive-learning"
         )
         expect(JSON.parse(localStorage.getItem("leetllm_learning_plan_v1")!)).toEqual(expect.objectContaining({
             goal: "rag",
@@ -195,7 +195,7 @@ describe("LearningPlanBuilder", () => {
         fireEvent.click(screen.getByRole("button", { name: /Build my plan/i }))
 
         expect(await screen.findByRole("heading", { name: "AI Research Scientist" })).toBeTruthy()
-        expect(screen.getByText("35 lessons")).toBeTruthy()
+        expect(screen.getByText("28 lessons")).toBeTruthy()
         expect(screen.getByText("Design a controlled experiment and power plan")).toBeTruthy()
         expect(screen.getByText(/reconstruct every planned comparison and rejection threshold/i)).toBeTruthy()
         expect(screen.getByRole("link", { name: /Start plan/i }).getAttribute("href")).toBe(
@@ -212,7 +212,7 @@ describe("LearningPlanBuilder", () => {
         fireEvent.click(screen.getByRole("button", { name: /Build my plan/i }))
 
         expect(await screen.findByRole("heading", { name: "Production ML Systems" })).toBeTruthy()
-        expect(screen.getByText("17 lessons")).toBeTruthy()
+        expect(screen.getByText("13 lessons")).toBeTruthy()
         expect(screen.getByRole("link", { name: /Start plan/i }).getAttribute("href")).toBe(
             "/learn/numpy-and-tensor-shapes"
         )

@@ -26,14 +26,14 @@
     "Serving-side latency levers",
     "Latency and cost trade-offs"
   ],
-  "section": "AI System Design",
-  "order": 5,
+  "section": "AI System Design & Interviewing",
+  "order": 3,
   "prerequisites": [
     "design-multi-tenant-llm-serving-platform",
     "core-retrieval-algorithms",
     "design-production-rag-pipeline",
     "advanced-rag-query-rewriting-self-rag",
-    "long-context-window-management",
+    "positional-encoding-rope-alibi",
     "llm-deployment-gpu-serving-autoscaling",
     "llm-cost-engineering-token-economics"
   ],

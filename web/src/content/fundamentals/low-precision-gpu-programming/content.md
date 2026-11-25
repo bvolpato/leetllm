@@ -37,7 +37,7 @@
     "llm-deployment-gpu-serving-autoscaling"
   ],
   "section": "GPU Systems & LLM Inference",
-  "order": 18
+  "order": 14
 }
 ---
 
@@ -365,4 +365,4 @@ Always check target microarchitecture and toolkit tables before shipping: NVIDIA
 ]
 ```
 
-> **Next:** Continue to [GPU Runtime Execution Lab](/learn/gpu-runtime-execution-lab).
+> **Next:** Continue to [GPU Serving & Autoscaling](/learn/llm-deployment-gpu-serving-autoscaling).

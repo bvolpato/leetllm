@@ -25,7 +25,7 @@
     "Conversation state and held-out uncertainty"
   ],
   "section": "Applied LLM Engineering & RAG",
-  "order": 14
+  "order": 8
 }
 ---
 <!-- leetllm: edition:reference:start -->

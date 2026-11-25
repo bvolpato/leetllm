@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 4,
+  "order": 3,
   "coverImage": "illustrations/_generated/sglang_runtime_stack_dark.png",
   "shortDescription": "GPU use falls, and two requests that shared a prefix now prefill apart. Follow that lost time through SGLang's cache, scheduler, and decode path.",
   "keyConceptsTested": [
@@ -22,7 +22,7 @@
   "prerequisites": [
     "inference-mechanics-ttft-tps-kv-cache",
     "continuous-batching-request-scheduling",
-    "prefix-caching-prompt-caching",
+    "kv-cache-paged-attention-llm-serving",
     "structured-output-constrained-generation",
     "speculative-decoding",
     "model-parallelism-for-llm-inference"
@@ -30,7 +30,7 @@
   "relatedQuestions": [
     "inference-mechanics-ttft-tps-kv-cache",
     "continuous-batching-request-scheduling",
-    "prefix-caching-prompt-caching",
+    "kv-cache-paged-attention-llm-serving",
     "structured-output-constrained-generation",
     "speculative-decoding",
     "model-parallelism-for-llm-inference"

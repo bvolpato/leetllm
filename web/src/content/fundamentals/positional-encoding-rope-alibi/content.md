@@ -29,6 +29,9 @@
     "NTK-Aware Scaling",
     "YaRN",
     "Attention Bias"
+  ],
+  "aliases": [
+    "long-context-window-management"
   ]
 }
 ---
@@ -245,6 +248,42 @@ chunk matches full: True | mixed schedule matches new pass: False
 <!-- leetllm: output:end -->
 
 > **Key insight:** During cached decoding, logical position IDs and the rotary frequency schedule are part of the computation. Changing the schedule mid-conversation without caching unrotated keys or recomputing the prefix mixes incompatible rotary bases and silently corrupts attention scores.[^peng2023]
+
+## Long-context budgets, Ring Attention, and depth retrieval
+
+A longer positional formula only defines valid angles; serving long prompts reliably also requires fitting the shared window budget, managing quadratic prefill and KV memory, and verifying retrieval across every depth.
+
+### Shared context budgets, sliding windows, and hybrid KV accounting
+
+Every prompt shares one hard limit with its reply:
+
+$$
+\text{serialized\_input\_tokens} + \text{reserved\_output\_tokens} \le \text{context\_limit}
+$$
+
+When multi-turn history outgrows the input budget, reserve system instructions and output tokens first, then drop or compact **complete user/assistant or tool-call/result turns** from the oldest end while pinning exact file paths, constants, and identifiers outside any lossy summary.
+
+Hardware costs then split across two phases. Full causal prefill compares $n(n+1)/2$ token pairs per layer ($O(n^2)$): growing a prompt $32\times$ from 4K to 128K tokens multiplies pairwise attention scores by $32^2 = 1{,}024\times$. **Sliding-window attention (SWA)** bounds each local layer to the last $w$ tokens, reducing cost to $O(n w)$.[^jiang2023] Because evicting the very first tokens of a stream can destabilize softmax mass, StreamingLLM preserves a few initial **attention-sink** KV slots alongside the rolling window.[^xiao2023streaming]
+
+On hybrid checkpoints that mix short local layers with periodic global layers, never multiply one layer's shape uniformly across all layers; sum layer by layer instead:
+
+$$
+\text{logical KV bytes} = \sum_\ell n_\ell \big(H_{K,\ell} d_{K,\ell} b_{K,\ell} + H_{V,\ell} d_{V,\ell} b_{V,\ell}\big)
+$$
+
+At 128K tokens in BF16, a uniform 80-layer Llama 3 70B profile (8 GQA KV heads, $d_h = 128$) consumes **40 GiB** per sequence (`160 GiB` for four concurrent requests, exceeding the ~130 GiB weights). By contrast, a hybrid 48-layer profile with 40 local 1K layers (8 KV heads, $d_h = 256$) and 8 global 128K layers (1 KV head, $d_h = 512$) uses only `0.3125 + 2.0000 = 2.3125 GiB`, whereas assuming the local shape everywhere overestimates memory by more than $20\times$ (`48.0 GiB`).
+
+### Ring Attention and decode context parallelism
+
+When a single ultra-long prompt outgrows one GPU's HBM, **Ring Attention** shards sequence blocks across GPUs arranged in a ring: each rank pins its local query block, circulates KV blocks clockwise around the ring overlapped with local FlashAttention, and merges partial outputs via online softmax.[^liu2024ring] During decode, **Decode Context Parallelism (DCP)** distributes KV positions across ranks so each logical block covers $\text{DCP} \times \text{block\_size}$ tokens (e.g., 64 positions per logical block at `DCP = 4`, physical block size 16), letting a 1M-token sequence run without duplicating KV state per device. See [Model Parallelism for LLM Inference](/learn/model-parallelism-for-llm-inference) for the full mass-aware merge mechanics.
+
+### Lost in the middle and per-slice NIAH/RULER verification
+
+Accepting 128K tokens never proves the model can retrieve a fact buried at 50% depth. Liu et al. demonstrated a **U-shaped accuracy curve** ("Lost in the Middle"), where recall stays sharp near the start and end of a prompt while dipping sharply in the center, and distractor tokens progressively induce context rot.[^liu2023lost] Three habits guard retrieval quality:
+
+1. **Edge-priority packing:** Place the two highest-relevance excerpts at the head (after instructions) and tail (right before the question), pushing lower-priority background into the middle.
+2. **Match strategy to query structure:** Use full context for self-contained packets, RAG for targeted lookups over large corpora, and exact code/SQL filters for counting or aggregation questions (top-$k$ similarity retrieval clusters in high-scoring files and reverses true counts).
+3. **Evaluate every `(length, depth)` slice:** Run **Needle-in-a-Haystack (NIAH)**[^kamradt2023niah] and **RULER** (multi-needle lookup, variable tracking, aggregation)[^hsieh2024] and gate on the worst slice, never a pooled average: a candidate scoring `(100%, 70%, 100%)` across `(head, middle, tail)` matches a `(90%, 90%, 90%)` baseline's `90%` mean while silently failing an `85%` middle-depth floor.
 
 ## Choose by mechanism, then earn the window
 

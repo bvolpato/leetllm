@@ -6,7 +6,7 @@
   "section": "Classical ML & Evaluation",
   "category": "Evaluation & Benchmarks",
   "difficulty": "Easy",
-  "order": 7,
+  "order": 6,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "OpenAI",
@@ -449,4 +449,4 @@ No. Zero difference relative to control shows no extra slowdown from treatment, 
 ]
 ```
 
-> **Next:** Continue to [Causal Inference and Counterfactuals](/learn/causal-inference-confounding-counterfactuals).
+> **Next:** Continue to [Feature Engineering & Point-in-Time Pipelines](/learn/feature-engineering-production-ml).

@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 6,
+  "order": 5,
   "coverImage": "illustrations/_generated/sm100_tile_path_dark.png",
   "shortDescription": "Four expert groups hold 416 useful rows, yet alignment can reserve 640. DeepGEMM is the kernel library that makes the padding, scale, and Mega MoE overlap choice explicit.",
   "keyConceptsTested": [

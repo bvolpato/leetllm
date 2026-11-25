@@ -6,7 +6,7 @@
   "section": "Project Deep Dives",
   "category": "Inference Optimization",
   "difficulty": "Hard",
-  "order": 3,
+  "order": 2,
   "coverImage": "illustrations/_generated/vllm_kv_block_pool_dark.png",
   "shortDescription": "R0 is mid-response when a nine-token prompt arrives. vLLM has to share one GPU step and one KV block pool without reserving a hole for every request.",
   "keyConceptsTested": [
@@ -27,7 +27,7 @@
     "flashattention-memory-efficient-attention",
     "model-quantization-gptq-awq-gguf",
     "llm-deployment-gpu-serving-autoscaling",
-    "long-context-window-management"
+    "positional-encoding-rope-alibi"
   ],
   "companies": [
     "vLLM Project",

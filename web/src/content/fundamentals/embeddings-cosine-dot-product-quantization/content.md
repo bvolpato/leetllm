@@ -19,7 +19,7 @@
   "prerequisites": [
     "sentence-embeddings-contrastive-learning"
   ],
-  "order": 11,
+  "order": 5,
   "keyConceptsTested": [
     "Cosine Similarity",
     "Dot Product",

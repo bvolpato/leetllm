@@ -26,7 +26,7 @@
     "Egress allowlists, canary tripwires, and Attack Success Rate evaluation"
   ],
   "section": "Applied LLM Engineering & RAG",
-  "order": 17,
+  "order": 10,
   "aliases": [
     "guardrails-safety-filters-production"
   ]

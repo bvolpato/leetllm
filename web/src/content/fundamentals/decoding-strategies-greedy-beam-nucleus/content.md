@@ -26,7 +26,7 @@
     "Non-commuting sampler pipeline order across inference runtimes"
   ],
   "section": "Core LLM Foundations",
-  "order": 7,
+  "order": 5,
   "aliases": [
     "decoding-algorithms"
   ]

@@ -6,7 +6,7 @@
   "section": "Training, Fine-Tuning & Alignment",
   "category": "Model Architecture",
   "difficulty": "Hard",
-  "order": 15,
+  "order": 10,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "OpenAI",

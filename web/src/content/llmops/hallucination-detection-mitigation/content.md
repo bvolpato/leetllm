@@ -15,7 +15,7 @@
     "Microsoft"
   ],
   "shortDescription": "Separate factual claims from retrieved evidence using atomic claim verification, semantic consistency, calibrated NLI scoring, and conformal risk-coverage gates.",
-  "order": 15,
+  "order": 9,
   "keyConceptsTested": [
     "Context faithfulness versus external factual accuracy",
     "Atomic claim decomposition and partial pruning",
@@ -576,4 +576,4 @@ Even well-calibrated verifiers degrade in production when surrounding infrastruc
 ]
 ```
 
-> **Next:** Continue to [Bias & Fairness in LLMs](/learn/bias-detection-fairness-llms).
+> **Next:** Continue to [Prompt Injection & Runtime Guardrails](/learn/prompt-injection-defense-strategies).

@@ -301,4 +301,4 @@ For subscription plans, distinguish **incremental cash spend** from an **allocat
 
 The decision gets easier when you can point to work your team has actually reviewed. Save the prompt, starting commit, expected checks, final diff, usage, and review notes. Rerun the same tasks after major model, product, or pricing changes, then compare the new evidence with the old.
 
-Hold one security-sensitive change fixed, then compare assistants by handoff, returned evidence, cost per accepted change, and the permissions you actually granted. [AI Coding Workflow with Agents](/learn/ai-coding-workflow-with-agents) turns that comparison into a repeatable workflow for your repository.
+Hold one security-sensitive change fixed, then compare assistants by handoff, returned evidence, cost per accepted change, and the permissions you actually granted. [AI Coding Workflow with Agents](/learn/code-generation-agents-sandboxing) turns that comparison into a repeatable workflow for your repository.

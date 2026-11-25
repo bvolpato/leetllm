@@ -36,7 +36,7 @@
     "flashattention-memory-efficient-attention",
     "model-parallelism-for-llm-inference",
     "model-quantization-gptq-awq-gguf",
-    "long-context-window-management"
+    "positional-encoding-rope-alibi"
   ]
 }
 ---

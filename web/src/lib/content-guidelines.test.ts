@@ -382,10 +382,10 @@ describe("content packaging and rendering regressions", () => {
     const bundles = loadBundles()
     const bundleById = new Map(bundles.map((bundle) => [bundle.id, bundle]))
 
-    test("visible curriculum keeps the canonical 140-lesson path", () => {
+    test("visible curriculum keeps the canonical 102-lesson path", () => {
         const visibleLearnCount = bundles.filter(isVisibleLearnBundle).length
 
-        expect(visibleLearnCount).toBe(140)
+        expect(visibleLearnCount).toBe(102)
     })
 
     test("learn articles end with valid mastery quizzes", () => {
@@ -780,8 +780,8 @@ describe("content packaging and rendering regressions", () => {
 
     test("inventory covers all learn + blog content.md bodies (excludes glossary/practice)", () => {
         // Curriculum review scope: every published body under content/ except glossary and practice.
-        expect(bundles.length).toBe(163)
+        expect(bundles.length).toBe(125)
         expect(bundles.filter((b) => b.section === "blog").length).toBe(23)
-        expect(bundles.filter(isLearnBundle).length).toBe(140)
+        expect(bundles.filter(isLearnBundle).length).toBe(102)
     })
 })

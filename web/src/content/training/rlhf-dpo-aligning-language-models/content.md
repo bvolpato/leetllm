@@ -23,16 +23,17 @@
     "Alignment variants (IPO, KTO, ORPO, SimPO, GRPO)"
   ],
   "section": "Training, Fine-Tuning & Alignment",
-  "order": 17,
+  "order": 12,
   "coverImage": "social_banner.png",
   "prerequisites": [
     "supervised-fine-tuning-pipeline",
-    "reward-modeling-from-preference-data",
-    "instruction-tuning-chat-templates"
+    "reward-modeling-from-preference-data"
   ],
   "relatedQuestions": [
     "reward-modeling-from-preference-data",
-    "rlvr-verifiable-rewards-training",
+    "rlvr-verifiable-rewards-training"
+  ],
+  "aliases": [
     "constitutional-ai-automated-red-teaming"
   ]
 }
@@ -540,9 +541,28 @@ KTO undesirable (log_ratio 1->2): 0.599 -> 0.711
   <figcaption>GRPO centers and scales rewards within each prompt group. Identical rewards produce zero reward-driven advantages while any separate KL penalty stays active.</figcaption>
 </figure>
 
-## What comes after pairwise human labels
+## Constitutional AI, RLAIF, and automated red teaming
 
-Human comparisons are expensive and hard to scale to every edge case. **Constitutional AI** writes explicit behavioral principles, asks the model to critique and revise its own responses (supervised stage), and uses AI preference labels to train a harmlessness reward model alongside human helpfulness labels (an instance of <span data-glossary="rlaif">RLAIF</span>, Reinforcement Learning from AI Feedback).[^bai2022] Writing principles down still depends on how reliably the judge applies them, which is why red teaming and held-out human evaluation remain essential.
+Collecting human comparisons for every safety and edge-case failure does not scale. **Constitutional AI (CAI)** encodes explicit behavioral principles in a written constitution and replaces human harmlessness labeling with a two-phase self-improvement loop:[^bai2022][^anthropic2026constitution]
+
+1. **Phase 1: Supervised critique-revision (SL-CAI).** Prompt the base or SFT model with red-team queries to elicit an initial draft $y_0$, ask the model to critique $y_0$ against a specific principle and revise it into $y^*$, then run SFT on the clean revisions $(x, y^*)$ without training on the harmful draft:
+   $$
+   \mathcal{L}_{\mathrm{SFT}}(\theta) = -\mathbb{E}_{(x, y^*) \sim \mathcal{D}_{\mathrm{SL}}} \sum_{t=1}^{T} \log \pi_\theta(y_t^* \mid x, y_{<t}^*)
+   $$
+2. **Phase 2: RL from AI Feedback (RLAIF).** Sample response pairs from $\pi_{\mathrm{SL}}$, ask an AI judge to compare them under the constitution, and extract soft preference probabilities $q \in (0, 1)$ from the judge's A/B choice log-probabilities. Swap A/B order on every pair and average by response identity to detect and cancel **position bias**. Train a harmlessness reward model with soft cross-entropy gradient $\frac{d\mathcal{L}}{dd} = \sigma(d) - q$ (which faithfully fits whatever $q$ the judge outputs, so judge miscalibration flows straight into the reward model), then run RL combining AI harmlessness scores with human helpfulness labels.[^bai2022][^lee2023]
+
+### Automated red teaming and honest denominators
+
+Principles only matter if they survive adversarial pressure. **Automated red teaming** probes the model with single-turn attacks and multi-turn escalations (such as Crescendo, which builds benign context before asking for restricted output on turn 3 or 4).[^perez2022][^russinovich2024crescendo] Keep attack-family lineage grouped across train and eval splits so evaluation tests unseen attack tactics rather than memorized phrasings.
+
+Always pair **Attack Success Rate (ASR)** with **False Refusal Rate (FRR)** on benign lookalikes (the alignment tax) so a model that refuses everything cannot claim 0% ASR:
+
+$$
+\mathrm{ASR} = \frac{\text{Confirmed Violations}}{\text{Adjudicated Attack Attempts}}, \qquad
+\mathrm{FRR} = \frac{\text{Incorrectly Refused Benign Queries}}{\text{Adjudicated Benign Queries}}
+$$
+
+Report judge coverage and unresolved-label bounds rather than counting unjudged attempts as passes (if 1 of 5 attacks fails, 2 pass, and 2 are unresolved, adjudicated ASR is $1/3$ while true sample ASR lies in $[20\%, 60\%]$). Finally, keep **alignment and access control strictly separate**: constitutional training shapes model habits, never hard authorization. Authentication, tenant permissions, tool-argument validation, and egress checks must live in deterministic application code outside the model weights, backed by input/output classifiers such as Llama Guard 4 or Constitutional Classifiers++.[^greshake2023][^metallamaguard4][^anthropic2026classifiers]
 
 ```mastery-quiz
 [
@@ -659,27 +679,23 @@ Human comparisons are expensive and hard to scale to every edge case. **Constitu
 ]
 ```
 
-> **Next:** Continue to [Constitutional AI & Red Teaming](/learn/constitutional-ai-automated-red-teaming).
+> **Next:** Continue to [RLVR & Verifiable Rewards](/learn/rlvr-verifiable-rewards-training).
 
 <!-- leetllm: edition:reference:end -->
 
 <!-- leetllm: edition:reader:start -->
 
-A release candidate raises its internal reward-model score by 0.31, and the team is pleased. Then you run 400 blinded comparisons against the old assistant, and reviewers prefer the new one only 184 times. Its answers are 48 tokens longer on average, and many now begin with the words "Verified answer:". Would you ship it?
+A release candidate raises its internal reward-model score by 0.31, and the team is pleased. Then you run 400 blinded comparisons against the old assistant, and reviewers prefer the new one only 184 times. Its answers are 48 tokens longer on average, and many now begin with `"Verified answer:"`. Would you ship it?
 
-The training signal improved while the held-out comparison failed to confirm any real behavioral gain. That gap is the subject of this chapter, and it is why it matters so much how you turn preferences into model changes. After instruction tuning, a model can follow the shape of a request and still introduce subtle numerical bugs, refuse reasonable requests, or pad a correct answer until it is useless. Next-token prediction does not guarantee helpful or safe choices on its own. InstructGPT named the problem plainly: a model trained to predict plausible text can still be unhelpful, untruthful, or unsafe, in fluent prose.[^ouyang2022]
+That mismatch between a climbing reward score and stagnant human preference is the heart of alignment engineering. After instruction tuning, a model can follow the shape of a request and still emit subtle numerical bugs, over-refuse benign questions, or pad a correct answer with filler. InstructGPT stated the problem plainly: next-token prediction rewards plausible text, not necessarily the most helpful, truthful, or safe choice.[^ouyang2022]
 
-Preference methods push a model toward answers that human or programmatic evaluators prefer. There are two main ways to do it. The older one trains a reward model and then a policy against it in a live reinforcement learning loop. The newer one skips the reward model and trains on stored pairs directly. They are more closely related than they look, and they fail in different ways.
+Preference methods push a model toward answers that human or programmatic evaluators prefer. Two main families solve that problem: online reinforcement learning against a separate reward model (RLHF), and offline optimization directly on stored pairs (DPO). They share the same underlying objective yet fail in very different ways.
 
 ## Two ways to spend a comparison
 
-Keep the example from the last chapter, and give it a concrete coding prompt: a developer asks how to prevent exponential overflow when implementing `softmax(z)` in Python. Answer A subtracts `max(z)` from every logit before calling `exp(z)`. Answer B casts the array to `float64` after calling `exp(z)`. Our reward model scored them 1.8 and 0.7, which implies about a 75% chance that a reviewer prefers A. What now?
+Take a concrete coding prompt: a developer asks how to prevent exponential overflow when implementing `softmax(z)` in Python. Answer A subtracts `max(z)` from every logit before calling `exp(z)`. Answer B casts the array to `float64` *after* calling `exp(z)`. Our reward model scored them `1.8` and `0.7`, implying about a 75% chance that a reviewer prefers A.
 
-**Reinforcement learning from human feedback**, or RLHF, starts from an SFT model, fits a reward model to comparisons, and then improves the policy by generating fresh responses and scoring them, usually with Proximal Policy Optimization (PPO).[^ouyang2022] It builds on earlier human-feedback work on summarization.[^stiennon2020]
-
-**Direct Preference Optimization**, or DPO, trains directly on stored chosen and rejected pairs, using the policy's probabilities relative to a frozen reference.[^rafailov2023]
-
-Both inherit everything from the labeling chapter: the same prompt on both sides, deliberate handling of ties and unacceptable answers, and a split that matches your claim. The difference is what happens to the labels afterward.
+**Reinforcement learning from human feedback (RLHF)** starts from an SFT checkpoint, fits a reward model to comparisons, and updates the policy by generating fresh rollouts and scoring them with Proximal Policy Optimization (PPO).[^ouyang2022][^stiennon2020] **Direct Preference Optimization (DPO)** skips the separate reward model and trains directly on stored chosen/rejected pairs using log-probability ratios against a frozen reference.[^rafailov2023]
 
 <figure>
   <img src="illustrations/_generated/rlhf_vs_dpo_dark.png" alt="Two aligned lanes. In the PPO lane, the actor samples a fresh response, a frozen reward model, a frozen reference, and a trainable critic score it, a clipped advantage updates the actor, and the loop returns with a new rollout. In the DPO lane, a stored chosen and rejected pair is scored by the trainable policy and a frozen reference, a pair loss updates the policy, and the loop returns to the same stored pairs." />
@@ -688,42 +704,24 @@ Both inherit everything from the labeling chapter: the same prompt on both sides
 
 ## Reward the answer, charge for drift
 
-From here on you need a little reinforcement learning, so here it is. Instead of copying a target, a **policy** chooses actions and gets scored on what happens. A language model is a policy $\pi_\theta(y\mid x)$, and each next token is an action. One generated response is an **episode**, and sampling one is called a **rollout**. A **reward** scores what happened. The **return** is the reward collected from one step to the end of the episode. A **value** predicts that return, and the **advantage** says how much better the real outcome was than the prediction. Training raises the probability of actions with positive advantage and lowers the others.
+In RL terms, the language model is a **policy** $\pi_\theta(y\mid x)$, each token is an action, one complete response is an **episode** (a **rollout**), the **return** sums rewards from step $t$ to the end, the **value** predicts that return, and the **advantage** measures how much better the actual outcome was than predicted.
 
-If you simply maximized a reward model's score, you would be asking the model to hunt for its flaws. So the standard objective also charges for moving away from a frozen reference, usually the SFT checkpoint. To charge for that, we need a number for how far one probability distribution sits from another, and KL divergence is that number. Sample answers from your policy, and for each one ask how much more likely your policy made it than the reference did, in log terms. The average is the KL divergence. The objective subtracts it, weighted by $\beta$:
+Maximizing raw reward alone invites the policy to exploit every flaw in the reward model. The RLHF objective therefore subtracts a **KL divergence** penalty weighted by $\beta > 0$ from a frozen SFT reference $\pi_{\mathrm{ref}}$:
 
 $$
 \mathcal J=\mathbb E_{x\sim\mathcal D,\,y\sim\pi_\theta(\cdot\mid x)}[r(x,y)]
 -\beta\mathbb E_x[D_{\mathrm{KL}}(\pi_\theta(\cdot\mid x)\parallel\pi_{\mathrm{ref}}(\cdot\mid x))].
 $$
 
-In symbols, that average is the policy-weighted mean of $\log\pi_\theta-\log\pi_{\mathrm{ref}}$. A single sampled log-ratio can be negative, but the whole average never is. A plain sample mean estimates it only when rollouts really came from that same policy. Sampling with a temperature, top-$k$, or an older snapshot changes the distribution, so correct for that or label the metric accordingly.
-
-Now a worked example. One response has raw reward 1.35 and sampled reference log-ratio 1.6. Another has reward 1.20 and log-ratio 0.10. With $\beta=0.2$, their shaped returns are $1.35-0.2\cdot1.6=1.03$ and $1.20-0.2\cdot0.10=1.18$. The answer the scorer liked more has lost, because it strayed further to get there.
+For example, suppose one reply earns raw reward `1.35` with reference log-ratio `1.6`, while another earns `1.20` with log-ratio `0.10`. At $\beta = 0.2$, their shaped returns are $1.35 - 0.2(1.6) = 1.03$ and $1.20 - 0.2(0.10) = 1.18$: the cleaner near-reference answer wins.
 
 ## PPO: four roles and a clip
 
-The PPO recipe coordinates four logical roles. The **actor** generates the response and is the model you are training. The frozen **reward model** scores it. The frozen **reference** supplies baseline token probabilities for the KL charge. The trainable **critic** predicts the return from each prefix, so you can tell whether an outcome beat expectations.
-
-Those are roles, and they need not be four machines' worth of weights. If they were four separate 70-billion-parameter backbones, with 16 bytes per trainable parameter and 2 per frozen one, the state alone would total 2,520 GB, before activations, generation caches, and temporary buffers. In practice the critic can be smaller or share weights, frozen roles can be offloaded, and InstructGPT used a 6-billion-parameter reward model even for its 175-billion-parameter policy.[^ouyang2022] Rollouts add a separate cost that offline methods avoid: generating text token by token. Both colocated engines and asynchronous ones work, and asynchronous overlap brings its own problems of weight synchronization and stale samples, so compare measured utilization and policy lag.[^openrlhf2026framework]
+Standard PPO coordinates four logical roles: the trainable **actor** generating responses, the frozen **reward model** scoring them, the frozen **reference** supplying baseline probabilities for the KL charge, and the trainable **critic** predicting prefix returns. These need not be four equal-sized GPU copies (InstructGPT paired a 175B actor with a 6B reward model), though independent 70B backbones would require 2,520 GB of model state alone before KV caches, and online rollouts add decoding latency.[^ouyang2022][^openrlhf2026framework]
 
 ### How does a final score reach early tokens?
 
-The reward model scores a finished response, so its number arrives once, at the end, while the policy made many token decisions along the way. Do not add the score to every token, which would count it repeatedly. Let it flow backward instead.
-
-At token step $t$, the state $s_t$ is the prompt plus the prefix, and the action is the next token. The immediate reward $r_t$ is the KL charge, plus the reward model's score on the final token. Compare what happened with what the critic expected:
-
-$$
-\delta_t=r_t+\gamma V(s_{t+1})-V(s_t).
-$$
-
-The factor $\gamma$ discounts rewards that arrive later. InstructGPT applied no discount, which means $\gamma=1$, as in our code.[^ouyang2022] Generalized Advantage Estimation accumulates those residuals backward:[^schulman2015gae]
-
-$$
-\widehat A_t=\delta_t+\gamma\lambda\widehat A_{t+1}.
-$$
-
-Here $\lambda$ sets how far credit travels. High values lean on sampled returns, and low values lean on the critic. For a true terminal state, the next value and next advantage are both zero. If you cut an episode off on purpose, the response has not really ended, so you use the critic's estimate of the remaining return instead of zero. That estimate is called a bootstrap.
+The reward model scores a completed response only at the final token $T$. Each token receives its per-token KL charge, plus the sequence reward once at step $T$. **Generalized Advantage Estimation (GAE)** propagates that terminal signal backward from TD residuals $\delta_t = r_t + \gamma V(s_{t+1}) - V(s_t)$ via $\widehat A_t = \delta_t + \gamma\lambda\widehat A_{t+1}$ (with $\gamma=1$ in InstructGPT and zero terminal bootstrap when an episode finishes naturally):[^ouyang2022][^schulman2015gae]
 
 <!-- leetllm: test, id=reader-alignment-gae, output=show, output_title="Reader terminal credit" -->
 ```python title="reader-alignment-gae.py"
@@ -752,18 +750,13 @@ lambda=0.5: [0.25, 0.5, 1.0]
   <figcaption>Credit flows right to left. Compare the two bar rows: a smaller lambda fades the signal on the way back. Neither row can say which token actually earned the reward.</figcaption>
 </figure>
 
-A scalar reward spreads backward through the sequence, but it cannot identify which token earned it. That is a real limit of terminal scoring. The sampled advantage then feeds the update.
-
 ### What the clip actually does
 
-PPO compares the changing actor with the snapshot that generated the batch, which is separate from the long-term reference. With ratio $\rho_t=\pi_\theta(a_t\mid s_t)/\pi_{\mathrm{old}}(a_t\mid s_t)$, it maximizes
+Across multiple updates on one rollout batch, PPO compares the updated actor against the rollout snapshot $\pi_{\mathrm{old}}$ using $\rho_t = \pi_\theta(a_t\mid s_t)/\pi_{\mathrm{old}}(a_t\mid s_t)$:
 
 $$
-L_t=\min(\rho_t\widehat A_t,
-\operatorname{clip}(\rho_t,1-\epsilon,1+\epsilon)\widehat A_t).
+L_t=\min(\rho_t\widehat A_t,\; \operatorname{clip}(\rho_t,1-\epsilon,1+\epsilon)\widehat A_t).
 $$
-
-A positive advantage favors raising the sampled token's probability, and a negative one favors lowering it. The clip removes extra incentive once the ratio has moved far enough in the favorable direction.[^schulman2017]
 
 <!-- leetllm: test, id=reader-alignment-ppo-clipping, output=show, output_title="Reader PPO clipping" -->
 ```python title="reader-alignment-ppo-clipping.py"
@@ -784,34 +777,23 @@ advantage=-1: [-0.8, -1.0, -1.5]
 ```
 <!-- leetllm: output:end -->
 
-Read the rows carefully, because the asymmetry is the point. With a positive advantage, a ratio of 1.5 earns no more than 1.2 would. With a negative advantage, pushing the ratio down past 0.8 stops paying, while raising it to 1.5 keeps hurting. The harmful direction stays penalized. People often describe this as limiting how far the policy can move, and that is not quite right. It removes an incentive in this objective. It does not clamp any actual probability or enforce a hard KL limit.
-
-Here is one complete decision, using the response from earlier and treating the whole response as a single step so the arithmetic fits on one line. A real run does this for every token. With $\epsilon=0.2$, a ratio of 1.20 sits exactly at the clip, so the surrogate is $0.23\times1.20$.
+Notice the asymmetry: when $\widehat A_t > 0$, pushing $\rho_t$ past `1.2` earns no extra reward, while moving downward stays penalized; when $\widehat A_t < 0$, pushing below `0.8` stops paying while moving upward keeps hurting.[^schulman2017] Clipping removes the gradient incentive past $1 \pm \epsilon$ rather than imposing a hard clamp on KL divergence.
 
 <figure>
   <img src="illustrations/_generated/ppo_four_model_loop_dark.png" alt="A waterfall on one numeric axis. Reward 1.35 falls by a reference charge of 0.32 to a return of 1.03. Subtracting a critic value of 0.80 leaves an advantage of 0.23. A policy ratio of 1.20 gives a clipped surrogate of 0.276. Reward and reference are frozen roles. Critic and actor are trainable." />
   <figcaption>Walk left to right. Each frozen or trainable role changes one number on the shared axis, and only the last value drives the actor's update.</figcaption>
 </figure>
 
-Several passes over one batch keep its old log-probabilities and detached advantages. Then collect fresh rollouts. Throughout, watch value error, ratios, reference drift, and independently judged output quality, because each of those can go wrong while the reward keeps climbing.
-
 ## DPO: the same objective with the reward model removed
 
-Now a piece of mathematics that is worth following, since it explains why such a different-looking method is related. For a fixed reward and prompt, the reward-minus-KL objective has an exact best distribution:
+For a fixed reward and prompt, the reward-minus-KL objective has an exact closed-form optimal distribution:
 
 $$
-\pi^*(y\mid x)=\frac{\pi_{\mathrm{ref}}(y\mid x)e^{r(x,y)/\beta}}{Z(x)}.
-$$
-
-In words, take the reference and tilt it toward high reward. This assumes positive $\beta$, a finite normalizer, and answers the reference can produce. It describes an optimal distribution, and a finite neural network may never represent or reach it.
-
-The normalizer $Z(x)$ is hopeless to compute, because it sums over all possible text. But rearrange the equation and write the reward in terms of the policy:
-
-$$
+\pi^*(y\mid x)=\frac{\pi_{\mathrm{ref}}(y\mid x)e^{r(x,y)/\beta}}{Z(x)}, \qquad
 r(x,y)=\beta\log\frac{\pi^*(y\mid x)}{\pi_{\mathrm{ref}}(y\mid x)}+\beta\log Z(x).
 $$
 
-Now look at what a comparison needs: only the *difference* of two rewards for the same prompt. $Z(x)$ depends on the prompt alone, so it cancels.[^rafailov2023] That is the whole trick. Swap in the trainable policy for $\pi^*$, and the Bradley-Terry loss from the last chapter becomes a loss on the language model itself:
+The normalizer $Z(x)$ is intractable to sum over all text, yet pairwise comparisons take only the *difference* of two rewards for the same prompt, so $Z(x)$ cancels cleanly.[^rafailov2023] Substituting the trainable policy $\pi_\theta$ turns Bradley-Terry directly into the **DPO loss**:
 
 $$
 m=\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}
@@ -819,35 +801,12 @@ m=\log\frac{\pi_\theta(y_w\mid x)}{\pi_{\mathrm{ref}}(y_w\mid x)}
 \mathcal L_{\mathrm{DPO}}=-\log\sigma(\beta m).
 $$
 
-There is no separate reward model and no rollout. The policy's own likelihood ratio serves as the implicit reward. With unlimited data, a model that can represent anything, and a reference that gives every answer some probability, fitting these preferences and optimizing reward minus KL lead to the same policy.[^rafailov2023][^azar2023] That does not mean a finite DPO run lands where a clipped PPO run would. Pair coverage, the preference model, capacity, and optimization all stand in between.
+No separate reward model and no live rollouts are needed. Sum response next-token log-probabilities across the full completion plus EOS (excluding prompt and padding by index); averaging per token instead changes the objective and can flip preference signs between responses of different lengths.
 
-Note also that this is not the SFT loss. The sigmoid predicts which answer wins, while the policy still predicts tokens.
+Two subtle behaviors trip up DPO runs:
 
-### Work it by hand
-
-Suppose the chosen answer has policy and reference log-probabilities of −8.2 and −8.5, and the rejected answer has −9.5 and −9.1. The changes relative to the reference are +0.3 and −0.4, so the margin is +0.7. At $\beta=0.1$ the logit is 0.07, and the loss is about 0.659.
-
-Those inputs must be whole-response log-probabilities: sum the observed next-token log-probabilities across the response, including the end token, with the causal shift from SFT and masks that exclude prompt and padding. Averaging per token instead changes the objective. Take a four-token chosen response with a summed log-ratio of 0.40 and a two-token rejected response with 0.30. Standard DPO prefers the chosen one, while per-token averages of 0.10 and 0.15 reverse that preference. So state which convention you use before comparing anyone's margins.
-
-### The 0.693 that worries everyone
-
-A fresh run starts with policy equal to reference. Every margin is zero and the loss is $\log 2\approx0.693$, which is expected. It does not mean your pairs are ambiguous or your gradients are flat. The derivative with respect to the unscaled margin is $-\beta/2$, and that is nonzero. If the loss is still near 0.693 after real updates, first confirm that the policy is updating, then inspect contradictory labels, unresolved ties, prompt leakage, and missing coverage.
-
-### What $\beta$ actually does
-
-This one trips people up, because it pulls two ways. For a fixed reward, larger $\beta$ keeps the ideal policy closer to the reference, and it also scales the logit and the initial gradient. Here is a two-answer policy with a uniform reference, where reviewers truly prefer A 75% of the time. These are ideal targets, not training measurements.
-
-| $\beta$ | Initial $\partial L/\partial m$ | Ideal margin | Ideal $\pi(A)$ |
-| --- | ---: | ---: | ---: |
-| 0.1 | −0.05 | 10.986 | 99.998% |
-| 0.5 | −0.25 | 2.197 | 90.0% |
-| 1.0 | −0.50 | 1.099 | 75.0% |
-
-A small $\beta$ allows a very sharp preference, and larger values stay closer to the 50% reference. Empirical DPO has no hard KL constraint, so learning rate, updates, and saturation also shape the real drift.
-
-### Margins can grow while your answer gets less likely
-
-DPO optimizes a *difference*, and that has a sting. The margin can grow because the rejected answer fell faster than the chosen one, with both falling.
+- **The `0.693` start and dual role of $\beta$:** At step 0, $\pi_\theta = \pi_{\mathrm{ref}}$ so $m = 0$ and loss starts at $\ln 2 \approx 0.693$ with nonzero slope $-\beta/2$. Larger $\beta$ pulls the ideal policy closer to the reference (`99.998%` at $\beta=0.1$, `90.0%` at $\beta=0.5$, `75.0%` at $\beta=1.0$ when reviewers pick A 75% of the time over a uniform reference) while scaling the initial gradient.
+- **Likelihood displacement:** Because DPO maximizes a *difference*, margins can climb even while *both* chosen and rejected likelihoods fall below the reference, simply because the rejected reply falls faster:[^dpoLikelihoodDisplacement2024][^pal2024smaug]
 
 <!-- leetllm: test, id=reader-alignment-dpo-displacement, output=show, output_title="Reader DPO displacement" -->
 ```python title="reader-alignment-dpo-displacement.py"
@@ -871,13 +830,11 @@ after: chosen ratio=-0.6, margin=1.5, loss=0.621
 ```
 <!-- leetllm: output:end -->
 
-The loss improved, and the chosen response became *less* likely than it was under the reference. That probability went somewhere. Razin and colleagues call this likelihood displacement, and they showed it can move mass to acceptable alternatives or to worse responses, including unsafe compliance in their experiments.[^dpoLikelihoodDisplacement2024] The margin alone will not tell you which happened. DPO-Positive adds a penalty when chosen likelihood falls below the reference, though that does not guarantee the alternatives improved.[^pal2024smaug]
-
-So track more than the loss: chosen and rejected log-probabilities, the margin and logit, an on-policy KL estimate, and generated text. If margins improve while chosen log-probability collapses, look at your data, $\beta$, and length effects before extending the run.
+Track chosen and rejected log-probabilities, margin, KL drift, and generated text together (and verify `max_length` truncation does not slice off the suffix where chosen and rejected actually differ).[^trl2026DpoTrainerV117][^trl2026DpoConfigV117]
 
 ## Look for the answer nobody compared
 
-Here is DPO's central blind spot, which you can see with just three answers. A subtracts `max(z)` before `exp(z)`. B casts to `float64` after `exp(z)`. C clamps logits to `[-100, 100]` without shifting, which still overflows `float32` and `float16`. Your dataset compares only A and B.
+Suppose a coding model has three candidate answers: A (subtract `max(z)`), B (cast after `exp(z)`), and an unseen bug C (clamp logits to `[-100, 100]` without shifting). If offline pairs compare only A against B, two policies with identical 4:1 A-to-B odds incur the exact same DPO loss even as unseen bug C grows from 50% to 90% of probability mass:
 
 <!-- leetllm: test, id=reader-alignment-unseen-mass, output=show, output_title="Reader unseen response mass" -->
 ```python title="reader-alignment-unseen-mass.py"
@@ -907,51 +864,30 @@ A:B odds=4; loss=0.62623; C=90%
   <figcaption>Every point on the dashed line has the same A-to-B odds, so the loss cannot tell them apart. Slide toward corner C, and the unseen violation gains probability while no training row notices.</figcaption>
 </figure>
 
-The loss cannot tell these two policies apart, even though the second gives the unseen logit-clamping bug 90% of its probability. A new A-versus-C comparison would teach the missing distinction, and an online scorer can notice C when a rollout reaches it, but only if the scorer's own coverage is good enough to recognize why clamping fails. Either way, you need independent evaluation of generated text, and stored-pair accuracy is a different measurement from a human win rate on fresh answers.
-
-That gives you the practical choice between the two methods.
-
 | | PPO-style RLHF | Basic DPO |
 | --- | --- | --- |
 | Separate reward model | Yes | No, the reward is implicit |
 | Training loop | Rollouts and policy updates | Offline loss on fixed pairs |
-| Logical roles | Policy, reference, reward, critic | Policy, reference |
-| Main cost | Sampling, scoring, value updates | Forward and backward on stored pairs |
-| Sensitive to | Reward scale, KL, PPO settings | Data coverage, $\beta$, length |
-| Exploration | Yes | None without new data |
+| Logical roles | Policy, reference, reward, critic | Policy, reference (can precompute) |
+| Exploration | Yes | None unless you iteratively refresh pairs[^calandriello2024] |
 
-I would start with DPO when you have good offline pairs, because it has fewer moving parts and fewer ways to fail silently. Reach for an online loop when you need fresh model-generated negatives, or a signal that moves as the policy moves. Refreshing DPO's dataset with newly labeled samples is a middle ground, and later work studies it directly, though sampling and reference rules vary.[^calandriello2024] A stale or biased judge can still mislabel those new rows, so a refresh only helps if your labeling can recognize the current failures.
-
-One practical note on cost. A frozen reference's scores can be precomputed for fixed token sequences, saving a resident model. That cache belongs to an exact recipe: reference revision, tokenizer, template, token IDs, masks, truncation, and the sum or mean convention. Change any of those and it is invalid.
-
-Truncation can also cost you data quietly. Default `keep_start` truncation in TRL's `DPOTrainer` cuts each sequence at `max_length`: if chosen and rejected differ only past that cutoff, the contrast disappears, and rows whose prompt alone exceeds `max_length` are silently dropped. Count rows before and after preparation, and inspect collated pairs before training.[^trl2026DpoTrainerV117][^trl2026DpoConfigV117]
+Start with DPO when you have clean offline pairs; move to iterative DPO or online RL when you need fresh negatives from the evolving policy.
 
 ## The family around these two
 
-These methods differ mainly in what signal they consume. Start from what you can reliably collect.
-
 | Method | Signal and mechanism | What to watch |
 | --- | --- | --- |
-| IPO | Pairs. Squared loss targets a finite margin of $1/(2\tau)$[^azar2023] | Penalizes overshoot, with no general stability or safety promise |
-| KTO | Single thumbs-up or thumbs-down labels, with opposite directions around a reference point[^ethayarajh2024] | What the label really means, selection bias, class weights |
-| ORPO | SFT and an odds-ratio penalty in one stage, with no reference[^hong2024] | Couples instruction following with preference updates |
-| SimPO | Scaled average token log-probability with a target margin, and no reference[^meng2024] | Changes length dependence, so check concision and correctness |
-| GRPO | Online. Normalizes reward within a group of sampled answers, with no learned critic[^shao2024][^deepseekai2025] | Still needs rollouts and a useful scoring signal |
-
-GRPO deserves a sentence more, because it shows what you can drop. Sample several answers for a prompt, score them with a verifier or reward model, and use each answer's reward relative to its group as the advantage. That removes the critic's state and value-fitting errors. In the four-backbone budget above, removing the critic saves 44.4% of the state bytes. There is one edge case to expect: if every answer in a group gets the same reward, the centered advantages are all zero, and that group gives no reward-driven update. A high rate of such groups can mean everything passes, everything fails, or your scorer cannot tell answers apart.
+| **IPO**[^azar2023] | Squared loss targeting finite margin $1/(2\tau)$ | Discourages runaway margins on deterministic pairs |
+| **KTO**[^ethayarajh2024] | Unpaired thumbs-up / thumbs-down labels | Selection bias and class balance |
+| **ORPO**[^hong2024] | SFT + odds-ratio penalty in one stage, no reference | Couples instruction tuning and preference updates |
+| **SimPO**[^meng2024] | Length-normalized average token log-prob + target margin | Check concision versus completeness |
+| **GRPO**[^shao2024][^deepseekai2025] | Online RL normalizing rewards across $G$ sampled answers per prompt (no critic) | Drops 44.4% of four-backbone state; flat groups give zero advantage |
 
 ## When the proxy lies
 
-Back to the candidate at the start of the chapter. That is a reward-hacking suspicion, and three numbers do not yet prove it. Inspect the longer answers and score controlled rewrites: does prepending "Verified answer:" raise the reward without fixing the overflow bug? That comparison exposes what the scorer pays for.
+Returning to our opening candidate (`+0.31` reward, `+48` tokens, `"Verified answer:"` prefix, `184/400` human wins): test reward hacking directly by comparing plain versus prefixed rewrites. Common exploits include length gaming, sycophancy toward wrong premises, formatting spam, and overconfident tone on hard prompts.
 
-| Hack | Symptom | How to detect it |
-| --- | --- | --- |
-| Length gaming | Answers get steadily longer | Track mean response length |
-| Sycophancy | The model agrees with a wrong user | Test with false user claims |
-| Format exploitation | Everything arrives as a list | Compare formatted and plain scores |
-| Confidence mimicry | Sounds sure on hard items | Calibration checks on known-hard questions |
-
-Now make the decision, with humans in the loop and a rule you wrote down before looking. Hold out human evaluation, blind the response order, and fix the rubric. Here the rule says the win rate's lower confidence bound must exceed 50%, and mean length growth must stay below 20 tokens. That length limit is a product choice we made up for this example. Assume independent prompts, one judgment each, no ties, and one planned evaluation.
+Decide releases on blinded held-out human comparisons with predeclared criteria, checking sampling uncertainty via a 95% Wilson interval:[^nistBinomialIntervals2026]
 
 <!-- leetllm: test, id=reader-alignment-release-gate, output=show, output_title="Reader release gate" -->
 ```python title="reader-alignment-release-gate.py"
@@ -985,9 +921,7 @@ within length limit: False
   <figcaption>The 95% interval crosses 50%, so the candidate shows neither a clear gain nor a clear loss, while response length exceeds the 20-token cap. A higher proxy reward cannot override human evaluation.</figcaption>
 </figure>
 
-The Wilson interval runs from about 41.2% to 50.9%.[^nistBinomialIntervals2026] It crosses 50%, so this result shows neither a clear improvement nor a clear decline, and length growth of 48 fails outright. You do not ship. Repeated checkpoints, shared users, and ties all need an analysis that matches them, so pretending each judgment is an independent coin flip would overstate your certainty. Use validation evaluations to pick a checkpoint and keep a separate planned comparison for the one you selected. And track useful detail and refusal quality next to length, so a concision rule does not punish answers that needed the words.
-
-The same stop rule covers other failure signatures. If DPO improves tone while the model still recommends post-exp casting, check whether your labels even cover numerical stability distinctions, and then check the deployed prompt and template. If PPO generations turn repetitive while reward rises, freeze promotion, inspect reward scale and KL, and refresh your evaluation.
+The interval `[41.2%, 50.9%]` crosses 50% and length growth exceeds the 20-token cap, so you hold the release.
 
 ```checkpoint
 At $\beta=0.5$, the chosen answer's log-ratio against the reference is +0.2, and the rejected answer's is −0.6. What are the margin, the logit, and the DPO loss?
@@ -995,10 +929,17 @@ At $\beta=0.5$, the chosen answer's log-ratio against the reference is +0.2, and
 The margin is $0.2-(-0.6)=0.8$. The logit is $\beta m=0.5\times0.8=0.4$. The loss is $-\log\sigma(0.4)\approx0.513$, which is below the 0.693 of a fresh run, so this pair has started to move.
 ```
 
+## Constitutional AI, RLAIF, and red teaming
+
+Human comparisons are expensive and hard to extend to every adversarial corner. **Constitutional AI (CAI)** writes down explicit principles and trains against them in two phases:[^bai2022][^anthropic2026constitution]
+
+1. **Critique-revision SFT (SL-CAI):** Elicit an initial draft $y_0$ on red-team prompts, have the model critique $y_0$ against a chosen principle and rewrite it into $y^*$, then fine-tune only on the clean revisions $(x, y^*)$.
+2. **RL from AI Feedback (RLAIF):** Sample candidate pairs from the revised policy, ask an AI judge which reply better follows the principle (swapping A/B order and averaging by response identity to expose position bias), fit a reward model to the judge's soft preference probabilities $q$ ($\frac{d\mathcal{L}}{dd} = \sigma(d) - q$), and optimize the policy combining AI harmlessness feedback with human helpfulness feedback.[^bai2022][^lee2023]
+
+Verify those safeguards with **automated red teaming** across single-turn and multi-turn attacks (such as gradual Crescendo escalations), keeping attack families grouped across splits so tests check new tactics rather than memorized prompts.[^perez2022][^russinovich2024crescendo] Always track **Attack Success Rate (ASR)** next to **False Refusal Rate (FRR)** on benign lookalikes, report coverage and unresolved-label bounds instead of counting missing verdicts as passes, and keep hard access enforcement outside the weights: authentication, record permissions, and tool validation belong in application code, with classifiers such as Llama Guard 4 or Constitutional Classifiers++ adding defense in depth.[^greshake2023][^metallamaguard4][^anthropic2026classifiers]
+
 ## Where this leaves you
 
-You can now trace a terminal score back through its tokens, read PPO's clip correctly, derive DPO's loss and say why the normalizer vanishes, spot a margin that grows while the answer gets less likely, and decide on a release from a written rule. Whichever method you pick, the model only learns the distinctions your feedback contains.
-
-Human comparisons do not scale to every new failure, though, and someone has to write down what "better" means. [Constitutional AI and red teaming](/learn/constitutional-ai-automated-red-teaming) writes those rules as principles, uses AI critique and ranking to produce more of the labels, and then attacks the result to see which safeguards actually hold.
+You can now trace a terminal score back through its tokens, read PPO's clip correctly, derive DPO's loss and say why the normalizer vanishes, spot a margin that grows while the answer gets less likely, pair AI self-critique with honest red-team metrics, and decide on a release from a written rule. Next, [RLVR & Verifiable Rewards](/learn/rlvr-verifiable-rewards-training) replaces learned preference proxies with deterministic verifiers for math, code, and structured constraints.
 
 <!-- leetllm: edition:reader:end -->

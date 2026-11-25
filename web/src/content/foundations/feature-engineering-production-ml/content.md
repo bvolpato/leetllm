@@ -3,10 +3,10 @@
   "id": "feature-engineering-production-ml",
   "title": "Feature Engineering & Point-in-Time Pipelines",
   "slug": "feature-engineering-production-ml",
-  "section": "Production ML Systems",
+  "section": "Classical ML & Evaluation",
   "category": "MLOps & Deployment",
-  "difficulty": "Medium",
-  "order": 1,
+  "difficulty": "Easy",
+  "order": 7,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "Amazon",
@@ -29,14 +29,15 @@
     "CACE principle"
   ],
   "aliases": [
-    "batch-streaming-feature-pipelines"
+    "batch-streaming-feature-pipelines",
+    "monitoring-predictive-models"
   ]
 }
 ---
 
 A classifier scores 0.96 ROC-AUC in a notebook, then mispredicts live traffic the day it ships. Usually the model architecture is fine. The bug lives in the feature pipeline: offline training peeked at future events, fitted a scaler across the full dataset, or computed a feature slightly differently than the live serving path.
 
-Consider one prediction task we will carry through this lesson. At `09:00`, a cluster scheduler predicts whether a running GPU training job (`J-204`) will finish past its 24-hour completion deadline (its <span data-glossary="sla">service-level agreement (SLA)</span>). Unlike the static tables in [dataset pipelines](/learn/dataset-pipelines-data-quality), telemetry here is still arriving. Every **feature** (such as `hours_since_last_heartbeat`) must lock down its time cutoff, scaling constants, missing-data rules, and serving freshness so offline training matches online inference bit for bit.
+Consider one prediction task we will carry through this lesson. At `09:00`, a cluster scheduler predicts whether a running GPU training job (`J-204`) will finish past its 24-hour completion deadline (its <span data-glossary="sla">service-level agreement (SLA)</span>). Unlike the static tables in [dataset pipelines](/learn/cross-validation-leakage-generalization), telemetry here is still arriving. Every **feature** (such as `hours_since_last_heartbeat`) must lock down its time cutoff, scaling constants, missing-data rules, and serving freshness so offline training matches online inference bit for bit.
 
 ## Point-in-time correctness and the dual-clock barrier
 
@@ -430,6 +431,56 @@ unit bug     -> passed=False diffs={'hb_age_h': (0.5, 30.0)}
 
 > **Key insight:** You cannot reconstruct an old online request by querying a latest-only Redis key later. Log the served vector, preprocessing version, and `feature_as_of` at inference time, then compare against offline point-in-time replay while monitoring null rates, unseen-category rates, freshness lag, and parity diffs.
 
+## Monitoring drift, delayed labels, and safe rollouts
+
+A healthy HTTP 200 dashboard with 40 ms latency still hides failing predictions when live feature distributions shift or delayed ground-truth outcomes degrade. Production ML monitoring runs on **two separate clocks**:
+
+1. **The fast request clock:** Synchronous pre-scoring checks that catch missing fields, out-of-range values, and stale snapshots *before* bad predictions hit downstream schedulers.
+2. **The slow outcome clock:** Asynchronous quality evaluation that waits for the <span data-glossary="label-delay">label delay</span> to mature before measuring precision, recall, calibration, and error cost.
+
+### Measuring distribution drift before labels arrive
+
+Well-formed requests can still look nothing like training traffic. **<span data-glossary="data-drift">Data drift</span>** flags input distribution shifts early so you know where to investigate before labels mature.[^klaise2020] Three complementary metrics cover binned and continuous features:
+
+- **<span data-glossary="population-stability-index">Population Stability Index (PSI)</span>:** Over fixed buckets with reference shares $e_i$ and current shares $a_i$, PSI sums both KL divergence directions (Jeffreys divergence):
+
+$$
+\text{PSI} = D_{\text{KL}}(A \parallel E) + D_{\text{KL}}(E \parallel A) = \sum_i (a_i - e_i) \ln\left(\frac{a_i}{e_i}\right)
+$$
+
+  Every term is nonnegative and attributes shift directly to individual buckets. Keep bin edges fixed across windows, apply consistent smoothing for zero-count bins, and treat `0.10 / 0.25` rules of thumb as investigation triggers rather than automatic retraining commands.[^potgieter2026psi]
+- **Two-sample Kolmogorov-Smirnov (KS):** Measures the maximum vertical gap between unbinned empirical CDFs, $D = \sup_x |F_{\text{ref}}(x) - F_{\text{curr}}(x)| \in [0, 1]$.[^scipyKs2Sample2026] On high-volume traffic, trivial shifts trigger tiny p-values, so always inspect effect size $D$ alongside p-values.
+- **1D Wasserstein-1 (Earth Mover's Distance):** Measures the area between CDFs in the **original feature units**, $W_1(u, v) = \int_{-\infty}^{\infty} |U(x) - V(x)|\, dx$, catching variance and shape changes even when two windows share the exact same mean.[^scipyWasserstein2026]
+
+### Covariate shift, concept drift, and label shift
+
+Factoring $P(X, Y) = P(X) P(Y \mid X) = P(Y) P(X \mid Y)$ separates three distinct failure modes:
+
+| Shift type | What moved | Example | First response |
+| --- | --- | --- | --- |
+| **Covariate shift** | $P(X)$ changes, $P(Y \mid X)$ stays fixed | Weekend surge brings older heartbeats, while miss risk per age stays constant | Inspect traffic mix and slice metrics |
+| **Concept drift** | $P(Y \mid X)$ changes | Faster GPUs clear backlogs of 35 in minutes instead of hours | Retrain on recent mature snapshots |
+| **Label shift** | $P(Y)$ changes, $P(X \mid Y)$ stays fixed[^lipton2018labelshift] | Overall outage prevalence rises while per-class feature patterns hold steady | Audit base rate and recalibrate thresholds |
+
+Watch out for traffic-mix illusions: if Pool A keeps a constant 10% miss rate and Pool B keeps a constant 40% miss rate, shifting traffic from 50/50 to 80/20 moves the aggregate miss rate from 25% to 16% even though *neither* pool changed behavior. Slice metrics by pool before declaring concept drift.
+
+### Delayed labels, calibration, and safe release triage
+
+Ground-truth evaluation tracks three timestamps per prediction: prediction time $t_{\text{pred}}$, maturity time `label_due_at`, and warehouse ingestion time $t_{\text{ingest}}$. A cohort ending at $T_2$ with horizon $\Delta t_{\text{maturity}}$ is fully mature only once:
+
+$$
+t_{\text{now}} \ge T_2 + \Delta t_{\text{maturity}}
+$$
+
+Never count immature predictions as negatives (early failures often arrive sooner than long-running successes). Keep **immature** rows (`label_due_at > now`) separate from **mature-but-missing** rows (`label_due_at <= now` without a label yet), and report **mature label coverage** alongside <span data-glossary="precision-recall">precision, recall</span>, weighted error cost, and probability <span data-glossary="calibration">calibration</span> (such as Brier score) reconstructed using each prediction's **stored serving threshold**.[^guo2017] Remember that interventions alter observed calibration: if on-call engineers rescue every job flagged at `0.80` so only 20% miss their deadline, you are observing the intervened regime rather than untreated risk.
+
+Triage monitoring alerts in strict order before retraining:
+
+1. **Repair upstream feeds first:** Missing fields or stale snapshots corrupt retraining data too.
+2. **Fix training-serving parity:** Retraining never fixes a hardcoded serving bug or unit mismatch.
+3. **Investigate drift before retraining:** Confirm whether a PSI or Wasserstein spike reflects a broken feed, a harmless traffic mix shift, or real mature error-cost regression.
+4. **Promote immutable bundles through canary gates:** When clean mature data justifies retraining, freeze data snapshot digest, code revision, weights, feature spec, threshold, and a `previous_model` rollback pointer into an immutable candidate bundle, then flip a serving alias through canary checks with automated rollback rather than overwriting `latest`.[^google2026mlops]
+
 ```mastery-quiz
 [
   {
@@ -490,4 +541,4 @@ unit bug     -> passed=False diffs={'hb_age_h': (0.5, 30.0)}
 ]
 ```
 
-> **Next:** Continue to [Ranking and Recommendation Systems](/learn/ranking-recommendation-systems).
+> **Next:** Continue to [Neural Networks from Scratch](/learn/neural-networks-from-scratch).

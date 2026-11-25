@@ -263,7 +263,7 @@ The cache estimate answers a hardware question. It doesn't answer whether you sh
 | Retrieval first | Corpus is large and most artifacts are irrelevant to each request | Retriever can omit evidence needed for a join |
 | Hybrid | Retrieval can narrow the corpus without breaking relationships | More evaluation and pipeline complexity |
 
-A hybrid path can retrieve likely files, expand their dependencies, and keep the resulting slice together. For the latency regression, following the call from the request timer to the scheduler is more useful than increasing the number of keyword matches. [Production RAG Pipelines](/learn/design-production-rag-pipeline) covers retrieval and <span data-glossary="reranker">reranking</span>. [Long Context Window Management](/learn/long-context-window-management) covers placement and compaction.
+A hybrid path can retrieve likely files, expand their dependencies, and keep the resulting slice together. For the latency regression, following the call from the request timer to the scheduler is more useful than increasing the number of keyword matches. [Production RAG Pipelines](/learn/design-production-rag-pipeline) covers retrieval and <span data-glossary="reranker">reranking</span>. [Long Context Window Management](/learn/positional-encoding-rope-alibi) covers placement and compaction.
 
 Retrieve a high-recall set, count it with the target tokenizer, pack a stable prefix, then score the real task:
 
@@ -286,7 +286,7 @@ Google exposes context caching, xAI caches matching prefixes automatically, and 
 
 For ten reviews sharing a 900K prefix on GPT-5.6 Sol's long-context rate, ten uncached prefix reads cost $10 \times 0.9 \times 8 =$ \$72. One write plus nine full cache hits costs $0.9 \times (10 + 9 \times 0.8) =$ \$15.48. This comparison covers only the shared prefix. It assumes every later request hits the entire prefix before expiry and excludes changing input, output, and tool fees. If you write that prefix once and never reuse it, its \$9 write costs more than an uncached \$7.20 read.[^openai2026pricing]
 
-[Prefix Caching and Prompt Caching](/learn/prefix-caching-prompt-caching) covers the serving-side reuse mechanics. Cache savings don't enlarge the context window or remove the stored attention state of the active sequence.
+[Prefix Caching and Prompt Caching](/learn/kv-cache-paged-attention-llm-serving) covers the serving-side reuse mechanics. Cache savings don't enlarge the context window or remove the stored attention state of the active sequence.
 
 > **Common mistake:** Reusing one giant cold prompt on every turn. Cache a stable prefix when reuse is real. Retrieve or compact when evidence changes.
 

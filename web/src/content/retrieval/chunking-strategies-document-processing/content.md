@@ -24,24 +24,40 @@
     "Jina"
   ],
   "section": "Applied LLM Engineering & RAG",
-  "order": 10
+  "order": 4,
+  "aliases": [
+    "file-ingestion-pdfs-html-ocr-markdown"
+  ]
 }
 ---
 
 <!-- leetllm: edition:reference:start -->
 
-Suppose your ingestion pipeline extracted a key specification cleanly from `inference-api-spec-v2.md` (covered in [File Ingestion for AI](/learn/file-ingestion-pdfs-html-ocr-markdown)):
+Suppose your ingestion pipeline extracts a key specification from `inference-api-spec-v2.md`:
 
 > `inference-api-spec-v2.md`, section 4.2: **Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames.**
 
-To answer a developer's question about connection drops, the language model needs the trigger (`idle SSE connections`), the threshold (`90 seconds`), and the exception (`without heartbeat frames`) together. Slice the sentence so one chunk holds `"Streaming timeout: close idle SSE connections after"` and the next holds `"90 seconds without heartbeat frames."`, and neither chunk alone tells the truth.
-
-<span data-glossary="chunking">Chunking</span> divides source documents into the units a retriever indexes and returns in <span data-glossary="rag">retrieval-augmented generation (RAG)</span>.[^lewis2020] Where you place each cut directly determines both what a query matches and what the model can truthfully state.
+To answer a developer's question about connection drops, the language model needs the trigger (`idle SSE connections`), the threshold (`90 seconds`), and the exception (`without heartbeat frames`) together. Two stages decide whether those three pieces reach the generator intact: **document ingestion** (extracting clean structure from raw PDFs, HTML, scans, and Markdown) and **<span data-glossary="chunking">chunking</span>** (dividing normalized documents into the units a retriever indexes and returns in <span data-glossary="rag">retrieval-augmented generation (RAG)</span>).[^lewis2020] Slice the sentence so one chunk holds `"Streaming timeout: close idle SSE connections after"` and the next holds `"90 seconds without heartbeat frames."`, and neither chunk alone tells the truth.
 
 <figure>
   <img src="illustrations/_generated/chunking_strategies_dark.png" alt="Fixed-size overlapping windows sever a specification mid-clause between a number and its unit, whereas heading-aware section chunking keeps the full condition, threshold, exception, and source locator intact." />
   <figcaption>Fixed windows split a rule right between its numeric threshold and its qualifying clause. A heading-aware section keeps the condition, value, and source locator together.</figcaption>
 </figure>
+
+## Ingestion first: PDFs, HTML, OCR, and normalized records
+
+Even the sharpest chunker cannot repair text corrupted during extraction. Normalize every incoming file format into a single structured record carrying `source_id`, `locator` (page number, section heading, or anchor), `version`, a SHA-256 <span data-glossary="checksum">checksum</span>, extracted text blocks, and caller-permission metadata before any splitter runs:
+
+| Source format | Dominant failure mode | Practical defense |
+| --- | --- | --- |
+| **Digital PDFs** | PDFs store positioned glyphs rather than logical paragraphs; multi-column layouts scramble reading order, running headers/footers break sentences, and tables flatten into unaligned text[^pypdf_docs][^w3c2026pdfreadingorder] | Use layout-aware parsers (such as Docling or bounding-box column sorters) that reconstruct reading order and emit structured tables[^docling2026DocumentFormat] |
+| **Scanned PDFs & images (OCR)** | Character confusions (`1S` vs. `15`, `O` vs. `0`, dropped decimal points) silently alter numeric limits[^tesseract_docs] | Record OCR confidence scores and route low-confidence pages to vision-language OCR (such as olmOCR) or human review; never silently regex-rewrite uncertain digits[^olmocr2026] |
+| **HTML web pages** | Navigation bars, sidebars, cookie banners, and footers flood chunks with repeated boilerplate | Parse the DOM (for example with BeautifulSoup or readability extractors) to keep `<main>` / `<article>` headings, lists, and tables while stripping page chrome[^beautifulsoup_docs] |
+| **Markdown & docs** | Flattening files to plain text throws away headings, tables, and code fences you already had | Parse into an AST or preserve heading hierarchy, fenced code blocks, and pipe tables verbatim[^markdownit2026using] |
+
+> **Common mistake:** Silently auto-correcting OCR artifacts like `1S seconds` to `15 seconds` with a regex. If the scan actually read `18 seconds` or `10 seconds`, guessing invents a plausible wrong number that looks completely clean downstream. Flag low-confidence spans explicitly instead.
+
+When documents are dominated by dense charts, multi-column financial tables, or engineering schematics that resist text extraction, **visual page retrieval** (such as ColPali, which embeds rendered page images with a vision-language encoder and matches queries via ColBERT-style late interaction) lets retrieval skip fragile OCR altogether.[^faysse2024colpali][^khattab2020] Finally, treat external HTML and PDF text as untrusted input: keep extraction quality, quarantine checks against embedded prompt injections, and document access permissions as three independent gates before writing records into the index.[^owasp2026LLMTop10]
 
 ## What an answerable chunk preserves
 
@@ -461,6 +477,14 @@ Then the chunking step runs, and it does something that looks harmless. One chun
 Nothing crashed. Extraction succeeded, the vector index returned a high-scoring hit, and the answer still failed because the boundary landed right across the one sentence that mattered.
 
 Chunking decides how documents are carved into the units a retriever indexes and hands to a language model in retrieval-augmented generation (RAG).[^lewis2020] Those cuts control two jobs at once: what a query can match, and what the matched text actually tells the model. Every embedding model also enforces a hard token ceiling while compressing an entire chunk into one vector; `all-MiniLM-L6-v2`, for example, outputs 384 dimensions and truncates inputs past 256 word pieces by default.[^allMiniLM2026]
+
+## Clean extraction comes before chunking
+
+Chunking can only preserve structure that survives upstream file ingestion. Before splitting anything, convert each format into one normalized record carrying `source_id`, `locator` (page or section), `version`, SHA-256 checksum, and caller permission scope:
+
+- **PDFs:** A PDF stores positioned glyphs rather than logical paragraphs. Naive text dumps interleave two-column layouts, splice running headers mid-sentence, and collapse tables into unreadable rows.[^pypdf_docs][^w3c2026pdfreadingorder] Use layout-aware parsers (such as Docling) that reconstruct reading order and structured tables.[^docling2026DocumentFormat]
+- **OCR scans:** Scanned pages introduce character confusions (`1S` vs. `15`, `O` vs. `0`) that quietly corrupt thresholds.[^tesseract_docs] Track per-page confidence and route low-confidence scans to vision-language OCR (such as olmOCR) or review rather than silently regex-patching digits.[^olmocr2026] For chart-heavy or dense visual pages, visual page retrieval (ColPali) embeds rendered page images directly and skips fragile text extraction.[^faysse2024colpali]
+- **HTML and Markdown:** Strip navigation bars, cookie banners, and footers from HTML while keeping `<main>` headings, lists, and tables intact; keep existing Markdown headings and fenced code blocks instead of flattening them to plain text.[^beautifulsoup_docs][^markdownit2026using] Quarantine external files for embedded prompt injections separately from parser quality and access permissions.[^owasp2026LLMTop10]
 
 ## Define answerability before choosing a chunk size
 

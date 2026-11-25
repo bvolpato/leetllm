@@ -1116,7 +1116,7 @@ The second is what one event contains. If your server streams chunks, a chunk ho
 
 ## Prefill reads the whole prompt
 
-So what happens during those 320 ms? Part of it may be queueing, which we'll return to. The rest is **prefill**: the model processing your prompt. (This is a different idea from the [assistant prefill](/learn/instruction-tuning-chat-templates), where you write the start of a reply.)
+So what happens during those 320 ms? Part of it may be queueing, which we'll return to. The rest is **prefill**: the model processing your prompt. (This is a different idea from the [assistant prefill](/learn/supervised-fine-tuning-pipeline), where you write the start of a reply.)
 
 A prompt has many tokens, and the model already knows all of them. There's nothing to wait for, so it can process them together. The causal mask still keeps each position from seeing later ones, which means the result is the same as feeding tokens one at a time, but the work runs as one large matrix operation. The last position's output gives the scores for the first new token.
 

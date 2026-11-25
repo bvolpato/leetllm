@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-16a34a?style=flat-square)](./LICENSE)
 
-> An open-source, first-principles curriculum for AI/ML and LLM engineering: 140 progressive lessons, 47 coding practice problems (Python and Java), 757 glossary entries, a buildable PDF monograph, Vizmatic illustrations and films, and a native iOS/Mac app.
+> An open-source, first-principles curriculum for AI/ML and LLM engineering: 102 focused, high-signal lessons, 47 coding practice problems (Python and Java), 757 glossary entries, a buildable PDF monograph, Vizmatic illustrations and motion films, and a native iOS/Mac app.
 
 LeetLLM is a free, open-source educational project under the [MIT License](./LICENSE). Read online at **[leetllm.com](https://leetllm.com)**, build the curriculum locally, or contribute lessons, visuals, and code.
 
@@ -14,28 +14,26 @@ LeetLLM is a free, open-source educational project under the [MIT License](./LIC
 
 ## What Is Inside
 
-- **140 progressive lessons** across 13 focused roadmap phases, from tensors, linear algebra, probability, classical ML, and neural networks to Transformers, distributed training, alignment, RAG, agents, CUDA kernels, LLM inference, and 10 canonical open-source deep dives.
+- **102 progressive lessons** across 11 focused roadmap phases, from tensors, linear algebra, probability, classical ML, and neural networks to Transformers, distributed training, alignment, RAG, agents, CUDA kernels, LLM inference, and 8 canonical open-source deep dives.
 - **47 coding practice problems** at `/practice` with sample and hidden test suites in Python and Java, backed by an isolated execution sandbox.
 - **757 glossary definitions** linked inline at first technical use.
-- **1,300+ scored mastery quiz questions** and end-of-lesson checkpoints.
+- **1,000+ scored mastery quiz questions** and end-of-lesson checkpoints.
 - **Theme-aware Vizmatic illustrations, interactive motion films, and Mermaid diagrams** rendered at build time.
 - **Curated PDF handbook** (`./build-book.sh`) and **native SwiftUI iOS / Mac Catalyst app** (`mobile/ios/LeetLLM`).
 
 | Phase | Lessons | Focus |
 |-------|--------:|-------|
 | **Math & Tensor Foundations** | 5 | Tensors, linear algebra, gradients/backprop, probability, Bayesian & statistical inference |
-| **Classical ML & Evaluation** | 8 | Regression, classification, trees/GBDTs, clustering/PCA, cross-validation, data pipelines, A/B testing, causality |
+| **Classical ML & Evaluation** | 7 | Regression, classification, trees/GBDTs, clustering/PCA, cross-validation/data hygiene, A/B testing, production feature pipelines & drift |
 | **Deep Learning Foundations** | 7 | Neural networks from scratch, PyTorch training loops, softmax/cross-entropy, Adam, CNNs, RNNs, VAEs |
-| **Core LLM Foundations** | 11 | Tokenization, embeddings, Transformer end-to-end, language modeling, decoding, perplexity, instruction tuning, benchmarks |
-| **Production ML Systems** | 4 | Point-in-time feature pipelines, ranking/recommendations, forecasting, live drift monitoring |
-| **Applied LLM Engineering & RAG** | 18 | Prompting, DSPy, structured outputs, tool calling, MCP, ingestion, chunking, hybrid retrieval, RAG, evals, guardrails, cost/routing |
-| **Transformer & Multimodal Architectures** | 9 | Scaled dot-product attention, RoPE/ALiBi, LayerNorm, MoE, Mamba, ViTs, VLMs/multimodal, diffusion, interpretability |
-| **Training, Fine-Tuning & Alignment** | 22 | Scaling laws, pretraining data, GPT from scratch, CUDA, mixed precision, FSDP/ZeRO, JAX, SFT, LoRA, DP, RL, RLHF/DPO/RLVR, test-time compute, distillation, merging |
-| **Advanced Agents & Retrieval** | 12 | Vector DB internals (HNSW/IVF), advanced RAG, GraphRAG, ReAct, context engineering, memory, OS/Wasm sandboxing, coding/GUI agents, recovery/HITL, LangGraph, evals |
-| **GPU Systems & LLM Inference** | 23 | KV cache, GQA, PagedAttention, prefix caching, FlashAttention, continuous batching, speculative decoding, quantization, local/edge serving, CUDA/Triton/GEMM kernels, autoscaling, benchmarks |
-| **AI System Design** | 7 | End-to-end production system designs (moderation, code completion, multi-tenant serving, sandboxes, search, voice, reasoning) |
-| **AI Lab Interviewing** | 4 | Python ML systems coding, architecture design, behavioral reasoning, technical presentations |
-| **Project Deep Dives** | 10 | PyTorch, Transformers, vLLM, SGLang, FlashInfer, DeepGEMM, DeepEP, NCCL, Megatron, Ray |
+| **Core LLM Foundations** | 7 | Tokenization, contrastive embeddings, Transformer end-to-end, language modeling, decoding, perplexity, benchmarks |
+| **Applied LLM Engineering & RAG** | 11 | Chain-of-thought prompting, constrained decoding, tool calling/MCP, chunking/extraction, hybrid retrieval, RAG, evals, guardrails, token economics |
+| **Transformer & Multimodal Architectures** | 9 | Scaled dot-product attention, RoPE/ALiBi/long-context, LayerNorm, MoE, Mamba, ViTs, VLMs/multimodal, diffusion, interpretability |
+| **Training, Fine-Tuning & Alignment** | 15 | Scaling laws, pretraining data, GPT from scratch, CUDA, mixed precision, FSDP/ZeRO, synthetic data, SFT, LoRA, RL, reward modeling, RLHF/DPO, RLVR, reasoning, distillation |
+| **Advanced Agents & Retrieval** | 10 | Vector DB internals (HNSW/IVF), advanced RAG, GraphRAG, ReAct, context engineering, memory, OS/Wasm sandboxing, recovery/HITL, multi-agent DAGs, evals |
+| **GPU Systems & LLM Inference** | 16 | KV cache, GQA, PagedAttention/prefix caching, FlashAttention, continuous batching, speculative decoding, quantization, local/edge serving, tensor/pipeline parallelism, CUDA/Triton/GEMM kernels, autoscaling, benchmarks |
+| **AI System Design & Interviewing** | 7 | Flagship production AI system designs (code completion, multi-tenant serving, search, voice, reasoning) plus Python ML systems coding and architecture interviews |
+| **Project Deep Dives** | 8 | PyTorch, vLLM, SGLang, FlashInfer, DeepGEMM, DeepEP, NCCL, Megatron |
 
 ---
 
@@ -132,17 +130,17 @@ leetllm/
 │   ├── src/
 │   │   ├── app/               # Public pages, auth, dashboard, API routes
 │   │   ├── components/        # UI components (Tailwind CSS + Radix)
-│   │   ├── content/           # 140 lessons + blog + practice + glossary
-│   │   │   ├── foundations/      # Math, classical ML, and production ML foundations (22)
-│   │   │   ├── preparation/      # Free 0-to-1 prerequisite on-ramp (11)
-│   │   │   ├── fundamentals/     # Transformer and inference fundamentals (37)
-│   │   │   ├── agents/           # Agent systems and orchestration (13)
+│   │   ├── content/           # 102 lessons + blog + practice + glossary
+│   │   │   ├── foundations/      # Math, classical ML, and production ML foundations (17)
+│   │   │   ├── preparation/      # Free 0-to-1 prerequisite on-ramp (7)
+│   │   │   ├── fundamentals/     # Transformer and inference fundamentals (29)
+│   │   │   ├── agents/           # Agent systems and orchestration (10)
 │   │   │   ├── retrieval/        # Retrieval and RAG systems (5)
-│   │   │   ├── llmops/           # Evaluation, privacy, deployment, monitoring (11)
-│   │   │   ├── training/         # Training and adaptation (18)
-│   │   │   ├── system-design/    # System design and multimodal architectures (9)
-│   │   │   ├── interviewing/     # AI lab interview preparation (4)
-│   │   │   ├── projects/         # AI infrastructure project deep dives (10)
+│   │   │   ├── llmops/           # Evaluation, safety, deployment, benchmarking (6)
+│   │   │   ├── training/         # Training and adaptation (11)
+│   │   │   ├── system-design/    # System design and multimodal architectures (7)
+│   │   │   ├── interviewing/     # AI lab interview preparation (2)
+│   │   │   ├── projects/         # AI infrastructure project deep dives (8)
 │   │   │   ├── blog/             # Blog post bundles (23)
 │   │   │   └── practice/         # Coding practice problems (47)
 │   │   └── lib/               # Content loaders, Supabase clients, practice sandbox & proxy

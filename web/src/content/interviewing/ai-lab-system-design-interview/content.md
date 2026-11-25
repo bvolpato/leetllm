@@ -3,10 +3,10 @@
   "id": "ai-lab-system-design-interview",
   "title": "AI Lab System Design Interview",
   "slug": "ai-lab-system-design-interview",
-  "section": "AI Lab Interviewing",
+  "section": "AI System Design & Interviewing",
   "category": "System Design",
   "difficulty": "Hard",
-  "order": 2,
+  "order": 7,
   "companies": [
     "Frontier AI Labs",
     "OpenAI",
@@ -30,8 +30,8 @@
     "ai-lab-coding-interview-python-systems"
   ],
   "relatedQuestions": [
-    "mcp-tool-protocol-standards",
-    "observability-monitoring-llm-systems",
+    "function-calling-tool-use-llms",
+    "llm-deployment-gpu-serving-autoscaling",
     "llm-cost-engineering-token-economics",
     "agent-failure-states-retry-fallback"
   ]
@@ -452,4 +452,4 @@ Check six blind spots before stepping back: **technology before goal** (size the
 ]
 ```
 
-> **Next:** Continue to [AI Lab Behavioral Interview](/learn/ai-lab-behavioral-interview).
+> **Next:** Continue to [Deep Dive - PyTorch](/learn/deep-dive-pytorch).

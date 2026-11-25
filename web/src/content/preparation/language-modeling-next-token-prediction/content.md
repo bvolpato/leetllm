@@ -6,7 +6,7 @@
   "section": "Core LLM Foundations",
   "category": "NLP Fundamentals",
   "difficulty": "Medium",
-  "order": 6,
+  "order": 4,
   "coverImage": "illustrations/_generated/next_token_dark.png",
   "companies": [
     "Google",

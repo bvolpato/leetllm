@@ -3,12 +3,12 @@ import test from 'node:test';
 import { courseBedPolicy } from '../lib/course-bed.mjs';
 
 test('course themes distinguish operational films, math, and projects independent of their article directories', () => {
-  const operations = courseBedPolicy('model-monitoring', 'foundations/model-monitoring/content.md');
+  const operations = courseBedPolicy('continuous-batching', 'fundamentals/continuous-batching-request-scheduling/content.md');
   assert.equal(operations.palette, 'low');
-  assert.equal(operations.group, 'Production ML Systems');
+  assert.equal(operations.group, 'Inference & Production Scale');
   assert.equal(courseBedPolicy('rope').palette, 'warm');
   assert.equal(courseBedPolicy('agent-architectures').palette, 'open');
-  assert.deepEqual(courseBedPolicy('model-monitoring'), operations);
+  assert.deepEqual(courseBedPolicy('continuous-batching'), operations);
 });
 
 test('new lessons use their source topics, a stable seed and a quiet default', () => {

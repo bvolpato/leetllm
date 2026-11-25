@@ -6,7 +6,7 @@
   "section": "Training, Fine-Tuning & Alignment",
   "category": "Fine-Tuning & Training",
   "difficulty": "Hard",
-  "order": 11,
+  "order": 8,
   "coverImage": "illustrations/_generated/sft_pipeline_dark.png",
   "companies": [
     "OpenAI",
@@ -28,16 +28,18 @@
     "when to use full-parameter updates"
   ],
   "prerequisites": [
-    "instruction-tuning-chat-templates",
-    "continued-pretraining-domain-adaptation",
+    "pre-training-data-pipelines-scale",
     "synthetic-data-generation-pipelines-llms",
     "pytorch-training-loops",
-    "dataset-pipelines-data-quality"
+    "cross-validation-leakage-generalization"
   ],
   "relatedQuestions": [
     "distributed-training-fsdp-deepspeed-zero",
     "lora-parameter-efficient-fine-tuning",
     "reward-modeling-from-preference-data"
+  ],
+  "aliases": [
+    "instruction-tuning-chat-templates"
   ]
 }
 ---
@@ -111,15 +113,29 @@ Two turns from conversation `conv_102` have different wording. Can one train and
 No. They belong to the same conversation thread, so both turns stay in the same split. Group by schema or tenant whenever your evaluation tests generalization to unseen schemas or tenants.
 ```
 
-## Data path: template, tokenize, label, pack
+## Data path: chat templates, special tokens, and loss masking
 
-Follow one conversation down the pipeline: a Jinja2 <span data-glossary="chat-template">chat template</span> renders the messages into a single <span data-glossary="tokenization">token</span> stream, response-only masking marks prompt positions with `-100`, and collation pads or packs the batch.
+Follow one conversation down the pipeline: a Jinja2 <span data-glossary="chat-template">chat template</span> converts structured `[{"role": ..., "content": ...}]` messages into a single <span data-glossary="tokenization">token</span> stream using model-specific control tokens, assistant-only loss masking marks non-assistant positions with `-100`, and collation pads or packs the batch.
 
-Always use the checkpoint's shipped chat template (`add_generation_prompt=False` for complete training rows, and `add_special_tokens=False` if tokenizing an already-rendered string so BOS/EOS aren't doubled).[^huggingface2026chattemplates][^huggingface2026writingchattemplates]
+Every model family uses its own role and turn delimiters: Llama 3 uses `<|begin_of_text|>`, `<|start_header_id|>`, `<|end_header_id|>`, and `<|eot_id|>`; ChatML/Qwen models use `<|im_start|>` and `<|im_end|>`; Mistral uses `[INST]` and `[/INST]`.[^metaLlama3Tokenizer2024][^qwen25ChatTemplate2026] Always render with the checkpoint's shipped `tokenizer.apply_chat_template(...)` and match the exact mode to your stage:[^huggingface2026chattemplates][^huggingface2026writingchattemplates]
 
-### Shifted targets and response-only loss
+| Stage | Flag | What the rendered stream ends with |
+|---|---|---|
+| **Training row** | `add_generation_prompt=False` | Complete assistant reply plus its end-of-turn stop token |
+| **Inference prompt** | `add_generation_prompt=True` | Open assistant role header so the model generates the reply instead of continuing the user turn |
+| **Assistant prefill** | `continue_final_message=True` | Partial assistant prefix without a closing turn delimiter |
 
-In <span data-glossary="pytorch">PyTorch</span>, setting prompt labels to `-100` (the default `ignore_index` in `F.cross_entropy`) excludes those positions from the loss scalar while keeping them fully visible in attention so the response still conditions on the prompt.[^pytorchCrossEntropy2026] Remember the causal shift: `logits[t - 1]` predicts `labels[t]`, so the logit at the `<assistant>` marker predicts the first response token. Most trainers shift internally, so never shift twice.
+> **Common mistake:** Rendering with `apply_chat_template(..., tokenize=False)` and then calling `tokenizer(rendered)` with default `add_special_tokens=True`. That doubles `<BOS>` at the start of every sequence, shifting positional alignment away from inference. Pass `add_special_tokens=False` when tokenizing an already-rendered string, and guard against delimiter injection (literal `<|eot_id|>` strings inside untrusted user text) by tokenizing raw user content with `split_special_tokens=True` or sanitizing reserved control markers.
+
+### Shifted targets and assistant-only loss masking
+
+Unlike pretraining, which averages next-token cross-entropy across every token in the sequence ($\mathcal{L}_{\text{pretrain}} = -\frac{1}{T}\sum_{t=1}^T \log P_\theta(x_t \mid x_{<t})$), SFT multiplies each position by a binary mask $m_t \in \{0, 1\}$ that activates only assistant replies and their stop tokens across all turns:[^ouyang2022][^zhou2023]
+
+$$
+\mathcal{L}_{\text{SFT}}(\theta) = -\frac{1}{\sum_{t=1}^T m_t}\sum_{t=1}^T m_t \log p_\theta(x_t \mid x_{<t})
+$$
+
+In <span data-glossary="pytorch">PyTorch</span>, setting prompt and role-header labels to `-100` (the default `ignore_index` in `F.cross_entropy`) excludes those positions from the loss scalar while keeping them fully visible in causal attention so the response still conditions on the prompt.[^pytorchCrossEntropy2026] Remember the causal shift: `logits[t - 1]` predicts `labels[t]`, so the logit at the `<assistant>` marker predicts the first response token. Most trainers shift internally, so never shift twice.
 
 <!-- leetllm: test, deps=torch, output=show, output_title="Shifted target check" -->
 
@@ -147,13 +163,9 @@ mean target loss: 1.386294 (ln 4 = 1.386294)
 ```
 <!-- leetllm: output:end -->
 
-> **Key insight:** Why mask prompt tokens? Suppose a row has five easy prompt tokens (losses ~`0.03`) and two hard answer tokens (`2.20`, `1.80`). Averaging the full sequence gives a flattering `0.596`, masking the fact that actual answer loss is `2.000`. Response-only SFT focuses optimization squarely on the supervised target set $T$. (Fractional prompt-loss weighting can act as a regularizer on some short-completion tasks,[^huertaEnochian2024PromptLoss] so if you experiment with it, still track response-only loss separately.)
+> **Key insight:** Why mask prompt tokens? Suppose a row has five easy prompt tokens (losses ~`0.03`) and two hard answer tokens (`2.20`, `1.80`). Averaging the full sequence gives a flattering `0.596`, hiding the fact that actual answer loss is `2.000`. Assistant-only masking focuses updates on the reply (though fractional prompt-loss weighting can regularize some short-completion tasks,[^huertaEnochian2024PromptLoss][^shi2024InstructionLoss] so always log response-only loss separately).
 
-$$
-\mathcal{L}_{\text{SFT}}(\theta) = -\frac{1}{|T|}\sum_{t \in T} \log p_\theta(y_t \mid y_{<t})
-$$
-
-In TRL's `SFTTrainer`, prompt-completion datasets default to completion-only loss, while conversational `messages` datasets score the whole conversation unless `assistant_only_loss=True` is set (which requires generation-span markers in the template).[^huggingface2026sfttrainer] Also check your collated batches **after truncation**: if an overlong prompt consumes `max_length` and slices off every answer token, every label becomes `-100` (returning NaN in raw PyTorch or silently dropping rows during TRL preparation).[^trl2026SftV117] Mask padding by position rather than token ID whenever EOS doubles as PAD.
+In TRL's `SFTTrainer`, prompt-completion datasets default to completion-only loss, while conversational `messages` datasets score the whole conversation unless `assistant_only_loss=True` is set (which requires generation-span markers in the template).[^huggingface2026sfttrainer] Also inspect collated batches **after truncation**: if an overlong prompt consumes `max_length` and slices off every answer token, every label becomes `-100` (returning NaN in raw PyTorch or silently dropping rows during TRL preparation).[^trl2026SftV117] Mask padding by position rather than token ID whenever EOS doubles as PAD.
 
 ## Pack short examples while isolating segments
 
@@ -561,20 +573,16 @@ Every row needs a prompt, a desired answer, and a group key. A row with an empty
 
 The group key exists because of a mistake almost everyone makes once. Several messages from one multi-turn session share schemas and phrasing. Splitting individual messages at random can put one turn of conversation `conv_102` in training and another in validation, however different their wording looks. That leakage can inflate validation scores by rewarding recall of the shared conversation. Keep all rows from one session together. More broadly, group by the unit your claim says is unseen: a conversation thread, a database schema, a tenant, or a time period. Thread grouping tests new conversations. It says nothing about a new tenant or a database schema those threads all share. Keep separate validation and final-test groups, and look at the final test only after you have frozen your choice.
 
-## Follow one token into the loss
+## Chat templates, special tokens, and assistant-only loss
 
-The chat template turns the message list into a single stream, adding role markers and an end-of-turn marker. Use the checkpoint's own template, because its markers are the structure the deployed model must recognize, and they differ from model to model. For complete training conversations, render with `add_generation_prompt=False`. If you format text first and tokenize later, make sure special tokens are not added twice.[^huggingface2026chattemplates]
+Before a single gradient runs, a Jinja2 **chat template** serializes the structured message list into one token stream using model-specific control tokens: Llama 3 uses `<|begin_of_text|>`, `<|start_header_id|>`, `<|end_header_id|>`, and `<|eot_id|>`, while ChatML/Qwen uses `<|im_start|>` and `<|im_end|>`.[^metaLlama3Tokenizer2024][^qwen25ChatTemplate2026] Always render with the checkpoint's shipped `apply_chat_template(...)` and choose the right ending: `add_generation_prompt=False` for complete training conversations (ending on the assistant's stop token), `add_generation_prompt=True` at inference so the model starts an assistant turn, and `continue_final_message=True` when prefilling an assistant prefix.[^huggingface2026chattemplates] Watch two quiet formatting bugs: calling `tokenizer(rendered)` with default `add_special_tokens=True` after `tokenize=False` doubles `<BOS>`, and literal control strings like `<|eot_id|>` inside user text can forge turn boundaries unless untrusted text is sanitized or tokenized with `split_special_tokens=True`.
 
-Then build the labels. Positions you do not want scored get `-100`, the value PyTorch's cross-entropy ignores by default. The scored positions hold the reply and its end marker.
-
-Now the off-by-one that launches a thousand bug reports. A causal model's output at position $t-1$ predicts the token at position $t$. So the state at the assistant marker predicts the first answer token, and the state at the last answer token predicts the end marker. Shift twice and you score the wrong prediction. Shift never and you ask the model to predict a token it can already see. Most trainers shift for you, so the bug is usually a second shift in your own code. Find out who owns it.
+Next, build the **label mask** $m_t \in \{0, 1\}$. Whereas pretraining averages next-token loss across every position, assistant-only SFT sets non-assistant labels (system, user, role headers, and padding) to `-100`, the `ignore_index` in PyTorch's cross-entropy, while keeping those tokens fully visible in attention so replies still condition on the prompt. Remember the causal shift: logits at position $t - 1$ predict the token at position $t$, so the `<assistant>` marker predicts the first answer token and the last answer token predicts the stop token. Most trainers shift internally, so never shift twice.
 
 <figure>
   <img src="illustrations/_generated/sft_pipeline_dark.png" alt="Eight token positions in a row. Positions 0 to 4 are context tokens with label minus 100. Positions 5 to 7 are deny, write, and end, with those same tokens as labels. Arrows run from the logits at positions 4, 5, and 6 to the labels one position to their right. Only those three predictions enter the loss." />
   <figcaption>Follow the arrows: each scored label is predicted by the logits one position to its left. The prompt's labels are ignored, but its tokens are still in the input row, available to everything after them.</figcaption>
 </figure>
-
-This little calculation starts with the probabilities the model assigned to the correct next tokens. A real model gets them from a log-softmax over the whole vocabulary.
 
 <!-- leetllm: test, id=reader-sft-shifted-targets, output=show, output_title="Reader shifted supervision" -->
 ```python title="reader-sft-shifted-targets.py"
@@ -599,28 +607,18 @@ response mean loss=0.228
 ```
 <!-- leetllm: output:end -->
 
-Eight positions went in, and three terms came out. Report both numbers when you talk about throughput, because a long prompt can fill most of the input while supplying very few scored targets.
-
-Keep two masks straight, since people mix them up constantly. The **label mask** decides which positions contribute to the loss. The **attention mask** decides which earlier positions a token may read. A prompt token has label `-100` and stays fully visible to attention. Setting a label to `-100` also leaves gradients flowing through that prompt: the response loss still updates the weights that process the prompt.
-
-Why score only the response? Suppose a row has 800 scored prompt positions and 30 response positions. Prompt targets are then about 96% of the terms in a full-sequence average, and they are often easy. On a smaller scale, say five prompt positions have losses of 0.03, 0.04, 0.02, 0.05, and 0.03, and two answer tokens have 2.20 and 1.80. The combined average is 0.596, while the answer's own loss sits at 2.000. You would celebrate that number while the answer was no better. This does not make response-only loss a law of nature. One study found that fractional prompt-loss weights improved some short-completion benchmarks on LLaMA models, with regularization as the likely cause.[^huertaEnochian2024PromptLoss] Scoring the response is a deliberate choice for this run, so if you change it, compare on the same held-out tasks and report response loss separately. In practice you rarely write this mask by hand, but check which format you loaded: TRL's `SFTTrainer` scores only the completion for prompt-completion data, while a plain `messages` dataset scores the whole conversation unless you set `assistant_only_loss=True` (which needs generation markers in the chat template).[^huggingface2026sfttrainer] Inspect a tokenized batch anyway and confirm that only answer and stop tokens carry real labels.
-
-Inspect it *after* truncation, because truncation is where rows quietly die. Keep only the start of an overlong conversation, and the answer may be gone. Now every label is `-100`. With PyTorch's default mean cross-entropy, a batch made only of such rows gives NaN, which at least is loud. Trainers like TRL filter out fully masked rows during nonpacked preparation, so the only sign is a smaller dataset.[^trl2026SftV117] One such row inside a mixed batch is silent: it costs compute and teaches nothing. Count dropped and empty rows, so a shrinking dataset cannot hide. Two smaller traps live nearby. Mask padding by position rather than by token ID, because a model may use the same ID for padding and end-of-text, and masking every occurrence would erase your stop signal. And keep the stop token in your scored targets when the recipe uses it to teach turn completion.
+Why mask prompt tokens? Suppose five easy prompt tokens have losses near `0.03` and two answer tokens have `2.20` and `1.80`: full-sequence averaging reports a flattering `0.596` while actual answer loss sits at `2.000`. (Fractional prompt-loss weighting can regularize some short-completion tasks,[^huertaEnochian2024PromptLoss][^shi2024InstructionLoss] so if you test it, still track response-only loss separately.) In TRL's `SFTTrainer`, prompt-completion datasets default to completion-only loss, whereas `messages` datasets score every turn unless `assistant_only_loss=True` is set (requiring generation markers in the template).[^huggingface2026sfttrainer] Always inspect batches **after truncation**: if an overlong prompt consumes `max_length`, every label becomes `-100`, causing NaN in raw PyTorch or silent row drops in TRL.[^trl2026SftV117] Mask padding by position rather than token ID whenever EOS doubles as PAD, and keep the stop token supervised so the model learns when to end its turn.
 
 ## Pack short examples without letting them read each other
 
-Padding short examples to a long fixed length wastes slots. Packing fits several short demonstrations into one sequence instead. It also raises a question that padding never did: can the second demonstration read the first?
+Padding short demonstrations to a long context wastes compute, so packing concatenates several examples into one row. That creates two leaks at segment boundaries: under ordinary global causal attention, Example B reads Example A simply because they share a block, and without masking Example B's first label, Example A's final logit is scored against Example B's start.
 
-With an ordinary causal mask, yes. Every later position can read every earlier one, so a reply for one query now conditions on an unrelated session simply because the loader happened to place them in one block. An end token marks text, and it stops nothing. What stops the leak is a block-causal mask, under which each position reads only earlier positions in its own example.
-
-You rarely build that mask yourself. Modern Transformers models that use its shared causal-mask helper (such as Llama) build it automatically under eager attention and PyTorch's scaled dot-product attention (SDPA) from reset `position_ids`, provided you pass no `attention_mask` and run with `use_cache=False`.[^transformers2026MaskingV522] FlashAttention takes segment lengths instead. Breaking one of those conditions disables this automatic mask derivation and silently falls back to global-causal attention. Watch the cache if you write your own loop, because a Llama config turns it on by default (`Trainer` and gradient checkpointing turn it off during training).[^transformers2026TrainerV522] Test the isolation instead of trusting it.
+Modern Transformers models derive a **block-causal mask** automatically from reset `position_ids` under eager and SDPA attention only when you pass no `attention_mask` and run with `use_cache=False` (FlashAttention takes segment lengths directly).[^transformers2026MaskingV522][^transformers2026TrainerV522] Breaking any condition silently falls back to global causal attention, so test isolation directly by perturbing Example A and checking whether Example B's output moves:
 
 <figure>
   <img src="illustrations/_generated/packed_attention_boundaries_dark.png" alt="Two six-by-six attention masks. On the left, block-causal attention has two separate triangles, so query 4 reads only positions 3 and 4, with values 10 and 20, and its output stays at 15.0 after 100 is added to the first example. On the right, global causal attention has one triangle, so query 4 reads positions 0 to 4, and its output moves from 7.2 to 67.2." />
   <figcaption>Filled cells are allowed reads. Compare row 4 in the two masks: the extra reads on the right are the leak, and they move the output by 60 when only the other example changed. Both panels restart the position IDs; the right panel shows what happens when automatic block-causal isolation falls back to global attention.</figcaption>
 </figure>
-
-The test for a leak is simple, and I recommend it over any amount of staring at tensors. Change one example and see whether the other one's output moves. This toy assumes equal attention scores, so the output is the mean of allowed values. Query position four belongs to the second example and should read only 10 and 20; adding 100 to every value in the first example should leave the isolated output unchanged while shifting the unmasked output by 60:
 
 <!-- leetllm: test, id=reader-sft-packing-boundary, output=show, output_title="Reader packed attention isolation" -->
 ```python title="reader-sft-packing-boundary.py"
@@ -648,17 +646,13 @@ isolated=False: 7.2 -> 67.2
 ```
 <!-- leetllm: output:end -->
 
-That tests one attention rule in a few lines. To test your actual trainer, plant recognizable markers in two examples with dropout off, change one, and check the other's allowed attention and loss.
-
-Attention is one of two leaks at the join. The loss has its own. A globally shifted loss must not ask the last token of one example to predict the first token of the next, so labels need masking at each segment start. TRL's padding-free collator masks those labels, restarts `position_ids`, omits `attention_mask`, and passes segment lengths for FlashAttention while disabling the cache.[^trl2026SftV117] FlashAttention remains a major speed and memory win on long packed sequences (avoiding SDPA's quadratic mask memory blow-up at 32K tokens),[^trl2026Pr7620][^huggingfaceTrlPacking2026] and running the perturbation test above on your trainer proves your examples stay isolated.
-
-Packing strategies also differ in what they do with long rows: `bfd` (best-fit decreasing, a bin-packing rule) truncates overflow, `bfd_split` splits it into chunks, and `wrapped` treats everything as one token stream and cuts it into blocks, which can split a sequence in the middle and mix unrelated examples.[^huggingfaceTrlPacking2026][^trl2026SftV117] Keeping every stored token is different from keeping every answer's original context, so choose by what you want to learn, and inspect the resulting segments. Packing also changes how many items the loader sees, so a fixed `max_steps` may now mean a different number of passes through your data. If anything looks off, turn packing off while you debug.
+In TRL, `bfd` (best-fit decreasing) truncates overflow with padding-free segment isolation, `bfd_split` splits long rows into chunks, and `wrapped` packs a continuous stream without example isolation.[^huggingfaceTrlPacking2026][^trl2026SftV117] FlashAttention avoids SDPA's quadratic mask memory blow-up on 32K packed blocks.[^trl2026Pr7620] Whenever anything looks off, turn packing off while debugging.
 
 ## Count tokens, not examples
 
-"Batch size 4" tells me very little. The number of items behind one optimizer update is the per-device batch, times gradient-accumulation steps, times the number of workers. With 4, 8, and 4, that is 128 items per update. With packing, an item is a block of several demonstrations, so track raw examples too. And since answers vary in length, track scored tokens, because that is how many decisions the model is actually graded on.
+One optimizer update actually sees `per_device_batch * gradient_accumulation_steps * world_size` items (`4 * 8 * 4 = 128` below), and because reply lengths vary, always log **active supervised tokens** too.
 
-How you average matters as well. Call the slice one device processes in one forward and backward pass a micro-batch. Suppose one micro-batch has a single target with loss 4.0, and the next has nine targets with loss 1.0 each. Average the two batch means and you get 2.5. Average over tokens and you get 1.3. Those are different objectives: the first gives that lone token nine times the weight of each token in the larger batch. If you intend tokens to count equally, add up loss sums and divide by the total number of active targets over the whole update window. The listing also counts scored tokens, assuming each worker's share of the update holds 1,560 of them.
+Watch micro-batch reduction carefully: if micro-batch 1 has one target token with loss `4.0` and micro-batch 2 has nine target tokens with loss `1.0` each, averaging the two batch means gives `2.5` (weighting the lone token 9x), whereas the true equal-token mean is `(4.0 + 9.0) / 10 = 1.3`:
 
 <!-- leetllm: test, id=reader-sft-token-budget, output=show, output_title="Reader token budget" -->
 ```python title="reader-sft-token-budget.py"
@@ -684,22 +678,17 @@ mean of batch means=2.5; token mean=1.3
 ```
 <!-- leetllm: output:end -->
 
-The same care carries across machines. Ordinary distributed training averages gradients between workers. If each worker also divides its loss by a globally summed token count, that averaging introduces an extra factor of the worker count, and you must compensate for it, unless your trainer already does. Prove what the loss means on one device first, then check how the distributed trainer reduces counts and gradients. Adding hardware should leave your objective alone.
-
-Treat warmup, learning rate, schedule, clipping, and total updates as a recipe you test. Published recipes vary more than folklore suggests. InstructGPT's SFT baseline used 16 epochs, no warmup, and a cosine decay to 10% of the initial rate, with rates and epochs chosen by search.[^ouyang2022] I would not copy that, but it does dispose of the idea that a fixed warmup percentage or a three-epoch ceiling is a rule. Also check what your settings actually do. Standard cosine warmup decays to zero, and only a minimum-rate variant keeps a floor,[^transformers2026LrSchedules] and clipping raw gradients does not directly limit AdamW's parameter update.[^pytorchAdamW2026] Plot both gradient norms and update norms.
+In distributed training, DDP averages worker gradients automatically, so dividing locally by the global token count requires compensating once for `world_size` unless your trainer already handles global token reduction. Test learning rate, schedule, and epochs rather than trusting folklore: InstructGPT's SFT baseline used 16 epochs with zero warmup and cosine decay to 10%,[^ouyang2022] standard cosine warmup decays all the way to zero unless you pick a minimum-LR variant,[^transformers2026LrSchedules] and gradient clipping bounds raw gradients rather than AdamW's adaptive update norms.[^pytorchAdamW2026]
 
 ## Save what the next update needs
 
-Your job dies at step 40,000. You reload the weights and carry on, and the run is now a different run. A serving export holds what inference needs: tensors, config, tokenizer. A resume checkpoint must hold everything that determines the *next update*, and most of that is not weights.
-
-Adam is the clearest case. It keeps a running first moment of the gradients and a running second moment, the average of their squares:
+An inference export saves weights, config, and tokenizer. A **resumable checkpoint** must also save AdamW's running moments ($m_t, v_t$) and step counters, LR scheduler state, global step/epoch, sampler cursor, RNG states, and FP16 loss-scaler state if used:
 
 $$
-m_t=\beta_1m_{t-1}+(1-\beta_1)g_t,\quad
-v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2.
+m_t=\beta_1m_{t-1}+(1-\beta_1)g_t,\qquad v_t=\beta_2v_{t-1}+(1-\beta_2)g_t^2
 $$
 
-Before it uses them, it corrects for their cold start: $\widehat m_t=m_t/(1-\beta_1^t)$ and $\widehat v_t=v_t/(1-\beta_2^t)$. Those buffers influence the next step even when the current weight and gradient are identical. Here is a small proof. Take one step with gradient $+2$, save, then take a step with gradient $-1$ two ways: once with the saved moments and once with a fresh optimizer.
+Watch what happens when gradient `+2` is saved and followed by gradient `-1`: restoring AdamW's bias-corrected moments keeps moving the weight *downward* (`0.873366`), while loading the exact same weight into a fresh optimizer flips direction to `1.000000`:
 
 <!-- leetllm: test, id=reader-sft-adam-continuation, output=show, output_title="Reader optimizer continuation" -->
 ```python title="reader-sft-adam-continuation.py"
@@ -735,46 +724,29 @@ with moments=0.873366; fresh optimizer=1.000000
   <figcaption>Same weight, same gradient, opposite directions. The only difference between the two lanes is the optimizer state that was or was not restored.</figcaption>
 </figure>
 
-The direction flipped. With its saved history the optimizer keeps moving down despite the new negative gradient, and without that history it moves up. You may have heard that a fresh Adam divides by a near-zero epsilon and blows up. It does not. After the bias correction, the first step is just about the learning rate times the gradient's sign, which is why the fresh run moved by about 0.1. Dropping state changes the path, and the danger is that the change is quiet.
-
-Here is the bundle a resumable run needs, trimmed to the machinery your recipe actually uses:
-
-- Model weights or adapter weights
-- Optimizer state, including moments and step counters
-- Scheduler state, so the learning rate does not jump back to its peak
-- The global step and epoch, sampler position, and random generator states (the states themselves, because the original seeds will replay old data)
-- Tokenizer revision and chat-template hash, dataset manifest, and resolved configuration
-- Loss-scaler state if you use dynamic scaling, which the next chapter explains
-
-Save at a completed optimizer step when you can, since a mid-accumulation save also needs the partial gradients and the micro-batch position. Then test the whole thing early with a restore drill: run a short job, interrupt it, resume it, and compare the next batch, learning rate, loss, gradients, and updated parameters against a run that was never interrupted. Comparing only the first loss after the restore proves very little, because both models start with identical weights and the optimizer has not acted yet. Expect small numeric differences from device kernels and reduction order, and set your tolerances accordingly.
+Save at completed optimizer steps and verify resume early with a short interrupt-and-continue drill comparing step $N+1$ parameters against an uninterrupted run (matching only the first resumed loss checks identical weights before the optimizer acts).
 
 ## Pick the checkpoint that behaves
 
-Choosing a checkpoint is a product decision expressed in measurements. Teacher-forced loss tells you how likely your reference tokens are given your reference prefixes. It does not tell you whether a freely generated reply refuses destructive SQL writes, so generate outputs and grade them. Here is a small selection rule: every candidate must pass a format check at 98% or better, then the highest task pass rate wins, and validation loss only breaks ties.
+Teacher-forced validation loss measures reference-token likelihood, not whether a freely generated reply refuses destructive SQL writes. Generate held-out completions and select by a declared rule: require format pass rate $\ge 98\%$, maximize task pass rate, and use validation loss only to break ties.
 
 <figure>
   <img src="illustrations/_generated/checkpoint_selection_gate_dark.png" alt="Three checkpoints, steps 200, 400, and 600, are rows, plotted against three aligned scales. All three clear the 0.98 format gate with 0.99, 1.00, and 0.98. Task pass rates are 0.93, 0.91, and 0.97, so step 600 wins. Validation losses are 1.91, 1.77, and 1.79, and step 400 is lowest, but loss only breaks ties." />
   <figcaption>Read across the rows. Step 400 has the best loss and the worst task score, and a team choosing by loss would ship it. The rule picks step 600.</figcaption>
 </figure>
 
-Use validation data for this, and report denominators, uncertainty, and the slices that matter. Watch for unsupported citations, false refusals, regressions on unrelated tasks, and answers that turn down harmless `SELECT` queries just because a column is named `deleted_at`, because more optimizer steps can strengthen an unwanted habit just as well as a wanted one. If no checkpoint clears the format bar, stop and fix the recipe rather than shipping the best of a bad batch.
-
-After export, reload the artifact with its tokenizer and template and repeat your generation checks. An adapter export also needs its exact base revision. Keep the previous checkpoint ready to restore while you evaluate the candidate.
+Check slices for false refusals (such as rejecting harmless `SELECT` queries because a column is named `deleted_at`) and regressions on general prompts. After exporting weights or LoRA adapters, reload the artifact with its exact tokenizer and chat template and repeat generation checks.
 
 ## Run it small before you run it big
 
-Do not debug on eight GPUs. A template bug scaled out is the same bug spread across collective communication calls, now with extra suspects. Prove the pipeline on one device, with a small representative evaluation split, frequent checkpoints, a verified mask, and a clear behavior metric. If a required model cannot fit one device, debug your data with small test data and use the least sharding that works. Sharding splits a model's training state across several GPUs, so each device stores only a slice and none has to hold all of it. The price is communication: a device has to gather the weights it is missing before it can run a layer on them, and it frees them afterward.
+Validate your template, loss mask, split, and evaluation on one GPU first before scaling out with FSDP or DeepSpeed ZeRO (which shard optimizer state, gradients, and weights across GPUs while leaving activation memory separate).[^pytorchFsdpDocs2025][^rajbhandari2020] When a run disappoints, check these six failure modes before sweeping learning rates:
 
-Reach for Fully Sharded Data Parallel (FSDP) or the Zero Redundancy Optimizer (ZeRO) when persistent weights, gradients, and optimizer state exceed GPU memory. Both shard that state, and you choose how much. ZeRO, for example, has three stages: stage 1 splits the optimizer state, stage 2 adds the gradients, and stage 3 adds the weights.[^pytorchFsdpDocs2025][^rajbhandari2020] Measure activation memory separately, because sharding parameters does not make it go away, and a model that fits for inference can still fail to fit for training. More GPUs also add communication time, so they will not speed up a small job that is simply misconfigured.
-
-When a run disappoints, here is the checklist I would run before touching the learning rate:
-
-- **Does validation share cases with training?** High scores followed by failures on new documents can mean leakage, distribution shift, or the wrong metric. Check whether related cases crossed splits.
-- **Is the reported loss over the right targets?** Check the labels on a real collated batch, after truncation and shifting.
-- **Did someone report a micro-batch as the batch?** Two runs "at batch size 4" can differ wildly. Publish accumulation, workers, packing mode, and scored tokens per update.
-- **Did a resumed run continue, or start over?** Compare optimizer counters, learning rate, and upcoming data with an uninterrupted reference.
-- **Can examples read each other?** Run the perturbation test. Garbled answers alone do not prove a packing leak, so test it directly.
-- **Was the checkpoint chosen by training loss?** Choose by validation behavior against your declared rule, then check the frozen choice on the final test.
+- **Split leakage:** Did turns from the same thread, schema, or tenant cross train and validation?
+- **Template or mask bugs:** Check rendered tokens, double `<BOS>`, post-truncation `-100` labels, and stop-token supervision on a real batch.
+- **Misreported batch size:** Log per-device batch, accumulation steps, world size, packing mode, and active supervised tokens.
+- **Broken resume:** Confirm restored optimizer moments, LR schedule, and dataloader cursor match uninterrupted step $N+1$.
+- **Packing leaks:** Run the perturbation test rather than assuming reset `position_ids` built a block-causal mask.
+- **Loss-only selection:** Pick checkpoints by held-out generated behavior, then verify once on the frozen final test split.
 
 ```checkpoint
 One micro-batch has a single target with loss 2.0, and the next has six targets with loss 1.0 each. What is the mean of the two batch means, and what is the token mean? Which one treats every token equally?
@@ -784,8 +756,6 @@ The batch means are 2.0 and 1.0, so their mean is $(2.0 + 1.0)/2 = 1.5$. The tok
 
 ## Where this leaves you
 
-You can now take an approved demonstration through a template, a label mask, and a one-position shift, and say exactly which token predictions move the weights. You can pack without leaking, count what an update really contains, resume without changing the run, and pick a checkpoint by what it does.
-
-One assumption is still hiding in all of this. We have talked as if every gradient, once computed, actually changes a weight. On real hardware, that update passes through a floating-point format with limited range and limited precision, and a perfectly correct nonzero update can round away to nothing. [Mixed precision](/learn/mixed-precision-training-loss-scaling) follows that update through the arithmetic.
+You can now take a conversation through its chat template, special control tokens, assistant-only label mask, and one-position shift, pack without cross-example leaks, count supervised tokens accurately, resume without altering optimizer trajectory, and pick checkpoints by generated behavior. Next, [LoRA & Parameter-Efficient Tuning](/learn/lora-parameter-efficient-fine-tuning) shows how to adapt large models cleanly without updating every weight.
 
 <!-- leetllm: edition:reader:end -->

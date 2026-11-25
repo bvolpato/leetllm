@@ -6,7 +6,7 @@
   "section": "Applied LLM Engineering & RAG",
   "category": "RAG & Retrieval",
   "difficulty": "Medium",
-  "order": 12,
+  "order": 6,
   "coverImage": "illustrations/_generated/chapter_flow_dark.png",
   "companies": [
     "OpenAI",

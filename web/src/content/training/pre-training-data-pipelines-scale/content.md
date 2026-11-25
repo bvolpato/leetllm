@@ -38,7 +38,10 @@
     "Model-based fastText quality classifiers"
   ],
   "section": "Training, Fine-Tuning & Alignment",
-  "order": 2
+  "order": 2,
+  "aliases": [
+    "continued-pretraining-domain-adaptation"
+  ]
 }
 ---
 
@@ -408,11 +411,27 @@ unshifted labels:    [11, 12, 99, -100, 99] -> shifted once: [12, 99, -100, 99]
 
 For resumable multi-week runs, checkpoint three dataloader fields alongside model, optimizer, and RNG state: the **SHA-256 manifest digest**, the **deterministic shard permutation**, and the **consumed cursor offset** at the completed optimizer step (never the ahead-of-step prefetch pointer).
 
-## Late-stage annealing and synthetic data
+## Late-stage annealing, synthetic data, and continued pretraining
 
 **Data annealing** pairs learning-rate cooldown with upsampling of your highest-signal slices (code, math, textbooks): Llama 3 decayed LR linearly to zero over its final 40M tokens while upsampling top sources and averaging checkpoints.[^dubey2024]
 
 **Synthetic data** fills structural gaps with worked proofs, unit-tested code, and clean rewrites, as in Phi-1 and Nemotron-CC (4.4T deduplicated web tokens plus 1.9T synthetic rewrites, expanded further in v2.1).[^gunasekar2023][^su2024nemotron][^nemotronCCv21Card2026] Remember the accumulation rule: Shumailov et al. showed recursively *replacing* human corpora with model generations triggers **model collapse**,[^shumailov2024] whereas Gerstgrasser et al. showed *accumulating* verified synthetic data alongside the original human corpus avoids collapse.[^gerstgrasser2024]
+
+### Continued pretraining, replay, and catastrophic forgetting
+
+Once a base checkpoint finishes initial training, teams adapt it to specialized domains (proprietary codebases, biomedical literature, or financial filings) through **continued pretraining (CPT)**: resuming causal next-token training $\mathcal{L}_{\mathrm{CLM}}(\theta) = -\frac{1}{|S|}\sum_{i \in S} \log P(w_i \mid w_{<i}; \theta)$ on unlabeled domain corpora before instruction tuning.[^gururangan2020][^roziere2023][^wu2023bloomberggpt] Choose the intervention to match the gap: RAG injects fresh lookup facts without changing weights, SFT teaches response format and task behavior, and CPT builds domain vocabulary, notation, and representations across billions of tokens.
+
+Training exclusively on narrow domain text shifts shared weights too aggressively, causing **catastrophic forgetting** on general reasoning, coding, and instruction skills; conversely, an overly diluted mix or tiny learning rate causes **underfitting**. Three pipeline controls balance that tradeoff:
+
+- **General-data replay mixture:** Mix general pretraining text back into the domain stream at fraction $\alpha$ (commonly 5% to 20% depending on shift) so gradients retain general capabilities:[^ibrahim2024]
+  $$
+  \mathcal{L}_{\mathrm{mix}}(\theta) = (1 - \alpha)\,\mathbb{E}_{x \sim \mathcal{D}_{\mathrm{domain}}}[\mathcal{L}_{\mathrm{CLM}}(x; \theta)] + \alpha\,\mathbb{E}_{y \sim \mathcal{D}_{\mathrm{replay}}}[\mathcal{L}_{\mathrm{CLM}}(y; \theta)]
+  $$
+  Verify the realized **token-weighted** replay share rather than raw block counts whenever domain and replay blocks carry different scored-token densities.
+- **Learning-rate re-warming and re-decaying:** A fully decayed pretraining checkpoint starts near zero LR. Re-warm smoothly to a lower peak than initial pretraining and decay along a fresh cosine schedule rather than staying frozen at the old floor or jumping abruptly.[^ibrahim2024]
+- **Tokenizer fertility and vocabulary extension:** Measure tokens per word on the target domain first. If fertility spikes on technical identifiers or non-English scripts, extending the vocabulary and initializing each new embedding as the mean of its constituent subword vectors, $\mathbf{e}(t_{\mathrm{new}}) = \frac{1}{m}\sum_{j=1}^{m} \mathbf{e}(s_j)$, shortens sequences cleanly without disrupting existing weights.[^mundra2024VocabExpansion]
+
+Evaluate CPT checkpoints on two lanes before advancing to SFT: **domain gain** (held-out domain perplexity, entity-span NLL, and downstream `CPT + SFT` versus `base + SFT` under identical decoding) and **general retention** (frozen web/encyclopedia perplexity, reasoning/coding anchors such as MMLU and HumanEval, and refusal checks).
 
 | Symptom | Likely pipeline cause | First check |
 |---|---|---|
@@ -420,6 +439,7 @@ For resumable multi-week runs, checkpoint three dataloader fields alongside mode
 | Code or multilingual accuracy drops | English heuristics pruned valid files | Inspect rejected samples and split rules by domain |
 | Benchmark gains fail on fresh tests | Eval items leaked into shards | Run n-gram and lexical decontamination against pinned splits |
 | Packed training diverges | Broken mask or double-shifted labels | Inspect cross-document mask edges and label shift count |
+| General benchmarks drop during CPT | Missing replay or excessive peak LR | Audit token-weighted replay ratio $\alpha$ and re-warmup schedule |
 
 ```mastery-quiz
 [

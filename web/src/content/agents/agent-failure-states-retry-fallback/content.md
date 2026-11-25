@@ -26,7 +26,7 @@
     "agent-memory-persistence-patterns",
     "prompt-injection-defense-strategies"
   ],
-  "order": 10,
+  "order": 8,
   "keyConceptsTested": [
     "Risk-Tiered Human-in-the-Loop Interrupts",
     "Durable Checkpoint-and-Resume & Outbox Commits",

@@ -35,7 +35,7 @@
     "llm-deployment-gpu-serving-autoscaling",
     "model-parallelism-for-llm-inference",
     "multi-query-grouped-query-attention",
-    "prefix-caching-prompt-caching",
+    "kv-cache-paged-attention-llm-serving",
     "design-reasoning-agent-test-time-compute"
   ]
 }
@@ -357,7 +357,7 @@ N=256 tokens -> attn=936.0 ms, ssm=609.0 ms
 | 128K+ long-document serving | **Hybrid (SSM + sparse attention)** | Slashes KV memory 8x–12x while keeping exact recall paths |
 | Real-time streaming / tight edge RAM | **Pure SSM or SSM-heavy hybrid** | Flat $O(1)$ live decode memory regardless of stream length |
 
-Before adopting any pure SSM for retrieval-heavy tasks, run the multi-depth NIAH and variable-tracking benchmarks from [Long Context Window Management](/learn/long-context-window-management) alongside peak memory and throughput measurements.
+Before adopting any pure SSM for retrieval-heavy tasks, run the multi-depth NIAH and variable-tracking benchmarks from [Long Context Window Management](/learn/positional-encoding-rope-alibi) alongside peak memory and throughput measurements.
 
 ## Where fixed-state models lead
 

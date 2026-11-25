@@ -25,7 +25,7 @@
     "Latency budgets and TTFT"
   ],
   "section": "Applied LLM Engineering & RAG",
-  "order": 13,
+  "order": 7,
   "aliases": [
     "rag-evaluation-faithfulness-relevance",
     "enterprise-rag-security-rbac-access-control"

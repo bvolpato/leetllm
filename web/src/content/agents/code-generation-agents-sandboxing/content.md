@@ -29,15 +29,15 @@
     "Runtime Resource Limits, Teardown & pass@k Evaluation"
   ],
   "relatedQuestions": [
-    "computer-use-gui-browser-agents",
+    "agentic-architectures-react-plan-execute",
     "agent-failure-states-retry-fallback",
-    "ai-coding-workflow-with-agents",
-    "observability-monitoring-llm-systems"
+    "llm-deployment-gpu-serving-autoscaling"
   ],
   "section": "Advanced Agents & Retrieval",
   "order": 7,
   "aliases": [
-    "local-agent-sandboxing-seatbelt-landlock"
+    "local-agent-sandboxing-seatbelt-landlock",
+    "ai-coding-workflow-with-agents"
   ]
 }
 ---
@@ -116,6 +116,17 @@ Attempt 2 (namespaced): ['api::bad']
 </figure>
 
 Two ElementTree subtleties make `failed_tests` reliable: an empty `<failure/>` element is falsy under `if case.find("failure"):` (so inspecting direct-child tag sets avoids dropping empty tags),[^elementTree2026] and expanding the root XML namespace `{uri}tag` stops foreign extensions such as `<other:failure/>` from counting as failures.[^pythonXmlSecurity2026] Feed only four bounded fields back to the model (command, exit code, failing assertion, and byte-capped head/tail output) and strip terminal escape codes, treating all worker logs as untrusted text.
+
+## Repo-scale edit-test-verify loops
+
+A single-file parser fits in one prompt; a real repository with hundreds of modules does not. Dumping whole files into context wastes tokens and dilutes attention across unrelated helpers. Production coding agents turn repository repair into a four-stage **edit-test-verify loop**:
+
+1. **Compact Agent-Computer Interface (ACI):** SWE-agent showed that structured file viewers, symbol search commands, inline linter diagnostics, and concise stderr frame extraction raise issue resolution rates substantially compared with raw shell output.[^yang2024sweagent] Keeping only the failing file, line number, function frame, and assertion diff preserves context across multi-turn repairs.
+2. **Static AST symbol-map localization:** Decoupling localization from patch synthesis improves accuracy at a fraction of the token cost.[^xia2024agentless] Parsing source files with Python's `ast` module (without importing modules or executing top-level side effects) builds a cross-file call graph with exact line spans. Running personalized PageRank biased toward symbols named in the issue or traceback lifts the failing functions to the top before spending a single generation token.
+3. **Fail-first reproduction in an isolated worktree:** Before editing source code, run a minimal regression test against the unmodified repository and log the exact failure (`ValueError`, `KeyError`, or assertion diff). That baseline proves the test exercises live code rather than an accidental mock. Isolate each candidate trajectory with **`git worktree`** (an independent working directory and staging index sharing one Git object store)[^gitWorktreeDocs2026] and **`git write-tree`** (immutable index snapshots for instant resets)[^gitWriteTreeDocs2026] so parallel attempts never overwrite the primary checkout.
+4. **Finite-budget repair with fault classification:** Cap code-repair retries (e.g., `t <= 3`) so oscillating edits escalate to a human reviewer instead of burning tokens. Classify failures strictly: `subprocess.TimeoutExpired`, `ModuleNotFoundError`, or sandbox startup errors halt as **infrastructure failures (`0` repair slots spent)** rather than asking the model to rewrite source code or delete timing-sensitive tests.
+
+> **Common mistake:** Treating exit code `0` as proof that tests passed. Flags such as Vitest's `--passWithNoTests` or mismatched file globs return exit status `0` even when zero tests ran. Always assert that the executed test count is positive and verify the diff touches only localized paths rather than mocking out assertions.[^vitestPassWithNoTests2026]
 
 ## Separate candidate execution from grading
 
@@ -428,6 +439,8 @@ $$
 
 With $n = 5$ candidates and $c = 2$ passes, there are $\binom{5}{2} = 10$ unordered pairs and $\binom{3}{2} = 3$ all-failing pairs, giving $\widehat{\operatorname{pass@}2} = 1 - 3/10 = 0.70$ (whereas the biased plug-in formula $1 - (3/5)^2 = 0.64$ underestimates success). Inside a multi-turn repair loop, attempt $t+1$ conditions on attempt $t$'s traceback, so apply $\widehat{\operatorname{pass@}k}$ across $n$ independent **whole trajectories**, and on repository benchmarks such as SWE-bench report infrastructure timeouts separately from failing patches.[^jimenez2024][^swebenchEvaluation2026]
 
+Decomposing single-trajectory solve probability as $p = q_{\text{loc}} \cdot r_{\text{patch}}$ (localization hit rate times conditional patch repair rate) exposes a common scaling trap. Resampling patches $k = 4$ times on top of one frozen file selection stays capped by $q_{\text{loc}}$: at $q_{\text{loc}} = 0.60$ and $r_{\text{patch}} = 0.50$, stale-localization resampling plateaus at $0.60 \cdot (1 - 0.50^4) = 0.563$, whereas redrawing full trajectories from localization onward reaches $1 - (1 - 0.30)^4 = 0.760$, and improving AST localization first to $p = 0.50$ reaches $0.938$.
+
 <!-- leetllm: test, id=pass-at-k, output=show -->
 ```python title="pass-at-k.py"
 from itertools import combinations
@@ -525,4 +538,4 @@ Reliable coding agents pair concise execution evidence with explicit trust bound
 ]
 ```
 
-> **Next:** Continue to [AI Coding Workflow with Agents](/learn/ai-coding-workflow-with-agents).
+> **Next:** Continue to [Agent Reliability, Recovery & Human Approval](/learn/agent-failure-states-retry-fallback).

@@ -29,7 +29,7 @@ Consider a developer documentation assistant supporting an inference runtime who
 
 ## Three intervention points in one inference stack
 
-[Prompt engineering](/learn/prompt-engineering-fundamentals) modifies the instructions, formatting rules, and contrasting demonstrations placed directly inside the model request. <span data-glossary="rag">Retrieval-augmented generation (RAG)</span> looks up external documents at query time and injects relevant excerpts into that same input window. Fine-tuning updates all or a low-rank subset of the model weights on curated input-output pairs so learned patterns persist across requests without repeating lengthy demonstrations on every call.
+[Prompt engineering](/learn/chain-of-thought-advanced-prompting) modifies the instructions, formatting rules, and contrasting demonstrations placed directly inside the model request. <span data-glossary="rag">Retrieval-augmented generation (RAG)</span> looks up external documents at query time and injects relevant excerpts into that same input window. Fine-tuning updates all or a low-rank subset of the model weights on curated input-output pairs so learned patterns persist across requests without repeating lengthy demonstrations on every call.
 
 These three levers are orthogonal rather than mutually exclusive stages in a fixed ladder. A RAG pipeline still needs prompt instructions telling the generator how to cite sources and abstain when passages lack an answer, while a fine-tuned model can read dynamically retrieved chunks at inference time. Understanding which mechanism edits the request text versus the learned parameters clarifies how each component behaves when the underlying documentation changes:
 

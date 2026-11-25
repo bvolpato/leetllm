@@ -215,7 +215,7 @@ For the attention, KV-cache, and RAG drills above, expect follow-up questions su
 - How does `r = 16` LoRA change activation memory versus optimizer-state memory during training?
 - Which parts of the evaluation harness or model trace did you build yourself?
 
-For research-oriented rounds, frame project defenses around explicit hypotheses, fair baselines, cross-seed variance, and negative results that changed architecture decisions. [AI Lab Behavioral Interview](/learn/ai-lab-behavioral-interview) and [AI Lab Technical Presentation](/learn/ai-lab-technical-presentation) outline full-round presentation practice.
+For research-oriented rounds, frame project defenses around explicit hypotheses, fair baselines, cross-seed variance, and negative results that changed architecture decisions. [AI Lab Behavioral Interview](/learn/ai-lab-system-design-interview) and [AI Lab Technical Presentation](/learn/ai-lab-system-design-interview) outline full-round presentation practice.
 
 ## Build a study schedule from failed checks
 

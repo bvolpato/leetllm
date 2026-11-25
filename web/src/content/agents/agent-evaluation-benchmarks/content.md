@@ -27,7 +27,7 @@
     "Mapping public benchmarks to product surfaces",
     "Versioned Terminal-Bench and CLI agent evaluation"
   ],
-  "order": 12
+  "order": 10
 }
 ---
 
@@ -47,7 +47,7 @@ Grading trajectories changes what we have to measure:
 2. **Recovery:** A failed read is safe to retry. A timed-out write may already have committed, so the agent has to inspect state before retrying.
 3. **Repeatability:** Sampling randomness, tool latency, and simulated users can push identical tasks down different paths. One clean run cannot tell you how often the next five fail.
 
-To keep every concept concrete, we will evaluate a <span data-glossary="tool-calling">tool-calling</span> release assistant across three executable cases carried forward from `promotion-eval-v5` in the [human-feedback lesson](/learn/data-labeling-human-feedback-active-learning): `promote-221`, `appeal-009`, and `attack-014`. Each case defines an **episode** (fixed starting state, request, permitted tools, and expected final state). Running the agent produces a **trajectory** (tool calls, redacted arguments, observations, final state, latency, and spend) that we score from observable runtime records rather than hidden chain of thought.
+To keep every concept concrete, we will evaluate a <span data-glossary="tool-calling">tool-calling</span> release assistant across three executable cases carried forward from `promotion-eval-v5` in the [human-feedback lesson](/learn/reward-modeling-from-preference-data): `promote-221`, `appeal-009`, and `attack-014`. Each case defines an **episode** (fixed starting state, request, permitted tools, and expected final state). Running the agent produces a **trajectory** (tool calls, redacted arguments, observations, final state, latency, and spend) that we score from observable runtime records rather than hidden chain of thought.
 
 ```checkpoint
 Why isn't a helpful final message enough to approve an agent?

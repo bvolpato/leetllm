@@ -25,11 +25,11 @@
   ],
   "relatedQuestions": [
     "inference-mechanics-ttft-tps-kv-cache",
-    "observability-monitoring-llm-systems",
+    "llm-deployment-gpu-serving-autoscaling",
     "llm-cost-engineering-token-economics",
     "agent-evaluation-benchmarks"
   ],
-  "order": 11,
+  "order": 9,
   "keyConceptsTested": [
     "DAGs vs. cyclic state machines",
     "LangGraph StateGraph and Pregel supersteps",

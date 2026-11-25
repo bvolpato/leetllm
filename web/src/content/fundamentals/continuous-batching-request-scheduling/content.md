@@ -36,7 +36,7 @@
     "NVIDIA"
   ],
   "section": "GPU Systems & LLM Inference",
-  "order": 6,
+  "order": 5,
   "aliases": [
     "scaling-llm-inference-batching-kv-cache"
   ]
@@ -562,6 +562,11 @@ A free seat alone never authorizes launch. Every step checks three budgets: **ac
 3. Select decode steps and prefill chunks under the active scheduling rule.
 4. Reserve required blocks (or preempt a victim if projected growth overflows the pool).
 5. Execute one forward pass, record emitted tokens, and return to step 1.
+
+<figure>
+  <img src="illustrations/_generated/continuous_batching_dark.png" alt="On one shared 0 to 1,800 position scale, the current 1,024-position iteration contains 96 decode positions and 928 prefill positions. The 1,800-token prompt sends 928 positions now and leaves 872 queued. Position counts describe work placed into the step." />
+  <figcaption>With a 1,024-token budget, 96 live decode tokens run first and the remaining 928 slots take a chunk of the 1,800-token prompt, queuing 872 tokens for later steps.</figcaption>
+</figure>
 
 Treat the wait queue as a bounded resource too: an unbounded queue burns GPU cycles on responses whose clients already timed out.
 
