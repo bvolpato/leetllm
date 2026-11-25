@@ -721,7 +721,7 @@ timeout --foreground "$GCLOUD_DEPLOY_TIMEOUT_SECONDS" env CLOUDSDK_CORE_DISABLE_
     --memory 1Gi \
     --cpu 1 \
     --cpu-boost \
-    --min 1 \
+    --min 0 \
     --min-instances 0 \
     --max-instances 3 \
     --service-account "$RUNTIME_SERVICE_ACCOUNT" \

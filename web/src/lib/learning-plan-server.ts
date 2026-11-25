@@ -11,6 +11,7 @@ import {
 } from "./learning-plan"
 import { extractMasteryQuiz, type MasteryQuizQuestion } from "./mastery-quiz"
 import { getPracticeProblems, toPracticeListItem } from "./practice"
+import { getLessonCatalog, type LessonCatalogItem } from "./learn-catalog"
 import { getQuestionBySlug, getQuestions, type Question } from "./questions"
 import { buildSectionCheckQuestions } from "./section-check"
 import { getTheoryQuizListItems } from "./theory-quizzes"
@@ -25,7 +26,9 @@ let learningPlanInputsCache: {
     catalog: LearningPlanCatalog
 } | null = null
 
-export function getLearningPlanTracks(questions: Question[] = getQuestions()): PlanTrack[] {
+export function getLearningPlanTracks(
+    questions: ReadonlyArray<LessonCatalogItem & { hidden?: boolean; visibility?: Question["visibility"] }> = getLessonCatalog(),
+): PlanTrack[] {
     return learningTracks.map((track) => {
         const { lessons, excludedLessonSlugs } = resolveTrackLessons(track, questions)
         const excluded = new Set(excludedLessonSlugs)

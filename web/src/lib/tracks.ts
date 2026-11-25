@@ -1,8 +1,14 @@
-import { getQuestions, type Difficulty, type Question, type Section, type Category } from "./questions"
+import { type Difficulty, type Question, type Section, type Category } from "./questions"
+import { getLessonCatalog, type LessonCatalogItem } from "./learn-catalog"
 import { join } from "path"
 import { isVisibleToAudience } from "./content-audience"
 import { loadContentBundle } from "./content-bundle"
 import { getQuestionRoute } from "./content-route-index"
+
+export type TrackLessonSource = LessonCatalogItem & {
+    hidden?: boolean
+    visibility?: Question["visibility"]
+}
 
 export type LearningTrack = {
     slug: string
@@ -253,21 +259,21 @@ export const learningTracks: LearningTrack[] = [
     },
 ]
 
-function publicTrack(track: LearningTrack, questions: Question[]): LearningTrack {
+function publicTrack(track: LearningTrack, questions: ReadonlyArray<TrackLessonSource>): LearningTrack {
     const { lessons } = resolveTrackLessons(track, questions)
     return { ...track, lessonSlugs: lessons.map(lesson => lesson.slug), timeEstimate: `${lessons.length} ${lessons.length === 1 ? "lesson" : "lessons"}` }
 }
 
-export function getTracks(questions: Question[] = getQuestions()): LearningTrack[] {
+export function getTracks(questions: ReadonlyArray<TrackLessonSource> = getLessonCatalog()): LearningTrack[] {
     return learningTracks.map(track => publicTrack(track, questions))
 }
 
 export function getTrackBySlug(slug: string): LearningTrack | undefined {
     const track = learningTracks.find((track) => track.slug === slug)
-    return track ? publicTrack(track, getQuestions()) : undefined
+    return track ? publicTrack(track, getLessonCatalog()) : undefined
 }
 
-export function resolveTrackLessons(track: LearningTrack, questions: Question[] = getQuestions()) {
+export function resolveTrackLessons(track: LearningTrack, questions: ReadonlyArray<TrackLessonSource> = getLessonCatalog()) {
     const bySlug = new Map(questions.map((question) => [question.slug, question]))
     const excludedLessonSlugs = track.lessonSlugs.filter((slug) => {
         const question = bySlug.get(slug)
@@ -306,6 +312,6 @@ export function resolveTrackLessons(track: LearningTrack, questions: Question[] 
     return { lessons, excludedLessonSlugs }
 }
 
-export function getTrackLessons(track: LearningTrack, questions: Question[] = getQuestions()): TrackLesson[] {
+export function getTrackLessons(track: LearningTrack, questions: ReadonlyArray<TrackLessonSource> = getLessonCatalog()): TrackLesson[] {
     return resolveTrackLessons(track, questions).lessons
 }

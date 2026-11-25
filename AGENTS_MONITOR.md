@@ -430,13 +430,13 @@ gcloud logging read \
 - Static assets: immutable caching
 
 ### Scaling
-Current config: `--cpu-boost --min 1 --min-instances 0 --max-instances 3`. The service keeps one instance warm to avoid idle scale-to-zero delays. The minimum applies at the service level, so inactive tagged revisions do not each receive a warm instance. Startup CPU boost remains enabled for replacements and scale-out.
+Current config: `--cpu-boost --min 0 --min-instances 0 --max-instances 3`. Both service-level and revision-level minimums stay at zero so idle time between requests is not billed under request-based billing; steady origin traffic keeps an instance warm naturally, and startup CPU boost remains enabled for cold starts, replacements, and scale-out.
 
 ```bash
 # Update scaling
 gcloud run services update leetllm --region us-central1 \
     --cpu-boost \
-    --min 1 \
+    --min 0 \
     --min-instances 0 \
     --max-instances 3
 ```

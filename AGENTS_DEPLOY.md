@@ -167,7 +167,7 @@ gcloud run deploy leetllm \
     --memory 1Gi \
     --cpu 1 \
     --cpu-boost \
-    --min 1 \
+    --min 0 \
     --min-instances 0 \
     --max-instances 3 \
     --service-account "leetllm-runtime@${GCP_PROJECT}.iam.gserviceaccount.com" \

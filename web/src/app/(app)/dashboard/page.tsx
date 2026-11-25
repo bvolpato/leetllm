@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { DashboardClient } from "./dashboard-client"
 import { getPracticeProblems, toPracticeListItem } from "@/lib/practice"
-import { getQuestions } from "@/lib/questions"
+import { getLessonCatalog } from "@/lib/learn-catalog"
 import { getTheoryQuizzes } from "@/lib/theory-quizzes"
 import { getLearningPlanTracks } from "@/lib/learning-plan-server"
 
@@ -11,14 +11,15 @@ export const metadata: Metadata = {
 }
 
 export default function Dashboard() {
-    const lessons = getQuestions().map((lesson) => ({
+    const catalogLessons = getLessonCatalog()
+    const lessons = catalogLessons.map((lesson) => ({
         slug: lesson.slug,
         title: lesson.title,
         shortDescription: lesson.shortDescription,
         section: lesson.section,
         timeEstimate: lesson.timeEstimate,
     }))
-    const tracks = getLearningPlanTracks()
+    const tracks = getLearningPlanTracks(catalogLessons)
     const theoryQuizzes = getTheoryQuizzes()
     const quizzes = theoryQuizzes.map((quiz) => ({
         slug: quiz.slug,

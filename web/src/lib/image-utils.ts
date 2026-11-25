@@ -1,7 +1,26 @@
 import fs from "fs"
 import path from "path"
 
+type PrebuiltImageManifestEntry = {
+    v: string
+    w?: number
+    h?: number
+}
+
+let prebuiltImagesCache: Record<string, PrebuiltImageManifestEntry> | null = null
 const _imageDimensionCache = new Map<string, { width: number; height: number } | null>()
+
+function getPrebuiltImages(): Record<string, PrebuiltImageManifestEntry> {
+    if (!prebuiltImagesCache) {
+        try {
+            const manifestPath = path.join(/* turbopackIgnore: true */ process.cwd(), "src", "generated", "content-image-manifest.json")
+            prebuiltImagesCache = JSON.parse(fs.readFileSync(/* turbopackIgnore: true */ manifestPath, "utf8")) as Record<string, PrebuiltImageManifestEntry>
+        } catch {
+            prebuiltImagesCache = {}
+        }
+    }
+    return prebuiltImagesCache
+}
 
 export function getImageDimensions(imagePath: string): { width: number; height: number } | null {
     if (!imagePath) return null;
@@ -11,6 +30,12 @@ export function getImageDimensions(imagePath: string): { width: number; height: 
     if (!prefix) return null;
 
     const relativePath = imagePath.slice(prefix.length).split("?")[0];
+    if (process.env.NODE_ENV === "production") {
+        const prebuilt = getPrebuiltImages()[relativePath];
+        if (prebuilt?.w && prebuilt?.h) {
+            return { width: prebuilt.w, height: prebuilt.h };
+        }
+    }
     if (process.env.NODE_ENV !== "development" && _imageDimensionCache.has(relativePath)) {
         return _imageDimensionCache.get(relativePath) ?? null;
     }

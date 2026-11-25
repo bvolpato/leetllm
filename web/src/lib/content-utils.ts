@@ -1,6 +1,6 @@
 import { createHash } from "crypto"
 import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from "fs"
-import { join, relative } from "path"
+import { join, relative, sep } from "path"
 import { decodeHTMLAttribute } from "entities"
 
 // ═══════════════════════════════════════════════════════════════
@@ -188,6 +188,13 @@ type PngDimensions = {
     display: { w: number; h: number }
 }
 
+type PrebuiltImageManifestEntry = {
+    v: string
+    w?: number
+    h?: number
+}
+
+let prebuiltImagesCache: Record<string, PrebuiltImageManifestEntry> | null = null
 const pngDimensionsCache = new Map<string, { sig: string; value: PngDimensions | null }>()
 const contentImageVersionCache = new Map<string, { sig: string; version: string }>()
 
@@ -195,8 +202,39 @@ function isProductionEnv(): boolean {
     return process.env.NODE_ENV === "production"
 }
 
+function getPrebuiltImageManifest(): Record<string, PrebuiltImageManifestEntry> {
+    if (!prebuiltImagesCache) {
+        try {
+            const manifestPath = join(/* turbopackIgnore: true */ process.cwd(), "src", "generated", "content-image-manifest.json")
+            prebuiltImagesCache = JSON.parse(readFileSync(/* turbopackIgnore: true */ manifestPath, "utf8")) as Record<string, PrebuiltImageManifestEntry>
+        } catch {
+            prebuiltImagesCache = {}
+        }
+    }
+    return prebuiltImagesCache
+}
+
+function prebuiltImageEntry(absolutePath: string): PrebuiltImageManifestEntry | undefined {
+    if (!isProductionEnv()) return undefined
+    const rel = relative(CONTENT_DIR, absolutePath).split(sep).join("/")
+    if (!rel || rel.startsWith("..") || rel.startsWith("/")) return undefined
+    return getPrebuiltImageManifest()[rel]
+}
+
+function hasContentFile(absolutePath: string): boolean {
+    return Boolean(prebuiltImageEntry(absolutePath)) || existsSync(/* turbopackIgnore: true */ absolutePath)
+}
+
 function pngDimensions(filePath: string): PngDimensions | null {
     try {
+        const prebuilt = prebuiltImageEntry(filePath)
+        if (prebuilt?.w && prebuilt?.h) {
+            return {
+                natural: { w: prebuilt.w, h: prebuilt.h },
+                display: { w: Math.round(prebuilt.w / 2), h: Math.round(prebuilt.h / 2) },
+            }
+        }
+
         const isProd = isProductionEnv()
         const cached = pngDimensionsCache.get(filePath)
         let sig = ""
@@ -254,7 +292,11 @@ export function pngDisplaySize(filePath: string): { w: number; h: number } | nul
  *   → /cdn/content-image/fundamentals/slug/illustrations/_generated/foo_dark.png
  */
 export function contentImageUrl(absolutePath: string): string {
-    const rel = relative(CONTENT_DIR, absolutePath)
+    const rel = relative(CONTENT_DIR, absolutePath).split(sep).join("/")
+    const prebuilt = prebuiltImageEntry(absolutePath)
+    if (prebuilt?.v) {
+        return `/cdn/content-image/${rel}?v=${prebuilt.v}`
+    }
     let version = "1"
     try {
         const isProd = isProductionEnv()
@@ -425,9 +467,9 @@ export function resolveIllustrations(markdown: string, contentDir: string): stri
         const lightPath = join(contentDir, "illustrations", "_generated", `${base}_light.png`)
         const legacyPath = join(contentDir, "illustrations", "_generated", `${base}.png`)
 
-        const hasDark = existsSync(/* turbopackIgnore: true */ darkPath)
-        const hasLight = existsSync(/* turbopackIgnore: true */ lightPath)
-        const hasLegacy = existsSync(/* turbopackIgnore: true */ legacyPath)
+        const hasDark = hasContentFile(darkPath)
+        const hasLight = hasContentFile(lightPath)
+        const hasLegacy = hasContentFile(legacyPath)
 
         if (!hasDark && !hasLight && !hasLegacy) {
             console.warn(`  ⚠ Illustration not found: ${darkPath}`)
@@ -648,8 +690,8 @@ export function resolveDiagrams(markdown: string, contentDir: string, sourceFile
 
             diagramIndex++
 
-            const hasDark = existsSync(/* turbopackIgnore: true */ darkPath)
-            const hasLight = existsSync(/* turbopackIgnore: true */ lightPath)
+            const hasDark = hasContentFile(darkPath)
+            const hasLight = hasContentFile(lightPath)
 
             if (!hasDark && !hasLight) {
                 // No pre-rendered diagrams found — keep the original mermaid block

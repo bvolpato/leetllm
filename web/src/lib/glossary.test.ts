@@ -3,7 +3,7 @@ import { join } from "path"
 import { describe, expect, test } from "vitest"
 import { parseGlossarySections as parseGlossaryMarkdownSections } from "../../scripts/glossary-sections"
 import { loadContentBundle } from "./content-bundle"
-import { GLOSSARY_ENTRIES, GLOSSARY_ENTRIES_BY_IMPORTANCE } from "./glossary-server"
+import { GLOSSARY_ENTRIES, GLOSSARY_ENTRIES_BY_IMPORTANCE } from "@/generated/glossary"
 
 const CONTENT_ROOT = join(process.cwd(), "src", "content")
 const GLOSSARY_ROOT = join(CONTENT_ROOT, "glossary")
@@ -196,7 +196,7 @@ describe("glossary entries", () => {
 
         expect(blockedUrls.size).toBeGreaterThan(0)
         for (const [id, entry] of Object.entries(GLOSSARY_ENTRIES)) {
-            for (const usage of "usage" in entry ? entry.usage : []) {
+            for (const usage of entry.usage ?? []) {
                 if (blockedUrls.has(usage.url)) leaks.push(`${id}: ${usage.url}`)
             }
         }

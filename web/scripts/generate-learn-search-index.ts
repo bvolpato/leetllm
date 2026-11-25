@@ -42,9 +42,21 @@ function stripMarkdownForSearch(markdown: string): string {
         .trim()
 }
 
+function writeIfChanged(outputPath: string, nextContent: string, label: string) {
+    mkdirSync(dirname(outputPath), { recursive: true })
+    if (existsSync(outputPath) && readFileSync(outputPath, "utf8") === nextContent) {
+        console.log(`Unchanged ${outputPath} (${label})`)
+        return
+    }
+    writeFileSync(outputPath, nextContent)
+    console.log(`Wrote ${outputPath} (${label}, ${(nextContent.length / 1024).toFixed(1)} KiB)`)
+}
+
 function main() {
-    const outputPath = join(process.cwd(), "src", "generated", "learn-search-index.json")
-    const docs: PrebuiltLearnSearchDoc[] = getQuestions().map((question, order) => {
+    const searchOutputPath = join(process.cwd(), "src", "generated", "learn-search-index.json")
+    const catalogOutputPath = join(process.cwd(), "src", "generated", "learn-catalog.json")
+    const questions = getQuestions()
+    const docs: PrebuiltLearnSearchDoc[] = questions.map((question, order) => {
         const plainContent = stripMarkdownForSearch(question.content)
         const meta = [
             question.section,
@@ -68,15 +80,19 @@ function main() {
             plainContent,
         }
     })
+    const catalog = questions.map((question) => ({
+        id: question.id,
+        title: question.title,
+        slug: question.slug,
+        section: question.section,
+        category: question.category,
+        difficulty: question.difficulty,
+        timeEstimate: question.timeEstimate,
+        shortDescription: question.shortDescription,
+    }))
 
-    const nextContent = JSON.stringify(docs)
-    mkdirSync(dirname(outputPath), { recursive: true })
-    if (existsSync(outputPath) && readFileSync(outputPath, "utf8") === nextContent) {
-        console.log(`Unchanged ${outputPath} (${docs.length} lessons)`)
-        return
-    }
-    writeFileSync(outputPath, nextContent)
-    console.log(`Wrote ${outputPath} with ${docs.length} lessons (${(nextContent.length / 1024).toFixed(1)} KiB)`)
+    writeIfChanged(searchOutputPath, JSON.stringify(docs), `${docs.length} lessons`)
+    writeIfChanged(catalogOutputPath, JSON.stringify(catalog) + "\n", `${catalog.length} lessons`)
 }
 
 main()

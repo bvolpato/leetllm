@@ -80,7 +80,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV NODE_OPTIONS="--max-old-space-size=768"
-ENV NODE_COMPILE_CACHE=/app/.node-compile-cache
 ENV VIZMATIC_DISABLE_NETWORK=1
 ENV VIZMATIC_FONT_DIR=/tmp/vizmatic-fonts
 
@@ -118,10 +117,13 @@ COPY --chown=nextjs:nodejs --from=builder /app/.next/standalone ./
 COPY --chown=nextjs:nodejs --from=builder /app/.next/static ./.next/static
 COPY --chown=nextjs:nodejs --from=builder /app/public ./public
 
-# Copy runtime-served content files for /cdn/content-image and /api/content-asset
+# Copy runtime-served content files and prebuilt manifests for /cdn/content-image, /api/md, and /api/glossary
 COPY --chown=nextjs:nodejs --from=builder /runtime-content ./src/content
+COPY --chown=nextjs:nodejs --from=builder /app/src/generated/content-image-manifest.json ./src/generated/content-image-manifest.json
+COPY --chown=nextjs:nodejs --from=builder /app/src/generated/glossary-data.json ./src/generated/glossary-data.json
 COPY --chown=nextjs:nodejs --from=builder /app/scripts/prewarm-node-cache.mjs ./scripts/prewarm-node-cache.mjs
 
+ENV NODE_COMPILE_CACHE=/app/.node-compile-cache
 USER nextjs
 
 # Generate the cache with the production Node binary, absolute paths, and UID.

@@ -1,13 +1,23 @@
 import "server-only"
 
-import { GLOSSARY_ENTRIES } from "@/generated/glossary"
-import type { GlossaryEntryId, GlossaryEntryWithId, GlossarySummary } from "@/lib/glossary"
+import { readFileSync } from "fs"
+import { join } from "path"
+import { GLOSSARY_TERM_LINKS } from "@/generated/glossary-term-index"
+import type { GlossaryEntry, GlossaryEntryId, GlossaryEntryWithId, GlossarySummary } from "@/lib/glossary"
 
-export { GLOSSARY_ENTRIES, GLOSSARY_ENTRIES_BY_IMPORTANCE } from "@/generated/glossary"
+let entriesCache: Record<GlossaryEntryId, GlossaryEntry> | null = null
 
-export const GLOSSARY_SUMMARIES: GlossarySummary[] = Object.entries(GLOSSARY_ENTRIES)
-    .map(([id, entry]) => ({
-        id: id as GlossaryEntryId,
+function getGlossaryEntries(): Record<GlossaryEntryId, GlossaryEntry> {
+    if (!entriesCache) {
+        const dataPath = join(/* turbopackIgnore: true */ process.cwd(), "src", "generated", "glossary-data.json")
+        entriesCache = JSON.parse(readFileSync(/* turbopackIgnore: true */ dataPath, "utf8")) as Record<GlossaryEntryId, GlossaryEntry>
+    }
+    return entriesCache
+}
+
+export const GLOSSARY_SUMMARIES: GlossarySummary[] = GLOSSARY_TERM_LINKS
+    .map((entry) => ({
+        id: entry.id as GlossaryEntryId,
         title: entry.title,
         aliases: "aliases" in entry ? [...entry.aliases] : undefined,
         kind: "kind" in entry ? entry.kind : undefined,
@@ -16,15 +26,16 @@ export const GLOSSARY_SUMMARIES: GlossarySummary[] = Object.entries(GLOSSARY_ENT
     .sort((left, right) => left.title.localeCompare(right.title, "en"))
 
 export function getGlossaryEntry(id: string): GlossaryEntryWithId | undefined {
-    if (!Object.hasOwn(GLOSSARY_ENTRIES, id)) return undefined
-    return { id: id as GlossaryEntryId, ...GLOSSARY_ENTRIES[id as GlossaryEntryId] }
+    const entries = getGlossaryEntries()
+    if (!Object.hasOwn(entries, id)) return undefined
+    return { id: id as GlossaryEntryId, ...entries[id as GlossaryEntryId] }
 }
 
 let searchEntries: Array<{ id: string; text: string }> | null = null
 
 function getSearchEntries(): Array<{ id: string; text: string }> {
     if (!searchEntries) {
-        searchEntries = Object.entries(GLOSSARY_ENTRIES).map(([id, value]) => {
+        searchEntries = Object.entries(getGlossaryEntries()).map(([id, value]) => {
             const entry: GlossaryEntryWithId = { id: id as GlossaryEntryId, ...value }
             const text = [
                 entry.title,

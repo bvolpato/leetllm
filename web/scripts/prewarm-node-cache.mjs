@@ -8,17 +8,22 @@ if (!cache) throw new Error('Set NODE_COMPILE_CACHE before preparing the product
 
 const port = 8080;
 const routes = [
-  '/',
-  '/learn',
-  '/learn/numpy-and-tensor-shapes',
-  '/blog',
-  '/blog/how-we-built-leetllm',
-  '/practice',
-  '/practice/stack-trace-reconstructor',
-  '/glossary',
-  '/tracks',
-  '/api/search/learn?q=attention',
-  '/cdn/content-image/blog/how-we-built-leetllm/illustrations/_generated/content_pipeline_dark.png?w=640',
+  { path: '/', expectedStatus: 200 },
+  { path: '/learn', expectedStatus: 200 },
+  { path: '/learn/numpy-and-tensor-shapes', expectedStatus: 200 },
+  { path: '/blog', expectedStatus: 200 },
+  { path: '/blog/how-we-built-leetllm', expectedStatus: 200 },
+  { path: '/practice', expectedStatus: 200 },
+  { path: '/practice/stack-trace-reconstructor', expectedStatus: 200 },
+  { path: '/glossary', expectedStatus: 200 },
+  { path: '/tracks', expectedStatus: 200 },
+  { path: '/robots.txt', expectedStatus: 200 },
+  { path: '/api/md/numpy-and-tensor-shapes', expectedStatus: 200 },
+  { path: '/api/search/learn?q=attention', expectedStatus: 200 },
+  { path: '/api/glossary?q=attention', expectedStatus: 200 },
+  { path: '/api/glossary/ab-testing', expectedStatus: 200 },
+  { path: '/cdn/content-image/blog/how-we-built-leetllm/illustrations/_generated/content_pipeline_dark.png?w=640', expectedStatus: 200 },
+  { path: '/nonexistent-prewarm-404', expectedStatus: 404 },
 ];
 const server = spawn(process.execPath, ['server.js'], {
   env: { ...process.env, HOSTNAME: '127.0.0.1', PORT: String(port) },
@@ -91,13 +96,15 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   if (!ready) throw new Error(`Production cache preparation did not become ready: ${errorOutput}`);
-  for (const route of routes) {
+  for (const { path: route, expectedStatus } of routes) {
     const response = await fetch(`http://127.0.0.1:${port}${route}`, {
       signal: AbortSignal.timeout(5000),
     });
     await response.arrayBuffer();
-    if (!response.ok)
-      throw new Error(`Cache preparation returned HTTP ${response.status} for ${route}`);
+    if (response.status !== expectedStatus)
+      throw new Error(
+        `Cache preparation returned HTTP ${response.status} (expected ${expectedStatus}) for ${route}`,
+      );
   }
 } finally {
   await stopServer();

@@ -14,6 +14,10 @@ const nextConfig = {
   serverExternalPackages: ["vizmatic", "@resvg/resvg-js", "sharp"],
   outputFileTracingIncludes: {
     "/api/personalization/render-vizmatic": ["./node_modules/vizmatic/assets/**/*"],
+    "/api/glossary": ["./src/generated/glossary-data.json"],
+    "/api/glossary/[id]": ["./src/generated/glossary-data.json"],
+    "/glossary": ["./src/generated/glossary-data.json"],
+    "/api/md/[slug]": ["./src/generated/content-image-manifest.json"],
   },
   outputFileTracingExcludes: {
     "*": ["./src/content/**/*", "./secrets/**/*", "./tools/**/*"],

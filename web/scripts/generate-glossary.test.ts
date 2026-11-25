@@ -40,9 +40,11 @@ test("glossary usage exports only website-visible articles and passages", () => 
     writeBundle("blog", "website-only-post", { visibility: { book: false } }, `Public blog explanation of ${term}.`)
 
     execFileSync(join(webRoot, "node_modules", ".bin", "tsx"), [join(webRoot, "scripts", "generate-glossary.ts")], { cwd: root })
-    const generated = readFileSync(join(root, "src", "generated", "glossary.ts"), "utf8")
-    const usages = [...generated.matchAll(/title: ("(?:\\.|[^"\\])*"),\n\s+url: ("(?:\\.|[^"\\])*"),\n\s+excerpt: ("(?:\\.|[^"\\])*"),/g)]
-        .map(match => ({ title: JSON.parse(match[1]), url: JSON.parse(match[2]), excerpt: JSON.parse(match[3]) }))
+    const generated = JSON.parse(readFileSync(join(root, "src", "generated", "glossary-data.json"), "utf8")) as Record<
+        string,
+        { usage?: Array<{ title: string; url: string; excerpt: string }> }
+    >
+    const usages = generated["example-term"]?.usage ?? []
 
     expect(usages).toHaveLength(2)
     expect(usages).toEqual(expect.arrayContaining([
