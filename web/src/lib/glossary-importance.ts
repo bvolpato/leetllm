@@ -3,47 +3,21 @@ export type GlossaryImportanceLevel = {
     className: string
 }
 
+const NEUTRAL_TIER_CLASS = "border-border/70 bg-muted/40 text-muted-foreground"
+const STANDARD_TIER_CLASS = "border-border bg-secondary/70 text-foreground/85"
+const CORE_TIER_CLASS = "border-primary/30 bg-primary/10 text-primary"
+
 const GLOSSARY_IMPORTANCE_LEVELS: GlossaryImportanceLevel[] = [
-    {
-        label: "Reference",
-        className: "border-slate-500/25 bg-slate-500/10 text-slate-700 dark:text-slate-300",
-    },
-    {
-        label: "Niche",
-        className: "border-zinc-500/25 bg-zinc-500/10 text-zinc-700 dark:text-zinc-300",
-    },
-    {
-        label: "Optional",
-        className: "border-stone-500/25 bg-stone-500/10 text-stone-700 dark:text-stone-300",
-    },
-    {
-        label: "Context",
-        className: "border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-    },
-    {
-        label: "Background",
-        className: "border-sky-500/25 bg-sky-500/10 text-sky-700 dark:text-sky-300",
-    },
-    {
-        label: "Supporting",
-        className: "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    },
-    {
-        label: "Applied",
-        className: "border-teal-500/25 bg-teal-500/10 text-teal-700 dark:text-teal-300",
-    },
-    {
-        label: "Important",
-        className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    },
-    {
-        label: "Core",
-        className: "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-    },
-    {
-        label: "Essential",
-        className: "border-rose-500/25 bg-rose-500/10 text-rose-700 dark:text-rose-300",
-    },
+    { label: "Reference", className: NEUTRAL_TIER_CLASS },
+    { label: "Niche", className: NEUTRAL_TIER_CLASS },
+    { label: "Optional", className: NEUTRAL_TIER_CLASS },
+    { label: "Context", className: NEUTRAL_TIER_CLASS },
+    { label: "Background", className: NEUTRAL_TIER_CLASS },
+    { label: "Supporting", className: STANDARD_TIER_CLASS },
+    { label: "Applied", className: STANDARD_TIER_CLASS },
+    { label: "Important", className: STANDARD_TIER_CLASS },
+    { label: "Core", className: CORE_TIER_CLASS },
+    { label: "Essential", className: CORE_TIER_CLASS },
 ]
 
 export function getGlossaryImportanceLevel(importance: number): GlossaryImportanceLevel {

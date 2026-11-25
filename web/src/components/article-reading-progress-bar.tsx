@@ -44,10 +44,10 @@ export function ArticleReadingProgressBar({ targetId = "lesson-content" }: { tar
         <div
             aria-hidden="true"
             data-print-hidden
-            className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[2.5px] bg-transparent print:hidden"
+            className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[2px] bg-transparent print:hidden"
         >
             <div
-                className="h-full bg-gradient-to-r from-primary via-violet-400 to-sky-400 transition-[width] duration-75 ease-out"
+                className="h-full bg-primary/85 transition-[width] duration-75 ease-out"
                 style={{ width: `${progress}%` }}
             />
         </div>

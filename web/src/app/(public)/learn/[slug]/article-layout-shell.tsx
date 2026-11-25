@@ -10,10 +10,12 @@ const ARTICLE_SIDEBAR_STORAGE_KEY = "leetllm_article_sidebar_visible"
 
 export function ArticleLayoutShell({
     sidebar,
+    sidebarHeader,
     rightRail,
     children,
 }: {
     sidebar: React.ReactNode
+    sidebarHeader?: React.ReactNode
     rightRail?: React.ReactNode
     children: React.ReactNode
 }) {
@@ -115,15 +117,17 @@ export function ArticleLayoutShell({
                         ref={sidebarScrollRef}
                         className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2 pb-8"
                     >
-                        <div className="sticky top-0 z-10 mb-3 flex justify-end bg-background/95 py-1 backdrop-blur-sm">
+                        <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 bg-background/95 py-1 backdrop-blur-sm">
+                            <div className="min-w-0 flex-1">{sidebarHeader}</div>
                             <Button
                                 ref={toggleButtonRef}
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="icon-sm"
                                 onClick={toggleSidebar}
                                 aria-label="Hide sidebar"
                                 title="Hide sidebar"
+                                className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
                             >
                                 <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>

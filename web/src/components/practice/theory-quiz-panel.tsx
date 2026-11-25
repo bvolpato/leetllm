@@ -53,11 +53,13 @@ const emptyScoreResults: Record<string, TheoryQuizResult> = {}
 let scoreSnapshotRaw: string | null = null
 let scoreSnapshot: Record<string, TheoryQuizResult> = emptyScoreResults
 
+const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"] as const
+
 const levelClass: Record<TheoryQuizLevel, string> = {
-    Beginner: "border-emerald-600/30 bg-emerald-500/15 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
-    Intermediate: "border-sky-600/30 bg-sky-500/15 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300",
-    Advanced: "border-amber-600/35 bg-amber-500/15 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
-    Expert: "border-fuchsia-600/30 bg-fuchsia-500/15 text-fuchsia-700 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-300",
+    Beginner: "border-emerald-600/30 bg-emerald-500/12 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300",
+    Intermediate: "border-primary/30 bg-primary/10 text-primary",
+    Advanced: "border-amber-600/35 bg-amber-500/12 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300",
+    Expert: "border-red-600/30 bg-red-500/12 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
 }
 
 function readJsonRecord<T>(key: string, fallback: T): T {
@@ -288,10 +290,20 @@ export function TheoryQuizPanel({
                             <CheckCircle2 className="h-4 w-4 text-primary" />
                             Quiz Progress
                         </div>
-                        <span className="text-xs text-muted-foreground">{completedCount}/{quizzes.length}</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">{completedCount}/{quizzes.length}</span>
                     </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted/30">
-                        <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${completionPct}%` }} />
+                    <div
+                        role="progressbar"
+                        aria-label="Theory quiz progress"
+                        aria-valuenow={completionPct}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="mt-3 h-1.5 overflow-hidden rounded-full bg-border/80 dark:bg-white/10"
+                    >
+                        <div
+                            className={`h-full rounded-full transition-all duration-500 ${completionPct === 100 ? "bg-emerald-500" : "bg-primary"}`}
+                            style={{ width: `${completionPct}%` }}
+                        />
                     </div>
                 </div>
 
@@ -499,18 +511,19 @@ function ActiveTheoryQuiz({
                                     {rendered?.question ?? <FallbackInlineText text={question.question} />}
                                 </legend>
                                 <div className="grid gap-2">
-                                    {displayedOptions[questionIndex].map((option) => {
+                                    {displayedOptions[questionIndex].map((option, optionIndex) => {
                                         const selectedOption = selected === option
                                         const wasChecked = checked === option
                                         const isCorrect = option === correctOption
                                         const showCorrect = hasResult && isCorrect
                                         const showWrong = hasResult && wasChecked && !isCorrect
+                                        const letter = OPTION_LETTERS[optionIndex] ?? String(optionIndex + 1)
 
                                         return (
                                             <label
                                                 key={option}
                                                 className={cn(
-                                                    "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-sm leading-relaxed transition-colors",
+                                                    "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-sm leading-relaxed transition-colors focus-within:ring-2 focus-within:ring-primary/40",
                                                     showCorrect
                                                         ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                                                         : showWrong
@@ -530,9 +543,25 @@ function ActiveTheoryQuiz({
                                                         setCheckedSelections(null)
                                                         setResult(null)
                                                     }}
-                                                    className="mt-1 h-4 w-4 accent-[var(--primary)]"
+                                                    className="sr-only"
                                                 />
-                                                <span>{rendered?.options[option] ?? <FallbackInlineText text={option} />}</span>
+                                                <span
+                                                    aria-hidden="true"
+                                                    data-option-letter={showCorrect ? undefined : letter}
+                                                    className={cn(
+                                                        "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border font-sans text-[11px] font-semibold transition-colors",
+                                                        showCorrect
+                                                            ? "border-emerald-500 bg-emerald-500 text-white"
+                                                            : showWrong
+                                                                ? "border-red-500 bg-red-500 text-white before:content-[attr(data-option-letter)]"
+                                                                : selectedOption
+                                                                    ? "border-primary bg-primary text-primary-foreground before:content-[attr(data-option-letter)]"
+                                                                    : "border-border text-muted-foreground before:content-[attr(data-option-letter)]"
+                                                    )}
+                                                >
+                                                    {showCorrect ? <Check className="h-3 w-3" /> : null}
+                                                </span>
+                                                <span className="min-w-0 flex-1">{rendered?.options[option] ?? <FallbackInlineText text={option} />}</span>
                                             </label>
                                         )
                                     })}

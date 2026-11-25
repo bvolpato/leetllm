@@ -18,10 +18,10 @@ export function CheckpointAccordionShell({ question, answer, index }: Checkpoint
                     value={`checkpoint-${index ?? 0}`}
                     className="border border-primary/20 rounded-xl overflow-hidden bg-primary/[0.03]"
                 >
-                    <AccordionTrigger headingLevel={null} className="hover:no-underline py-4 px-5 gap-3 [&[data-state=open]]:bg-primary/[0.06]">
+                    <AccordionTrigger headingLevel={null} className="hover:no-underline py-4 px-5 gap-3 [&[data-state=open]]:bg-primary/[0.05]">
                         <span className="flex items-center gap-3 text-left w-full">
-                            <span className="flex items-center justify-center w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/20 flex-shrink-0">
-                                <HelpCircle className="w-3.5 h-3.5 text-amber-500" />
+                            <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex-shrink-0">
+                                <HelpCircle className="w-3.5 h-3.5 text-primary" />
                             </span>
                             <span className="text-sm font-medium [color:var(--reading-heading)]">
                                 {question}

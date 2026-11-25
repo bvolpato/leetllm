@@ -9,24 +9,24 @@ const VARIANT_STYLES: Record<CalloutVariant, {
     eyebrow: string
 }> = {
     info: {
-        container: "border-primary/20 bg-primary/[0.055]",
+        container: "border-l-[3px] border-l-primary border [border-color:var(--reading-border)] bg-primary/[0.04]",
         icon: "text-primary",
-        eyebrow: "text-primary/80",
+        eyebrow: "text-primary",
     },
     warning: {
-        container: "border-amber-500/30 bg-amber-500/10",
-        icon: "text-amber-500",
-        eyebrow: "text-amber-600 dark:text-amber-400",
+        container: "border-l-[3px] border-l-amber-500/85 border border-amber-500/25 bg-amber-500/[0.05]",
+        icon: "text-amber-700 dark:text-amber-400",
+        eyebrow: "text-amber-800 dark:text-amber-300",
     },
     tip: {
-        container: "border-cyan-500/25 bg-cyan-500/10",
-        icon: "text-cyan-600 dark:text-cyan-400",
-        eyebrow: "text-cyan-700 dark:text-cyan-400",
+        container: "border-l-[3px] border-l-primary/70 border [border-color:var(--reading-border)] [background:var(--reading-panel)]",
+        icon: "text-primary",
+        eyebrow: "text-primary",
     },
     success: {
-        container: "border-emerald-500/25 bg-emerald-500/10",
-        icon: "text-emerald-600 dark:text-emerald-400",
-        eyebrow: "text-emerald-700 dark:text-emerald-400",
+        container: "border-l-[3px] border-l-emerald-600/80 dark:border-l-emerald-500/80 border [border-color:var(--reading-border)] bg-emerald-500/[0.04]",
+        icon: "text-emerald-700 dark:text-emerald-400",
+        eyebrow: "text-emerald-700 dark:text-emerald-300",
     },
 }
 

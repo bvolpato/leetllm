@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { SectionProgress, OverallProgress, LoginToTrackPrompt, MarkAsReadButton } from "@/components/reading-progress"
+import { OverallProgress, LoginToTrackPrompt, MarkAsReadButton } from "@/components/reading-progress"
 import { useReadingProgress } from "@/lib/reading-progress"
 import { ShareButtons } from "@/components/share-buttons"
 import { ArticleFooterNav } from "@/components/article-footer-nav"
@@ -118,12 +118,13 @@ function SidebarContent({
             <OverallProgress totalArticles={totalCount} />
 
             {/* Collapsible roadmap sections */}
-            <div className="space-y-1.5">
-                {sections.map((section) => {
+            <div className="space-y-1">
+                {sections.map((section, sectionIndex) => {
                     const sectionSlugs = section.questions.map((q) => q.slug)
                     const isCurrentSection = section.name === currentSectionName
                     const isExpanded = sectionOverrides[section.name] ?? isCurrentSection
                     const readCount = sectionSlugs.filter(isRead).length
+                    const isComplete = section.questions.length > 0 && readCount === section.questions.length
 
                     return (
                         <div key={section.name} className="rounded-lg">
@@ -143,7 +144,17 @@ function SidebarContent({
                                         isExpanded ? "rotate-90" : ""
                                     }`}
                                 />
-                                <span className="text-sm leading-none">{section.config.icon}</span>
+                                <span
+                                    className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${
+                                        isComplete
+                                            ? "text-emerald-600 dark:text-emerald-400"
+                                            : isCurrentSection
+                                                ? "text-primary"
+                                                : "[color:var(--reading-subtle)]"
+                                    }`}
+                                >
+                                    {String(sectionIndex + 1).padStart(2, "0")}
+                                </span>
                                 <span
                                     className={`min-w-0 flex-1 truncate text-xs font-semibold ${isCurrentSection
                                         ? "text-primary"
@@ -152,15 +163,16 @@ function SidebarContent({
                                 >
                                     {section.name}
                                 </span>
-                                <span className="ml-1 shrink-0 text-[11px] tabular-nums [color:var(--reading-subtle)]">
+                                <span
+                                    className={`ml-1 shrink-0 text-[11px] tabular-nums ${
+                                        isComplete
+                                            ? "font-medium text-emerald-600 dark:text-emerald-400"
+                                            : "[color:var(--reading-subtle)]"
+                                    }`}
+                                >
                                     {readCount}/{section.questions.length}
                                 </span>
                             </button>
-                            {(isExpanded || readCount > 0) && (
-                                <div className="px-1.5 pt-1">
-                                    <SectionProgress sectionSlugs={sectionSlugs} />
-                                </div>
-                            )}
                             {isExpanded && (
                                 <nav aria-label={`${section.name} lessons`} className="mt-1.5 space-y-0.5 pl-1">
                                     {section.questions.map((q) => {

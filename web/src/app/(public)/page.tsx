@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Check, Brain, Terminal, Zap, ArrowRight, Sparkles, Route, BookOpen, Shield } from "lucide-react"
+import { Check, Brain, Terminal, Zap, ArrowRight, Route, BookOpen, Shield } from "lucide-react"
 import { TrackedCta } from "@/components/tracked-cta"
 import {
   HOME_LESSON_COUNT,
@@ -87,8 +87,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="hero-gradient bg-grid relative">
         <div className="relative z-10 container mx-auto flex max-w-5xl flex-col items-center gap-6 text-center px-4 pt-20 pb-24 md:pt-32 md:pb-36">
-          <Badge variant="secondary" className="max-w-full shrink whitespace-normal rounded-full border border-primary/20 px-4 py-1.5 text-center text-sm font-medium leading-5 backdrop-blur-sm">
-            <Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />
+          <Badge variant="secondary" className="max-w-full shrink whitespace-normal rounded-full border border-border/70 bg-card/80 px-4 py-1.5 text-center text-xs font-medium leading-5 text-muted-foreground">
             {HOME_LESSON_COUNT} Lessons · {HOME_THEORY_QUIZ_COUNT} Quizzes · {HOME_PRACTICE_PROBLEM_COUNT} Coding Drills · {HOME_UPDATED_LABEL}
           </Badge>
 
@@ -101,12 +100,12 @@ export default function LandingPage() {
 
           <p className="max-w-2xl leading-relaxed text-muted-foreground text-lg sm:text-xl">
             Understand how models work by following the reasoning and running the code yourself.
-            Build knowledge you can bring to your own projects and <strong className="text-foreground/80">AI/ML interviews</strong>, one lesson at a time.
+            Build knowledge you can bring to your own projects and <strong className="text-foreground/85 font-semibold">AI/ML interviews</strong>, one lesson at a time.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 mt-2">
+          <div className="flex flex-col sm:flex-row gap-3.5 mt-2">
             <TrackedCta location="hero" label="Build My Plan">
-              <Button asChild size="lg" className="px-8 text-base animate-pulse-glow">
+              <Button asChild size="lg" className="px-8 text-base">
                 <Link href="/start">
                   Build My Plan
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -114,7 +113,7 @@ export default function LandingPage() {
               </Button>
             </TrackedCta>
             <TrackedCta location="hero" label="Browse Tracks">
-              <Button asChild variant="outline" size="lg" className="px-8 text-base border-border/50 backdrop-blur-sm">
+              <Button asChild variant="outline" size="lg" className="px-8 text-base border-border/70">
                 <Link href="/tracks">
                   Browse Tracks
                 </Link>
@@ -203,12 +202,14 @@ export default function LandingPage() {
               </CardContent>
             </Card>
 
-            <Card className="flex flex-col open-access-highlight bg-card border-primary/50 shadow-lg shadow-primary/5 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-4 py-1.5 text-xs font-bold rounded-bl-xl">
-                OPTIONAL
-              </div>
+            <Card className="flex flex-col open-access-highlight bg-card border-primary/35 shadow-sm relative overflow-hidden">
               <CardHeader>
-                <CardTitle className="text-2xl">Create Account</CardTitle>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="text-2xl">Create Account</CardTitle>
+                  <Badge variant="secondary" className="text-[11px] font-medium text-muted-foreground">
+                    Optional
+                  </Badge>
+                </div>
                 <CardDescription>Sync your study history across devices, personalize lessons, and join discussions.</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4 flex-1">

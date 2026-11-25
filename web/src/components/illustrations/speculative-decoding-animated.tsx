@@ -353,7 +353,7 @@ export function SpeculativeDecodingAnimation() {
                     <div className="w-full flex flex-col items-center gap-2 sm:gap-3">
                         {/* Draft row */}
                         <TokenRow
-                            modelLabel="📝 Draft (1B)"
+                            modelLabel="Draft (1B)"
                             gradient="linear-gradient(135deg, #2563eb, #60a5fa)"
                             tokens={DRAFT_TOKENS}
                             statuses={draftStatuses}
@@ -382,7 +382,7 @@ export function SpeculativeDecodingAnimation() {
 
                         {/* Verify row */}
                         <TokenRow
-                            modelLabel="🔍 Verify (70B)"
+                            modelLabel="Verify (70B)"
                             gradient="linear-gradient(135deg, #7c3aed, #a855f7)"
                             tokens={VERIFIED_TOKENS}
                             statuses={
@@ -408,7 +408,7 @@ export function SpeculativeDecodingAnimation() {
                             }}
                         >
                             <StatBox
-                                icon="⚡"
+                                icon=">>"
                                 label="Speed"
                                 value="2–3× faster"
                                 color={colors.positive}

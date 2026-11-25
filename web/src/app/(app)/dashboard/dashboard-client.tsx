@@ -309,10 +309,53 @@ export function DashboardClient({
             <header className="border-b border-border/40 pb-6">
                 <p className="text-sm font-medium text-primary">Your learning</p>
                 <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Pick up where you left off</h1>
-                <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                    <span>{completedLessons.length} lessons completed</span>
-                    <span>{completedTheory.length} theory quizzes passed</span>
-                    <span>{completedPractice.length} coding problems passed</span>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    {[
+                        {
+                            label: "lessons completed",
+                            done: completedLessons.length,
+                            total: lessons.length,
+                        },
+                        {
+                            label: "theory quizzes passed",
+                            done: completedTheory.length,
+                            total: quizzes.length,
+                        },
+                        {
+                            label: "coding problems passed",
+                            done: completedPractice.length,
+                            total: catalog.practiceProblems.length,
+                        },
+                    ].map((stat) => {
+                        const pct = stat.total > 0 ? Math.min(100, Math.round((stat.done / stat.total) * 100)) : 0
+                        return (
+                            <div key={stat.label} className="rounded-lg border border-border/50 bg-card/50 px-4 py-3">
+                                <div className="flex items-baseline justify-between gap-2 text-sm">
+                                    <span className="font-medium tabular-nums text-foreground">
+                                        {stat.done} {stat.label}
+                                    </span>
+                                    {stat.total > 0 && (
+                                        <span className="text-xs tabular-nums text-muted-foreground">
+                                            {pct}%
+                                        </span>
+                                    )}
+                                </div>
+                                <div
+                                    role="progressbar"
+                                    aria-label={stat.label}
+                                    aria-valuenow={pct}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/80 dark:bg-white/10"
+                                >
+                                    <div
+                                        className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? "bg-emerald-500" : "bg-primary"}`}
+                                        style={{ width: `${pct}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )
+                    })}
                 </div>
             </header>
 
@@ -351,7 +394,7 @@ export function DashboardClient({
                         <ArrowRight className="h-5 w-5 text-primary" />
                     </Link>
                 ) : (
-                    <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-500">
+                    <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-400">
                         <CheckCircle2 className="h-4 w-4" />
                         Plan complete. Review weak topics or choose next track.
                     </div>

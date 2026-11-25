@@ -509,37 +509,26 @@ private struct MacTopNavigationBar: View {
                 .accessibilityLabel(navigation.isSidebarVisible ? "Hide Sidebar" : "Show Sidebar")
             }
 
-            // Brand & Progress
+            // Brand
             Button {
                 selectedTab = .learn
             } label: {
-                HStack(spacing: 9) {
+                HStack(spacing: 8) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "#6366F1"), Color(hex: "#4F46E5"), Color(hex: "#06B6D4")],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(Color.indigo.opacity(0.14))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .strokeBorder(Color.indigo.opacity(0.28), lineWidth: 1)
                             )
                             .frame(width: 28, height: 28)
                         Image(systemName: "brain.head.profile")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.indigo)
                     }
                     Text("LeetLLM")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.primary)
-
-                    if totalLessons > 0 {
-                        Text("\(completedLessons)/\(totalLessons)")
-                            .font(.caption2.monospacedDigit().weight(.semibold))
-                            .foregroundStyle(.indigo)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Color.indigo.opacity(0.12), in: Capsule())
-                    }
                 }
                 .contentShape(Rectangle())
             }
@@ -570,14 +559,7 @@ private struct MacTopNavigationBar: View {
                         .background {
                             if isSelected {
                                 Capsule(style: .continuous)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color(hex: "#6366F1"), Color(hex: "#4F46E5")],
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        )
-                                    )
-                                    .shadow(color: Color.indigo.opacity(0.28), radius: 4, y: 1)
+                                    .fill(Color.indigo)
                             } else if isHovered {
                                 Capsule(style: .continuous)
                                     .fill(Color.primary.opacity(0.07))
@@ -612,9 +594,9 @@ private struct MacTopNavigationBar: View {
                 Button {
                     readerSettings.readerColorScheme = isEffectiveDark ? "light" : "dark"
                 } label: {
-                    Image(systemName: isEffectiveDark ? "sun.max.fill" : "moon.stars.fill")
+                    Image(systemName: isEffectiveDark ? "sun.max" : "moon")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isEffectiveDark ? .yellow : .indigo)
+                        .foregroundStyle(.primary.opacity(0.85))
                         .frame(width: 30, height: 30)
                         .background(Color.primary.opacity(0.06), in: Circle())
                 }
@@ -758,229 +740,51 @@ private struct ThemeCoordinator: UIViewRepresentable {
 
 struct LeetLLMSplashScreen: View {
     @State private var hasAppeared = false
-    @State private var pulseGlow = false
-    @State private var shimmerOffset: CGFloat = -160
-    @State private var neuralRingRotation: Double = 0
 
     var body: some View {
         ZStack {
-            // Deep space background
-            Color(hex: "#060812")
+            Color(uiColor: .systemBackground)
                 .ignoresSafeArea()
 
-            // Primary ambient breathing glow (electric indigo / violet)
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(hex: "#6366F1").opacity(pulseGlow ? 0.28 : 0.10),
-                    Color(hex: "#8B5CF6").opacity(pulseGlow ? 0.14 : 0.03),
-                    Color.clear
-                ]),
-                center: .center,
-                startRadius: 8,
-                endRadius: pulseGlow ? 300 : 180
-            )
-            .ignoresSafeArea()
-            .scaleEffect(hasAppeared ? 1.0 : 0.82)
-
-            // Secondary ambient breathing glow (electric cyan pulse)
-            RadialGradient(
-                gradient: Gradient(colors: [
-                    Color(hex: "#06B6D4").opacity(pulseGlow ? 0.18 : 0.05),
-                    Color.clear
-                ]),
-                center: .center,
-                startRadius: 24,
-                endRadius: pulseGlow ? 220 : 130
-            )
-            .ignoresSafeArea()
-            .offset(y: -40)
-
-            // Futuristic orbital neural rings
-            ZStack {
-                Circle()
-                    .stroke(
-                        AngularGradient(
-                            gradient: Gradient(colors: [
-                                Color(hex: "#6366F1").opacity(0.38),
-                                Color(hex: "#06B6D4").opacity(0.30),
-                                Color.clear,
-                                Color(hex: "#8B5CF6").opacity(0.32),
-                                Color(hex: "#6366F1").opacity(0.38)
-                            ]),
-                            center: .center
-                        ),
-                        style: StrokeStyle(lineWidth: 1.5, dash: [6, 10])
-                    )
-                    .frame(width: 172, height: 172)
-                    .rotationEffect(.degrees(neuralRingRotation))
-
-                Circle()
-                    .stroke(
-                        Color(hex: "#38BDF8").opacity(pulseGlow ? 0.25 : 0.08),
-                        lineWidth: 1
-                    )
-                    .frame(width: 216, height: 216)
-            }
-            .scaleEffect(hasAppeared ? 1.0 : 0.75)
-            .opacity(hasAppeared ? 1.0 : 0.0)
-
-            VStack(spacing: 22) {
-                // Futuristic Neural Badge with Shimmer
+            VStack(spacing: 18) {
                 ZStack {
-                    // Outer diffuse glow
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "#6366F1"), Color(hex: "#8B5CF6"), Color(hex: "#06B6D4")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 88, height: 88)
-                        .blur(radius: pulseGlow ? 22 : 12)
-                        .opacity(pulseGlow ? 0.65 : 0.32)
-
-                    // Core Badge surface
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(hex: "#1E1B4B"),
-                                    Color(hex: "#312E81"),
-                                    Color(hex: "#0A0D1F")
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 88, height: 88)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color.indigo.opacity(0.12))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.65),
-                                            Color(hex: "#38BDF8").opacity(0.45),
-                                            Color(hex: "#6366F1").opacity(0.2)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 1.5
-                                )
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(Color.indigo.opacity(0.28), lineWidth: 1)
                         )
+                        .frame(width: 68, height: 68)
 
-                    // Sweeping light highlight
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0),
-                                    Color.white.opacity(0.45),
-                                    Color(hex: "#38BDF8").opacity(0.35),
-                                    Color.white.opacity(0)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: 48, height: 88)
-                        .rotationEffect(.degrees(25))
-                        .offset(x: shimmerOffset)
-                        .mask(
-                            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                                .frame(width: 88, height: 88)
-                        )
-
-                    // Brain / Neural SF Symbol with gradient & glow
                     Image(systemName: "brain.head.profile")
-                        .font(.system(size: 42, weight: .bold))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color.white,
-                                    Color(hex: "#E0E7FF"),
-                                    Color(hex: "#67E8F9")
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .shadow(color: Color(hex: "#38BDF8").opacity(0.7), radius: 8, x: 0, y: 2)
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(.indigo)
                 }
-                .scaleEffect(hasAppeared ? 1.0 : 0.72)
-                .opacity(hasAppeared ? 1.0 : 0.0)
 
-                VStack(spacing: 8) {
-                    // Pill chip
-                    Text("PRODUCTION AI & LLM ENGINEERING")
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .tracking(1.8)
-                        .foregroundStyle(Color(hex: "#38BDF8"))
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 4.5)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "#06B6D4").opacity(0.12))
-                                .overlay(
-                                    Capsule()
-                                        .stroke(Color(hex: "#06B6D4").opacity(0.35), lineWidth: 1)
-                                )
-                        )
-                        .scaleEffect(hasAppeared ? 1.0 : 0.9)
-                        .opacity(hasAppeared ? 1.0 : 0.0)
-
-                    // Main Title
+                VStack(spacing: 6) {
                     Text("LeetLLM")
-                        .font(.system(size: 42, weight: .heavy, design: .rounded))
-                        .tracking(-0.6)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [
-                                    Color.white,
-                                    Color(hex: "#EEF2FF"),
-                                    Color(hex: "#C7D2FE")
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .shadow(color: Color(hex: "#6366F1").opacity(0.55), radius: 14, x: 0, y: 4)
-                        .scaleEffect(hasAppeared ? 1.0 : 0.92)
-                        .opacity(hasAppeared ? 1.0 : 0.0)
+                        .font(.system(size: 32, weight: .bold))
+                        .tracking(-0.5)
+                        .foregroundStyle(.primary)
 
-                    // Subtitle
                     Text("Master AI & LLMs from First Principles")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Color(hex: "#CBD5E1"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
-                        .opacity(hasAppeared ? 1.0 : 0.0)
-                        .offset(y: hasAppeared ? 0 : 6)
                 }
 
-                Spacer().frame(height: 8)
-
                 ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#38BDF8")))
-                    .scaleEffect(1.05)
-                    .opacity(hasAppeared ? 0.9 : 0.0)
+                    .tint(.indigo)
+                    .padding(.top, 8)
             }
+            .opacity(hasAppeared ? 1.0 : 0.0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("splashScreen")
         .onAppear {
-            withAnimation(.spring(response: 0.65, dampingFraction: 0.72)) {
+            withAnimation(.easeOut(duration: 0.28)) {
                 hasAppeared = true
-            }
-            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
-                pulseGlow = true
-            }
-            withAnimation(.linear(duration: 9).repeatForever(autoreverses: false)) {
-                neuralRingRotation = 360
-            }
-            withAnimation(.easeInOut(duration: 1.15).delay(0.25)) {
-                shimmerOffset = 160
             }
         }
     }

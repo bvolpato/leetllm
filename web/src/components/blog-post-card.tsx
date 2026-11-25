@@ -2,7 +2,7 @@
 import Link from "next/link"
 import { ArrowRight, Calendar, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { getTagConfig, type BlogPost } from "@/lib/blog"
+import { type BlogPost } from "@/lib/blog"
 import { formatReadingTime } from "@/lib/content-utils"
 import { getResponsiveContentImageProps } from "@/lib/responsive-content-image"
 
@@ -25,7 +25,7 @@ export function TopicLine({ tags, limit = 2 }: { tags: string[]; limit?: number 
                 <Badge
                     key={tag}
                     variant="outline"
-                    className={`${getTagConfig(tag).color} border-current/20 bg-background/40 text-[10px]`}
+                    className="border-border/70 bg-muted/40 text-[10px] text-muted-foreground"
                 >
                     {tag}
                 </Badge>

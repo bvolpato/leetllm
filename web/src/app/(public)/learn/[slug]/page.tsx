@@ -5,7 +5,6 @@ import {
     getQuestionsForUser,
     getCanonicalQuestionSlug,
     difficultyConfig,
-    categoryConfig,
     sectionConfig,
     sections,
 } from "@/lib/questions"
@@ -130,8 +129,6 @@ export default async function LearnArticlePage({ params }: PageProps) {
     const video = getLessonVideo(slug)
 
     const diff = difficultyConfig[question.difficulty]
-    const cat = categoryConfig[question.category]
-    const secConfig = sectionConfig[question.section]
 
     // Get all articles for navigation
     const allQuestions = getQuestionsForUser(false)
@@ -202,23 +199,22 @@ export default async function LearnArticlePage({ params }: PageProps) {
             />
             <ArticleTracker slug={slug} section={question.section} isFree />
             <ArticleLayoutShell
+                sidebarHeader={
+                    <Link
+                        href="/learn"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors group"
+                    >
+                        <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" />
+                        All Topics
+                    </Link>
+                }
                 sidebar={
-                    <div className="space-y-4">
-                        <Link
-                            href="/learn"
-                            className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group mb-2"
-                        >
-                            <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" />
-                            All Topics
-                        </Link>
-
-                        <ArticlePageClient
-                            variant="sidebar"
-                            slug={slug}
-                            sidebarSections={sidebarSections}
-                            totalCount={totalCount}
-                        />
-                    </div>
+                    <ArticlePageClient
+                        variant="sidebar"
+                        slug={slug}
+                        sidebarSections={sidebarSections}
+                        totalCount={totalCount}
+                    />
                 }
                 rightRail={<ArticleRightRailToc containerId="lesson-content" />}
             >
@@ -254,13 +250,17 @@ export default async function LearnArticlePage({ params }: PageProps) {
                                     Learn
                                 </Link>
                                 <ChevronRight className="h-3 w-3 opacity-70" />
-                                <span className={secConfig.color}>{question.section}</span>
+                                <Link
+                                    href={`/learn#${question.section.toLowerCase().replace(/ /g, "-")}`}
+                                    className="[color:var(--reading-muted)] hover:text-primary transition-colors"
+                                >
+                                    {question.section}
+                                </Link>
                                 <ChevronRight className="h-3 w-3 opacity-70" />
-                                <span className="[color:var(--reading-muted)] truncate">{question.title}</span>
+                                <span className="[color:var(--reading-subtle)] truncate">{question.title}</span>
                             </div>
 
                             <div className="flex items-center gap-2.5 flex-wrap">
-                                <span className="text-xl leading-none">{cat.icon}</span>
                                 <Badge
                                     variant="outline"
                                     className={`${diff.bg} ${diff.border} ${diff.color}`}

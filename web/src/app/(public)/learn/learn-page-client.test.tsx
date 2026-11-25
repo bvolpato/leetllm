@@ -10,6 +10,9 @@ vi.mock("@/lib/use-is-logged-in", () => ({
 
 vi.mock("@/components/reading-progress", () => ({
     LoginToTrackPrompt: () => <div data-testid="login-to-track-prompt" />,
+    OverallProgress: ({ totalArticles }: { totalArticles: number }) => (
+        <div data-testid="overall-progress">{totalArticles}</div>
+    ),
 }))
 
 vi.mock("@/lib/reading-progress", () => ({

@@ -174,14 +174,14 @@ export function LessonStudyTools({ slug, title }: { slug: string; title: string 
     }
 
     return (
-        <div data-print-hidden className="flex items-center gap-1">
+        <div data-print-hidden className="flex items-center gap-1.5">
             <button
                 type="button"
                 onClick={toggleBookmark}
-                className={`inline-flex size-9 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`inline-flex size-8 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     bookmarked
-                        ? "border-primary/35 bg-primary/10 text-primary"
-                        : "border-border/55 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        ? "border-primary/40 bg-primary/10 text-primary"
+                        : "border-[color:var(--reading-border)] bg-background [color:var(--reading-muted)] hover:bg-accent hover:[color:var(--reading-heading)] dark:bg-input/30 dark:hover:bg-input/50"
                 }`}
                 aria-label={bookmarked ? `Remove bookmark for ${title}` : `Bookmark ${title}`}
                 title={bookmarked ? "Remove bookmark" : "Bookmark lesson"}
@@ -197,10 +197,10 @@ export function LessonStudyTools({ slug, title }: { slug: string; title: string 
                 <SheetTrigger asChild>
                     <button
                         type="button"
-                        className={`inline-flex size-9 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        className={`inline-flex size-8 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                             note
-                                ? "border-primary/35 bg-primary/10 text-primary"
-                                : "border-border/55 text-muted-foreground hover:bg-accent hover:text-foreground"
+                                ? "border-primary/40 bg-primary/10 text-primary"
+                                : "border-[color:var(--reading-border)] bg-background [color:var(--reading-muted)] hover:bg-accent hover:[color:var(--reading-heading)] dark:bg-input/30 dark:hover:bg-input/50"
                         }`}
                         aria-label={`Notes for ${title}`}
                         title="Lesson notes"

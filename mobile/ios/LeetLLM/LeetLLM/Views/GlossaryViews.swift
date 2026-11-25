@@ -261,7 +261,7 @@ struct GlossaryView: View {
                     StatusPill(entry.importanceLevelTitle, tint: entry.importanceTint)
                 }
                 if entry.kind == "code" {
-                    StatusPill("code", tint: .orange)
+                    StatusPill("code", tint: .secondary)
                 }
             }
         }
@@ -341,24 +341,8 @@ private extension GlossaryEntry {
 
     var importanceTint: Color {
         switch importance {
-        case 90...:
-            return .red
-        case 80..<90:
-            return .blue
-        case 70..<80:
-            return .orange
-        case 60..<70:
-            return .teal
-        case 50..<60:
-            return .green
-        case 40..<50:
-            return .cyan
-        case 30..<40:
-            return .mint
-        case 20..<30:
-            return .brown
-        case 10..<20:
-            return .gray
+        case 80...:
+            return .indigo
         default:
             return .secondary
         }

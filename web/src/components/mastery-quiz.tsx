@@ -301,11 +301,11 @@ export function KnowledgeCheck({
                         </div>
                     )}
                 </div>
-                <div data-print-hidden className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs [color:var(--reading-subtle)]">
+                <div data-print-hidden className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs tabular-nums [color:var(--reading-subtle)]">
                     <span>
                         {checkedCount > 0
                             ? `${checkedCount} of ${questions.length} checked · ${checkedCorrectCount} correct`
-                            : `${questions.length} ${questions.length === 1 ? "question" : "questions"}`}
+                            : `${answeredCount} of ${questions.length} answered`}
                     </span>
                     {bestResult && (
                         <span>
@@ -313,6 +313,22 @@ export function KnowledgeCheck({
                         </span>
                     )}
                 </div>
+            </div>
+            <div
+                data-print-hidden
+                role="progressbar"
+                aria-label="Quiz completion progress"
+                aria-valuenow={questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="h-1 w-full bg-border/60 dark:bg-white/10"
+            >
+                <div
+                    className={`h-full transition-all duration-300 ease-out ${
+                        result?.passed ? "bg-emerald-500" : "bg-primary"
+                    }`}
+                    style={{ width: `${questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0}%` }}
+                />
             </div>
 
             <div className="divide-y divide-[color:var(--reading-border)]/70 px-5 sm:px-7">
@@ -351,7 +367,7 @@ export function KnowledgeCheck({
                                     return (
                                         <label
                                             key={option}
-                                            className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-relaxed transition-all ${
+                                            className={`flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3 text-sm leading-relaxed transition-colors focus-within:ring-2 focus-within:ring-primary/40 ${
                                                 correctOption
                                                     ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
                                                     : wrongSelection

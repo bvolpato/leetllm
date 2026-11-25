@@ -205,13 +205,6 @@ export function MarkdownCodeBlock({ code: codeString, language, meta = { bare: f
                             : "flex items-center justify-between gap-2 px-4 py-1.5 border-b [border-color:var(--reading-border)]/70 [background:var(--reading-code-header)]/65"}
                         data-print-code-header
                     >
-                        {showWindowChrome && (
-                            <div aria-hidden="true" className="flex gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/55" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/55" />
-                                <div className="w-2.5 h-2.5 rounded-full bg-green-500/55" />
-                            </div>
-                        )}
                         <span className={showWindowChrome
                             ? "min-w-0 flex-1 truncate text-xs font-semibold font-mono [color:var(--reading-heading)] md:text-sm"
                             : "min-w-0 flex-1 truncate text-xs font-semibold font-mono [color:var(--reading-muted)]"}>

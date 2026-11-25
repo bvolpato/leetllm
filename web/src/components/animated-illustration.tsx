@@ -105,7 +105,10 @@ function FilmIllustration({ parsed }: { parsed: FilmIllustrationData }) {
         <>
             <div className="w-full overflow-hidden rounded-xl border border-border/40 bg-card/30 print:hidden">
                 {started ? (
-                    <div className="relative bg-black" style={{ paddingBottom: `calc(${100 * parsed.height / parsed.width}% + 6.5rem)` }}>
+                    <div
+                        className={`relative ${isLight ? "bg-[#f8f6f1]" : "bg-[#0d1117]"}`}
+                        style={{ paddingBottom: `calc(${100 * parsed.height / parsed.width}% + 3rem)` }}
+                    >
                         <video
                             key={source}
                             ref={videoRef}

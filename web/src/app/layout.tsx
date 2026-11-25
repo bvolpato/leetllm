@@ -52,7 +52,7 @@ const sourceSerif = localFont({
   style: "normal",
   adjustFontFallback: "Times New Roman",
   preload: false,
-  display: "optional",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -119,7 +119,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${codeMono.variable} ${sourceSerif.variable} antialiased`}
+        className={`${geistSans.variable} ${codeMono.variable} ${sourceSerif.variable} font-sans antialiased`}
       >
         <GoogleAnalytics />
         <ThemeProvider

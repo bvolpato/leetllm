@@ -2758,31 +2758,23 @@ struct CodeBlockView: View {
         VStack(alignment: .leading, spacing: 0) {
             if !meta.isBare {
                 HStack(spacing: 8) {
-                    HStack(spacing: 6) {
-                        Circle().fill(Color.red.opacity(0.8)).frame(width: 9, height: 9)
-                        Circle().fill(Color.yellow.opacity(0.8)).frame(width: 9, height: 9)
-                        Circle().fill(Color.green.opacity(0.8)).frame(width: 9, height: 9)
-                    }
-                    .padding(.leading, 12)
-                    .accessibilityHidden(true)
-                    
-                    Spacer()
-                    
                     if let title = meta.title {
                         Text(title)
                             .font(.system(.caption2, design: .monospaced))
                             .fontWeight(.medium)
                             .foregroundStyle(.secondary)
+                            .padding(.leading, 12)
                             .accessibilityLabel("Code sample: \(title)")
                     } else if meta.isOutput {
                         Text("Output")
                             .font(.system(.caption2, design: .monospaced))
                             .fontWeight(.medium)
                             .foregroundStyle(.secondary)
+                            .padding(.leading, 12)
                     }
-                    
+
                     Spacer()
-                    
+
                     Text(meta.language.uppercased())
                         .font(.system(.caption2, design: .default).bold())
                         .foregroundStyle(.secondary)
@@ -2790,7 +2782,7 @@ struct CodeBlockView: View {
                         .accessibilityLabel("Language: \(meta.language)")
                 }
                 .padding(.vertical, 6)
-                .frame(minHeight: 32)
+                .frame(minHeight: 30)
                 .background(Color.secondary.opacity(0.08))
                 
                 Divider()
@@ -2825,7 +2817,6 @@ struct CheckpointAccordionView: View {
         let parts = cleanSource.components(separatedBy: "\n---")
         let question = parts.first?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let answer = parts.count > 1 ? parts.dropFirst().joined(separator: "\n---").trimmingCharacters(in: .whitespacesAndNewlines) : ""
-        let amberColor = Color(red: 245/255, green: 158/255, blue: 11/255)
 
         let isEffectiveDarkMode = readerSettings.readerColorScheme == "light" ? false : (readerSettings.readerColorScheme == "dark" ? true : colorScheme == .dark)
 
@@ -2838,11 +2829,11 @@ struct CheckpointAccordionView: View {
                 HStack(alignment: .top, spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(amberColor.opacity(0.1))
+                            .fill(Color.indigo.opacity(0.1))
                             .frame(width: 28, height: 28)
                         Image(systemName: "questionmark.circle.fill")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(amberColor)
+                            .foregroundStyle(.indigo)
                     }
                     .padding(.top, 2)
                     

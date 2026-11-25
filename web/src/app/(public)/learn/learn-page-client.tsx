@@ -20,6 +20,7 @@ import {
 import Link from "next/link"
 import {
     LoginToTrackPrompt,
+    OverallProgress,
 } from "@/components/reading-progress"
 import { useReadingProgress } from "@/lib/reading-progress"
 import { useIsLoggedIn } from "@/lib/use-is-logged-in"
@@ -138,23 +139,29 @@ export function LearnPageClient({
                 {showSidebar ? (
                     <aside data-testid="learn-sidebar" className="hidden lg:block w-64 flex-shrink-0">
                         <div className="sticky top-24 space-y-4 max-h-[calc(100vh-8rem)] overflow-y-auto pr-2 pb-8">
-                            <div className="flex justify-end">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] [color:var(--reading-subtle)]">
+                                    Curriculum
+                                </span>
                                 <Button
                                     ref={sidebarToggleRef}
                                     type="button"
-                                    variant="outline"
+                                    variant="ghost"
                                     size="icon-sm"
                                     onClick={toggleSidebar}
                                     aria-label="Hide sidebar"
                                     title="Hide sidebar"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                 >
                                     <ChevronLeft className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
+                            <OverallProgress totalArticles={totalCount} />
                             {/* Section Navigation (collapsible modules, current step expanded by default) */}
                             {sectionsData.map((section, sectionIndex) => {
                                 const isExpanded = sectionOverrides[section.name] ?? (sectionIndex === Math.max(0, currentStepIndex))
                                 const readCount = sectionStats[sectionIndex]?.readCount ?? 0
+                                const isComplete = section.questions.length > 0 && readCount === section.questions.length
 
                                 return (
                                     <div key={section.name} className="space-y-1">
@@ -173,17 +180,30 @@ export function LearnPageClient({
                                             </button>
                                             <a
                                                 href={`#${section.name.toLowerCase().replace(/ /g, "-")}`}
-                                                className="flex min-w-0 flex-1 items-center gap-1.5 group rounded-md py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                                className="flex min-w-0 flex-1 items-center gap-2 group rounded-md py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                                                 aria-label={`Jump to step ${sectionIndex + 1}: ${section.name}`}
                                             >
-                                                <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/10 text-[10px] font-semibold text-primary/90">
-                                                    {sectionIndex + 1}
+                                                <span
+                                                    className={`shrink-0 font-mono text-[10px] font-semibold tabular-nums ${
+                                                        isComplete
+                                                            ? "text-emerald-600 dark:text-emerald-400"
+                                                            : sectionIndex === currentStepIndex
+                                                                ? "text-primary"
+                                                                : "[color:var(--reading-subtle)]"
+                                                    }`}
+                                                >
+                                                    {String(sectionIndex + 1).padStart(2, "0")}
                                                 </span>
-                                                <span className="text-sm leading-none">{section.config.icon}</span>
                                                 <span className="truncate text-xs font-semibold [color:var(--reading-heading)] group-hover:text-primary transition-colors">
                                                     {section.name}
                                                 </span>
-                                                <span className="ml-auto shrink-0 text-[10px] tabular-nums [color:var(--reading-subtle)]">
+                                                <span
+                                                    className={`ml-auto shrink-0 text-[10px] tabular-nums ${
+                                                        isComplete
+                                                            ? "font-medium text-emerald-600 dark:text-emerald-400"
+                                                            : "[color:var(--reading-subtle)]"
+                                                    }`}
+                                                >
                                                     {readCount}/{section.questions.length}
                                                 </span>
                                             </a>
@@ -242,8 +262,8 @@ export function LearnPageClient({
                 <div className="flex-1 min-w-0">
                     {/* Hero */}
                     <div className="max-w-3xl mb-12">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-6">
-                            <BookOpen className="h-4 w-4" />
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border/70 bg-card/70 text-muted-foreground text-xs font-medium mb-5">
+                            <BookOpen className="h-3.5 w-3.5 text-primary" />
                             All {totalCount} lessons free · No account needed
                         </div>
                         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
@@ -275,19 +295,19 @@ export function LearnPageClient({
                         <LearnSearchBox />
                         <div className="flex items-center gap-6 mt-6 text-sm [color:var(--reading-subtle)] flex-wrap">
                             <span className="flex items-center gap-1.5">
-                                <Target className="h-4 w-4 text-primary" />
+                                <Target className="h-4 w-4 text-muted-foreground" />
                                 {totalCount} topics
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <BrainCircuit className="h-4 w-4" />
+                                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
                                 {sectionsData.length} modules
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <Clock className="h-4 w-4" />
+                                <Clock className="h-4 w-4 text-muted-foreground" />
                                 {Math.round(totalEstimate / 60)}h total content
                             </span>
-                            <span className="flex items-center gap-1.5 text-primary">
-                                <BookOpen className="h-4 w-4" />
+                            <span className="flex items-center gap-1.5">
+                                <BookOpen className="h-4 w-4 text-muted-foreground" />
                                 Open curriculum
                             </span>
                         </div>
@@ -381,8 +401,7 @@ export function LearnPageClient({
                                                             <div className="text-xs uppercase tracking-wide text-primary/80 mb-1.5">
                                                                 Step {sectionIndex + 1} of {sectionsData.length}
                                                             </div>
-                                                            <h3 className="font-semibold text-base group-hover:text-primary transition-colors flex items-center gap-2">
-                                                                <span className="text-lg">{section.config.icon}</span>
+                                                            <h3 className="font-semibold text-base group-hover:text-primary transition-colors">
                                                                 {section.name}
                                                             </h3>
                                                         </div>
@@ -441,7 +460,9 @@ export function LearnPageClient({
                                 >
                                     {/* Section Header */}
                                     <div className="flex items-start gap-3 mb-4">
-                                        <span className="text-2xl mt-0.5">{section.config.icon}</span>
+                                        <span className="mt-1 inline-flex h-6 min-w-6 items-center justify-center rounded-md border border-border/70 bg-muted/50 px-1.5 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">
+                                            {String(sectionIndex + 1).padStart(2, "0")}
+                                        </span>
                                         <div className="flex-1">
                                             <h2 className="text-xl font-bold tracking-tight">
                                                 {section.name}
@@ -472,7 +493,7 @@ export function LearnPageClient({
                     {/* Bottom CTA */}
                     {authLoaded && !resolvedIsLoggedIn && (
                         <div className="mt-16">
-                            <Card className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border-primary/20 overflow-hidden">
+                            <Card className="border-border/60 bg-card/70 overflow-hidden">
                                 <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-6 py-10 px-8">
                                     <div className="text-center sm:text-left">
                                         <h3 className="text-2xl font-bold mb-2">
@@ -641,7 +662,7 @@ function ArticleRow({
                 <div className="flex items-center gap-2 flex-wrap">
                     <h3
                         className={`font-medium text-sm leading-snug ${isRead
-                            ? "text-emerald-500/90"
+                            ? "text-emerald-700 dark:text-emerald-400"
                             : "group-hover:text-primary transition-colors"
                             }`}
                     >

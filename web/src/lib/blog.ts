@@ -300,20 +300,20 @@ export const tagConfig: Record<string, { color: string; icon: string }> = {
     "Tutorial": { color: "text-amber-400", icon: "▸" },
     "Unsloth": { color: "text-rose-400", icon: "U" },
     "vLLM": { color: "text-orange-400", icon: "V" },
-    "Benchmarks": { color: "text-sky-400", icon: "📊" },
-    "Evaluation": { color: "text-amber-400", icon: "📐" },
-    "SWE-bench": { color: "text-emerald-400", icon: "🧪" },
-    "Agents": { color: "text-blue-400", icon: "🤖" },
-    "Research": { color: "text-purple-400", icon: "🔬" },
-    "Deep Dive": { color: "text-rose-400", icon: "🏊" },
-    "Models": { color: "text-fuchsia-400", icon: "🧠" },
-    "Training": { color: "text-orange-400", icon: "⚡" },
-    "Infrastructure": { color: "text-slate-400", icon: "🏗️" },
-    "Industry": { color: "text-teal-400", icon: "🏢" },
-    "Context Windows": { color: "text-cyan-400", icon: "📏" },
-    "Long Context": { color: "text-indigo-400", icon: "📜" },
+    "Benchmarks": { color: "text-muted-foreground", icon: "" },
+    "Evaluation": { color: "text-muted-foreground", icon: "" },
+    "SWE-bench": { color: "text-muted-foreground", icon: "" },
+    "Agents": { color: "text-muted-foreground", icon: "" },
+    "Research": { color: "text-muted-foreground", icon: "" },
+    "Deep Dive": { color: "text-muted-foreground", icon: "" },
+    "Models": { color: "text-muted-foreground", icon: "" },
+    "Training": { color: "text-muted-foreground", icon: "" },
+    "Infrastructure": { color: "text-muted-foreground", icon: "" },
+    "Industry": { color: "text-muted-foreground", icon: "" },
+    "Context Windows": { color: "text-muted-foreground", icon: "" },
+    "Long Context": { color: "text-muted-foreground", icon: "" },
 }
 
 export function getTagConfig(tag: string): { color: string; icon: string } {
-    return tagConfig[tag] ?? { color: "text-muted-foreground", icon: "🏷️" }
+    return tagConfig[tag] ?? { color: "text-muted-foreground", icon: "" }
 }

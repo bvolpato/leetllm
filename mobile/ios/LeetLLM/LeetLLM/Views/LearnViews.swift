@@ -616,7 +616,7 @@ private struct LessonRow: View {
                         if progressStore.isBookmarked(lesson.slug) {
                             Image(systemName: "bookmark.fill")
                                 .font(.caption2)
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(.indigo)
                         }
                     }
 
@@ -668,7 +668,7 @@ private struct LessonRow: View {
                         if progressStore.isBookmarked(lesson.slug) {
                             Spacer()
                             Image(systemName: "bookmark.fill")
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(.indigo)
                                 .font(.subheadline)
                         }
                     }
@@ -996,7 +996,7 @@ struct LessonDetailView: View {
                     .font(.caption.weight(.medium))
             }
             .buttonStyle(.borderedProminent)
-            .tint(.orange)
+            .tint(.indigo)
             .controlSize(.small)
             .accessibilityIdentifier("lesson-bookmark")
         } else {

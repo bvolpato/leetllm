@@ -77,7 +77,7 @@ interface ShareConfig {
 function buildShareLinks(config: ShareConfig) {
     const { url, title, description } = config
     const fullUrl = url.startsWith("http") ? url : `${SITE_URL}${url}`
-    const shareText = `${title}${description ? ` — ${description}` : ""}`
+    const shareText = `${title}${description ? ` - ${description}` : ""}`
 
     return {
         twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(fullUrl)}&text=${encodeURIComponent(title)}&via=${SITE_HANDLE}`,
@@ -92,48 +92,50 @@ function buildShareLinks(config: ShareConfig) {
 
 // ── Platform config ──────────────────────────────────────────────────────────
 
+const NEUTRAL_SHARE_HOVER = "hover:text-foreground hover:bg-accent hover:border-border"
+
 const PLATFORMS = [
     {
         key: "twitter" as const,
         label: "X",
         Icon: XIcon,
-        hoverClass: "hover:text-foreground hover:bg-foreground/10 hover:border-foreground/20",
+        hoverClass: NEUTRAL_SHARE_HOVER,
     },
     {
         key: "facebook" as const,
         label: "Facebook",
         Icon: FacebookIcon,
-        hoverClass: "hover:text-[#1877F2] hover:bg-[#1877F2]/10 hover:border-[#1877F2]/20",
+        hoverClass: NEUTRAL_SHARE_HOVER,
     },
     {
         key: "linkedin" as const,
         label: "LinkedIn",
         Icon: LinkedInIcon,
-        hoverClass: "hover:text-[#0A66C2] hover:bg-[#0A66C2]/10 hover:border-[#0A66C2]/20",
+        hoverClass: NEUTRAL_SHARE_HOVER,
     },
     {
         key: "bluesky" as const,
         label: "Bluesky",
         Icon: BlueskyIcon,
-        hoverClass: "hover:text-[#0085FF] hover:bg-[#0085FF]/10 hover:border-[#0085FF]/20",
+        hoverClass: NEUTRAL_SHARE_HOVER,
     },
     {
         key: "reddit" as const,
         label: "Reddit",
         Icon: RedditIcon,
-        hoverClass: "hover:text-[#FF4500] hover:bg-[#FF4500]/10 hover:border-[#FF4500]/20",
+        hoverClass: NEUTRAL_SHARE_HOVER,
     },
     {
         key: "hackernews" as const,
         label: "Hacker News",
         Icon: HackerNewsIcon,
-        hoverClass: "hover:text-[#FF6600] hover:bg-[#FF6600]/10 hover:border-[#FF6600]/20",
+        hoverClass: NEUTRAL_SHARE_HOVER,
     },
     {
         key: "email" as const,
         label: "Email",
         Icon: EmailIcon,
-        hoverClass: "hover:text-emerald-400 hover:bg-emerald-400/10 hover:border-emerald-400/20",
+        hoverClass: NEUTRAL_SHARE_HOVER,
     },
 ]
 
