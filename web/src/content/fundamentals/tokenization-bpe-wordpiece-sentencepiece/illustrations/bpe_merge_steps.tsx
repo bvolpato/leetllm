@@ -11,6 +11,7 @@ import {
     getToneFill,
 } from 'vizmatic'
 import type { ThemeMode, ToneName } from 'vizmatic'
+export { createFilm } from './_parts/bpe-film'
 
 export const alt =
     'Four stages of BPE merging on rain (3), rainy (2), and rail (2). Weighted positions fall from 30 to 23 after merging r+a (count 7), to 16 after ra+i (count 7), and to 11 after rai+n (count 5).'

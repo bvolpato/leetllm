@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { Column, FlowArrow, Heatmap, Row, Scene, TextLabel, getThemeColors } from 'vizmatic'
 import type { ThemeMode as Theme } from 'vizmatic'
+export { createFilm } from './_parts/attention-film'
 
 export const width = 660
 export const height = 560

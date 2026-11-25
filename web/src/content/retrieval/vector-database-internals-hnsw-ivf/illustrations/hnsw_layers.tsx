@@ -11,6 +11,7 @@ import {
     getReadableToneColor,
 } from 'vizmatic'
 import type { ThemeColors } from 'vizmatic'
+export { createFilm } from './_parts/hnsw-film'
 
 export const width = 680
 export const height = 840

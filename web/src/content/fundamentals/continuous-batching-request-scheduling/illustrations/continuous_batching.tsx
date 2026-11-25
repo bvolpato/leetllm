@@ -10,6 +10,7 @@ import {
     getThemeColors,
     type ThemeMode,
 } from 'vizmatic'
+export { createFilm } from './_parts/continuous-batching-film'
 
 export const alt =
     'On one shared 0 to 1,800 position scale, the current 1,024-position iteration contains 96 decode positions and 928 prefill positions. The 1,800-token prompt sends 928 positions now and leaves 872 queued. Position counts describe work placed into the step.'

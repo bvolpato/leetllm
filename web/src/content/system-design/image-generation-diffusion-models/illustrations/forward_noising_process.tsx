@@ -1,5 +1,6 @@
 import React from 'react'
 import type { ThemeMode } from 'vizmatic'
+export { createFilm } from './_parts/diffusion-film'
 import {
     canvas,
     pk,

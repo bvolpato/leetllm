@@ -10,6 +10,7 @@ import {
     getThemeColors,
     type ThemeMode,
 } from 'vizmatic'
+export { createFilm } from './_parts/paged-attention-film'
 
 export const width = 900
 export const height = 640

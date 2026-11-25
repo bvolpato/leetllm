@@ -11,6 +11,7 @@ import {
     getThemeColors,
     type ThemeMode,
 } from 'vizmatic'
+export { createFilm } from './_parts/adam-film'
 
 export const width = 800
 export const height = 500

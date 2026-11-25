@@ -10,6 +10,7 @@ import {
     type ThemeColors,
     type ThemeMode,
 } from 'vizmatic'
+export { createFilm } from './_parts/rope-film'
 
 const DENSITY = 2.5
 

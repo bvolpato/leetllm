@@ -9,6 +9,7 @@ import {
     getToneFill,
     type ThemeMode,
 } from 'vizmatic'
+export { createFilm } from './_parts/flashattention-film'
 
 export const width = 960
 export const height = 780

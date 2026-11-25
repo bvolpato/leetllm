@@ -10,6 +10,7 @@ import {
     getToneFill,
     type ThemeMode,
 } from 'vizmatic'
+export { createFilm } from './_parts/speculative-decoding-film'
 
 export const width = 960
 export const height = 700

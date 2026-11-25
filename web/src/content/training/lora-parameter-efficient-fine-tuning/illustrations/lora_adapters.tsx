@@ -1,5 +1,6 @@
 import type { ThemeMode } from 'vizmatic'
 import { WEB, makeKit, type Layout } from './_kit'
+export { createFilm } from './_parts/lora-film'
 
 export const width = 672
 export const height = 470

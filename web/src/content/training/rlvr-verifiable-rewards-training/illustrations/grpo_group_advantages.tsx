@@ -15,6 +15,7 @@ import {
     getReadableToneColor,
 } from 'vizmatic'
 import type { ThemeColors } from 'vizmatic'
+export { createFilm } from './_parts/grpo-film'
 
 export const width = 860
 export const height = 540
