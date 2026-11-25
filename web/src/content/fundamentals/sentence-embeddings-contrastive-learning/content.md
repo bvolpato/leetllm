@@ -144,8 +144,8 @@ Trace one row by hand with $\tau = 0.05$, positive similarity $0.90$, and in-bat
 3. Take negative log: $-\log(P^+) \approx 8.3 \times 10^{-7}$ (almost zero loss because the positive already wins decisively). Swap the two scores and the loss rockets to $\approx 14$ nats!
 
 <figure>
-  <img src="illustrations/_generated/info_nce_matrix_dark.png" alt="A two-pair cosine matrix has q1-to-p1 0.90, q1-to-p2 0.20, q2-to-p1 0.15, and q2-to-p2 0.85; diagonal cells are labeled positives. For q1 at temperature 0.05, scores 0.90 and 0.20 become logits 18 and 4, then stable logits 0 and negative 14. Their exponential masses are 1 and about 8.3 times 10 to the negative 7. Softmax gives p1 probability 0.99999917 and p2 probability 0.00000083, so q1 loss is about 8.3 times 10 to the negative 7. Swapping the scores gives loss about 14." />
-  <figcaption>InfoNCE turns an $N \times N$ similarity matrix into $N$ row-wise multiple-choice questions whose correct answers sit along the diagonal.</figcaption>
+  <img src="illustrations/_generated/info_nce_matrix_dark.png" alt="Side-by-side InfoNCE batch matrix and temperature-scaled softmax probabilities. Left: a 4-by-4 cosine similarity heatmap with bright positive pairs along the diagonal (q1-p1 0.90, q2-p2 0.85, q3-p3 0.88, q4-p4 0.82) and cooler off-diagonal in-batch negatives (row q1: 0.90, 0.20, 0.12, 0.08). Right: paired softmax probability bar charts for row q1 showing that low temperature tau=0.05 concentrates probability on p1 (1.00, 0.00, 0.00, 0.00), while high temperature tau=0.50 flattens mass across negatives (0.61, 0.15, 0.13, 0.12)." />
+  <figcaption>InfoNCE turns an $N \times N$ cosine similarity matrix into $N$ row-wise classifications whose targets sit on the diagonal; low temperature $\tau=0.05$ sharpens softmax probability onto the diagonal match while $\tau=0.50$ spreads mass across negatives.</figcaption>
 </figure>
 
 In real transformer training, token hidden states have shape `[batch, tokens, hidden]`. Always mask out padding tokens *before* mean pooling and L2 normalization so padding never leaks into the pooled vector or receives nonzero gradients:
@@ -248,8 +248,8 @@ Where do positive pairs and informative negatives come from?
 Once the encoder easily rejects off-topic passages (`"NF4 quantization"` vs. `"How does RoPE work?"`), easy negatives stop teaching it anything. **<span data-glossary="hard-negative">Hard negatives</span>** share vocabulary while describing a different mechanism (`"Sinusoidal absolute position tables"`), injecting fresh denominator mass into InfoNCE.
 
 <figure>
-  <img src="illustrations/_generated/pair_mining_dark.png" alt="For the query How does RoPE encode token position?, label auditing protects a relevant RoPE rotation passage with overlap 3 and score 0.92. Two non-relevant candidates sharing position vocabulary score 0.76 (overlap 5) and 0.68 (overlap 2) and become hard negatives 1 and 2, while an unrelated NF4 quantization passage with overlap 0 and score 0.05 is dropped." />
-  <figcaption>Mining retains high-overlap non-relevant lookalikes as hard negatives while filtering out true positives and zero-overlap distractors.</figcaption>
+  <img src="illustrations/_generated/pair_mining_dark.png" alt="2D unit-circle cosine similarity plot for query How does RoPE encode token position? at 0 degrees (cosine 1.00). True positive RoPE rotation sits at +23 degrees (cosine 0.92, protect); an unlabeled false negative RoPE paraphrase sits at -27 degrees (cosine 0.89, audit and mask); hard negative 1 Sinusoidal abs bias sits at +41 degrees (cosine 0.76, mine); hard negative 2 Learned pos embed sits at -47 degrees (cosine 0.68, mine); and easy negative NF4 quant sits at +87 degrees (cosine 0.05, drop)." />
+  <figcaption>On the unit circle, hard negatives sit in the high-cosine mining ring ($0.68$ to $0.76$), unlabeled false negatives lurk even closer to the query ($0.89$) and must be audited out, and orthogonal distractors ($0.05$) are dropped.</figcaption>
 </figure>
 
 Teams combine four mining strategies:
@@ -297,8 +297,8 @@ Easy-only loss: 0.000001 -> With mined hard neg: 0.026958
 Once you know how to train vectors, serving raises a second architectural question: **when do the query and document tokens get to see each other?**
 
 <figure>
-  <img src="illustrations/_generated/encoder_tradeoffs_dark.png" alt="Three retrieval architectures place query-passage interaction at different stages. A bi-encoder encodes query and passage tokens separately into single vectors q and d and computes q dot d. A cross-encoder concatenates [query ; passage] for full joint self-attention on a shortlist. Late interaction stores document-token vectors d_j, computes every q_i dot d_j similarity, takes each query row maximum, and sums them." />
-  <figcaption>Three interaction points: single-vector dot product (bi-encoder), full joint self-attention (cross-encoder), or token-level MaxSim (ColBERT late interaction).</figcaption>
+  <img src="illustrations/_generated/encoder_tradeoffs_dark.png" alt="Two-panel comparison of retrieval encoder architectures. The left panel shows token interaction geometry: Bi-Encoder pools query and passage tokens independently into single vectors for one dot product q dot d; ColBERT Late Interaction keeps per-token vectors and sums query-row maxima over a token-to-token similarity grid; Cross-Encoder concatenates query and passage tokens for dense all-to-all self-attention. The right panel plots representative query latency (log milliseconds) against retrieval precision." />
+  <figcaption>Three interaction points (pooled dot product, token-level MaxSim, and full joint self-attention) trade faster query latency for finer retrieval precision.</figcaption>
 </figure>
 
 | Architecture | Stored per document | Query-time work | Interaction | Typical role |
@@ -323,7 +323,7 @@ Each query token picks its strongest matching document token (multiple query tok
 In production, teams routinely pair a bi-encoder with a cross-encoder in a **two-stage retrieval pipeline**: the bi-encoder fetches a fast top-$K$ shortlist, and the cross-encoder reranks only those $K$ candidates. Notice the recall trap below: if `candidate_k` is too tight, the cross-encoder never sees the right passage and cannot save you!
 
 <figure>
-  <img src="illustrations/_generated/reranking_pipeline_dark.png" alt="Two-stage retrieval pipeline for the query How does RoPE encode token position?. Bi-encoder cosine shortlist at K=3 selects Absolute pos bias (0.84), RoPE rotation proof (0.81), and RoPE base theta notes (0.78), while excluding NF4 quantization (0.10 cosine, 0.05 cross-encoder score uncomputed). Joint cross-encoder reranking reorders the shortlist to RoPE rotation (0.96), RoPE base theta (0.91), and drops Absolute pos bias (0.21) at top_k=2." />
+  <img src="illustrations/_generated/reranking_pipeline_dark.png" alt="Paired score bars and rank-swap slopegraph for query How does RoPE encode token position?. Stage 1 bi-encoder shortlist at K=3 ranks abs-pos-bias #1 (0.84), rope-rotation #2 (0.81), and rope-theta-base #3 (0.78), excluding nf4-quant #4 (0.10, cross score 0.05 unused). Stage 2 cross-encoder reranking swaps the order to rope-rotation #1 (0.96) and rope-theta-base #2 (0.91) inside top_k=2, dropping abs-pos-bias to #3 (0.21)." />
   <figcaption>Stage 1 bi-encoder recall caps what Stage 2 can rescue: with $K=3$, the cross-encoder promotes `rope-rotation` (0.96) over `abs-pos-bias` (0.21).</figcaption>
 </figure>
 

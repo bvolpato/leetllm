@@ -285,27 +285,13 @@ A fast RDMA copy into an incompatible or already-reassigned buffer silently corr
 3. **Quarantine on timeout (RDMA quiescence):** Lease expiry revokes pending commit immediately, *not* physical RDMA access. Keep retired buffers quarantined and charged against decode capacity until the transport confirms transfer abort (`abort_ack`) and all GPU readers finish; reclaiming VRAM on timeout alone lets late in-flight RDMA writes overwrite the next request's KV cache.
 4. **Overlap and measure end-to-end TTFT:** Streaming finished layers over RDMA while later prefill layers still compute hides transfer latency (starting a `107.4 ms` transfer `70 ms` before a `310 ms` prefill ends drops first-token latency from `445.4 ms` to `375.4 ms`, given `28 ms` commit+decode). Always compute end-to-end TTFT p99 from joined request traces rather than adding unrelated per-phase p99 percentiles.
 
-<!-- leetllm: test, output=show -->
-```python title="disaggregated-kv-handoff.py"
-bytes_per_tok = 2 * 80 * 8 * 128 * 2
-payload = 8192 * bytes_per_tok  # 2.50 GiB
-reserve = lambda p, o: ((p + o + 15) // 16) * 16 * bytes_per_tok
-
-transfer_ms = payload / 25e9 * 1000.0
-serial_ttft = 310.0 + transfer_ms + 28.0
-overlapped_ttft = max(310.0, 240.0 + transfer_ms) + 28.0
-print(f"8K KV payload={payload / 1024**3:.2f} GiB | 8192+128 reserve={reserve(8192, 128) // 1024**2} MiB | +1 tok={reserve(8193, 128) // 1024**2} MiB")
-print(f"25 GB/s shared={transfer_ms:.1f} ms (max {25e9 / payload:.2f} req/s) | 2x independent={transfer_ms / 2:.1f} ms")
-print(f"TTFT serial={serial_ttft:.1f} ms vs 70ms layer-overlapped={overlapped_ttft:.1f} ms")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-8K KV payload=2.50 GiB | 8192+128 reserve=2600 MiB | +1 tok=2605 MiB
-25 GB/s shared=107.4 ms (max 9.31 req/s) | 2x independent=53.7 ms
-TTFT serial=445.4 ms vs 70ms layer-overlapped=375.4 ms
-```
-<!-- leetllm: output:end -->
+| Quantity | Calculation | Value |
+|---|---|---|
+| Per-token KV payload | $2 \times 80 \times 8 \times 128 \times 2$ | **320 KiB/tok** |
+| 8,192-token prompt KV payload | $8{,}192 \times 320\text{ KiB}$ | **2.50 GiB** |
+| Block-rounded reservation (16 tok/block) | $\lceil(8192+128)/16\rceil \times 5\text{ MiB}$ | **2,600 MiB** (+1 tok $\to$ **2,605 MiB**) |
+| Wire transfer time (25 GB/s) | $2.684\text{ GB} / 25\text{ GB/s}$ | **107.4 ms** shared (max 9.31 req/s) / **53.7 ms** on 2x independent links |
+| End-to-end TTFT (310 ms prefill, 28 ms commit+decode) | Serial vs. 70 ms layer overlap | **445.4 ms** serial vs. **375.4 ms** overlapped |
 
 ## Multi-GPU serving Pareto trade-offs
 

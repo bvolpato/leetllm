@@ -1023,6 +1023,7 @@ With Pydantic handling strict schema checks (`extra="forbid"`, `strict=True`), t
 
 <!-- leetllm: test, deps=pydantic, output=show -->
 ```python title="benchmark-digest-validator.py"
+# fold:start imports & Pydantic schema models
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -1036,6 +1037,7 @@ class SuiteMention(BaseModel):
 class BenchmarkDigest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     mentions: list[SuiteMention]
+# fold:end
 
 def unknown_suites(digest: BenchmarkDigest) -> list[str]:
     return [m.suite for m in digest.mentions if m.suite not in KNOWN_SUITES]
@@ -1047,6 +1049,7 @@ def check_unique_suites(digest: BenchmarkDigest) -> None:
             raise ValueError(f"duplicate suite summary: {mention.suite}")
         seen.add(mention.suite)
 
+# fold:start test payloads & print harness
 digest = BenchmarkDigest.model_validate(
     {
         "mentions": [
@@ -1077,6 +1080,7 @@ try:
     check_unique_suites(conflicting)
 except ValueError as error:
     print("identity check:", error)
+# fold:end
 ```
 
 <!-- leetllm: output:start -->

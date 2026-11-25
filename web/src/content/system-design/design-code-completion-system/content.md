@@ -396,31 +396,13 @@ At equal base queue wait $q$, extra warm wait $\Delta$, and service times $T_{\t
   <figcaption>Once warm queue wait exceeds the 61 ms prefill savings, routing to a cold worker finishes faster.</figcaption>
 </figure>
 
-Size GPUs by **uncached token volume** summed per cohort: $\sum_i \lambda_i L_i (1 - s_i)$. With 5,000 editors sending 0.4 req/s (60% canceled pre-GPU -> 800 req/s), identical 50% hit rate and 2,048-token mean swing prefill GPUs by 86%:
+Size GPUs by **uncached token volume** summed per cohort: $\sum_i \lambda_i L_i (1 - s_i)$. With 5,000 editors sending 0.4 req/s (2,000 raw req/s; 60% canceled pre-GPU leaves 800 surviving req/s) and 20,000 tok/s per GPU, the same 50% hit rate and 2,048-token mean length swing prefill capacity by 86%:
 
-<!-- leetllm: test, output=show -->
-```python title="size-completion-fleet.py"
-import math
-
-GPU_TOK_S = 20_000
-print(f"raw=2000 surviving=800 crossover_ms={96 - 35}")
-for name, cohorts in {
-    "uniform_2048": [(400, 2048, 0.75), (400, 2048, 0.0)],
-    "long_hits":    [(400, 3072, 0.75), (400, 1024, 0.0)],
-    "long_misses":  [(400, 1024, 0.75), (400, 3072, 0.0)],
-}.items():
-    tok = int(sum(q * l * (1 - s) for q, l, s in cohorts))
-    print(f"{name:12s}: {tok:>9,d} tok/s -> {math.ceil(tok / GPU_TOK_S)} GPUs")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-raw=2000 surviving=800 crossover_ms=61
-uniform_2048: 1,024,000 tok/s -> 52 GPUs
-long_hits   :   716,800 tok/s -> 36 GPUs
-long_misses : 1,331,200 tok/s -> 67 GPUs
-```
-<!-- leetllm: output:end -->
+| Workload mix | Cohorts $(\lambda_i\text{ req/s}, L_i\text{ tok}, s_i\text{ cache share})$ | Uncached prefill rate | GPUs at 20,000 tok/s |
+|---|---|---|---|
+| Uniform 2,048 | $(400, 2048, 0.75) + (400, 2048, 0.0)$ | 1,024,000 tok/s | **52** |
+| Long hits | $(400, 3072, 0.75) + (400, 1024, 0.0)$ | 716,800 tok/s | **36** |
+| Long misses | $(400, 1024, 0.75) + (400, 3072, 0.0)$ | 1,331,200 tok/s | **67** |
 
 <figure>
   <img src="illustrations/_generated/token_weighted_fleet_dark.png" alt="Same 800 req/s and 50% hit rate requiring 36, 52, or 67 GPUs by hit length." />

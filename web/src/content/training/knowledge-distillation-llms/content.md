@@ -374,28 +374,12 @@ ignored-mask delta   : 0.000000
 
 Caching dense bf16 teacher logits over 50M tokens and a 32K vocabulary consumes `2,980.2 GiB`, whereas caching <span data-glossary="top-k">top-k</span> (`k=64`) values plus `int32` token IDs takes `17.9 GiB` (`166.7x` smaller). Never renormalize only the top-$k$ tokens to sum to 1, however: if the teacher puts `[0.60, 0.30, 0.10]` and the student puts `[0.30, 0.15, 0.55]`, both renormalized top-2 distributions become `[2/3, 1/3]`, reporting `0.000` KL while hiding a `0.453` full-vocabulary error where the student dumps 55% mass onto tail junk! Keep an explicit residual tail bucket (`1 - sum(top_k)`) whenever caching top-$k$ logits.
 
-<!-- leetllm: test, output=show -->
-```python title="logit-cache-tail-illusion.py"
-import math
-
-tokens, vocab_size, top_k, gib = 50_000_000, 32_000, 64, 1024 ** 3
-dense_gib = (tokens * vocab_size * 2) / gib
-topk_gib = (tokens * top_k * (2 + 4)) / gib
-print(f"dense: {dense_gib:.1f} GiB | top-64: {topk_gib:.1f} GiB ({dense_gib / topk_gib:.1f}x smaller)")
-
-teacher, student = [0.60, 0.30, 0.10], [0.30, 0.15, 0.55]
-fkl = lambda q, p: sum(qi * math.log(qi / pi) for qi, pi in zip(q, p))
-q_top = [v / sum(teacher[:2]) for v in teacher[:2]]
-p_top = [v / sum(student[:2]) for v in student[:2]]
-print(f"full KL={fkl(teacher, student):.3f} | renormalized top-2 KL={fkl(q_top, p_top):.3f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-dense: 2980.2 GiB | top-64: 17.9 GiB (166.7x smaller)
-full KL=0.453 | renormalized top-2 KL=0.000
-```
-<!-- leetllm: output:end -->
+| Quantity | Formula | Value |
+|---|---|---|
+| Dense bf16 logit cache (50M tok, 32K vocab) | $50\text{M} \times 32{,}000 \times 2\text{ B} / 2^{30}$ | **2,980.2 GiB** |
+| Top-64 cache (`bf16` value + `int32` ID) | $50\text{M} \times 64 \times (2 + 4)\text{ B} / 2^{30}$ | **17.9 GiB** (166.7x smaller) |
+| Full-vocabulary forward KL | $\sum_i q_i \ln(q_i / p_i)$ on `[0.60, 0.30, 0.10]` vs. `[0.30, 0.15, 0.55]` | **0.453** |
+| Renormalized top-2 KL (no tail bucket) | Both rescale to `[2/3, 1/3]` | **0.000** (hides 55% tail error) |
 
 ## Capacity limits, evaluation, and failure modes
 

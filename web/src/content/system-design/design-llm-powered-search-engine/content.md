@@ -519,26 +519,11 @@ Matching `ev.accepted is True` and `ev.accepted is False` by identity rejects tr
 
 You can overlap query planning (40 ms) with an independent retrieval branch that searches the raw query (260 ms). A branch that depends on a rewritten query must wait for planning to finish first. Adding reranking (90 ms), packing (20 ms), model TTFT (430 ms), first claim completion (100 ms), and claim verification (80 ms) gives the critical path:
 
-<!-- leetllm: test, output=show -->
-```python title="response-critical-path.py"
-plan, retrieve, rerank, pack, first_token = 40, 260, 90, 20, 430
-claim_completion, check = 100, 80
-draft_ttft = max(plan, retrieve) + rerank + pack + first_token
-checked_claim = draft_ttft + claim_completion + check
-rewrite_required_ttft = plan + retrieve + rerank + pack + first_token
-assert (draft_ttft, checked_claim, rewrite_required_ttft) == (800, 980, 840)
-print("raw-branch draft TTFT:", draft_ttft, "ms")
-print("first checked claim:", checked_claim, "ms")
-print("rewrite-dependent draft TTFT:", rewrite_required_ttft, "ms")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-raw-branch draft TTFT: 800 ms
-first checked claim: 980 ms
-rewrite-dependent draft TTFT: 840 ms
-```
-<!-- leetllm: output:end -->
+| Milestone | Critical-path sum | Latency |
+|---|---|---|
+| Raw-branch draft TTFT | $\max(40, 260) + 90 + 20 + 430$ | **800 ms** |
+| Rewrite-dependent draft TTFT | $40 + 260 + 90 + 20 + 430$ | **840 ms** |
+| First checked claim | $800 + 100 + 80$ | **980 ms** |
 
 <figure>
   <img src="illustrations/_generated/latency_budget_dark.png" alt="0-1000 ms critical-path timeline: planning (40 ms) overlaps raw retrieval (260 ms), followed by rerank (90 ms), pack (20 ms), model TTFT (430 ms), claim completion (100 ms), and check (80 ms), reaching draft TTFT at 800 ms and first checked claim at 980 ms. Rewrite-dependent retrieval waits for planning and hits draft TTFT at 840 ms." />

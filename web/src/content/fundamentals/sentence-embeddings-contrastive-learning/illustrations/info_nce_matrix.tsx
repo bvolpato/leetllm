@@ -1,117 +1,189 @@
+import React from 'react'
 import {
+    BarChart,
     Column,
-    DataTable,
-    FlowArrow,
-    Grid,
+    Heatmap,
+    Panel,
+    Row,
     Scene,
     TextLabel,
+    defineIllustration,
     getReadableToneColor,
-    getThemeColors,
 } from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
+import type { ThemeColors } from 'vizmatic'
 
 export const alt =
-    'A two-pair cosine matrix has q1-to-p1 0.90, q1-to-p2 0.20, q2-to-p1 0.15, and q2-to-p2 0.85; diagonal cells are positive pairs. For q1 at temperature 0.05, scores 0.90 and 0.20 scale to logits 18.0 and 4.0, shift to 0.0 and negative 14.0, give exponential masses 1.0 and 8.3e-7, and yield softmax probabilities 0.99999917 and 0.00000083 with loss 8.3e-7. Swapping the scores raises loss to 14 nats.'
+    'Side-by-side InfoNCE batch matrix and temperature-scaled softmax probabilities. Left: a 4-by-4 cosine similarity heatmap with bright positive pairs along the diagonal (q1-p1 0.90, q2-p2 0.85, q3-p3 0.88, q4-p4 0.82) and cooler off-diagonal in-batch negatives (row q1: 0.90, 0.20, 0.12, 0.08). Right: paired softmax probability bar charts for row q1 showing that low temperature tau=0.05 concentrates probability on p1 (1.00, 0.00, 0.00, 0.00), while high temperature tau=0.50 flattens mass across negatives (0.61, 0.15, 0.13, 0.12).'
 
-export const width = 640
-export const height = 740
+export const width = 780
+export const height = 470
 
-export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const purple = getReadableToneColor('purple', c)
-    const green = getReadableToneColor('green', c)
-    const red = getReadableToneColor('red', c)
+const simMatrix = [
+    [0.9, 0.2, 0.12, 0.08],
+    [0.15, 0.85, 0.18, 0.11],
+    [0.1, 0.14, 0.88, 0.19],
+    [0.09, 0.12, 0.16, 0.82],
+]
+
+function softmax(scores: number[], tau: number) {
+    const scaled = scores.map((s) => s / tau)
+    const maxVal = Math.max(...scaled)
+    const exps = scaled.map((v) => Math.exp(v - maxVal))
+    const sum = exps.reduce((a, b) => a + b, 0)
+    return exps.map((e) => e / sum)
+}
+
+const rowQ1 = simMatrix[0]
+const probLowTau = softmax(rowQ1, 0.05)
+const probHighTau = softmax(rowQ1, 0.5)
+const passageLabels = ['p₁', 'p₂', 'p₃', 'p₄']
+
+const illustration = defineIllustration((c: ThemeColors) => {
+    const greenInk = getReadableToneColor('green', c)
+    const blueInk = getReadableToneColor('blue', c)
+    const purpleInk = getReadableToneColor('purple', c)
 
     return Scene({
         c,
-        title: 'InfoNCE turns each similarity row into cross-entropy',
-        subtitle: 'Diagonal passages are targets; off-diagonal columns compete in softmax',
         padding: 16,
         gap: 10,
-        contentWidth: 608,
+        contentWidth: 748,
         align: 'center',
-        children: Column({
-            width: 608,
-            gap: 10,
-            align: 'center',
+        background: 'transparent',
+        children: Row({
+            width: 748,
+            gap: 14,
+            align: 'stretch',
+            justify: 'space-between',
             children: [
-                TextLabel({
+                Panel({
                     c,
-                    text: 'Cosine similarity matrix · diagonal cells are positives',
-                    width: 600,
-                    fontSize: 21,
-                    fontWeight: 800,
+                    title: 'Batch cosine matrix S = Q Pᵀ',
+                    subtitle: 'Diagonal entries are positive pairs',
+                    tone: 'green',
+                    width: 376,
+                    padding: 12,
+                    gap: 10,
                     align: 'center',
-                    color: c.textPrimary,
-                }),
-                Grid({
-                    c,
-                    rows: [
-                        ['q_i / p_j', 'p_1', 'p_2'],
-                        ['q_1', { label: '0.90', tone: 'green' }, '0.20'],
-                        ['q_2', '0.15', { label: '0.85', tone: 'green' }],
+                    titleFontSize: 16,
+                    children: [
+                        Heatmap({
+                            c,
+                            data: simMatrix,
+                            xLabels: ['p₁', 'p₂', 'p₃', 'p₄'],
+                            yLabels: ['q₁', 'q₂', 'q₃', 'q₄'],
+                            cellSize: 66,
+                            rowLabelWidth: 42,
+                            fontSize: 16,
+                            colorScale: 'heat',
+                            colorDomain: [0, 1],
+                            highlightRow: 0,
+                            highlightColor: greenInk,
+                        }),
+                        TextLabel({
+                            c,
+                            text: 'Row q₁: [0.90, 0.20, 0.12, 0.08]',
+                            width: 344,
+                            fontSize: 14,
+                            fontWeight: 750,
+                            align: 'center',
+                            color: greenInk,
+                            mono: true,
+                        }),
                     ],
-                    cellWidth: 120,
-                    cellHeight: 46,
-                    gap: 6,
-                    fontSize: 21,
-                    math: true,
-                    headerRows: 1,
-                    headerCols: 1,
                 }),
-                FlowArrow({ c, direction: 'down', tone: 'purple', length: 18 }),
-                TextLabel({
-                    c,
-                    text: 'Row q_1 scaled by τ = 0.05',
-                    width: 600,
-                    fontSize: 22,
-                    fontWeight: 800,
-                    align: 'center',
-                    color: purple,
-                    math: true,
-                }),
-                DataTable({
-                    c,
-                    rows: [
-                        ['stage', 'positive p_1', 'negative p_2'],
-                        ['similarity s', '0.90', '0.20'],
-                        ['logit s / τ', '18.0', '4.0'],
-                        ['shift by max', '0.0', '−14.0'],
-                        ['exp mass', '1.0', '8.3 × 10^{-7}'],
-                        ['softmax prob', '0.99999917', '0.00000083'],
+                Column({
+                    width: 358,
+                    gap: 10,
+                    align: 'stretch',
+                    children: [
+                        Panel({
+                            c,
+                            title: 'Row q₁ softmax at τ = 0.05 (sharp)',
+                            tone: 'purple',
+                            width: 358,
+                            padding: 10,
+                            gap: 4,
+                            titleFontSize: 15,
+                            children: BarChart({
+                                c,
+                                width: 334,
+                                height: 154,
+                                min: 0,
+                                max: 1.0,
+                                showGrid: true,
+                                showValues: true,
+                                format: (v) => v.toFixed(2),
+                                data: probLowTau.map((prob, idx) => ({
+                                    label: passageLabels[idx],
+                                    value: prob,
+                                    color: idx === 0 ? 'positive' : 'secondary',
+                                })),
+                            }),
+                        }),
+                        Panel({
+                            c,
+                            title: 'Row q₁ softmax at τ = 0.50 (flat)',
+                            tone: 'blue',
+                            width: 358,
+                            padding: 10,
+                            gap: 4,
+                            titleFontSize: 15,
+                            children: BarChart({
+                                c,
+                                width: 334,
+                                height: 154,
+                                min: 0,
+                                max: 1.0,
+                                showGrid: true,
+                                showValues: true,
+                                format: (v) => v.toFixed(2),
+                                data: probHighTau.map((prob, idx) => ({
+                                    label: passageLabels[idx],
+                                    value: prob,
+                                    color: idx === 0 ? 'positive' : 'secondary',
+                                })),
+                            }),
+                        }),
+                        Row({
+                            width: 358,
+                            gap: 10,
+                            justify: 'space-between',
+                            style: {
+                                backgroundColor: c.bgCard,
+                                border: `1px solid ${c.borderSubtle}`,
+                                borderRadius: 10,
+                                padding: '6px 10px',
+                            },
+                            children: [
+                                TextLabel({
+                                    c,
+                                    text: 'τ=0.05: L₁ ≈ 1.1e-6',
+                                    width: 164,
+                                    fontSize: 14,
+                                    fontWeight: 800,
+                                    color: purpleInk,
+                                    align: 'center',
+                                    mono: true,
+                                }),
+                                TextLabel({
+                                    c,
+                                    text: 'τ=0.50: L₁ = 0.50',
+                                    width: 164,
+                                    fontSize: 14,
+                                    fontWeight: 800,
+                                    color: blueInk,
+                                    align: 'center',
+                                    mono: true,
+                                }),
+                            ],
+                        }),
                     ],
-                    firstColWidth: 175,
-                    cellWidth: 185,
-                    cellHeight: 42,
-                    gap: 5,
-                    fontSize: 20,
-                    headerRows: 1,
-                    headerCols: 1,
-                    math: true,
-                }),
-                TextLabel({
-                    c,
-                    text: 'L_1 = −log(0.99999917) ≈ 8.3 × 10^{-7} nats',
-                    width: 600,
-                    fontSize: 22,
-                    fontWeight: 850,
-                    align: 'center',
-                    color: green,
-                    math: true,
-                }),
-                TextLabel({
-                    c,
-                    text: 'Swapping p_1 and p_2 gives L_1 ≈ 14.0 nats.',
-                    width: 600,
-                    fontSize: 20,
-                    fontWeight: 700,
-                    align: 'center',
-                    color: red,
-                    math: true,
                 }),
             ],
         }),
     })
-}
+})
 
-export default create()
+export const create = illustration.create
+export default illustration.default

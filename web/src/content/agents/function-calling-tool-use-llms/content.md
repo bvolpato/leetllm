@@ -184,6 +184,7 @@ The adapter below reuses `ReleaseStatusCall` together with a strict Pydantic mod
 <!-- leetllm: test, continue=status-validation, deps=pydantic, output=show -->
 
 ```python title="adapt-a-complete-responses-call.py"
+# fold:start imports & FunctionCallItem schema
 from copy import deepcopy
 import json
 from typing import Literal
@@ -196,6 +197,7 @@ class FunctionCallItem(BaseModel):
     call_id: str = Field(min_length=1)
     name: str
     arguments: str
+# fold:end
 
 
 def validated_calls(response: dict) -> list[tuple[str, ReleaseStatusCall]]:
@@ -228,6 +230,7 @@ def validated_calls(response: dict) -> list[tuple[str, ReleaseStatusCall]]:
     return calls
 
 
+# fold:start test payloads & print driver
 complete = {
     "status": "completed",
     "output": [{
@@ -265,6 +268,7 @@ result = {
 print("validated release:", args.release_id)
 print("linked result:", result["call_id"])
 print("item id matches call_id:", complete["output"][0]["id"] == result["call_id"])
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
@@ -464,6 +468,7 @@ Before executing `promote_model`, the runtime runs four independent checks in or
 <!-- leetllm: test, output=show -->
 
 ```python title="guard-a-model-promotion-write.py"
+# fold:start dataclasses, releases & approval fixtures
 from dataclasses import dataclass
 
 
@@ -498,6 +503,7 @@ APPROVALS = {
     "corrupt-v18": Approval("alice", "search", "promote", "reranker-v18", RULE_VERSION, "op-search-v17-a"),
 }
 OPERATIONS: dict[tuple[str, str, str], tuple[tuple[str, ...], str]] = {}
+# fold:end
 
 
 def promote_model(
@@ -543,6 +549,7 @@ def promote_model(
     return result
 
 
+# fold:start demo scenarios & prints
 alice = Session("alice", "search", can_promote=True)
 call = {"release_id": "reranker-v17"}
 
@@ -567,6 +574,7 @@ print(f"effects_applied after second approval: {len(OPERATIONS)}")
 # Reusing an existing operation ID for a different candidate is blocked.
 print(promote_model(alice, {"release_id": "reranker-v18"}, trusted_approval_id="corrupt-v18"))
 print(f"effects_applied after rejected collision: {len(OPERATIONS)}")
+# fold:end
 ```
 
 <!-- leetllm: output:start -->

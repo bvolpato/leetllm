@@ -53,8 +53,8 @@ Everything the model reads during a single forward pass must sit inside its **<s
 It helps to separate **working memory** from **inference KV caching**. Attention runtimes such as <span data-glossary="pagedattention">PagedAttention</span> and <span data-glossary="radixattention">RadixAttention</span> cache key and value tensors across shared token prefixes to speed up decoding and time-to-first-token [^kwon2023] [^zheng2024sglang] [^dao2022]. That <span data-glossary="kv-cache">KV cache</span> optimizes tensor reuse for identical prompt prefixes; it cannot run semantic queries, honor document ACL revocations, or survive across independent hosts as a structured store. Semantic persistence always lives in external databases, indexes, or files owned by the agent runtime.
 
 <figure>
-  <img src="illustrations/_generated/memory_tiers_dark.png" alt="External episodic logs, semantic facts, and procedural skills pass through access and TTL filtering into the prompt window, while the inference KV cache reuses matching prompt prefixes and host permission checks verify execution separately." />
-  <figcaption>External memory stores pass through access and TTL filtering before entering the prompt window, while the inference KV cache only accelerates repeated token prefixes and the host verifies execution permissions separately.</figcaption>
+  <img src="illustrations/_generated/memory_tiers_dark.png" alt="Memory hierarchy comparing four agent storage tiers across capacity, access latency, and durability. Procedural rules sit at small KB scale with near-instant 1 ms pinned access. Working context holds prompt tokens (~256 KB) at ~5 ms latency but is volatile per call. Episodic logs hold tens of MB of session traces at ~22 ms. Semantic vector stores hold GB-scale durable facts at ~50 ms and require ACL and TTL filtering before recall." />
+  <figcaption>Agent memory spans four tiers trading capacity and durability against access latency: pinned procedural rules and volatile working context sit at millisecond scale, while episodic logs and semantic stores persist externally behind ACL and TTL filters.</figcaption>
 </figure>
 
 > **Key insight:** A KV cache accelerates identical prompt prefixes inside one inference engine; it cannot run semantic search, revoke stale documents, or carry structured state across sessions. Persistent memory always lives outside the model.
@@ -138,8 +138,8 @@ Live window: 3 turns -> newest: t5 (tool): pytest -q tests/test_attention.py -> 
 Because turns `t1` and `t2` drop out once `t4` and `t5` arrive, the extracted `[t1]` anchor prevents the agent from forgetting which line and sequence threshold triggered the regression. Turn `t2` carried no `KEY:` tag and disappeared from the summary completely, showing why natural compression leaves out details unless raw episodes stay addressable by turn ID. Pairing this sliding window with an external archive lets the agent keep turn headers compact while still drilling into `t2` when a stack trace requires full inspection.
 
 <figure>
-  <img src="illustrations/_generated/sliding_window_movement_dark.png" alt="A sliding window with k equals 3 holds turns 3 through 5 verbatim while turns 1 and 2 are compressed into a rolling summary block carrying pinned facts forward." />
-  <figcaption>A sliding window of width k = 3 retains turns 3 through 5 verbatim while compressing older turns into a rolling summary block with pinned key facts.</figcaption>
+  <img src="illustrations/_generated/sliding_window_movement_dark.png" alt="Turn-index sliding window timeline and prompt token layout for window width k equals 3. Left matrix tracks turns t1 through t5 across steps 3, 4, and 5: t1 and t2 are evicted into the rolling summary and archive while turns t3 through t5 occupy the live window. Right stacked token bars compare step 3 and step 5 prompt buffers, highlighting the byte-identical pinned KV-cache prefix boundary before the mutating rolling summary and constant-width k equals 3 live window." />
+  <figcaption>A sliding window of width k = 3 moves across turns t1 through t5 while preserving a byte-identical pinned prefix for KV-cache hits and folding evicted anchors into a compact rolling summary.</figcaption>
 </figure>
 
 ## Pattern 2: retrieval-augmented long-term memory
@@ -209,8 +209,8 @@ Uncapped log-frequency score on irrelevant noise: 3.140 (> 1.0!)
 With weights `(0.50, 0.30, 0.20)`, Record A scores `0.8818` and outranks older Record B (`0.6100`) despite B's higher raw cosine similarity. Just as critically, plugging an uncapped logarithm of `5_000_000` accesses into the importance slot lifts an irrelevant (`sim = 0.05`) note to `3.140`, breaking normalized ranking entirely. Always normalize behavioral popularity signals onto `[0, 1]` and enforce access, version, and expiry filters before computing the weighted sum.
 
 <figure>
-  <img src="illustrations/_generated/retrieval_score_tradeoff_dark.png" alt="Weighted memory retrieval combines 0.50 similarity, 0.30 recency, and 0.20 importance. Record A totals 0.8817 and outranks older record B at 0.6100 even though B has higher semantic similarity." />
-  <figcaption>Weighted retrieval blends semantic similarity, recency decay, and clamped importance so fresh relevant notes outrank stale near-matches.</figcaption>
+  <img src="illustrations/_generated/retrieval_score_tradeoff_dark.png" alt="Quantitative decomposition of weighted memory retrieval (0.50 similarity + 0.30 recency + 0.20 importance). Record A (1.7h old, sim 0.90, rec 0.906, imp 0.80) totals 0.882 from 0.450 similarity, 0.272 recency, and 0.160 importance. Record B (24h old, sim 0.95, rec 0.250, imp 0.30) totals 0.610 from 0.475 similarity, 0.075 recency, and 0.060 importance. A companion bar chart contrasts raw cosine similarity against weighted total, showing Record A overtaking Record B." />
+  <figcaption>Weighted retrieval blends 0.50 similarity, 0.30 recency, and 0.20 clamped importance so fresh Record A (0.882) overtakes older Record B (0.610) despite B's higher raw cosine similarity.</figcaption>
 </figure>
 
 ### Write, recall, and execution remain separate

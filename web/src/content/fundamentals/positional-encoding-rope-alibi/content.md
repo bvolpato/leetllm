@@ -63,8 +63,8 @@ That property, $\text{Attention}(P X) = P\,\text{Attention}(X)$, is **permutatio
 | **Linear bias (ALiBi)** | Added to pre-softmax attention logits | $0$ | ALiBi[^press2022] |
 
 <figure>
-  <img src="illustrations/_generated/positional_encoding_dark.png" alt="Three attention pipelines compare where position enters: additive embeddings modify token vectors before QKV projections, RoPE rotates projected queries and keys in 2D pairs while leaving values unrotated, and ALiBi adds a distance penalty directly to pre-softmax logits." />
-  <figcaption>Three insertion points inside one attention block: input embeddings (additive), projected Q/K (RoPE), or pre-softmax logits (ALiBi).</figcaption>
+  <img src="illustrations/_generated/positional_encoding_dark.png" alt="A unified Transformer attention block schematic traces input x through linear projections W_Q, W_K, W_V, scaled dot product QK^T / sqrt(d_k), softmax, and multiplication by V to output Y, pinpointing three color-coded positional injection sites: (1) blue additive sinusoidal or learned embeddings added at input x + p before projections (entering Q, K, and V), (2) green RoPE rotating projected Q and K via R(m) and R(n) while leaving V untouched, and (3) warm ALiBi adding -m_h|i-j| bias directly to pre-softmax logits." />
+  <figcaption>Three positional injection sites inside one attention block: additive embeddings at input $x + p$ (entering $Q, K, V$), RoPE rotating projected $Q, K$ (leaving $V$ untouched), or ALiBi biasing pre-softmax logits.</figcaption>
 </figure>
 
 ## Absolute position: give every slot a multi-speed fingerprint

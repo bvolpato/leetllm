@@ -1,219 +1,159 @@
+import React from 'react'
 import {
     BadgePill,
-    Column,
-    FlowArrow,
-    Panel,
+    BarChart,
     Row,
+    ScatterPlot,
     Scene,
     TextLabel,
-    getThemeColors,
-    withDensity,
+    defineIllustration,
+    getReadableToneColor,
+    getToneColor,
 } from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
 
-export const width = 640
-export const height = 660
+export const width = 880
+export const height = 450
 export const alt =
-    'External episodic logs, semantic facts, and procedural skills pass through access and TTL filtering into the prompt window, while the inference KV cache reuses matching prompt prefixes and host policy checks execution separately.'
+    'Memory hierarchy comparing four agent storage tiers across capacity, access latency, and durability. Procedural rules sit at small KB scale with near-instant 1 ms pinned access. Working context holds prompt tokens (~256 KB) at ~5 ms latency but is volatile per call. Episodic logs hold tens of MB of session traces at ~22 ms. Semantic vector stores hold GB-scale durable facts at ~50 ms and require ACL and TTL filtering before recall.'
 
-export function create(theme: ThemeMode = 'dark') {
-    const c = withDensity(
-        getThemeColors(theme, theme === 'light' ? 'engineering' : 'default'),
-        1.85,
-    )
-
-    return Scene({
-        c,
-        title: 'External Storage, Prompt Window, and KV Cache',
-        padding: 16,
-        gap: 12,
-        contentWidth: 608,
-        children: [
-            Panel({
-                c,
-                title: '1. External Retained Storage (Persistent)',
-                tone: 'neutral',
-                width: 608,
-                padding: 12,
-                titleFontSize: 21,
-                children: Row({
-                    gap: 10,
-                    align: 'stretch',
-                    children: [
-                        Panel({
-                            c,
-                            title: 'Episodic Log',
-                            tone: 'cyan',
-                            width: 188,
-                            padding: 10,
-                            titleFontSize: 20,
-                            children: Column({
-                                gap: 6,
-                                children: [
-                                    TextLabel({
-                                        c,
-                                        text: 'run-41 trace',
-                                        fontSize: 19,
-                                        mono: true,
-                                    }),
-                                    TextLabel({
-                                        c,
-                                        text: 'fp16 NaN (seq 4k)',
-                                        fontSize: 19,
-                                        color: c.textMuted,
-                                    }),
-                                ],
-                            }),
-                        }),
-                        Panel({
-                            c,
-                            title: 'Semantic Facts',
-                            tone: 'blue',
-                            width: 188,
-                            padding: 10,
-                            titleFontSize: 20,
-                            children: Column({
-                                gap: 6,
-                                children: [
-                                    TextLabel({
-                                        c,
-                                        text: 'pytest -q attn.py',
-                                        fontSize: 19,
-                                        mono: true,
-                                    }),
-                                    TextLabel({
-                                        c,
-                                        text: 'owner: ml-kernels',
-                                        fontSize: 19,
-                                        color: c.textMuted,
-                                    }),
-                                ],
-                            }),
-                        }),
-                        Panel({
-                            c,
-                            title: 'Procedural Skill',
-                            tone: 'purple',
-                            width: 188,
-                            padding: 10,
-                            titleFontSize: 20,
-                            children: Column({
-                                gap: 6,
-                                children: [
-                                    TextLabel({ c, text: 'Repro & patch loop', fontSize: 19 }),
-                                    TextLabel({
-                                        c,
-                                        text: 'Run kernel CI tests',
-                                        fontSize: 19,
-                                        color: c.textMuted,
-                                    }),
-                                ],
-                            }),
-                        }),
-                    ],
-                }),
-            }),
-            Row({
-                gap: 12,
-                justify: 'center',
-                align: 'center',
-                children: [
-                    FlowArrow({ c, direction: 'down', length: 24, tone: 'blue' }),
-                    BadgePill({
-                        c,
-                        text: 'Filter by repo ACL, version, and TTL',
-                        tone: 'blue',
-                        fontSize: 19,
-                    }),
-                ],
-            }),
-            Panel({
-                c,
-                title: '2. Next Model Call & Execution Split',
-                tone: 'blue',
-                width: 608,
-                padding: 12,
-                titleFontSize: 21,
-                children: Column({
-                    gap: 10,
-                    children: [
-                        Row({
-                            gap: 12,
-                            align: 'stretch',
-                            children: [
-                                Panel({
-                                    c,
-                                    title: 'Assembled Prompt',
-                                    tone: 'blue',
-                                    width: 312,
-                                    padding: 10,
-                                    titleFontSize: 20,
-                                    children: Column({
-                                        gap: 6,
-                                        children: [
-                                            TextLabel({
-                                                c,
-                                                text: 'Pinned repo + branch + goal',
-                                                fontSize: 19,
-                                            }),
-                                            TextLabel({
-                                                c,
-                                                text: 'Filtered recall + recent turns',
-                                                fontSize: 19,
-                                                color: c.textMuted,
-                                            }),
-                                        ],
-                                    }),
-                                }),
-                                Panel({
-                                    c,
-                                    title: 'KV Prefix Cache',
-                                    tone: 'neutral',
-                                    width: 260,
-                                    padding: 10,
-                                    titleFontSize: 20,
-                                    children: Column({
-                                        gap: 6,
-                                        children: [
-                                            TextLabel({
-                                                c,
-                                                text: 'Reuses prefix tensor K/V',
-                                                fontSize: 19,
-                                            }),
-                                            TextLabel({
-                                                c,
-                                                text: 'Not searchable storage',
-                                                fontSize: 19,
-                                                color: c.textMuted,
-                                            }),
-                                        ],
-                                    }),
-                                }),
-                            ],
-                        }),
-                        Row({
-                            gap: 10,
-                            justify: 'center',
-                            align: 'center',
-                            children: [
-                                BadgePill({
-                                    c,
-                                    text: 'Host Policy API',
-                                    tone: 'warm',
-                                    fontSize: 19,
-                                }),
-                                TextLabel({
-                                    c,
-                                    text: 'Checks live branch and merge rules',
-                                    fontSize: 19,
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
-            }),
-        ],
-    })
+const CAPACITY_TICKS: Record<number, string> = {
+    0: '1 KB',
+    3: '1 MB',
+    6: '1 GB',
+    9: '1 TB',
 }
 
-export default create('dark')
+const illustration = defineIllustration((c) => {
+    const cProc = getToneColor('purple', c)
+    const cWork = getToneColor('blue', c)
+    const cEpis = getToneColor('cyan', c)
+    const cSem = getToneColor('green', c)
+
+    return (
+        <Scene
+            c={c}
+            title="Agent Memory Hierarchy: Capacity, Latency, and Durability"
+            padding={18}
+            gap={14}
+            contentWidth={844}
+        >
+            <Row gap={16} align="stretch">
+                <ScatterPlot
+                    c={c}
+                    width={508}
+                    height={340}
+                    title="Capacity vs. Access Latency"
+                    subtitle="Log capacity scale vs. typical read latency (ms)"
+                    xAxisLabel="Storage capacity (log scale)"
+                    yAxisLabel="Read latency (ms)"
+                    xMin={0}
+                    xMax={9}
+                    yMin={0}
+                    yMax={60}
+                    formatX={(v) => CAPACITY_TICKS[Math.round(v)] ?? ''}
+                    formatY={(v) => `${Math.round(v)}ms`}
+                    showGrid
+                    points={[
+                        {
+                            x: 0.9,
+                            y: 2,
+                            label: 'Procedural (KB)',
+                            color: cProc,
+                            size: 8,
+                        },
+                        {
+                            x: 2.8,
+                            y: 9,
+                            label: 'Working (tokens)',
+                            color: cWork,
+                            size: 8,
+                        },
+                        {
+                            x: 5.0,
+                            y: 23,
+                            label: 'Episodic (MB)',
+                            color: cEpis,
+                            size: 8,
+                        },
+                        {
+                            x: 7.4,
+                            y: 50,
+                            label: 'Semantic (GB)',
+                            color: cSem,
+                            size: 8,
+                        },
+                    ]}
+                />
+
+                <BarChart
+                    c={c}
+                    width={320}
+                    height={340}
+                    title="Durability Horizon"
+                    subtitle="Persistence tier across sessions"
+                    yAxisLabel="Retention scale"
+                    min={0}
+                    max={4.5}
+                    format={(v) => {
+                        if (v <= 0.1) return '1 call'
+                        if (v < 2) return '1 day'
+                        if (v < 3.5) return '1 mo'
+                        return '1+ yr'
+                    }}
+                    showGrid
+                    showValues
+                    data={[
+                        {
+                            label: 'Working',
+                            value: 0.18,
+                            valueLabel: 'Volatile',
+                            color: cWork,
+                        },
+                        {
+                            label: 'Episodic',
+                            value: 1.5,
+                            valueLabel: 'Session',
+                            color: cEpis,
+                        },
+                        {
+                            label: 'Semantic',
+                            value: 3.9,
+                            valueLabel: 'Durable',
+                            color: cSem,
+                        },
+                        {
+                            label: 'Procedural',
+                            value: 4.2,
+                            valueLabel: 'Pinned',
+                            color: cProc,
+                        },
+                    ]}
+                />
+            </Row>
+
+            <Row gap={12} justify="space-between" align="center" width={844}>
+                <Row gap={8} align="center">
+                    <BadgePill c={c} text="Working + KV Cache" tone="blue" fontSize={12} />
+                    <TextLabel
+                        c={c}
+                        text="Prefix tensor reuse only; volatile"
+                        fontSize={12}
+                        color={c.textSecondary}
+                    />
+                </Row>
+                <Row gap={8} align="center">
+                    <BadgePill c={c} text="External Recall" tone="green" fontSize={12} />
+                    <TextLabel
+                        c={c}
+                        text="Filtered by ACL, version, and TTL"
+                        fontSize={12}
+                        color={getReadableToneColor('green', c)}
+                    />
+                </Row>
+            </Row>
+        </Scene>
+    )
+})
+
+export const create = illustration.create
+export default illustration.default

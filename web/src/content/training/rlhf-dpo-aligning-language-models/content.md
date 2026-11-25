@@ -276,6 +276,7 @@ In real sequence batches, compute $\log \pi(y \mid x) = \sum_t \log \pi(y_t \mid
 
 <!-- leetllm: test, deps=torch, output=show, output_title="DPO token logprob loss in PyTorch" -->
 ```python title="dpo_loss_from_token_logits.py"
+# fold:start imports & toy logit tensors
 import torch
 import torch.nn.functional as F
 
@@ -284,13 +285,6 @@ chosen_ids = torch.tensor([0, 2, 1, 2, 4, 0])
 rejected_ids = torch.tensor([0, 2, 3, 0, 4, 0])
 attn_mask = torch.tensor([1, 1, 1, 1, 1, 0], dtype=torch.bool)
 prompt_len, beta = 2, 0.1
-
-def response_logprob(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
-    logp = F.log_softmax(logits[:-1], dim=-1)
-    token_logp = logp.gather(-1, ids[1:].unsqueeze(-1)).squeeze(-1)
-    resp_mask = attn_mask[1:].clone()
-    resp_mask[: prompt_len - 1] = False
-    return (token_logp * resp_mask).sum()
 
 chosen_pi = torch.tensor([
     [0.0]*5, [0.0, 2.4, 0.1, -0.8, -1.0], [0.0, 0.2, 2.1, -0.6, -1.0],
@@ -308,6 +302,14 @@ rejected_ref = torch.tensor([
     [0.0]*5, [0.1, 0.0, 0.0, 0.6, -1.0], [0.7, 0.0, 0.0, 0.2, -1.0],
     [0.0, 0.0, 0.0, 0.0, 2.0], [0.0]*5, [0.0]*5,
 ])
+# fold:end
+
+def response_logprob(logits: torch.Tensor, ids: torch.Tensor) -> torch.Tensor:
+    logp = F.log_softmax(logits[:-1], dim=-1)
+    token_logp = logp.gather(-1, ids[1:].unsqueeze(-1)).squeeze(-1)
+    resp_mask = attn_mask[1:].clone()
+    resp_mask[: prompt_len - 1] = False
+    return (token_logp * resp_mask).sum()
 
 c_logp = response_logprob(chosen_pi, chosen_ids)
 r_logp = response_logprob(rejected_pi, rejected_ids)
@@ -315,9 +317,11 @@ margin = (c_logp - response_logprob(chosen_ref, chosen_ids)) - (r_logp - respons
 loss = -F.logsigmoid(beta * margin)
 loss.backward()
 
+# fold:start print metrics & gradient check
 print(f"chosen_logp={c_logp.item():.3f}, rejected_logp={r_logp.item():.3f}")
 print(f"margin={margin.item():.3f}, dpo_loss={loss.item():.3f}")
 print("prompt & pad logit rows get zero grad:", chosen_pi.grad[0].abs().sum().item() == 0.0 and chosen_pi.grad[4].abs().sum().item() == 0.0)
+# fold:end
 ```
 
 <!-- leetllm: output:start -->

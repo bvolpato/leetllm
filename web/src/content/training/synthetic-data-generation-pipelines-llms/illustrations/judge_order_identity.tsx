@@ -1,154 +1,112 @@
 import React from 'react'
 import {
-    Card,
     BadgePill,
+    BarChart,
     Column,
-    FlowArrow,
-    Panel,
     Row,
     Scene,
     TextLabel,
     defineIllustration,
-    type ThemeColors,
+    getReadableToneColor,
+    getToneColor,
 } from 'vizmatic'
 
-export const width = 860
-export const height = 500
+export const width = 880
+export const height = 430
 export const alt =
-    'Two fixed-vote comparisons keep response identity attached to color while left and right positions swap. For unsafe-tool-refusal, the judge selects left in the forward order and right after reversal, selecting response A twice. For verbose-answer, it selects left in both orders, changing the winner from A to B; the example withholds candidate for audit. These candidate evaluations illustrate position-to-identity remapping.'
+    'Paired bar charts comparing LLM-judge response win rates across A-first (A, B) and B-first (B, A) presentation orders. Left chart (unsafe-tool-refusal) shows order-stable consensus: response A wins 88% when shown first and 84% when shown second, so A is admitted. Right chart (verbose-answer) exposes position bias: response A wins 74% when placed first, but drops to 28% when placed second as response B jumps to 72%; the pair flips and is withheld for review.'
 
-type Candidate = 'A' | 'B'
-type Vote = 'LEFT' | 'RIGHT'
+const illustration = defineIllustration((c) => {
+    const cA = getToneColor('blue', c)
+    const cB = getToneColor('purple', c)
 
-function slot(c: ThemeColors, position: Vote, candidate: Candidate) {
     return (
-        <Column gap={2} align="center" width={75}>
-            <TextLabel c={c} text={position} fontSize={11} color={c.textSecondary} align="center" />
-            <BadgePill
-                c={c}
-                text={candidate}
-                tone={candidate === 'A' ? 'blue' : 'purple'}
-                filled={false}
-                fontSize={14}
-                width={48}
-                height={28}
-            />
-        </Column>
-    )
-}
-
-function presentationRow(
-    c: ThemeColors,
-    order: string,
-    leftCandidate: Candidate,
-    rightCandidate: Candidate,
-    vote: Vote,
-) {
-    const winner = vote === 'LEFT' ? leftCandidate : rightCandidate
-    return (
-        <Row gap={8} align="center" justify="space-between">
-            <TextLabel c={c} text={order} fontSize={13} width={70} color={c.textPrimary} />
-            <Row gap={6} align="center">
-                {slot(c, 'LEFT', leftCandidate)}
-                <TextLabel c={c} text="vs" fontSize={11} color={c.textSecondary} />
-                {slot(c, 'RIGHT', rightCandidate)}
-            </Row>
-            <BadgePill
-                c={c}
-                text={`${vote} → ${winner}`}
-                tone="warm"
-                fontSize={12}
-                width={105}
-                height={26}
-            />
-        </Row>
-    )
-}
-
-function comparison(
-    c: ThemeColors,
-    title: string,
-    stable: boolean,
-    firstVote: Vote,
-    secondVote: Vote,
-    summary: string,
-) {
-    return (
-        <Panel
+        <Scene
             c={c}
-            title={title}
-            tone={stable ? 'green' : 'critical'}
-            padding={14}
-            gap={10}
-            titleFontSize={14}
-            width={390}
+            title="Order-Reversal Verification: Consensus vs. Position Bias Flip"
+            padding={16}
+            gap={12}
+            contentWidth={848}
         >
-            <Column gap={8}>
-                {presentationRow(c, 'Forward', 'A', 'B', firstVote)}
-                <Row justify="center">
-                    <FlowArrow c={c} direction="down" tone="neutral" length={12} />
-                </Row>
-                {presentationRow(c, 'Reversed', 'B', 'A', secondVote)}
-                <BadgePill
-                    c={c}
-                    text={summary}
-                    tone={stable ? 'green' : 'critical'}
-                    filled={false}
-                    fontSize={12}
-                    height={28}
-                />
-            </Column>
-        </Panel>
-    )
-}
+            <Row gap={16} align="stretch">
+                <Column gap={10} width={416} align="center">
+                    <BarChart
+                        c={c}
+                        width={416}
+                        height={316}
+                        title="Order-Stable: unsafe-tool-refusal"
+                        subtitle="Response A wins in both (A, B) and (B, A) orders"
+                        yAxisLabel="Judge win rate (%)"
+                        min={0}
+                        max={100}
+                        format={(v) => `${Math.round(v)}%`}
+                        showGrid
+                        showValues
+                        data={[
+                            { label: 'A in (A,B)', value: 88, valueLabel: '88%', color: cA },
+                            { label: 'B in (A,B)', value: 12, valueLabel: '12%', color: cB },
+                            { label: 'A in (B,A)', value: 84, valueLabel: '84%', color: cA },
+                            { label: 'B in (B,A)', value: 16, valueLabel: '16%', color: cB },
+                        ]}
+                    />
+                    <BadgePill
+                        c={c}
+                        text="Consensus: A wins both orders (Admit A)"
+                        tone="green"
+                        filled
+                        fontSize={12}
+                    />
+                </Column>
 
-const illustration = defineIllustration((c) => (
-    <Scene
-        c={c}
-        title="A judge vote belongs to a response"
-        subtitle="Position-swap evaluation pairs · response identity tracking"
-        padding={22}
-        gap={14}
-        contentWidth={816}
-    >
-        <Column gap={12} align="center">
-            <TextLabel
-                c={c}
-                text="Swapping presentation order detects positional bias. Colors track response identity across slots."
-                fontSize={13}
-                color={c.textSecondary}
-                align="center"
-            />
-            <Row gap={16} justify="center">
-                {comparison(
-                    c,
-                    'Consistent preference · Invariant',
-                    true,
-                    'LEFT',
-                    'RIGHT',
-                    'Response A selected in both orders · ADMIT',
-                )}
-                {comparison(
-                    c,
-                    'Position bias detected · Order sensitive',
-                    false,
-                    'LEFT',
-                    'LEFT',
-                    'Winner flips from A to B · REJECT / AUDIT',
-                )}
+                <Column gap={10} width={416} align="center">
+                    <BarChart
+                        c={c}
+                        width={416}
+                        height={316}
+                        title="Position Bias: verbose-answer"
+                        subtitle="Slot-1 preference flips winner from A to B on swap"
+                        yAxisLabel="Judge win rate (%)"
+                        min={0}
+                        max={100}
+                        format={(v) => `${Math.round(v)}%`}
+                        showGrid
+                        showValues
+                        data={[
+                            { label: 'A in (A,B)', value: 74, valueLabel: '74%', color: cA },
+                            { label: 'B in (A,B)', value: 26, valueLabel: '26%', color: cB },
+                            { label: 'A in (B,A)', value: 28, valueLabel: '28%', color: cA },
+                            { label: 'B in (B,A)', value: 72, valueLabel: '72%', color: cB },
+                        ]}
+                    />
+                    <BadgePill
+                        c={c}
+                        text="Flip: A then B wins slot 1 (Withhold)"
+                        tone="red"
+                        filled
+                        fontSize={12}
+                    />
+                </Column>
             </Row>
-            <Card c={c} padding={10} gap={4} width={796}>
+
+            <Row gap={20} justify="center" align="center" width={848}>
                 <TextLabel
                     c={c}
-                    text="Invariant evaluation requires either consistent selection across permutations or withholding the example."
+                    text="Blue = Response A win rate"
                     fontSize={12}
-                    color={c.textSecondary}
-                    align="center"
+                    fontWeight={700}
+                    color={getReadableToneColor('blue', c)}
                 />
-            </Card>
-        </Column>
-    </Scene>
-))
+                <TextLabel
+                    c={c}
+                    text="Purple = Response B win rate"
+                    fontSize={12}
+                    fontWeight={700}
+                    color={getReadableToneColor('purple', c)}
+                />
+            </Row>
+        </Scene>
+    )
+})
 
 export const create = illustration.create
 export default illustration.default

@@ -69,6 +69,7 @@ Notice why partial pruning outperforms naive all-or-nothing serving when a draft
 
 <!-- leetllm: test, deps=numpy, output=show, id=claim-decomposition-lab -->
 ```python title="claim-level-verification-routing.py"
+# fold:start imports & RESPONSES claim fixtures
 import numpy as np
 
 # Each response has atomic claims: (supported, contradicted, verifier_score)
@@ -99,6 +100,7 @@ RESPONSES = [
         ],
     },
 ]
+# fold:end
 
 
 def evaluate_policy(policy: str, accept_cutoff: float = 0.70) -> dict[str, float]:
@@ -143,6 +145,7 @@ def evaluate_policy(policy: str, accept_cutoff: float = 0.70) -> dict[str, float
     }
 
 
+# fold:start run policies & print table
 for name in ["serve_all", "prune_unsupported", "prune_and_block_contradiction"]:
     metrics = evaluate_policy(name)
     print(
@@ -150,6 +153,7 @@ for name in ["serve_all", "prune_unsupported", "prune_and_block_contradiction"]:
         f"safe_recall={metrics['safe_recall']:.3f} | "
         f"coverage={metrics['coverage']:.3f} | kept={metrics['served_claims']}"
     )
+# fold:end
 ```
 
 <!-- leetllm: output:start -->

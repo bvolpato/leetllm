@@ -316,30 +316,13 @@ For a simplified full-precision Adam budget, count 4 bytes for each weight, 4 fo
   <figcaption>Registers belong to threads, shared memory to a block, and caches to the hardware. Their bandwidth and latency depend on the GPU and access pattern. For this simplified FP32 Adam budget, weights occupy only one quarter of the parameter-related tensors. Include gradients, optimizer state, and activations when estimating training-step memory.</figcaption>
 </figure>
 
-Compute those two scales before touching a GPU. The first value is a batch input; the second is a parameter-related floor. The script takes the parameter count and feature shape as constants and prints both in human-readable units:
+Compute those two scales before touching a GPU: the input batch features and the parameter-related floor (weights, gradients, and Adam's two moments, before activations and temporary workspaces):
 
-<!-- leetllm: test, output=show -->
-
-```python title="adam-memory-floor.py"
-parameters = 1_000_000_000
-bytes_per_parameter = 4 + 4 + 8
-total_bytes = parameters * bytes_per_parameter
-feature_bytes = 32 * 128 * 768 * 4
-
-print(f"bytes per parameter: {bytes_per_parameter}")
-print(f"parameter-related floor: {total_bytes / (1024 ** 3):.2f} GiB")
-print(f"training-sized sequence features: {feature_bytes / (1024 ** 2):.1f} MiB")
-print("activations and temporary work: add more memory")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-bytes per parameter: 16
-parameter-related floor: 14.90 GiB
-training-sized sequence features: 12.0 MiB
-activations and temporary work: add more memory
-```
-<!-- leetllm: output:end -->
+| Term | Formula | Size |
+|---|---|---|
+| FP32 Adam parameter floor (1B params) | $10^9 \times (4 + 4 + 8)\text{ B} / 2^{30}$ | **14.90 GiB** (`16 B/param`) |
+| Training sequence features `(32, 128, 768)` | $32 \times 128 \times 768 \times 4\text{ B} / 2^{20}$ | **12.0 MiB** |
+| Activations & workspaces | Model- and sequence-dependent | Add on top of floor |
 
 A model can load and still hit an <span data-glossary="out-of-memory">out-of-memory (OOM)</span> failure on its first forward or backward pass. Loading checks that current model state fits. The real batch also needs activations and gradients. Adam's moment tensors are commonly created on the first optimizer step, so that step can fail even after backward succeeds.
 
@@ -874,39 +857,13 @@ Serving needs none of the training extras. It holds the weights and some memory 
 
 Activations are the term you cannot read off a parameter count, because they depend on your data. One activation tensor has shape $B \times T \times d$, and a deep model keeps many of them alive until the backward pass. Then there is the score grid from Chapter 2, $XX^T$. It compares every token with every other token, so for a batch it holds $B \times T \times T$ numbers, and attention builds grids like this inside each layer. Attention that stores this grid is called eager attention, and it keeps one per head in every layer, so the formula below is the floor for that path. (A head is one of several attention calculations that run side by side, as Part 1 explains.) PyTorch's `scaled_dot_product_attention` function, which Hugging Face's Transformers library uses by default, usually avoids storing the grid on a CUDA GPU,[^pytorchSdpaDocs2026][^transformers2026attentionBackends] and activations then grow about linearly with length.[^dao2022] Find out which path you are on before you trust either number. Two common calls keep it: Transformers' `output_attentions=True` works only on the eager path, and PyTorch's own `nn.MultiheadAttention` takes that path unless you pass `need_weights=False`.[^pytorchMhaMasks2026] Here is what the grid costs when it is stored:
 
-<!-- leetllm: test, output=show, id=reader-gpu-memory-budget -->
-```python title="memory-budget.py"
-PARAMETERS = 7_000_000_000
-GPU_GB = 24
-BYTES = 2  # FP16 or BF16
+On a 24 GB GPU at 2 bytes per value, the 7B parameter terms cross the limit before activations even enter (`14 GB` weights fit, `28 GB` after gradients OOM, `56 GB` after Adam's first step OOM). For a batch of $B = 32$ and width $d = 768$ at 2 bytes per value, compare one activation tensor ($B \cdot T \cdot d \cdot 2$) against one eager attention score grid ($B \cdot T^2 \cdot 2$):
 
-STEPS = [("load weights", 1), ("backward", 1), ("first step", 2)]
-used = 0
-for line, numbers_per_parameter in STEPS:
-    used += PARAMETERS * numbers_per_parameter * BYTES / 1e9
-    verdict = "fits" if used <= GPU_GB else "OUT OF MEMORY"
-    print(f"{line:12s}: {used:3.0f} GB  {verdict}")
-
-batch, width = 32, 768
-print("\ntokens  activation tensor  score grid")
-for tokens in [128, 512, 2048]:
-    activation_mb = batch * tokens * width * BYTES / 1e6
-    grid_mb = batch * tokens * tokens * BYTES / 1e6
-    print(f"{tokens:6d}  {activation_mb:14.1f} MB  {grid_mb:7.1f} MB")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-load weights:  14 GB  fits
-backward    :  28 GB  OUT OF MEMORY
-first step  :  56 GB  OUT OF MEMORY
-
-tokens  activation tensor  score grid
-   128             6.3 MB      1.0 MB
-   512            25.2 MB     16.8 MB
-  2048           100.7 MB    268.4 MB
-```
-<!-- leetllm: output:end -->
+| Sequence length ($T$) | Activation tensor ($B \cdot T \cdot d \cdot 2$) | One eager score grid ($B \cdot T^2 \cdot 2$) |
+|---|---|---|
+| 128 | 6.3 MB | 1.0 MB |
+| 512 | 25.2 MB | 16.8 MB |
+| 2,048 | 100.7 MB | 268.4 MB |
 
 Multiply the length by 16 and the activation tensor grows 16 times, while the grid grows 256 times. In the last row, at 2,048 tokens, the grid has overtaken the tensor that dwarfed it at 128, and that is one grid. Twelve layers of 12 heads would make it about 39 GB. So on the eager path, one long document can ruin a run that handled every short one. Batch size and length look like two equal knobs, and for this term they are not. Halving the batch halves the grid, and halving the length quarters it.
 

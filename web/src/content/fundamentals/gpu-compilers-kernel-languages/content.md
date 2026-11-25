@@ -213,8 +213,8 @@ CUDA_DISABLE_PTX_JIT=1 ./build/vector_add
 
 <figure>
 <img src="illustrations/_generated/cold_warm_request_boundary_dark.png"
-     alt="Two fresh-process request paths separate initialization, module loading, optional PTX driver JIT, cache write, first launch, and warm execution. A compatible cubin skips PTX code generation but may still load lazily. The timeline spacing shows event order rather than wall-clock duration, and synchronized warm launches occupy a separate measurement window." />
-<figcaption>Separate cold initialization, lazy module load, PTX JIT, and cache writes from synchronized warm execution windows.</figcaption>
+     alt="A log10-scale horizontal latency bar chart spanning 1 microsecond to 1 second compares four GPU kernel execution paths: cold PTX or Triton JIT compilation takes roughly 300 ms, cold compatible cubin lazy loading takes roughly 15 ms, warm cache-hit kernel launch takes roughly 40 us, and CUDA Graph replay takes roughly 12 us, highlighting a 7,500x to 25,000x latency gap." />
+<figcaption>On a logarithmic scale, cold PTX/Triton JIT (~300 ms) and lazy cubin loading (~15 ms) sit three to four orders of magnitude above warm kernel launches (~40 µs) and CUDA Graph replay (~12 µs).</figcaption>
 </figure>
 
 ### Eight ranks, two different cache questions

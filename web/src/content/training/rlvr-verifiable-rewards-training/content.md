@@ -65,8 +65,8 @@ RLVR complements <span data-glossary="supervised-fine-tuning">SFT</span>, RLHF, 
 | **RLVR** | Executable programmatic checks | Exact verifiable properties (math, code, SQL, proofs) |
 
 <figure>
-  <img src="illustrations/_generated/alignment_method_router_dark.png" alt="Four training paths: SFT uses token cross-entropy; RLHF trains a reward model then runs RL; DPO fits preferences directly; RLVR checks candidates programmatically and feeds PPO or GRPO." />
-  <figcaption>Demonstrations supply token targets, preference pairs supply relative rankings, and executable checks supply scalar rewards for PPO or GRPO.</figcaption>
+  <img src="illustrations/_generated/alignment_method_router_dark.png" alt="Four-row visual comparison of post-training supervision signals for prompt 14 x 12 = 168: SFT applies dense per-token cross-entropy across every target token; RLHF scores a completion with a learned continuous scalar reward model r_phi before PPO; DPO directly widens the pairwise log-ratio margin between chosen 168 and rejected 148; RLVR runs a deterministic executable verifier producing exact binary 0 or 1 rewards for PPO or GRPO." />
+  <figcaption>Demonstrations supply per-token targets, preference pairs supply continuous scores or pairwise margins, and executable checks supply binary rewards for PPO or GRPO.</figcaption>
 </figure>
 
 ## Designing executable verifiers
@@ -83,12 +83,7 @@ Variants adjust scale and auxiliary terms: Tülu 3 scored $+10$ pass, $0$ fail, 
 
 Outcome grading scores only the final extracted answer, not the reasoning trace: a lucky shortcut (`"97 ends in 7, so it is prime. \boxed{Yes}"`) earns the same `1.0` as a valid divisibility check, while a 40-step proof with one arithmetic slip on line 39 gets `0.0`. (**Process supervision**, such as learned Process Reward Models[^lightman2023] or tactic checkers, localizes mid-trace errors when step labels exist.[^cobbe2021])
 
-> **Key insight:** Separate **candidate failures** from **infrastructure or reference faults**. Wrong values, ambiguous formatting, or candidate timeouts earn `0.0`. Verifier outages, crashed workers, or malformed ground-truth references yield no valid measurement: quarantine those rows for retry instead of injecting fake zeros into the rollout group.
-
-<figure>
-  <img src="illustrations/_generated/verifier_contract_dark.png" alt="Healthy workers with valid references score passing candidates 1 and wrong, malformed, or over-budget candidates 0. Host crashes, prover outages, or broken references stay unscored and quarantined." />
-  <figcaption>Grade candidate failures under candidate limits; quarantine host crashes, prover outages, and broken references instead of scoring them zero.</figcaption>
-</figure>
+> **Key insight:** Separate **candidate failures** from **infrastructure or reference faults**. Wrong values, ambiguous formatting, or candidate timeouts earn `0.0`. Verifier outages, crashed workers, or malformed ground-truth references yield no valid measurement: quarantine those rows for bounded retry instead of injecting fake zeros into the rollout group.
 
 ### Verifiers across math, code, SQL, and formal proofs
 

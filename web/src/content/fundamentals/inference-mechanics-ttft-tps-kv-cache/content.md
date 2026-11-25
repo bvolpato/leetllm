@@ -322,29 +322,11 @@ vLLM records a zero in its Prometheus request-TPOT histogram for responses with 
 
 To make that non-linearity concrete, compare two request streams with 10 ms and 100 ms inter-token gaps alongside a four-token batched delivery event:
 
-<!-- leetllm: test, output=show -->
-```python title="do-not-invert-an-aggregate.py"
-tpots_ms = [10, 100]
-mean_tpot_ms = sum(tpots_ms) / len(tpots_ms)
-mean_tps = sum(1000 / gap for gap in tpots_ms) / len(tpots_ms)
-assert mean_tps == 55
-assert 1000 / mean_tpot_ms != mean_tps
-print(f"mean request TPS: {mean_tps:.1f}")
-print(f"inverse of mean request TPOT: {1000 / mean_tpot_ms:.1f} tokens/s")
-
-event_gap_ms, new_tokens = 40, 4
-print("event gap:", event_gap_ms, "ms")
-print(f"interval-average time per new token: {event_gap_ms / new_tokens:.1f} ms")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-mean request TPS: 55.0
-inverse of mean request TPOT: 18.2 tokens/s
-event gap: 40 ms
-interval-average time per new token: 10.0 ms
-```
-<!-- leetllm: output:end -->
+| Measurement | Calculation | Result |
+|---|---|---|
+| Two streams (10 ms and 100 ms TPOT) | Mean request TPS: $(100 + 10) / 2$ | **55.0 tokens/s** |
+| Inverse of mean request TPOT | $1000 / ((10 + 100) / 2)$ | **18.2 tokens/s** (not equal to mean TPS) |
+| Four-token batched event (40 ms gap) | Interval average: $40\text{ ms} / 4$ | **10.0 ms/token** (averaged, not 4 timestamps) |
 
 The four-token event supplies an average over its preceding interval, not four individual generation timestamps. A token-weighted aggregate, a request-weighted mean, and a histogram of iteration gaps describe different populations.
 
@@ -1078,30 +1060,13 @@ $$
 
 Our trace gives a TPOT of 36 ms, which is a decode rate of about 27.8 tokens per second. Now watch what happens if you take the same four tokens and divide by the full 428 ms. You get 9.35 tokens per second. Neither number is wrong, because they answer different questions, and a single rate can be quoted either way. When someone tells you a tokens-per-second figure, ask for the numerator and the interval, because the name alone doesn't tell you what was measured.
 
-<!-- leetllm: test, output=show, id=reader-inference-clocks -->
-```python title="measure-one-token-trace.py"
-events_ms = [320, 355, 392, 428]
-gaps = [right - left for left, right in zip(events_ms, events_ms[1:])]
-tpot_ms = sum(gaps) / len(gaps)
-decode_window_s = (events_ms[-1] - events_ms[0]) / 1000
-decode_rate = (len(events_ms) - 1) / decode_window_s
-end_to_end_rate = len(events_ms) / (events_ms[-1] / 1000)
-print("TTFT ms:", events_ms[0])
-print("gaps ms:", gaps)
-print("TPOT ms:", round(tpot_ms, 1))
-print("decode tokens/s:", round(decode_rate, 1))
-print("end-to-end tokens/s:", round(end_to_end_rate, 2))
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-TTFT ms: 320
-gaps ms: [35, 37, 36]
-TPOT ms: 36.0
-decode tokens/s: 27.8
-end-to-end tokens/s: 9.35
-```
-<!-- leetllm: output:end -->
+| Clock metric | From trace `[320, 355, 392, 428]` ms | Value |
+|---|---|---|
+| TTFT | First token arrival $t_1$ | **320 ms** |
+| Inter-token gaps | $[355-320,\; 392-355,\; 428-392]$ | **35, 37, 36 ms** |
+| TPOT | $(428 - 320) / 3$ | **36.0 ms** |
+| Decode rate | $3 / 0.108\text{ s}$ | **27.8 tokens/s** |
+| End-to-end rate | $4 / 0.428\text{ s}$ | **9.35 tokens/s** |
 
 <figure>
   <img src="illustrations/_generated/latency_breakdown_dark.png" alt="On a linear 0–428 ms request clock, token 1 at 320 ms ends TTFT. A separately scaled decode inset shows tokens at 320, 355, 392, and 428 ms, with gaps of 35, 37, and 36 ms. The 108 ms decode window averages 36 ms per token and 27.8 tokens/s; all four tokens over 428 ms give 9.35 tokens/s." />
@@ -1228,33 +1193,12 @@ Here's the classic capacity-planning bug. This model has 24 query heads but only
 
 > **Common mistake:** Plugging `num_attention_heads` (query heads) or total layer count (including linear-attention layers) into the KV formula inflates your capacity estimate by several times. Always read `num_key_value_heads` and the exact full-attention layer count from the model config.
 
-<!-- leetllm: test, output=show, id=reader-inference-memory -->
-```python title="budget-retained-attention-state.py"
-layers, kv_heads, head_width, value_bytes = 16, 4, 256, 2
-bytes_per_position = 2 * layers * kv_heads * head_width * value_bytes
-cached_positions = 4096
-one_sequence = bytes_per_position * cached_positions
-print("bytes per position:", bytes_per_position)
-print("one sequence GiB:", one_sequence / 2**30)
-print("eight sequences GiB:", 8 * one_sequence / 2**30)
-
-logical_length, block_size = 17, 16
-blocks = (logical_length + block_size - 1) // block_size
-allocated_positions = blocks * block_size
-print("logical / allocated positions:",
-      logical_length, allocated_positions)
-print("unused tail positions:", allocated_positions - logical_length)
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-bytes per position: 65536
-one sequence GiB: 0.25
-eight sequences GiB: 2.0
-logical / allocated positions: 17 32
-unused tail positions: 15
-```
-<!-- leetllm: output:end -->
+| Memory item | Calculation | Result |
+|---|---|---|
+| Raw KV per position | $2 \times 16 \times 4 \times 256 \times 2$ | **65,536 bytes (64 KiB)** |
+| One 4,096-position sequence | $4{,}096 \times 64\text{ KiB}$ | **0.25 GiB** |
+| Eight 4,096-position sequences | $8 \times 0.25\text{ GiB}$ | **2.0 GiB** |
+| Paged allocation (17 tokens, 16-token blocks) | $\lceil 17 / 16 \rceil = 2$ blocks | **32 allocated** (**15 unused tail slots**) |
 
 ## How many users fit on this machine?
 

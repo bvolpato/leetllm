@@ -147,31 +147,10 @@ $$
 
 Under that rule, a $100\times$ jump in compute calls for growing parameters nearly $29\times$ while expanding tokens only $3.5\times$. That conclusion shaped the first generation of frontier LLMs: OpenAI trained GPT-3[^brown2020] at 175B parameters on 300B tokens (1.7:1 tokens per parameter), and DeepMind trained Gopher at 280B parameters on 300B tokens (1.07:1).
 
-<!-- leetllm: test, output=show, deps=numpy -->
-```python title="allocation-exponents.py"
-import numpy as np
-
-frontiers = {
-    "Kaplan": np.array([0.73, 0.27]),
-    "Chinchilla": np.array([0.50, 0.50]),
-}
-for compute_multiplier in (10, 100):
-    print(f"{compute_multiplier}x training compute")
-    for name, exps in frontiers.items():
-        n_mult, d_mult = np.power(compute_multiplier, exps)
-        print(f"  {name:<10} N={n_mult:5.2f}x, D={d_mult:5.2f}x")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-10x training compute
-  Kaplan     N= 5.37x, D= 1.86x
-  Chinchilla N= 3.16x, D= 3.16x
-100x training compute
-  Kaplan     N=28.84x, D= 3.47x
-  Chinchilla N=10.00x, D=10.00x
-```
-<!-- leetllm: output:end -->
+| Compute multiplier ($C$) | Kaplan ($N \propto C^{0.73},\; D \propto C^{0.27}$) | Chinchilla ($N \propto C^{0.50},\; D \propto C^{0.50}$) |
+|---|---|---|
+| **10x** | $N = 5.37\times,\; D = 1.86\times$ | $N = 3.16\times,\; D = 3.16\times$ |
+| **100x** | $N = 28.84\times,\; D = 3.47\times$ | $N = 10.00\times,\; D = 10.00\times$ |
 
 <figure>
   <img src="illustrations/_generated/scaling_curves_dark.png" alt="Normalized allocation geometry at a 100-fold training-compute increase. Equal log-unit axes show Kaplan fitted-growth normalization at 28.84× parameters and 3.47× tokens, Chinchilla fitted-growth normalization at 10× each, and an overtrained alternative at 2.5× parameters and 40× tokens. The shared iso-FLOP contour is N multiplier × D multiplier = 100." />

@@ -376,31 +376,10 @@ If eager execution takes `18 µs/iter`, graph replay takes `12 µs/iter` (`6 µs
 
 Because continuous batching varies batch sizes dynamically, serving engines (vLLM, SGLang) pre-capture **bucketed graph pools** (e.g., batch sizes `[1, 2, 4, 8, 16]`), pad live batches up to the next bucket, and fall back to eager mode for outliers.[^vllm2026cudagraphs] Zero-padding alone is never enough for correctness: an affine op like $2x + 1$ turns dummy zeros into `1`, and unmasked dummy slots can corrupt reductions or live KV-cache entries unless every reduction and cache write masks padded positions explicitly:
 
-<!-- leetllm: test, deps=numpy, output=show -->
-```python title="graph-amortization-and-padding.py"
-from math import floor
-import numpy as np
-
-# 1. CUDA Graph break-even iterations (12 ms setup, 18 us eager -> 12 us replay)
-first_win = floor(12_000 / (18 - 12)) + 1
-print(f"CUDA Graph break-even: iter 2000 (36 ms) | first net win: iter {first_win}")
-
-# 2. Bucketed graph pool (6 valid inputs padded to bucket 8; affine (2x+1)^2)
-inputs = np.array([1, 2, 3, 4, 5, 6], dtype=np.int64)
-padded = np.pad(inputs, (0, 8 - inputs.size))
-valid_mask = np.arange(8) < inputs.size
-out = (2 * padded + 1) ** 2
-ref, unmasked, masked = int(((2 * inputs + 1) ** 2).sum()), int(out.sum()), int(np.where(valid_mask, out, 0).sum())
-assert masked == ref and unmasked != ref
-print(f"bucket=8 (6 valid): ref={ref}, unmasked_pad={unmasked} (wrong!), masked={masked}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-CUDA Graph break-even: iter 2000 (36 ms) | first net win: iter 2001
-bucket=8 (6 valid): ref=454, unmasked_pad=456 (wrong!), masked=454
-```
-<!-- leetllm: output:end -->
+| Check | Calculation | Result |
+|---|---|---|
+| CUDA Graph break-even ($12\text{ ms}$ setup, $18 \to 12\;\mu\text{s}$/iter) | $\lfloor 12{,}000 / (18 - 12) \rfloor + 1$ | Breaks even at iter **2,000** (36 ms); first net win at iter **2,001** |
+| Bucket-8 affine op $(2x+1)^2$ on 6 valid inputs `[1..6]` | True sum vs. 2 zero-padded slots ($(2 \cdot 0 + 1)^2 = 1$ each) | True/masked sum **454** vs. unmasked **456** (corrupted by `+2`) |
 
 ## Report the result you measured
 

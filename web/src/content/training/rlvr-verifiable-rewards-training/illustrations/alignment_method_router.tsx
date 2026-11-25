@@ -1,234 +1,455 @@
 import React from 'react'
 import {
-    Arrow,
+    BadgePill,
     Board,
     CanvasItem,
     Scene,
+    SvgFrame,
+    SvgPoint,
     TextLabel,
+    VectorArrow,
     defineIllustration,
-    getReadableTextColor,
+    getReadableToneColor,
     getToneColor,
     getToneFill,
-    type ThemeColors,
-    type ToneName,
+    withColorAlpha,
 } from 'vizmatic'
+import type { ThemeColors, ToneName } from 'vizmatic'
 
-export const width = 672
-export const height = 860
-export const autoSize = false
 export const alt =
-    'Four connected training paths distinguish their supervision and update: SFT maps a prompt and target to token cross-entropy; reward-model RL learns from chosen/rejected pairs and then uses policy RL; DPO fits the pairwise objective directly; RLVR checks a candidate and gives the resulting reward to policy RL, with PPO or GRPO as optimizer choices.'
+    'Four-row visual comparison of post-training supervision signals for prompt 14 x 12 = 168: SFT applies dense per-token cross-entropy across every target token; RLHF scores a completion with a learned continuous scalar reward model r_phi before PPO; DPO directly widens the pairwise log-ratio margin between chosen 168 and rejected 148; RLVR runs a deterministic executable verifier producing exact binary 0 or 1 rewards for PPO or GRPO.'
 
-type Line = { text: string; size?: number }
+export const width = 780
+export const height = 430
 
-function node(
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    tone: ToneName,
-    lines: Line[],
-) {
-    const fill = getToneFill(tone, c)
-    const ink = getReadableTextColor(fill, c, fill)
-    return (
-        <CanvasItem key={`node-${x}-${y}`} x={x} y={y} width={w} height={h}>
-            <div
-                style={{
-                    boxSizing: 'border-box',
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    padding: 6,
-                    border: `1px solid ${getToneColor(tone, c)}`,
-                    borderRadius: 12,
-                    backgroundColor: fill,
-                }}
-            >
-                {lines.map((line, index) => (
-                    <TextLabel
-                        key={`${x}-${y}-${index}`}
-                        c={c}
-                        text={line.text}
-                        width={w - 16}
-                        fontSize={line.size ?? 24}
-                        fontWeight={index === 0 ? 800 : 650}
-                        color={ink}
-                        align="center"
-                    />
-                ))}
-            </div>
-        </CanvasItem>
-    )
-}
+const illustration = defineIllustration((c: ThemeColors) => {
+    const boardW = 748
+    const boardH = 398
 
-function heading(c: ThemeColors, text: string, x: number, w: number) {
-    return (
-        <CanvasItem key={`heading-${x}`} x={x} y={112} width={w} height={28}>
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={24}
-                fontWeight={800}
-                color={c.textMuted}
-                align="center"
-            />
-        </CanvasItem>
-    )
-}
+    const blue = getToneColor('blue', c)
+    const blueInk = getReadableToneColor('blue', c)
+    const purple = getToneColor('purple', c)
+    const purpleInk = getReadableToneColor('purple', c)
+    const cyan = getToneColor('cyan', c)
+    const cyanInk = getReadableToneColor('cyan', c)
+    const green = getToneColor('green', c)
+    const greenInk = getReadableToneColor('green', c)
+    const warm = getToneColor('warm', c)
 
-function connector(c: ThemeColors, x: number, y: number, tone: ToneName) {
-    return (
-        <CanvasItem key={`connector-${x}-${y}`} x={x} y={y} width={24} height={20}>
-            <Arrow direction="right" length={24} c={c} color={getToneColor(tone, c)} />
-        </CanvasItem>
-    )
-}
+    const rowYs = [38, 130, 222, 314]
+    const rowH = 78
 
-function separator(c: ThemeColors, y: number) {
-    return (
-        <CanvasItem key={`separator-${y}`} x={28} y={y} width={616} height={1}>
-            <div style={{ width: '100%', height: 1, backgroundColor: c.borderSubtle }} />
-        </CanvasItem>
-    )
-}
+    // Signal column geometry with room for single-line label + clear shafted arrow
+    const sigX = 144
+    const annX = sigX + 236
+    const annW = 158
+    const arrowX1 = 544
+    const arrowX2 = 574
+    const updX = 582
+    const updW = 156
 
-function createFigure(theme: ThemeColors) {
-    const c = { ...theme, preset: 'engineering' as const, shadow: 'transparent' }
-    const cols = [28, 248, 468]
-    const widths = [176, 176, 176]
-    const rows: Array<{ tone: ToneName; cells: Line[][] }> = [
-        {
-            tone: 'blue',
-            cells: [
-                [{ text: 'SFT · demos' }, { text: 'prompt → target y*' }],
-                [{ text: 'token cross-entropy' }, { text: 'fit target y*' }],
-                [{ text: 'policy θ' }, { text: 'raise pθ(y*)' }],
-            ],
-        },
-        {
-            tone: 'purple',
-            cells: [
-                [{ text: 'RLHF · RM' }, { text: 'chosen / rejected' }],
-                [{ text: 'fit reward model' }, { text: 'then policy RL' }],
-                [{ text: 'PPO policy RL' }, { text: 'RM score sφ' }],
-            ],
-        },
-        {
-            tone: 'cyan',
-            cells: [
-                [{ text: 'DPO · pair' }, { text: 'chosen / rejected' }],
-                [{ text: 'DPO pair loss' }, { text: 'policy objective' }],
-                [{ text: 'update θ' }, { text: 'from pairs' }],
-            ],
-        },
-        {
-            tone: 'green',
-            cells: [
-                [{ text: 'RLVR · check' }, { text: 'candidate y' }],
-                [{ text: 'reward r(x,y)' }, { text: 'declared check' }],
-                [{ text: 'policy RL' }, { text: 'PPO or GRPO' }],
-            ],
-        },
-    ]
-    const children: React.ReactNode[] = [
-        <CanvasItem key="title" x={28} y={18} width={616} height={42}>
-            <TextLabel
-                c={c}
-                text="Four training paths, four learning signals"
-                width={616}
-                fontSize={30}
-                fontWeight={850}
-                color={c.textPrimary}
-            />
-        </CanvasItem>,
-        <CanvasItem key="subtitle" x={28} y={65} width={616} height={32}>
-            <TextLabel
-                c={c}
-                text="Prompt: 14 workers × 12 slots · target: 168"
-                width={616}
-                fontSize={24}
-                fontWeight={600}
-                color={c.textSecondary}
-            />
-        </CanvasItem>,
-        heading(c, 'METHOD', cols[0], widths[0]),
-        heading(c, 'OBJECTIVE', cols[1], widths[1]),
-        heading(c, 'UPDATE', cols[2], widths[2]),
+    const rows: Array<{ method: string; tone: ToneName; update: string }> = [
+        { method: 'SFT', tone: 'blue', update: 'Token CE' },
+        { method: 'RLHF', tone: 'purple', update: 'PPO' },
+        { method: 'DPO', tone: 'cyan', update: 'Pair loss' },
+        { method: 'RLVR', tone: 'green', update: 'PPO / GRPO' },
     ]
 
-    rows.forEach((row, rowIndex) => {
-        const y = 150 + rowIndex * 150
-        row.cells.forEach((lines, columnIndex) => {
-            children.push(node(c, cols[columnIndex], y, widths[columnIndex], 140, row.tone, lines))
-            if (columnIndex < 2)
-                children.push(
-                    connector(c, cols[columnIndex] + widths[columnIndex] + 10, y + 52, row.tone),
-                )
-        })
-        if (rowIndex < rows.length - 1) children.push(separator(c, y + 145))
-    })
-
-    children.push(
-        <CanvasItem key="footer" x={28} y={750} width={616} height={104}>
-            <div
-                style={{
-                    boxSizing: 'border-box',
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    padding: '6px 14px',
-                    gap: 2,
-                    borderLeft: `4px solid ${getToneColor('green', c)}`,
-                    backgroundColor: c.bgCard,
-                }}
-            >
-                <TextLabel
-                    c={c}
-                    text="RLVR specifies the reward."
-                    width={580}
-                    fontSize={24}
-                    fontWeight={700}
-                    color={c.textPrimary}
-                />
-                <TextLabel
-                    c={c}
-                    text="PPO / GRPO are policy optimizers."
-                    width={580}
-                    fontSize={24}
-                    fontWeight={650}
-                    color={c.textPrimary}
-                />
-                <TextLabel
-                    c={c}
-                    text="DPO fits chosen / rejected pairs directly."
-                    width={580}
-                    fontSize={24}
-                    fontWeight={650}
-                    color={c.textPrimary}
-                />
-            </div>
-        </CanvasItem>,
-    )
+    const sftBars = [0.78, 0.92, 0.85, 0.68, 0.95]
+    const rlvrBars = [1, 0, 0, 1]
 
     return Scene({
         c,
-        padding: 0,
+        padding: 16,
         gap: 0,
-        contentWidth: width,
+        contentWidth: boardW,
+        align: 'center',
         background: 'transparent',
-        children: Board({ c, width, height, background: 'transparent', children }),
-    })
-}
+        children: Board({
+            c,
+            width: boardW,
+            height: boardH,
+            background: 'transparent',
+            children: [
+                <CanvasItem key="svg-signals" x={0} y={0} width={boardW} height={boardH}>
+                    <svg width={boardW} height={boardH} viewBox={`0 0 ${boardW} ${boardH}`}>
+                        {/* Opaque theme card backing + subtle tone tint per row */}
+                        {rows.map((row, idx) => {
+                            const y = rowYs[idx]
+                            const accent = getToneColor(row.tone, c)
+                            return (
+                                <React.Fragment key={`row-bg-${row.method}`}>
+                                    <SvgFrame
+                                        c={c}
+                                        x={4}
+                                        y={y}
+                                        width={boardW - 8}
+                                        height={rowH}
+                                        rx={10}
+                                        fill={c.bgCard}
+                                        stroke="none"
+                                    />
+                                    <SvgFrame
+                                        c={c}
+                                        x={4}
+                                        y={y}
+                                        width={boardW - 8}
+                                        height={rowH}
+                                        rx={10}
+                                        fill={withColorAlpha(getToneFill(row.tone, c), 0.25)}
+                                        stroke={withColorAlpha(accent, 0.55)}
+                                        strokeWidth={1.25}
+                                    />
+                                </React.Fragment>
+                            )
+                        })}
 
-const illustration = defineIllustration(createFigure)
+                        {/* Row 1 (SFT): 5 dense per-token probability bars */}
+                        {sftBars.map((val, i) => {
+                            const bx = sigX + 12 + i * 42
+                            const maxH = 44
+                            const bh = Math.round(val * maxH)
+                            const baseY = rowYs[0] + 62
+                            return (
+                                <React.Fragment key={`sft-b-${i}`}>
+                                    <SvgFrame
+                                        c={c}
+                                        x={bx}
+                                        y={baseY - maxH}
+                                        width={28}
+                                        height={maxH}
+                                        rx={4}
+                                        fill={withColorAlpha(c.borderSubtle, 0.45)}
+                                        stroke="none"
+                                    />
+                                    <SvgFrame
+                                        c={c}
+                                        x={bx}
+                                        y={baseY - bh}
+                                        width={28}
+                                        height={bh}
+                                        rx={4}
+                                        fill={blue}
+                                        stroke="none"
+                                    />
+                                </React.Fragment>
+                            )
+                        })}
+
+                        {/* Row 2 (RLHF): continuous learned scalar reward axis with uncertainty band */}
+                        <line
+                            x1={sigX + 14}
+                            y1={rowYs[1] + 42}
+                            x2={sigX + 220}
+                            y2={rowYs[1] + 42}
+                            stroke={c.borderLight}
+                            strokeWidth={2.5}
+                        />
+                        <line
+                            x1={sigX + 117}
+                            y1={rowYs[1] + 32}
+                            x2={sigX + 117}
+                            y2={rowYs[1] + 52}
+                            stroke={c.textMuted}
+                            strokeWidth={1.5}
+                        />
+                        <SvgFrame
+                            c={c}
+                            x={sigX + 142}
+                            y={rowYs[1] + 30}
+                            width={52}
+                            height={24}
+                            rx={12}
+                            fill={withColorAlpha(purple, 0.3)}
+                            stroke={purple}
+                            strokeWidth={1.2}
+                        />
+                        <SvgPoint
+                            cx={sigX + 168}
+                            cy={rowYs[1] + 42}
+                            r={7}
+                            fill={purple}
+                            stroke={c.bg}
+                            strokeWidth={2}
+                        />
+
+                        {/* Row 3 (DPO): opposing pairwise margin bars from center zero */}
+                        <line
+                            x1={sigX + 117}
+                            y1={rowYs[2] + 16}
+                            x2={sigX + 117}
+                            y2={rowYs[2] + 64}
+                            stroke={c.borderLight}
+                            strokeWidth={2}
+                        />
+                        <SvgFrame
+                            c={c}
+                            x={sigX + 36}
+                            y={rowYs[2] + 28}
+                            width={79}
+                            height={24}
+                            rx={5}
+                            fill={withColorAlpha(warm, 0.85)}
+                            stroke="none"
+                        />
+                        <SvgFrame
+                            c={c}
+                            x={sigX + 119}
+                            y={rowYs[2] + 28}
+                            width={92}
+                            height={24}
+                            rx={5}
+                            fill={cyan}
+                            stroke="none"
+                        />
+
+                        {/* Row 4 (RLVR): exact binary {0, 1} verifier impulses */}
+                        <line
+                            x1={sigX + 12}
+                            y1={rowYs[3] + 62}
+                            x2={sigX + 222}
+                            y2={rowYs[3] + 62}
+                            stroke={c.borderLight}
+                            strokeWidth={1.8}
+                        />
+                        {rlvrBars.map((val, i) => {
+                            const bx = sigX + 20 + i * 50
+                            const bh = val === 1 ? 44 : 6
+                            const baseY = rowYs[3] + 62
+                            return (
+                                <React.Fragment key={`rlvr-b-${i}`}>
+                                    <SvgFrame
+                                        c={c}
+                                        x={bx}
+                                        y={baseY - bh}
+                                        width={32}
+                                        height={bh}
+                                        rx={4}
+                                        fill={val === 1 ? green : withColorAlpha(warm, 0.75)}
+                                        stroke="none"
+                                    />
+                                </React.Fragment>
+                            )
+                        })}
+
+                        {/* Shafted flow arrows to update column */}
+                        {rows.map((row, idx) => (
+                            <React.Fragment key={`arr-${row.method}`}>
+                                <VectorArrow
+                                    x1={arrowX1}
+                                    y1={rowYs[idx] + rowH / 2}
+                                    x2={arrowX2}
+                                    y2={rowYs[idx] + rowH / 2}
+                                    color={getToneColor(row.tone, c)}
+                                    strokeWidth={2.5}
+                                    arrowSize={5}
+                                />
+                            </React.Fragment>
+                        ))}
+                    </svg>
+                </CanvasItem>,
+
+                // Column headers
+                <CanvasItem key="h-m" x={14} y={6} width={118} height={24}>
+                    <TextLabel
+                        c={c}
+                        text="METHOD"
+                        width={118}
+                        fontSize={14}
+                        fontWeight={800}
+                        color={c.textMuted}
+                        align="center"
+                    />
+                </CanvasItem>,
+                <CanvasItem key="h-s" x={sigX + 12} y={6} width={380} height={24}>
+                    <TextLabel
+                        c={c}
+                        text="SUPERVISION SIGNAL"
+                        width={380}
+                        fontSize={14}
+                        fontWeight={800}
+                        color={c.textMuted}
+                        align="left"
+                    />
+                </CanvasItem>,
+                <CanvasItem key="h-u" x={updX} y={6} width={updW} height={24}>
+                    <TextLabel
+                        c={c}
+                        text="UPDATE"
+                        width={updW}
+                        fontSize={14}
+                        fontWeight={800}
+                        color={c.textMuted}
+                        align="center"
+                    />
+                </CanvasItem>,
+
+                // Left method pills & right update badges
+                ...rows.map((row, idx) => {
+                    const y = rowYs[idx] + 20
+                    return (
+                        <React.Fragment key={`pills-${row.method}`}>
+                            <CanvasItem x={18} y={y} width={112} height={38}>
+                                <BadgePill
+                                    c={c}
+                                    text={row.method}
+                                    tone={row.tone}
+                                    width={112}
+                                    height={38}
+                                    fontSize={18}
+                                    filled
+                                />
+                            </CanvasItem>
+                            <CanvasItem x={updX + 4} y={y} width={updW - 12} height={38}>
+                                <BadgePill
+                                    c={c}
+                                    text={row.update}
+                                    tone={row.tone}
+                                    width={updW - 12}
+                                    height={38}
+                                    fontSize={16}
+                                />
+                            </CanvasItem>
+                        </React.Fragment>
+                    )
+                }),
+
+                // Crisp single-line signal annotations
+                <CanvasItem key="ann-sft" x={annX} y={rowYs[0] + 26} width={annW} height={26}>
+                    <TextLabel
+                        c={c}
+                        text="per-token log p(y*)"
+                        width={annW}
+                        fontSize={14.5}
+                        fontWeight={750}
+                        color={blueInk}
+                        math
+                    />
+                </CanvasItem>,
+                <CanvasItem key="ann-rlhf" x={annX} y={rowYs[1] + 26} width={annW} height={26}>
+                    <TextLabel
+                        c={c}
+                        text="learned scalar r_φ"
+                        width={annW}
+                        fontSize={14.5}
+                        fontWeight={750}
+                        color={purpleInk}
+                        math
+                    />
+                </CanvasItem>,
+                <CanvasItem key="ann-dpo" x={annX} y={rowYs[2] + 26} width={annW} height={26}>
+                    <TextLabel
+                        c={c}
+                        text="y⁻ vs y⁺ margin"
+                        width={annW}
+                        fontSize={14.5}
+                        fontWeight={750}
+                        color={cyanInk}
+                        math
+                    />
+                </CanvasItem>,
+                <CanvasItem key="ann-rlvr" x={annX} y={rowYs[3] + 26} width={annW} height={26}>
+                    <TextLabel
+                        c={c}
+                        text="exact check {0, 1}"
+                        width={annW}
+                        fontSize={14.5}
+                        fontWeight={750}
+                        color={greenInk}
+                    />
+                </CanvasItem>,
+
+                // Mini-axis end labels (numeric / symbol only)
+                <CanvasItem key="rlhf-min" x={sigX + 10} y={rowYs[1] + 50} width={32} height={20}>
+                    <TextLabel c={c} text="-2" width={32} fontSize={12} color={c.textMuted} mono />
+                </CanvasItem>,
+                <CanvasItem key="rlhf-max" x={sigX + 194} y={rowYs[1] + 50} width={32} height={20}>
+                    <TextLabel
+                        c={c}
+                        text="+2"
+                        width={32}
+                        fontSize={12}
+                        color={c.textMuted}
+                        align="right"
+                        mono
+                    />
+                </CanvasItem>,
+                <CanvasItem key="dpo-neg" x={sigX + 36} y={rowYs[2] + 53} width={79} height={20}>
+                    <TextLabel
+                        c={c}
+                        text="y⁻ (148)"
+                        width={79}
+                        fontSize={12}
+                        fontWeight={700}
+                        color={getReadableToneColor('warm', c)}
+                        align="center"
+                        math
+                    />
+                </CanvasItem>,
+                <CanvasItem key="dpo-pos" x={sigX + 119} y={rowYs[2] + 53} width={92} height={20}>
+                    <TextLabel
+                        c={c}
+                        text="y⁺ (168)"
+                        width={92}
+                        fontSize={12}
+                        fontWeight={700}
+                        color={cyanInk}
+                        align="center"
+                        math
+                    />
+                </CanvasItem>,
+                <CanvasItem key="rlvr-0" x={sigX + 20} y={rowYs[3] + 2} width={32} height={18}>
+                    <TextLabel
+                        c={c}
+                        text="1"
+                        width={32}
+                        fontSize={12}
+                        fontWeight={800}
+                        color={greenInk}
+                        align="center"
+                        mono
+                    />
+                </CanvasItem>,
+                <CanvasItem key="rlvr-1" x={sigX + 70} y={rowYs[3] + 38} width={32} height={18}>
+                    <TextLabel
+                        c={c}
+                        text="0"
+                        width={32}
+                        fontSize={12}
+                        fontWeight={750}
+                        color={getReadableToneColor('warm', c)}
+                        align="center"
+                        mono
+                    />
+                </CanvasItem>,
+                <CanvasItem key="rlvr-2" x={sigX + 120} y={rowYs[3] + 38} width={32} height={18}>
+                    <TextLabel
+                        c={c}
+                        text="0"
+                        width={32}
+                        fontSize={12}
+                        fontWeight={750}
+                        color={getReadableToneColor('warm', c)}
+                        align="center"
+                        mono
+                    />
+                </CanvasItem>,
+                <CanvasItem key="rlvr-3" x={sigX + 170} y={rowYs[3] + 2} width={32} height={18}>
+                    <TextLabel
+                        c={c}
+                        text="1"
+                        width={32}
+                        fontSize={12}
+                        fontWeight={800}
+                        color={greenInk}
+                        align="center"
+                        mono
+                    />
+                </CanvasItem>,
+            ],
+        }),
+    })
+})
+
 export const create = illustration.create
 export default illustration.default

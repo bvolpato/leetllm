@@ -535,34 +535,12 @@ Record one immutable usage event per execution attempt carrying tenant, request 
 
 Wall-clock latency never equals exclusive GPU time when requests share a batch across a multi-GPU replica. Measure compute at the **step** level, then allocate that step cost across co-batched requests without losing conservation. Watch unit consistency: a 4-GPU node running a 0.2 s step burns **0.8 GPU-seconds** (at \$2/GPU-hour) or **0.2 node-seconds** (at \$8/node-hour), both equal to \$0.000444. Multiplying GPU-seconds by the node-hour price silently quadruples the cost:
 
-<!-- leetllm: test, output=show -->
-```python title="shared-cost-allocation.py"
-from decimal import Decimal as D
-
-seconds, gpus = D("0.2"), D(4)
-per_gpu_hour = D(2)
-node_hour = per_gpu_hour * gpus
-step_cost = seconds * gpus * per_gpu_hour / D(3600)
-assert step_cost == seconds * node_hour / D(3600)
-
-shares = {"A": D("0.25"), "B": D("0.75")}
-allocated = {tenant: step_cost * share for tenant, share in shares.items()}
-assert sum(allocated.values()) == step_cost
-wrong = seconds * gpus * node_hour / D(3600)
-assert wrong == 4 * step_cost
-
-print("step cost USD:", f"{step_cost:.9f}")
-print("allocated USD:", {t: f"{cost:.9f}" for t, cost in allocated.items()})
-print("mixing GPU-seconds with node-hour price overcharges by:", f"{wrong / step_cost:.0f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-step cost USD: 0.000444444
-allocated USD: {'A': '0.000111111', 'B': '0.000333333'}
-mixing GPU-seconds with node-hour price overcharges by: 4
-```
-<!-- leetllm: output:end -->
+| Quantity | Formula | Value |
+|---|---|---|
+| Step cost (GPU-second basis) | `(0.2 s * 4 GPUs * $2/GPU-hr) / 3600` | **\$0.000444444** |
+| Step cost (node-second basis) | `(0.2 s * $8/node-hr) / 3600` | **\$0.000444444** |
+| Conserved allocation (25% A / 75% B) | `$0.000111111 + $0.000333333` | **\$0.000444444** |
+| Unit-mismatch bug (GPU-s x node-hr) | `(0.2 * 4 * $8) / 3600` | **\$0.001777778** (4x overcharge) |
 
 Track idle replicas, queue wait, storage, and failed retries separately from active GPU steps, and compare allocated internal cost against customer token tariffs to spot unprofitable workload mixes early.
 

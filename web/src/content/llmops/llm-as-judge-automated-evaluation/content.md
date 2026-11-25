@@ -117,6 +117,7 @@ Prompt wording never guarantees well-formed evaluator responses. In this offline
 
 <!-- leetllm: test, output=show, id=judge-parse, deps=pydantic -->
 ```python title="parse-judge-result.py"
+# fold:start imports & Pydantic schema models
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, field_validator
 
@@ -143,6 +144,7 @@ class Judgment(BaseModel):
         if pair[0] == pair[1] or set(pair) & {"tie", "review"}:
             raise ValueError("need two distinct, non-reserved candidate IDs")
         return pair
+# fold:end
 
 
 def parse_judgment(raw, *, case_id: str, run_config_id: str, order: tuple[str, str]) -> Judgment:
@@ -156,6 +158,7 @@ def parse_judgment(raw, *, case_id: str, run_config_id: str, order: tuple[str, s
     )
 
 
+# fold:start test payloads & malformed-response harness
 first = parse_judgment(
     {"verdict": "B", "evidence": ["Actionability: numbered steps separate prefill and batch limits."]},
     case_id="sliding-prefill-v1",
@@ -179,6 +182,7 @@ for raw in bad_responses:
         continue
     raise AssertionError("malformed response was accepted")
 print("malformed responses rejected:", len(bad_responses))
+# fold:end
 ```
 
 <!-- leetllm: output:start -->

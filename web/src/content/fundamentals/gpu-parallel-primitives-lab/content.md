@@ -132,7 +132,7 @@ if (warp == 0) {
 Ordinary launches cannot wait on a grid-wide barrier because resident blocks can stall forever waiting for unscheduled blocks in the queue (Cooperative Groups requires an explicit co-resident cooperative launch).[^cuda2026deviceCallableApis] Instead, reduce across blocks either with **multi-pass hierarchical kernels** (512 inputs/block shrinks 4,194,304 elements -> 8,192 -> 16 -> 1 in three same-stream passes[^harris2007reduction]) or **global atomics** (matching signed/unsigned accumulator types and profiling contention).
 
 <figure>
-  <img src="illustrations/_generated/grid_barrier_schedule_dark.png" alt="Left panel shows an ordinary launch with eight blocks competing for four resident GPU slots: blocks 0 through 3 hold every slot while waiting at a barrier, stalling blocks 4 through 7 in the queue in a deadlock. Right panel shows a cooperative launch sized for eight co-resident slots so blocks 0 through 7 all reach grid.sync and continue." />
+  <img src="illustrations/_generated/grid_barrier_schedule_dark.png" alt="Left hardware residency diagram shows an ordinary launch of eight blocks on a 4-SM GPU: Blocks B0 through B3 occupy all four SM slots and stall at a grid.sync barrier waiting for Blocks B4 through B7, while B4 through B7 sit in the hardware queue waiting for a free SM slot, forming a circular deadlock. Right diagram shows a cooperative launch with eight co-resident SM slots holding B0 through B7 simultaneously so every block reaches grid.sync and resumes." />
   <figcaption>Resident blocks deadlock if they wait for queued blocks in an ordinary launch; grid barriers require co-resident cooperative launches.</figcaption>
 </figure>
 
@@ -142,8 +142,8 @@ Watch two numerical traps in parallel reductions:
 2. **Floating-point non-associativity:** $(a + b) + c \ne a + (b + c)$. In FP32, `(1e8 + 1.0) + (-1e8) = 0.0`, while `(1e8 + -1e8) + 1.0 = 1.0`. Two race-free reduction trees can therefore disagree without a synchronization bug. Keep **repeatability** (same bits across runs, CUB `DeviceReduce`'s `run_to_run` default[^nvidia2026cubReduce][^nvidia2026ccclDeterminism]) separate from **accuracy** (distance to the exact sum).
 
 <figure>
-  <img src="illustrations/_generated/float_tree_overflow_dark.png" alt="Left panel compares float32 grouping on a = 1e8, b = 1.0, and c = -1e8 where ULP spacing is 8: (a + b) + c drops 1.0 to give 0.0, whereas (a + c) + b cancels first to give 1.0. Right panel contrasts signed int64 overflow where (I64_MAX + 1) + (-1) triggers undefined behavior first, while I64_MAX + (1 + -1) stays valid." />
-  <figcaption>Grouping flips FP32 sums between 0.0 and 1.0, and a later `-1` cannot rescue an earlier signed `int64` overflow.</figcaption>
+  <img src="illustrations/_generated/float_tree_overflow_dark.png" alt="Top number line shows IEEE-754 float32 spacing near 1e8, where ULP(1e8) = 8.0 and the rounding midpoint sits at 1e8 + 4.0. Adding 1.0 lands at 1e8 + 1.0, inside the snap-back zone, so it rounds back to 1e8 and loses 1.0 completely. Bottom left reduction tree evaluates (1e8 + 1.0) + (-1e8) = 0.0 (100% error). Bottom right tree evaluates (1e8 + -1e8) + 1.0 = 1.0 (exact), illustrating why pairwise or Kahan grouping preserves small terms." />
+  <figcaption>Near $10^8$, FP32 ULP spacing is $8.0$, so adding $1.0$ falls below the $+4.0$ midpoint and rounds away; grouping $(10^8 - 10^8) + 1.0$ or using Kahan compensation preserves the small term.</figcaption>
 </figure>
 
 ## Parallel scan: Hillis-Steele, Blelloch, and decoupled look-back
@@ -234,8 +234,8 @@ left=(4, 1.424404), right=(6, 1.386195) -> merged=(6, 1.578968)
 Standalone online softmax still reads logits **twice** (once to compute $(m, d)$, once to emit probabilities). [FlashAttention](/learn/flashattention-memory-efficient-attention) eliminates that second HBM pass by carrying the unnormalized weighted-value accumulator $O$ alongside $(m, d)$ in SRAM, rescaling both together and dividing by $d$ once at the end.[^dao2022]
 
 <figure>
-  <img src="illustrations/_generated/normalizer_output_passes_dark.png" alt="Left panel shows two-pass standalone softmax: pass 1 reads eight logits to compute (m=6, d=1.578968), and pass 2 rereads logits to output probabilities [0.032, 0.001, 0.086, 0.004, 0.233, 0.000, 0.012, 0.633]. Right panel shows fused attention tracking (m, d, O) in SRAM, rescaling both d and O by alpha, and emitting O/d without storing N x N probabilities." />
-  <figcaption>Standalone online softmax rereads logits to emit probabilities; fused attention rescales $(d, O)$ on chip so the $N\times N$ probability matrix never hits HBM.</figcaption>
+  <img src="illustrations/_generated/normalizer_output_passes_dark.png" alt="Left bar chart compares HBM element transfers per row: naive 3-pass softmax moves 4N elements (three reads of x plus one write of P), standalone online 2-pass softmax moves 3N elements (two reads of x plus one write of P), and fused SRAM online softmax moves 1N elements in a single streaming pass. Right stacked bars align all three methods on a shared 4N scale, showing how keeping (m, d, O) in SRAM avoids 3N of intermediate HBM traffic." />
+  <figcaption>Naive 3-pass softmax moves $4N$ elements through HBM and standalone online softmax moves $3N$; fusing $(m, d, O)$ in SRAM cuts traffic to a single $1N$ streaming pass.</figcaption>
 </figure>
 
 ## Sanitize, benchmark against CUB, and run the lab

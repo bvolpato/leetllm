@@ -274,6 +274,7 @@ Four architectural choices mirror GPT-2 cleanly:[^ba2016][^xiong2020][^hendrycks
 <!-- leetllm: test, id=mini-gpt-early-train, deps=torch==2.13.0,tiktoken==0.14.0, output=show, output_title="Initial training log" -->
 
 ```python title="build_gpt_from_scratch.py"
+# fold:start imports, BPE corpus loading & batch sampler
 from pathlib import Path
 import copy
 import hashlib
@@ -321,6 +322,7 @@ def sample_batch(source: torch.Tensor, *, generator: torch.Generator) -> tuple[t
     x = torch.stack([source[s:s + block_size] for s in starts])
     y = torch.stack([source[s + 1:s + block_size + 1] for s in starts])
     return x, y
+# fold:end
 
 class CausalSelfAttention(nn.Module):
     def __init__(self, d_model: int = 96, n_heads: int = 4):
@@ -390,6 +392,7 @@ model_config = {"d_model": 96, "n_heads": 4, "n_layers": 2}
 model = TinyGPT(vocab_size=len(active_token_ids), **model_config)
 optimizer = torch.optim.AdamW(model.parameters(), lr=2e-3)
 
+# fold:start validation loss helper
 def evaluate(source: torch.Tensor) -> tuple[float, float]:
     was_training = model.training
     model.eval()
@@ -402,6 +405,7 @@ def evaluate(source: torch.Tensor) -> tuple[float, float]:
             accs.append((logits.argmax(dim=-1) == y).float().mean().item())
     model.train(was_training)
     return sum(losses) / len(losses), sum(accs) / len(accs)
+# fold:end
 
 def sample_completion(prompt: str, steps: int = 80) -> str:
     sampling_generator = torch.Generator().manual_seed(17)
@@ -435,6 +439,7 @@ for updates in range(1, 82):
         val_loss, val_acc = evaluate(val_ids)
         print(f"updates={updates:03d} train={loss.item():.3f} val={val_loss:.3f} val_acc={val_acc:.3f}")
 
+# fold:start save checkpoint snapshot
 early_val_loss, early_val_acc = val_loss, val_acc
 
 checkpoint = copy.deepcopy({
@@ -450,6 +455,7 @@ checkpoint = copy.deepcopy({
     "train_generator_state": train_generator.get_state(),
     "val_generator_state": val_generator.get_state(),
 })
+# fold:end
 ```
 
 <!-- leetllm: output:start -->

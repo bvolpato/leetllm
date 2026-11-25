@@ -182,6 +182,7 @@ Next, score the trajectory itself against each episode's final state, required s
 
 <!-- leetllm: test, output=show, id=trajectory-scorer -->
 ```python title="02-score-agent-trajectories.py"
+# fold:start imports, Episode dataclass & fixtures
 from dataclasses import dataclass
 from math import isfinite
 
@@ -243,6 +244,7 @@ RUNS = [
         "cost_usd": 0.041,
     },
 ]
+# fold:end
 
 
 def sequence_reasons(tools: list[str], required_sequence: tuple[str, ...]) -> list[str]:
@@ -278,6 +280,7 @@ def score_run(run: dict[str, object]) -> dict[str, object]:
     return {"passed": not reasons, "reasons": reasons}
 
 
+# fold:start run fixtures & print verdicts
 for run in RUNS:
     result = score_run(run)
     verdict = "PASS" if result["passed"] else "FAIL"
@@ -293,6 +296,7 @@ for label, tools in {
     ],
 }.items():
     print(f"{label}: {sequence_reasons(tools, EPISODES['attack-014'].required_sequence)}")
+# fold:end
 ```
 
 <!-- leetllm: output:start -->

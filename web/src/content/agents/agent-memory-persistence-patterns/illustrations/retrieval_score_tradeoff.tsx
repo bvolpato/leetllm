@@ -1,169 +1,165 @@
 import React from 'react'
 import {
     BadgePill,
+    BarChart,
+    Card,
     Column,
-    FlowArrow,
-    Panel,
     Row,
     Scene,
+    StackedBar,
     TextLabel,
+    defineIllustration,
     getReadableToneColor,
-    getThemeColors,
     getToneColor,
-    withDensity,
 } from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
 
-export const width = 640
-export const height = 670
+export const width = 880
+export const height = 400
 export const alt =
-    'Weighted memory retrieval combines 0.50 similarity, 0.30 recency, and 0.20 importance. Record A totals 0.8817 and outranks older record B at 0.6100 even though B has higher semantic similarity.'
+    'Quantitative decomposition of weighted memory retrieval (0.50 similarity + 0.30 recency + 0.20 importance). Record A (1.7h old, sim 0.90, rec 0.906, imp 0.80) totals 0.882 from 0.450 similarity, 0.272 recency, and 0.160 importance. Record B (24h old, sim 0.95, rec 0.250, imp 0.30) totals 0.610 from 0.475 similarity, 0.075 recency, and 0.060 importance. A companion bar chart contrasts raw cosine similarity against weighted total, showing Record A overtaking Record B.'
 
-interface ScoreSpec {
-    title: string
-    tone: 'green' | 'warm'
-    total: string
-    sim: number
-    rec: number
-    imp: number
-    meta: string
-}
+const illustration = defineIllustration((c) => {
+    const cSim = getToneColor('blue', c)
+    const cRec = getToneColor('green', c)
+    const cImp = getToneColor('purple', c)
+    const cSimText = getReadableToneColor('blue', c)
+    const cRecText = getReadableToneColor('green', c)
+    const cImpText = getReadableToneColor('purple', c)
 
-export function create(theme: ThemeMode = 'dark') {
-    const c = withDensity(
-        getThemeColors(theme, theme === 'light' ? 'engineering' : 'default'),
-        1.85,
+    const barMaxWidth = 440
+
+    return (
+        <Scene
+            c={c}
+            title="Multi-Factor Retrieval Score Decomposition"
+            padding={16}
+            gap={12}
+            contentWidth={848}
+        >
+            <Row gap={16} align="stretch">
+                <Card
+                    c={c}
+                    width={492}
+                    padding={16}
+                    gap={12}
+                    title="Weighted Score Contributions"
+                    subtitle="score = 0.50 sim + 0.30 recency + 0.20 importance (0.0 to 1.0 scale)"
+                >
+                    <Column gap={12}>
+                        <Column gap={6}>
+                            <Row justify="space-between" align="center" width={barMaxWidth}>
+                                <TextLabel
+                                    c={c}
+                                    text="Record A (1.7h old, fresh trace)"
+                                    fontSize={13}
+                                    fontWeight={700}
+                                />
+                                <BadgePill
+                                    c={c}
+                                    text="Total 0.882"
+                                    tone="green"
+                                    filled
+                                    fontSize={12}
+                                />
+                            </Row>
+                            <StackedBar
+                                c={c}
+                                width={barMaxWidth}
+                                height={30}
+                                showLegend={false}
+                                segments={[
+                                    { label: 'Sim', value: 0.45, color: cSim, valueLabel: '0.450' },
+                                    { label: 'Rec', value: 0.272, color: cRec, valueLabel: '0.272' },
+                                    { label: 'Imp', value: 0.16, color: cImp, valueLabel: '0.160' },
+                                    { label: 'Headroom', value: 0.118, color: c.border, valueLabel: '' },
+                                ]}
+                            />
+                            <Row justify="space-between" width={barMaxWidth}>
+                                <TextLabel c={c} text="Sim 0.50×0.90 = 0.450" fontSize={11} color={cSimText} mono />
+                                <TextLabel c={c} text="Rec 0.30×0.91 = 0.272" fontSize={11} color={cRecText} mono />
+                                <TextLabel c={c} text="Imp 0.20×0.80 = 0.160" fontSize={11} color={cImpText} mono />
+                            </Row>
+                        </Column>
+
+                        <Column gap={6}>
+                            <Row justify="space-between" align="center" width={barMaxWidth}>
+                                <TextLabel
+                                    c={c}
+                                    text="Record B (24h old, 2 half-lives)"
+                                    fontSize={13}
+                                    fontWeight={700}
+                                />
+                                <BadgePill
+                                    c={c}
+                                    text="Total 0.610"
+                                    tone="warm"
+                                    filled={false}
+                                    fontSize={12}
+                                />
+                            </Row>
+                            <StackedBar
+                                c={c}
+                                width={barMaxWidth}
+                                height={30}
+                                showLegend={false}
+                                segments={[
+                                    { label: 'Sim', value: 0.475, color: cSim, valueLabel: '0.475' },
+                                    { label: 'Rec', value: 0.075, color: cRec, valueLabel: '' },
+                                    { label: 'Imp', value: 0.06, color: cImp, valueLabel: '' },
+                                    { label: 'Headroom', value: 0.39, color: c.border, valueLabel: '' },
+                                ]}
+                            />
+                            <Row justify="space-between" width={barMaxWidth}>
+                                <TextLabel c={c} text="Sim 0.50×0.95 = 0.475" fontSize={11} color={cSimText} mono />
+                                <TextLabel c={c} text="Rec 0.30×0.25 = 0.075" fontSize={11} color={cRecText} mono />
+                                <TextLabel c={c} text="Imp 0.20×0.30 = 0.060" fontSize={11} color={cImpText} mono />
+                            </Row>
+                        </Column>
+
+                        <Row justify="space-between" width={barMaxWidth} align="center">
+                            {['0.00', '0.25', '0.50', '0.75', '1.00'].map((tick) => (
+                                <TextLabel
+                                    key={tick}
+                                    c={c}
+                                    text={tick}
+                                    fontSize={11}
+                                    color={c.textMuted}
+                                    mono
+                                />
+                            ))}
+                        </Row>
+                    </Column>
+                </Card>
+
+                <BarChart
+                    c={c}
+                    width={340}
+                    height={304}
+                    title="Cosine Only vs. Multi-Factor"
+                    subtitle="Rank reverses once recency & importance apply"
+                    yAxisLabel="Normalized score"
+                    min={0}
+                    max={1.0}
+                    format={(v) => v.toFixed(2)}
+                    showGrid
+                    showValues
+                    data={[
+                        { label: 'A cosine', value: 0.9, valueLabel: '0.90', color: cSim },
+                        { label: 'B cosine', value: 0.95, valueLabel: '0.95', color: getToneColor('warm', c) },
+                        { label: 'A total', value: 0.882, valueLabel: '0.882', color: cRec },
+                        { label: 'B total', value: 0.61, valueLabel: '0.610', color: getToneColor('warm', c) },
+                    ]}
+                />
+            </Row>
+
+            <Row gap={18} justify="center" align="center" width={848}>
+                <TextLabel c={c} text="Similarity (0.50)" fontSize={12} fontWeight={700} color={cSimText} />
+                <TextLabel c={c} text="Recency 0.5^(dt/12h) (0.30)" fontSize={12} fontWeight={700} color={cRecText} />
+                <TextLabel c={c} text="Clamped Importance [0,1] (0.20)" fontSize={12} fontWeight={700} color={cImpText} />
+            </Row>
+        </Scene>
     )
+})
 
-    const simFill = getToneColor('blue', c)
-    const recFill = getToneColor('green', c)
-    const impFill = getToneColor('purple', c)
-    const simInk = getReadableToneColor('blue', c)
-    const recInk = getReadableToneColor('green', c)
-    const impInk = getReadableToneColor('purple', c)
-
-    const renderCandidate = (spec: ScoreSpec) => {
-        const wSim = Math.round(spec.sim * 0.5 * 540)
-        const wRec = Math.round(spec.rec * 0.3 * 540)
-        const wImp = Math.round(spec.imp * 0.2 * 540)
-        return Panel({
-            c,
-            title: `${spec.title} · Score ${spec.total}`,
-            tone: spec.tone,
-            width: 608,
-            padding: 12,
-            titleFontSize: 20,
-            children: Column({
-                gap: 8,
-                children: [
-                    TextLabel({ c, text: spec.meta, fontSize: 19, color: c.textMuted }),
-                    <div
-                        style={{
-                            display: 'flex',
-                            width: 540,
-                            height: 24,
-                            borderRadius: 6,
-                            overflow: 'hidden',
-                            backgroundColor: c.border,
-                        }}
-                    >
-                        <div style={{ width: wSim, height: 24, backgroundColor: simFill }} />
-                        <div style={{ width: wRec, height: 24, backgroundColor: recFill }} />
-                        <div style={{ width: wImp, height: 24, backgroundColor: impFill }} />
-                    </div>,
-                    Row({
-                        gap: 14,
-                        children: [
-                            TextLabel({
-                                c,
-                                text: `Sim ${(spec.sim * 0.5).toFixed(3)}`,
-                                fontSize: 19,
-                                color: simInk,
-                            }),
-                            TextLabel({
-                                c,
-                                text: `Rec ${(spec.rec * 0.3).toFixed(3)}`,
-                                fontSize: 19,
-                                color: recInk,
-                            }),
-                            TextLabel({
-                                c,
-                                text: `Imp ${(spec.imp * 0.2).toFixed(3)}`,
-                                fontSize: 19,
-                                color: impInk,
-                            }),
-                        ],
-                    }),
-                ],
-            }),
-        })
-    }
-
-    return Scene({
-        c,
-        title: 'Tri-Factor Retrieval Score (0.50 Sim + 0.30 Rec + 0.20 Imp)',
-        padding: 16,
-        gap: 10,
-        contentWidth: 608,
-        children: [
-            Row({
-                gap: 10,
-                justify: 'center',
-                align: 'center',
-                children: [
-                    BadgePill({
-                        c,
-                        text: 'ACL & TTL Eligible Pool',
-                        tone: 'blue',
-                        fontSize: 19,
-                    }),
-                    FlowArrow({ c, direction: 'right', length: 24, tone: 'blue' }),
-                    BadgePill({
-                        c,
-                        text: 'Rank by Weighted Sum',
-                        tone: 'green',
-                        fontSize: 19,
-                    }),
-                ],
-            }),
-            renderCandidate({
-                title: 'Record A (Recent trace)',
-                tone: 'green',
-                total: '0.8817',
-                sim: 0.9,
-                rec: 0.9057,
-                imp: 0.8,
-                meta: 'Sim 0.90 · Rec 0.906 (recent) · Imp 0.80',
-            }),
-            renderCandidate({
-                title: 'Record B (Older trace)',
-                tone: 'warm',
-                total: '0.6100',
-                sim: 0.95,
-                rec: 0.25,
-                imp: 0.3,
-                meta: 'Sim 0.95 · Rec 0.250 (2 half-lives) · Imp 0.30',
-            }),
-            Row({
-                gap: 10,
-                justify: 'center',
-                align: 'center',
-                children: [
-                    BadgePill({
-                        c,
-                        text: 'Rule',
-                        tone: 'neutral',
-                        fontSize: 19,
-                    }),
-                    TextLabel({
-                        c,
-                        text: 'Eligibility filters always run before ranking weights',
-                        fontSize: 19,
-                    }),
-                ],
-            }),
-        ],
-    })
-}
-
-export default create('dark')
+export const create = illustration.create
+export default illustration.default

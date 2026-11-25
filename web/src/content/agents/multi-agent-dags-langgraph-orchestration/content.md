@@ -78,8 +78,8 @@ Total worker compute across branches: 6.0s (unchanged)
 Notice what stays constant under parallel fan-out: aggregate compute, API billings, and context-window tokens across workers remain `6s` plus coordination overhead. Splitting a single linear conversation into three independent sub-agents actually multiplies total prompt input tokens because each branch repeats the shared system instructions and task diff, which matches Anthropic's production finding that multi-agent research runs consume roughly 15x the tokens of single-agent chat [^anthropic_multiagent2025]. Multi-agent DAGs cut end-to-end delay only when slow external tool calls or independent evidence searches overlap in parallel, making the token budget worthwhile.
 
 <figure>
-  <img src="illustrations/_generated/linear_vs_dag_routing_dark.png" alt="A serial pipeline sums branch durations for diff analysis (2s), test suite (3s), and security scan (1s) into 6 seconds total. Running all three in parallel finishes in 3 seconds on the critical path while total work remains 6 seconds." />
-  <figcaption>Parallel DAG execution trims wall-clock latency from the sum of branch durations (6s) to the critical-path maximum (3s) while aggregate worker compute stays 6s.</figcaption>
+  <img src="illustrations/_generated/linear_vs_dag_routing_dark.png" alt="Scaled 0 to 6 second Gantt timeline comparing serial agent execution against parallel DAG fan-out. Serial execution runs diff_agent (0 to 2s), test_agent (2 to 5s), and scan_agent (5 to 6s) for 6.0s wall time. Parallel DAG fan-out runs all three starting at 0s, finishing at the 3.0s test_agent critical path (2.0x speedup). A companion bar chart shows wall time halving from 6.0s to 3.0s while aggregate worker compute stays 6.0s." />
+  <figcaption>Parallel DAG execution trims wall-clock latency on a shared 0s to 6s timeline from the sum of branch durations (6.0s) to the critical-path maximum (3.0s) while aggregate worker compute stays 6.0s.</figcaption>
 </figure>
 
 ## Model orchestration as a typed state graph
@@ -372,8 +372,8 @@ Not every coordination problem needs an explicit static graph. Choosing between 
 | **Tool privileges** | Bound per node by host | Bound per sub-tool by host | Rebuilt from target permissions (never transcript) |
 
 <figure>
-  <img src="illustrations/_generated/comm_patterns_dark.png" alt="Graph workflows schedule static fan-out/fan-in edges, supervisor models invoke specialists as tools while keeping control, and handoffs transfer turn ownership while the runtime rebuilds tool permissions." />
-  <figcaption>Static DAG edges fix concurrency up front, tool-calling supervisors retain turn ownership, and explicit handoffs transfer control while rebuilding tool scopes.</figcaption>
+  <img src="illustrations/_generated/comm_patterns_dark.png" alt="Three multi-agent network topologies compared side by side. Left: Deterministic DAG fans out from Intake to parallel Diff, Test, and Scan nodes before joining at Merge. Center: Hub-and-Spoke Supervisor retains turn control and calls Diff, Test, and Scan specialists bidirectionally as tools. Right: Peer Handoff Swarm transfers turn ownership across Triage, Code, and DB Specialist nodes before finishing, with the host rebuilding tool permissions at each handoff." />
+  <figcaption>Static DAGs fix parallel fan-out and fan-in edges up front, hub-and-spoke supervisors retain turn control over tool specialists, and peer handoff swarms transfer turn ownership while rebuilding tool permissions.</figcaption>
 </figure>
 
 Framework patterns have also converged around typed state and explicit control transfer. Microsoft placed **AutoGen** in maintenance mode and introduced **Microsoft Agent Framework Workflows**, replacing AutoGen's conversational broadcast and experimental `GraphFlow` prototypes with strongly typed event routing and executor nodes [^wu2023] [^autogen_maintenance2026] [^autogen_graphflow2026] [^microsoft_agentframework_migration2026]. Similarly, OpenAI deprecated its educational Swarm demo in favor of the **OpenAI Agents SDK**, where handoffs transfer control cleanly alongside `input_filter` context shaping and `on_handoff` argument validation (whereas `is_enabled` only controls tool visibility before parsed arguments exist) [^openai2024a] [^openai_agents_sdk] [^openai_agents_handoffs2026].

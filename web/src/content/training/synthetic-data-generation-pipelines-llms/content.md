@@ -233,8 +233,8 @@ Open-ended tasks without deterministic tests rely on LLM judges, which carry thr
 Counter position bias with an **order-reversal check**: present `(A, B)` and `(B, A)`, remap both verdicts back to response identity (`A` vs. `B`), and accept a win only when the same response wins in both orders.
 
 <figure>
-  <img src="illustrations/_generated/judge_order_identity_dark.png" alt="Two fixed-vote comparisons keep response identity attached to color while left and right positions swap. For unsafe-tool-refusal, the judge selects left in the forward order and right after reversal, selecting response A twice. For verbose-answer, it selects left in both orders, changing the winner from A to B; the example withholds the candidate for review." />
-  <figcaption>Track response identity across the swap. The first pair selects A in both orders; the second flips from A to B and routes to review.</figcaption>
+  <img src="illustrations/_generated/judge_order_identity_dark.png" alt="Paired bar charts comparing LLM-judge response win rates across A-first (A, B) and B-first (B, A) presentation orders. Left chart (unsafe-tool-refusal) shows order-stable consensus: response A wins 88% when shown first and 84% when shown second, so A is admitted. Right chart (verbose-answer) exposes position bias: response A wins 74% when placed first, but drops to 28% when placed second as response B jumps to 72%; the pair flips and is withheld for review." />
+  <figcaption>Swapping slot order separates order-stable consensus (left, response A wins in both orders and is admitted) from slot-1 position bias (right, winner flips from A to B and is withheld for review).</figcaption>
 </figure>
 
 <!-- leetllm: test, continue=schema, id=judge, output=show, output_title="Pairwise judge order check" -->
@@ -673,8 +673,8 @@ gen 10 | replace_var=0.911 | accumulate_var=0.988
 With smaller sample sizes or finite-support categories, collapse accelerates even faster (for a category of probability `0.1`, a 5-draw replacement sample misses it completely with probability $0.9^5 \approx 59.0\%$). Retaining real rows in storage is also distinct from **effective sampling weight** during training: measure real-to-synthetic token exposure directly and test rare slices across rounds.
 
 <figure>
-  <img src="illustrations/_generated/round_membership_dark.png" alt="Three real IDs, real-api-01, real-api-02, and real-code-01, remain alongside two synthetic IDs from each of two rounds. Replacement selects only synth-r2-01 and synth-r2-02, yielding two rows and zero real rows. Accumulation retains all seven IDs: three real, two from Round 1, and two from Round 2." />
-  <figcaption>Replacement trains on Round 2 alone (zero real rows). Accumulation unions the three real rows with both synthetic rounds (seven rows); effective training weight remains a separate mixture choice.</figcaption>
+  <img src="illustrations/_generated/round_membership_dark.png" alt="Recursive synthetic training comparison across 10 generations (n=80 per generation, 400 trials). Left line chart plots distribution variance: accumulating verified synthetic rounds alongside real data preserves variance near 0.988 through generation 10, whereas 100% synthetic replacement drops steadily from 0.990 to 0.911. Right stacked bars compare Round 2 training pool composition: replacement trains on 2 synthetic rows with 0% real anchors, while accumulation unions 3 real anchors (43%) with 2 Round 1 (29%) and 2 Round 2 (29%) rows." />
+  <figcaption>Across 10 recursive generations, 100% synthetic replacement erodes variance from 0.990 to 0.911 and drops real anchors to 0%, whereas accumulating verified synthetic rounds alongside real data keeps variance anchored near 0.988.</figcaption>
 </figure>
 
 ```checkpoint
@@ -731,10 +731,7 @@ rows=1 | sha256=b5cc167360566811... | verified=True
 
 > **Key insight:** A SHA-256 hash verifies byte identity only against a **separately protected reference digest**. Anyone with write access to both the data shard and its manifest can tamper with the shard and recompute a matching hash inside the writable manifest.
 
-<figure>
-  <img src="illustrations/_generated/trusted_digest_boundary_dark.png" alt="Reference bytes page_size 100 have SHA-256 prefix a1052512c4b5. Changed bytes page_size 10000 have prefix dfd022ebeedd. A rewritten manifest stores the changed digest, so the changed bytes match that manifest and differ from the protected reference digest." />
-  <figcaption>A mutable manifest can match altered bytes after being rewritten; only comparison against a separately protected reference digest exposes the change.</figcaption>
-</figure>
+For example, changing `"page_size":100` to `"page_size":10000` produces a new SHA-256 digest that still verifies against a co-located writable manifest if both files are rewritten together; only comparing against an out-of-band immutable reference digest exposes the tampering.
 
 ## Downstream evaluation: measure capability directly
 

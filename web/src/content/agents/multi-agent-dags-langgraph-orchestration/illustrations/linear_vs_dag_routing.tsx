@@ -1,161 +1,179 @@
 import React from 'react'
 import {
     BadgePill,
+    BarChart,
+    Card,
     Column,
-    FlowArrow,
-    Panel,
     Row,
     Scene,
     TextLabel,
+    defineIllustration,
     getReadableToneColor,
-    getThemeColors,
     getToneColor,
-    withDensity,
 } from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
 
-export const width = 640
-export const height = 620
+export const width = 900
+export const height = 435
 export const alt =
-    'A serial pipeline sums branch durations for diff analysis (2s), test suite (3s), and security scan (1s) into 6 seconds total. Running all three in parallel finishes in 3 seconds on the critical path while total work remains 6 seconds.'
+    'Scaled 0 to 6 second Gantt timeline comparing serial agent execution against parallel DAG fan-out. Serial execution runs diff_agent (0 to 2s), test_agent (2 to 5s), and scan_agent (5 to 6s) for 6.0s wall time. Parallel DAG fan-out runs all three starting at 0s, finishing at the 3.0s test_agent critical path (2.0x speedup). A companion bar chart shows wall time halving from 6.0s to 3.0s while aggregate worker compute stays 6.0s.'
 
-export function create(theme: ThemeMode = 'dark') {
-    const c = withDensity(
-        getThemeColors(theme, theme === 'light' ? 'engineering' : 'default'),
-        1.85,
-    )
-
+const illustration = defineIllustration((c) => {
     const cDiff = getToneColor('blue', c)
     const cTest = getToneColor('purple', c)
     const cScan = getToneColor('cyan', c)
-    const barW = 540
-    const unit = barW / 6
+    const cGreen = getToneColor('green', c)
+    const cWarm = getToneColor('warm', c)
 
-    const track = (segments: { w: number; color: string; offset?: number }[]) => (
-        <div
-            style={{
-                display: 'flex',
-                width: barW,
-                height: 22,
-                borderRadius: 6,
-                overflow: 'hidden',
-                backgroundColor: c.border,
-            }}
-        >
-            {segments.map((s, idx) => (
+    const labelW = 92
+    const secW = 72
+    const trackW = secW * 6
+
+    const ganttRow = (
+        name: string,
+        startSec: number,
+        durSec: number,
+        fill: string,
+        barText: string,
+    ) => (
+        <Row gap={10} align="center" width={labelW + 10 + trackW}>
+            <TextLabel c={c} text={name} fontSize={12} fontWeight={600} width={labelW} mono />
+            <div
+                style={{
+                    display: 'flex',
+                    width: trackW,
+                    height: 26,
+                    borderRadius: 6,
+                    backgroundColor: c.bgSubtle,
+                    border: `1px solid ${c.border}`,
+                    overflow: 'hidden',
+                }}
+            >
+                {startSec > 0 ? <div style={{ width: startSec * secW, height: 26 }} /> : null}
                 <div
-                    key={idx}
                     style={{
-                        width: s.w,
-                        height: 22,
-                        backgroundColor: s.color,
-                        marginLeft: s.offset ?? 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: durSec * secW,
+                        height: 26,
+                        backgroundColor: fill,
+                        borderRadius: 4,
+                        color: '#ffffff',
+                        fontSize: 12,
+                        fontWeight: 700,
                     }}
-                />
-            ))}
-        </div>
+                >
+                    {barText}
+                </div>
+            </div>
+        </Row>
     )
 
-    return Scene({
-        c,
-        title: 'Serial Pipeline vs. Parallel Fan-Out Latency',
-        padding: 16,
-        gap: 12,
-        contentWidth: 608,
-        children: [
-            Panel({
-                c,
-                title: 'Serial Agent Chain · 6.0s Wall Time (2s + 3s + 1s)',
-                tone: 'warm',
-                width: 608,
-                padding: 12,
-                titleFontSize: 20,
-                children: Column({
-                    gap: 8,
-                    children: [
-                        Row({
-                            gap: 8,
-                            justify: 'center',
-                            align: 'center',
-                            children: [
-                                TextLabel({
-                                    c,
-                                    text: 'Diff 2s',
-                                    fontSize: 19,
-                                    color: getReadableToneColor('blue', c),
-                                }),
-                                FlowArrow({ c, direction: 'right', length: 18, tone: 'blue' }),
-                                TextLabel({
-                                    c,
-                                    text: 'Tests 3s',
-                                    fontSize: 19,
-                                    color: getReadableToneColor('purple', c),
-                                }),
-                                FlowArrow({
-                                    c,
-                                    direction: 'right',
-                                    length: 18,
-                                    tone: 'purple',
-                                }),
-                                TextLabel({
-                                    c,
-                                    text: 'Scan 1s',
-                                    fontSize: 19,
-                                    color: getReadableToneColor('cyan', c),
-                                }),
-                            ],
-                        }),
-                        track([
-                            { w: 2 * unit, color: cDiff },
-                            { w: 3 * unit, color: cTest },
-                            { w: 1 * unit, color: cScan },
-                        ]),
-                    ],
-                }),
-            }),
-            Panel({
-                c,
-                title: 'Parallel DAG Fan-Out · 3.0s Critical Path',
-                tone: 'green',
-                width: 608,
-                padding: 12,
-                titleFontSize: 20,
-                children: Column({
-                    gap: 8,
-                    children: [
-                        TextLabel({ c, text: 'Diff analyzer (2.0s)', fontSize: 19 }),
-                        track([{ w: 2 * unit, color: cDiff }]),
-                        TextLabel({
-                            c,
-                            text: 'Test runner (3.0s critical path)',
-                            fontSize: 19,
-                        }),
-                        track([{ w: 3 * unit, color: cTest }]),
-                        TextLabel({ c, text: 'Security scan (1.0s)', fontSize: 19 }),
-                        track([{ w: 1 * unit, color: cScan }]),
-                    ],
-                }),
-            }),
-            Row({
-                gap: 10,
-                justify: 'center',
-                align: 'center',
-                children: [
-                    BadgePill({
-                        c,
-                        text: 'Tradeoff',
-                        tone: 'neutral',
-                        fontSize: 19,
-                    }),
-                    TextLabel({
-                        c,
-                        text: 'Wall time halves to 3s; total worker compute stays 6s',
-                        fontSize: 19,
-                    }),
-                ],
-            }),
-        ],
-    })
-}
+    return (
+        <Scene
+            c={c}
+            title="Serial Pipeline vs. Parallel DAG Critical Path (0s to 6s)"
+            padding={16}
+            gap={12}
+            contentWidth={868}
+        >
+            <Row gap={16} align="stretch">
+                <Card
+                    c={c}
+                    width={568}
+                    padding={16}
+                    gap={12}
+                    title="Scaled Execution Timeline (0s to 6s)"
+                    subtitle="Shared wall-clock axis across independent checks"
+                >
+                    <Column gap={8}>
+                        <Row justify="space-between" align="center" width={labelW + 10 + trackW}>
+                            <TextLabel
+                                c={c}
+                                text="Serial Chain (2s + 3s + 1s)"
+                                fontSize={13}
+                                fontWeight={700}
+                                color={getReadableToneColor('warm', c)}
+                            />
+                            <BadgePill c={c} text="6.0s wall" tone="warm" filled fontSize={11} />
+                        </Row>
+                        {ganttRow('diff_agent', 0, 2, cDiff, '2.0s')}
+                        {ganttRow('test_agent', 2, 3, cTest, '3.0s')}
+                        {ganttRow('scan_agent', 5, 1, cScan, '1s')}
+                    </Column>
 
-export default create('dark')
+                    <div
+                        style={{
+                            width: labelW + 10 + trackW,
+                            height: 1,
+                            backgroundColor: c.border,
+                            marginTop: 4,
+                            marginBottom: 4,
+                        }}
+                    />
+
+                    <Column gap={8}>
+                        <Row justify="space-between" align="center" width={labelW + 10 + trackW}>
+                            <TextLabel
+                                c={c}
+                                text="Parallel DAG Fan-Out (max branch)"
+                                fontSize={13}
+                                fontWeight={700}
+                                color={getReadableToneColor('green', c)}
+                            />
+                            <BadgePill c={c} text="3.0s (2.0x faster)" tone="green" filled fontSize={11} />
+                        </Row>
+                        {ganttRow('diff_agent', 0, 2, cDiff, '2.0s')}
+                        {ganttRow('test_agent', 0, 3, cTest, '3.0s critical path')}
+                        {ganttRow('scan_agent', 0, 1, cScan, '1s')}
+                    </Column>
+
+                    <Row gap={10} align="center" width={labelW + 10 + trackW}>
+                        <TextLabel c={c} text="Wall time" fontSize={11} color={c.textMuted} width={labelW} />
+                        <Row justify="space-between" width={trackW}>
+                            {['0s', '1s', '2s', '3s', '4s', '5s', '6s'].map((tick) => (
+                                <TextLabel
+                                    key={tick}
+                                    c={c}
+                                    text={tick}
+                                    fontSize={11}
+                                    fontWeight={tick === '3s' || tick === '6s' ? 700 : 400}
+                                    color={
+                                        tick === '3s'
+                                            ? getReadableToneColor('green', c)
+                                            : tick === '6s'
+                                              ? getReadableToneColor('warm', c)
+                                              : c.textMuted
+                                    }
+                                    mono
+                                />
+                            ))}
+                        </Row>
+                    </Row>
+                </Card>
+
+                <BarChart
+                    c={c}
+                    width={284}
+                    height={368}
+                    title="Wall Time vs. Compute"
+                    subtitle="Parallelism cuts delay, not total work"
+                    yAxisLabel="Seconds (s)"
+                    min={0}
+                    max={9}
+                    format={(v) => `${Math.round(v)}s`}
+                    showGrid
+                    showValues
+                    data={[
+                        { label: 'Serial wall', value: 6.0, valueLabel: '6.0s', color: cWarm },
+                        { label: 'DAG wall', value: 3.0, valueLabel: '3.0s', color: cGreen },
+                        { label: 'Total work', value: 6.0, valueLabel: '6.0s', color: cDiff },
+                    ]}
+                />
+            </Row>
+        </Scene>
+    )
+})
+
+export const create = illustration.create
+export default illustration.default

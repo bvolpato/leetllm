@@ -102,6 +102,7 @@ At query time, **Local Search** maps the question to seed entities, expands thei
 
 <!-- leetllm: test, output=show -->
 ```python title="typed-entity-graph-and-local-packer.py"
+# fold:start imports & dataclasses
 from collections import defaultdict
 from dataclasses import dataclass
 import numpy as np
@@ -130,6 +131,7 @@ class Candidate:
     score: float
     tokens: int
     source: str
+# fold:end
 
 
 def norm(s: str) -> str:
@@ -187,6 +189,7 @@ def pack_context(candidates: list[Candidate], budget: int) -> list[Candidate]:
     return selected
 
 
+# fold:start demo graph fixtures & prints
 nodes, adj = build_graph(
     [
         Entity("FlashAttention", "Algorithm", ["paper-dao22"]),
@@ -219,6 +222,7 @@ packed = pack_context(
     budget=90,
 )
 print("packed:     ", [(c.label, c.source) for c in packed])
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
