@@ -1,395 +1,240 @@
-import { createElement, type ReactElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const opaqueBackground = true
+export const width = 840
+export const height = 420
 export const alt =
     'Bias-free forward MLP with hidden dimension H=8, intermediate dimension I=16, and TP=4. Input X[1,8] is broadcast to all four TP ranks. Column parallel layer computes GeLU(X A_i) with A_i[8,4], then row parallel layer multiplies by B_i[4,8] yielding partial outputs Z_i[1,8]. All-reduce sums partial outputs into final replicated Z[1,8].'
 
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
-
-function renderBoard(c: Colors, items: (ReactElement | ReactElement[])[]) {
-    const flat = items.flat() as ReactElement[]
-    const svg = flat.filter((el) => el?.type !== 'div')
-    const html = flat.filter((el) => el?.type === 'div')
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bg,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: createElement(
-                    'svg',
-                    { width, height, viewBox: `0 0 ${width} ${height}` },
-                    ...svg,
-                ),
-            }),
-            ...html,
-        ],
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const purple = getReadableToneColor('purple', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
     const muted = c.textSecondary
 
-    const leftX = 35
-    const stage1W = 160
-    const stage2X = 225
-    const stage2W = 270
-    const stage3X = 525
-    const stage3W = 300
+    // Column headers (top, aligned over the 4 stages)
+    const col1X = 86
+    const col1W = 104
+    const col2X = 224
+    const col2W = 192
+    const col3X = 450
+    const col3W = 178
+    const col4X = 674
+    const col4W = 144
 
-    return renderBoard(c, [
-        // Title & Subtitle
-        label(
-            c,
-            'Tensor Parallel MLP Forward Pass (TP=4)',
-            35,
-            18,
-            790,
-            26,
-            22,
-            c.textPrimary,
-            700,
-        ),
-        label(
-            c,
-            'Column-parallel linear layer (weights split by column) and row-parallel linear layer (weights split by row) with All-Reduce',
-            35,
-            46,
-            790,
-            20,
-            15,
-            muted,
-            400,
-        ),
+    fig.text(col1X + col1W / 2, 22, 'Replicated Input', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+        width: 130,
+    })
+    fig.text(col1X + col1W / 2, 42, 'X [1, 8]', {
+        size: 13,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: 120,
+    })
 
-        // Stage 1: Input Tensor X
-        SvgFrame({
-            c,
-            x: leftX,
-            y: 80,
-            width: stage1W,
-            height: 340,
-            rx: 8,
+    fig.text(col2X + col2W / 2, 22, 'Column-Parallel + GeLU', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        width: 200,
+    })
+    fig.text(col2X + col2W / 2, 42, 'A_i [8, 4] -> H_i [1, 4]', {
+        size: 13,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: 200,
+    })
+
+    fig.text(col3X + col3W / 2, 22, 'Row-Parallel Shard', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        width: 184,
+    })
+    fig.text(col3X + col3W / 2, 42, 'B_i [4,8] -> Z_i [1,8]', {
+        size: 13,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: 210,
+    })
+
+    fig.text(col4X + col4W / 2, 22, 'All-Reduce (Sum)', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+        width: 150,
+    })
+    fig.text(col4X + col4W / 2, 42, 'Z [1, 8] all ranks', {
+        size: 13,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: 150,
+    })
+
+    // 4 GPU rank swimlanes
+    const startY = 66
+    const laneH = 54
+    const laneGap = 16
+
+    for (let i = 0; i < 4; i++) {
+        const y = startY + i * (laneH + laneGap)
+        const midY = y + laneH / 2
+
+        // Rank label on far left
+        fig.text(20, midY, `Rank ${i}`, {
+            size: 14,
+            weight: 700,
+            color: c.textPrimary,
+        })
+
+        // Stage 1: Replicated X
+        fig.rect(col1X, y + 6, col1W, laneH - 12, {
+            fill: tint(cyan, c.bg, 0.12),
             stroke: cyan,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(57, 197, 207, 0.08)' : 'rgba(26, 127, 139, 0.05)',
-        }),
-        label(c, '1. Input Tensor', leftX + 12, 92, stage1W - 24, 20, 15, cyan, 700),
-        label(
-            c,
-            'Shape: [1, H=8]',
-            leftX + 12,
-            116,
-            stage1W - 24,
-            18,
-            13,
-            c.textPrimary,
-            600,
-            'left',
-            true,
-        ),
-        label(c, 'Replicated on all 4 ranks', leftX + 12, 140, stage1W - 24, 18, 12, muted),
+            strokeWidth: 1.25,
+            radius: 6,
+        })
+        fig.text(col1X + col1W / 2, midY, 'X [1, 8]', {
+            size: 13,
+            weight: 600,
+            color: cyan,
+            align: 'center',
+            mono: true,
+            width: col1W - 8,
+        })
 
-        ...[0, 1, 2, 3].flatMap((i) => [
-            SvgFrame({
-                c,
-                x: leftX + 14,
-                y: 180 + i * 52,
-                width: stage1W - 28,
-                height: 42,
-                rx: 5,
-                stroke: cyan,
-                strokeWidth: 1,
-                fill: c.bgCard,
-            }),
-            label(
-                c,
-                `Rank ${i}: X [1, 8]`,
-                leftX + 22,
-                192 + i * 52,
-                stage1W - 44,
-                18,
-                12,
-                cyan,
-                600,
-                'center',
-                true,
-            ),
-        ]),
-
-        // Arrow Stage 1 -> Stage 2
-        VectorArrow({
-            x1: leftX + stage1W,
-            y1: 250,
-            x2: stage2X,
-            y2: 250,
+        // Arrow 1 -> 2
+        fig.arrow(col1X + col1W, midY, col2X - 3, midY, {
             color: blue,
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
+            width: 1.75,
+            head: 5,
+        })
 
-        // Stage 2: Column Parallel Linear
-        SvgFrame({
-            c,
-            x: stage2X,
-            y: 80,
-            width: stage2W,
-            height: 340,
-            rx: 8,
+        // Stage 2: Column-parallel + local GeLU
+        fig.rect(col2X, y + 4, col2W, laneH - 8, {
+            fill: tint(blue, c.bg, 0.11),
             stroke: blue,
             strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(56, 139, 253, 0.08)' : 'rgba(9, 105, 218, 0.05)',
-        }),
-        label(c, '2. Column Parallel: A_i', stage2X + 14, 92, stage2W - 28, 20, 15, blue, 700),
-        label(
-            c,
-            'Weights split by column: [8, 4]',
-            stage2X + 14,
-            116,
-            stage2W - 28,
-            18,
-            13,
-            c.textPrimary,
-            600,
-            'left',
-            true,
-        ),
-        label(c, 'Compute: H_i = GeLU(X · A_i)', stage2X + 14, 140, stage2W - 28, 18, 12, muted),
+            radius: 6,
+        })
+        fig.math(col2X + col2W / 2, midY, `H_${i} = \\mathrm{GeLU}(X A_${i})`, {
+            size: 14,
+            color: c.textPrimary,
+            align: 'center',
+        })
 
-        ...[0, 1, 2, 3].flatMap((i) => [
-            SvgFrame({
-                c,
-                x: stage2X + 14,
-                y: 180 + i * 52,
-                width: stage2W - 28,
-                height: 42,
-                rx: 5,
-                stroke: blue,
-                strokeWidth: 1,
-                fill: c.bgCard,
-            }),
-            label(
-                c,
-                `Rank ${i}: H_${i} = GeLU(X · A_${i})  [1, 4]`,
-                stage2X + 22,
-                192 + i * 52,
-                stage2W - 44,
-                18,
-                12,
-                blue,
-                600,
-                'center',
-                true,
-            ),
-        ]),
-
-        // Arrow Stage 2 -> Stage 3
-        VectorArrow({
-            x1: stage2X + stage2W,
-            y1: 250,
-            x2: stage3X,
-            y2: 250,
+        // Arrow 2 -> 3 (local, no comm)
+        fig.arrow(col2X + col2W, midY, col3X - 3, midY, {
             color: purple,
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
+            width: 1.75,
+            head: 5,
+        })
 
-        // Stage 3: Row Parallel Linear & All-Reduce
-        SvgFrame({
-            c,
-            x: stage3X,
-            y: 80,
-            width: stage3W,
-            height: 340,
-            rx: 8,
+        // Stage 3: Row-parallel partial output
+        fig.rect(col3X, y + 4, col3W, laneH - 8, {
+            fill: tint(purple, c.bg, 0.11),
             stroke: purple,
             strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(163, 113, 247, 0.08)' : 'rgba(130, 80, 223, 0.05)',
-        }),
-        label(
-            c,
-            '3. Row Parallel: B_i & All-Reduce',
-            stage3X + 14,
-            92,
-            stage3W - 28,
-            20,
-            15,
-            purple,
-            700,
-        ),
-        label(
-            c,
-            'Weights split by row: B_i [4, 8]',
-            stage3X + 14,
-            116,
-            stage3W - 28,
-            18,
-            13,
-            c.textPrimary,
-            600,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'Partial outputs: Z_i = H_i · B_i [1, 8]',
-            stage3X + 14,
-            140,
-            stage3W - 28,
-            18,
-            12,
-            muted,
-        ),
+            radius: 6,
+        })
+        fig.math(col3X + col3W / 2, midY, `Z_${i} = H_${i} B_${i}`, {
+            size: 14,
+            color: c.textPrimary,
+            align: 'center',
+        })
 
-        // Partial outputs
-        ...[0, 1, 2, 3].flatMap((i) => [
-            SvgFrame({
-                c,
-                x: stage3X + 14,
-                y: 170 + i * 40,
-                width: stage3W - 28,
-                height: 32,
-                rx: 4,
-                stroke: purple,
-                strokeWidth: 1,
-                fill: c.bgCard,
-            }),
-            label(
-                c,
-                `Z_${i} = H_${i} · B_${i}  [1, 8]  (Rank ${i})`,
-                stage3X + 22,
-                178 + i * 40,
-                stage3W - 44,
-                16,
-                11,
-                purple,
-                500,
-                'center',
-                true,
-            ),
-        ]),
+        // Arrow 3 -> 4 (converging into All-Reduce)
+        fig.arrow(col3X + col3W, midY, col4X - 4, midY, {
+            color: green,
+            width: 1.75,
+            head: 5,
+        })
+    }
 
-        // All-Reduce Sum Box
-        SvgFrame({
-            c,
-            x: stage3X + 14,
-            y: 340,
-            width: stage3W - 28,
-            height: 65,
-            rx: 6,
-            stroke: green,
-            strokeWidth: 2,
-            fill: theme === 'dark' ? 'rgba(63, 185, 80, 0.15)' : 'rgba(26, 127, 55, 0.1)',
-        }),
-        label(
-            c,
-            'All-Reduce (Sum): Z = Σ Z_i',
-            stage3X + 22,
-            350,
-            stage3W - 44,
-            20,
-            13,
-            green,
-            700,
-            'center',
-        ),
-        label(
-            c,
-            'Final Output: Z [1, 8] on all ranks',
-            stage3X + 22,
-            374,
-            stage3W - 44,
-            18,
-            12,
-            green,
-            600,
-            'center',
-            true,
-        ),
+    // Stage 4: Single unified All-Reduce vertical collective block spanning all 4 lanes
+    const allReduceH = 4 * laneH + 3 * laneGap - 8
+    fig.rect(col4X, startY + 4, col4W, allReduceH, {
+        fill: tint(green, c.bg, 0.13),
+        stroke: green,
+        strokeWidth: 2,
+        radius: 10,
+    })
+    fig.text(col4X + col4W / 2, startY + 46, 'All-Reduce', {
+        size: 15,
+        weight: 700,
+        color: green,
+        align: 'center',
+        width: col4W - 12,
+    })
+    fig.text(col4X + col4W / 2, startY + 70, 'Sum across TP=4', {
+        size: 12,
+        color: muted,
+        align: 'center',
+        width: col4W - 12,
+    })
+    fig.math(col4X + col4W / 2, startY + 132, 'Z = \\sum_{i=0}^{3} Z_i', {
+        size: 16,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.rect(col4X + 16, startY + 186, col4W - 32, 48, {
+        fill: tint(green, c.bg, 0.22),
+        stroke: green,
+        strokeWidth: 1.25,
+        radius: 6,
+    })
+    fig.text(col4X + col4W / 2, startY + 202, 'Z [1, 8]', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+        mono: true,
+        width: col4W - 36,
+    })
+    fig.text(col4X + col4W / 2, startY + 221, 'Replicated', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        width: col4W - 36,
+    })
 
-        // Bottom summary frame
-        SvgFrame({
-            c,
-            x: leftX,
-            y: 435,
-            width: 790,
-            height: 42,
-            rx: 6,
-            stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgCard,
-        }),
-        label(c, 'Forward: 1 All-Reduce (Sum)', leftX + 20, 447, 240, 20, 12, blue, 600),
-        label(
-            c,
-            'Backward: 1 All-Reduce (Input Gradients)',
-            leftX + 270,
-            447,
-            260,
-            20,
-            12,
-            warm,
-            600,
-            'center',
-        ),
-        label(
-            c,
-            'Total TP Communication: 2 Collectives / Layer',
-            leftX + 530,
-            447,
-            240,
-            20,
-            12,
-            green,
-            600,
-            'right',
-        ),
-    ])
+    // Bottom frameless annotations
+    fig.line(20, 358, 818, 358, { color: c.borderSubtle, width: 1 })
+    fig.text(20, 386, 'H = 8, I = 16, TP = 4', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+        mono: true,
+    })
+    fig.text(420, 386, 'Local GeLU needs 0 communication', {
+        size: 13,
+        weight: 600,
+        color: blue,
+        align: 'center',
+        width: 280,
+    })
+    fig.text(818, 386, '1 All-Reduce forward (1 backward)', {
+        size: 13,
+        weight: 600,
+        color: green,
+        align: 'right',
+    })
+
+    return fig.render()
 }
 
 export default create()

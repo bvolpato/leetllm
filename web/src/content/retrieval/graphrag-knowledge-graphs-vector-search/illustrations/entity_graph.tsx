@@ -1,156 +1,281 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 560
-export const height = 730
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const width = 760
+export const height = 434
 export const alt =
-    'Three supplied identities form a directed path: inference-api is a Service, Redis Cache is a Datastore, and Old Maxmemory Policy is a ConfigPolicy. The depends_on edge cites source 1842; the uses_policy edge cites source 2031. The reviewed Redis Cache identity carries both source IDs.'
+    'Top: two source records extract separate triples, with Record 1842 linking inference-api to Redis Cache and Record 2031 linking Redis Cache to Old Maxmemory Policy. Middle: entity resolution merges both Redis Cache mentions under one typed node (Redis Cache, Datastore) and unions their source IDs (1842, 2031). Bottom: the resolved directed property graph connects inference-api (Service) via depends_on (source 1842) through Redis Cache (Datastore) via uses_policy (source 2031) to Old Maxmemory Policy (ConfigPolicy).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const service = getReadableToneColor('blue', c, c.bg)
-    const datastore = getReadableToneColor('green', c, c.bg)
-    const policy = getReadableToneColor('warm', c, c.bg)
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 20,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        fontWeight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={fontWeight}
-            />
-        </CanvasItem>
-    )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <SvgFrame
-                        c={c}
-                        x={42}
-                        y={106}
-                        width={476}
-                        height={94}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={service}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={42}
-                        y={290}
-                        width={476}
-                        height={104}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={datastore}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={42}
-                        y={484}
-                        width={476}
-                        height={94}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={policy}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={42}
-                        y={106}
-                        width={9}
-                        height={94}
-                        rx={4}
-                        fill={service}
-                        stroke={service}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={42}
-                        y={290}
-                        width={9}
-                        height={104}
-                        rx={4}
-                        fill={datastore}
-                        stroke={datastore}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={42}
-                        y={484}
-                        width={9}
-                        height={94}
-                        rx={4}
-                        fill={policy}
-                        stroke={policy}
-                    />
-                    <VectorArrow
-                        x1={280}
-                        y1={202}
-                        x2={280}
-                        y2={269}
-                        color={service}
-                        strokeWidth={3}
-                        arrowSize={5}
-                    />
-                    <VectorArrow
-                        x1={280}
-                        y1={396}
-                        x2={280}
-                        y2={463}
-                        color={datastore}
-                        strokeWidth={3}
-                        arrowSize={5}
-                    />
-                </svg>
-            </CanvasItem>
-            {label(20, 10, 520, 'Follow the source-backed edges', 29, c.textPrimary, 'left', 700)}
-            {label(20, 52, 520, 'One supplied identity path · two records', 19, c.textSecondary)}
+    // ── Top Row: Raw Per-Record Extractions ──────────────────────────────────
+    fig.text(20, 18, '1. Per-Record Extraction', { size: 15, weight: 700, color: c.textPrimary })
+    fig.text(width - 20, 18, 'Two separate source records mention Redis Cache', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'right',
+    })
 
-            {label(66, 119, 428, 'inference-api', 27, c.textPrimary, 'center', 700)}
-            {label(66, 158, 428, 'Service', 19, service, 'center', 600)}
+    const recY = 42
+    const recH = 66
+    const recW = 344
 
-            {label(306, 210, 220, 'depends_on', 21, service, 'left', 700)}
-            {label(306, 238, 220, 'source 1842', 20, c.textSecondary)}
+    // Record 1842
+    fig.rect(20, recY, recW, recH, {
+        fill: withColorAlpha(blue, 0.07),
+        stroke: withColorAlpha(blue, 0.55),
+        strokeWidth: 1.35,
+        radius: 8,
+    })
+    fig.text(32, recY + 17, 'Record 1842', { size: 13, mono: true, weight: 700, color: blue })
+    fig.text(32, recY + 44, 'inference-api', { size: 13, mono: true, color: c.textPrimary })
+    fig.arrow(144, recY + 44, 232, recY + 44, { color: blue, width: 1.6, head: 6 })
+    fig.text(186, recY + 32, 'depends_on', {
+        size: 11,
+        mono: true,
+        color: blue,
+        align: 'center',
+    })
+    fig.rect(240, recY + 31, 112, 24, {
+        fill: withColorAlpha(green, 0.2),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text(296, recY + 43, 'Redis Cache', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
 
-            {label(66, 301, 428, 'Redis Cache', 27, c.textPrimary, 'center', 700)}
-            {label(66, 343, 428, 'Datastore · sources 1842, 2031', 19, datastore, 'center', 600)}
+    // Record 2031
+    const r2X = 396
+    fig.rect(r2X, recY, recW, recH, {
+        fill: withColorAlpha(purple, 0.07),
+        stroke: withColorAlpha(purple, 0.55),
+        strokeWidth: 1.35,
+        radius: 8,
+    })
+    fig.text(r2X + 12, recY + 17, 'Record 2031', { size: 13, mono: true, weight: 700, color: purple })
+    fig.rect(r2X + 12, recY + 31, 112, 24, {
+        fill: withColorAlpha(green, 0.2),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text(r2X + 68, recY + 43, 'Redis Cache', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.arrow(r2X + 130, recY + 44, r2X + 220, recY + 44, { color: purple, width: 1.6, head: 6 })
+    fig.text(r2X + 174, recY + 32, 'uses_policy', {
+        size: 11,
+        mono: true,
+        color: purple,
+        align: 'center',
+    })
+    fig.text(r2X + 228, recY + 44, 'Maxmemory', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
 
-            {label(306, 403, 220, 'uses_policy', 21, datastore, 'left', 700)}
-            {label(306, 431, 220, 'source 2031', 20, c.textSecondary)}
+    // ── Middle: Converging Entity-Resolution Merge ───────────────────────────
+    const mergeY = 198
+    const centerNodeX = 380
+    fig.arrow(296, recY + recH + 4, centerNodeX - 24, mergeY - 6, {
+        color: green,
+        width: 2.2,
+        head: 8,
+    })
+    fig.arrow(r2X + 68, recY + recH + 4, centerNodeX + 24, mergeY - 6, {
+        color: green,
+        width: 2.2,
+        head: 8,
+    })
 
-            {label(66, 497, 428, 'Old Maxmemory Policy', 25, c.textPrimary, 'center', 700)}
-            {label(66, 536, 428, 'ConfigPolicy', 19, policy, 'center', 600)}
-        </Board>
-    )
+    // Solid tinted pill drawn AFTER arrows so arrows cleanly pass behind it
+    fig.rect(248, 134, 264, 30, {
+        fill: tint(green, c.bg, 0.14),
+        stroke: withColorAlpha(green, 0.7),
+        strokeWidth: 1.4,
+        radius: 15,
+    })
+    fig.text(centerNodeX, 149, 'Entity Resolution · union source IDs', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    // ── Bottom Row: Resolved Typed Property Graph ────────────────────────────
+    fig.text(20, 180, '2. Canonical Typed Graph', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const nodeY = 204
+    const nodeH = 88
+
+    // Node 1: inference-api (Service)
+    const n1X = 20
+    const n1W = 192
+    fig.rect(n1X, nodeY, n1W, nodeH, {
+        fill: withColorAlpha(blue, 0.12),
+        stroke: blue,
+        strokeWidth: 1.8,
+        radius: 9,
+    })
+    fig.text(n1X + n1W / 2, nodeY + 28, 'inference-api', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(n1X + n1W / 2, nodeY + 52, 'Service', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(n1X + n1W / 2, nodeY + 72, 'src: 1842', {
+        size: 12,
+        mono: true,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Node 2: Redis Cache (Merged Datastore)
+    const n2X = 282
+    const n2W = 196
+    fig.rect(n2X, nodeY, n2W, nodeH, {
+        fill: withColorAlpha(green, 0.16),
+        stroke: green,
+        strokeWidth: 2.2,
+        radius: 9,
+    })
+    fig.text(n2X + n2W / 2, nodeY + 28, 'Redis Cache', {
+        size: 16,
+        weight: 800,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(n2X + n2W / 2, nodeY + 52, 'Datastore (merged)', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(n2X + n2W / 2, nodeY + 72, 'src: 1842, 2031', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    // Node 3: Old Maxmemory Policy (ConfigPolicy)
+    const n3X = 548
+    const n3W = 192
+    fig.rect(n3X, nodeY, n3W, nodeH, {
+        fill: withColorAlpha(warm, 0.12),
+        stroke: warm,
+        strokeWidth: 1.8,
+        radius: 9,
+    })
+    fig.text(n3X + n3W / 2, nodeY + 22, 'Old Maxmemory', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(n3X + n3W / 2, nodeY + 42, 'Policy', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(n3X + n3W / 2, nodeY + 62, 'ConfigPolicy', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+    fig.text(n3X + n3W / 2, nodeY + 78, 'src: 2031', {
+        size: 12,
+        mono: true,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Directed source-cited edges between canonical nodes
+    const edgeY = nodeY + nodeH / 2
+    fig.arrow(n1X + n1W + 4, edgeY, n2X - 4, edgeY, { color: blue, width: 2.2, head: 8 })
+    fig.arrow(n2X + n2W + 4, edgeY, n3X - 4, edgeY, { color: purple, width: 2.2, head: 8 })
+
+    // Edge labels cleanly BELOW the edges
+    const e1Cx = (n1X + n1W + n2X) / 2
+    const e2Cx = (n2X + n2W + n3X) / 2
+    fig.text(e1Cx, nodeY + nodeH + 18, 'depends_on', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(e1Cx, nodeY + nodeH + 36, 'cites 1842', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    fig.text(e2Cx, nodeY + nodeH + 18, 'uses_policy', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+    fig.text(e2Cx, nodeY + nodeH + 36, 'cites 2031', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // ── Bottom: Typed-Key Invariant Strip ────────────────────────────────────
+    fig.line(20, 356, width - 20, 356, { color: c.borderSubtle, width: 1 })
+    fig.rect(20, 372, width - 40, 44, {
+        fill: tint(c.border, c.bg, 0.24),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 7,
+    })
+    fig.text(36, 394, 'Identity key:', { size: 13, weight: 700, color: c.textPrimary })
+    fig.text(124, 394, '(canonical_title, canonical_type)', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: blue,
+    })
+    fig.text(width - 36, 394, 'Prevents merging Compiler:Triton with Server:Triton', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

@@ -1,283 +1,167 @@
-import React from 'react'
-import { AxisPlot, Board, CanvasItem, Scene, SvgFrame, TextLabel, getThemeColors } from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 900
-export const height = 560
+export const width = 760
+export const height = 355
 export const alt =
-    'Four per-rank bars share a 0-to-90 GB scale with an 80 GB budget line. TP=1 requests 70 GB of weights and 16 GB of reserve, so 6 GB extends past the budget. TP=2 shows both ranks at 35 GB weights, 16 GB reserve, and 29 GB free each. TP=4 shows one of four identical ranks at 17.5 GB weights, 16 GB reserve, and 46.5 GB free.'
-
-const label = (
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    size: number,
-    color: string,
-    align: 'left' | 'center' | 'right' = 'left',
-    weight = 700,
-) => (
-    <CanvasItem x={x} y={y} width={w} height={h}>
-        <TextLabel
-            c={c}
-            text={text}
-            width="100%"
-            fontSize={size}
-            fontWeight={weight}
-            color={color}
-            align={align}
-        />
-    </CanvasItem>
-)
-
-function frame(theme: ThemeMode) {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const weight = c.primary
-    const reserve = c.neutral
-    const avail = c.positive
-    const oom = c.critical
-
-    const x0 = 216
-    const span = 620
-    const gx = (gb: number) => x0 + (gb / 90) * span
-    const gw = (gb: number) => (gb / 90) * span
-    const by = (yTop: number) => height - yTop
-
-    const rows = [
-        {
-            name: 'TP=1 (1x)',
-            y: 152,
-            w: 70,
-            r: 10,
-            f: 0,
-            over: 6,
-            note: '86 GB (OOM +6)',
-            col: oom,
-        },
-        { name: 'TP=2 r0', y: 230, w: 35, r: 16, f: 29, over: 0, note: '29 GB free', col: avail },
-        { name: 'TP=2 r1', y: 308, w: 35, r: 16, f: 29, over: 0, note: '29 GB free', col: avail },
-        {
-            name: 'TP=4 (x4)',
-            y: 386,
-            w: 17.5,
-            r: 16,
-            f: 46.5,
-            over: 0,
-            note: '46.5 GB free',
-            col: avail,
-        },
-    ]
-
-    const bars = rows.flatMap((r) => {
-        const items = [
-            SvgFrame({
-                c,
-                x: x0,
-                y: r.y,
-                width: gw(r.w),
-                height: 42,
-                rx: 4,
-                fill: weight,
-                stroke: weight,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: x0 + gw(r.w) + 2,
-                y: r.y,
-                width: gw(r.r) - 2,
-                height: 42,
-                rx: 4,
-                fill: reserve,
-                stroke: reserve,
-                strokeWidth: 1,
-            }),
-        ]
-        if (r.f > 0) {
-            items.push(
-                SvgFrame({
-                    c,
-                    x: x0 + gw(r.w + r.r) + 2,
-                    y: r.y,
-                    width: gw(r.f) - 2,
-                    height: 42,
-                    rx: 4,
-                    fill: avail,
-                    stroke: avail,
-                    strokeWidth: 1,
-                }),
-            )
-        }
-        if (r.over > 0) {
-            items.push(
-                SvgFrame({
-                    c,
-                    x: gx(80) + 2,
-                    y: r.y,
-                    width: gw(r.over),
-                    height: 42,
-                    rx: 4,
-                    fill: oom,
-                    stroke: oom,
-                    strokeWidth: 1,
-                }),
-            )
-        }
-        return items
-    })
-
-    const geometry = AxisPlot({
-        c,
-        width,
-        height,
-        xMin: 0,
-        xMax: width,
-        yMin: 0,
-        yMax: height,
-        padding: 0,
-        showFrame: false,
-        showAxes: false,
-        showGrid: false,
-        children: [
-            SvgFrame({
-                c,
-                x: 24,
-                y: 108,
-                width: 852,
-                height: 426,
-                rx: 12,
-                fill: c.bgCard,
-                stroke: c.border,
-                strokeWidth: 2,
-            }),
-            ...bars,
-        ],
-    })
-
-    const lines = AxisPlot({
-        c,
-        width,
-        height,
-        xMin: 0,
-        xMax: width,
-        yMin: 0,
-        yMax: height,
-        padding: 0,
-        showFrame: false,
-        showAxes: false,
-        showGrid: false,
-        paths: [
-            {
-                points: [
-                    { x: gx(80), y: by(136) },
-                    { x: gx(80), y: by(452) },
-                ],
-                color: oom,
-                strokeWidth: 3,
-            },
-            {
-                points: [
-                    { x: x0, y: by(452) },
-                    { x: x0 + span, y: by(452) },
-                ],
-                color: c.borderLight,
-                strokeWidth: 2,
-            },
-        ],
-    })
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: (
-            <Board c={c} width={width} height={height} background="transparent">
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    {geometry}
-                </CanvasItem>
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    {lines}
-                </CanvasItem>
-
-                {label(
-                    c,
-                    'Per-rank VRAM on 80 GB GPUs (70w + 16r GB)',
-                    20,
-                    14,
-                    860,
-                    42,
-                    31,
-                    c.textPrimary,
-                    'center',
-                    800,
-                )}
-                {label(
-                    c,
-                    'Purple = wts | Gray = 16 rsv | Green = KV free',
-                    20,
-                    56,
-                    860,
-                    36,
-                    28,
-                    c.textSecondary,
-                    'center',
-                    650,
-                )}
-
-                {rows.map((r) => (
-                    <React.Fragment key={r.name}>
-                        {label(
-                            c,
-                            r.name,
-                            40,
-                            r.y + 4,
-                            166,
-                            36,
-                            28,
-                            r.over > 0 ? oom : c.textPrimary,
-                            'left',
-                            750,
-                        )}
-                        {label(
-                            c,
-                            r.note,
-                            r.over > 0 ? x0 + 16 : x0 + gw(r.w + r.r) + 10,
-                            r.y + 4,
-                            r.over > 0 ? 320 : 196,
-                            34,
-                            28,
-                            c.bg,
-                            'left',
-                            750,
-                        )}
-                    </React.Fragment>
-                ))}
-
-                {label(c, '80 GB cap', gx(80) - 210, 114, 200, 34, 28, oom, 'right', 800)}
-                {[0, 20, 40, 60, 80].map((t) =>
-                    label(
-                        c,
-                        `${t} GB`,
-                        gx(t) - 48,
-                        468,
-                        96,
-                        34,
-                        28,
-                        t === 80 ? oom : c.textSecondary,
-                        'center',
-                        650,
-                    ),
-                )}
-            </Board>
-        ),
-    })
-}
+    'Four per-rank VRAM bars share a 0-to-90 GB scale with a dashed 80 GB cap. TP=1 requests 70 GB of weights plus 16 GB reserve (86 GB total), overflowing by 6 GB. TP=2 splits weights across ranks r0 and r1 (35 GB weights + 16 GB reserve), leaving 29 GB free per GPU. TP=4 shrinks weights to 17.5 GB per rank, leaving 46.5 GB free on each of the four GPUs.'
 
 export function create(theme: ThemeMode = 'dark') {
-    return frame(theme)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
+
+    const purple = fig.tone('purple')
+    const neutral = c.textMuted
+    const green = fig.tone('green')
+    const red = fig.tone('red')
+
+    const fill = (col: string, strong = true) =>
+        tint(col, c.bg, isLight ? (strong ? 0.24 : 0.12) : strong ? 0.38 : 0.2)
+
+    const barX = 116
+    const barW = 496
+    const maxGB = 90
+    const px = (gb: number) => barX + (gb / maxGB) * barW
+
+    // Theme-matched color swatch legend (never hardcoded color names!)
+    const legY = 20
+    const leg = [
+        { x: barX, label: 'Weights', col: purple },
+        { x: barX + 108, label: '16 GB reserve', col: neutral },
+        { x: barX + 252, label: 'Free KV pool', col: green },
+        { x: barX + 392, label: 'OOM overflow', col: red },
+    ]
+    for (const item of leg) {
+        fig.rect(item.x, legY - 6, 13, 13, {
+            fill: fill(item.col),
+            stroke: item.col,
+            strokeWidth: 1.4,
+            radius: 3,
+        })
+        fig.text(item.x + 19, legY, item.label, { size: 12.5, weight: 600, color: item.col })
+    }
+
+    // Scale gridlines & ticks
+    const gridTop = 64
+    const gridBot = 314
+    for (const gb of [0, 20, 40, 60, 80]) {
+        const x = px(gb)
+        const isCap = gb === 80
+        fig.line(x, gridTop, x, gridBot, {
+            color: isCap ? red : c.borderSubtle,
+            width: isCap ? 1.8 : 1,
+            dash: isCap ? '5 4' : undefined,
+        })
+        fig.text(x, gridTop - 13, isCap ? '80 GB cap' : `${gb}`, {
+            size: 12,
+            weight: isCap ? 700 : 500,
+            color: isCap ? red : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+        fig.text(x, gridBot + 15, `${gb} GB`, {
+            size: 12,
+            weight: isCap ? 700 : 500,
+            color: isCap ? red : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    const rows = [
+        { name: 'TP=1 (1×)', w: 70, r: 10, f: 0, over: 6, badge: '86 GB (+6 OOM)', col: red },
+        { name: 'TP=2 r0', w: 35, r: 16, f: 29, over: 0, badge: '29 GB free', col: green },
+        { name: 'TP=2 r1', w: 35, r: 16, f: 29, over: 0, badge: '29 GB free', col: green },
+        { name: 'TP=4 (×4)', w: 17.5, r: 16, f: 46.5, over: 0, badge: '46.5 GB free', col: green },
+    ] as const
+
+    const barH = 38
+    rows.forEach((row, idx) => {
+        const y = 80 + idx * 58
+        fig.text(barX - 12, y + barH / 2, row.name, {
+            size: 13.5,
+            weight: 700,
+            color: row.over > 0 ? red : c.textPrimary,
+            align: 'right',
+            mono: true,
+        })
+
+        // Weights segment
+        const wEnd = px(row.w)
+        fig.rect(barX, y, wEnd - barX, barH, {
+            fill: fill(purple),
+            stroke: purple,
+            strokeWidth: 1.5,
+            radius: 5,
+        })
+        fig.text((barX + wEnd) / 2, y + barH / 2, `${row.w}w`, {
+            size: 12.5,
+            weight: 700,
+            color: purple,
+            align: 'center',
+            mono: true,
+        })
+
+        // Reserve segment
+        const rStart = wEnd + 2
+        const rEnd = px(row.w + row.r)
+        fig.rect(rStart, y, rEnd - rStart, barH, {
+            fill: isLight ? '#e4e0d5' : '#252a36',
+            stroke: neutral,
+            strokeWidth: 1.3,
+            radius: 5,
+        })
+        if (rEnd - rStart >= 46) {
+            fig.text((rStart + rEnd) / 2, y + barH / 2, `${row.r}r`, {
+                size: 12,
+                weight: 600,
+                color: c.textSecondary,
+                align: 'center',
+                mono: true,
+            })
+        }
+
+        // Free KV segment OR OOM overflow segment
+        if (row.f > 0) {
+            const fStart = rEnd + 2
+            const fEnd = px(80)
+            fig.rect(fStart, y, fEnd - fStart, barH, {
+                fill: fill(green),
+                stroke: green,
+                strokeWidth: 1.5,
+                radius: 5,
+            })
+            fig.text((fStart + fEnd) / 2, y + barH / 2, `${row.f} free`, {
+                size: 12.5,
+                weight: 700,
+                color: green,
+                align: 'center',
+                mono: true,
+            })
+        }
+        if (row.over > 0) {
+            const oStart = px(80) + 2
+            const oEnd = px(86)
+            fig.rect(oStart, y, oEnd - oStart, barH, {
+                fill: fill(red),
+                stroke: red,
+                strokeWidth: 1.6,
+                radius: 5,
+            })
+        }
+
+        // Clean right-side status readout outside the bars (zero overlap!)
+        const rightX = row.over > 0 ? px(86) + 12 : px(80) + 12
+        fig.text(rightX, y + barH / 2, row.badge, {
+            size: 13,
+            weight: 700,
+            color: row.col,
+            mono: true,
+        })
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

@@ -24,15 +24,16 @@ const illustration = defineIllustration((c) => (
                 sizing="fixed"
                 width={720}
                 height={295}
+                nodeWidth={158}
                 padding={8}
-                labelFontSize={23}
-                detailFontSize={23}
+                labelFontSize={20}
+                detailFontSize={19}
                 arrowSize={6}
                 nodes={[
                     {
                         id: 'r',
                         label: 'Root',
-                        detail: '.656, 1.72',
+                        detail: '(0.66,1.72)',
                         x: 0.5,
                         y: 0.14,
                         tone: 'purple',
@@ -40,7 +41,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'n12',
                         label: '[1..2]',
-                        detail: '.81, .74',
+                        detail: '(0.81,0.74)',
                         x: 0.25,
                         y: 0.5,
                         tone: 'blue',
@@ -48,7 +49,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'n34',
                         label: '[3..4]',
-                        detail: '.81, 1.12',
+                        detail: '(0.81,1.12)',
                         x: 0.75,
                         y: 0.5,
                         tone: 'blue',
@@ -56,7 +57,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'l1',
                         label: 't1',
-                        detail: '.9, .6',
+                        detail: '(0.9,0.6)',
                         x: 0.125,
                         y: 0.86,
                         tone: 'neutral',
@@ -64,7 +65,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'l2',
                         label: 't2',
-                        detail: '.9, .2',
+                        detail: '(0.9,0.2)',
                         x: 0.375,
                         y: 0.86,
                         tone: 'neutral',
@@ -72,7 +73,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'l3',
                         label: 't3',
-                        detail: '.9, .8',
+                        detail: '(0.9,0.8)',
                         x: 0.625,
                         y: 0.86,
                         tone: 'neutral',
@@ -80,7 +81,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'l4',
                         label: 't4',
-                        detail: '.9, .4',
+                        detail: '(0.9,0.4)',
                         x: 0.875,
                         y: 0.86,
                         tone: 'neutral',
@@ -110,9 +111,10 @@ const illustration = defineIllustration((c) => (
                 sizing="fixed"
                 width={720}
                 height={295}
+                nodeWidth={158}
                 padding={8}
-                labelFontSize={23}
-                detailFontSize={23}
+                labelFontSize={20}
+                detailFontSize={19}
                 arrowSize={6}
                 nodes={[
                     {
@@ -126,7 +128,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'pL',
                         label: 'Left',
-                        detail: '1, 0',
+                        detail: '(1,0)',
                         x: 0.25,
                         y: 0.5,
                         tone: 'blue',
@@ -134,7 +136,7 @@ const illustration = defineIllustration((c) => (
                     {
                         id: 'pR',
                         label: 'Right',
-                        detail: '.81, .74',
+                        detail: '(0.81,0.74)',
                         x: 0.75,
                         y: 0.5,
                         tone: 'blue',

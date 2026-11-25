@@ -1,296 +1,164 @@
-import React from 'react'
-import { AxisPlot, Board, CanvasItem, Scene, SvgFrame, TextLabel, getThemeColors } from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 900
-export const height = 560
+export const width = 760
+export const height = 305
 export const alt =
-    'Two TP=2 ranks each hold 29 GB free after 35 GB weights and 16 GB reserve on an 80 GB budget. A 50 GB request placing 35 GB on rank 0 and 15 GB on rank 1 fits the 58 GB group sum yet overflows rank 0 by 6 GB while leaving 14 GB unused on rank 1.'
-
-const label = (
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    size: number,
-    color: string,
-    align: 'left' | 'center' | 'right' = 'left',
-    weight = 700,
-) => (
-    <CanvasItem x={x} y={y} width={w} height={h}>
-        <TextLabel
-            c={c}
-            text={text}
-            width="100%"
-            fontSize={size}
-            fontWeight={weight}
-            color={color}
-            align={align}
-        />
-    </CanvasItem>
-)
-
-function frame(theme: ThemeMode) {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const purple = c.primary
-    const neutral = c.neutral
-    const blue = c.info
-    const green = c.positive
-    const red = c.critical
-
-    const x0 = 200
-    const span = 610
-    const gx = (gb: number) => x0 + (gb / 90) * span
-    const gw = (gb: number) => (gb / 90) * span
-    const by = (yTop: number) => height - yTop
-
-    const geometry = AxisPlot({
-        c,
-        width,
-        height,
-        xMin: 0,
-        xMax: width,
-        yMin: 0,
-        yMax: height,
-        padding: 0,
-        showFrame: false,
-        showAxes: false,
-        showGrid: false,
-        children: [
-            SvgFrame({
-                c,
-                x: 24,
-                y: 108,
-                width: 852,
-                height: 322,
-                rx: 12,
-                fill: c.bgCard,
-                stroke: c.border,
-                strokeWidth: 2,
-            }),
-
-            // Rank 0: 35 wts + 16 rsv + 29 fit + 6 OOM
-            SvgFrame({
-                c,
-                x: x0,
-                y: 174,
-                width: gw(35),
-                height: 48,
-                rx: 4,
-                fill: purple,
-                stroke: purple,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: x0 + gw(35) + 2,
-                y: 174,
-                width: gw(16) - 2,
-                height: 48,
-                rx: 4,
-                fill: neutral,
-                stroke: neutral,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: x0 + gw(51) + 2,
-                y: 174,
-                width: gw(29) - 2,
-                height: 48,
-                rx: 4,
-                fill: blue,
-                stroke: blue,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: gx(80) + 2,
-                y: 174,
-                width: gw(6),
-                height: 48,
-                rx: 4,
-                fill: red,
-                stroke: red,
-                strokeWidth: 1,
-            }),
-
-            // Rank 1: 35 wts + 16 rsv + 15 used + 14 spare
-            SvgFrame({
-                c,
-                x: x0,
-                y: 274,
-                width: gw(35),
-                height: 48,
-                rx: 4,
-                fill: purple,
-                stroke: purple,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: x0 + gw(35) + 2,
-                y: 274,
-                width: gw(16) - 2,
-                height: 48,
-                rx: 4,
-                fill: neutral,
-                stroke: neutral,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: x0 + gw(51) + 2,
-                y: 274,
-                width: gw(15) - 2,
-                height: 48,
-                rx: 4,
-                fill: blue,
-                stroke: blue,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: x0 + gw(66) + 2,
-                y: 274,
-                width: gw(14) - 2,
-                height: 48,
-                rx: 4,
-                fill: green,
-                stroke: green,
-                strokeWidth: 1,
-            }),
-
-            // Footer summary
-            SvgFrame({
-                c,
-                x: 24,
-                y: 450,
-                width: 852,
-                height: 86,
-                rx: 12,
-                fill: c.bgCardAlt,
-                stroke: red,
-                strokeWidth: 2,
-            }),
-        ],
-    })
-
-    const limitLines = AxisPlot({
-        c,
-        width,
-        height,
-        xMin: 0,
-        xMax: width,
-        yMin: 0,
-        yMax: height,
-        padding: 0,
-        showFrame: false,
-        showAxes: false,
-        showGrid: false,
-        paths: [
-            {
-                points: [
-                    { x: gx(80), y: by(148) },
-                    { x: gx(80), y: by(356) },
-                ],
-                color: red,
-                strokeWidth: 3,
-            },
-            {
-                points: [
-                    { x: x0, y: by(356) },
-                    { x: x0 + span, y: by(356) },
-                ],
-                color: c.borderLight,
-                strokeWidth: 2,
-            },
-        ],
-    })
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: (
-            <Board c={c} width={width} height={height} background="transparent">
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    {geometry}
-                </CanvasItem>
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    {limitLines}
-                </CanvasItem>
-
-                {label(
-                    c,
-                    'Per-rank fit matters more than group free sum (TP=2)',
-                    20,
-                    14,
-                    860,
-                    42,
-                    31,
-                    c.textPrimary,
-                    'center',
-                    800,
-                )}
-                {label(
-                    c,
-                    'Purple 35w | Gray 16r | Blue req | Green free',
-                    20,
-                    56,
-                    860,
-                    36,
-                    28,
-                    c.textSecondary,
-                    'center',
-                    650,
-                )}
-
-                {label(c, '80 GB cap', gx(80) - 210, 126, 200, 34, 28, red, 'right', 800)}
-                {label(c, 'R0 (+35)', 38, 182, 166, 34, 28, red, 'left', 750)}
-                {label(c, '35 req (+6 OOM)', gx(51) + 6, 182, 236, 34, 28, c.bg, 'left', 750)}
-
-                {label(c, 'R1 (+15)', 38, 282, 166, 34, 28, green, 'left', 750)}
-                {label(c, '15', gx(54), 282, 60, 34, 28, c.bg, 'left', 750)}
-                {label(c, '14', gx(67) + 8, 282, 66, 34, 28, c.bg, 'left', 750)}
-
-                {[0, 20, 40, 60, 80].map((t) =>
-                    label(
-                        c,
-                        `${t} GB`,
-                        gx(t) - 48,
-                        374,
-                        96,
-                        34,
-                        28,
-                        t === 80 ? red : c.textSecondary,
-                        'center',
-                        650,
-                    ),
-                )}
-
-                {label(
-                    c,
-                    'Group free = 58 GB (>50), yet R0 OOMs (86 > 80).',
-                    38,
-                    476,
-                    824,
-                    36,
-                    28,
-                    red,
-                    'center',
-                    750,
-                )}
-            </Board>
-        ),
-    })
-}
+    'Per-rank VRAM check on TP=2 (80 GB cap per GPU): each rank starts with 35 GB weights, 16 GB reserve, and 29 GB free (58 GB combined free). An imbalanced 50 GB request placing 35 GB on Rank 0 and 15 GB on Rank 1 fits the 58 GB group sum yet overflows Rank 0 by 6 GB (86 > 80 GB) while leaving 14 GB unused on Rank 1.'
 
 export function create(theme: ThemeMode = 'dark') {
-    return frame(theme)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
+
+    const purple = fig.tone('purple')
+    const neutral = c.textMuted
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const red = fig.tone('red')
+
+    const fill = (col: string) => tint(col, c.bg, isLight ? 0.24 : 0.38)
+
+    const barX = 118
+    const barW = 472
+    const maxGB = 90
+    const px = (gb: number) => barX + (gb / maxGB) * barW
+
+    // Theme-matched color swatch legend
+    const legY = 20
+    const leg = [
+        { x: 56, label: 'Weights (35 GB)', col: purple },
+        { x: 204, label: 'Reserve (16 GB)', col: neutral },
+        { x: 354, label: 'Request KV', col: blue },
+        { x: 478, label: 'Free', col: green },
+        { x: 562, label: 'OOM overflow', col: red },
+    ]
+    for (const item of leg) {
+        fig.rect(item.x, legY - 6, 13, 13, {
+            fill: item.col === neutral ? (isLight ? '#e4e0d5' : '#252a36') : fill(item.col),
+            stroke: item.col,
+            strokeWidth: 1.4,
+            radius: 3,
+        })
+        fig.text(item.x + 19, legY, item.label, { size: 12.5, weight: 600, color: item.col })
+    }
+
+    // Scale gridlines (0 .. 80 GB cap)
+    const gridTop = 64
+    const gridBot = 224
+    for (const gb of [0, 20, 40, 60, 80]) {
+        const x = px(gb)
+        const isCap = gb === 80
+        fig.line(x, gridTop, x, gridBot, {
+            color: isCap ? red : c.borderSubtle,
+            width: isCap ? 1.8 : 1,
+            dash: isCap ? '5 4' : undefined,
+        })
+        fig.text(x, gridTop - 13, isCap ? '80 GB cap' : `${gb}`, {
+            size: 12,
+            weight: isCap ? 700 : 500,
+            color: isCap ? red : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+        fig.text(x, gridBot + 15, `${gb} GB`, {
+            size: 12,
+            weight: isCap ? 700 : 500,
+            color: isCap ? red : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    const barH = 44
+
+    // Rank 0: 35w + 16r + 29 fit + 6 OOM
+    const y0 = 84
+    fig.text(barX - 12, y0 + 14, 'Rank 0', {
+        size: 14,
+        weight: 700,
+        color: red,
+        align: 'right',
+    })
+    fig.text(barX - 12, y0 + 32, '+35 GB req', {
+        size: 12,
+        color: red,
+        align: 'right',
+        mono: true,
+    })
+
+    fig.rect(barX, y0, px(35) - barX, barH, { fill: fill(purple), stroke: purple, strokeWidth: 1.5, radius: 5 })
+    fig.text((barX + px(35)) / 2, y0 + barH / 2, '35w', { size: 13, weight: 700, color: purple, align: 'center', mono: true })
+
+    fig.rect(px(35) + 2, y0, px(51) - px(35) - 2, barH, {
+        fill: isLight ? '#e4e0d5' : '#252a36',
+        stroke: neutral,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text((px(35) + px(51)) / 2, y0 + barH / 2, '16r', { size: 12.5, weight: 600, color: c.textSecondary, align: 'center', mono: true })
+
+    fig.rect(px(51) + 2, y0, px(80) - px(51) - 2, barH, { fill: fill(blue), stroke: blue, strokeWidth: 1.5, radius: 5 })
+    fig.text((px(51) + px(80)) / 2, y0 + barH / 2, '29 fit', { size: 13, weight: 700, color: blue, align: 'center', mono: true })
+
+    fig.rect(px(80) + 2, y0, px(86) - px(80) - 2, barH, { fill: fill(red), stroke: red, strokeWidth: 1.6, radius: 5 })
+    // Clean right-side callout completely clear of the 80 GB vertical rule!
+    fig.text(px(86) + 12, y0 + barH / 2, '86 GB (+6 OOM)', {
+        size: 13.5,
+        weight: 700,
+        color: red,
+        mono: true,
+    })
+
+    // Rank 1: 35w + 16r + 15 req + 14 free
+    const y1 = 156
+    fig.text(barX - 12, y1 + 14, 'Rank 1', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+    fig.text(barX - 12, y1 + 32, '+15 GB req', {
+        size: 12,
+        color: green,
+        align: 'right',
+        mono: true,
+    })
+
+    fig.rect(barX, y1, px(35) - barX, barH, { fill: fill(purple), stroke: purple, strokeWidth: 1.5, radius: 5 })
+    fig.text((barX + px(35)) / 2, y1 + barH / 2, '35w', { size: 13, weight: 700, color: purple, align: 'center', mono: true })
+
+    fig.rect(px(35) + 2, y1, px(51) - px(35) - 2, barH, {
+        fill: isLight ? '#e4e0d5' : '#252a36',
+        stroke: neutral,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text((px(35) + px(51)) / 2, y1 + barH / 2, '16r', { size: 12.5, weight: 600, color: c.textSecondary, align: 'center', mono: true })
+
+    fig.rect(px(51) + 2, y1, px(66) - px(51) - 2, barH, { fill: fill(blue), stroke: blue, strokeWidth: 1.5, radius: 5 })
+    fig.text((px(51) + px(66)) / 2, y1 + barH / 2, '15', { size: 13, weight: 700, color: blue, align: 'center', mono: true })
+
+    fig.rect(px(66) + 2, y1, px(80) - px(66) - 2, barH, { fill: fill(green), stroke: green, strokeWidth: 1.5, radius: 5 })
+    fig.text((px(66) + px(80)) / 2, y1 + barH / 2, '14', { size: 13, weight: 700, color: green, align: 'center', mono: true })
+
+    fig.text(px(80) + 12, y1 + barH / 2, '66 GB (14 free)', {
+        size: 13.5,
+        weight: 700,
+        color: green,
+        mono: true,
+    })
+
+    // Compact bottom takeaway line (frameless)
+    fig.line(24, 258, width - 24, 258, { color: c.borderSubtle, width: 1 })
+    fig.text(
+        width / 2,
+        280,
+        'Group free = 58 GB (> 50 GB request), yet Rank 0 OOMs: admission must check every rank',
+        { size: 13, weight: 600, color: red, align: 'center' },
+    )
+
+    return fig.render()
 }
 
 export default create('dark')

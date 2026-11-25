@@ -1,21 +1,10 @@
-import React from 'react'
-import {
-    AxisPlot,
-    Column,
-    Panel,
-    Row,
-    Scene,
-    SvgMathText,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 760
-export const height = 540
-export const preset = 'engineering'
+export const width = 840
+export const height = 435
 export const alt =
-    'Forty paired task differences produce an observed lift of plus 7.5 percentage points. The exact task-bootstrap distribution has a central 95 percent percentile interval from minus 10 to plus 25 points, crossing zero. Its histogram shows possible resampled lifts under the observed row frequencies.'
+    'Exact 40-task paired bootstrap lift distribution aligned directly above its 95 percent confidence interval on a shared percentage-point axis. The observed lift is +7.5 pp, the 95 percent CI spans -10.0 to +25.0 pp across zero, and 24 percent of resamples fall at or below zero, leaving the comparison inconclusive.'
 
 function bootstrapDist(): Array<{ x: number; y: number }> {
     const pNeg = 5 / 40
@@ -26,339 +15,164 @@ function bootstrapDist(): Array<{ x: number; y: number }> {
     for (let step = 0; step < 40; step += 1) {
         const next = new Float64Array(81)
         for (let idx = 1; idx < 80; idx += 1) {
-            const p = probs[idx]
+            const p = probs[idx]!
             if (p === 0) continue
-            next[idx - 1] += p * pNeg
-            next[idx] += p * pZero
-            next[idx + 1] += p * pPos
+            next[idx - 1]! += p * pNeg
+            next[idx]! += p * pZero
+            next[idx + 1]! += p * pPos
         }
         probs = next
     }
     const pts: Array<{ x: number; y: number }> = []
-    for (let s = -12; s <= 16; s += 1) {
-        pts.push({ x: (s / 40) * 100, y: probs[40 + s] })
+    for (let s = -10; s <= 15; s += 1) {
+        pts.push({ x: (s / 40) * 100, y: probs[40 + s]! })
     }
     return pts
 }
 
-const distPts = bootstrapDist()
-const CI_W = 288
-const CI_H = 190
-const CI_PAD = 36
-const cx = (x: number) => CI_PAD + ((x - -20) / 55) * (CI_W - CI_PAD * 2)
-const cy = (y: number) => CI_H - CI_PAD - ((y + 1) / 2) * (CI_H - CI_PAD * 2)
+const DIST = bootstrapDist()
 
-const PLOT_W = 372
-const PLOT_H = 290
-const PAD = 46
-const px = (x: number) => PAD + ((x - -30) / 70) * (PLOT_W - PAD * 2)
-const py = (y: number) => PLOT_H - PAD - (y / 0.14) * (PLOT_H - PAD * 2)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const red = fig.tone('critical')
+    const isLight = theme === 'light'
 
-const illustration = defineIllustration((c) => {
-    const blue = getReadableToneColor('blue', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
-
-    return Scene({
-        c,
-        padding: 16,
-        contentWidth: 728,
-        gap: 10,
-        children: Column({
-            gap: 10,
-            width: 728,
-            children: [
-                TextLabel({
-                    c,
-                    text: '40-task paired bootstrap: +7.5 pp interval spans zero',
-                    fontSize: 25,
-                    fontWeight: 700,
-                    color: c.textPrimary,
-                }),
-                Row({
-                    gap: 14,
-                    align: 'stretch',
-                    children: [
-                        Panel({
-                            c,
-                            title: '1. 95% lift interval (pp)',
-                            titleFontSize: 23,
-                            width: 314,
-                            padding: 12,
-                            gap: 10,
-                            shadow: false,
-                            children: Column({
-                                gap: 10,
-                                children: [
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            position: 'relative',
-                                            width: CI_W,
-                                            height: CI_H,
-                                        }}
-                                    >
-                                        <AxisPlot
-                                            c={c}
-                                            width={CI_W}
-                                            height={CI_H}
-                                            padding={CI_PAD}
-                                            xMin={-20}
-                                            xMax={35}
-                                            yMin={-1}
-                                            yMax={1}
-                                            showGrid={false}
-                                            frameFill={c.bgCard}
-                                            frameStroke={c.borderLight}
-                                            axisColor={c.borderLight}
-                                            paths={[
-                                                {
-                                                    points: [
-                                                        { x: 0, y: -0.75 },
-                                                        { x: 0, y: 0.75 },
-                                                    ],
-                                                    color: warm,
-                                                    strokeWidth: 2.5,
-                                                    dashed: true,
-                                                },
-                                                {
-                                                    points: [
-                                                        { x: -10, y: 0 },
-                                                        { x: 25, y: 0 },
-                                                    ],
-                                                    color: blue,
-                                                    strokeWidth: 8,
-                                                },
-                                            ]}
-                                            points={[
-                                                { x: -10, y: 0, fill: blue, r: 5 },
-                                                {
-                                                    x: 7.5,
-                                                    y: 0,
-                                                    fill: c.bgCard,
-                                                    stroke: blue,
-                                                    strokeWidth: 4,
-                                                    r: 8,
-                                                },
-                                                { x: 25, y: 0, fill: blue, r: 5 },
-                                            ]}
-                                            vectors={[]}
-                                        />
-                                        <SvgMathText
-                                            text="−10"
-                                            x={cx(-10)}
-                                            y={cy(0) + 30}
-                                            fill={warm}
-                                            fontSize={23}
-                                            fontWeight={650}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text="0"
-                                            x={cx(0)}
-                                            y={cy(0) - 34}
-                                            fill={warm}
-                                            fontSize={23}
-                                            fontWeight={700}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text="+7.5"
-                                            x={cx(7.5)}
-                                            y={cy(0) + 30}
-                                            fill={blue}
-                                            fontSize={23}
-                                            fontWeight={700}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text="+25"
-                                            x={cx(25)}
-                                            y={cy(0) + 30}
-                                            fill={warm}
-                                            fontSize={23}
-                                            fontWeight={650}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                    </div>,
-                                    TextLabel({
-                                        c,
-                                        text: 'Mean lift: +7.5 pp',
-                                        fontSize: 23,
-                                        fontWeight: 700,
-                                        color: blue,
-                                    }),
-                                    TextLabel({
-                                        c,
-                                        text: '95% CI: [−10, +25] pp',
-                                        fontSize: 23,
-                                        fontWeight: 650,
-                                        color: warm,
-                                    }),
-                                    TextLabel({
-                                        c,
-                                        text: 'Zero inside → inconclusive',
-                                        fontSize: 23,
-                                        color: c.textSecondary,
-                                    }),
-                                ],
-                            }),
-                        }),
-                        Panel({
-                            c,
-                            title: '2. Exact resample distribution',
-                            titleFontSize: 23,
-                            width: 400,
-                            padding: 12,
-                            gap: 8,
-                            shadow: false,
-                            children: Column({
-                                gap: 8,
-                                children: [
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            position: 'relative',
-                                            width: PLOT_W,
-                                            height: PLOT_H,
-                                        }}
-                                    >
-                                        <AxisPlot
-                                            c={c}
-                                            width={PLOT_W}
-                                            height={PLOT_H}
-                                            padding={PAD}
-                                            xMin={-30}
-                                            xMax={40}
-                                            yMin={0}
-                                            yMax={0.14}
-                                            showGrid
-                                            gridCount={4}
-                                            frameFill={c.bgCard}
-                                            frameStroke={c.borderLight}
-                                            axisColor={c.borderLight}
-                                            paths={[
-                                                { points: distPts, color: blue, strokeWidth: 3.5 },
-                                                {
-                                                    points: [
-                                                        { x: 0, y: 0 },
-                                                        { x: 0, y: 0.125 },
-                                                    ],
-                                                    color: warm,
-                                                    strokeWidth: 2.5,
-                                                    dashed: true,
-                                                },
-                                            ]}
-                                            points={distPts.map((pt) => ({
-                                                x: pt.x,
-                                                y: pt.y,
-                                                fill:
-                                                    pt.x < -10 || pt.x > 25
-                                                        ? warm
-                                                        : pt.x <= 0
-                                                          ? green
-                                                          : blue,
-                                                r: 4,
-                                            }))}
-                                            vectors={[
-                                                {
-                                                    x1: -10,
-                                                    y1: 0,
-                                                    x2: -10,
-                                                    y2: 0.08,
-                                                    color: warm,
-                                                    strokeWidth: 2,
-                                                },
-                                                {
-                                                    x1: 25,
-                                                    y1: 0,
-                                                    x2: 25,
-                                                    y2: 0.08,
-                                                    color: warm,
-                                                    strokeWidth: 2,
-                                                },
-                                            ]}
-                                        />
-                                        <SvgMathText
-                                            text="0"
-                                            x={PAD - 8}
-                                            y={py(0)}
-                                            fill={c.textSecondary}
-                                            fontSize={23}
-                                            fontWeight={600}
-                                            textAnchor="end"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text=".12"
-                                            x={PAD - 8}
-                                            y={py(0.12)}
-                                            fill={c.textSecondary}
-                                            fontSize={23}
-                                            fontWeight={600}
-                                            textAnchor="end"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text="−10"
-                                            x={px(-10)}
-                                            y={PLOT_H - PAD + 22}
-                                            fill={warm}
-                                            fontSize={23}
-                                            fontWeight={650}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text="0"
-                                            x={px(0)}
-                                            y={PLOT_H - PAD + 22}
-                                            fill={c.textSecondary}
-                                            fontSize={23}
-                                            fontWeight={650}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text="+7.5"
-                                            x={px(7.5)}
-                                            y={py(0.125)}
-                                            fill={blue}
-                                            fontSize={23}
-                                            fontWeight={700}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                        <SvgMathText
-                                            text="+25"
-                                            x={px(25)}
-                                            y={PLOT_H - PAD + 22}
-                                            fill={warm}
-                                            fontSize={23}
-                                            fontWeight={650}
-                                            textAnchor="middle"
-                                            dominantBaseline="middle"
-                                        />
-                                    </div>,
-                                    TextLabel({
-                                        c,
-                                        text: '24% of resamples fall ≤ 0 pp',
-                                        fontSize: 23,
-                                        color: warm,
-                                    }),
-                                ],
-                            }),
-                        }),
-                    ],
-                }),
-            ],
-        }),
+    // Top: Exact bootstrap distribution on shared x-axis [-27.5, +40]
+    fig.text(72, 22, 'Exact 40-task paired bootstrap distribution (27 ties · 8 B wins · 5 A wins)', {
+        size: 14,
+        weight: 700,
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    const plot = fig.plot(
+        { x: 74, y: 54, width: 734, height: 224 },
+        { x: [-27.5, 40], y: [0, 0.14] },
+    )
+
+    // Shaded <= 0 region (24% of resamples)
+    fig.rect(plot.area.x, plot.area.y, plot.px(0) - plot.area.x, plot.area.height, {
+        fill: tint(warm, c.bg, isLight ? 0.08 : 0.12),
+    })
+
+    plot.axes({
+        xTicks: [-20, -10, 0, 10, 20, 30],
+        yTicks: [0.04, 0.08, 0.12],
+        xFormat: (v) => (v > 0 ? `+${v}` : String(v)),
+        yFormat: (v) => v.toFixed(2),
+        yLabel: 'Probability mass',
+        grid: true,
+        labelSize: 12,
+    })
+
+    // Discrete PMF bars cleanly centered at each 2.5 pp step
+    const stepW = plot.px(2.5) - plot.px(0)
+    const barW = Math.max(8, stepW * 0.68)
+    for (const pt of DIST) {
+        const cx = plot.px(pt.x)
+        const yTop = plot.py(pt.y)
+        const yBot = plot.py(0)
+        const outsideCI = pt.x < -10 || pt.x > 25
+        const leZero = pt.x <= 0
+        const tone = outsideCI ? c.textMuted : leZero ? warm : blue
+        fig.rect(cx - barW / 2, yTop, barW, Math.max(1, yBot - yTop), {
+            fill: tint(tone, c.bg, outsideCI ? (isLight ? 0.18 : 0.24) : isLight ? 0.28 : 0.4),
+            stroke: tone,
+            strokeWidth: outsideCI ? 1 : 1.3,
+            radius: 3,
+        })
+    }
+
+    // Smooth curve envelope over the discrete peaks
+    plot.smoothCurve(
+        DIST.map((pt) => [pt.x, pt.y] as const),
+        { color: blue, width: 1.75, opacity: 0.7 },
+    )
+
+    // Continuous vertical reference lines spanning from distribution right down into the CI bar
+    const ciY = 342
+    const xZero = plot.px(0)
+    const xObs = plot.px(7.5)
+    const xLo = plot.px(-10)
+    const xHi = plot.px(25)
+
+    // Zero line (no-lift boundary) spanning both distribution and CI track
+    fig.line(xZero, plot.area.y, xZero, ciY + 36, { color: red, width: 1.8, dash: '5 4' })
+    // Observed mean line (+7.5 pp)
+    fig.line(xObs, plot.area.y + 12, xObs, ciY, { color: blue, width: 1.6, dash: '3 3' })
+    // 95% CI fence guides
+    fig.line(xLo, plot.py(0.055), xLo, ciY, { color: warm, width: 1.3, dash: '3 3', opacity: 0.8 })
+    fig.line(xHi, plot.py(0.055), xHi, ciY, { color: warm, width: 1.3, dash: '3 3', opacity: 0.8 })
+
+    // Well-separated top callout labels (zero crowding between 0 and +7.5!)
+    fig.text(xZero - 8, plot.area.y + 14, '0 pp (no lift)', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'right',
+    })
+    fig.text(xObs + 8, plot.area.y + 14, 'Observed mean +7.5 pp', {
+        size: 12,
+        weight: 700,
+        color: blue,
+        align: 'left',
+    })
+    fig.callout([plot.px(-5), plot.py(0.042)], [plot.px(-11), plot.py(0.095)], '24% of resamples <= 0', {
+        color: warm,
+        labelColor: warm,
+        align: 'right',
+        size: 12,
+        weight: 700,
+        bend: 0.16,
+    })
+
+    // Bottom: Aligned 95% Bootstrap CI Bar on the exact same x-axis
+    fig.text(74, ciY - 22, '95% percentile CI (aligned)', {
+        size: 12,
+        weight: 700,
+        color: c.textSecondary,
+    })
+    fig.rect(xLo, ciY - 9, xHi - xLo, 18, {
+        fill: tint(blue, c.bg, isLight ? 0.16 : 0.25),
+        radius: 5,
+    })
+    fig.line(xLo, ciY, xHi, ciY, { color: blue, width: 3.2 })
+    fig.line(xLo, ciY - 10, xLo, ciY + 10, { color: warm, width: 2.4 })
+    fig.line(xHi, ciY - 10, xHi, ciY + 10, { color: warm, width: 2.4 })
+    fig.circle(xObs, ciY, 6.5, { fill: c.bg, stroke: blue, width: 3 })
+
+    // Clean labels directly below the aligned CI endpoints
+    fig.text(xLo, ciY + 22, '−10.0 pp', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(xObs, ciY + 22, '+7.5 pp', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(xHi, ciY + 22, '+25.0 pp', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
+
+    fig.text(plot.area.x + plot.area.width / 2, 412, 'Paired B − A lift (percentage points)  ·  0 inside CI -> inconclusive', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
+}
+
+export default create

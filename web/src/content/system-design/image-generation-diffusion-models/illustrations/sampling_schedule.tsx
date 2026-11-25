@@ -1,122 +1,74 @@
 import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 365
 export const alt =
-    'Per-image neural network prediction budgets across diffusion sampling strategies. Traditional DDPM requires 1000 evaluations. Standard DDIM with 2-branch classifier-free guidance requires 100 evaluations (50 steps x 2). Accelerated DPM-Solver uses 50 evaluations. Distilled flow matching and turbo models reduce compute to 4 to 8 evaluations for sub-second serving.'
+    'Per-image denoiser network evaluation counts on a log scale across four diffusion sampling strategies: ancestral DDPM (1,000 evals), DDIM with 2-branch CFG (100 evals), DPM-Solver++ with CFG (50 evals), and distilled single-branch flow models (6 evals).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const red = fig.tone('red')
+    const warm = fig.tone('warm')
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
 
-    // Header
-    a.text(40, 32, 'Diffusion Sampling Schedules: Compute Budget & Latency', {
-        size: 22,
-        weight: 700,
-    })
-    a.text(
-        40,
-        58,
-        'Total denoiser network evaluations per image across numerical solvers and distillation',
-        { size: 15, color: k.mid },
-    )
-
-    // Four schedules
-    const schedules = [
-        {
-            title: 'DDPM Ancestral Sampling',
-            badge: 'CLASSICAL',
-            steps: '1,000 steps × 1 branch',
-            evals: 1000,
-            barW: 520,
-            latency: '~25.0 s / img',
-            fidelity: 'High diversity, excessive compute',
-            tone: k.fail,
-            y: 95,
-        },
-        {
-            title: 'Standard DDIM / Euler + CFG',
-            badge: 'WORKHORSE',
-            steps: '50 steps × 2 branches (cond + uncond)',
-            evals: 100,
-            barW: 340,
-            latency: '~1.8 s / img',
-            fidelity: 'Balanced fidelity & text adherence',
-            tone: k.wait,
-            y: 190,
-        },
-        {
-            title: 'High-Order DPM-Solver++ (CFG)',
-            badge: 'OPTIMIZED',
-            steps: '25 steps × 2 branches',
-            evals: 50,
-            barW: 220,
-            latency: '~0.9 s / img',
-            fidelity: 'High fidelity with adaptive step size',
-            tone: k.decode,
-            y: 285,
-        },
-        {
-            title: 'Distilled Flow / Rectified (SDXL-Turbo, LCM)',
-            badge: 'REAL-TIME',
-            steps: '4–8 steps × 1 branch (CFG distilled)',
-            evals: 6,
-            barW: 90,
-            latency: '~0.15 s / img',
-            fidelity: 'Sub-second real-time interactive canvas',
-            tone: k.pass,
-            y: 380,
-        },
+    const rows = [
+        { name: 'DDPM (ancestral)', detail: '1,000 × 1 branch', evals: 1000, color: red, tag: '' },
+        { name: 'DDIM / Euler + CFG', detail: '50 × 2 branches', evals: 100, color: warm, tag: '10× fewer' },
+        { name: 'DPM-Solver++ + CFG', detail: '25 × 2 branches', evals: 50, color: blue, tag: '20× fewer' },
+        { name: 'Distilled Flow / LCM', detail: '6 × 1 (folded CFG)', evals: 6, color: green, tag: '167× fewer' },
     ]
 
-    schedules.forEach((s) => {
-        // Container
-        a.rect(40, s.y, 780, 80, { fill: tint(s.tone, 0.04), stroke: tint(s.tone, 0.25), r: 8 })
+    const area = { x: 224, y: 24, width: 472, height: 266 }
+    const plot = fig.plot(area, { x: [1, 5000], y: [0, 4], xScale: 'log' })
 
-        // Title and badge
-        a.cell(56, s.y + 14, 95, 22, s.badge, {
-            fill: tint(s.tone, 0.15),
-            stroke: tint(s.tone, 0.4),
-            color: s.tone,
-            weight: 700,
+    for (const t of [1, 10, 100, 1000]) {
+        const x = plot.px(t)
+        fig.line(x, area.y, x, plot.bottom, { color: c.borderSubtle, width: 1, dash: t === 1 ? undefined : '3 4' })
+        fig.line(x, plot.bottom, x, plot.bottom + 5, { color: c.textMuted, width: 1 })
+        fig.text(x, plot.bottom + 20, t.toLocaleString(), {
+            size: 15,
+            mono: true,
+            color: c.textSecondary,
+            align: 'center',
         })
-        a.text(160, s.y + 25, s.title, { size: 16, weight: 700 })
-        a.text(500, s.y + 25, s.steps, { size: 15, mono: true, color: k.mid })
-        a.text(730, s.y + 25, s.latency, { size: 15, mono: true, weight: 700, color: s.tone })
+    }
+    fig.line(area.x, plot.bottom, area.x + area.width, plot.bottom, { color: c.textMuted, width: 1.2 })
+    fig.text(area.x + area.width / 2, plot.bottom + 48, 'Denoiser evaluations per image (log scale)', {
+        size: 15.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-        // Progress bar background
-        const barStartX = 56
-        const barY = s.y + 45
-        a.rect(barStartX, barY, 520, 22, { fill: tint(k.c.bg, 0.1), stroke: k.line, r: 4 })
-        // Progress fill
-        a.rect(barStartX, barY, s.barW, 22, { fill: s.tone, r: 4 })
+    const rowH = area.height / rows.length
+    const barH = 30
+    rows.forEach((r, idx) => {
+        const cy = area.y + idx * rowH + rowH / 2
+        const barW = plot.px(r.evals) - area.x
 
-        // Evaluation count text
-        a.text(barStartX + s.barW + 12, barY + 11, `${s.evals} evals`, {
+        fig.text(area.x - 14, cy - 10, r.name, { size: 15.5, weight: 700, color: c.textPrimary, align: 'right' })
+        fig.text(area.x - 14, cy + 12, r.detail, { size: 15, mono: true, color: c.textSecondary, align: 'right' })
+
+        fig.rect(area.x, cy - barH / 2, area.width, barH, {
+            fill: tint(r.color, c.bg, theme === 'light' ? 0.06 : 0.08),
+            radius: 5,
+        })
+        fig.rect(area.x, cy - barH / 2, Math.max(10, barW), barH, { fill: r.color, radius: 5 })
+
+        const labelText = r.tag ? `${r.evals.toLocaleString()} (${r.tag})` : `${r.evals.toLocaleString()} evals`
+        fig.text(area.x + barW + 10, cy, labelText, {
             size: 15,
             mono: true,
             weight: 700,
-            color: k.ink,
+            color: r.color,
+            align: 'left',
         })
-        // Note
-        a.text(600, barY + 11, s.fidelity, { size: 15, color: k.mid })
     })
 
-    // Footer note
-    a.text(
-        40,
-        480,
-        'Evaluations scale directly with batch size and GPU FLOPs; distillation trades structural flexibility for deterministic 1-step paths.',
-        { size: 15, color: k.faint },
-    )
-
-    return a.render()
+    return fig.render()
 }
 
 export default create('dark')

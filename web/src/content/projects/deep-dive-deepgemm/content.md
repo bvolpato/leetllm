@@ -44,7 +44,6 @@ This is the feed-forward counterpart to the previous chapter's irregular attenti
 
 Throughout this deep dive, we will keep the DeepSeek-V4-Flash shape in view: 256 routed experts, top-k 6, hidden size 4096, and intermediate size 2048. Under eight-way expert parallelism (EP8), each rank owns 32 experts; our four-expert `[64, 192, 32, 128]` example isolates the packing mechanics on a clean subset.[^deepgemm2026benchmarks]
 
-<!-- leetllm: edition:reference:start -->
 
 ## Project identity and scope
 
@@ -85,7 +84,6 @@ Four kernel families target distinct bottlenecks along a transformer layer:
 | Kernel implementation | DeepGEMM repository[^deepgemm2026repo] | Supported layouts, dtypes, SM90/SM100 paths, and API signatures |
 | Fused distributed path | Mega MoE release and benchmark PRs[^deepgemm2026mega][^deepgemm2026benchmarks] | How NVLink overlap is scheduled and benchmarked on EP8 |
 
-<!-- leetllm: edition:reference:end -->
 
 ## GEMM first: mathematical interface and mechanics
 
@@ -442,7 +440,6 @@ Two SM100 extensions refine placement and output rounding:
 - **Weight localization:** `deep_gemm.localize` partitions a weight dimension across GPU locality domains and probes for a stable SM mapping (falling back to even mapping with a warning if unstable). All routed L1/L2 weights and optional shared-expert weights must match localization settings.[^deepgemm2026OctoberSnapshot]
 - **Epilogue classes:** `deep_gemm.epilogue` selects one mutually exclusive mode per GEMM: `Identity`, `Alpha`, `FP8Quantization`, or opt-in `BF16StochasticRounding` (which requires direct BF16 output with no `C` accumulation input).[^deepgemm2026OctoberSnapshot][^deepgemm2026September30Release]
 
-<!-- leetllm: edition:reference:start -->
 
 ## Read the Mega MoE benchmark as a bounded experiment
 
@@ -575,7 +572,6 @@ Casting, scale layout conversion, token packing, and output unpacking can cost m
 
 Verify that the reference baseline actually imported and ran; otherwise mark the run timing-only and re-run numerical checks on routed counts and outputs before adopting the kernel.
 
-<!-- leetllm: edition:reference:end -->
 
 ## Architectural summary
 

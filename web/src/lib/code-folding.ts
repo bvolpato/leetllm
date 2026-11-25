@@ -127,6 +127,206 @@ function isPythonImportOrSeedLine(line: string): boolean {
     return false
 }
 
+const PYTHON_IMPORT_RE = /^(?:import\s+\S|from\s+\S+\s+import\s+)/
+
+/**
+ * Extract normalized top-level leading Python import statements from a code block
+ * (ignoring blank lines, comments, and `# fold:start/end` markers).
+ */
+export function extractLeadingPythonImports(rawCode: string): string[] {
+    const imports: string[] = []
+    const lines = rawCode.replace(/\r\n/g, "\n").split("\n")
+    let buf = ""
+    let inMultiline = false
+
+    for (const raw of lines) {
+        if (FOLD_START_RE.test(raw) || FOLD_END_RE.test(raw)) continue
+        const t = raw.trim()
+        if (inMultiline) {
+            buf += " " + t
+            if (t.includes(")")) {
+                imports.push(buf.replace(/\s+/g, " ").trim())
+                buf = ""
+                inMultiline = false
+            }
+            continue
+        }
+        if (!t || t.startsWith("#")) continue
+        if (PYTHON_IMPORT_RE.test(t)) {
+            if (t.includes("(") && !t.includes(")")) {
+                buf = t
+                inMultiline = true
+            } else {
+                imports.push(t.replace(/\s+/g, " "))
+            }
+            continue
+        }
+        break
+    }
+    return imports
+}
+
+/**
+ * Find the end index (inclusive) of leading import lines that were ALL already
+ * imported earlier in the same article. Returns -1 when no leading imports are repeated.
+ */
+function detectRepeatedLeadingPythonImportsEnd(
+    cleanLines: string[],
+    priorImports: ReadonlySet<string>,
+): number {
+    if (priorImports.size === 0) return -1
+    let lastRepeatedEnd = -1
+    let repeatedCount = 0
+    let i = 0
+
+    while (i < cleanLines.length) {
+        const t = cleanLines[i].trim()
+        if (!t) {
+            i += 1
+            continue
+        }
+        if (!PYTHON_IMPORT_RE.test(t)) break
+
+        let stmt = t
+        let stmtEnd = i
+        if (t.includes("(") && !t.includes(")")) {
+            while (stmtEnd + 1 < cleanLines.length) {
+                stmtEnd += 1
+                stmt += " " + cleanLines[stmtEnd].trim()
+                if (cleanLines[stmtEnd].includes(")")) break
+            }
+        }
+        const normalized = stmt.replace(/\s+/g, " ").trim()
+        if (!priorImports.has(normalized)) break
+
+        lastRepeatedEnd = stmtEnd
+        repeatedCount += 1
+        i = stmtEnd + 1
+    }
+
+    if (repeatedCount === 0) return -1
+    // Include trailing blank line right after the repeated imports so visible code starts flush.
+    while (lastRepeatedEnd + 1 < cleanLines.length && !cleanLines[lastRepeatedEnd + 1].trim()) {
+        lastRepeatedEnd += 1
+    }
+    return lastRepeatedEnd
+}
+
+const TRAILING_HARNESS_LABEL_RE = /\b(?:print|prints|harness|assert|assertions|check|checks|test|tests|driver|demo|scenarios|output|verification|summary)\b/i
+const IMPORT_ONLY_LABEL_RE = /^imports?$/i
+
+/**
+ * Prepare a code listing for print: collapse `# fold:start` / `# fold:end` scaffolding
+ * cleanly (omitting pure trailing print/test harnesses and already-imported-only preambles)
+ * and strip leading Python imports that were already shown earlier in the same chapter.
+ */
+export function prepareCodeForPrint(
+    rawCode: string,
+    language: string,
+    priorPythonImports?: ReadonlySet<string>,
+): { code: string; imports: string[] } {
+    const isPython = PYTHON_LANGUAGES.has(language.toLowerCase())
+    const imports = isPython ? extractLeadingPythonImports(rawCode) : []
+    const lines = rawCode.replace(/\r\n/g, "\n").split("\n")
+
+    type Block =
+        | { kind: "visible"; lines: string[] }
+        | { kind: "folded"; indent: string; prefix: string; label: string; lines: string[] }
+
+    const blocks: Block[] = []
+    let currentVisible: string[] = []
+    let activeFold: { indent: string; prefix: string; label: string; lines: string[]; depth: number } | null = null
+
+    const flushVisible = () => {
+        if (currentVisible.length > 0) {
+            blocks.push({ kind: "visible", lines: currentVisible })
+            currentVisible = []
+        }
+    }
+
+    for (const line of lines) {
+        const startMatch = /^(\s*)(#|\/\/)\s*fold:start(?:\s+(.*))?$/i.exec(line)
+        if (startMatch) {
+            if (!activeFold) {
+                flushVisible()
+                activeFold = {
+                    indent: startMatch[1],
+                    prefix: startMatch[2],
+                    label: (startMatch[3] ?? "").trim(),
+                    lines: [],
+                    depth: 1,
+                }
+            } else {
+                activeFold.depth += 1
+            }
+            continue
+        }
+        if (FOLD_END_RE.test(line)) {
+            if (activeFold) {
+                activeFold.depth -= 1
+                if (activeFold.depth === 0) {
+                    blocks.push({
+                        kind: "folded",
+                        indent: activeFold.indent,
+                        prefix: activeFold.prefix,
+                        label: activeFold.label,
+                        lines: activeFold.lines,
+                    })
+                    activeFold = null
+                }
+            }
+            continue
+        }
+        if (activeFold) activeFold.lines.push(line)
+        else currentVisible.push(line)
+    }
+    flushVisible()
+    if (activeFold) {
+        blocks.push({
+            kind: "folded",
+            indent: activeFold.indent,
+            prefix: activeFold.prefix,
+            label: activeFold.label,
+            lines: activeFold.lines,
+        })
+    }
+
+    const out: string[] = []
+    for (let idx = 0; idx < blocks.length; idx += 1) {
+        const block = blocks[idx]
+        const isFirst = idx === 0
+        const isLast = idx === blocks.length - 1
+        if (block.kind === "folded") {
+            // Drop trailing test/print/assert harnesses completely in print.
+            if (isLast && TRAILING_HARNESS_LABEL_RE.test(block.label)) continue
+            // Drop leading import-only folds when every import was already shown earlier.
+            if (isFirst && isPython && priorPythonImports && priorPythonImports.size > 0) {
+                const nonEmpty = block.lines.filter((l) => l.trim() && !l.trim().startsWith("#"))
+                const onlyRepeatedImports =
+                    nonEmpty.length > 0 &&
+                    nonEmpty.every((l) => PYTHON_IMPORT_RE.test(l.trim()) && priorPythonImports.has(l.trim().replace(/\s+/g, " ")))
+                if (onlyRepeatedImports || IMPORT_ONLY_LABEL_RE.test(block.label)) continue
+            }
+            out.push(`${block.indent}${block.prefix} ... ${block.label || "setup omitted"}`)
+        } else {
+            let visibleLines = block.lines
+            if (isFirst && isPython && priorPythonImports && priorPythonImports.size > 0) {
+                const repeatedEnd = detectRepeatedLeadingPythonImportsEnd(visibleLines, priorPythonImports)
+                if (repeatedEnd >= 0 && visibleLines.length - (repeatedEnd + 1) >= 1) {
+                    visibleLines = visibleLines.slice(repeatedEnd + 1)
+                }
+            }
+            out.push(...visibleLines)
+        }
+    }
+
+    // Trim leading and trailing blank lines so listings never print empty dangling line numbers.
+    while (out.length > 0 && !out[0].trim()) out.shift()
+    while (out.length > 0 && !out[out.length - 1].trim()) out.pop()
+
+    return { code: out.join("\n"), imports }
+}
+
 function detectPythonLeadingSetupEnd(lines: string[]): number {
     // Only consider leading import/seed preamble; stop cleanly at the first non-import statement.
     let lastBoilerplateIdx = -1
@@ -331,6 +531,7 @@ export function buildCodeFoldPlan(
         output?: boolean
         compact?: boolean
         bare?: boolean
+        priorImports?: readonly string[]
     } = {},
 ): CodeFoldPlan {
     const rawLines = rawCode.split("\n")
@@ -420,32 +621,49 @@ export function buildCodeFoldPlan(
         }
     }
 
-    // 3. Smart automatic folding for longer Python blocks (>= 18 lines).
+    // 3. Smart automatic folding for Python blocks (repeated leading imports on any block >= 3 lines,
+    // plus full setup/driver auto-folding for longer blocks >= 18 lines).
     const lang = options.language?.toLowerCase() ?? ""
-    if (PYTHON_LANGUAGES.has(lang) && totalLines >= AUTO_FOLD_MIN_LINES && !options.compact) {
+    if (PYTHON_LANGUAGES.has(lang) && !options.compact) {
         const autoFolds: RawFoldRange[] = []
-        const topEnd = detectPythonLeadingSetupEnd(cleanLines)
-        const coreStart = topEnd >= 0 ? topEnd + 1 : 0
-        const bottomStart = detectPythonTrailingDriverStart(cleanLines, coreStart + MIN_VISIBLE_CORE_LINES)
+        const priorSet = options.priorImports?.length ? new Set(options.priorImports) : undefined
 
-        if (topEnd >= 0 && totalLines - (topEnd + 1) >= MIN_VISIBLE_CORE_LINES) {
-            autoFolds.push({
-                startIndex: 0,
-                endIndex: topEnd,
-                label: "imports & setup",
-            })
+        if (totalLines >= AUTO_FOLD_MIN_LINES) {
+            const topEnd = detectPythonLeadingSetupEnd(cleanLines)
+            const coreStart = topEnd >= 0 ? topEnd + 1 : 0
+            const bottomStart = detectPythonTrailingDriverStart(cleanLines, coreStart + MIN_VISIBLE_CORE_LINES)
+
+            if (topEnd >= 0 && totalLines - (topEnd + 1) >= MIN_VISIBLE_CORE_LINES) {
+                autoFolds.push({
+                    startIndex: 0,
+                    endIndex: topEnd,
+                    label: "imports & setup",
+                })
+            }
+
+            if (bottomStart >= 0) {
+                const visibleAfterBoth =
+                    totalLines -
+                    (autoFolds[0] ? autoFolds[0].endIndex + 1 : 0) -
+                    (totalLines - bottomStart)
+                if (visibleAfterBoth >= MIN_VISIBLE_CORE_LINES) {
+                    autoFolds.push({
+                        startIndex: bottomStart,
+                        endIndex: totalLines - 1,
+                        label: "example run & checks",
+                    })
+                }
+            }
         }
 
-        if (bottomStart >= 0) {
-            const visibleAfterBoth =
-                totalLines -
-                (autoFolds[0] ? autoFolds[0].endIndex + 1 : 0) -
-                (totalLines - bottomStart)
-            if (visibleAfterBoth >= MIN_VISIBLE_CORE_LINES) {
+        // Even on compact/medium Python snippets, fold leading imports already shown earlier in this lesson.
+        if (autoFolds.length === 0 && priorSet) {
+            const repeatedEnd = detectRepeatedLeadingPythonImportsEnd(cleanLines, priorSet)
+            if (repeatedEnd >= 0 && totalLines - (repeatedEnd + 1) >= 2) {
                 autoFolds.push({
-                    startIndex: bottomStart,
-                    endIndex: totalLines - 1,
-                    label: "example run & checks",
+                    startIndex: 0,
+                    endIndex: repeatedEnd,
+                    label: "repeated imports",
                 })
             }
         }

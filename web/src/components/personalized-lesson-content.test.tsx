@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, expect, test, vi } from "vitest"
 import {
-    ArticleEditionToggle,
     ArticleReaderBody,
     ArticleReaderProvider,
     ArticleReadingTime,
@@ -144,35 +143,20 @@ test("shows provider errors returned after a streamed response starts", async ()
     expect(screen.getByTestId("rendered-markdown").textContent).toBe("Canonical explanation")
 })
 
-test("defaults to Reader edition and switches cleanly to Full Reference with URL sync", () => {
+test("renders a single unified lesson body and reading time", () => {
     authState.current = { user: null, isLoggedIn: false, authLoaded: true }
     render(
         <ArticleReaderProvider
             slug="design-production-rag-pipeline"
-            hasAlternateEdition
-            readerTimeEstimate={12}
-            referenceTimeEstimate={34}
+            readerTimeEstimate={15}
         >
             <ArticleReadingTime />
-            <ArticleEditionToggle />
             <ArticleReaderBody
-                readerContent={<div data-testid="edition-body">Concise reader edition</div>}
-                referenceContent={<div data-testid="edition-body">Full reference edition</div>}
+                readerContent={<div data-testid="lesson-body">Unified lesson content</div>}
             />
         </ArticleReaderProvider>,
     )
 
-    expect(screen.getByTestId("edition-body").textContent).toBe("Concise reader edition")
-    expect(screen.getByText("12 min read")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Reader" }).getAttribute("aria-pressed")).toBe("true")
-
-    fireEvent.click(screen.getByRole("button", { name: "Full Reference" }))
-
-    expect(screen.getByTestId("edition-body").textContent).toBe("Full reference edition")
-    expect(screen.getByText("34 min read")).toBeTruthy()
-    expect(window.location.search).toBe("?edition=reference")
-
-    fireEvent.click(screen.getByRole("button", { name: "Reader" }))
-    expect(screen.getByTestId("edition-body").textContent).toBe("Concise reader edition")
-    expect(window.location.search).toBe("")
+    expect(screen.getByTestId("lesson-body").textContent).toBe("Unified lesson content")
+    expect(screen.getByText("15 min read")).toBeTruthy()
 })

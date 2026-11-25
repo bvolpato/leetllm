@@ -1,359 +1,159 @@
-import { createElement, type ReactElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorSegment,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const opaqueBackground = true
+export const width = 840
+export const height = 370
 export const alt =
     'Chunked prefill scheduling across three engine steps with a 6-token budget. Step 0 allocates 1 decode token from R0 and 5 prefill tokens from R1 (6/6 used). Step 1 allocates 1 decode token from R0 and the remaining 4 prefill tokens from R1 (5/6 used, 1 unused). Step 2 allocates 1 decode token each from R0 and R1 (2/6 used, 4 unused) as both requests enter steady-state decoding.'
 
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
-
-function renderBoard(c: Colors, items: (ReactElement | ReactElement[])[]) {
-    const flat = items.flat() as ReactElement[]
-    const svg = flat.filter((el) => el?.type !== 'div')
-    const html = flat.filter((el) => el?.type === 'div')
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bg,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: createElement(
-                    'svg',
-                    { width, height, viewBox: `0 0 ${width} ${height}` },
-                    ...svg,
-                ),
-            }),
-            ...html,
+const STEPS = [
+    {
+        title: 'Step 0',
+        used: '6 / 6 used',
+        note: 'R0 dec + R1 chunk 1',
+        segments: [
+            { label: 'R0 dec', tokens: 1, kind: 'r0' as const },
+            { label: 'R1 prefill (5 tok)', tokens: 5, kind: 'r1pre' as const },
         ],
-    })
-}
+    },
+    {
+        title: 'Step 1',
+        used: '5 / 6 used',
+        note: 'R1 finishes prefill',
+        segments: [
+            { label: 'R0 dec', tokens: 1, kind: 'r0' as const },
+            { label: 'R1 prefill (4 tok)', tokens: 4, kind: 'r1pre' as const },
+            { label: '1 free', tokens: 1, kind: 'free' as const },
+        ],
+    },
+    {
+        title: 'Step 2',
+        used: '2 / 6 used',
+        note: 'Both steady decode',
+        segments: [
+            { label: 'R0 dec', tokens: 1, kind: 'r0' as const },
+            { label: 'R1 dec', tokens: 1, kind: 'r1dec' as const },
+            { label: '4 unused', tokens: 4, kind: 'free' as const },
+        ],
+    },
+] as const
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c)
-    const warm = getReadableToneColor('warm', c)
-    const green = getReadableToneColor('green', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
     const muted = c.textSecondary
 
-    const scaleX = 72 // pixels per token, 6 tokens = 432 px
-    const startX = 260
+    const startX = 244
+    const scaleX = 92 // 6 tokens = 552px -> ends at 796
+    const rightX = startX + 6 * scaleX
 
-    const steps = [
-        {
-            title: 'Step 0 · Used 6 / 6',
-            sub: 'R0 decode + R1 prefill chunk 1',
-            r0_decode: 1,
-            r1_prefill: 5,
-            r1_decode: 0,
-            unused: 0,
-            y: 110,
-        },
-        {
-            title: 'Step 1 · Used 5 / 6',
-            sub: 'R0 decode + R1 prefill chunk 2',
-            r0_decode: 1,
-            r1_prefill: 4,
-            r1_decode: 0,
-            unused: 1,
-            y: 195,
-        },
-        {
-            title: 'Step 2 · Used 2 / 6',
-            sub: 'R0 decode + R1 decode (prefill done)',
-            r0_decode: 1,
-            r1_prefill: 0,
-            r1_decode: 1,
-            unused: 4,
-            y: 280,
-        },
+    // --- Top Inline Legend ---
+    const legend = [
+        { x: 244, label: 'R0 Decode', color: blue, dashed: false },
+        { x: 374, label: 'R1 Prefill (chunked)', color: warm, dashed: false },
+        { x: 562, label: 'R1 Decode', color: green, dashed: false },
+        { x: 682, label: 'Unused slots', color: muted, dashed: true },
     ]
-
-    return renderBoard(c, [
-        label(
-            c,
-            'vLLM Chunked Prefill & Decode Token Budget',
-            35,
-            18,
-            790,
-            28,
-            22,
-            c.textPrimary,
-            700,
-        ),
-        label(
-            c,
-            'Token slot allocation across engine steps (shared maximum budget = 6 tokens / step)',
-            35,
-            46,
-            790,
-            20,
-            15,
-            muted,
-            400,
-        ),
-
-        // Legend
-        SvgFrame({
-            c,
-            x: 260,
-            y: 75,
-            width: 14,
-            height: 14,
-            rx: 3,
-            stroke: blue,
-            strokeWidth: 1,
-            fill: theme === 'dark' ? 'rgba(56, 139, 253, 0.4)' : 'rgba(9, 105, 218, 0.3)',
-        }),
-        label(c, 'R0 Decode (1 token)', 282, 72, 160, 20, 13, c.textPrimary, 500),
-
-        SvgFrame({
-            c,
-            x: 450,
-            y: 75,
-            width: 14,
-            height: 14,
-            rx: 3,
-            stroke: warm,
-            strokeWidth: 1,
-            fill: theme === 'dark' ? 'rgba(210, 153, 34, 0.4)' : 'rgba(154, 103, 0, 0.3)',
-        }),
-        label(c, 'R1 Prefill (Chunked)', 472, 72, 160, 20, 13, c.textPrimary, 500),
-
-        SvgFrame({
-            c,
-            x: 640,
-            y: 75,
-            width: 14,
-            height: 14,
-            rx: 3,
-            stroke: green,
-            strokeWidth: 1,
-            fill: theme === 'dark' ? 'rgba(63, 185, 80, 0.4)' : 'rgba(26, 127, 55, 0.3)',
-        }),
-        label(c, 'R1 Decode', 662, 72, 120, 20, 13, c.textPrimary, 500),
-
-        // Rows
-        ...steps.flatMap((st) => {
-            let currentX = startX
-            const elements = []
-
-            elements.push(
-                label(c, st.title, 35, st.y, 200, 22, 16, c.textPrimary, 700),
-                label(c, st.sub, 35, st.y + 22, 200, 18, 13, muted),
-            )
-
-            // R0 decode block
-            if (st.r0_decode > 0) {
-                const w = st.r0_decode * scaleX
-                elements.push(
-                    SvgFrame({
-                        c,
-                        x: currentX,
-                        y: st.y + 4,
-                        width: w - 2,
-                        height: 40,
-                        rx: 4,
-                        stroke: blue,
-                        strokeWidth: 1.5,
-                        fill:
-                            theme === 'dark'
-                                ? 'rgba(56, 139, 253, 0.3)'
-                                : 'rgba(9, 105, 218, 0.25)',
-                    }),
-                    label(
-                        c,
-                        'R0 Dec',
-                        currentX,
-                        st.y + 14,
-                        w - 2,
-                        20,
-                        13,
-                        c.textPrimary,
-                        600,
-                        'center',
-                    ),
-                )
-                currentX += w
-            }
-
-            // R1 prefill block
-            if (st.r1_prefill > 0) {
-                const w = st.r1_prefill * scaleX
-                elements.push(
-                    SvgFrame({
-                        c,
-                        x: currentX,
-                        y: st.y + 4,
-                        width: w - 2,
-                        height: 40,
-                        rx: 4,
-                        stroke: warm,
-                        strokeWidth: 1.5,
-                        fill:
-                            theme === 'dark'
-                                ? 'rgba(210, 153, 34, 0.3)'
-                                : 'rgba(154, 103, 0, 0.25)',
-                    }),
-                    label(
-                        c,
-                        `R1 Prefill (${st.r1_prefill} tok)`,
-                        currentX,
-                        st.y + 14,
-                        w - 2,
-                        20,
-                        13,
-                        c.textPrimary,
-                        600,
-                        'center',
-                    ),
-                )
-                currentX += w
-            }
-
-            // R1 decode block
-            if (st.r1_decode > 0) {
-                const w = st.r1_decode * scaleX
-                elements.push(
-                    SvgFrame({
-                        c,
-                        x: currentX,
-                        y: st.y + 4,
-                        width: w - 2,
-                        height: 40,
-                        rx: 4,
-                        stroke: green,
-                        strokeWidth: 1.5,
-                        fill:
-                            theme === 'dark' ? 'rgba(63, 185, 80, 0.3)' : 'rgba(26, 127, 55, 0.25)',
-                    }),
-                    label(
-                        c,
-                        'R1 Dec',
-                        currentX,
-                        st.y + 14,
-                        w - 2,
-                        20,
-                        13,
-                        c.textPrimary,
-                        600,
-                        'center',
-                    ),
-                )
-                currentX += w
-            }
-
-            // Unused slots block
-            if (st.unused > 0) {
-                const w = st.unused * scaleX
-                elements.push(
-                    SvgFrame({
-                        c,
-                        x: currentX,
-                        y: st.y + 4,
-                        width: w - 2,
-                        height: 40,
-                        rx: 4,
-                        stroke: muted,
-                        strokeWidth: 1,
-                        fill:
-                            theme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.03)',
-                    }),
-                    label(
-                        c,
-                        `${st.unused} unused`,
-                        currentX,
-                        st.y + 14,
-                        w - 2,
-                        20,
-                        13,
-                        muted,
-                        500,
-                        'center',
-                    ),
-                )
-                currentX += w
-            }
-
-            return elements
-        }),
-
-        // Axis scale line
-        VectorSegment({
-            x1: startX,
-            y1: 345,
-            x2: startX + 6 * scaleX,
-            y2: 345,
-            color: muted,
-            strokeWidth: 1,
-            showStartDot: false,
-            showEndDot: false,
-        }),
-        label(c, '0', startX - 8, 352, 16, 16, 12, muted, 500, 'center', true),
-        label(c, '2', startX + 2 * scaleX - 8, 352, 16, 16, 12, muted, 500, 'center', true),
-        label(c, '4', startX + 4 * scaleX - 8, 352, 16, 16, 12, muted, 500, 'center', true),
-        label(c, '6 tokens', startX + 6 * scaleX - 25, 352, 60, 16, 12, muted, 500, 'center', true),
-
-        // Bottom panel: Takeaway
-        SvgFrame({
-            c,
-            x: 35,
-            y: 400,
-            width: 790,
-            height: 75,
-            rx: 8,
-            stroke: green,
+    for (const item of legend) {
+        fig.rect(item.x, 18, 16, 16, {
+            fill: item.dashed ? 'none' : tint(item.color, c.bg, 0.25),
+            stroke: item.color,
             strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(63, 185, 80, 0.08)' : 'rgba(26, 127, 55, 0.04)',
-        }),
-        label(c, 'Chunked Prefill Scheduling Principle', 52, 410, 750, 20, 16, green, 700),
-        label(
-            c,
-            'Chunking prefill into fixed token budgets prevents large prompt bursts from monopolizing GPU compute. Active decode iterations interleave without experiencing latency spikes.',
-            52,
-            434,
-            750,
-            32,
-            14,
-            c.textPrimary,
-            400,
-        ),
-    ])
+            radius: 3,
+        })
+        fig.text(item.x + 24, 26, item.label, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+        })
+    }
+
+    // --- Vertical Gridlines for 0..6 tokens ---
+    const chartTop = 58
+    const chartBot = 304
+    for (let t = 0; t <= 6; t++) {
+        const gx = startX + t * scaleX
+        fig.line(gx, chartTop, gx, chartBot, {
+            color: t === 6 ? green : c.borderSubtle,
+            width: t === 6 ? 1.5 : 1,
+            dash: t === 6 ? '5 4' : undefined,
+        })
+    }
+    fig.text(rightX, chartTop - 10, 'Budget = 6', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'right',
+        mono: true,
+    })
+
+    // --- 3 Step Rows ---
+    const rowYs = [74, 152, 230] as const
+    const barH = 48
+
+    STEPS.forEach((st, idx) => {
+        const y = rowYs[idx]!
+        fig.text(24, y + 12, `${st.title}  ·  ${st.used}`, {
+            size: 15,
+            weight: 700,
+            color: c.textPrimary,
+        })
+        fig.text(24, y + 36, st.note, { size: 13, color: muted })
+
+        let curX = startX
+        for (const seg of st.segments) {
+            const w = seg.tokens * scaleX - 4
+            const tone =
+                seg.kind === 'r0'
+                    ? blue
+                    : seg.kind === 'r1pre'
+                      ? warm
+                      : seg.kind === 'r1dec'
+                        ? green
+                        : muted
+            const isFree = seg.kind === 'free'
+            fig.rect(curX + 2, y, w, barH, {
+                fill: isFree ? tint(c.textMuted, c.bg, 0.04) : tint(tone, c.bg, 0.22),
+                stroke: isFree ? c.border : tone,
+                strokeWidth: isFree ? 1 : 1.75,
+                radius: 6,
+            })
+            fig.text(curX + 2 + w / 2, y + barH / 2, seg.label, {
+                size: 14,
+                weight: isFree ? 500 : 700,
+                color: isFree ? muted : tone,
+                align: 'center',
+                width: w - 6,
+            })
+            curX += seg.tokens * scaleX
+        }
+    })
+
+    // --- Bottom Token Scale Axis ---
+    fig.line(startX, chartBot, rightX, chartBot, { color: c.textMuted, width: 1.25 })
+    for (let t = 0; t <= 6; t++) {
+        const gx = startX + t * scaleX
+        fig.line(gx, chartBot, gx, chartBot + 5, { color: c.textMuted, width: 1.25 })
+        fig.text(gx, chartBot + 20, String(t), {
+            size: 13,
+            weight: 600,
+            color: muted,
+            align: 'center',
+            mono: true,
+            width: 30,
+        })
+    }
+    fig.text(startX + 3 * scaleX, chartBot + 44, 'Tokens scheduled per engine step (max budget = 6)', {
+        size: 13,
+        color: muted,
+        align: 'center',
+        width: 440,
+    })
+
+    return fig.render()
 }
+
+export default create()

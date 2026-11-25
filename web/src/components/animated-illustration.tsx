@@ -103,10 +103,10 @@ function FilmIllustration({ parsed }: { parsed: FilmIllustrationData }) {
 
     return (
         <>
-            <div className="w-full overflow-hidden rounded-xl border border-border/40 bg-card/30 print:hidden">
+            <div className="w-full print:hidden">
                 {started ? (
                     <div
-                        className={`relative ${isLight ? "bg-[#f8f6f1]" : "bg-[#0d1117]"}`}
+                        className={`relative overflow-hidden rounded-lg border [border-color:var(--reading-border)]/60 ${isLight ? "bg-[#f7f3ea]" : "bg-[#0b0c10]"}`}
                         style={{ paddingBottom: `calc(${100 * parsed.height / parsed.width}% + 3rem)` }}
                     >
                         <video
@@ -138,19 +138,22 @@ function FilmIllustration({ parsed }: { parsed: FilmIllustrationData }) {
                 ) : (
                     <button
                         type="button"
-                        className="group relative block w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                        className="group relative mx-auto block w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                         aria-label={`Play animation: ${parsed.alt}`}
                         onClick={() => { setFailed(false); setStarted(true); setPlaying(true) }}
                     >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={poster} alt={parsed.alt} className="w-full max-h-[800px] object-contain" loading="lazy" />
-                        <span className="flex items-center justify-center gap-2 border-t border-border/30 bg-card px-3 py-3 text-sm font-medium group-hover:bg-muted">
-                            <Play className="h-4 w-4" /> Play animation
-                            <span className="font-normal text-muted-foreground">{Math.round(parsed.duration / 1000)}s</span>
+                        <img src={poster} alt={parsed.alt} className="mx-auto w-full max-h-[800px] object-contain" loading="lazy" />
+                        <span className="mt-2.5 flex justify-center">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border [border-color:var(--reading-border)] [background:var(--reading-panel)] px-3.5 py-1.5 text-xs font-medium [color:var(--reading-ink)] backdrop-blur-sm shadow-sm transition-colors group-hover:border-primary/40 group-hover:text-primary">
+                                <Play className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                                Play animation
+                                <span className="font-normal [color:var(--reading-muted)]">{Math.round(parsed.duration / 1000)}s</span>
+                            </span>
                         </span>
                     </button>
                 )}
-                {failed && <p role="status" className="px-3 py-2 text-sm text-muted-foreground">The animation could not load. The figure remains available; select Play to try again.</p>}
+                {failed && <p role="status" className="mt-2 text-center text-sm text-muted-foreground">The animation could not load. The figure remains available; select Play to try again.</p>}
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={parsed.lightFallback} alt={parsed.alt} className="hidden w-full print:block" />

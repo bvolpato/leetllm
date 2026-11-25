@@ -1,263 +1,154 @@
-import React, { createElement, type ReactNode } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    layoutAllocation,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 360
 export const alt =
-    'Five retention rows share a 100-document scale for an illustrative batch. Raw sources contain 100 records. Extraction retains 82 and removes 18; quality retains 42 and removes 40; near-deduplication retains 31 and removes 11; policy and evaluation checks retain 29 and remove 2. Cyan marks retained records, amber marks removals at the current gate, and empty space marks earlier removals. The four removal counts plus 29 retained records account for all 100 documents.'
+    'A five-stage pretraining filtration funnel tracks 100 raw documents: Extraction retains 82 (-18 failures), Quality filtering retains 42 (-40 low-quality), Near-deduplication retains 31 (-11 duplicates), and Benchmark decontamination retains 29 (-2 flagged), yielding 29% net retained training documents.'
 
 export const stages = [
-    { id: 'raw', label: 'Raw sources', kept: 100, removed: 0, reason: '' },
+    { id: 'raw', label: 'Raw crawl', kept: 100, removed: 0, reason: '100 starting docs' },
     {
         id: 'extraction',
         label: 'Extraction',
         kept: 82,
         removed: 18,
-        reason: '18 extraction failures',
+        reason: '−18 HTML / PDF failures',
     },
-    { id: 'quality', label: 'Quality gate', kept: 42, removed: 40, reason: '40 quality drops' },
-    { id: 'dedup', label: 'Near-dedup', kept: 31, removed: 11, reason: '11 near-duplicates' },
-    { id: 'policy', label: 'Policy / eval', kept: 29, removed: 2, reason: '2 policy / eval drops' },
+    {
+        id: 'quality',
+        label: 'Quality filter',
+        kept: 42,
+        removed: 40,
+        reason: '−40 low-quality / perplexity',
+    },
+    {
+        id: 'dedup',
+        label: 'Near-dedup',
+        kept: 31,
+        removed: 11,
+        reason: '−11 MinHash duplicates',
+    },
+    {
+        id: 'decontam',
+        label: 'Decontamination',
+        kept: 29,
+        removed: 2,
+        reason: '−2 benchmark matches',
+    },
 ]
 
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    size: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({
-            c,
-            text,
-            width: '100%',
-            fontSize: size,
-            color,
-            align,
-            fontWeight: 650,
-        }),
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const cyan = getReadableToneColor('cyan', c)
-    const warm = getReadableToneColor('warm', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
     const muted = c.textSecondary
 
-    const barX = 180
-    const barWidth = 340
-    const startY = 100
-    const rowHeight = 65
+    // Legend at top
+    fig.rect(168, 16, 14, 12, { fill: cyan, radius: 3 })
+    fig.text(188, 22, 'Retained documents', { size: 13, weight: 600, color: cyan })
+    fig.rect(344, 16, 14, 12, { fill: warm, radius: 3 })
+    fig.text(364, 22, 'Removed at this stage', { size: 13, weight: 600, color: warm })
 
-    const allocations = stages.map((stage, i) =>
-        layoutAllocation({
-            x: barX,
-            y: startY + i * rowHeight + 10,
-            width: barWidth,
-            height: 28,
-            capacity: 100,
-            parts: [
-                { id: 'kept', label: 'Kept', value: stage.kept },
-                { id: 'removed', label: 'Removed here', value: stage.removed },
-            ],
-        }),
-    )
+    const barX = 168
+    const barW = 360
+    const startY = 58
+    const rowStep = 54
 
-    const stageElements: ReactNode[] = []
-    allocations.forEach((allocation, i) => {
-        stageElements.push(
-            SvgFrame({
-                c,
-                ...allocation.bounds,
-                rx: 4,
-                fill: c.bgCardAlt,
-                stroke: c.borderSubtle,
-                strokeWidth: 1,
-                key: `frame-${stages[i].id}`,
-            }),
-        )
-        allocation.parts
-            .filter((p) => p.value > 0)
-            .forEach((part) => {
-                stageElements.push(
-                    SvgFrame({
-                        c,
-                        ...part.bounds,
-                        rx: 4,
-                        fill: part.id === 'kept' ? cyan : warm,
-                        key: `part-${stages[i].id}-${part.id}`,
-                    }),
-                )
-            })
+    // Subtle vertical gridlines at 0, 25, 50, 75, 100
+    ;[0, 25, 50, 75, 100].forEach((v) => {
+        const gx = barX + (v / 100) * barW
+        fig.line(gx, startY - 8, gx, startY + 5 * rowStep - 14, {
+            color: v === 0 ? c.textMuted : c.borderSubtle,
+            width: 1,
+            dash: v === 0 ? undefined : '3 3',
+        })
+        fig.text(gx, startY + 5 * rowStep + 2, `${v}`, {
+            size: 12,
+            mono: true,
+            color: muted,
+            align: 'center',
+        })
+    })
+    fig.text(barX + barW / 2, startY + 5 * rowStep + 22, 'Documents (out of 100)', {
+        size: 12,
+        color: muted,
+        align: 'center',
     })
 
-    const shapeSvg = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        // Left Panel Frame
-        SvgFrame({
-            c,
-            x: 20,
-            y: 50,
-            width: 530,
-            height: 400,
-            rx: 8,
-            fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-funnel',
-        }),
-        // Right Panel Frame
-        SvgFrame({
-            c,
-            x: 570,
-            y: 50,
-            width: 270,
-            height: 400,
-            rx: 8,
-            fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-summary',
-        }),
-        ...stageElements,
-        // Card in right panel
-        SvgFrame({
-            c,
-            x: 590,
-            y: 110,
-            width: 230,
-            height: 70,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: cyan,
+    stages.forEach((st, i) => {
+        const y = startY + i * rowStep
+        const isFinal = i === stages.length - 1
+        const keptW = (st.kept / 100) * barW
+        const remW = (st.removed / 100) * barW
+
+        // Stage name
+        fig.text(barX - 14, y + 15, st.label, {
+            size: 14,
+            weight: 700,
+            color: isFinal ? green : c.textPrimary,
+            align: 'right',
+        })
+
+        // Full 100 track
+        fig.rect(barX, y, barW, 30, {
+            fill: tint(c.textMuted, c.bg, 0.06),
+            radius: 4,
+        })
+
+        // Kept portion
+        const keepCol = isFinal ? green : cyan
+        fig.rect(barX, y, keptW, 30, {
+            fill: tint(keepCol, c.bg, 0.38),
+            stroke: keepCol,
             strokeWidth: 1.5,
-            key: 'card-net-yield',
-        }),
-        SvgFrame({
-            c,
-            x: 590,
-            y: 200,
-            width: 230,
-            height: 220,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'card-losses',
-        }),
-    )
+            radius: 4,
+        })
+        fig.text(barX + keptW / 2, y + 15, String(st.kept), {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: c.textPrimary,
+            align: 'center',
+        })
 
-    const stageLabels: ReactNode[] = []
-    stages.forEach((stage, i) => {
-        const y = startY + i * rowHeight + 14
-        stageLabels.push(
-            label(c, stage.label, 35, y, 140, 24, 15, c.textPrimary),
-            label(
-                c,
-                `${stage.kept}`,
-                barX + (stage.kept * barWidth) / 100 + 8,
-                y,
-                40,
-                24,
-                14,
-                cyan,
-            ),
-        )
+        // Removed-at-stage portion right next to kept
+        if (st.removed > 0) {
+            fig.rect(barX + keptW + 1, y, Math.max(4, remW - 1), 30, {
+                fill: tint(warm, c.bg, 0.34),
+                stroke: warm,
+                strokeWidth: 1.4,
+                radius: 4,
+            })
+            if (remW >= 26) {
+                fig.text(barX + keptW + remW / 2, y + 15, `−${st.removed}`, {
+                    size: 12,
+                    mono: true,
+                    weight: 700,
+                    color: warm,
+                    align: 'center',
+                })
+            }
+        }
+
+        // Right inline drop annotation
+        fig.text(barX + barW + 14, y + 15, st.reason, {
+            size: 13,
+            weight: i === 2 ? 700 : 500,
+            color: i === 2 ? warm : isFinal ? green : muted,
+        })
     })
 
-    return (
-        <Board c={c} width={width} height={height}>
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                {shapeSvg}
-            </CanvasItem>
-            {label(
-                c,
-                'Pre-training Data Ingestion & Filtration Funnel',
-                20,
-                12,
-                width - 40,
-                30,
-                22,
-                c.textPrimary,
-                'center',
-            )}
+    // Final callout badge at bottom right
+    fig.text(barX + barW + 14, startY + 5 * rowStep + 10, 'Net yield: 29% retained', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
 
-            {/* Left Panel */}
-            {label(
-                c,
-                'Document Retention by Pipeline Stage (100 Doc Scale)',
-                35,
-                62,
-                490,
-                24,
-                16,
-                c.textPrimary,
-            )}
-            {label(
-                c,
-                'Cyan: retained · Amber: filtered at current gate · Gray: prior drops',
-                35,
-                88,
-                490,
-                20,
-                12,
-                muted,
-            )}
-            {stageLabels}
-
-            {/* Right Panel */}
-            {label(c, 'Pipeline Yield & Losses', 585, 62, 240, 24, 16, c.textPrimary)}
-            {label(c, 'Net Yield: 29% Retained', 600, 120, 210, 22, 15, cyan)}
-            {label(c, '29 of 100 documents reach training', 600, 146, 210, 20, 11, muted)}
-
-            {label(c, 'Cumulative Drop Breakdown', 600, 212, 210, 20, 13, c.textPrimary)}
-            {label(c, '• 18 Extraction failures (HTML/PDF)', 605, 240, 200, 20, 11, muted)}
-            {label(c, '• 40 Quality / perplexity drops', 605, 275, 200, 20, 11, warm)}
-            {label(c, '• 11 Near-duplicate documents', 605, 310, 200, 20, 11, warm)}
-            {label(c, '• 2 Benchmark decontamination', 605, 345, 200, 20, 11, muted)}
-            {label(c, 'Total filtered: 71 documents (71%)', 605, 385, 200, 20, 12, warm)}
-
-            {label(
-                c,
-                'Retention across filtering passes · Quality filtering accounts for the largest fraction of discarded text volume',
-                20,
-                460,
-                width - 40,
-                24,
-                14,
-                muted,
-                'center',
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create('dark')

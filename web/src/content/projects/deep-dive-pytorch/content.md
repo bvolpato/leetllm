@@ -56,15 +56,11 @@ The same code spans distinct memory models: Apple silicon's <span data-glossary=
 | Compiler stack | Bytecode capture, joint graph, lowering | Stable regions fuse into C++ or Triton kernels |
 | c10d and distributed | Process groups, meshes, sharding | Parameters and activations span clusters |
 
-<!-- leetllm: edition:reference:start -->
-
 ```checkpoint
 What is the first useful question when an LLM operation is slower than expected?
 ---
 Identify its execution path: eager or compiled, backend, dtype and stride layout, attention kernel, and any blocking collective or host-device sync.
 ```
-
-<!-- leetllm: edition:reference:end -->
 
 ## The tensor is metadata plus storage
 
@@ -135,15 +131,11 @@ flowchart TB
 
 Context managers rewrite dispatch dynamically: `torch.no_grad()` disables autograd keys, `torch.inference_mode()` also drops view and version tracking, functionalization turns in-place ops into pure ops during tracing, and fake tensors propagate shapes without device allocations. Custom ops plug into this same dispatcher, so they must uphold dtype, stride, and aliasing rules alongside numerical math.
 
-<!-- leetllm: edition:reference:start -->
-
 ```checkpoint
 Why can a custom operator that computes correct values still be wrong?
 ---
 It can violate dtype, device, stride, aliasing, mutation, autograd, or dispatch requirements relied on by downstream views, compiler guards, and distributed wrappers.
 ```
-
-<!-- leetllm: edition:reference:end -->
 
 ## Autograd records a dynamic execution tape
 
@@ -158,8 +150,6 @@ Because views share storage, mutating a view bumps its parent's version counter 
 > **Common mistake:** `x.detach()` stops autograd from tracking future ops, yet it still aliases `x`'s storage. For $L = x^2$ at $x = 3$, `x.detach().add_(1.0)` invalidates the saved `x` and crashes `backward()`, whereas `x.detach().clone().add_(1.0)` isolates memory and preserves $\frac{dL}{dx} = 2x = 6$.
 
 Use `torch.autograd.gradcheck` on small `float64` tensors to verify custom analytical backward methods against finite differences before deploying them at scale; activation checkpointing likewise requires deterministic forward replay.[^pytorch2026autograd]
-
-<!-- leetllm: edition:reference:start -->
 
 Verify the valid gradient, the rejected detached-alias write, and the isolated clone directly:
 
@@ -209,8 +199,6 @@ A view and its base share storage. Why does `view.add_(1)` sometimes fail only d
 The in-place write increments the shared version counter. A backward node detects the mismatch only when it reads the saved tensor, surfacing the error away from the mutation site.
 ```
 
-<!-- leetllm: edition:reference:end -->
-
 ## Attention is a kernel-selection problem
 
 For $Q$, $K$, and $V$ shaped `[B, H, S, D]`, scaled dot-product attention computes:
@@ -222,8 +210,6 @@ $$
 where $M$ adds `0` to kept positions and $-\infty$ to masked keys.
 
 Naive attention writes the $B \times H \times S \times S$ score matrix to HBM. Even at $B=1, H=2, S=8192$, that intermediate alone holds $1 \times 2 \times 8192^2 = 134{,}217{,}728$ elements. Fused kernels like FlashAttention-2 tile $Q$, $K$, and $V$ into on-chip SRAM, fusing matmul and online softmax per tile and recomputing scores in backward to avoid HBM traffic.[^dao2023]
-
-<!-- leetllm: edition:reference:start -->
 
 <!-- leetllm: test output=show -->
 ```python title="score_cells.py"
@@ -238,8 +224,6 @@ assert score_cells == 134_217_728
 134217728
 ```
 <!-- leetllm: output:end -->
-
-<!-- leetllm: edition:reference:end -->
 
 `F.scaled_dot_product_attention` dispatches across FlashAttention, memory-efficient attention, cuDNN, and a math fallback based on hardware, dtype, head dimension, strides, grouped-query head counts, and mask structure; `sdpa_kernel` selects or restricts backends explicitly.[^pytorchSdpaEnum2026][^pytorchSdpaBackends2026][^pytorchSdpaDocs2026] For custom patterns like sliding windows or document masks, FlexAttention lowers Python score modifiers and block-sparse masks straight to fused Triton kernels.[^pytorchFlexAttention2026]
 
@@ -297,8 +281,6 @@ one query, two keys: upper-left causal sees key 0; cached-last sees both
 
 Short sequences can be launch-latency bound, arbitrary masks can fall back to math, and non-contiguous strides can trigger copies; profile actual kernel dispatches before assuming a fused path ran.
 
-<!-- leetllm: edition:reference:start -->
-
 | Call-site signal | What it reveals |
 | --- | --- |
 | Q/K/V strides + allocation trace | Whether a view triggered a layout copy |
@@ -312,8 +294,6 @@ For `S=8192`, why is avoiding the materialized score matrix more important than 
 ---
 The score matrix scales as `S²`, so tiled fusion cuts peak memory and HBM bandwidth dramatically while Python dispatch stays nearly constant.
 ```
-
-<!-- leetllm: edition:reference:end -->
 
 ## `torch.compile`: capture, transform, lower
 
@@ -340,8 +320,6 @@ Data-dependent branches (`if tensor.item() > 0:`), `print()`, or opaque third-pa
 Guards recompile whenever a call changes shape, stride, dtype, or a guarded Python scalar; inspect causes with `TORCH_LOGS="graph_breaks,guards,recompiles"`.[^pytorch2026compiletroubleshooting]
 
 > **Key insight:** AOTAutograd assumes backward uses the same autocast context as forward (`backward_pass_autocast="same_as_forward"`). When forward runs inside `torch.autocast` and `loss.backward()` runs outside it, patch `backward_pass_autocast="off"` so compiled backward gradients match eager.[^pytorchCompileAutograd2026]
-
-<!-- leetllm: edition:reference:start -->
 
 This script isolates Dynamo capture (2 captured graphs across 3 calls as the Python scale changes) and verifies `aot_eager` forward/backward parity, including CPU BF16 autocast alignment:
 
@@ -417,8 +395,6 @@ What does a graph break mean for correctness, and what does it usually cost?
 It returns unsupported code to eager Python, keeping math exact while adding transition overhead, possible syncs, and lost cross-boundary fusion.
 ```
 
-<!-- leetllm: edition:reference:end -->
-
 ## Distributed PyTorch: process groups first
 
 `torch.distributed` coordinates $N$ ranks in process groups via <span data-glossary="nccl">NCCL</span> on NVIDIA GPUs and Gloo on CPUs.[^pytorch2026distributed] Ranks in a group must issue matching collectives in identical order; a mismatch deadlocks until timeout.
@@ -458,15 +434,11 @@ Pipeline parallelism (PP) assigns consecutive layer blocks to stages and streams
 
 > **Common mistake:** Under 1F1B with equal microbatches and mean-reduced losses, `scale_grads=True` divides accumulated gradients by the microbatch count automatically. Dividing each microbatch loss manually divides twice; for sum-reduced losses, pass `scale_grads=False`.[^pytorchPipeline2026]
 
-<!-- leetllm: edition:reference:start -->
-
 ```checkpoint
 Why can't adding pipeline stages fix a tensor-parallel collective bottleneck by itself?
 ---
 Pipeline stages pass activations and gradients between consecutive blocks; tensor-parallel collectives still run inside each sharded layer until the tensor layout or mesh changes.
 ```
-
-<!-- leetllm: edition:reference:end -->
 
 ## <span data-glossary="fsdp">FSDP2</span> shards parameters around the forward
 
@@ -483,15 +455,11 @@ FSDP2 stores parameters as DTensor shards at rest. Applying `fully_shard` bottom
 
 A $P$-element parameter across shard degree $d$ occupies $P/d$ at rest, yet peak memory includes gathered compute weights, prefetched blocks, activations, gradients, <span data-glossary="optimizer-state">optimizer state</span>, and communication buckets.[^pytorchFsdp2Docs2025]
 
-<!-- leetllm: edition:reference:start -->
-
 ```checkpoint
 Why does <span data-glossary="fsdp">FSDP2</span> not mean every parameter is permanently absent from every rank?
 ---
 Each module needs unsharded weights to compute, so <span data-glossary="fsdp">FSDP2</span> gathers around forward and backward and reshards afterward, bounding how many blocks are materialized at once while keeping optimizer and gradient state sharded.
 ```
-
-<!-- leetllm: edition:reference:end -->
 
 ## Checkpoint and restart form one recovery loop
 
@@ -507,8 +475,6 @@ flowchart TB
     restart --> restore["5 · application loads state\nreshard if required and supported"]:::accent
     restore --> resumed["6 · resume\nnext step N + 1"]:::primary
 ```
-
-<!-- leetllm: edition:reference:start -->
 
 This example saves a linear model and Adam state with DCP after one step, reloads them into fresh objects, and verifies that the next update matches an uninterrupted run bit for bit:
 
@@ -633,8 +599,6 @@ Trace the codebase from Python tensors down to distributed recovery:[^pytorchSou
 7. `torch/distributed/device_mesh.py`, `tensor/parallel/`, `fsdp/`, `pipelining/` (meshes, TP, FSDP2, PP).
 8. `torch/distributed/checkpoint/`, `torch/distributed/run.py` (DCP and `torchrun`).
 
-<!-- leetllm: edition:reference:end -->
-
 ## What to remember
 
 Keep three boundaries sharp: a zero-copy view versus a downstream layout copy, a dispatch key versus the kernel that actually ran, and a loaded weight versus a training step that truly resumed.
@@ -648,8 +612,6 @@ Keep three boundaries sharp: a zero-copy view versus a downstream layout copy, a
 - **FSDP2, TP, PP, and DCP compose cleanly.** Call `model(input)` for FSDP2 hooks, budget peak memory beyond `P/d`, and persist full training state alongside `torchrun` restarts.
 
 ## Mastery check
-
-<!-- leetllm: edition:reference:start -->
 
 ### Evaluation rubric
 
@@ -676,8 +638,6 @@ Why are Dynamo capture counts and `aot_eager` checks separate from Inductor spee
 ---
 Counting backends run FX graphs eagerly and `aot_eager` skips Inductor codegen. Benchmark compiled Inductor across warmup and steady-state steps under realistic shapes and autocast settings.
 ```
-
-<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [

@@ -1,419 +1,260 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const width = 880
+export const height = 420
 export const alt =
-    'Ordered local handler state. Typing r, o and dot creates snapshots with request epochs 1, 2 and 3, document versions 1, 2 and 3 and caret offsets 1, 2 and 3 under policy epoch 7. The first two 150 ms debounce tasks are canceled. Only request 3 is sent, immediately. A paint gate checks both request epoch and the entire editor snapshot: completion-3 paints, while late epoch 2 is dropped. A cursor move sets epoch 4, version 3 and selection (0,0), clears the ghost and sends nothing. Late epoch 3 drops; fresh at epoch 4 paints. Policy 7 to 8 sets epoch 5, clears the ghost, and sends nothing. Tab checks freshness and requires a version-checked insertion.'
+    'Epoch timeline across five editor events. Typing r (epoch 1) and o (epoch 2) arm 150 ms debounces that are canceled before dispatch. Typing dot (epoch 3) fires immediately at 0 ms; reply comp-3 arrives at epoch 3 and paints ghost text, while late stale-2 drops. Moving the caret to (0,0) advances to epoch 4, clears ghost text, and rejects late epoch 3 replies. Changing policy ACL 7 to 8 advances to epoch 5, clears ghost text, and guards Tab insertion.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const sendTone = getReadableToneColor('green', c, c.bg)
-    const cancelTone = getReadableToneColor('critical', c, c.bg)
-    const gateTone = getReadableToneColor('purple', c, c.bg)
-    const moveTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 18,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Horizontal swimlane timeline: 5 epochs across x = 148..850
+    const epochs = [
+        {
+            e: 1,
+            x: 162,
+            event: "Type 'r'",
+            snap: 'v1 · (1,1) · acl 7',
+            action: '150 ms debounce',
+            outcome: 'Canceled',
+            tone: red,
+        },
+        {
+            e: 2,
+            x: 306,
+            event: "Type 'o'",
+            snap: 'v2 · (2,2) · acl 7',
+            action: '150 ms debounce',
+            outcome: 'Canceled',
+            tone: red,
+        },
+        {
+            e: 3,
+            x: 450,
+            event: "Type '.'",
+            snap: 'v3 · (3,3) · acl 7',
+            action: '0 ms trigger',
+            outcome: 'SENT req e=3',
+            tone: green,
+        },
+        {
+            e: 4,
+            x: 616,
+            event: 'Caret move',
+            snap: 'v3 · (0,0) · acl 7',
+            action: 'Clear ghost',
+            outcome: 'No send',
+            tone: warm,
+        },
+        {
+            e: 5,
+            x: 774,
+            event: 'ACL 7 -> 8',
+            snap: 'v3 · (0,0) · acl 8',
+            action: 'Clear ghost',
+            outcome: 'No send',
+            tone: purple,
+        },
+    ]
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Left: Keystroke Sequence & Debounce Invalidation */}
-                    <rect
-                        x={24}
-                        y={60}
-                        width={400}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    // Swimlane row labels on left
+    fig.text(20, 62, 'Editor', { size: 14, weight: 700, color: c.textPrimary })
+    fig.text(20, 82, 'events', { size: 12, color: c.textSecondary })
 
-                    {/* Step 1: Type 'r' */}
-                    <rect
-                        x={36}
-                        y={110}
-                        width={376}
-                        height={60}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={cancelTone}
-                        strokeWidth={1.2}
-                    />
-                    <line
-                        x1={260}
-                        y1={140}
-                        x2={295}
-                        y2={140}
-                        stroke={cancelTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={295}
-                        y={120}
-                        width={105}
-                        height={40}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={cancelTone}
-                        strokeWidth={1}
-                    />
+    fig.text(20, 152, 'Debounce', { size: 14, weight: 700, color: c.textPrimary })
+    fig.text(20, 172, '& dispatch', { size: 12, color: c.textSecondary })
 
-                    {/* Step 2: Type 'o' */}
-                    <rect
-                        x={36}
-                        y={185}
-                        width={376}
-                        height={60}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={cancelTone}
-                        strokeWidth={1.2}
-                    />
-                    <line
-                        x1={260}
-                        y1={215}
-                        x2={295}
-                        y2={215}
-                        stroke={cancelTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={295}
-                        y={195}
-                        width={105}
-                        height={40}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={cancelTone}
-                        strokeWidth={1}
-                    />
+    fig.text(20, 248, 'Replies &', { size: 14, weight: 700, color: c.textPrimary })
+    fig.text(20, 268, 'paint gate', { size: 12, color: c.textSecondary })
 
-                    {/* Step 3: Type '.' (trigger char) */}
-                    <rect
-                        x={36}
-                        y={260}
-                        width={376}
-                        height={60}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={sendTone}
-                        strokeWidth={2}
-                    />
-                    <line x1={260} y1={290} x2={295} y2={290} stroke={sendTone} strokeWidth={2} />
-                    <rect
-                        x={295}
-                        y={270}
-                        width={105}
-                        height={40}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={sendTone}
-                        strokeWidth={1}
-                    />
+    // Horizontal guide lines for swimlanes
+    fig.line(120, 118, 858, 118, { color: c.borderSubtle, width: 1 })
+    fig.line(120, 206, 858, 206, { color: c.borderSubtle, width: 1 })
+    fig.line(120, 316, 858, 316, { color: c.borderSubtle, width: 1 })
 
-                    {/* Step 4: Arrow Key / Caret Move */}
-                    <rect
-                        x={36}
-                        y={335}
-                        width={376}
-                        height={60}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={moveTone}
-                        strokeWidth={1.2}
-                    />
-                    <line x1={260} y1={365} x2={295} y2={365} stroke={moveTone} strokeWidth={1.5} />
-                    <rect
-                        x={295}
-                        y={345}
-                        width={105}
-                        height={40}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={moveTone}
-                        strokeWidth={1}
-                    />
+    // Main time axis arrow along top
+    fig.arrow(120, 30, 856, 30, { color: c.textMuted, width: 1.4, head: 6 })
+    fig.text(856, 16, 'time', { size: 12, color: c.textMuted, align: 'right' })
 
-                    {/* Left footer note */}
-                    <rect
-                        x={36}
-                        y={405}
-                        width={376}
-                        height={58}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    // Vertical epoch columns & nodes
+    for (const ep of epochs) {
+        // Epoch vertical tick line
+        fig.line(ep.x, 30, ep.x, 314, { color: c.borderSubtle, width: 1, dash: '3 3' })
+        // Epoch badge on time axis
+        fig.rect(ep.x - 24, 18, 48, 24, {
+            fill: tint(ep.tone, c.bg, 0.18),
+            stroke: ep.tone,
+            strokeWidth: 1.4,
+            radius: 12,
+        })
+        fig.text(ep.x, 30, `e=${ep.e}`, {
+            size: 13,
+            weight: 700,
+            color: ep.tone,
+            align: 'center',
+            mono: true,
+        })
 
-                    {/* Right: Dual Gate Verification (Paint & Tab) */}
-                    <rect
-                        x={444}
-                        y={60}
-                        width={392}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+        // Row 1: Event + snapshot
+        fig.text(ep.x, 62, ep.event, {
+            size: 14,
+            weight: 700,
+            color: c.textPrimary,
+            align: 'center',
+        })
+        fig.text(ep.x, 86, ep.snap, {
+            size: 11,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
 
-                    {/* Paint Gate */}
-                    <rect
-                        x={456}
-                        y={110}
-                        width={368}
-                        height={165}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={gateTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={468}
-                        y={150}
-                        width={344}
-                        height={50}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={sendTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={468}
-                        y={210}
-                        width={344}
-                        height={50}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={cancelTone}
-                        strokeWidth={1}
-                    />
+        // Row 2: Debounce / dispatch status pill
+        const pw = ep.e === 3 ? 124 : 112
+        fig.rect(ep.x - pw / 2, 134, pw, 52, {
+            fill: tint(ep.tone, c.bg, 0.11),
+            stroke: ep.tone,
+            strokeWidth: ep.e === 3 ? 1.6 : 1.2,
+            radius: 7,
+        })
+        fig.text(ep.x, 151, ep.action, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+        })
+        fig.text(ep.x, 171, ep.outcome, {
+            size: 12,
+            weight: 700,
+            color: ep.tone,
+            align: 'center',
+            mono: ep.e === 3,
+        })
+    }
 
-                    {/* Tab Gate */}
-                    <rect
-                        x={456}
-                        y={295}
-                        width={368}
-                        height={168}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={gateTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={468}
-                        y={340}
-                        width={344}
-                        height={110}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    // Cancel arrows between e=1 -> e=2 and e=2 -> e=3
+    fig.arrow(218, 160, 248, 160, { color: red, width: 1.4, head: 5, dash: '3 2' })
+    fig.arrow(362, 160, 386, 160, { color: red, width: 1.4, head: 5, dash: '3 2' })
 
-            {/* Title */}
-            {label(
-                24,
-                20,
-                812,
-                'Editor Snapshot Freshness · Debounce Invalidation & Dual Verification Gates',
-                22,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    // Row 3: Replies arriving at Paint Gate
+    // Reply 1: comp-3 arrives during e=3 -> PAINT (green)
+    fig.arrow(450, 186, 450, 222, { color: green, width: 1.8, head: 6 })
+    fig.rect(376, 224, 148, 44, {
+        fill: tint(green, c.bg, 0.16),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 7,
+    })
+    fig.text(450, 239, 'comp-3 (e=3 == 3)', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(450, 257, 'PAINT ghost text', {
+        size: 12,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
 
-            {/* Left Header */}
-            {label(
-                36,
-                75,
-                376,
-                '1. Keystroke Stream & Debounce Lifecycle',
-                16,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    // Reply 2: late stale-2 arrives during e=3 -> DROP (red)
+    fig.rect(144, 238, 182, 44, {
+        fill: tint(red, c.bg, 0.12),
+        stroke: red,
+        strokeWidth: 1.3,
+        radius: 7,
+    })
+    fig.text(235, 253, 'late e=2 arrives at e=3', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(235, 271, 'DROP (2 != 3)', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
 
-            {/* Step 1 */}
-            {label(
-                48,
-                120,
-                200,
-                "Type 'r' (Epoch e=1, v=1, pos=1)",
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(48, 142, 200, '150 ms debounce armed', 11, c.textMuted)}
-            {label(295, 132, 105, "Canceled by 'o'", 11, cancelTone, 'center', 600)}
+    // Reply 3: late e=3 arrives after caret move (e=4) -> DROP (red)
+    fig.rect(544, 224, 152, 44, {
+        fill: tint(red, c.bg, 0.12),
+        stroke: red,
+        strokeWidth: 1.3,
+        radius: 7,
+    })
+    fig.text(620, 239, 'late e=3 at e=4', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(620, 257, 'DROP (3 != 4)', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
 
-            {/* Step 2 */}
-            {label(
-                48,
-                195,
-                200,
-                "Type 'o' (Epoch e=2, v=2, pos=2)",
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(48, 217, 200, '150 ms debounce armed', 11, c.textMuted)}
-            {label(295, 207, 105, "Canceled by '.'", 11, cancelTone, 'center', 600)}
+    // Reply 4: fresh at e=4 then invalidated by ACL change e=5 -> Tab blocked
+    fig.rect(712, 224, 142, 44, {
+        fill: tint(purple, c.bg, 0.13),
+        stroke: purple,
+        strokeWidth: 1.3,
+        radius: 7,
+    })
+    fig.text(783, 239, 'e=4 ghost vs e=5', {
+        size: 12,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(783, 257, 'Tab returns None', {
+        size: 12,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
 
-            {/* Step 3 */}
-            {label(48, 270, 200, "Type '.' (Epoch e=3, v=3, pos=3)", 12, sendTone, 'left', 700)}
-            {label(48, 292, 200, 'Trigger char: 0 ms delay', 11, sendTone)}
-            {label(295, 282, 105, 'Sent to Model', 11, sendTone, 'center', 700)}
+    // Bottom Dual-Gate invariant bar (frameless clean two-column strip)
+    fig.rect(120, 336, 356, 62, {
+        fill: tint(blue, c.bg, 0.08),
+        stroke: blue,
+        strokeWidth: 1.3,
+        radius: 8,
+    })
+    fig.text(136, 356, 'Paint Gate', { size: 14, weight: 700, color: blue })
+    fig.text(136, 378, 'reply.epoch == epoch && reply.S == current S', {
+        size: 12,
+        color: c.textPrimary,
+        mono: true,
+    })
 
-            {/* Step 4 */}
-            {label(48, 345, 200, 'Caret Move (Epoch e=4, pos=0)', 12, moveTone, 'left', 650)}
-            {label(48, 367, 200, 'User jumps to start of line', 11, c.textMuted)}
-            {label(295, 357, 105, 'Ghost Cleared', 11, moveTone, 'center', 600)}
+    fig.rect(496, 336, 362, 62, {
+        fill: tint(green, c.bg, 0.08),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 8,
+    })
+    fig.text(512, 356, 'Tab Gate (Atomic Insert)', { size: 14, weight: 700, color: green })
+    fig.text(512, 378, 'Re-check version & caret before buffer edit', {
+        size: 12,
+        color: c.textPrimary,
+    })
 
-            {/* Left note */}
-            {label(
-                48,
-                415,
-                352,
-                'Sent Requests: [e=3] · Shown Suggestions: [completion-3]',
-                11,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                48,
-                435,
-                352,
-                'Debounce prevents firing unneeded inference on intermediate keystrokes.',
-                10,
-                c.textMuted,
-            )}
-
-            {/* Right Header */}
-            {label(456, 75, 368, '2. Dual Gate Verification', 16, gateTone, 'left', 700)}
-
-            {/* Paint Gate */}
-            {label(
-                468,
-                120,
-                344,
-                'Paint Gate (Incoming Inference Result)',
-                13,
-                gateTone,
-                'left',
-                700,
-            )}
-            {label(
-                478,
-                158,
-                324,
-                '✓ e=3 arrives: (3 == 3) && buffer current → PAINT ghost',
-                11,
-                sendTone,
-                'left',
-                600,
-            )}
-            {label(
-                478,
-                218,
-                324,
-                '✗ e=2 late arrival: (2 != 4) → DROP stale completion',
-                11,
-                cancelTone,
-                'left',
-                600,
-            )}
-            {label(
-                478,
-                238,
-                324,
-                'Prevents ghost text from appearing at wrong cursor location.',
-                10,
-                c.textMuted,
-            )}
-
-            {/* Tab Gate */}
-            {label(468, 305, 344, 'Tab Gate (Atomic Text Insertion)', 13, gateTone, 'left', 700)}
-            {label(
-                478,
-                350,
-                324,
-                'When user presses Tab to accept suggestion:',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                478,
-                372,
-                324,
-                '1. Verify current document version matches snapshot',
-                11,
-                c.textMuted,
-            )}
-            {label(478, 392, 324, '2. Verify caret has not moved during keypress', 11, c.textMuted)}
-            {label(
-                478,
-                412,
-                324,
-                '3. Apply edit atomically in single undo block',
-                11,
-                sendTone,
-                'left',
-                600,
-            )}
-            {label(
-                478,
-                432,
-                324,
-                'Prevents corrupting buffer if file changed externally.',
-                10,
-                c.textMuted,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create('dark')

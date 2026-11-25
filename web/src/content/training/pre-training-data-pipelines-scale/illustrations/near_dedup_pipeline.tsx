@@ -1,20 +1,10 @@
-import React, { createElement, type ReactNode } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 860
-export const height = 540
+export const width = 720
+export const height = 435
 export const alt =
-    'Actual replay of the lesson three-document MinHash example. A and B share six word bigrams and have four differing bigrams in their ten-bigram union. Their 32-row signatures match in zero-based bands 1 and 3. In band 1, salts 4 through 7 select the same minimizing bigrams and identical full 64-bit hash values. Exact verification gives Jaccard 6/10, or 0.60, passing the 0.50 threshold. The verified A–B component keeps A and drops B; the separate C component keeps C.'
+    'A MinHash LSH walkthrough compares 32-hash signatures (8 bands of 4 rows) for documents A and B: bands 1 and 3 match identically across all 4 rows and collide in the same LSH bucket, flagging (A, B) as a candidate pair. Exact bigram verification computes Jaccard 6/10 = 0.60 (above the 0.50 cutoff), merging A and B into one connected component that keeps A and drops B while disjoint document C stays kept.'
 
 export const documents = [
     { id: 'A', text: 'The key policy says stale accounts need security review.' },
@@ -26,11 +16,13 @@ const bigrams = (text: string) => {
     return new Set(tokens.slice(0, -1).map((token, i) => token + ' ' + tokens[i + 1]))
 }
 export const shingleSets = documents.map((doc) => ({ id: doc.id, values: bigrams(doc.text) }))
-export const shared = [...shingleSets[0].values].filter((value) => shingleSets[1].values.has(value))
+export const shared = [...shingleSets[0]!.values].filter((value) =>
+    shingleSets[1]!.values.has(value),
+)
 export const differences = shingleSets
     .slice(0, 2)
-    .map((row, i) => [...row.values].filter((value) => !shingleSets[1 - i].values.has(value)))
-export const unionSize = new Set([...shingleSets[0].values, ...shingleSets[1].values]).size
+    .map((row, i) => [...row.values].filter((value) => !shingleSets[1 - i]!.values.has(value)))
+export const unionSize = new Set([...shingleSets[0]!.values, ...shingleSets[1]!.values]).size
 export const jaccard = shared.length / unionSize
 export const threshold = 0.5
 export const signatureHex: Record<string, string[]> = {
@@ -104,398 +96,238 @@ export const signatureHex: Record<string, string[]> = {
     ],
 }
 
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    size: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({
-            c,
-            text,
-            width: '100%',
-            fontSize: size,
-            color,
-            align,
-            fontWeight: 650,
-        }),
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const cyan = getReadableToneColor('cyan', c)
-    const warm = getReadableToneColor('warm', c)
-    const purple = getReadableToneColor('purple', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
     const muted = c.textSecondary
 
-    const shapeSvg = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        // Left Panel (Shingling & LSH)
-        SvgFrame({
-            c,
-            x: 20,
-            y: 50,
-            width: 400,
-            height: 430,
-            rx: 8,
-            fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-left',
-        }),
-        // Right Panel (Verification & Clustering)
-        SvgFrame({
-            c,
-            x: 440,
-            y: 50,
-            width: 400,
-            height: 430,
-            rx: 8,
-            fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-right',
-        }),
-        // Left Panel Subcards
-        SvgFrame({
-            c,
-            x: 35,
-            y: 110,
-            width: 370,
-            height: 100,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'card-shingles',
-        }),
-        SvgFrame({
-            c,
-            x: 35,
-            y: 225,
-            width: 370,
-            height: 130,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: cyan,
-            strokeWidth: 1.5,
-            key: 'card-lsh',
-        }),
-        // Connecting Arrow
-        VectorArrow({
-            x1: 220,
-            y1: 365,
-            x2: 220,
-            y2: 395,
-            color: cyan,
-            strokeWidth: 2,
-            arrowSize: 6,
-        }),
-        // Cluster Graph in Right Panel
-        SvgFrame({
-            c,
-            x: 460,
-            y: 110,
-            width: 360,
-            height: 175,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'card-cluster-graph',
-        }),
-        // Cluster A-B Nodes
-        SvgFrame({
-            c,
-            x: 490,
-            y: 155,
-            width: 80,
-            height: 50,
-            rx: 6,
-            fill: cyan,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'node-A',
-        }),
-        SvgFrame({
-            c,
-            x: 620,
-            y: 155,
-            width: 80,
-            height: 50,
-            rx: 6,
-            fill: warm,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'node-B',
-        }),
-        SvgFrame({
-            c,
-            x: 730,
-            y: 155,
-            width: 70,
-            height: 50,
-            rx: 6,
-            fill: cyan,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'node-C',
-        }),
-        // Edge between A and B
-        VectorArrow({
-            x1: 572,
-            y1: 180,
-            x2: 618,
-            y2: 180,
-            color: cyan,
-            strokeWidth: 2.5,
-            arrowSize: 0,
-        }),
-        // Decision Card
-        SvgFrame({
-            c,
-            x: 460,
-            y: 300,
-            width: 360,
-            height: 165,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: cyan,
-            strokeWidth: 1.5,
-            key: 'card-decision',
-        }),
+    // 8 bands x 4 MinHash rows comparing Doc A vs Doc B
+    fig.text(16, 22, '1. MinHash LSH bands (b=8, r=4)', { size: 15.5, weight: 700 })
+    fig.text(16, 44, 'All 4 hashes match to trigger a collision', {
+        size: 14,
+        color: muted,
+    })
+
+    const bandX = 76
+    const cellW = 24
+    const cellH = 24
+    const cellGap = 4
+    const bandGap = 11
+    const startY = 80
+
+    // Column headers r0..r3
+    ;[0, 1, 2, 3].forEach((r) => {
+        fig.text(bandX + r * (cellW + cellGap) + cellW / 2, startY - 14, `r${r}`, {
+            size: 14,
+            mono: true,
+            color: muted,
+            align: 'center',
+        })
+    })
+    fig.text(bandX + 4 * (cellW + cellGap) + 10, startY - 14, 'Bucket status', {
+        size: 14,
+        weight: 600,
+        color: muted,
+    })
+
+    for (let b = 0; b < 8; b++) {
+        const y = startY + b * (cellH + bandGap)
+        const matches = [0, 1, 2, 3].map(
+            (r) => signatureHex.A![b * 4 + r] === signatureHex.B![b * 4 + r],
+        )
+        const fullMatch = matches.every(Boolean)
+
+        fig.text(bandX - 8, y + cellH / 2, `Band ${b}`, {
+            size: 14,
+            mono: true,
+            weight: fullMatch ? 700 : 500,
+            color: fullMatch ? cyan : muted,
+            align: 'right',
+        })
+
+        matches.forEach((m, r) => {
+            const cx = bandX + r * (cellW + cellGap)
+            fig.rect(cx, y, cellW, cellH, {
+                fill: m
+                    ? tint(fullMatch ? cyan : green, c.bg, fullMatch ? 0.38 : 0.2)
+                    : tint(c.textMuted, c.bg, 0.08),
+                stroke: m ? (fullMatch ? cyan : green) : c.borderSubtle,
+                strokeWidth: fullMatch ? 1.5 : 1,
+                radius: 4,
+            })
+            fig.text(cx + cellW / 2, y + cellH / 2, m ? '=' : '≠', {
+                size: 14,
+                mono: true,
+                weight: 700,
+                color: m ? (fullMatch ? cyan : green) : muted,
+                align: 'center',
+            })
+        })
+
+        const statusX = bandX + 4 * (cellW + cellGap) + 10
+        if (fullMatch) {
+            fig.rect(statusX, y + 1, 146, cellH - 2, {
+                fill: tint(cyan, c.bg, 0.16),
+                stroke: cyan,
+                strokeWidth: 1.3,
+                radius: 5,
+            })
+            fig.text(statusX + 73, y + cellH / 2, 'COLLIDE (A, B)', {
+                size: 14,
+                mono: true,
+                weight: 700,
+                color: cyan,
+                align: 'center',
+            })
+        } else {
+            const count = matches.filter(Boolean).length
+            fig.text(statusX + 4, y + cellH / 2, `${count}/4 · skip`, {
+                size: 14,
+                mono: true,
+                color: muted,
+            })
+        }
+    }
+
+    // Bottom formula under bands
+    fig.math(
+        180,
+        396,
+        String.raw`P(\text{cand}) = 1 - (1 - s^4)^8 \approx 67.5\%\;(s=0.60)`,
+        { size: 14, color: muted, align: 'center' },
     )
 
-    return (
-        <Board c={c} width={width} height={height}>
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                {shapeSvg}
-            </CanvasItem>
-            {label(
-                c,
-                'Near-Deduplication: MinHash, LSH Bands, and Exact Verification',
-                20,
-                12,
-                width - 40,
-                30,
-                22,
-                c.textPrimary,
-                'center',
-            )}
+    // Arrow from LSH collisions to verification stage
+    fig.arrow(348, 180, 382, 180, { color: cyan, width: 2.2, head: 8 })
 
-            {/* Left Panel */}
-            {label(c, '1. Shingling & MinHash LSH Indexing', 35, 62, 370, 24, 16, c.textPrimary)}
-            {label(c, 'Three-document walkthrough with 32 hash rows', 35, 86, 370, 20, 12, muted)}
+    // Exact Jaccard verification bar (6 shared / 10 union)
+    const rx = 392
+    fig.text(rx, 22, '2. Exact Jaccard & purge', { size: 15.5, weight: 700 })
+    fig.text(rx, 44, 'Verify (A, B) before dropping', { size: 14, color: muted })
 
-            {label(c, 'Word Bigram Overlap (Doc A vs Doc B)', 45, 116, 350, 20, 13, c.textPrimary)}
-            {label(
-                c,
-                '• 6 Shared: "the key", "key policy", "says stale", ...',
-                45,
-                138,
-                350,
-                18,
-                11,
-                cyan,
-            )}
-            {label(
-                c,
-                '• 4 Differing: "accounts need" vs "accounts require"',
-                45,
-                158,
-                350,
-                18,
-                11,
-                muted,
-            )}
-            {label(
-                c,
-                'Exact Jaccard = 6 / 10 = 0.60 (Target threshold: 0.50)',
-                45,
-                180,
-                350,
-                20,
-                12,
-                purple,
-            )}
+    const barY = 82
+    const barW = 310
+    fig.text(rx, barY, 'Word bigrams (A vs B)', { size: 14, weight: 600 })
+    fig.text(rx + barW, barY, 'cutoff 0.50', {
+        size: 14,
+        mono: true,
+        color: muted,
+        align: 'right',
+    })
+    fig.rect(rx, barY + 20, barW, 28, { fill: tint(c.textMuted, c.bg, 0.1), radius: 4 })
+    fig.rect(rx, barY + 20, barW * 0.6, 28, {
+        fill: tint(purple, c.bg, 0.34),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 4,
+    })
+    fig.text(rx + barW * 0.3, barY + 34, '6 shared', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(rx + barW * 0.8, barY + 34, '4 differ', {
+        size: 14,
+        color: muted,
+        align: 'center',
+    })
+    // 0.50 threshold hairline
+    fig.line(rx + barW * 0.5, barY + 16, rx + barW * 0.5, barY + 52, {
+        color: c.textPrimary,
+        width: 1.8,
+        dash: '3 2',
+    })
+    fig.text(rx, barY + 68, 'J = 6/10 = 0.60 ≥ 0.50 ✓ (dup)', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: purple,
+    })
 
-            {label(c, 'LSH Banding (b = 8 bands, r = 4 rows)', 45, 232, 350, 20, 13, c.textPrimary)}
-            {label(c, '• Band 0: Salts 0–3 → Differing hashes', 45, 256, 350, 18, 11, muted)}
-            {label(
-                c,
-                '• Band 1: Salts 4–7 → Exact Match! (Collision in bucket)',
-                45,
-                276,
-                350,
-                18,
-                11,
-                cyan,
-            )}
-            {label(
-                c,
-                '• Band 3: Salts 12–15 → Exact Match! (Collision in bucket)',
-                45,
-                296,
-                350,
-                18,
-                11,
-                cyan,
-            )}
-            {label(
-                c,
-                'Collision flags pair (A, B) for exact verification',
-                45,
-                324,
-                350,
-                20,
-                12,
-                cyan,
-            )}
+    // Connected-component deduplication graph
+    const gTop = 198
+    fig.text(rx, gTop, 'Components (3 docs → 2 kept)', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+    })
 
-            {label(
-                c,
-                'LSH S-curve: P(candidate) = 1 − (1 − s⁴)⁸ ≈ 67.5% at s = 0.60',
-                35,
-                400,
-                370,
-                22,
-                11,
-                muted,
-                'center',
-            )}
-            {label(
-                c,
-                'Sub-quadratic indexing filters candidate pairs before pairwise checks',
-                35,
-                422,
-                370,
-                20,
-                11,
-                muted,
-                'center',
-            )}
+    // Component 1 container {A, B}
+    fig.rect(rx, gTop + 22, 206, 134, {
+        fill: tint(purple, c.bg, 0.06),
+        stroke: tint(purple, c.bg, 0.35),
+        strokeWidth: 1.2,
+        radius: 9,
+    })
+    fig.text(rx + 103, gTop + 40, 'Component {A, B}', {
+        size: 14,
+        weight: 600,
+        color: purple,
+        align: 'center',
+    })
 
-            {/* Right Panel */}
-            {label(
-                c,
-                '2. Verification & Connected Component Purge',
-                455,
-                62,
-                370,
-                24,
-                16,
-                c.textPrimary,
-            )}
-            {label(
-                c,
-                'Clustering candidate matches into deduplication graph',
-                455,
-                86,
-                370,
-                20,
-                12,
-                muted,
-            )}
+    // Node A (KEPT)
+    fig.circle(rx + 48, gTop + 98, 30, {
+        fill: tint(green, c.bg, 0.24),
+        stroke: green,
+        width: 2,
+    })
+    fig.text(rx + 48, gTop + 89, 'A', { size: 15, weight: 700, color: green, align: 'center' })
+    fig.text(rx + 48, gTop + 108, 'KEEP', { size: 14, weight: 700, color: green, align: 'center' })
 
-            {label(c, 'Document Deduplication Graph', 475, 118, 330, 20, 13, c.textPrimary)}
-            {label(c, 'Doc A\nKEPT', 490, 162, 80, 36, 12, c.textPrimary, 'center')}
-            {label(c, 'J = 0.60', 562, 160, 65, 18, 10, cyan, 'center')}
-            {label(c, 'Doc B\nDROP', 620, 162, 80, 36, 12, c.textPrimary, 'center')}
-            {label(c, 'Doc C\nKEPT', 730, 162, 70, 36, 12, c.textPrimary, 'center')}
-            {label(
-                c,
-                'Component {A, B} has J ≥ 0.50. Component {C} is disjoint.',
-                475,
-                220,
-                330,
-                18,
-                11,
-                muted,
-            )}
+    // Node B (DROP)
+    fig.circle(rx + 158, gTop + 98, 30, {
+        fill: tint(warm, c.bg, 0.2),
+        stroke: warm,
+        width: 2,
+    })
+    fig.text(rx + 158, gTop + 89, 'B', { size: 15, weight: 700, color: warm, align: 'center' })
+    fig.text(rx + 158, gTop + 108, 'DROP', { size: 14, weight: 700, color: warm, align: 'center' })
 
-            {label(c, 'Deduplication Pipeline Decisions', 475, 308, 330, 20, 14, c.textPrimary)}
-            {label(
-                c,
-                '• Candidate pair (A, B) verified: Jaccard 0.60 ≥ 0.50 (Match)',
-                475,
-                334,
-                330,
-                18,
-                11,
-                cyan,
-            )}
-            {label(
-                c,
-                '• Cluster resolver selects Doc A as primary canonical record',
-                475,
-                356,
-                330,
-                18,
-                11,
-                cyan,
-            )}
-            {label(
-                c,
-                '• Doc B removed: near-duplicate of Doc A (Pruned)',
-                475,
-                378,
-                330,
-                18,
-                11,
-                warm,
-            )}
-            {label(
-                c,
-                '• Doc C retained: zero collisions with A or B (Unique)',
-                475,
-                400,
-                330,
-                18,
-                11,
-                cyan,
-            )}
-            {label(
-                c,
-                'Result: 2 unique documents retained (67% yield), eliminating redundancy.',
-                475,
-                428,
-                330,
-                22,
-                11,
-                muted,
-            )}
+    // Edge A -- B
+    fig.line(rx + 80, gTop + 98, rx + 126, gTop + 98, { color: purple, width: 2.2 })
+    fig.text(rx + 103, gTop + 82, '0.60', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
 
-            {label(
-                c,
-                'MinHash LSH workflow · Fast candidate generation followed by exact Jaccard verification prevents quadratic cost',
-                20,
-                490,
-                width - 40,
-                24,
-                14,
-                muted,
-                'center',
-            )}
-        </Board>
-    )
+    // Component 2 container {C}
+    const cBoxX = rx + 216
+    fig.rect(cBoxX, gTop + 22, 94, 134, {
+        fill: tint(green, c.bg, 0.06),
+        stroke: tint(green, c.bg, 0.35),
+        strokeWidth: 1.2,
+        radius: 9,
+    })
+    fig.text(cBoxX + 47, gTop + 40, '{C}', {
+        size: 14,
+        weight: 600,
+        color: green,
+        align: 'center',
+    })
+    fig.circle(cBoxX + 47, gTop + 98, 30, {
+        fill: tint(green, c.bg, 0.24),
+        stroke: green,
+        width: 2,
+    })
+    fig.text(cBoxX + 47, gTop + 89, 'C', { size: 15, weight: 700, color: green, align: 'center' })
+    fig.text(cBoxX + 47, gTop + 108, 'KEEP', { size: 14, weight: 700, color: green, align: 'center' })
+
+    fig.text(rx, 396, 'Keep A + C (67% unique yield).', {
+        size: 14,
+        weight: 600,
+        color: green,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

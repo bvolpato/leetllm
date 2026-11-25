@@ -60,35 +60,29 @@ Chapter and part PDFs are proofs, and a PDF viewer numbers each proof locally. T
 
 ## Editions and reading order
 
-The default `curated` edition is a reader's edition with 47 selected chapters. It is written for working software and infrastructure engineers who can read code and have no machine-learning background. Part 0 teaches the mathematics, Python and PyTorch usage, and hardware facts that later chapters assume. Individually authored reader passages develop a coherent path from a model's token stream to a reliable production application. They retain the core mechanisms, worked examples, useful figures, and engineering decisions while the complete tutorials and longer implementation labs remain available online and in the reference editions. Readers who need the prerequisites should begin with the [online curriculum](https://leetllm.com/learn) or the `full` reference edition.
+The default `curated` edition is a focused 46-chapter volume built from the single unified manuscript of each lesson. It is written for working software and infrastructure engineers who can read code and want a rigorous, zero-filler path from mathematical and PyTorch fundamentals through Transformers, retrieval, alignment, agents, and GPU inference serving. Part 0 establishes tensor shapes, linear algebra, backpropagation, probability, and PyTorch training loops before Part 1 enters tokenization and the Transformer. Readers who want the full 102-lesson curriculum (including classical ML, cost modeling, sandboxing, recovery patterns, and codebase deep dives) can continue on the [online curriculum](https://leetllm.com/learn) or build the `reference` or `full` presets.
 
-The reader's edition follows seven parts:
+The curated edition follows seven parts:
 
-0. **How a Model Learns.** Fit a line by gradient descent, then add the dot product and tensor shapes, softmax and cross-entropy, gradients and backpropagation. Train a next-character language model in plain Python and in PyTorch, then budget its memory and time on a GPU. Part 0 ends where tokenization begins.
-1. **Models, Messages, and Measurement.** Follow tokenization into a complete Transformer, decoding, chat serialization, likelihood, and task evaluation.
-2. **Evidence and Grounded Answers.** Preserve source records through ingestion and chunking, then develop retrieval, hybrid search, reranking, answer evaluation, model judges, and access control.
-3. **Learning from Examples and Preferences.** Turn reviewed labels into supervised fine-tuning, correct numerical updates, adapters, reward modeling, preference optimization, and constitutional training. Reward modeling directly precedes the alignment chapter that reuses its preference example.
-4. **Agents That Can Act and Recover.** Build tool schemas, constrained output, capped control loops, context selection, injection defenses, human review, and recovery from uncertain effects.
-5. **Serving Under Real Workloads.** Measure end-to-end timing from the client clock before KV allocation, prefix reuse, scheduling, and quantization. Connect those mechanisms to observation, versioned releases, ready capacity, and a reproducible benchmark.
-6. **Production Support Operations and Accountability.** Apply the preceding runtime and review mechanisms to responsible AI operations. Then carry one cost budget into a gateway and a complete support agent, passing named artifacts cleanly through inspectable outcomes (Part 6 in `web/tools/book/book-config.json`).
+0. **Mathematical & PyTorch Foundations.** Build fluency with tensor shapes, linear algebra, backpropagation, probability, and PyTorch training loops.
+1. **Inside the Transformer & Language Modeling.** Move from subword tokenization into scaled dot-product attention, RoPE and ALiBi, Pre-LN and RMSNorm, the complete Transformer block, decoding strategies, and perplexity.
+2. **Modern Architectures Beyond Dense Text.** Explore Mixture of Experts, Mamba state-space models, vision-language multimodal architectures, and image diffusion models.
+3. **Retrieval, Embeddings & Grounded Evaluation.** Build the retrieval stack from chunking, embeddings, BM25/RRF hybrid search, and HNSW/IVF indexes into production RAG, then test systems with benchmarks, model judges, and hallucination checks.
+4. **Pretraining, Fine-Tuning, Alignment & Reasoning.** Trace scaling laws, CUDA memory and timing, mixed precision, FSDP/ZeRO sharding, SFT, and LoRA into reward modeling, RLHF, DPO, verifiable-reward reinforcement learning (RLVR), and test-time reasoning compute.
+5. **Agents, Tool Use & Reliability.** Build reliable agents from constrained generation and function calling through ReAct planning, context engineering, and prompt-injection defense.
+6. **GPU Kernels & High-Throughput Inference Serving.** Measure TTFT and decode throughput first, then eliminate bottlenecks with FlashAttention, PagedAttention, continuous batching, speculative decoding, quantization, and GPU fleet autoscaling.
 
-The `reference` preset preserves the earlier 133-chapter selection and its six-part order. It includes the wider architecture survey, advanced training methods, retrieval variants, orchestration, kernel labs, operator procedures, multiple system designs, and source-code tours. Use it to investigate a particular implementation after reading the focused edition.
+The `reference` preset builds the extended LLM systems reference across six parts (covering Core LLM Foundations, Applied LLM Engineering & RAG, Transformer & Multimodal Architectures, Training, Fine-Tuning & Alignment, Advanced Agents & Retrieval, GPU Systems & LLM Inference, AI System Design & Interviewing, and Project Deep Dives).
 
-The `full` preset retains 185 chapters. It adds computing, mathematics, neural-network, classical ML, and production ML foundations to the extended reference, producing a curriculum archive. The `curated` preset remains the default reading volume.
+The `full` preset builds the complete 102-lesson curriculum across eight parts, adding Math & Tensor Foundations, Deep Learning Foundations, and Classical ML & Evaluation to the extended reference. The `curated` preset remains the default reading volume.
 
-These counts describe the current inventory. Section-based reference presets can grow when lessons are added. The reader's edition uses explicit ordered `chapterSlugs` in each part, so a new website lesson does not silently add a book chapter. Its `readingEdition: true` setting enables the prerequisite guidance and a balanced contents layout. A part may instead select whole `sections` in canonical order, without mixing both selectors in one part. Changing this configuration does not change website navigation.
+These counts describe the current inventory. Section-based reference presets grow automatically when lessons are added. The curated edition uses explicit ordered `chapterSlugs` in each part, so a new website lesson does not silently change the book's chapter numbering. Its `readingEdition: true` setting enables prerequisite guidance, print-scaled figure typography, and a balanced contents layout. A part may instead select whole `sections` in canonical order, without mixing both selectors in one part. Changing this configuration does not change website navigation.
 
-The order is specific to the book. Model mechanics and the request lifecycle precede adaptation and serving optimization. Evaluation precedes preference training and the later release decisions. Retrieval and access control precede agents that consume private evidence. Prerequisites and companion coverage are explained in the reading guide. Links to omitted lessons remain usable online.
+The order is specific to the book. Math and PyTorch precede Transformer internals; Transformer internals precede sparse, state-space, multimodal, and diffusion architectures; retrieval and evaluation precede weight training and alignment; and agent reliability precedes GPU serving and capacity benchmarking. Prerequisites and companion coverage are explained in the reading guide. Links to omitted lessons remain usable online.
 
 ## Selection and exclusions
 
-Every preset omits the **Portfolio Capstones** and **AI Lab Interviewing** sections. They also omit `capstone-production-llm-agent`, which depends on the excluded document-QA, evaluation-dashboard, and fine-tuned-classifier projects.
-
-The reader's edition excludes exhaustive project tours, kernel implementation labs, hardware catalogs, browser automation, elaborate multi-agent orchestration, operator runbooks, additional system designs, and exhaustive model-family surveys. Dedicated static-embedding history, attention internals, vector-index internals, pretraining, distributed training, protocol implementations, memory surveys, and model-parallel and MoE specialist chapters remain in the extended reference and online companion. The reader includes one complete Transformer refresher from **Preparation & Prerequisites**. Later chapters build on computing, mathematics, neural-network, classical ML, and production ML foundations that readers are expected to bring.
-
-Evaluation, operational accountability, labeling, access control, injection defense, human review, recovery, and spending budgets remain in the reading path. Oversight follows the agent controls it relies on, including evidence of who bears errors and review friction. Differential privacy, dedicated fairness, and deeper execution-isolation treatments remain in the reference presets and online. Release decisions still require independent measurements of the actual system.
-
-Each retained chapter adds a distinct decision, mechanism, or control. Model judges extend deterministic evaluation. Later agent chapters reuse earlier permission and evaluation checks, and the serving chapters begin with measurement before introducing optimizations. Specialist material stays available without interrupting that argument.
+Each lesson uses a single unified `content.md` manuscript for both the website and the book. The curated edition selects 46 flagship chapters explicitly via `chapterSlugs`, while the wider architecture survey, classical ML chapters, multi-agent orchestration, billing/ops guides, additional system designs, and open-source codebase deep dives (PyTorch, vLLM, SGLang, FlashInfer, DeepGEMM, DeepEP, NCCL, Megatron) remain available in the `reference` and `full` presets and online.
 
 The builder selects visible learn lessons through the shared content loader. Blog posts, glossary entries, research packets, social banners, illustration sources, and directories containing only illustration stubs do not become chapters. Configured section and slug exclusions apply before numbering. The planner rejects duplicate assignments, unknown sections or slugs, and explicitly selected lessons excluded by visibility or book metadata.
 
@@ -119,29 +113,15 @@ Use the chapter bookmarks to revisit the retrieval pipeline before extending it.
 
 The same markers can surround a short inline phrase. Put block markers on their own unindented lines and keep each fenced code block or figure complete inside its intended audience. Nested blocks use the intersection of their audiences, so a website-only block nested inside a book-only block appears in neither. Every start must close with the same audience, including in omitted content. Invalid markers fail with the source file and line. Literal examples of markers inside fenced, indented, or inline code remain unchanged.
 
-The loaders select the audience before resolving citations, reading time, exercises, and images. Website consumers and the extended reference use the `reference` edition by default. The curated book uses `getQuestions("book", "reader")`. Cache keys include both choices. Full source stays available to authoring tools. Mermaid images retain their original source ordinals when an earlier diagram is omitted. Book-specific illustration layouts and reviewed caption notes remain separate from website artwork.
+The loaders select the audience before resolving citations, reading time, exercises, and images. Every lesson uses a single unified `content.md` manuscript for both the website and the book, so readers see the exact same technical prose and worked examples everywhere without switching between separate "Reader" and "Full Reference" toggles. Full source stays available to authoring tools. Mermaid images retain their original source ordinals when an earlier diagram is omitted. Book-specific illustration layouts and reviewed caption notes remain separate from website artwork.
 
-Use edition blocks when a chapter needs a separately edited reading manuscript:
-
-```markdown
-<!-- leetllm: edition:reference:start -->
-The complete tutorial, including its implementation variants and exercises.
-<!-- leetllm: edition:reference:end -->
-
-<!-- leetllm: edition:reader:start -->
-The chapter's continuous argument, worked example, and transition.
-<!-- leetllm: edition:reader:end -->
-```
-
-Edition and audience blocks may nest, and both conditions must match for text to appear. Preserve the complete reference body when adding a reader manuscript; author the new version deliberately and verify its examples separately. A chapter without edition blocks remains shared. The `readingEdition` preset setting chooses the reader manuscript and its print assets. Original Mermaid ordinals remain stable across both editions.
-
-Keep variants beside the shared explanation in `content.md` rather than adding renderer string replacements for editorial wording. The selected lesson order can then change without silently editing the website's teaching path. Validate both rendered views after an audience edit:
+Keep any print-only or website-only notes beside the shared explanation in `content.md` using `audience:book` / `audience:website` blocks rather than adding renderer string replacements for editorial wording. Validate both rendered views after an audience edit:
 
 ```bash
 (cd web && corepack pnpm exec vitest run src/lib/content-audience.test.ts src/lib/content-bundle.test.ts src/lib/questions-audience.test.ts src/lib/blog-audience.test.ts)
 uv run scripts/test-content-audience.py
 uv run scripts/validate-content-structure.py
-uv run scripts/validate-python-examples.py --audience book --edition reader --no-default-deps
+uv run scripts/validate-python-examples.py --audience book --no-default-deps
 ```
 
 The example validator selects the requested view before execution and preserves original source offsets when refreshing output. `--no-default-deps` uses each example's declared dependencies and explicit `--with` packages, avoiding the validator's broad tutorial-library defaults. Run reference examples separately when their implementation changes.

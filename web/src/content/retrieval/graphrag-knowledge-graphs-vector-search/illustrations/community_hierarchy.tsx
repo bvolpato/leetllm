@@ -1,241 +1,220 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 560
-export const height = 650
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const width = 720
+export const height = 516
 export const alt =
-    'A supplied latency query uses a 0.5 relevance threshold. Serving scores 0.9 and opens its branch, where Cache scores 0.8 and Queue 0.7; both pass. Eval scores 0.1 and closes its branch, leaving Judges and Metrics unrated. In a counterfactual, Serving at 0.2 hides a supplied Cache score of 0.8 because the selector never reaches that child.'
+    'Top: dynamic community selection scores Level-0 roots against a 0.5 relevance threshold. Serving scores 0.9 and opens its children Cache (0.8) and Queue (0.7), both passing. Eval scores 0.1 and prunes its branch, leaving Judges and Metrics unrated. Bottom: in a counterfactual where Serving scores 0.2 (below 0.5), its branch is pruned and Cache (0.8) stays hidden and unrated.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const admitted = getReadableToneColor('green', c, c.bg)
-    const rejected = getReadableToneColor('critical', c, c.bg)
-    const structural = getReadableToneColor('neutral', c, c.bg)
-    const counterfactual = getReadableToneColor('purple', c, c.bg)
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 20,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        fontWeight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={fontWeight}
-            />
-        </CanvasItem>
-    )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const purple = fig.tone('purple')
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <SvgFrame
-                        c={c}
-                        x={20}
-                        y={104}
-                        width={240}
-                        height={86}
-                        rx={7}
-                        fill={c.bgCard}
-                        stroke={admitted}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={300}
-                        y={104}
-                        width={240}
-                        height={86}
-                        rx={7}
-                        fill={c.bgCard}
-                        stroke={rejected}
-                        strokeWidth={2}
-                    />
+    // ── Header ───────────────────────────────────────────────────────────────
+    fig.text(20, 20, 'Dynamic Community Selection', {
+        size: 16,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(width - 20, 20, 'Admit root when relevance ≥ 0.5', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
 
-                    <SvgFrame
-                        c={c}
-                        x={18}
-                        y={300}
-                        width={112}
-                        height={84}
-                        rx={6}
-                        fill={c.bgCard}
-                        stroke={admitted}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={148}
-                        y={300}
-                        width={112}
-                        height={84}
-                        rx={6}
-                        fill={c.bgCard}
-                        stroke={admitted}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={300}
-                        y={300}
-                        width={112}
-                        height={84}
-                        rx={6}
-                        fill={c.bgCard}
-                        stroke={structural}
-                        strokeWidth={1.5}
-                        opacity={0.82}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={428}
-                        y={300}
-                        width={112}
-                        height={84}
-                        rx={6}
-                        fill={c.bgCard}
-                        stroke={structural}
-                        strokeWidth={1.5}
-                        opacity={0.82}
-                    />
+    // ── Level 0 Root Nodes ───────────────────────────────────────────────────
+    const rY = 54
+    const rW = 286
+    const rH = 68
 
-                    <VectorArrow
-                        x1={140}
-                        y1={192}
-                        x2={74}
-                        y2={286}
-                        color={admitted}
-                        strokeWidth={2.6}
-                        arrowSize={5}
-                    />
-                    <VectorArrow
-                        x1={140}
-                        y1={192}
-                        x2={204}
-                        y2={286}
-                        color={admitted}
-                        strokeWidth={2.6}
-                        arrowSize={5}
-                    />
+    // Root 1: Serving (0.9 · open)
+    const r1X = 36
+    const r1Cx = r1X + rW / 2
+    fig.rect(r1X, rY, rW, rH, {
+        fill: withColorAlpha(green, 0.13),
+        stroke: green,
+        strokeWidth: 2,
+        radius: 9,
+    })
+    fig.text(r1Cx, rY + 23, 'Serving · Level 0', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(r1Cx, rY + 48, 'score 0.9 ≥ 0.5  ·  open children', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
 
-                    <path
-                        d="M 420 192 L 360 229 M 420 192 L 480 229"
-                        fill="none"
-                        stroke={structural}
-                        strokeWidth={2}
-                        strokeDasharray="5 6"
-                    />
-                    <path
-                        d="M 348 238 H 492"
-                        fill="none"
-                        stroke={rejected}
-                        strokeWidth={5}
-                        strokeLinecap="round"
-                    />
-                    <path
-                        d="M 360 246 L 356 286 M 480 246 L 484 286"
-                        fill="none"
-                        stroke={structural}
-                        strokeWidth={2}
-                        strokeDasharray="4 6"
-                        opacity={0.8}
-                    />
+    // Root 2: Eval (0.1 · prune)
+    const r2X = 398
+    const r2Cx = r2X + rW / 2
+    fig.rect(r2X, rY, rW, rH, {
+        fill: withColorAlpha(red, 0.1),
+        stroke: red,
+        strokeWidth: 2,
+        radius: 9,
+    })
+    fig.text(r2Cx, rY + 23, 'Eval · Level 0', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(r2Cx, rY + 48, 'score 0.1 < 0.5  ·  prune branch', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
 
-                    <line x1={20} y1={415} x2={540} y2={415} stroke={c.border} strokeWidth={1.5} />
+    // ── Level 1 Child Nodes ──────────────────────────────────────────────────
+    const cY = 224
+    const cW = 136
+    const cH = 70
 
-                    <SvgFrame
-                        c={c}
-                        x={18}
-                        y={506}
-                        width={188}
-                        height={94}
-                        rx={7}
-                        fill={c.bgCard}
-                        stroke={counterfactual}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={354}
-                        y={506}
-                        width={188}
-                        height={94}
-                        rx={7}
-                        fill={c.bgCard}
-                        stroke={structural}
-                        strokeWidth={1.5}
-                        opacity={0.9}
-                    />
-                    <path
-                        d="M 206 552 H 263 M 297 552 H 354"
-                        fill="none"
-                        stroke={structural}
-                        strokeWidth={2}
-                        strokeDasharray="5 6"
-                    />
-                    <path
-                        d="M 280 536 V 568"
-                        fill="none"
-                        stroke={rejected}
-                        strokeWidth={5}
-                        strokeLinecap="round"
-                    />
-                </svg>
-            </CanvasItem>
-            {label(20, 12, 520, 'Root scores gate child reports', 28, c.textPrimary, 'left', 700)}
-            {label(20, 54, 520, 'Admit when query relevance ≥ 0.5', 21, c.textSecondary)}
+    const children = [
+        { x: 28, title: 'Cache', sub: '0.8 · pass', active: true },
+        { x: 194, title: 'Queue', sub: '0.7 · pass', active: true },
+        { x: 390, title: 'Judges', sub: 'unrated', active: false },
+        { x: 556, title: 'Metrics', sub: 'unrated', active: false },
+    ] as const
 
-            {label(26, 113, 228, 'Serving · level 0', 22, c.textPrimary, 'center', 700)}
-            {label(26, 147, 228, '0.9 · pass', 22, admitted, 'center', 650)}
-            {label(306, 113, 228, 'Eval · level 0', 22, c.textPrimary, 'center', 700)}
-            {label(306, 147, 228, '0.1 · prune', 22, rejected, 'center', 650)}
+    for (const ch of children) {
+        const cx = ch.x + cW / 2
+        fig.rect(ch.x, cY, cW, cH, {
+            fill: ch.active ? withColorAlpha(green, 0.13) : tint(c.border, c.bg, 0.2),
+            stroke: ch.active ? green : c.borderSubtle,
+            strokeWidth: ch.active ? 1.8 : 1.3,
+            radius: 8,
+        })
+        fig.text(cx, cY + 24, ch.title, {
+            size: 15,
+            weight: 700,
+            color: ch.active ? c.textPrimary : c.textMuted,
+            align: 'center',
+        })
+        fig.text(cx, cY + 49, ch.sub, {
+            size: 13,
+            mono: ch.active,
+            weight: ch.active ? 700 : 500,
+            color: ch.active ? green : c.textMuted,
+            align: 'center',
+        })
+    }
 
-            {label(18, 308, 112, 'Cache', 22, c.textPrimary, 'center', 700)}
-            {label(18, 341, 112, '0.8 · pass', 20, admitted, 'center', 600)}
-            {label(148, 308, 112, 'Queue', 22, c.textPrimary, 'center', 700)}
-            {label(148, 341, 112, '0.7 · pass', 20, admitted, 'center', 600)}
-            {label(300, 308, 112, 'Judges', 22, c.textPrimary, 'center', 700)}
-            {label(300, 341, 112, 'unrated', 20, c.textSecondary, 'center', 600)}
-            {label(428, 308, 112, 'Metrics', 22, c.textPrimary, 'center', 700)}
-            {label(428, 341, 112, 'unrated', 20, c.textSecondary, 'center', 600)}
+    // Open branch edges (Serving -> Cache, Serving -> Queue)
+    fig.arrow(r1Cx, rY + rH + 2, 28 + cW / 2, cY - 4, { color: green, width: 2.2, head: 8 })
+    fig.arrow(r1Cx, rY + rH + 2, 194 + cW / 2, cY - 4, { color: green, width: 2.2, head: 8 })
 
-            {label(
-                20,
-                432,
-                520,
-                'Counterfactual · Serving falls below cutoff',
-                21,
-                counterfactual,
-                'left',
-                650,
-            )}
-            {label(24, 519, 176, 'Serving', 22, c.textPrimary, 'center', 700)}
-            {label(22, 555, 180, '0.2 < 0.5 · skip', 20, rejected, 'center', 600)}
-            {label(360, 519, 176, 'Cache', 22, c.textPrimary, 'center', 700)}
-            {label(360, 555, 176, '0.8 if scored', 20, counterfactual, 'center', 600)}
-        </Board>
-    )
+    // Pruned branch edges (Eval -> Judges, Eval -> Metrics) with bold red prune cut
+    const cutY = 172
+    fig.line(r2Cx, rY + rH + 2, 390 + cW / 2, cY - 4, {
+        color: c.textMuted,
+        width: 1.6,
+        dash: '5 5',
+        opacity: 0.65,
+    })
+    fig.line(r2Cx, rY + rH + 2, 556 + cW / 2, cY - 4, {
+        color: c.textMuted,
+        width: 1.6,
+        dash: '5 5',
+        opacity: 0.65,
+    })
+    fig.line(440, cutY, 642, cutY, { color: red, width: 3.5 })
+    fig.text(r2Cx, cutY - 14, 'pruned', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
+
+    // ── Bottom: Counterfactual False-Negative Strip ──────────────────────────
+    fig.line(20, 326, width - 20, 326, { color: c.border, width: 1 })
+    fig.text(20, 352, 'Counterfactual · Root False Negative', {
+        size: 15,
+        weight: 700,
+        color: purple,
+    })
+    fig.text(width - 20, 352, 'Children are never evaluated when parent fails cutoff', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    const cfY = 384
+    const cfH = 82
+    const cfW = 244
+
+    // Counterfactual Root: Serving (0.2 < 0.5)
+    fig.rect(36, cfY, cfW, cfH, {
+        fill: withColorAlpha(purple, 0.1),
+        stroke: purple,
+        strokeWidth: 1.8,
+        radius: 9,
+    })
+    fig.text(36 + cfW / 2, cfY + 28, 'Serving · Level 0', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(36 + cfW / 2, cfY + 55, '0.2 < 0.5  ·  pruned', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
+
+    // Cut connector between Serving and Cache
+    const midY = cfY + cfH / 2
+    fig.line(36 + cfW + 6, midY, 440 - 6, midY, {
+        color: c.textMuted,
+        width: 1.8,
+        dash: '5 5',
+    })
+    fig.line(360, midY - 20, 360, midY + 20, { color: red, width: 3.5 })
+    fig.text(360, midY - 32, 'blocked', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
+
+    // Counterfactual Child: Cache (0.8 hidden!)
+    fig.rect(440, cfY, cfW, cfH, {
+        fill: tint(c.border, c.bg, 0.22),
+        stroke: c.border,
+        strokeWidth: 1.5,
+        radius: 9,
+    })
+    fig.text(440 + cfW / 2, cfY + 28, 'Cache · Level 1', {
+        size: 15,
+        weight: 700,
+        color: c.textSecondary,
+        align: 'center',
+    })
+    fig.text(440 + cfW / 2, cfY + 55, '0.8 if scored (hidden)', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

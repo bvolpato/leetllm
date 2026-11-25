@@ -128,11 +128,11 @@ Active parameters mostly drive per-token expert FLOPs. Total parameters drive ch
 
 ### Expert choice vs. token choice routing
 
-Standard **token-choice** routing lets each token pick its top $k$ experts, which guarantees every token gets $k$ experts but can overload popular experts. **Expert-choice routing** flips the direction: each *expert* selects its top-scoring fixed bucket of *tokens* from the batch.[^zhou2022]
+Standard **token-choice** routing lets each token pick its top $k$ experts, guaranteeing every token gets $k$ experts at the risk of overloading popular experts. **Expert-choice routing** flips the direction: each *expert* selects its top-scoring fixed bucket of *tokens* from the batch.[^zhou2022]
 
-That guarantees perfectly balanced expert buckets, but introduces two subtle catches:
-1. **Uncovered tokens:** Some tokens can land in zero expert buckets (only passing through the residual stream) while others land in multiple buckets.
-2. **Causality leak in decoders:** Because an expert chooses its top tokens across the batch, a future token with a higher score (`0.9`) can knock an earlier token (`0.6`) out of the bucket even when attention is causally masked! Autoregressive decoders therefore need prefix-consistent routing.
+That guarantees balanced expert buckets, but introduces two subtle catches:
+1. **Uncovered tokens:** Some tokens can land in zero expert buckets (passing through the residual stream alone) while others land in multiple buckets.
+2. **Causality leak in decoders:** Because an expert ranks tokens across the batch, a future token with a higher score (`0.9`) can knock an earlier token (`0.6`) out of the bucket despite causal attention masking. Autoregressive decoders therefore need prefix-consistent routing.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="expert-choice-tradeoffs.py"
@@ -161,19 +161,9 @@ with future token: future
 ```
 <!-- leetllm: output:end -->
 
-<figure>
-  <img src="illustrations/_generated/expert_choice_coverage_and_causality_dark.png" alt="Expert-choice buckets E1: [t0, t1], E2: [t0, t2], and E3: [t2, t3] each hold two assignments. The five tokens receive 2, 1, 2, 1, and 0 assignments, leaving t4 uncovered. In a separate one-slot bucket, the earlier score 0.6 wins alone, but a future score 0.9 displaces it without changing that earlier score. Attention masking does not remove this routing dependence on the future." />
-  <figcaption>Expert choice balances every expert bucket at 2 tokens, leaving t4 uncovered. In a one-slot decoder bucket, a later token (0.9) displaces an earlier token (0.6) despite causal attention masking.</figcaption>
-</figure>
-
 ## Why routers collapse without load balancing
 
-Left to pure task loss, routers suffer from **rich-get-richer collapse**. If Expert 0 happens to win slightly more tokens early in training, it receives more gradient updates, improves faster, attracts still more tokens, and starves Experts 1 through 3. You end up paying VRAM for four experts while only training one.
-
-<figure>
-  <img src="illustrations/_generated/expert_routing_dark.png" alt="Twenty expert assignments split as 12 (60%), 4 (20%), 3 (15%), and 1 (5%) against a 25% uniform target (5 tokens each). E0 exceeds the 50% batch investigation threshold, though one skewed batch calls for tracking rather than concluding training collapse." />
-  <figcaption>A skewed routing batch (60% / 20% / 15% / 5% vs. a 25% uniform target). Sustained skew across training steps signals expert starvation.</figcaption>
-</figure>
+Left to pure task loss, routers suffer from **rich-get-richer collapse**: an expert that wins slightly more tokens early gets more gradient updates, improves faster, attracts still more tokens, and starves its peers. You end up paying VRAM for every expert while only training a few.
 
 ### The auxiliary load-balancing loss
 
@@ -183,9 +173,9 @@ $$
 \mathcal{L}_{\text{balance}} = \alpha \cdot N \sum_{i=1}^N f_i \cdot p_i
 $$
 
-Hard counts $f_i$ are non-differentiable, so gradients flow through $p_i$, pushing down probabilities on heavily loaded experts (high $f_i$). Under uniform routing ($f_i = p_i = 1/N$), the sum equals $1/N$, so the unscaled factor $N \sum f_i p_i$ equals `1.0`. On a skewed batch `[0.60, 0.20, 0.15, 0.05]` with mean probabilities `[0.55, 0.22, 0.15, 0.08]`, the term jumps to $4 \times 0.4005 = 1.602$.
+Hard counts $f_i$ stop gradients, so updates flow through $p_i$ to push down probabilities on heavily loaded experts. Under uniform routing ($f_i = p_i = 1/N$), the unscaled factor $N \sum f_i p_i = 1.0$. On a skewed batch `[0.60, 0.20, 0.15, 0.05]` with mean probabilities `[0.55, 0.22, 0.15, 0.08]`, it jumps to $4 \times 0.4005 = 1.602$.
 
-> **Key insight:** A score below `1.0` is **not** proof that every expert is active! In a 3-expert batch where Expert 2 wins zero tokens (`fractions = [0.5, 0.5, 0.0]`) while holding moderate probability `0.40`, $3 \sum f_i p_i = 0.90 < 1.0$ even though Expert 2 is completely dead. Always monitor per-expert assignment histograms alongside the scalar loss.
+> **Key insight:** A score below `1.0` does **not** prove every expert is active. In a 3-expert batch where Expert 2 wins zero tokens (`fractions = [0.5, 0.5, 0.0]`) while holding mean probability `0.40`, $3 \sum f_i p_i = 0.90 < 1.0$ even though Expert 2 is unused. Always monitor per-expert histograms alongside the scalar loss.
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="load-balancing-and-counterexample.py"
@@ -218,26 +208,17 @@ dead-expert fractions: [0.5, 0.5, 0.0] score: 0.9
 
 ### Router z-loss for numerical stability
 
-Even when load is balanced, large router logits can destabilize mixed-precision training. **Router z-loss** penalizes the squared log-partition function $(\log \sum_i e^{z_i})^2$ averaged over tokens.[^zoph2022] Notice how shifting all logits by `+3.0` leaves softmax probabilities completely unchanged (`[0.75, 0.25]`) while raising z-loss from `0.0` to `9.0`, keeping logit magnitudes well-behaved without distorting expert choices.
-
-<figure>
-  <img src="illustrations/_generated/z_loss_shift_invariance_dark.png" alt="Logits log(0.75) and log(0.25) shift upward by 3. Both cases retain softmax probabilities 0.75 and 0.25 and the same selected expert. The log partition changes from 0 to 3, so its square changes from 0 to 9. Z-loss regularizes the log partition, rather than each logit separately or the expert-load histogram." />
-  <figcaption>Shifting logits by +3 preserves probabilities [0.75, 0.25] while pushing z-loss from 0 to 9, keeping router logits from drifting into FP16/BF16 overflow.</figcaption>
-</figure>
+Even when load is balanced, drifting router logits can destabilize mixed-precision training. **Router z-loss** penalizes the squared log-partition function $(\log \sum_i e^{z_i})^2$ averaged over tokens.[^zoph2022] Shifting logits `[\log 0.75, \log 0.25]` upward by `+3` leaves softmax probabilities untouched at `[0.75, 0.25]` while raising log-sum-exp from `0` to `3` and z-loss from `0` to `9`, keeping logit magnitudes bounded without distorting expert selection.
 
 ## Capacity factor and token overflow
 
-Fixed-shape GPU kernels often pre-allocate a static token buffer per expert scaled by a **capacity factor** $c$:
+Fixed-shape GPU kernels pre-allocate a static token buffer per expert scaled by a **capacity factor** $c$:
 
 $$
 \text{Expert Capacity} = \left\lceil \frac{T k}{N} \times c \right\rceil
 $$
 
-For $T = 4{,}096$ tokens, top-$k = 2$, and $N = 32$ experts, the uniform share is `256` slots per expert (`308` slots at $c = 1.2$). If a bursty batch sends `400` assignments to one hot expert at $c = 1.0$, `144` assignments overflow. Runtimes handle overflow in one of three ways:
-
-1. **Drop (residual pass-through):** Skip the overflowing expert computation so the token keeps its residual state (and its other expert under top-2).[^fedus2022]
-2. **Reroute:** Send overflowing assignments to another eligible expert with spare slots.
-3. **Dropless execution:** Run variable-length grouped GEMMs over all 400 assignments with zero drops (supported in modern kernels like Megatron Core).[^megatron2026moe]
+For $T = 4{,}096$ tokens, top-$k = 2$, and $N = 32$ experts, the uniform share is `256` slots per expert (`308` at $c = 1.2$). When a hot expert receives `400` assignments at $c = 1.0$, `144` overflow. Runtimes either **drop** overflowing assignments (leaving the residual pass-through),[^fedus2022] **reroute** them to spare experts, or run **dropless** variable-length grouped GEMMs over all 400 assignments.[^megatron2026moe]
 
 <figure>
   <img src="illustrations/_generated/capacity_overflow_policy_dark.png" alt="4096 tokens with top-2 routing create 8192 assignments, or 256 nominal slots per expert across 32 experts. A hot expert receives 400 assignments: 256 fit and 144 overflow. Dropping skips only those expert contributions while tokens remain. Rerouting needs spare expert capacity and changes functions or weights; dropless execution runs all 400. Capacity factor 1.2 raises the ceiling to 308 and leaves 92 overflow assignments." />
@@ -246,7 +227,7 @@ For $T = 4{,}096$ tokens, top-$k = 2$, and $N = 32$ experts, the uniform share i
 
 ## How modern architectures scale the idea
 
-Modern frontier MoEs evolved rapidly from coarse 8-expert pools to fine-grained pools of 160–256 experts paired with always-on **shared experts** and **auxiliary-loss-free** balancing:
+Modern frontier MoEs shifted from coarse 8-expert pools to fine-grained pools of 160 to 256 experts paired with always-on **shared experts** and **auxiliary-loss-free** balancing:
 
 | Model | Total / Active | Experts per MoE layer | Key routing innovation |
 |---|---|---|---|
@@ -262,42 +243,26 @@ Modern frontier MoEs evolved rapidly from coarse 8-expert pools to fine-grained 
   <figcaption>Per-MoE-layer pools: Mixtral selects 2 of 8 coarse experts; DeepSeek-V2 selects 6 of 160 fine-grained experts alongside 2 always-on shared experts.</figcaption>
 </figure>
 
-Notice DeepSeek-V3's clean **auxiliary-loss-free** trick: it computes sigmoid affinities $s_i$, adds a dynamically updated load-balancing bias $b_i$ *only* when picking top-8 expert IDs, and then weights the expert outputs using the **original unbiased** affinities $s_i$ (backed by a tiny sequence-wise balance guard).[^deepseekv3_2024] That keeps load balanced without fighting the language-modeling gradient!
-
-<figure>
-  <img src="illustrations/_generated/selection_bias_and_weighting_contract_dark.png" alt="DeepSeek-V3 forks original sigmoid affinities sᵢ into a selection branch (+ bias bᵢ -> top-8 IDs of 256) and a weighting branch (gather original selected sᵢ -> normalize -> routed weighted sum plus 1 shared expert). Contrast table shows Switch top-1 keeps original gate, Mixtral top-2 normalizes selected softmax gates, and DeepSeek-V3 separates biased selection from unbiased normalization." />
-  <figcaption>DeepSeek-V3 applies load-balancing bias only during top-$k$ selection while blending outputs with the original unbiased sigmoid affinities.</figcaption>
-</figure>
+DeepSeek-V3's **auxiliary-loss-free** balancing computes sigmoid affinities $s_i$, adds a dynamically updated bias $b_i$ *only* when picking top-8 expert IDs, and weights expert outputs using the **original unbiased** affinities $s_i$ (backed by a tiny sequence-wise balance guard), balancing load without fighting the language-modeling gradient.[^deepseekv3_2024]
 
 <!-- leetllm: audience:website:start -->Note also that FFN sparsity and sequence mixing are independent choices: Qwen3.6-35B-A3B interleaves Gated DeltaNet layers with gated attention so both the feed-forward and memory paths stay lean.<!-- leetllm: audience:website:end --><!-- leetllm: audience:book:start -->Qwen3.6 also interleaves Gated DeltaNet layers with gated attention. Mixture-of-experts routing and sequence mixing are independent architectural choices.<!-- leetllm: audience:book:end -->
 
 ## Serving an MoE on real hardware
 
-Sparse FLOPs do not automatically mean lower latency. Experts live across GPUs, hidden states must travel over NVLink or InfiniBand, and small decode batches shrink expert matrix multiplications.
+Sparse FLOPs do not automatically translate to lower latency: experts span GPUs, hidden states cross NVLink or InfiniBand, and small decode batches shrink expert matmuls.
 
 ### Expert parallelism, wire traffic, and grouped GEMMs
 
-While <span data-glossary="tensor-parallelism">tensor parallelism (TP)</span> slices every expert's weight matrices across GPUs, <span data-glossary="expert-parallelism">expert parallelism (EP)</span> places *whole experts* on different GPUs and runs an **all-to-all dispatch** followed by an **all-to-all combine**.[^megatron2026moe][^vllmExpertParallel2026] Large deployments combine them (for example, DeepSeek-V3 uses TP4 for attention with EP320 for MoE decode, plus redundant copies of hot experts via load balancers like EPLB).[^deepseekv3_2024][^vllmExpertParallel2026]
+While <span data-glossary="tensor-parallelism">tensor parallelism (TP)</span> shards each expert's matrices across GPUs, <span data-glossary="expert-parallelism">expert parallelism (EP)</span> places whole experts on different GPUs and runs **all-to-all dispatch** and **all-to-all combine**.[^megatron2026moe][^vllmExpertParallel2026] Large serving clusters mix both (for example, DeepSeek-V3 pairs TP4 attention with EP320 decode and hot-expert replication via EPLB).[^deepseekv3_2024][^vllmExpertParallel2026]
 
-If a fraction $r$ of $T k$ assignments target remote GPUs, each transferring an $H$-element vector at $b$ bytes round-trip:
-
-$$
-Q_{\text{remote}} = 2 r T k H b
-$$
-
-Wire protocol design matters too: if one token selects *two* experts living on the same remote GPU, coalescing dispatch and returning a single remotely weighted sum cuts wire traffic in half (`16 KiB` vs. `32 KiB` for a 4,096-wide BF16 hidden state) without changing a single FLOP.
+If a fraction $r$ of $T k$ assignments target remote GPUs, transferring an $H$-element vector at $b$ bytes round-trip costs $Q_{\text{remote}} = 2 r T k H b$. When one token picks *two* experts on the same remote GPU, per-destination coalescing sends the input once, runs both experts remotely, and returns one already-weighted combined output, halving wire bytes (`16 KiB` vs. `32 KiB` for a 4,096-wide BF16 vector) with identical expert math (though actual latency still depends on overlap and fixed overheads).
 
 <figure>
   <img src="illustrations/_generated/expert_parallelism_dark.png" alt="GPU G0 stores experts E0 and E1; G1 stores E2 and E3. Token t0 on G0 visits E0 locally, and t2 on G1 visits E2 locally. Three remote assignments send t1 from G0 to E2, t3 from G1 to E1, and t4 from G0 to E3. Each sends 8 KiB and returns 8 KiB, totaling 48 KiB roundtrip. Expert weights remain resident on their owning GPU." />
   <figcaption>G0 owns E0–E1 and G1 owns E2–E3. Three remote routes move 8 KiB out and 8 KiB back (48 KiB total) while expert weights stay resident.</figcaption>
 </figure>
 
-<figure>
-  <img src="illustrations/_generated/wire_protocol_and_expert_layout_dark.png" alt="The same token selects E2 and E3 on remote GPU G1. Separate dispatch and return messages for two assignments make four 8 KiB messages, totaling 32 KiB. Per-destination coalescing sends one 8 KiB input, runs both experts, and returns one 8 KiB weighted sum, totaling 16 KiB. Expert functions and FLOPs stay fixed. Separately, TP splits one expert matrix into four rank shards, while EP assigns whole expert IDs to owning groups. Payload differences alone imply no latency result." />
-  <figcaption>Per-destination coalescing halves remote wire payload from 32 KiB to 16 KiB for two experts on the same remote GPU, while TP shards matrices and EP owns whole experts.</figcaption>
-</figure>
-
-Inside each GPU, **batched expert execution** sorts assignments by expert ID, runs one dense grouped GEMM per expert, and scatter-adds weighted outputs back to each token's original row so no route overwrites another:
+Inside each GPU, **batched expert execution** sorts assignments by expert ID for dense grouped GEMMs, applies each gate weight once, and scatter-adds weighted outputs back to each token's row so no route overwrites another:
 
 <!-- leetllm: test, deps=torch, output=show -->
 ```python title="dispatch-and-weighted-combine.py"
@@ -326,12 +291,7 @@ restored weighted rows: [[-0.625, -1.25], [6.0, 8.0], [5.5, 6.6]]
 ```
 <!-- leetllm: output:end -->
 
-<figure>
-  <img src="illustrations/_generated/dispatch_weighted_combine_dark.png" alt="Three token vectors produce five assignments: (t0, E2, 0.25), (t1, E0, 1), (t2, E2, 0.6), (t0, E1, 0.75), and (t2, E0, 0.4). Grouping by expert gives stable token order [1, 2, 0, 0, 2]. E0 scales by 2, E1 by -1, and E2 by 0.5. Each route weight is applied exactly once. Scatter-add by token ID gives [-0.625, -1.25], [6, 8], and [5.5, 6.6]. The unweighted token-0 sum [-0.5, -1] differs." />
-  <figcaption>Tokens pack into expert-contiguous order [1, 2, 0, 0, 2] for batched execution, apply each gate weight once, and scatter-add back to restore the three token rows.</figcaption>
-</figure>
-
-On consumer hardware where the full pool does not fit in VRAM, combining [weight quantization](/learn/model-quantization-gptq-awq-gguf) with **CPU/SSD expert offloading** keeps attention and routers on GPU while streaming selected experts on demand (trading memory for PCIe transfer latency).
+On consumer GPUs where the full expert pool exceeds VRAM, combining [weight quantization](/learn/model-quantization-gptq-awq-gguf) with **CPU/SSD expert offloading** keeps shared layers on GPU and streams selected experts on demand.
 
 ## When MoE is worth the complexity
 

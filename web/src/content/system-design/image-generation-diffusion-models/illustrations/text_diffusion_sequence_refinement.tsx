@@ -1,153 +1,130 @@
 import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+export { createFilm } from './_parts/text-diffusion-film'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 395
 export const alt =
-    'Comparison between Autoregressive sequence generation and Discrete Diffusion token refinement. Autoregressive decoding commits tokens strictly left-to-right with causal masking and no revision. Discrete diffusion refines a masked sequence in parallel rounds, filling confident positions first and revising tokens bidirectionally.'
+    'Side-by-side comparison of left-to-right autoregressive decoding (4 sequential irreversible steps) versus bidirectional discrete text diffusion (3 parallel unmasking rounds, revising token 4 from later to first once context clarifies).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
 
-    // Header
-    a.text(40, 32, 'Autoregressive Decoding vs. Diffusion Sequence Refinement', {
-        size: 22,
-        weight: 700,
-    })
-    a.text(40, 58, 'Causal prefix growth compared to bidirectional iterative canvas denoising', {
-        size: 15,
-        color: k.mid,
-    })
+    fig.text(186, 22, 'Autoregressive (L → R)', { size: 16, weight: 700, color: blue, align: 'center' })
+    fig.text(186, 44, 'causal · irreversible', { size: 15, color: c.textSecondary, align: 'center' })
 
-    // Panel 1: Autoregressive (Left)
-    a.rect(40, 85, 380, 375, { fill: tint(k.prefill, 0.04), stroke: tint(k.prefill, 0.3), r: 8 })
-    a.cell(56, 102, 140, 24, 'AUTOREGRESSIVE', {
-        fill: tint(k.prefill, 0.15),
-        stroke: tint(k.prefill, 0.4),
-        color: k.prefill,
-        weight: 700,
-    })
-    a.text(210, 114, 'Causal Left-to-Right', { size: 15, weight: 700 })
+    fig.line(380, 16, 380, 344, { color: c.borderSubtle, width: 1.25, dash: '4 4' })
+
+    fig.text(574, 22, 'Discrete Text Diffusion', { size: 16, weight: 700, color: purple, align: 'center' })
+    fig.text(574, 44, 'parallel unmask + revise', { size: 15, color: c.textSecondary, align: 'center' })
 
     const arRows = [
-        { step: 'Step 1', tokens: ['write', '·', '·', '·'] },
-        { step: 'Step 2', tokens: ['write', 'unit', '·', '·'] },
-        { step: 'Step 3', tokens: ['write', 'unit', 'tests', '·'] },
-        { step: 'Step 4', tokens: ['write', 'unit', 'tests', 'first'] },
+        { label: 'S1', tokens: ['write', '·', '·', '·'] },
+        { label: 'S2', tokens: ['write', 'unit', '·', '·'] },
+        { label: 'S3', tokens: ['write', 'unit', 'tests', '·'] },
+        { label: 'S4', tokens: ['write', 'unit', 'tests', 'first'] },
+    ]
+    const diffRows = [
+        { label: 'R0', tokens: ['[M]', '[M]', '[M]', '[M]'] },
+        { label: 'R1', tokens: ['write', '[M]', '[M]', 'later'] },
+        { label: 'R2', tokens: ['write', 'unit', '[M]', 'first'] },
+        { label: 'R3', tokens: ['write', 'unit', 'tests', 'first'] },
     ]
 
+    const tileW = 70
+    const tileH = 38
+    const tileGap = 7
+    const rowStep = 66
+    const startY = 76
+
     arRows.forEach((r, idx) => {
-        const y = 145 + idx * 52
-        a.text(56, y + 16, r.step, { size: 15, mono: true, color: k.mid })
+        const y = startY + idx * rowStep
+        fig.text(28, y + tileH / 2, r.label, { size: 15, mono: true, weight: 700, color: c.textSecondary, align: 'center' })
         r.tokens.forEach((tok, pos) => {
-            const tx = 130 + pos * 68
-            const isFilled = tok !== '·'
-            const isNew = isFilled && (idx === 0 || arRows[idx - 1].tokens[pos] === '·')
-            const bg = isNew
-                ? tint(k.pass, 0.15)
-                : isFilled
-                  ? tint(k.prefill, 0.08)
-                  : tint(k.c.bg, 0.05)
-            const stroke = isNew ? k.pass : isFilled ? tint(k.prefill, 0.3) : k.line
-            const color = isNew ? k.pass : isFilled ? k.ink : k.faint
-            a.cell(tx, y, 62, 34, tok, {
-                fill: bg,
-                stroke,
-                color,
+            const tx = 58 + pos * (tileW + tileGap)
+            const isEmpty = tok === '·'
+            const isNew = !isEmpty && (idx === 0 || arRows[idx - 1]!.tokens[pos] === '·')
+            const fill = isNew
+                ? tint(green, c.bg, theme === 'light' ? 0.16 : 0.22)
+                : isEmpty
+                  ? tint(c.borderSubtle, c.bg, theme === 'light' ? 0.25 : 0.22)
+                  : tint(blue, c.bg, theme === 'light' ? 0.09 : 0.14)
+            const stroke = isNew ? green : isEmpty ? c.borderSubtle : tint(blue, c.bg, 0.55)
+            const color = isNew ? green : isEmpty ? c.textMuted : c.textPrimary
+            fig.rect(tx, y, tileW, tileH, { fill, stroke, strokeWidth: isNew ? 1.8 : 1.2, radius: 7 })
+            fig.text(tx + tileW / 2, y + tileH / 2, tok, {
+                size: 15,
                 mono: true,
-                weight: isFilled ? 600 : 400,
+                weight: isEmpty ? 400 : 700,
+                color,
+                align: 'center',
             })
         })
         if (idx < arRows.length - 1) {
-            a.arrow(80, y + 36, 80, y + 50, k.prefill, { width: 1.25 })
+            fig.arrow(28, y + tileH + 4, 28, y + rowStep - 4, { color: blue, width: 1.5, head: 5.5 })
         }
     })
 
-    a.rect(56, 365, 348, 80, { fill: tint(k.c.bg, 0.08), stroke: k.line, r: 6 })
-    a.text(68, 386, 'Strict causal mask (triangular)', { size: 15, weight: 600, color: k.prefill })
-    a.text(68, 408, 'Irreversible token commitments: past cannot change', {
-        size: 15,
-        color: k.ink,
-    })
-    a.text(68, 428, 'L sequential forward passes required', { size: 15, mono: true, color: k.mid })
-
-    // Panel 2: Discrete Diffusion / Canvas (Right)
-    a.rect(440, 85, 380, 375, { fill: tint(k.decode, 0.04), stroke: tint(k.decode, 0.3), r: 8 })
-    a.cell(456, 102, 150, 24, 'DISCRETE DIFFUSION', {
-        fill: tint(k.decode, 0.15),
-        stroke: tint(k.decode, 0.4),
-        color: k.decode,
-        weight: 700,
-    })
-    a.text(620, 114, 'Bidirectional Canvas', { size: 15, weight: 700 })
-
-    const diffRows = [
-        { round: 'Round 0', tokens: ['<mask>', '<mask>', '<mask>', '<mask>'] },
-        { round: 'Round 1', tokens: ['write', '<mask>', '<mask>', 'later'] },
-        { round: 'Round 2', tokens: ['write', 'unit', '<mask>', 'first'] },
-        { round: 'Round 3', tokens: ['write', 'unit', 'tests', 'first'] },
-    ]
-
     diffRows.forEach((r, idx) => {
-        const y = 145 + idx * 52
-        a.text(456, y + 16, r.round, { size: 15, mono: true, color: k.mid })
+        const y = startY + idx * rowStep
+        fig.text(412, y + tileH / 2, r.label, { size: 15, mono: true, weight: 700, color: c.textSecondary, align: 'center' })
         r.tokens.forEach((tok, pos) => {
-            const tx = 530 + pos * 68
-            const isMask = tok === '<mask>'
-            const isRevised = idx === 2 && pos === 3 // 'later' revised to 'first'
-            const isNew = !isMask && (idx === 0 || diffRows[idx - 1].tokens[pos] === '<mask>')
-            const bg = isRevised
-                ? tint(k.wait, 0.2)
+            const tx = 442 + pos * (tileW + tileGap)
+            const isMask = tok === '[M]'
+            const isRevised = idx === 2 && pos === 3
+            const isNew = !isMask && idx > 0 && diffRows[idx - 1]!.tokens[pos] === '[M]'
+            const fill = isRevised
+                ? tint(warm, c.bg, theme === 'light' ? 0.2 : 0.25)
                 : isNew
-                  ? tint(k.pass, 0.15)
+                  ? tint(green, c.bg, theme === 'light' ? 0.16 : 0.22)
                   : isMask
-                    ? tint(k.c.bg, 0.05)
-                    : tint(k.decode, 0.08)
-            const stroke = isRevised
-                ? k.wait
-                : isNew
-                  ? k.pass
-                  : isMask
-                    ? k.line
-                    : tint(k.decode, 0.3)
-            const color = isRevised ? k.wait : isNew ? k.pass : isMask ? k.faint : k.ink
-            const display = isMask ? '[M]' : tok
-            a.cell(tx, y, 62, 34, display, {
-                fill: bg,
-                stroke,
-                color,
+                    ? tint(c.borderSubtle, c.bg, theme === 'light' ? 0.25 : 0.22)
+                    : tint(purple, c.bg, theme === 'light' ? 0.09 : 0.14)
+            const stroke = isRevised ? warm : isNew ? green : isMask ? c.borderSubtle : tint(purple, c.bg, 0.55)
+            const color = isRevised ? warm : isNew ? green : isMask ? c.textMuted : c.textPrimary
+            fig.rect(tx, y, tileW, tileH, { fill, stroke, strokeWidth: isRevised || isNew ? 1.8 : 1.2, radius: 7 })
+            fig.text(tx + tileW / 2, y + tileH / 2, tok, {
+                size: 15,
                 mono: true,
-                weight: !isMask ? 600 : 400,
+                weight: isMask ? 400 : 700,
+                color,
+                align: 'center',
             })
         })
         if (idx < diffRows.length - 1) {
-            a.arrow(480, y + 36, 480, y + 50, k.decode, { width: 1.25 })
+            fig.arrow(412, y + tileH + 4, 412, y + rowStep - 4, { color: purple, width: 1.5, head: 5.5 })
         }
     })
 
-    a.rect(456, 365, 348, 80, { fill: tint(k.c.bg, 0.08), stroke: k.line, r: 6 })
-    a.text(468, 386, 'Full bidirectional attention across sequence', {
-        size: 15,
-        weight: 600,
-        color: k.decode,
+    const revX = 442 + 3 * (tileW + tileGap) + tileW / 2
+    fig.arrow(revX, startY + rowStep + tileH + 2, revX, startY + 2 * rowStep - 2, {
+        color: warm,
+        width: 2,
+        head: 6,
     })
-    a.text(468, 408, 'Arbitrary unmasking order + non-monotonic revision', {
+    fig.text(revX - 10, startY + rowStep + tileH + 13, 'revised', {
         size: 15,
-        color: k.ink,
-    })
-    a.text(468, 428, 'Parallel token generation in constant K rounds', {
-        size: 15,
-        mono: true,
-        color: k.mid,
+        weight: 700,
+        color: warm,
+        align: 'right',
     })
 
-    return a.render()
+    const footY = 368
+    fig.rect(72, footY - 8, 14, 14, { fill: tint(green, c.bg, 0.22), stroke: green, strokeWidth: 1.5, radius: 3 })
+    fig.text(94, footY, 'emitted / unmasked', { size: 15, color: c.textSecondary })
+
+    fig.rect(284, footY - 8, 14, 14, { fill: tint(warm, c.bg, 0.25), stroke: warm, strokeWidth: 1.5, radius: 3 })
+    fig.text(306, footY, 'revised in place', { size: 15, color: warm, weight: 700 })
+
+    fig.text(468, footY, 'L passes vs. K rounds', { size: 15, mono: true, weight: 700, color: purple })
+
+    return fig.render()
 }
 
 export default create('dark')

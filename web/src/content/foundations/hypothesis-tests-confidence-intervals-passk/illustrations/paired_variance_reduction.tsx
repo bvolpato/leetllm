@@ -1,175 +1,146 @@
-import React from 'react'
-import {
-    Column,
-    MiniBarChart,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import { preparePrintTypography } from '../../../../../tools/illustrations/lib/print-typography'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 760
-export const height = 520
-export const preset = 'engineering'
+export const width = 840
+export const height = 395
 export const alt =
-    'Two task-difference distributions share a 0-to-100-percent scale. With independent prompts and 50-percent pass rates, B minus A is minus one on 25 percent of tasks, zero on 50 percent, and plus one on 25 percent. Under the paired example, those probabilities are 5, 90, and 5 percent. At 40 rows, the variance of the mean difference falls from 0.0125 to 0.0025; nominal normal margins shrink from 21.9 to 9.8 percentage points.'
+    'Side-by-side task-difference distributions on a shared 0 to 100 percent scale comparing unpaired prompts (rho = 0) against paired tasks (rho = 0.80) at 50 percent marginal pass rates. Unpaired differences spread across -1 (25%), 0 (50%), and +1 (25%) with N = 40 variance 0.0125 (SE 0.112, nominal 95% margin +/-21.9 pp). Pairing concentrates 90% of differences at 0 with 5% each at -1 and +1, cutting variance 5x to 0.0025 (SE 0.050, margin +/-9.8 pp).'
 
-const illustration = defineIllustration((c) => {
-    const blue = getReadableToneColor('blue', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const isLight = theme === 'light'
 
-    return Scene({
-        c,
-        padding: 16,
-        contentWidth: 728,
-        gap: 10,
-        children: Column({
-            gap: 10,
-            width: 728,
-            children: [
-                TextLabel({
-                    c,
-                    text: 'Pairing shrinks variance when task difficulty is shared',
-                    fontSize: 25,
-                    fontWeight: 700,
-                    color: c.textPrimary,
-                }),
-                Row({
-                    gap: 14,
-                    align: 'stretch',
-                    children: [
-                        Panel({
-                            c,
-                            title: 'Unpaired prompts (ρ = 0)',
-                            titleFontSize: 23,
-                            width: 357,
-                            padding: 12,
-                            gap: 10,
-                            shadow: false,
-                            children: Column({
-                                gap: 8,
-                                align: 'center',
-                                children: [
-                                    preparePrintTypography(
-                                        MiniBarChart({
-                                            c,
-                                            height: 210,
-                                            barWidth: 74,
-                                            gap: 20,
-                                            max: 100,
-                                            minBarHeight: 0,
-                                            fontSize: 23,
-                                            showValues: true,
-                                            data: [
-                                                {
-                                                    label: '−1',
-                                                    value: 25,
-                                                    color: warm,
-                                                    valueLabel: '25%',
-                                                },
-                                                {
-                                                    label: '0',
-                                                    value: 50,
-                                                    color: blue,
-                                                    valueLabel: '50%',
-                                                },
-                                                {
-                                                    label: '+1',
-                                                    value: 25,
-                                                    color: warm,
-                                                    valueLabel: '25%',
-                                                },
-                                            ],
-                                        }),
-                                        23,
-                                    ),
-                                    TextLabel({
-                                        c,
-                                        text: 'N=40 Var = 0.0125',
-                                        fontSize: 23,
-                                        fontWeight: 700,
-                                        color: warm,
-                                    }),
-                                    TextLabel({
-                                        c,
-                                        text: 'Nominal ±1.96·SE: ±21.9 pp',
-                                        fontSize: 23,
-                                        color: c.textSecondary,
-                                    }),
-                                ],
-                            }),
-                        }),
-                        Panel({
-                            c,
-                            title: 'Paired tasks (ρ = 0.80)',
-                            titleFontSize: 23,
-                            width: 357,
-                            padding: 12,
-                            gap: 10,
-                            shadow: false,
-                            children: Column({
-                                gap: 8,
-                                align: 'center',
-                                children: [
-                                    preparePrintTypography(
-                                        MiniBarChart({
-                                            c,
-                                            height: 210,
-                                            barWidth: 74,
-                                            gap: 20,
-                                            max: 100,
-                                            minBarHeight: 0,
-                                            fontSize: 23,
-                                            showValues: true,
-                                            data: [
-                                                {
-                                                    label: '−1',
-                                                    value: 5,
-                                                    color: warm,
-                                                    valueLabel: '5%',
-                                                },
-                                                {
-                                                    label: '0',
-                                                    value: 90,
-                                                    color: green,
-                                                    valueLabel: '90%',
-                                                },
-                                                {
-                                                    label: '+1',
-                                                    value: 5,
-                                                    color: green,
-                                                    valueLabel: '5%',
-                                                },
-                                            ],
-                                        }),
-                                        23,
-                                    ),
-                                    TextLabel({
-                                        c,
-                                        text: 'N=40 Var = 0.0025 (5× less)',
-                                        fontSize: 23,
-                                        fontWeight: 700,
-                                        color: green,
-                                    }),
-                                    TextLabel({
-                                        c,
-                                        text: 'Nominal ±1.96·SE: ±9.8 pp',
-                                        fontSize: 23,
-                                        color: c.textSecondary,
-                                    }),
-                                ],
-                            }),
-                        }),
-                    ],
-                }),
-            ],
-        }),
+    // Centered governing variance equation at top
+    fig.math(
+        width / 2,
+        24,
+        '\\operatorname{Var}(\\bar{D}) = \\frac{\\sigma_X^2 + \\sigma_Y^2 - 2\\operatorname{Cov}(X, Y)}{N}',
+        {
+            size: 15,
+            color: c.textPrimary,
+            align: 'center',
+        },
+    )
+
+    const drawPanel = (
+        areaX: number,
+        title: string,
+        titleTone: string,
+        bars: readonly { label: string; pct: number; tone: string }[],
+        varText: string,
+        marginText: string,
+        showYLabel: boolean,
+    ) => {
+        fig.text(areaX + 148, 56, title, {
+            size: 14,
+            weight: 700,
+            color: titleTone,
+            align: 'center',
+        })
+
+        const plot = fig.plot(
+            { x: areaX, y: 92, width: 296, height: 204 },
+            { x: [0.3, 3.7], y: [0, 100] },
+        )
+        plot.axes({
+            yTicks: [25, 50, 75, 100],
+            yFormat: (v) => `${v}%`,
+            yLabel: showYLabel ? 'Task share' : undefined,
+            xLabel: 'Row difference (B − A)',
+            grid: true,
+            labelSize: 12,
+        })
+
+        const bw = 62
+        bars.forEach((b, i) => {
+            const cx = plot.px(i + 1)
+            const yTop = plot.py(b.pct)
+            const yBot = plot.py(0)
+            fig.rect(cx - bw / 2, yTop, bw, yBot - yTop, {
+                fill: tint(b.tone, c.bg, isLight ? 0.24 : 0.36),
+                stroke: b.tone,
+                strokeWidth: 1.6,
+                radius: 4,
+            })
+            fig.text(cx, yTop - 13, `${b.pct}%`, {
+                size: 13,
+                weight: 700,
+                color: b.tone,
+                align: 'center',
+                mono: true,
+            })
+            fig.text(cx, plot.bottom + 15, b.label, {
+                size: 13,
+                weight: 600,
+                color: c.textPrimary,
+                align: 'center',
+                mono: true,
+            })
+        })
+
+        fig.text(areaX + 148, 354, varText, {
+            size: 13,
+            weight: 700,
+            color: titleTone,
+            align: 'center',
+            mono: true,
+        })
+        fig.text(areaX + 148, 375, marginText, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    drawPanel(
+        76,
+        'Unpaired prompts (ρ = 0)',
+        warm,
+        [
+            { label: '−1', pct: 25, tone: warm },
+            { label: '0', pct: 50, tone: blue },
+            { label: '+1', pct: 25, tone: warm },
+        ],
+        'N = 40: Var = 0.0125 · SE = 0.112',
+        '±1.96 · SE = ±21.9 pp',
+        true,
+    )
+
+    // Center divider + 5x badge
+    fig.line(422, 62, 422, 378, { color: c.borderSubtle, width: 1 })
+    fig.rect(390, 174, 64, 28, {
+        fill: tint(green, c.bg, isLight ? 0.18 : 0.28),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 14,
     })
-})
+    fig.text(422, 188, '5× less', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
 
-export const create = illustration.create
-export default illustration.default
+    drawPanel(
+        494,
+        'Paired identical tasks (ρ = 0.80)',
+        green,
+        [
+            { label: '−1', pct: 5, tone: warm },
+            { label: '0', pct: 90, tone: green },
+            { label: '+1', pct: 5, tone: green },
+        ],
+        'N = 40: Var = 0.0025 · SE = 0.050',
+        '±1.96 · SE = ±9.8 pp (equiv. 200 unpaired)',
+        false,
+    )
+
+    return fig.render()
+}
+
+export default create

@@ -1,329 +1,202 @@
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    VectorSegment,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 672
-export const height = 672
+export const width = 760
+export const height = 430
 export const alt =
-    'Four positions show teacher and student vectors of four logits aligned at the same t. The shared output IDs are 0=7d, 1=3d, 2=30d, and 3=never. The target token IDs are [0, 0, 1, -100]; shifting labels left pairs logits t0 with label[1]=0 (7d), t1 with label[2]=1 (3d), and t2 with label[3]=-100 (ignored by both KL and hard loss). The final t3 logits have no next label.'
+    'Four prefix positions t0 through t3 align teacher and student 4-logit vectors vertically for KL distillation over shared token IDs (0=7d, 1=3d, 2=30d, 3=never). Below, original labels [0, 0, 1, -100] shift left by one step to pair t0 with 0 (7d), t1 with 1 (3d), and t2 with -100 (masked out of both KL and cross-entropy loss), while t3 has no next label.'
 
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
-
-const centers = [194, 322, 450, 578]
-const columnWidth = 116
-const targetCells = [
-    { first: '0 → 7d', second: 'TRAIN', tone: 'green' as const },
-    { first: '1 → 3d', second: 'TRAIN', tone: 'green' as const },
-    { first: '−100', second: 'MASK', tone: 'critical' as const },
-    { first: 'none', second: 'no target', tone: 'neutral' as const },
+const centers = [210, 345, 480, 615]
+const colW = 110
+const origLabels = ['0', '0', '1', '−100']
+const shiftedTargets = [
+    { top: '0 → 7d', tag: 'TRAIN', tone: 'green' as const },
+    { top: '1 → 3d', tag: 'TRAIN', tone: 'green' as const },
+    { top: '−100', tag: 'MASK (KL + CE)', tone: 'critical' as const },
+    { top: 'none', tag: 'no next label', tone: 'muted' as const },
 ]
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const teacher = getReadableToneColor('cyan', c)
-    const student = getReadableToneColor('warm', c)
-    const arrow = c.textSecondary
-    const targetTone = {
-        green: getReadableToneColor('green', c),
-        critical: getReadableToneColor('red', c),
-        neutral: c.textSecondary,
-    }
-    const shapes = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        ...centers
-            .map((center, index) => [
-                SvgFrame({
-                    c,
-                    x: center - columnWidth / 2,
-                    y: 178,
-                    width: columnWidth,
-                    height: 42,
-                    rx: 8,
-                    fill: `${teacher}18`,
-                    stroke: teacher,
-                    strokeWidth: 1.4,
-                }),
-                SvgFrame({
-                    c,
-                    x: center - columnWidth / 2,
-                    y: 256,
-                    width: columnWidth,
-                    height: 42,
-                    rx: 8,
-                    fill: `${student}18`,
-                    stroke: student,
-                    strokeWidth: 1.4,
-                }),
-                VectorSegment({
-                    x1: center,
-                    y1: 220,
-                    x2: center,
-                    y2: 256,
-                    color: c.borderLight,
-                    strokeWidth: 2,
-                    showStartDot: true,
-                    showEndDot: true,
-                    dotRadius: 3.2,
-                }),
-                SvgFrame({
-                    c,
-                    x: center - columnWidth / 2,
-                    y: 441,
-                    width: columnWidth,
-                    height: 40,
-                    rx: 7,
-                    fill: c.bgCard,
-                    stroke: c.border,
-                    strokeWidth: 1.2,
-                }),
-                SvgFrame({
-                    c,
-                    x: center - columnWidth / 2,
-                    y: 523,
-                    width: columnWidth,
-                    height: 69,
-                    rx: 8,
-                    fill: `${targetTone[targetCells[index].tone]}12`,
-                    stroke: targetTone[targetCells[index].tone],
-                    strokeWidth: 1.4,
-                }),
-            ])
-            .flat(),
-        ...[1, 2, 3].map((index) =>
-            VectorArrow({
-                x1: centers[index],
-                y1: 482,
-                x2: centers[index - 1],
-                y2: 512,
-                color: arrow,
-                strokeWidth: 2.4,
-                arrowSize: 8,
-            }),
-        ),
-    )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const teacher = fig.tone('cyan')
+    const student = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const muted = c.textSecondary
 
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bgSubtle,
-        children: [
-            CanvasItem({ x: 0, y: 0, width, height, children: shapes }),
-            label(
-                c,
-                'Same-position logits, next-position labels',
-                18,
-                14,
-                636,
-                36,
-                29,
-                c.textPrimary,
-                800,
-            ),
-            label(
-                c,
-                'Teacher and student compare at the same prefix t.',
-                18,
-                53,
-                636,
-                28,
-                22,
-                c.textSecondary,
-                600,
-            ),
-            label(c, 'Shared output-token IDs', 18, 91, 636, 27, 24, c.textPrimary, 700),
-            ...['0 · 7d', '1 · 3d', '2 · 30d', '3 · never'].flatMap((item, index) => [
-                label(
-                    c,
-                    item,
-                    18 + index * 160,
-                    119,
-                    152,
-                    34,
-                    24,
-                    c.textPrimary,
-                    700,
-                    'center',
-                    true,
-                ),
-            ]),
-            ...centers.flatMap((center, index) => [
-                label(
-                    c,
-                    `t${index}`,
-                    center - columnWidth / 2,
-                    150,
-                    columnWidth,
-                    24,
-                    24,
-                    c.textPrimary,
-                    750,
-                    'center',
-                    true,
-                ),
-                label(
-                    c,
-                    'V = 4',
-                    center - columnWidth / 2,
-                    185,
-                    columnWidth,
-                    28,
-                    24,
-                    teacher,
-                    750,
-                    'center',
-                    true,
-                ),
-                label(
-                    c,
-                    'V = 4',
-                    center - columnWidth / 2,
-                    263,
-                    columnWidth,
-                    28,
-                    24,
-                    student,
-                    750,
-                    'center',
-                    true,
-                ),
-            ]),
-            label(c, 'Teacher', 14, 185, 110, 28, 24, teacher, 750),
-            label(c, 'Student', 14, 263, 110, 28, 24, student, 750),
-            label(
-                c,
-                'Vertical pairing matches the same t.',
-                18,
-                312,
-                636,
-                27,
-                22,
-                c.textSecondary,
-                600,
-                'center',
-            ),
-            label(c, 'Original labels[j]', 18, 370, 636, 27, 24, c.textPrimary, 750),
-            ...[0, 0, 1, '−100'].flatMap((value, index) => [
-                label(
-                    c,
-                    String(value),
-                    centers[index] - columnWidth / 2,
-                    447,
-                    columnWidth,
-                    27,
-                    24,
-                    c.textPrimary,
-                    750,
-                    'center',
-                    true,
-                ),
-                label(
-                    c,
-                    `j=${index}`,
-                    centers[index] - columnWidth / 2,
-                    408,
-                    columnWidth,
-                    21,
-                    24,
-                    c.textMuted,
-                    600,
-                    'center',
-                    true,
-                ),
-            ]),
-            label(c, 'Target', 14, 488, 110, 25, 24, c.textPrimary, 750),
-            ...targetCells.flatMap((item, index) => [
-                label(
-                    c,
-                    item.first,
-                    centers[index] - columnWidth / 2 + 2,
-                    529,
-                    columnWidth - 4,
-                    28,
-                    24,
-                    c.textPrimary,
-                    700,
-                    'center',
-                    true,
-                ),
-                label(
-                    c,
-                    item.second,
-                    centers[index] - columnWidth / 2 + 2,
-                    562,
-                    columnWidth - 4,
-                    25,
-                    22,
-                    targetTone[item.tone],
-                    750,
-                    'center',
-                ),
-            ]),
-            label(
-                c,
-                'y₀ has no paired logit · t₃ has no next label',
-                18,
-                601,
-                636,
-                25,
-                22,
-                c.textSecondary,
-                600,
-                'center',
-            ),
-            label(
-                c,
-                '−100 masks t₂ from both KL and hard CE.',
-                18,
-                635,
-                636,
-                25,
-                22,
-                c.textSecondary,
-                600,
-                'center',
-            ),
-        ],
+    // Shared vocabulary strip at top
+    fig.text(24, 24, 'Shared vocabulary', { size: 14, weight: 600, color: muted })
+    const vocab = ['0 · 7d', '1 · 3d', '2 · 30d', '3 · never']
+    vocab.forEach((v, i) => {
+        const cx = centers[i]!
+        fig.rect(cx - 52, 11, 104, 26, {
+            fill: tint(c.textMuted, c.bg, 0.1),
+            stroke: c.borderSubtle,
+            strokeWidth: 1,
+            radius: 5,
+        })
+        fig.text(cx, 24, v, { size: 14, mono: true, weight: 600, align: 'center' })
     })
+
+    // Column headers t0..t3
+    const tHeaderY = 66
+    centers.forEach((cx, i) => {
+        fig.math(cx, tHeaderY, `t_${i}`, { size: 17, color: c.textPrimary, align: 'center' })
+    })
+
+    // Teacher & Student logit rows (same position t -> vertical KL alignment)
+    const teacherY = 90
+    const studentY = 172
+    const boxH = 42
+
+    fig.text(24, teacherY + boxH / 2, 'Teacher logits', {
+        size: 15,
+        weight: 600,
+        color: teacher,
+    })
+    fig.text(24, studentY + boxH / 2, 'Student logits', {
+        size: 15,
+        weight: 600,
+        color: student,
+    })
+
+    centers.forEach((cx, i) => {
+        const isMasked = i === 2 || i === 3
+        const op = isMasked ? 0.55 : 1
+        fig.rect(cx - colW / 2, teacherY, colW, boxH, {
+            fill: tint(teacher, c.bg, 0.16),
+            stroke: teacher,
+            strokeWidth: 1.5,
+            radius: 7,
+            opacity: op,
+        })
+        fig.text(cx, teacherY + boxH / 2, 'V = 4', {
+            size: 15,
+            mono: true,
+            weight: 600,
+            color: teacher,
+            align: 'center',
+        })
+
+        fig.rect(cx - colW / 2, studentY, colW, boxH, {
+            fill: tint(student, c.bg, 0.16),
+            stroke: student,
+            strokeWidth: 1.5,
+            radius: 7,
+            opacity: op,
+        })
+        fig.text(cx, studentY + boxH / 2, 'V = 4', {
+            size: 15,
+            mono: true,
+            weight: 600,
+            color: student,
+            align: 'center',
+        })
+
+        // Same-position KL vertical connector
+        const y1 = teacherY + boxH + 3
+        const y2 = studentY - 3
+        fig.line(cx, y1, cx, y2, {
+            color: isMasked ? c.textMuted : c.textSecondary,
+            width: 1.6,
+            dash: isMasked ? '3 3' : undefined,
+        })
+        fig.circle(cx, y1, 3, { fill: isMasked ? c.textMuted : teacher })
+        fig.circle(cx, y2, 3, { fill: isMasked ? c.textMuted : student })
+        if (i === 0) {
+            fig.text(cx + 12, (y1 + y2) / 2, 'same t', {
+                size: 12,
+                color: muted,
+            })
+        }
+    })
+
+    // Subtle divider between KL pairing and label shift
+    fig.line(24, 234, width - 24, 234, { color: c.borderSubtle, width: 1 })
+
+    // Original labels[j] row
+    const origY = 264
+    fig.text(24, origY + 20, 'labels[j]', {
+        size: 15,
+        mono: true,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    centers.forEach((cx, j) => {
+        fig.text(cx, origY - 12, `j = ${j}`, {
+            size: 13,
+            mono: true,
+            color: muted,
+            align: 'center',
+        })
+        const isIgn = j === 3
+        fig.rect(cx - colW / 2, origY, colW, 38, {
+            fill: isIgn ? tint(red, c.bg, 0.12) : tint(c.textMuted, c.bg, 0.08),
+            stroke: isIgn ? red : c.border,
+            strokeWidth: 1.25,
+            radius: 6,
+        })
+        fig.text(cx, origY + 19, origLabels[j]!, {
+            size: 15,
+            mono: true,
+            weight: 600,
+            color: isIgn ? red : c.textPrimary,
+            align: 'center',
+        })
+    })
+
+    // Shifted targets row + diagonal shift arrows (j -> t = j-1)
+    const targetY = 348
+    const targetH = 56
+    fig.text(24, targetY + targetH / 2, 'Shifted target', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    ;[1, 2, 3].forEach((j) => {
+        const fromX = centers[j]!
+        const toX = centers[j - 1]!
+        const isMask = j === 3
+        fig.arrow(fromX - 6, origY + 41, toX + 12, targetY - 4, {
+            color: isMask ? red : green,
+            width: 1.75,
+            head: 7,
+            dash: isMask ? '4 3' : undefined,
+        })
+    })
+
+    shiftedTargets.forEach((item, i) => {
+        const cx = centers[i]!
+        const col = item.tone === 'green' ? green : item.tone === 'critical' ? red : muted
+        fig.rect(cx - colW / 2, targetY, colW, targetH, {
+            fill: item.tone === 'muted' ? 'none' : tint(col, c.bg, 0.14),
+            stroke: item.tone === 'muted' ? c.borderSubtle : col,
+            strokeWidth: item.tone === 'muted' ? 1 : 1.5,
+            radius: 7,
+        })
+        fig.text(cx, targetY + 18, item.top, {
+            size: 15,
+            mono: true,
+            weight: 700,
+            color: item.tone === 'muted' ? muted : c.textPrimary,
+            align: 'center',
+        })
+        fig.text(cx, targetY + 41, item.tag, {
+            size: 12,
+            weight: 600,
+            color: col,
+            align: 'center',
+        })
+    })
+
+    fig.text(24, 418, 'labels[0] has no preceding logit; t3 has no next target.', {
+        size: 13,
+        color: muted,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

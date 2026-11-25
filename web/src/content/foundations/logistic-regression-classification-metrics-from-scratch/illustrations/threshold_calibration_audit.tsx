@@ -1,27 +1,16 @@
 export { createFilm } from './_parts/threshold-film'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    type ThemeColors,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 840
+export const height = 360
 export const alt =
-    'Three threshold cuts show validation error cost split into unnecessary-verification cost and missed-verification cost. At thresholds 0.20, 0.50, and 0.80, totals are 36, 138, and 240 dollars; the lowest tested total comes from two false positives and no false negatives.'
-const boardWidth = 600
-const boardHeight = 488
-export const width = 632
-export const height = 520
-const labelScale = width / boardWidth
+    'Validation error cost breakdown across thresholds t = 0.20, 0.50, and 0.80, split into unnecessary-verification cost ($18 per FP) and missed-claim cost ($120 per FN). Totals are $36 (2 FP, 0 FN), $138 (1 FP, 1 FN), and $240 (0 FP, 2 FN), making t = 0.20 the lowest-cost choice.'
 
-const policies = [
-    { threshold: 0.2, fp: 2, fn: 0 },
-    { threshold: 0.5, fp: 1, fn: 1 },
-    { threshold: 0.8, fp: 0, fn: 2 },
+const POLICIES = [
+    { t: 0.2, fp: 2, fn: 0 },
+    { t: 0.5, fp: 1, fn: 1 },
+    { t: 0.8, fp: 0, fn: 2 },
 ].map((item) => ({
     ...item,
     fpCost: item.fp * 18,
@@ -29,158 +18,136 @@ const policies = [
     total: item.fp * 18 + item.fn * 120,
 }))
 
-const text = (
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    value: string,
-    size = 18,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'center',
-) =>
-    CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size + 8,
-        children: TextLabel({
-            c,
-            text: value,
-            width: w,
-            fontSize: size * labelScale,
-            color,
-            mono: false,
-            align,
-        }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const warm = fig.tone('warm')
+    const red = fig.tone('critical')
+    const green = fig.tone('green')
+    const isLight = theme === 'light'
+
+    // Clean top legend row
+    fig.text(28, 22, 'Validation error cost by threshold', { size: 15, weight: 700 })
+
+    fig.rect(476, 16, 16, 12, {
+        fill: tint(warm, c.bg, isLight ? 0.35 : 0.48),
+        stroke: warm,
+        strokeWidth: 1.4,
+        radius: 3,
+    })
+    fig.text(498, 22, 'FP: $18 each', { size: 13, weight: 600, color: warm })
+
+    fig.rect(624, 16, 16, 12, {
+        fill: tint(red, c.bg, isLight ? 0.32 : 0.45),
+        stroke: red,
+        strokeWidth: 1.4,
+        radius: 3,
+    })
+    fig.text(646, 22, 'FN: $120 each', { size: 13, weight: 600, color: red })
+
+    // Frameless horizontal stacked bar area on [0, 260] USD
+    const barX = 122
+    const barW = 556
+    const maxUsd = 260
+    const xOf = (usd: number) => barX + (usd / maxUsd) * barW
+
+    const topY = 62
+    const botY = 294
+
+    // Subtle vertical gridlines and crisp dollar ticks
+    for (const tick of [0, 60, 120, 180, 240]) {
+        const px = xOf(tick)
+        fig.line(px, topY, px, botY, {
+            color: c.borderSubtle,
+            width: tick === 0 ? 1.4 : 1,
+            dash: tick === 0 ? undefined : '3 3',
+        })
+        fig.text(px, botY + 16, `$${tick}`, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+    fig.text(barX + barW / 2, botY + 38, 'Total validation error cost (USD)', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
     })
 
-const illustration = defineIllustration((c) => {
-    const plot = { x: 145, y: 110, width: 350, height: 220 }
-    const px = (value: number) => plot.x + (value / 240) * plot.width
-    const rows = policies.flatMap((item, index) => {
-        const barValue = 2.75 - index
-        const barPixelY = plot.y + plot.height * (1 - barValue / 3)
-        const formula = `FP $${item.fpCost}  +  FN $${item.fnCost}  =  $${item.total}`
-        return [
-            text(
-                c,
-                18,
-                barPixelY - 30,
-                120,
-                `t = ${item.threshold.toFixed(2)}`,
-                21,
-                c.textPrimary,
-                'left',
-            ),
-            text(
-                c,
-                px(item.total) + 7,
-                barPixelY - 30,
-                82,
-                `$${item.total}`,
-                21,
-                c.textPrimary,
-                'left',
-            ),
-            text(c, 145, barPixelY + 14, 428, formula, 21, c.textSecondary, 'left'),
-        ]
-    })
-    const grid = CanvasItem({
-        x: plot.x,
-        y: plot.y,
-        width: plot.width,
-        height: plot.height,
-        children: AxisPlot({
-            c,
-            width: plot.width,
-            height: plot.height,
-            xMin: 0,
-            xMax: 240,
-            yMin: 0,
-            yMax: 3,
-            padding: 0,
-            showFrame: false,
-            showAxes: false,
-            showGrid: false,
-            paths: [0, 120, 240].map((tick) => ({
-                points: [
-                    { x: tick, y: 0 },
-                    { x: tick, y: 3 },
-                ],
-                color: c.borderSubtle,
+    const trackFill = tint(c.textMuted, c.bg, isLight ? 0.06 : 0.1)
+
+    POLICIES.forEach((p, idx) => {
+        const y = 84 + idx * 74
+        const isBest = idx === 0
+        const barH = 26
+
+        // Threshold label on left
+        fig.text(barX - 16, y + barH / 2 - 4, `t = ${p.t.toFixed(2)}`, {
+            size: 14,
+            weight: 700,
+            color: isBest ? green : c.textPrimary,
+            align: 'right',
+            mono: true,
+        })
+        if (isBest) {
+            fig.text(barX - 16, y + barH / 2 + 13, 'lowest cost', {
+                size: 11,
+                weight: 700,
+                color: green,
+                align: 'right',
+            })
+        }
+
+        // Light, clean track background (no muddy slab!)
+        fig.rect(barX, y, barW, barH, {
+            fill: trackFill,
+            stroke: c.borderSubtle,
+            strokeWidth: 0.8,
+            radius: 5,
+        })
+
+        // FP cost segment (warm amber)
+        const fpW = (p.fpCost / maxUsd) * barW
+        const fnW = (p.fnCost / maxUsd) * barW
+
+        if (p.fpCost > 0) {
+            fig.rect(barX, y, fpW, barH, {
+                fill: tint(warm, c.bg, isLight ? 0.34 : 0.46),
+                stroke: warm,
                 strokeWidth: 1.5,
-            })),
-            vectors: [
-                ...policies.map((_, index) => ({
-                    x1: 0,
-                    y1: 2.75 - index,
-                    x2: 240,
-                    y2: 2.75 - index,
-                    color: c.bgCard,
-                    strokeWidth: 24,
-                })),
-                ...policies.flatMap((item, index) => {
-                    const y = 2.75 - index
-                    const segments = []
-                    if (item.fpCost > 0)
-                        segments.push({
-                            x1: 0,
-                            y1: y,
-                            x2: item.fpCost,
-                            y2: y,
-                            color: c.warningLight,
-                            strokeWidth: 18,
-                        })
-                    if (item.fnCost > 0)
-                        segments.push({
-                            x1: item.fpCost,
-                            y1: y,
-                            x2: item.fpCost + item.fnCost,
-                            y2: y,
-                            color: c.criticalLight,
-                            strokeWidth: 18,
-                        })
-                    return segments
-                }),
-            ],
-        }),
+                radius: 5,
+            })
+        }
+        // FN cost segment (critical red)
+        if (p.fnCost > 0) {
+            fig.rect(barX + fpW, y, fnW, barH, {
+                fill: tint(red, c.bg, isLight ? 0.3 : 0.44),
+                stroke: red,
+                strokeWidth: 1.5,
+                radius: 5,
+            })
+        }
+
+        // Total cost badge on right of bar
+        const endX = xOf(p.total)
+        fig.text(endX + 12, y + barH / 2, `$${p.total}`, {
+            size: 16,
+            weight: 700,
+            color: isBest ? green : red,
+            mono: true,
+        })
+
+        // Compact arithmetic breakdown directly under the bar
+        const breakdown = `${p.fp} FP ($${p.fpCost}) + ${p.fn} FN ($${p.fnCost}) = $${p.total}`
+        fig.text(barX + 2, y + barH + 15, breakdown, {
+            size: 12,
+            color: c.textSecondary,
+            mono: true,
+        })
     })
 
-    return Scene({
-        c,
-        padding: 16,
-        gap: 0,
-        contentWidth: boardWidth,
-        children: Board({
-            c,
-            width: boardWidth,
-            height: boardHeight,
-            children: [
-                text(c, 18, 12, 564, 'Misses carry the largest price', 24, c.textPrimary, 'left'),
-                text(c, 18, 50, 278, 'FP: $18 each', 21, getReadableToneColor('warm', c), 'left'),
-                text(
-                    c,
-                    312,
-                    50,
-                    270,
-                    'FN: $120 each',
-                    21,
-                    getReadableToneColor('critical', c),
-                    'left',
-                ),
-                grid,
-                ...rows,
-                ...[0, 120, 240].map((tick) =>
-                    text(c, px(tick) - 30, 344, 60, `$${tick}`, 21, c.textSecondary),
-                ),
-                text(c, 145, 380, 350, 'validation error cost', 21, c.textSecondary),
-                text(c, 18, 413, 564, 'At these tested cuts,', 21, c.textPrimary, 'left'),
-                text(c, 18, 443, 564, 't = .20 totals $36.', 21, c.textPrimary, 'left'),
-            ],
-        }),
-    })
-})
+    return fig.render()
+}
 
-export const create = illustration.create
-export default illustration.default
+export default create

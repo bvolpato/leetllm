@@ -1,149 +1,127 @@
 import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+export { createFilm } from './_parts/diffusion-pipeline-film'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 400
 export const alt =
-    'Latent diffusion inference pipeline. Seeded Gaussian noise initializes the latent tensor. Over N denoising steps, the neural backbone predicts noise or velocity conditioned on timestep and text embeddings, guided by classifier-free guidance. A fast numerical solver updates the latent, which is decoded into high-resolution RGB pixels by the VAE decoder.'
+    'Latent diffusion inference pipeline: seeded Gaussian noise zT (64x64x4) enters an iterative N-step reverse loop with prompt embeddings c and timestep t, where conditional and unconditional denoiser passes combine via CFG and a DDIM or ODE solver steps to clean latent z0 before an 8x VAE decoder renders the 512x512x3 RGB image.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
 
-    // Header
-    a.text(40, 32, 'Latent Diffusion Inference Pipeline', { size: 22, weight: 700 })
-    a.text(
-        40,
-        58,
-        'Iterative reverse diffusion in compressed latent space with conditioning and VAE decoding',
-        { size: 15, color: k.mid },
-    )
+    fig.text(90, 20, '1. Priors', { size: 15.5, weight: 700, color: purple, align: 'center' })
+    fig.text(376, 20, '2. Reverse Loop (N = 20–50)', { size: 15.5, weight: 700, color: blue, align: 'center' })
+    fig.text(666, 20, '3. Decode', { size: 15.5, weight: 700, color: green, align: 'center' })
 
-    // Column 1: Inputs
-    a.rect(40, 85, 170, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(56, 102, 70, 24, 'INPUTS', {
-        fill: tint(k.prefill, 0.15),
-        stroke: tint(k.prefill, 0.4),
-        color: k.prefill,
-        weight: 700,
+    const card = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        tone: string,
+        title: string,
+        sub: string,
+        mathTitle?: string,
+    ) => {
+        fig.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, theme === 'light' ? 0.08 : 0.14),
+            stroke: tint(tone, c.bg, 0.6),
+            strokeWidth: 1.5,
+            radius: 8,
+        })
+        if (mathTitle) {
+            fig.math(x + w / 2, y + 22, mathTitle, { size: 15.5, color: tone, align: 'center' })
+        } else {
+            fig.text(x + w / 2, y + 22, title, { size: 15.5, weight: 700, color: tone, align: 'center' })
+        }
+        fig.text(x + w / 2, y + 48, sub, { size: 15, mono: true, color: c.textPrimary, align: 'center' })
+    }
+
+    card(12, 46, 156, 72, purple, 'Noise zT', '64×64×4', '\\textbf{Noise } z_T')
+    card(12, 148, 156, 72, blue, 'Prompt c', 'CLIP / T5')
+    card(12, 250, 156, 72, warm, 'Timestep t', 'T → ... → 1')
+
+    fig.rect(206, 42, 340, 304, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.04 : 0.06),
+        stroke: tint(blue, c.bg, 0.45),
+        strokeWidth: 1.5,
+        radius: 12,
     })
-    a.text(134, 114, 'Seeded Priors', { size: 15, weight: 700 })
 
-    a.rect(56, 145, 138, 90, { fill: tint(k.state, 0.08), stroke: tint(k.state, 0.3), r: 6 })
-    a.text(68, 168, 'Latent Noise z_T', { size: 15, weight: 700, color: k.state })
-    a.text(68, 192, '~ N(0, I)', { size: 15, mono: true, color: k.ink })
-    a.text(68, 216, '64 × 64 × 4 channels', { size: 15, color: k.mid })
+    fig.arrow(168, 82, 222, 82, { color: purple, width: 1.75, head: 6 })
+    fig.arrow(168, 184, 222, 184, { color: blue, width: 1.75, head: 6 })
+    fig.arrow(168, 286, 222, 286, { color: warm, width: 1.75, head: 6 })
 
-    a.rect(56, 260, 138, 95, { fill: tint(k.prefill, 0.08), stroke: tint(k.prefill, 0.3), r: 6 })
-    a.text(68, 283, 'Text Prompt', { size: 15, weight: 700, color: k.prefill })
-    a.text(68, 307, 'CLIP / T5 Encoder', { size: 15, color: k.ink })
-    a.text(68, 331, '77 tokens × 768-d', { size: 15, color: k.mid })
-
-    a.rect(56, 375, 138, 75, { fill: tint(k.wait, 0.08), stroke: tint(k.wait, 0.3), r: 6 })
-    a.text(68, 398, 'Timestep Schedule', { size: 15, weight: 700, color: k.wait })
-    a.text(68, 424, 't in [T, ..., 0] (N steps)', { size: 15, mono: true, color: k.mid })
-
-    // Arrow to Denoiser Loop
-    a.arrow(210, 190, 240, 190, k.state, { width: 1.5 })
-    a.arrow(210, 307, 240, 307, k.prefill, { width: 1.5 })
-
-    // Column 2: Iterative Denoising Loop Container
-    a.rect(240, 85, 390, 385, { fill: tint(k.decode, 0.03), stroke: tint(k.decode, 0.35), r: 8 })
-    a.cell(256, 102, 100, 24, 'REVERSE LOOP', {
-        fill: tint(k.decode, 0.15),
-        stroke: tint(k.decode, 0.4),
-        color: k.decode,
-        weight: 700,
+    // Denoiser backbone
+    fig.rect(224, 58, 304, 118, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.09 : 0.15),
+        stroke: blue,
+        strokeWidth: 1.75,
+        radius: 9,
     })
-    a.text(368, 114, 'Iterative Sampling: N = 20-50 Steps', { size: 15, weight: 700 })
+    fig.text(376, 80, 'Denoiser (U-Net / DiT)', { size: 15.5, weight: 700, color: blue, align: 'center' })
 
-    // Sub-block: Denoising Neural Backbone (UNet or DiT)
-    a.rect(256, 145, 358, 160, { fill: tint(k.c.bg, 0.08), stroke: k.line, r: 6 })
-    a.text(272, 172, 'Denoising Backbone: UNet / DiT', { size: 16, weight: 700, color: k.decode })
-    a.text(272, 198, 'Spatial self-attention + cross-attention with text embeddings', {
+    fig.rect(236, 102, 134, 60, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.12 : 0.2),
+        stroke: tint(blue, c.bg, 0.65),
+        strokeWidth: 1.25,
+        radius: 6,
+    })
+    fig.math(303, 122, '\\epsilon_\\theta(z_t, c)', { size: 15, color: blue, align: 'center' })
+    fig.text(303, 148, 'prompt', { size: 15, color: c.textSecondary, align: 'center' })
+
+    fig.rect(382, 102, 134, 60, {
+        fill: tint(purple, c.bg, theme === 'light' ? 0.12 : 0.2),
+        stroke: tint(purple, c.bg, 0.65),
+        strokeWidth: 1.25,
+        radius: 6,
+    })
+    fig.math(449, 122, '\\epsilon_\\theta(z_t, \\emptyset)', { size: 15, color: purple, align: 'center' })
+    fig.text(449, 148, 'null', { size: 15, color: c.textSecondary, align: 'center' })
+
+    fig.arrow(376, 176, 376, 210, { color: blue, width: 1.8, head: 6 })
+
+    // CFG + Solver
+    fig.rect(224, 212, 304, 116, {
+        fill: tint(green, c.bg, theme === 'light' ? 0.08 : 0.14),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 9,
+    })
+    fig.text(376, 234, 'CFG + ODE Solver', { size: 15.5, weight: 700, color: green, align: 'center' })
+    fig.math(376, 268, '\\tilde{\\epsilon} = \\epsilon_\\emptyset + w(\\epsilon_c - \\epsilon_\\emptyset)', {
         size: 15,
-        color: k.mid,
+        color: c.textPrimary,
+        align: 'center',
     })
-
-    // Two branches inside denoiser
-    a.rect(272, 218, 155, 68, { fill: tint(k.prefill, 0.08), stroke: tint(k.prefill, 0.25), r: 4 })
-    a.text(282, 238, 'Conditional eps(z_t, c)', {
+    fig.math(376, 304, 'z_{t-1} = \\text{step}(z_t, \\tilde{\\epsilon}, t)', {
         size: 15,
-        mono: true,
-        weight: 600,
-        color: k.prefill,
-    })
-    a.text(282, 262, 'Prompt conditioned', { size: 15, color: k.mid })
-
-    a.rect(443, 218, 155, 68, { fill: tint(k.state, 0.08), stroke: tint(k.state, 0.25), r: 4 })
-    a.text(453, 238, 'Unconditional eps(z_t, 0)', {
-        size: 15,
-        mono: true,
-        weight: 600,
-        color: k.state,
-    })
-    a.text(453, 262, 'Null text condition', { size: 15, color: k.mid })
-
-    // Classifier-Free Guidance and Numerical Solver
-    a.arrow(435, 305, 435, 330, k.decode, { width: 1.5 })
-    a.rect(256, 330, 358, 90, { fill: tint(k.pass, 0.06), stroke: tint(k.pass, 0.3), r: 6 })
-    a.text(272, 354, 'Guidance & Numerical Solver (DDIM / DPM-Solver)', {
-        size: 15,
-        weight: 700,
-        color: k.pass,
-    })
-    a.text(272, 378, 'eps_hat = eps_uncond + w * (eps_cond - eps_uncond)', {
-        size: 15,
-        mono: true,
-        color: k.ink,
-    })
-    a.text(272, 402, 'z_{t-1} = alpha_t * z_t + sigma_t * eps_hat (deterministic step)', {
-        size: 15,
-        mono: true,
-        color: k.mid,
+        color: c.textSecondary,
+        align: 'center',
     })
 
     // Loopback arrow
-    a.path('M 614 375 H 635 V 190 H 614', k.decode, { width: 1.5, dash: '4,4' })
-    a.text(640, 275, 'Repeat x N', { size: 15, weight: 700, color: k.decode })
+    fig.path('M 376 328 V 370 H 186 V 114 H 222', { color: blue, width: 1.75, dash: '5 4' })
+    fig.arrow(208, 114, 222, 114, { color: blue, width: 1.75, head: 6 })
+    fig.text(376, 386, 'repeat N steps → z₀', { size: 15, mono: true, weight: 700, color: blue, align: 'center' })
 
-    // Arrow to VAE
-    a.arrow(630, 445, 660, 445, k.pass, { width: 1.5 })
+    // Exit arrow cleanly horizontally from right edge of loop to VAE
+    fig.arrow(546, 82, 586, 82, { color: green, width: 1.9, head: 6.5 })
 
-    // Column 3: Output & VAE
-    a.rect(660, 85, 160, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(676, 102, 70, 24, 'OUTPUT', {
-        fill: tint(k.pass, 0.15),
-        stroke: tint(k.pass, 0.4),
-        color: k.pass,
-        weight: 700,
-    })
-    a.text(754, 114, 'Pixels', { size: 15, weight: 700 })
+    card(588, 46, 160, 72, warm, 'Latent z0', '64×64×4', '\\textbf{Latent } z_0')
+    fig.arrow(668, 118, 668, 152, { color: warm, width: 1.75, head: 6 })
+    card(588, 154, 160, 72, purple, 'VAE Decoder', '8× up (1×)')
+    fig.arrow(668, 226, 668, 260, { color: green, width: 1.75, head: 6 })
+    card(588, 262, 160, 72, green, 'RGB Image', '512×512×3')
 
-    a.rect(676, 145, 128, 100, { fill: tint(k.wait, 0.08), stroke: tint(k.wait, 0.3), r: 6 })
-    a.text(688, 172, 'Clean Latent z_0', { size: 15, weight: 700, color: k.wait })
-    a.text(688, 198, 'z_0 = z_final / scaling', { size: 15, mono: true, color: k.ink })
-    a.text(688, 224, 'Continuous 64×64×4', { size: 15, color: k.mid })
-
-    a.arrow(740, 245, 740, 275, k.wait, { width: 1.5 })
-
-    a.rect(676, 275, 128, 85, { fill: tint(k.state, 0.08), stroke: tint(k.state, 0.3), r: 6 })
-    a.text(688, 300, 'VAE Decoder', { size: 15, weight: 700, color: k.state })
-    a.text(688, 326, '8× spatial expansion', { size: 15, color: k.ink })
-    a.text(688, 348, 'Conv + Residual up', { size: 15, color: k.mid })
-
-    a.arrow(740, 360, 740, 385, k.pass, { width: 1.5 })
-
-    a.rect(676, 385, 128, 70, { fill: tint(k.pass, 0.08), stroke: tint(k.pass, 0.3), r: 6 })
-    a.text(688, 410, 'RGB Image', { size: 15, weight: 700, color: k.pass })
-    a.text(688, 436, '512 × 512 × 3 pixels', { size: 15, color: k.mid })
-
-    return a.render()
+    return fig.render()
 }
 
 export default create('dark')

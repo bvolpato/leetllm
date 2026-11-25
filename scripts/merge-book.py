@@ -213,30 +213,40 @@ def fit(text, font, size, width):
 
 
 def draw_furniture(drawing, width, height, recto, folio, head="", opening=False):
-    """Draw a page's folio and running head. Opening pages carry only a folio at the foot."""
+    """Draw a page's folio and hairline-ruled running head. Opening pages carry only a folio at the foot."""
     drawing.setPageSize((width, height))
-    drawing.setFillColorRGB(0.30, 0.32, 0.34)
     if opening:
+        drawing.setFillColorRGB(0.28, 0.31, 0.34)
         drawing.setFont(FURNITURE_FONT, 7.5)
         drawing.drawCentredString(width / 2, FOLIO_FROM_BOTTOM, folio)
     else:
         limit = width - OUTER_MARGIN - INNER_MARGIN - 34
         title = fit(head, FURNITURE_FONT, 7.25, limit) if head else ""
         baseline = height - HEAD_FROM_TOP
+        rule_y = baseline - 5.5
         if recto:
-            right = width - OUTER_MARGIN
+            left_edge = INNER_MARGIN
+            right_edge = width - OUTER_MARGIN
+            drawing.setFillColorRGB(0.06, 0.30, 0.36)
             drawing.setFont(FURNITURE_BOLD, 7.5)
-            drawing.drawRightString(right, baseline, folio)
+            drawing.drawRightString(right_edge, baseline, folio)
             if title:
+                drawing.setFillColorRGB(0.35, 0.38, 0.41)
                 drawing.setFont(FURNITURE_FONT, 7.25)
-                drawing.drawRightString(right - stringWidth(folio, FURNITURE_BOLD, 7.5) - 11, baseline, title)
+                drawing.drawRightString(right_edge - stringWidth(folio, FURNITURE_BOLD, 7.5) - 11, baseline, title)
         else:
-            left = OUTER_MARGIN
+            left_edge = OUTER_MARGIN
+            right_edge = width - INNER_MARGIN
+            drawing.setFillColorRGB(0.06, 0.30, 0.36)
             drawing.setFont(FURNITURE_BOLD, 7.5)
-            drawing.drawString(left, baseline, folio)
+            drawing.drawString(left_edge, baseline, folio)
             if title:
+                drawing.setFillColorRGB(0.35, 0.38, 0.41)
                 drawing.setFont(FURNITURE_FONT, 7.25)
-                drawing.drawString(left + stringWidth(folio, FURNITURE_BOLD, 7.5) + 11, baseline, title)
+                drawing.drawString(left_edge + stringWidth(folio, FURNITURE_BOLD, 7.5) + 11, baseline, title)
+        drawing.setStrokeColorRGB(0.83, 0.82, 0.79)
+        drawing.setLineWidth(0.45)
+        drawing.line(left_edge, rule_y, right_edge, rule_y)
     drawing.showPage()
 
 

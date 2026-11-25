@@ -1,363 +1,206 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 840
+export const height = 380
 export const alt =
-    'Condition-preserving citation verification comparing truncated and full evidence spans. An exact substring from 0 to 72 matches the source document digest but drops the clause "only with security approval," failing the condition coverage gate. The complete 101-character span retains the qualifier, passing verification for publication.'
-
-export const numericAnchors = {
-    policyLength: 80,
-    exceptionLength: 101,
-    conditionStart: 73,
-    conditionEnd: 100,
-    truncatedEnd: 72,
-}
+    'Calibrated character-offset span comparison on exception@1 (101 characters). The base clause occupies characters 0 to 72 and the qualifying clause "only with security approval." occupies characters 73 to 100. Case A quotes the verbatim prefix [0, 72), passing SHA-256 digest matching but dropping the qualifier and failing publication (HOLD). Case B preserves the complete span [0, 101), passing both digest and clause checks (PUBLISH).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const redTone = getReadableToneColor('critical', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const fill = (color: string, amt = 0.14) => tint(color, c.bg, amt)
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Canonical Source Banner */}
-                    <rect
-                        x={40}
-                        y={74}
-                        width={780}
-                        height={60}
-                        rx={8}
-                        fill={theme === 'dark' ? '#141d2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                    <line
-                        x1={515}
-                        y1={74}
-                        x2={515}
-                        y2={134}
-                        stroke={warmTone}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 2"
-                    />
+    // Calibrated 0..101 character ruler along x = [140..660]
+    const x0 = 140
+    const spanW = 520
+    const cx = (ch: number) => x0 + (ch / 101) * spanW
+    const splitX = cx(72)
 
-                    {/* Left Truncated Card */}
-                    <rect
-                        x={40}
-                        y={150}
-                        width={370}
-                        height={216}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1c1214' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
-                    {/* Span visualization bar Left */}
-                    <rect
-                        x={52}
-                        y={326}
-                        width={346}
-                        height={18}
-                        rx={3}
-                        fill={theme === 'dark' ? '#241417' : '#f1f5f9'}
-                    />
-                    <rect
-                        x={52}
-                        y={326}
-                        width={Math.round((72 / 101) * 346)}
-                        height={18}
-                        rx={3}
-                        fill={blueTone}
-                    />
-                    <rect
-                        x={52 + Math.round((72 / 101) * 346)}
-                        y={326}
-                        width={Math.round((29 / 101) * 346)}
-                        height={18}
-                        rx={3}
-                        fill={redTone}
-                        opacity={0.6}
-                    />
+    // Canonical source text strip at top (2 crisp lines inside each span box, zero overflow)
+    fig.text(24, 38, 'exception@1', { size: 13.5, color: blue, weight: 700, mono: true })
+    fig.text(24, 58, '101 chars', { size: 12, color: c.textSecondary, mono: true })
 
-                    {/* Right Preserved Card */}
-                    <rect
-                        x={450}
-                        y={150}
-                        width={370}
-                        height={216}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    {/* Span visualization bar Right */}
-                    <rect
-                        x={462}
-                        y={326}
-                        width={346}
-                        height={18}
-                        rx={3}
-                        fill={theme === 'dark' ? '#162b1f' : '#f1f5f9'}
-                    />
-                    <rect
-                        x={462}
-                        y={326}
-                        width={Math.round((72 / 101) * 346)}
-                        height={18}
-                        rx={3}
-                        fill={blueTone}
-                    />
-                    <rect
-                        x={462 + Math.round((72 / 101) * 346)}
-                        y={326}
-                        width={Math.round((29 / 101) * 346)}
-                        height={18}
-                        rx={3}
-                        fill={warmTone}
-                    />
+    // Prefix highlight box [0, 72)
+    fig.rect(x0, 20, splitX - x0 - 2, 54, {
+        fill: fill(blue, 0.13),
+        stroke: blue,
+        strokeWidth: 1.25,
+        radius: 6,
+    })
+    fig.text(x0 + 12, 37, '"Service-account SDK migrations may start', {
+        size: 12.5,
+        color: c.textPrimary,
+        weight: 600,
+    })
+    fig.text(x0 + 12, 57, 'within 60 days after the notice', {
+        size: 12.5,
+        color: c.textPrimary,
+        weight: 600,
+    })
 
-                    {/* Bottom Guardrail Box */}
-                    <rect
-                        x={40}
-                        y={382}
-                        width={780}
-                        height={78}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    // Qualifier highlight box [72, 101)
+    fig.rect(splitX + 2, 20, cx(101) - splitX - 2, 54, {
+        fill: fill(warm, 0.2),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text((splitX + cx(101)) / 2, 37, 'only with', {
+        size: 12.5,
+        color: warm,
+        align: 'center',
+        weight: 700,
+    })
+    fig.text((splitX + cx(101)) / 2, 57, 'security approval."', {
+        size: 12.5,
+        color: warm,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Evidence Span Integrity: Retaining Conditional Qualifiers',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Verbatim substring matches can invert policy if chunking or quotation drops conditional qualifiers',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Curly brace highlighting the qualifier clause
+    fig.brace(splitX + 2, 80, cx(101), 80, 'Qualifier [73, 100)', {
+        side: 1,
+        depth: 8,
+        color: warm,
+        labelColor: warm,
+        labelSize: 12,
+        labelGap: 12,
+        weight: 700,
+    })
 
-            {/* Source Reference Header */}
-            {label(
-                52,
-                82,
-                756,
-                'CANONICAL SOURCE: EXCEPTION REVISION 1 (TOTAL LENGTH: 101 CHARACTERS)',
-                11,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                102,
-                510,
-                '"Service-account migrations may start within 60 days...',
-                13,
-                c.textPrimary,
-                'left',
-                500,
-            )}
-            {label(530, 102, 278, '...only with security approval."', 13, warmTone, 'left', 700)}
+    // Vertical clause-boundary guide running down both tracks
+    fig.line(splitX, 74, splitX, 314, { color: warm, width: 1.5, dash: '5 4' })
 
-            {/* Left Card: Truncated Span (Failure) */}
-            {label(
-                52,
-                160,
-                350,
-                'CASE A: TRUNCATED SPAN [0, 72) · DANGEROUS OMISSION',
-                11,
-                redTone,
-                'left',
-                700,
-            )}
-            {label(52, 182, 350, 'Quoted Text:', 11, c.textMuted, 'left', 500)}
-            {label(
-                52,
-                200,
-                350,
-                '"...may start within 60 days after the notice"',
-                12,
-                c.textPrimary,
-                'left',
-                500,
-            )}
+    // Track A: Truncated span [0, 72) -> HOLD
+    const yA = 148
+    fig.text(24, yA + 10, 'Truncated [0, 72)', { size: 13.5, color: red, weight: 700 })
+    fig.text(24, yA + 30, 'Verbatim prefix', { size: 12, color: c.textSecondary })
 
-            {label(
-                52,
-                236,
-                350,
-                'Digest Check: PASS (Valid substring of document hash)',
-                11,
-                greenTone,
-                'left',
-                500,
-            )}
-            {label(
-                52,
-                256,
-                350,
-                'Qualifier: MISSING ("only with security approval" omitted)',
-                11,
-                redTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                280,
-                350,
-                'Decision: HOLD (Blocked - Misleads user into unconditional 60 days)',
-                12,
-                redTone,
-                'left',
-                700,
-            )}
+    fig.rect(x0, yA + 4, splitX - x0, 32, {
+        fill: fill(blue, 0.22),
+        stroke: blue,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+    fig.text((x0 + splitX) / 2, yA + 20, 'Quoted: 0-72', {
+        size: 12.5,
+        color: blue,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
 
-            {/* Right Card: Full Condition-Preserving Span (Success) */}
-            {label(
-                462,
-                160,
-                350,
-                'CASE B: FULL SPAN [0, 101) · QUALIFIER PRESERVED',
-                11,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(462, 182, 350, 'Quoted Text:', 11, c.textMuted, 'left', 500)}
-            {label(
-                462,
-                200,
-                350,
-                '"...within 60 days... only with security approval."',
-                12,
-                c.textPrimary,
-                'left',
-                500,
-            )}
+    // Missing qualifier region (dashed red outline + cross-hatch)
+    fig.rect(splitX + 2, yA + 4, cx(101) - splitX - 2, 32, {
+        fill: fill(red, 0.1),
+        stroke: red,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+    fig.text((splitX + cx(101)) / 2, yA + 20, 'DROPPED', {
+        size: 12.5,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
 
-            {label(
-                462,
-                236,
-                350,
-                'Digest Check: PASS (Full span verified against revision digest)',
-                11,
-                greenTone,
-                'left',
-                500,
-            )}
-            {label(
-                462,
-                256,
-                350,
-                'Qualifier: INTACT (Approval clause present in [73, 100))',
-                11,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(
-                462,
-                280,
-                350,
-                'Decision: PUBLISH (Authorized - Complete legal context)',
-                12,
-                greenTone,
-                'left',
-                700,
-            )}
+    // Verdict column for Track A
+    fig.text(680, yA + 4, 'Digest: PASS', { size: 12.5, color: green, weight: 600, mono: true })
+    fig.text(680, yA + 22, 'Clause: MISSING', { size: 12.5, color: red, weight: 700, mono: true })
+    fig.rect(680, yA + 34, 134, 24, {
+        fill: fill(red, 0.18),
+        stroke: red,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text(747, yA + 46, 'HOLD (Blocked)', {
+        size: 12.5,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Bottom Guardrail Box */}
-            {label(
-                52,
-                396,
-                756,
-                'Architecture Principle: Clause Boundary Integrity Gates',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                416,
-                756,
-                'Span digests verify source identity, while clause-aware extraction preserves attached exceptions, qualifiers, and scope conditions.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    // Track B: Complete span [0, 101) -> PUBLISH
+    const yB = 242
+    fig.text(24, yB + 10, 'Full span [0, 101)', { size: 13.5, color: green, weight: 700 })
+    fig.text(24, yB + 30, 'Condition intact', { size: 12, color: c.textSecondary })
+
+    fig.rect(x0, yB + 4, splitX - x0, 32, {
+        fill: fill(blue, 0.22),
+        stroke: blue,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+    fig.text((x0 + splitX) / 2, yB + 20, 'Base rule: 0-72', {
+        size: 12.5,
+        color: blue,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
+
+    fig.rect(splitX + 2, yB + 4, cx(101) - splitX - 2, 32, {
+        fill: fill(green, 0.22),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 4,
+    })
+    fig.text((splitX + cx(101)) / 2, yB + 20, 'INTACT: 73-100', {
+        size: 12,
+        color: green,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
+
+    // Verdict column for Track B
+    fig.text(680, yB + 4, 'Digest: PASS', { size: 12.5, color: green, weight: 600, mono: true })
+    fig.text(680, yB + 22, 'Clause: INTACT', { size: 12.5, color: green, weight: 700, mono: true })
+    fig.rect(680, yB + 34, 134, 24, {
+        fill: fill(green, 0.18),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text(747, yB + 46, 'PUBLISH', {
+        size: 12.5,
+        color: green,
+        align: 'center',
+        weight: 700,
+    })
+
+    // Bottom calibrated character axis
+    const axisY = 326
+    fig.line(x0, axisY, cx(101), axisY, { color: c.textMuted, width: 1.2 })
+    for (const tick of [0, 20, 40, 60, 72, 101]) {
+        const tx = cx(tick)
+        const isSplit = tick === 72
+        fig.line(tx, axisY, tx, axisY + 5, {
+            color: isSplit ? warm : c.textMuted,
+            width: isSplit ? 1.6 : 1,
+        })
+        fig.text(tx, axisY + 18, String(tick), {
+            size: 12,
+            color: isSplit ? warm : c.textSecondary,
+            align: 'center',
+            weight: isSplit ? 700 : 500,
+            mono: true,
+        })
+    }
+    fig.text(x0 + spanW / 2, axisY + 38, 'Character offset in exception@1', {
+        size: 12.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create()

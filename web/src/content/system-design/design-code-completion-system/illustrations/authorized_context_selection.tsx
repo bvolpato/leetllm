@@ -1,344 +1,214 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const height = 435
 export const alt =
-    'Only authorized and upload-permitted files enter a symbol-membership matrix. A is active, S is scope_rules.py, P policy_graph.py, M metrics.py. Rows contain PolicyGraph, ScopeRule, TokenClaims, AuditEvent, Node, Counter and Histogram, with exact memberships. Active and S intersect in ScopeRule and TokenClaims, two of four union symbols, scoring 0.5. Active and P share PolicyGraph, one of four, scoring 0.25. Active and M share zero of five. A 0.25 threshold retains S and P. A model-context container reserves suffix and framing inside the 8,000-token prompt cap, then fits prefix and permitted retrieval. Output reserve is separate from the prompt within total model context; component sizes are symbolic.'
+    'Left: upload-permitted files enter a symbol-membership matrix for PolicyGraph, ScopeRule, TokenClaims, AccessEvent, Node, Counter, and Histogram. Active file A shares 2 of 4 union symbols with scope_rules.py (0.50), 1 of 4 with policy_graph.py (0.25), and 0 of 5 with metrics.py (0.00); a 0.25 threshold keeps scope_rules and policy_graph. Right: an 8,000-token prompt packs 100 framing and 1,200 reserved suffix tokens first, then 4,800 prefix and 1,900 retrieval tokens (trimming 1,100), keeping output reserve separate.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const activeTone = getReadableToneColor('blue', c, c.bg)
-    const scoreTone = getReadableToneColor('green', c, c.bg)
-    const midTone = getReadableToneColor('purple', c, c.bg)
-    const dropTone = getReadableToneColor('critical', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 18,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // --- LEFT: Symbol Membership Matrix + Jaccard Scores ---
+    fig.text(24, 22, '1. Jaccard Symbol Overlap (permitted files)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
 
     const symbols = [
         { name: 'PolicyGraph', a: true, s: false, p: true, m: false },
         { name: 'ScopeRule', a: true, s: true, p: false, m: false },
         { name: 'TokenClaims', a: true, s: true, p: false, m: false },
-        { name: 'AuditEvent', a: false, s: true, p: false, m: false },
+        { name: 'AccessEvent', a: false, s: true, p: false, m: false },
         { name: 'Node', a: false, s: false, p: true, m: false },
         { name: 'Counter', a: false, s: false, p: false, m: true },
+        { name: 'Histogram', a: false, s: false, p: false, m: true },
     ]
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Left: Jaccard Symbol Overlap Matrix */}
-                    <rect
-                        x={24}
-                        y={60}
-                        width={430}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    const cols = [
+        { key: 'a' as const, label: 'Active', x: 204, color: blue },
+        { key: 's' as const, label: 'scope', x: 274, color: green },
+        { key: 'p' as const, label: 'policy', x: 344, color: purple },
+        { key: 'm' as const, label: 'metrics', x: 414, color: red },
+    ]
 
-                    {/* Matrix grid background */}
-                    <rect
-                        x={36}
-                        y={105}
-                        width={406}
-                        height={190}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    for (const col of cols) {
+        fig.text(col.x, 54, col.label, {
+            size: 13,
+            weight: 700,
+            color: col.color,
+            align: 'center',
+        })
+    }
+    fig.line(24, 68, 448, 68, { color: c.border, width: 1 })
 
-                    {/* Matrix headers & dots */}
-                    {symbols.map((sym, row) => {
-                        const y = 145 + row * 24
-                        return (
-                            <g key={sym.name}>
-                                {sym.a && <circle cx={250} cy={y + 5} r={5} fill={activeTone} />}
-                                {sym.s && <circle cx={300} cy={y + 5} r={5} fill={scoreTone} />}
-                                {sym.p && <circle cx={350} cy={y + 5} r={5} fill={midTone} />}
-                                {sym.m && <circle cx={400} cy={y + 5} r={5} fill={dropTone} />}
-                            </g>
-                        )
-                    })}
+    symbols.forEach((sym, i) => {
+        const y = 84 + i * 24
+        if (i % 2 === 1) {
+            fig.rect(24, y - 11, 424, 22, { fill: tint(c.textMuted, c.bg, 0.05), radius: 3 })
+        }
+        fig.text(28, y, sym.name, { size: 13, color: c.textPrimary, mono: true })
+        for (const col of cols) {
+            if (sym[col.key]) {
+                fig.circle(col.x, y, 5.5, { fill: col.color })
+            } else {
+                fig.circle(col.x, y, 2.5, { fill: c.borderSubtle })
+            }
+        }
+    })
 
-                    {/* Score Bars Box */}
-                    <rect
-                        x={36}
-                        y={305}
-                        width={406}
-                        height={155}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    // Jaccard horizontal bars below matrix
+    fig.text(24, 272, 'Jaccard Score', { size: 13, weight: 700, color: c.textSecondary })
+    fig.math(130, 272, '|A \\cap F| / |A \\cup F|', { size: 13, color: c.textSecondary })
 
-                    {/* S bar (0.50) */}
-                    <rect
-                        x={160}
-                        y={345}
-                        width={180}
-                        height={20}
-                        rx={3}
-                        fill={scoreTone}
-                        opacity={0.85}
-                    />
-                    {/* P bar (0.25) */}
-                    <rect
-                        x={160}
-                        y={380}
-                        width={90}
-                        height={20}
-                        rx={3}
-                        fill={midTone}
-                        opacity={0.85}
-                    />
-                    {/* M bar (0.00) */}
-                    <rect x={160} y={415} width={4} height={20} rx={2} fill={dropTone} />
+    const barPlot = fig.plot({ x: 148, y: 292, width: 224, height: 108 }, { x: [0, 0.56], y: [0, 3] })
+    const scores = [
+        { name: 'scope_rules.py', val: 0.5, frac: '2/4 = 0.50', keep: true, color: green },
+        { name: 'policy_graph.py', val: 0.25, frac: '1/4 = 0.25', keep: true, color: purple },
+        { name: 'metrics.py', val: 0.0, frac: '0.00', keep: false, color: red },
+    ]
 
-                    {/* Threshold cutoff line (0.25 = x=250) */}
-                    <line
-                        x1={250}
-                        y1={335}
-                        x2={250}
-                        y2={445}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                    />
+    // Threshold cutoff at 0.25
+    const cutX = barPlot.px(0.25)
+    fig.line(cutX, 290, cutX, 404, { color: warm, width: 1.4, dash: '4 3' })
+    fig.text(cutX, 418, 'cutoff 0.25', {
+        size: 12,
+        weight: 600,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
 
-                    {/* Right: Token Budget Packing Hierarchy */}
-                    <rect
-                        x={474}
-                        y={60}
-                        width={362}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    scores.forEach((s, i) => {
+        const y = 304 + i * 34
+        fig.text(140, y + 10, s.name, {
+            size: 12,
+            weight: 600,
+            color: c.textPrimary,
+            align: 'right',
+            mono: true,
+        })
+        const w = Math.max(4, barPlot.px(s.val) - barPlot.px(0))
+        fig.rect(barPlot.px(0), y, w, 20, { fill: s.color, opacity: 0.88, radius: 3 })
+        const labelX = s.val === 0 ? barPlot.px(0) + 12 : barPlot.px(s.val) + 8
+        const text = s.val === 0 ? '0/5 drop' : `${s.frac} keep`
+        fig.text(labelX, y + 10, text, {
+            size: 12,
+            weight: 700,
+            color: s.color,
+            mono: true,
+        })
+    })
 
-                    {/* Total Context Box */}
-                    <rect
-                        x={486}
-                        y={105}
-                        width={338}
-                        height={260}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={midTone}
-                        strokeWidth={1.5}
-                    />
+    // Vertical divider
+    fig.line(482, 18, 482, 418, { color: c.borderSubtle, width: 1.25 })
 
-                    {/* Suffix Reserve (Highest priority) */}
-                    <rect
-                        x={498}
-                        y={145}
-                        width={314}
-                        height={48}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={midTone}
-                        strokeWidth={1.2}
-                    />
+    // --- RIGHT: Proportional 8,000-Token Prompt Budget Stack ---
+    fig.text(508, 22, '2. Prompt Budget Allocation (8,000 cap)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
 
-                    {/* Prefix Window */}
-                    <rect
-                        x={498}
-                        y={202}
-                        width={314}
-                        height={68}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={activeTone}
-                        strokeWidth={1.2}
-                    />
+    // Vertical proportional stacked bar: 8,000 tokens -> 288 px (0.036 px/token)
+    const barX = 512
+    const barW = 104
+    const topY = 58
+    const scaleY = 288 / 8000
 
-                    {/* Retrieved S & P snippets */}
-                    <rect
-                        x={498}
-                        y={278}
-                        width={314}
-                        height={75}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={scoreTone}
-                        strokeWidth={1.2}
-                    />
+    const allocs = [
+        { label: '1. Framing', tok: 100, detail: 'FIM sentinels', color: c.textMuted, minH: 14 },
+        { label: '2. Suffix (pinned)', tok: 1200, detail: 'Reserved first', color: purple, minH: 43 },
+        { label: '3. Active prefix', tok: 4800, detail: 'Code before caret', color: blue, minH: 162 },
+        {
+            label: '4. Retrieval (S, P)',
+            tok: 1900,
+            detail: '3,000 avail (1,100 cut)',
+            color: green,
+            minH: 69,
+        },
+    ]
 
-                    {/* Output Reserve */}
-                    <rect
-                        x={486}
-                        y={380}
-                        width={338}
-                        height={80}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={scoreTone}
-                        strokeWidth={1.5}
-                    />
-                </svg>
-            </CanvasItem>
+    let curY = topY
+    for (const a of allocs) {
+        const h = a.minH
+        fig.rect(barX, curY, barW, h, {
+            fill: tint(a.color, c.bg, 0.22),
+            stroke: a.color,
+            strokeWidth: 1.4,
+            radius: 4,
+        })
+        if (h >= 28) {
+            fig.text(barX + barW / 2, curY + h / 2, `${a.tok.toLocaleString()}`, {
+                size: 13,
+                weight: 700,
+                color: a.color,
+                align: 'center',
+                mono: true,
+            })
+        }
+        // Leader line to right-side label
+        const midY = curY + h / 2
+        fig.line(barX + barW + 4, midY, barX + barW + 22, midY, { color: a.color, width: 1.2 })
+        fig.text(barX + barW + 28, midY - (h >= 36 ? 8 : 0), `${a.label} (${a.tok.toLocaleString()})`, {
+            size: 13,
+            weight: 700,
+            color: a.color === c.textMuted ? c.textPrimary : a.color,
+        })
+        if (h >= 36) {
+            fig.text(barX + barW + 28, midY + 10, a.detail, {
+                size: 12,
+                color: c.textSecondary,
+            })
+        }
+        curY += h + 3
+    }
 
-            {/* Title */}
-            {label(
-                24,
-                20,
-                812,
-                'Context Selection · Jaccard Symbol Relevance & Token Budget Hierarchy',
-                22,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    // 8,000 cap dashed rule
+    const capY = curY + 4
+    fig.line(508, capY, 836, capY, { color: warm, width: 1.5, dash: '5 4' })
+    fig.text(836, capY - 12, '8,000-token prompt cap', {
+        size: 12,
+        weight: 700,
+        color: warm,
+        align: 'right',
+    })
 
-            {/* Left Header */}
-            {label(36, 75, 406, '1. Jaccard Symbol Overlap Matrix', 16, activeTone, 'left', 700)}
+    // Separate Output Reserve below cap
+    const outY = capY + 14
+    fig.rect(barX, outY, barW, 44, {
+        fill: tint(warm, c.bg, 0.14),
+        stroke: warm,
+        strokeWidth: 1.4,
+        radius: 5,
+    })
+    fig.text(barX + barW / 2, outY + 22, 'Output', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+    fig.text(barX + barW + 28, outY + 14, 'Output reserve (separate)', {
+        size: 13,
+        weight: 700,
+        color: warm,
+    })
+    fig.text(barX + barW + 28, outY + 32, 'Outside prompt cap inside context', {
+        size: 12,
+        color: c.textSecondary,
+    })
 
-            {/* Columns */}
-            {label(48, 115, 180, 'Symbol Name', 12, c.textPrimary, 'left', 650)}
-            {label(240, 115, 25, 'A', 12, activeTone, 'center', 700)}
-            {label(290, 115, 25, 'S', 12, scoreTone, 'center', 700)}
-            {label(340, 115, 25, 'P', 12, midTone, 'center', 700)}
-            {label(390, 115, 25, 'M', 12, dropTone, 'center', 700)}
+    // Ensure scaleY isn't unused
+    void scaleY
 
-            {/* Symbols */}
-            {symbols.map((sym, row) => (
-                <React.Fragment key={sym.name}>
-                    {label(48, 140 + row * 24, 180, sym.name, 11, c.textMuted, 'left')}
-                </React.Fragment>
-            ))}
-
-            {/* Scores */}
-            {label(
-                48,
-                315,
-                382,
-                'Jaccard: |A ∩ Candidate| / |A ∪ Candidate|',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-
-            {label(48, 345, 105, 'S: 2/4 (0.50)', 12, scoreTone, 'left', 650)}
-            {label(350, 345, 80, 'RETAIN', 11, scoreTone, 'right', 700)}
-
-            {label(48, 380, 105, 'P: 1/4 (0.25)', 12, midTone, 'left', 650)}
-            {label(350, 380, 80, 'RETAIN', 11, midTone, 'right', 700)}
-
-            {label(48, 415, 105, 'M: 0/5 (0.00)', 12, dropTone, 'left', 650)}
-            {label(350, 415, 80, 'FILTER', 11, dropTone, 'right', 700)}
-
-            {/* Right Header */}
-            {label(
-                486,
-                75,
-                338,
-                '2. Strict Token Budget Allocator',
-                16,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-
-            {label(498, 115, 314, 'Prompt Cap: 8,000 Tokens', 13, midTone, 'left', 700)}
-
-            {label(508, 150, 294, '1. Suffix + FIM Framing (Protected)', 12, midTone, 'left', 650)}
-            {label(508, 168, 294, 'Guarantees suffix context is never truncated.', 10, c.textMuted)}
-
-            {label(
-                508,
-                208,
-                294,
-                '2. Active File Prefix (Caret Context)',
-                12,
-                activeTone,
-                'left',
-                650,
-            )}
-            {label(508, 226, 294, 'Enclosing function, class scope, and imports.', 10, c.textMuted)}
-
-            {label(
-                508,
-                284,
-                294,
-                '3. Retrieved Context (S: 0.50, P: 0.25)',
-                12,
-                scoreTone,
-                'left',
-                650,
-            )}
-            {label(508, 302, 294, 'Fills remaining headroom up to 8,000 limit.', 10, c.textMuted)}
-            {label(
-                508,
-                320,
-                294,
-                'Lowest ranked files evicted first on overflow.',
-                10,
-                c.textMuted,
-            )}
-
-            {/* Output Box */}
-            {label(
-                498,
-                390,
-                314,
-                'Output Reserve (Outside Prompt Cap)',
-                13,
-                scoreTone,
-                'left',
-                700,
-            )}
-            {label(498, 415, 314, 'Reserved tokens for model generation stream.', 11, c.textMuted)}
-            {label(
-                498,
-                435,
-                314,
-                'Prevents generation cut-off mid-expression.',
-                11,
-                scoreTone,
-                'left',
-                600,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create('dark')

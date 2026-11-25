@@ -1,353 +1,248 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import { getReadableTextColor, type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 820
+export const height = 430
 export const alt =
-    'Multi-tenant authorization and prefix cache isolation. In retrieval, tenant and principal predicates filter candidates before top-1 selection, retaining only authorized document A-public (score 0.80) while rejecting unauthorized higher-scoring documents. In prefix caching, the cache key binds tenant, principal, ACL epoch, model version, and adapter revision, preventing cross-tenant KV reuse.'
-
-export const numericAnchors = {
-    documents: [
-        { id: 'B-secret', score: 0.99, tenant: 'Tenant B', status: 'Tenant Mismatch' },
-        { id: 'A-private', score: 0.95, tenant: 'Tenant A', status: 'Principal Mismatch' },
-        { id: 'A-public', score: 0.8, tenant: 'Tenant A', status: 'Authorized' },
-    ],
-    selected: 'A-public',
-}
+    'Multi-tenant retrieval pre-filtering and prefix-cache key scoping for principal alice in Tenant A. Left: candidate documents ranked by similarity score pass through an ACL filter gate before top-1 selection; B-secret (0.99, tenant B) and A-private (0.95, reader carol) are rejected, allowing A-public (0.80, reader alice) into the prompt. Right: the 8-field composite prefix-cache key (tenant, principal, acl_rev, base, adapter, tokenizer, kv_layout, tokens) guarantees misses whenever ACL revision, adapter revision, or tenant changes.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const redTone = getReadableToneColor('critical', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const onGreen = getReadableTextColor(green, c, c.bg)
+    const soft = (hex: string, la = 0.09, da = 0.15) => tint(hex, c.bg, theme === 'light' ? la : da)
+    const rim = (hex: string) => tint(hex, c.bg, theme === 'light' ? 0.45 : 0.55)
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Left Half: Pre-filtered retrieval (x = 24..396)
+    fig.text(24, 24, '1. PRE-FILTERED RETRIEVAL (alice @ A)', {
+        size: 12,
+        color: blue,
+        weight: 700,
+        width: 340,
+    })
 
-    const cacheKeyElements = [
-        'tenant: "tenant-a"',
-        'user: "alice"',
-        'acl_epoch: 1',
-        'base: "llama-3-70b"',
-        'adapter: "docs-v2"',
-        'tokenizer: "v3"',
-        'kv_layout: "fp16-gqa"',
-        'prefix_ids: [1, 5, 9...]',
+    // Score bar scale: 0.0..1.0 mapped to width = 180px starting at x = 114
+    const barX = 114
+    const barW = 166
+    const docs = [
+        {
+            id: 'B-secret',
+            score: 0.99,
+            meta: 'tenant B · bob',
+            status: 'Blocked',
+            allowed: false,
+            y: 62,
+        },
+        {
+            id: 'A-private',
+            score: 0.95,
+            meta: 'tenant A · carol',
+            status: 'Blocked',
+            allowed: false,
+            y: 136,
+        },
+        {
+            id: 'A-public',
+            score: 0.8,
+            meta: 'tenant A · alice',
+            status: 'Top-1',
+            allowed: true,
+            y: 210,
+        },
     ]
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Left Retrieval Container */}
-                    <rect
-                        x={40}
-                        y={76}
-                        width={370}
-                        height={280}
-                        rx={10}
-                        fill={theme === 'dark' ? '#121824' : '#f0f9ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={106}
-                        width={354}
-                        height={50}
-                        rx={6}
-                        fill={theme === 'dark' ? '#241417' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={164}
-                        width={354}
-                        height={50}
-                        rx={6}
-                        fill={theme === 'dark' ? '#241417' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={222}
-                        width={354}
-                        height={50}
-                        rx={6}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={48}
-                        y={282}
-                        width={354}
-                        height={60}
-                        rx={6}
-                        fill={theme === 'dark' ? '#143020' : '#dcfce7'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
+    // Vertical ACL gate line separating candidate scores from outcome
+    const gateX = 294
+    fig.line(gateX, 46, gateX, 276, { color: blue, width: 1.8, dash: '5 3' })
+    fig.text(gateX - 6, 294, 'ACL gate: tenant=A & alice', {
+        size: 12,
+        color: blue,
+        align: 'right',
+        weight: 700,
+        mono: true,
+        width: 220,
+    })
 
-                    {/* Right Cache Container */}
-                    <rect
-                        x={450}
-                        y={76}
-                        width={370}
-                        height={280}
-                        rx={10}
-                        fill={theme === 'dark' ? '#1a1324' : '#faf5ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                    />
-                    {/* Cache key grid box */}
-                    <rect
-                        x={458}
-                        y={126}
-                        width={354}
-                        height={148}
-                        rx={6}
-                        fill={theme === 'dark' ? '#221833' : '#f3e8ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                    />
+    for (const d of docs) {
+        const col = d.allowed ? green : red
+        const fillW = Math.round(d.score * barW)
+        fig.text(104, d.y + 12, d.id, {
+            size: 13,
+            color: d.allowed ? c.textPrimary : c.textSecondary,
+            align: 'right',
+            weight: 700,
+            mono: true,
+            width: 84,
+        })
+        fig.text(104, d.y + 32, d.meta, {
+            size: 11,
+            color: c.textSecondary,
+            align: 'right',
+            width: 96,
+        })
 
-                    {/* Bottom Guardrail Box */}
-                    <rect
-                        x={40}
-                        y={382}
-                        width={780}
-                        height={78}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+        // Background track + score bar
+        fig.rect(barX, d.y + 6, barW, 28, {
+            fill: soft(c.textMuted, 0.08, 0.12),
+            radius: 5,
+        })
+        fig.rect(barX, d.y + 6, fillW, 28, {
+            fill: d.allowed ? green : soft(red, 0.24, 0.34),
+            stroke: d.allowed ? 'none' : red,
+            strokeWidth: d.allowed ? 0 : 1.2,
+            radius: 5,
+        })
+        fig.text(barX + fillW - 8, d.y + 20, d.score.toFixed(2), {
+            size: 12,
+            color: d.allowed ? onGreen : red,
+            align: 'right',
+            weight: 700,
+            mono: true,
+            width: 44,
+        })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Multi-Tenant Security: Retrieval Predicates & Cache Key Isolation',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Pre-filtering stops cross-tenant data leaks in retrieval; cryptographically bound keys isolate prefix KV caches',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+        // Outcome chip past ACL gate
+        if (d.allowed) {
+            fig.arrow(barX + barW + 4, d.y + 20, 314, d.y + 20, {
+                color: green,
+                width: 1.8,
+                head: 6,
+            })
+            fig.rect(316, d.y + 5, 76, 30, { fill: green, radius: 6 })
+            fig.text(354, d.y + 20, d.status, {
+                size: 13,
+                color: onGreen,
+                align: 'center',
+                weight: 700,
+                width: 68,
+            })
+        } else {
+            // Stop bar at gate
+            fig.line(gateX - 6, d.y + 14, gateX + 6, d.y + 26, { color: red, width: 2 })
+            fig.line(gateX - 6, d.y + 26, gateX + 6, d.y + 14, { color: red, width: 2 })
+            fig.text(312, d.y + 20, d.status, {
+                size: 13,
+                color: red,
+                weight: 700,
+                width: 78,
+            })
+        }
+    }
 
-            {/* Left Column: Retrieval Authorization */}
-            {label(
-                40,
-                84,
-                370,
-                '1. RETRIEVAL: TENANT & PRINCIPAL PRE-FILTERING',
-                11,
-                blueTone,
-                'left',
-                700,
-            )}
+    // Selected prompt output box at bottom-left
+    fig.arrow(354, 245, 354, 330, { color: green, width: 1.6, head: 6 })
+    fig.rect(24, 332, 368, 66, {
+        fill: soft(green, 0.1, 0.16),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 7,
+    })
+    fig.text(40, 353, 'Prompt Context: ["A-public"]', {
+        size: 14,
+        color: green,
+        weight: 700,
+        mono: true,
+        width: 336,
+    })
+    fig.text(40, 377, 'Filtered before top-K · zero foreign scores leak', {
+        size: 12,
+        color: c.textSecondary,
+        width: 336,
+    })
 
-            {/* Doc 1: B-secret */}
-            {label(
-                52,
-                114,
-                350,
-                'Doc 1: B-secret (Score: 0.99 · Reader: Bob)',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(52, 132, 350, 'STATUS: REJECT (Foreign Tenant B)', 11, redTone, 'left', 700)}
+    // Center vertical divider
+    fig.line(412, 24, 412, 404, { color: c.borderSubtle, width: 1 })
 
-            {/* Doc 2: A-private */}
-            {label(
-                52,
-                172,
-                350,
-                'Doc 2: A-private (Score: 0.95 · Reader: Carol)',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                190,
-                350,
-                'STATUS: REJECT (Principal Mismatch in Tenant A)',
-                11,
-                redTone,
-                'left',
-                700,
-            )}
+    // Right Half: Composite Prefix-Cache Key Scope (x = 432..796)
+    fig.text(432, 24, '2. PREFIX-CACHE NAMESPACE KEY', {
+        size: 12,
+        color: purple,
+        weight: 700,
+        width: 340,
+    })
 
-            {/* Doc 3: A-public */}
-            {label(
-                52,
-                230,
-                350,
-                'Doc 3: A-public (Score: 0.80 · Reader: Alice)',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                248,
-                350,
-                'STATUS: ALLOWED (Matches Tenant A & Alice)',
-                11,
-                greenTone,
-                'left',
-                700,
-            )}
+    const keyChips = [
+        { k: 'tenant', v: 'A' },
+        { k: 'principal', v: 'alice' },
+        { k: 'acl_rev', v: 'acl-v1' },
+        { k: 'base', v: 'base-v3' },
+        { k: 'adapter', v: 'docs-v2' },
+        { k: 'tokenizer', v: 'tok-v3' },
+        { k: 'kv_layout', v: 'v1' },
+        { k: 'tokens', v: '[1, 5, 9]' },
+    ]
+    const chipW = 176
+    const chipH = 34
+    const colGap = 12
+    const rowGap = 10
+    keyChips.forEach((chip, i) => {
+        const col = i % 2
+        const row = Math.floor(i / 2)
+        const cx = 432 + col * (chipW + colGap)
+        const cy = 54 + row * (chipH + rowGap)
+        fig.rect(cx, cy, chipW, chipH, {
+            fill: soft(purple, 0.09, 0.15),
+            stroke: rim(purple),
+            strokeWidth: 1.2,
+            radius: 6,
+        })
+        fig.text(cx + 10, cy + 17, `${chip.k}:`, {
+            size: 12,
+            color: c.textSecondary,
+            mono: true,
+            width: 78,
+        })
+        fig.text(cx + chipW - 10, cy + 17, chip.v, {
+            size: 13,
+            color: purple,
+            align: 'right',
+            weight: 700,
+            mono: true,
+            width: 92,
+        })
+    })
 
-            {/* Selected Ingress */}
-            {label(52, 292, 350, 'Top-1 Selected for Prompt: A-public', 12, greenTone, 'left', 700)}
-            {label(
-                52,
-                312,
-                350,
-                'Pre-filtering guarantees zero unauthorized text reaches prompt context.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Lookup verification outcomes below key grid (zero clipping!)
+    fig.text(432, 246, 'CACHE LOOKUP OUTCOMES', {
+        size: 12,
+        color: c.textSecondary,
+        weight: 700,
+        width: 240,
+    })
+    const probes = [
+        { desc: 'Exact 8-field tuple', hit: true, y: 266 },
+        { desc: 'acl_rev -> acl-v2', hit: false, y: 300 },
+        { desc: 'adapter -> docs-v3', hit: false, y: 334 },
+        { desc: 'tenant B (bob)', hit: false, y: 368 },
+    ]
+    for (const p of probes) {
+        const col = p.hit ? green : red
+        fig.rect(432, p.y, 364, 28, {
+            fill: soft(col, 0.08, 0.13),
+            stroke: rim(col),
+            strokeWidth: 1.1,
+            radius: 5,
+        })
+        fig.text(446, p.y + 14, p.desc, {
+            size: 13,
+            color: c.textPrimary,
+            mono: !p.hit,
+            weight: p.hit ? 600 : 500,
+            width: 248,
+        })
+        fig.text(784, p.y + 14, p.hit ? 'KV HIT' : 'MISS', {
+            size: 12,
+            color: col,
+            align: 'right',
+            weight: 700,
+            mono: true,
+            width: 70,
+        })
+    }
 
-            {/* Right Column: Prefix Cache Key Isolation */}
-            {label(
-                450,
-                84,
-                370,
-                '2. KV-CACHE: MULTI-TENANT ISOLATION KEY',
-                11,
-                purpleTone,
-                'left',
-                700,
-            )}
-            {label(
-                462,
-                108,
-                350,
-                'Canonical Prefix Cache Key Tuple:',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-
-            {/* Key elements grid */}
-            {cacheKeyElements.map((el, i) => {
-                const col = i % 2
-                const row = Math.floor(i / 2)
-                const kx = 462 + col * 180
-                const ky = 132 + row * 44
-                return (
-                    <React.Fragment key={`key-el-${i}`}>
-                        {label(kx, ky, 170, el, 11, purpleTone, 'left', 600)}
-                    </React.Fragment>
-                )
-            })}
-
-            {/* Cache Invalidation Rules */}
-            {label(462, 292, 350, 'Strict Cache Miss Guarantees:', 12, c.textPrimary, 'left', 600)}
-            {label(
-                462,
-                312,
-                350,
-                'Different user ("bob"), tenant ("tenant-b"), or updated adapter ("docs-v3") causes a clean miss. Zero cross-tenant cache hits.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Bottom Guardrail Box */}
-            {label(
-                52,
-                396,
-                756,
-                'Architecture Principle: Two-Tier Defense in Depth',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                416,
-                756,
-                '1. Ingestion & Retrieval Gate: Tenant and user ACL predicates are pushed into vector/lexical index scans. · 2. Runtime Inference Gate: PagedAttention prefix hash includes tenant identity and ACL revision. Even if two tenants submit identical system prompts, they receive separate, isolated KV blocks.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
-
-export default create()

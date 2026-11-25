@@ -4,21 +4,21 @@ import {
     CanvasItem,
     SvgFrame,
     TextLabel,
-    VectorSegment,
     getReadableToneColor,
     getThemeColors,
+    withColorAlpha,
     type ThemeMode,
 } from 'vizmatic'
 
 type Colors = ReturnType<typeof getThemeColors>
 
-export const width = 900
-export const height = 520
+export const width = 760
+export const height = 490
 
 export const alt =
-    'The stated 70B recipe totals 1,120 decimal GB of model states: parameters 140, gradients 140, FP32 master parameters 280, and Adam moments 560. A shared 0–560 GB component scale shows each amount. Below, equal sharding over 16, 32, 64, or 256 ranks uses 70, 35, 17.5, or 4.375 GB of an 80 GB capacity reference, leaving 10, 45, 62.5, or 75.625 GB as a budget for other live memory, not a fit guarantee.'
+    '70B dense model state breakdown (16 bytes/param = 1,120 GB total): BF16 weights 140 GB, BF16 gradients 140 GB, FP32 master weights 280 GB, and FP32 Adam moments 560 GB on a shared 0 to 560 GB scale. Below, equal sharding across 16, 32, 64, or 256 ranks uses 70, 35, 17.5, or 4.375 GB of an 80 GB GPU, leaving 10, 45, 62.5, or 75.625 GB for activations and buffers.'
 
-function label(
+function lbl(
     c: Colors,
     text: string,
     x: number,
@@ -47,151 +47,147 @@ export const create = (theme: ThemeMode = 'dark') => {
     const cyan = getReadableToneColor('cyan', c)
     const warm = getReadableToneColor('warm', c)
     const green = getReadableToneColor('green', c)
-    const muted = c.textSecondary
 
     const components = [
-        { name: 'Weights (16-bit)', amount: 140, tone: blue, desc: '2 bytes × 70B' },
-        { name: 'Gradients (16-bit)', amount: 140, tone: purple, desc: '2 bytes × 70B' },
-        { name: 'FP32 Master Copy', amount: 280, tone: cyan, desc: '4 bytes × 70B' },
-        { name: 'Adam Moments (m, v)', amount: 560, tone: warm, desc: '8 bytes × 70B' },
+        { name: 'Weights (BF16)', amount: 140, bytes: '2 B', tone: blue },
+        { name: 'Gradients (BF16)', amount: 140, bytes: '2 B', tone: purple },
+        { name: 'FP32 Master', amount: 280, bytes: '4 B', tone: cyan },
+        { name: 'Adam (m, v)', amount: 560, bytes: '8 B', tone: warm },
     ]
     const sharded = [
-        { ranks: 16, state: 70, budget: 10 },
-        { ranks: 32, state: 35, budget: 45 },
-        { ranks: 64, state: 17.5, budget: 62.5 },
-        { ranks: 256, state: 4.375, budget: 75.625 },
+        { ranks: '16 ranks', state: 70, readout: '70.0 GB · 10 free' },
+        { ranks: '32 ranks', state: 35, readout: '35.0 GB · 45 free' },
+        { ranks: '64 ranks', state: 17.5, readout: '17.5 GB · 62.5 free' },
+        { ranks: '256 ranks', state: 4.375, readout: '4.4 GB · 75.6 free' },
     ]
 
-    const barW = 220
+    const barX = 196
+    const barW = 268
+
     const geometry = [
-        // Left Panel Frame
+        // Top panel
         SvgFrame({
             c,
-            x: 20,
-            y: 50,
-            width: 420,
-            height: 410,
-            rx: 8,
+            key: 'top-panel',
+            x: 14,
+            y: 12,
+            width: 732,
+            height: 222,
+            rx: 10,
             fill: c.bgCard,
             stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-left',
+            strokeWidth: 1.2,
         }),
-        // Right Panel Frame
+        // Bottom panel
         SvgFrame({
             c,
-            x: 460,
-            y: 50,
-            width: 420,
-            height: 410,
-            rx: 8,
+            key: 'bot-panel',
+            x: 14,
+            y: 250,
+            width: 732,
+            height: 226,
+            rx: 10,
             fill: c.bgCard,
             stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-right',
+            strokeWidth: 1.2,
         }),
-        // Left bars (components)
-        ...components
-            .map((item, index) => {
-                const y = 120 + index * 65
-                const w = (item.amount / 560) * barW
-                return [
-                    SvgFrame({
-                        c,
-                        x: 180,
-                        y: y + 4,
-                        width: barW,
-                        height: 24,
-                        rx: 4,
-                        fill: c.bgCardAlt,
-                        stroke: c.borderSubtle,
-                        strokeWidth: 1,
-                        key: `bg-c-${index}`,
-                    }),
-                    SvgFrame({
-                        c,
-                        x: 180,
-                        y: y + 4,
-                        width: w,
-                        height: 24,
-                        rx: 4,
-                        fill: item.tone,
-                        stroke: item.tone,
-                        strokeWidth: 1,
-                        key: `fg-c-${index}`,
-                    }),
-                ]
-            })
-            .flat(),
-        // Right bars (sharded ranks)
-        ...sharded
-            .map((row, index) => {
-                const y = 120 + index * 65
-                const w = (row.state / 80) * barW
-                return [
-                    SvgFrame({
-                        c,
-                        x: 580,
-                        y: y + 4,
-                        width: barW,
-                        height: 24,
-                        rx: 4,
-                        fill: c.bgCardAlt,
-                        stroke: c.borderSubtle,
-                        strokeWidth: 1,
-                        key: `bg-s-${index}`,
-                    }),
-                    SvgFrame({
-                        c,
-                        x: 580,
-                        y: y + 4,
-                        width: w,
-                        height: 24,
-                        rx: 4,
-                        fill: green,
-                        stroke: green,
-                        strokeWidth: 1,
-                        key: `fg-s-${index}`,
-                    }),
-                ]
-            })
-            .flat(),
-        // Right Callout Card
-        SvgFrame({
-            c,
-            x: 480,
-            y: 380,
-            width: 380,
-            height: 60,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: green,
-            strokeWidth: 1.5,
-            key: 'card-fit',
+
+        // Top bars (0 -> 560 GB)
+        ...components.flatMap((item, i) => {
+            const y = 62 + i * 40
+            const w = (item.amount / 560) * barW
+            return [
+                SvgFrame({
+                    c,
+                    key: `c-bg-${i}`,
+                    x: barX,
+                    y,
+                    width: barW,
+                    height: 26,
+                    rx: 5,
+                    fill: c.bgSubtle,
+                    stroke: c.borderSubtle,
+                    strokeWidth: 1,
+                }),
+                SvgFrame({
+                    c,
+                    key: `c-fg-${i}`,
+                    x: barX,
+                    y,
+                    width: w,
+                    height: 26,
+                    rx: 5,
+                    fill: withColorAlpha(item.tone, 0.35),
+                    stroke: item.tone,
+                    strokeWidth: 1.8,
+                }),
+            ]
+        }),
+
+        // Bottom bars (0 -> 80 GB)
+        ...sharded.flatMap((row, i) => {
+            const y = 300 + i * 40
+            const w = Math.max(14, (row.state / 80) * barW)
+            return [
+                SvgFrame({
+                    c,
+                    key: `s-bg-${i}`,
+                    x: barX,
+                    y,
+                    width: barW,
+                    height: 26,
+                    rx: 5,
+                    fill: c.bgSubtle,
+                    stroke: c.borderSubtle,
+                    strokeWidth: 1,
+                }),
+                SvgFrame({
+                    c,
+                    key: `s-fg-${i}`,
+                    x: barX,
+                    y,
+                    width: w,
+                    height: 26,
+                    rx: 5,
+                    fill: withColorAlpha(green, 0.35),
+                    stroke: green,
+                    strokeWidth: 1.8,
+                }),
+            ]
+        }),
+
+        // 80 GB vertical limit line
+        createElement('line', {
+            key: 'limit-80',
+            x1: barX + barW,
+            y1: 292,
+            x2: barX + barW,
+            y2: 454,
+            stroke: warm,
+            strokeWidth: 2,
+            strokeDasharray: '5 4',
         }),
     ]
 
-    const compLabels = components
-        .map((item, index) => {
-            const y = 120 + index * 65
+    const cleanLabels = [
+        lbl(c, '1 · Unsharded 70B State: 1,120 GB (16 B/param)', 30, 24, 690, 24, 17, c.textPrimary, 800),
+        ...components.flatMap((item, i) => {
+            const y = 64 + i * 40
             return [
-                label(c, item.name, 35, y, 140, 20, 13, item.tone),
-                label(c, item.desc, 35, y + 20, 140, 18, 11, muted),
-                label(c, `${item.amount} GB`, 405, y + 6, 30, 20, 12, item.tone, 650, 'right'),
+                lbl(c, item.name, 30, y, 160, 22, 16, item.tone, 700),
+                lbl(c, `${item.amount} GB (${item.bytes})`, 480, y, 250, 22, 16, item.tone, 700, 'left', true),
             ]
-        })
-        .flat()
-
-    const shardLabels = sharded
-        .map((row, index) => {
-            const y = 120 + index * 65
+        }),
+        lbl(c, '2 · Sharded State per Rank (80 GB GPU)', 30, 262, 386, 24, 17, c.textPrimary, 800),
+        lbl(c, '80 GB cap', 416, 262, 112, 24, 16, warm, 700, 'center', true),
+        ...sharded.flatMap((row, i) => {
+            const y = 302 + i * 40
             return [
-                label(c, `${row.ranks} Ranks`, 475, y, 100, 20, 13, c.textPrimary),
-                label(c, `${row.budget} GB free`, 475, y + 20, 100, 18, 11, muted),
-                label(c, `${row.state} GB`, 805, y + 6, 65, 20, 12, green, 650, 'right'),
+                lbl(c, row.ranks, 30, y, 160, 22, 16, c.textPrimary, 700, 'left', true),
+                lbl(c, row.readout, 480, y, 254, 22, 16, green, 700, 'left', true),
             ]
-        })
-        .flat()
+        }),
+    ]
 
     return Board({
         c,
@@ -206,128 +202,11 @@ export const create = (theme: ThemeMode = 'dark') => {
                 height,
                 children: createElement(
                     'svg',
-                    {
-                        width,
-                        height,
-                        viewBox: `0 0 ${width} ${height}`,
-                        role: 'presentation',
-                        'aria-hidden': true,
-                    },
+                    { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
                     ...geometry,
                 ),
             }),
-            label(
-                c,
-                '70B Dense Model Memory Wall: State Footprint vs Sharded Ranks',
-                20,
-                12,
-                width - 40,
-                30,
-                22,
-                c.textPrimary,
-                700,
-                'center',
-            ),
-
-            // Left Panel
-            label(
-                c,
-                '1. Unsharded Model State: 1,120 GB Total',
-                35,
-                62,
-                380,
-                24,
-                16,
-                c.textPrimary,
-            ),
-            label(
-                c,
-                '16 bytes per parameter under standard FP16/BF16 AdamW',
-                35,
-                86,
-                380,
-                20,
-                12,
-                muted,
-            ),
-            ...compLabels,
-            label(
-                c,
-                'Weights (140) + Grads (140) + Master (280) + Moments (560) = 1,120 GB',
-                35,
-                390,
-                390,
-                20,
-                11,
-                warm,
-            ),
-            label(
-                c,
-                'Cannot fit on any single 80 GB GPU without parameter sharding.',
-                35,
-                415,
-                390,
-                20,
-                11,
-                muted,
-            ),
-
-            // Right Panel
-            label(
-                c,
-                '2. Sharded Footprint per Rank (80 GB GPU)',
-                475,
-                62,
-                380,
-                24,
-                16,
-                c.textPrimary,
-            ),
-            label(
-                c,
-                'ZeRO-3 / FSDP partitions states equally across all workers',
-                475,
-                86,
-                380,
-                20,
-                12,
-                muted,
-            ),
-            ...shardLabels,
-
-            label(
-                c,
-                'Remaining GPU headroom funds activations and temporary buffers.',
-                495,
-                392,
-                350,
-                18,
-                11,
-                c.textPrimary,
-            ),
-            label(
-                c,
-                'At 64 ranks: 17.5 GB states leaves 62.5 GB for sequence activations.',
-                495,
-                414,
-                350,
-                18,
-                11,
-                green,
-            ),
-
-            label(
-                c,
-                'Model-state memory scaling · Distributed sharding across 64+ workers is mandatory to train 70B+ parameters',
-                20,
-                480,
-                width - 40,
-                24,
-                14,
-                muted,
-                650,
-                'center',
-            ),
+            ...cleanLabels,
         ],
     })
 }

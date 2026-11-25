@@ -1,246 +1,208 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Panel,
-    Row,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    VectorSegment,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 860
-export const height = 540
+export const height = 385
 export const alt =
-    'For the same job with raw heartbeat age 200 hours, a 180-hour cap yields 180 hours while a 360-hour cap yields 200. Two bars show the changed input. On the fixed logistic score curve with backlog 18, the two input points give scores 0.445 and 0.545 on opposite sides of the chosen 0.5 alert threshold. A fresh 0.5-hour input stays unchanged; setting the heartbeat coefficient to zero removes this dependence.'
+    'Side-by-side CACE cap-change effect for job J-188 with raw heartbeat age 200 hours and backlog 18. Left: on a 0 to 360 hour ruler, a 180-hour cap clamps the 200-hour input to 180 hours, whereas a 360-hour cap leaves it at 200 hours; a fresh 0.5-hour job is unchanged. Right: on the fixed logistic curve s(a) = sigmoid(0.02a - 3.82), moving input from 180h to 200h shifts probability from 0.445 (No alert) to 0.545 (Alert) across the 0.50 decision threshold.'
 
-const sigmoid = (x: number) => 1 / (1 + Math.exp(-x))
-const score = (age: number) => sigmoid(0.02 * age + 0.01 * 18 - 4)
+const score = (age: number) => 1 / (1 + Math.exp(-(0.02 * age + 0.01 * 18 - 4)))
 
-function leftCapBoard(c: ThemeColors) {
-    const w = 390
-    const h = 420
-    const blue = getReadableToneColor('cyan', c)
-    const green = getReadableToneColor('green', c)
-    const inputX = (age: number) => 60 + (age / 360) * 280
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const isLight = theme === 'light'
 
-    const label = (
-        x: number,
-        y: number,
-        width: number,
-        text: string,
-        fontSize = 15,
-        color = c.textPrimary,
-    ) => (
-        <CanvasItem x={x} y={y} width={width} height={26}>
-            <TextLabel c={c} text={text} width={width} fontSize={fontSize} color={color} mono />
-        </CanvasItem>
-    )
+    // Left: Cap-clamping ruler (0 to 360 hours)
+    fig.text(28, 24, '1. Cap policy alters the input vector', {
+        size: 15,
+        weight: 700,
+    })
 
-    return (
-        <Board c={c} width={w} height={h}>
-            <CanvasItem x={0} y={0} width={w} height={h}>
-                <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-                    {/* Two cap comparison bars */}
-                    {[180, 360].map((cap, i) => {
-                        const y = 100 + i * 110
-                        return (
-                            <React.Fragment key={cap}>
-                                <VectorSegment
-                                    x1={60}
-                                    y1={y}
-                                    x2={340}
-                                    y2={y}
-                                    color={c.borderLight}
-                                    strokeWidth={2}
-                                    showStartDot={false}
-                                    showEndDot={false}
-                                />
-                                <SvgFrame
-                                    c={c}
-                                    x={60}
-                                    y={y - 12}
-                                    width={inputX(Math.min(200, cap)) - 60}
-                                    height={24}
-                                    fill={i ? green : blue}
-                                    stroke={i ? green : blue}
-                                    rx={2}
-                                />
-                                <VectorSegment
-                                    x1={inputX(cap)}
-                                    y1={y - 18}
-                                    x2={inputX(cap)}
-                                    y2={y + 18}
-                                    color={i ? green : blue}
-                                    strokeWidth={2.5}
-                                    showStartDot={false}
-                                    showEndDot={false}
-                                />
-                            </React.Fragment>
-                        )
-                    })}
-                    {/* Uncapped 200h raw input marker */}
-                    <line
-                        x1={inputX(200)}
-                        y1={70}
-                        x2={inputX(200)}
-                        y2={330}
-                        stroke={c.textSecondary}
-                        strokeWidth={1.5}
-                        strokeDasharray="4 4"
-                    />
-                    {/* Clipping arrow on 180h cap */}
-                    <VectorArrow
-                        x1={inputX(200) - 2}
-                        y1={135}
-                        x2={inputX(180) + 2}
-                        y2={135}
-                        color={blue}
-                        strokeWidth={2}
-                        arrowSize={5}
-                    />
-                </svg>
-            </CanvasItem>
-            {label(20, 20, 350, 'Raw Heartbeat Age: 200 hours', 16, c.textPrimary)}
-            {label(60, 68, 140, '180h Cap: Clamped', 14, blue)}
-            {label(inputX(180) - 40, 114, 80, '180h', 14, c.bgCard)}
-            {label(60, 178, 140, '360h Cap: Preserved', 14, green)}
-            {label(inputX(200) - 40, 224, 80, '200h', 14, c.bgCard)}
-            {label(inputX(200) - 40, 336, 80, 'Raw 200h', 13, c.textSecondary)}
-            <CanvasItem x={20} y={370} width={350} height={40}>
-                <TextLabel
-                    c={c}
-                    text="Feature transforms alter input representations and directly shift model score outputs."
-                    width={350}
-                    fontSize={14}
-                    color={c.textSecondary}
-                    align="center"
-                />
-            </CanvasItem>
-        </Board>
-    )
-}
+    const rx = 44
+    const rw = 342
+    const xOf = (h: number) => rx + (h / 360) * rw
 
-function rightScoreBoard(c: ThemeColors) {
-    const w = 390
-    const h = 420
-    const blue = getReadableToneColor('cyan', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
-
-    const sx = (age: number) => 50 + ((age - 150) / 80) * 300
-    const sy = (p: number) => 320 - (p - 0.3) * 380
-
-    const curve = Array.from({ length: 81 }, (_, i) => ({
-        age: 150 + i,
-        p: score(150 + i),
-    }))
-
-    const pathPoints = curve.map((pt) => ({ x: sx(pt.age), y: sy(pt.p) }))
-
-    const label = (
-        x: number,
-        y: number,
-        width: number,
-        text: string,
-        fontSize = 15,
-        color = c.textPrimary,
-    ) => (
-        <CanvasItem x={x} y={y} width={width} height={26}>
-            <TextLabel c={c} text={text} width={width} fontSize={fontSize} color={color} mono />
-        </CanvasItem>
-    )
-
-    return (
-        <Board c={c} width={w} height={h}>
-            <CanvasItem x={0} y={0} width={w} height={h}>
-                <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-                    {/* Threshold 0.5 horizontal line */}
-                    <line
-                        x1={40}
-                        y1={sy(0.5)}
-                        x2={360}
-                        y2={sy(0.5)}
-                        stroke={warm}
-                        strokeWidth={1.5}
-                        strokeDasharray="4 4"
-                    />
-                    {/* Score curve */}
-                    <path
-                        d={`M ${pathPoints.map((p) => `${p.x} ${p.y}`).join(' L ')}`}
-                        fill="none"
-                        stroke={c.textPrimary}
-                        strokeWidth={2.5}
-                    />
-                    {/* 180h point (score 0.445) */}
-                    <circle cx={sx(180)} cy={sy(0.445)} r={6} fill={blue} />
-                    {/* 200h point (score 0.545) */}
-                    <circle cx={sx(200)} cy={sy(0.545)} r={6} fill={green} />
-                </svg>
-            </CanvasItem>
-            {label(20, 16, 350, 'Score Curve: s(a) = σ(0.02a + 0.18 − 4)', 15, c.textPrimary)}
-            {label(270, sy(0.5) - 22, 90, 'Threshold 0.5', 13, warm)}
-            {label(sx(180) - 70, sy(0.445) + 12, 140, 'a=180h → s=0.445 (No Alert)', 13, blue)}
-            {label(sx(200) - 70, sy(0.545) - 26, 140, 'a=200h → s=0.545 (Alert!)', 13, green)}
-            <CanvasItem x={20} y={366} width={350} height={44}>
-                <TextLabel
-                    c={c}
-                    text="Changing the feature cap from 180h to 360h flips the binary alert decision across the 0.5 threshold."
-                    width={350}
-                    fontSize={14}
-                    color={c.textSecondary}
-                    align="center"
-                />
-            </CanvasItem>
-        </Board>
-    )
-}
-
-const illustration = defineIllustration((c: ThemeColors) =>
-    Scene({
-        c,
-        padding: 18,
-        gap: 12,
-        align: 'center',
-        contentWidth: 824,
-        title: 'Feature Transformations Directly Shift Downstream Decisions',
-        subtitle:
-            'Capping policies change feature values and can flip operational decisions on borderline instances.',
-        children: Row({
-            width: 824,
-            gap: 16,
+    // Shared ruler ticks at bottom
+    const axisY = 304
+    fig.line(rx, axisY, rx + rw, axisY, { color: c.textMuted, width: 1.25 })
+    for (const h of [0, 90, 180, 270, 360]) {
+        const px = xOf(h)
+        fig.line(px, axisY, px, axisY + 5, { color: c.textMuted, width: 1.25 })
+        fig.text(px, axisY + 18, `${h}h`, {
+            size: 12,
+            color: h === 180 || h === 360 ? c.textPrimary : c.textSecondary,
             align: 'center',
-            justify: 'space-between',
-            children: [
-                Panel({
-                    c,
-                    width: 404,
-                    padding: 8,
-                    gap: 4,
-                    tone: 'neutral',
-                    title: 'Feature Capping Comparison',
-                    titleFontSize: 17,
-                    children: leftCapBoard(c),
-                }),
-                Panel({
-                    c,
-                    width: 404,
-                    padding: 8,
-                    gap: 4,
-                    tone: 'warm',
-                    title: 'Logistic Score Response',
-                    titleFontSize: 17,
-                    children: rightScoreBoard(c),
-                }),
-            ],
-        }),
-    }),
-)
+            mono: true,
+        })
+    }
+    fig.text(rx + rw / 2, axisY + 38, 'Heartbeat age entering model (hours)', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-export const create = illustration.create
-export default illustration.default
+    // Raw 200h vertical reference line
+    const x200 = xOf(200)
+    fig.line(x200, 62, x200, axisY, { color: c.textSecondary, width: 1.5, dash: '4 4' })
+    fig.text(x200 + 6, 68, 'raw = 200h (J-188)', {
+        size: 12,
+        weight: 600,
+        color: c.textSecondary,
+        mono: true,
+    })
+
+    // Track A: 180h cap (trained policy)
+    const yA = 128
+    fig.text(rx, yA - 24, 'Trained cap: 180h', { size: 13, weight: 700, color: blue })
+    fig.line(rx, yA, rx + rw, yA, { color: c.borderSubtle, width: 4, cap: 'round' })
+    fig.rect(rx, yA - 12, xOf(180) - rx, 24, {
+        fill: tint(blue, c.bg, isLight ? 0.24 : 0.36),
+        stroke: blue,
+        strokeWidth: 1.6,
+        radius: 4,
+    })
+    fig.line(xOf(180), yA - 20, xOf(180), yA + 20, { color: blue, width: 2.5 })
+    fig.text((rx + xOf(180)) / 2, yA, '180h', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+    })
+    fig.arrow(x200, yA + 26, xOf(180), yA + 26, { color: blue, width: 2, head: 6 })
+    fig.text(x200 + 8, yA + 26, 'clamped -20h', { size: 12, weight: 600, color: blue })
+
+    // Track B: 360h cap (unversioned live edit)
+    const yB = 224
+    fig.text(rx, yB - 24, 'Unversioned live cap: 360h', { size: 13, weight: 700, color: red })
+    fig.line(rx, yB, rx + rw, yB, { color: c.borderSubtle, width: 4, cap: 'round' })
+    fig.rect(rx, yB - 12, x200 - rx, 24, {
+        fill: tint(red, c.bg, isLight ? 0.22 : 0.34),
+        stroke: red,
+        strokeWidth: 1.6,
+        radius: 4,
+    })
+    fig.line(xOf(360), yB - 20, xOf(360), yB + 20, { color: red, width: 2.5 })
+    fig.text((rx + x200) / 2, yB, '200h', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(x200 + 10, yB, 'passes through', { size: 12, weight: 600, color: red })
+
+    // Fresh job marker at 0.5h
+    const xFresh = xOf(4)
+    fig.circle(xFresh, axisY, 4.5, { fill: green, stroke: c.bg, width: 1.5 })
+    fig.callout([xFresh + 2, axisY - 5], [rx + 42, axisY - 26], 'fresh 0.5h (unchanged)', {
+        color: green,
+        labelColor: green,
+        align: 'left',
+        size: 12,
+        weight: 600,
+        bend: -0.15,
+    })
+
+    // Divider
+    fig.line(418, 28, 418, 355, { color: c.borderSubtle, width: 1 })
+
+    // Right: Fixed logistic curve
+    fig.text(448, 24, '2. Frozen weights flip the decision', {
+        size: 15,
+        weight: 700,
+    })
+
+    const plot = fig.plot(
+        { x: 486, y: 58, width: 344, height: 246 },
+        { x: [140, 240], y: [0.25, 0.75] },
+    )
+
+    // Subtle alert zone tint above 0.50
+    fig.rect(plot.area.x, plot.area.y, plot.area.width, plot.py(0.5) - plot.area.y, {
+        fill: tint(red, c.bg, isLight ? 0.08 : 0.13),
+    })
+
+    plot.axes({
+        xTicks: [140, 160, 180, 200, 220, 240],
+        yTicks: [0.3, 0.4, 0.5, 0.6, 0.7],
+        xFormat: (v) => `${v}`,
+        yFormat: (v) => v.toFixed(1),
+        xLabel: 'Capped heartbeat input a (hours)',
+        grid: true,
+        labelSize: 12,
+    })
+
+    // Formula in open top-left inside plot
+    fig.math(plot.area.x + 12, plot.area.y + 18, 's(a) = \\sigma(0.02a - 3.82)', {
+        size: 14,
+        color: c.textPrimary,
+    })
+
+    // Threshold line at 0.50
+    plot.hline(0.5, 'Alert threshold 0.50', {
+        color: warm,
+        dash: '5 4',
+        width: 1.7,
+        labelPosition: 'left',
+        labelOffset: 11,
+        labelSize: 12,
+        weight: 600,
+    })
+
+    // Smooth logistic curve
+    plot.fn(score, { color: c.textPrimary, width: 2.5 })
+
+    // Guide drops and points for 180h (0.445) and 200h (0.545)
+    const p180 = score(180)
+    const p200 = score(200)
+    fig.line(plot.px(180), plot.py(p180), plot.px(180), plot.bottom, {
+        color: blue,
+        width: 1.3,
+        dash: '3 3',
+    })
+    fig.line(plot.px(200), plot.py(p200), plot.px(200), plot.bottom, {
+        color: red,
+        width: 1.3,
+        dash: '3 3',
+    })
+    plot.point(180, p180, { color: blue, r: 6.5 })
+    plot.point(200, p200, { color: red, r: 6.5 })
+
+    // Non-overlapping callouts in opposite open quadrants
+    fig.callout(
+        [plot.px(180) + 5, plot.py(p180) + 5],
+        [plot.px(203), plot.py(0.36)],
+        '180h -> 0.445 (No alert)',
+        {
+            color: blue,
+            labelColor: blue,
+            align: 'left',
+            size: 12,
+            weight: 700,
+            bend: 0.16,
+        },
+    )
+    fig.callout(
+        [plot.px(200) - 5, plot.py(p200) - 5],
+        [plot.px(185), plot.py(0.64)],
+        '200h -> 0.545 (Alert)',
+        {
+            color: red,
+            labelColor: red,
+            align: 'right',
+            size: 12,
+            weight: 700,
+            bend: 0.16,
+        },
+    )
+
+    return fig.render()
+}
+
+export default create

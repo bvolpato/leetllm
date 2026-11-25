@@ -1,134 +1,122 @@
 import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 400
 export const alt =
-    'Latent diffusion training architecture. A high-resolution image is encoded by a frozen VAE into a compact continuous latent z0. Forward noise is added at a sampled timestep t. The denoiser backbone predicts the injected noise conditioned on text embeddings and timestep, optimized via mean squared error loss against the true noise.'
+    'Latent diffusion training pipeline: a frozen VAE compresses a 512x512x3 RGB image by 48x into a 64x64x4 continuous latent z0, closed-form forward noising mixes Gaussian noise eps at random timestep t, and a UNet or DiT denoiser predicts eps_hat conditioned on prompt embeddings c under MSE loss.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const red = fig.tone('red')
 
-    // Header
-    a.text(40, 32, 'Latent Diffusion Training Architecture', { size: 22, weight: 700 })
-    a.text(
-        40,
-        58,
-        'Closed-form single-step noise injection and conditional denoising score matching',
-        { size: 15, color: k.mid },
-    )
+    const box = (x: number, y: number, w: number, h: number, tone: string, title: string, sub: string) => {
+        fig.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, theme === 'light' ? 0.08 : 0.14),
+            stroke: tint(tone, c.bg, 0.65),
+            strokeWidth: 1.5,
+            radius: 8,
+        })
+        fig.text(x + w / 2, y + 22, title, { size: 15.5, weight: 700, color: tone, align: 'center' })
+        fig.text(x + w / 2, y + 48, sub, { size: 15, mono: true, color: c.textPrimary, align: 'center' })
+    }
 
-    // Column 1: VAE Latent Compression
-    a.rect(40, 85, 220, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(56, 102, 85, 24, 'COMPRESSION', {
-        fill: tint(k.state, 0.15),
-        stroke: tint(k.state, 0.4),
-        color: k.state,
-        weight: 700,
+    fig.text(102, 20, '1. Compress', { size: 15.5, weight: 700, color: purple, align: 'center' })
+    fig.text(324, 20, '2. Forward Noise', { size: 15.5, weight: 700, color: warm, align: 'center' })
+    fig.text(586, 20, '3. Denoise & Loss', { size: 15.5, weight: 700, color: blue, align: 'center' })
+
+    // Stage 1
+    box(14, 46, 176, 68, blue, 'RGB Image x', '512×512×3')
+    fig.arrow(102, 114, 102, 146, { color: purple, width: 1.75, head: 6 })
+    box(14, 148, 176, 68, purple, 'Frozen VAE Enc', '8× down (48×)')
+    fig.arrow(102, 216, 102, 248, { color: green, width: 1.75, head: 6 })
+    box(14, 250, 176, 74, green, 'Clean Latent z₀', '64×64×4')
+
+    // Stage 2
+    box(232, 46, 184, 68, red, 'Noise ε ~ N(0,I)', 'target noise')
+    box(232, 144, 184, 66, warm, 'Timestep t', 'Uniform(1, T)')
+
+    fig.arrow(190, 287, 230, 287, { color: green, width: 1.75, head: 6 })
+    fig.arrow(324, 210, 324, 248, { color: warm, width: 1.75, head: 6 })
+    fig.path('M 250 114 V 248', { color: red, width: 1.5, dash: '4 3' })
+    fig.arrow(250, 234, 250, 248, { color: red, width: 1.5, head: 5.5 })
+
+    fig.rect(232, 250, 184, 74, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.08 : 0.14),
+        stroke: blue,
+        strokeWidth: 1.6,
+        radius: 8,
     })
-    a.text(152, 114, 'Pixel to Latent', { size: 15, weight: 700 })
-
-    a.rect(56, 145, 188, 75, { fill: tint(k.prefill, 0.08), stroke: tint(k.prefill, 0.3), r: 6 })
-    a.text(68, 168, 'RGB Image x', { size: 15, weight: 700, color: k.prefill })
-    a.text(68, 192, '512 × 512 × 3 (786k values)', { size: 15, color: k.ink })
-
-    a.arrow(150, 220, 150, 245, k.state, { width: 1.5 })
-
-    a.rect(56, 245, 188, 75, { fill: tint(k.state, 0.08), stroke: tint(k.state, 0.3), r: 6 })
-    a.text(68, 268, 'Frozen VAE Encoder', { size: 15, weight: 700, color: k.state })
-    a.text(68, 292, '8× downsampling · 4 channels', { size: 15, color: k.ink })
-
-    a.arrow(150, 320, 150, 345, k.pass, { width: 1.5 })
-
-    a.rect(56, 345, 188, 110, { fill: tint(k.pass, 0.08), stroke: tint(k.pass, 0.3), r: 6 })
-    a.text(68, 368, 'Clean Latent z_0', { size: 15, weight: 700, color: k.pass })
-    a.text(68, 392, '64 × 64 × 4 (16k values)', { size: 15, mono: true, color: k.ink })
-    a.text(68, 416, '48× data compression', { size: 15, weight: 700, color: k.pass })
-    a.text(68, 438, 'Removes perceptual redundancy', { size: 15, color: k.mid })
-
-    // Arrow to Middle: Noise Injection
-    a.arrow(244, 400, 280, 400, k.pass, { width: 1.5 })
-
-    // Column 2: Forward Mixing & Conditioning
-    a.rect(280, 85, 250, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(296, 102, 75, 24, 'NOISING', {
-        fill: tint(k.wait, 0.15),
-        stroke: tint(k.wait, 0.4),
-        color: k.wait,
-        weight: 700,
+    fig.text(324, 270, 'Noisy Latent zₜ', { size: 15.5, weight: 700, color: blue, align: 'center' })
+    fig.math(324, 302, '\\sqrt{\\bar{\\alpha}_t}z_0 + \\sqrt{1-\\bar{\\alpha}_t}\\epsilon', {
+        size: 14.5,
+        color: c.textPrimary,
+        align: 'center',
     })
-    a.text(380, 114, 'Forward Synthesis', { size: 15, weight: 700 })
 
-    a.rect(296, 145, 218, 80, { fill: tint(k.fail, 0.08), stroke: tint(k.fail, 0.3), r: 6 })
-    a.text(308, 168, 'Gaussian Noise eps', { size: 15, weight: 700, color: k.fail })
-    a.text(308, 192, 'eps ~ N(0, I)', { size: 15, mono: true, color: k.ink })
-    a.text(308, 214, 'Known training target', { size: 15, color: k.mid })
+    // Stage 3
+    box(468, 46, 224, 68, purple, 'Frozen CLIP / T5', 'prompt c (10% null)')
+    fig.arrow(580, 114, 580, 146, { color: purple, width: 1.75, head: 6 })
 
-    a.rect(296, 235, 218, 70, { fill: tint(k.wait, 0.08), stroke: tint(k.wait, 0.3), r: 6 })
-    a.text(308, 258, 'Timestep Sample t', { size: 15, weight: 700, color: k.wait })
-    a.text(308, 282, 't ~ Uniform({1, ..., T})', { size: 15, mono: true, color: k.ink })
+    fig.path('M 416 287 H 442 V 194 H 466', { color: blue, width: 1.75 })
+    fig.arrow(454, 194, 466, 194, { color: blue, width: 1.75, head: 6 })
+    fig.path('M 416 176 H 466', { color: warm, width: 1.5, dash: '4 3' })
+    fig.arrow(454, 176, 466, 176, { color: warm, width: 1.5, head: 5.5 })
 
-    a.arrow(405, 305, 405, 335, k.wait, { width: 1.5 })
-
-    a.rect(296, 335, 218, 120, { fill: tint(k.decode, 0.08), stroke: tint(k.decode, 0.3), r: 6 })
-    a.text(308, 358, 'Noisy Latent z_t', { size: 15, weight: 700, color: k.decode })
-    a.text(308, 382, 'z_t = sqrt(a_t)*z_0 + sqrt(1-a_t)*eps', {
-        size: 15,
-        mono: true,
-        color: k.ink,
+    fig.rect(468, 148, 224, 76, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.11 : 0.18),
+        stroke: blue,
+        strokeWidth: 2,
+        radius: 9,
     })
-    a.text(308, 406, 'Direct single-step computation', { size: 15, color: k.mid })
-    a.text(308, 430, 'No Markov simulation needed', { size: 15, color: k.mid })
-
-    // Arrow to Denoiser
-    a.arrow(514, 395, 550, 395, k.decode, { width: 1.5 })
-
-    // Column 3: Denoiser & Loss
-    a.rect(550, 85, 270, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(566, 102, 90, 24, 'BACKBONE', {
-        fill: tint(k.decode, 0.15),
-        stroke: tint(k.decode, 0.4),
-        color: k.decode,
-        weight: 700,
+    fig.text(580, 170, 'Denoiser (U-Net/DiT)', { size: 15.5, weight: 700, color: blue, align: 'center' })
+    fig.math(580, 202, '\\hat{\\epsilon} = \\epsilon_\\theta(z_t, t, c)', {
+        size: 16,
+        color: c.textPrimary,
+        align: 'center',
     })
-    a.text(666, 114, 'Denoiser & Loss', { size: 15, weight: 700 })
 
-    a.rect(566, 145, 238, 80, { fill: tint(k.prefill, 0.08), stroke: tint(k.prefill, 0.3), r: 6 })
-    a.text(578, 168, 'Prompt Conditioning c', { size: 15, weight: 700, color: k.prefill })
-    a.text(578, 192, 'Text tokens via Cross-Attention', { size: 15, color: k.ink })
-    a.text(578, 214, 'Unconditional dropout (10%)', { size: 15, color: k.mid })
+    fig.arrow(580, 224, 580, 252, { color: blue, width: 1.8, head: 6 })
 
-    a.arrow(685, 225, 685, 245, k.prefill, { width: 1.5 })
-
-    a.rect(566, 245, 238, 110, { fill: tint(k.decode, 0.08), stroke: tint(k.decode, 0.3), r: 6 })
-    a.text(578, 268, 'Denoiser: eps_theta(z_t, t, c)', { size: 15, weight: 700, color: k.decode })
-    a.text(578, 292, 'UNet / DiT Transformer', { size: 15, color: k.ink })
-    a.text(578, 316, 'Learns score / noise residual', { size: 15, color: k.mid })
-    a.text(578, 338, 'Predicts eps_hat', { size: 15, mono: true, weight: 700, color: k.decode })
-
-    a.arrow(685, 355, 685, 375, k.decode, { width: 1.5 })
-
-    // Loss calculation
-    a.rect(566, 375, 238, 80, { fill: tint(k.fail, 0.08), stroke: tint(k.fail, 0.35), r: 6 })
-    a.text(578, 398, 'MSE Loss: || eps - eps_hat ||^2', {
-        size: 15,
-        weight: 700,
-        mono: true,
-        color: k.fail,
+    fig.rect(468, 254, 224, 70, {
+        fill: tint(red, c.bg, theme === 'light' ? 0.09 : 0.15),
+        stroke: red,
+        strokeWidth: 1.6,
+        radius: 8,
     })
-    a.text(578, 422, 'Gradient backpropagates to denoiser', { size: 15, color: k.ink })
-    a.text(578, 442, 'VAE and text encoder stay frozen', { size: 15, color: k.mid })
+    fig.math(580, 280, '\\mathcal{L} = \\|\\epsilon - \\hat{\\epsilon}\\|^2', {
+        size: 16.5,
+        color: red,
+        align: 'center',
+    })
+    fig.text(580, 310, 'updates θ only', { size: 15, color: c.textSecondary, align: 'center' })
 
-    // Dashed line from true noise to loss
-    a.path('M 480 145 H 700 V 375', k.fail, { width: 1.25, dash: '4,4' })
+    // True eps route around right edge
+    fig.path('M 416 80 H 444 V 36 H 736 V 289 H 694', { color: red, width: 1.5, dash: '5 4' })
+    fig.arrow(706, 289, 694, 289, { color: red, width: 1.5, head: 6 })
+    fig.text(722, 162, 'ε', { size: 16, weight: 700, color: red, align: 'center' })
 
-    return a.render()
+    // Gradient backprop arrow
+    fig.path('M 692 272 H 712 V 198 H 694', { color: warm, width: 1.75 })
+    fig.arrow(704, 198, 694, 198, { color: warm, width: 1.75, head: 6 })
+    fig.text(720, 236, '∇θ', { size: 15.5, weight: 700, color: warm, align: 'center' })
+
+    fig.brace(232, 336, 692, 336, 'Denoiser trains purely in 64×64×4 latent space', {
+        side: 1,
+        depth: 8,
+        labelGap: 16,
+        labelSize: 15,
+        color: c.textMuted,
+        labelColor: c.textSecondary,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

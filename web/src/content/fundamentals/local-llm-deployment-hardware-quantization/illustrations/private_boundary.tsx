@@ -1,329 +1,286 @@
-import React from 'react'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-} from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 900
-export const height = 636
+export const width = 760
+export const height = 430
 export const alt =
     'Two local memory architectures for serving a Q4_K_M GGUF model. On a discrete GPU, quantized weights and FP16 KV cache sit in separate 24 GB GDDR6X or HBM VRAM at 1,008 GB/s while offloaded blocks stay in host DRAM across a 25 GB/s PCIe bridge before dequantizing in GPU registers. On Apple Silicon unified memory, CPU and GPU share one high-bandwidth pool up to 614 GB/s or 1.2 TB/s alongside macOS without a PCIe transfer step.'
 
-const label = (
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    size: number,
-    color: string,
-    align: 'left' | 'center' | 'right' = 'center',
-    weight = 700,
-) => (
-    <CanvasItem x={x} y={y} width={w} height={h}>
-        <TextLabel
-            c={c}
-            text={text}
-            width="100%"
-            fontSize={size}
-            fontWeight={weight}
-            color={color}
-            align={align}
-        />
-    </CanvasItem>
-)
-
-function frame(theme: ThemeMode) {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = c.info
-    const purple = c.primary
-    const green = c.positive
-    const warm = c.warning
-
-    const geometry = AxisPlot({
-        c,
-        width,
-        height,
-        xMin: 0,
-        xMax: width,
-        yMin: 0,
-        yMax: height,
-        padding: 0,
-        showFrame: false,
-        showAxes: false,
-        showGrid: false,
-        children: [
-            // Left card: Discrete GPU
-            SvgFrame({
-                c,
-                x: 24,
-                y: 108,
-                width: 416,
-                height: 416,
-                rx: 12,
-                fill: c.bgCard,
-                stroke: blue,
-                strokeWidth: 2.5,
-            }),
-            SvgFrame({
-                c,
-                x: 46,
-                y: 162,
-                width: 372,
-                height: 74,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: c.border,
-                strokeWidth: 1.5,
-            }),
-            SvgFrame({
-                c,
-                x: 46,
-                y: 282,
-                width: 372,
-                height: 112,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: blue,
-                strokeWidth: 2,
-            }),
-            SvgFrame({
-                c,
-                x: 46,
-                y: 432,
-                width: 372,
-                height: 72,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: green,
-                strokeWidth: 2,
-            }),
-            VectorArrow({
-                x1: 186,
-                y1: 236,
-                x2: 186,
-                y2: 280,
-                color: warm,
-                strokeWidth: 3.5,
-                arrowSize: 4,
-            }),
-            VectorArrow({
-                x1: 232,
-                y1: 394,
-                x2: 232,
-                y2: 430,
-                color: green,
-                strokeWidth: 3.5,
-                arrowSize: 4,
-            }),
-
-            // Right card: Apple Silicon Unified Memory
-            SvgFrame({
-                c,
-                x: 460,
-                y: 108,
-                width: 416,
-                height: 416,
-                rx: 12,
-                fill: c.bgCard,
-                stroke: purple,
-                strokeWidth: 2.5,
-            }),
-            SvgFrame({
-                c,
-                x: 482,
-                y: 162,
-                width: 372,
-                height: 232,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: purple,
-                strokeWidth: 2,
-            }),
-            // Memory blocks inside unified pool
-            SvgFrame({
-                c,
-                x: 500,
-                y: 222,
-                width: 84,
-                height: 92,
-                rx: 6,
-                fill: c.bgCard,
-                stroke: c.border,
-                strokeWidth: 1.5,
-            }),
-            SvgFrame({
-                c,
-                x: 594,
-                y: 222,
-                width: 126,
-                height: 92,
-                rx: 6,
-                fill: c.bgCard,
-                stroke: blue,
-                strokeWidth: 1.5,
-            }),
-            SvgFrame({
-                c,
-                x: 730,
-                y: 222,
-                width: 106,
-                height: 92,
-                rx: 6,
-                fill: c.bgCard,
-                stroke: warm,
-                strokeWidth: 1.5,
-            }),
-            SvgFrame({
-                c,
-                x: 482,
-                y: 432,
-                width: 372,
-                height: 72,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: green,
-                strokeWidth: 2,
-            }),
-            VectorArrow({
-                x1: 668,
-                y1: 394,
-                x2: 668,
-                y2: 430,
-                color: purple,
-                strokeWidth: 3.5,
-                arrowSize: 4,
-            }),
-
-            // Footer
-            SvgFrame({
-                c,
-                x: 24,
-                y: 544,
-                width: 852,
-                height: 60,
-                rx: 10,
-                fill: c.bgCardAlt,
-                stroke: c.border,
-                strokeWidth: 1.5,
-            }),
-        ],
-    })
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: (
-            <Board c={c} width={width} height={height} background="transparent">
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    {geometry}
-                </CanvasItem>
-
-                {label(
-                    c,
-                    'GGUF Q4_K_M memory hierarchy',
-                    20,
-                    14,
-                    860,
-                    42,
-                    31,
-                    c.textPrimary,
-                    'center',
-                    800,
-                )}
-                {label(
-                    c,
-                    'Bandwidth, dequantization, and KV capacity across hosts',
-                    20,
-                    56,
-                    860,
-                    36,
-                    28,
-                    c.textSecondary,
-                    'center',
-                    650,
-                )}
-
-                {/* Left: Discrete GPU */}
-                {label(c, 'Discrete GPU (RTX 4090)', 36, 118, 392, 34, 28, blue, 'center', 800)}
-                {label(
-                    c,
-                    'Host RAM: offloaded blk',
-                    48,
-                    180,
-                    368,
-                    36,
-                    28,
-                    c.textSecondary,
-                    'center',
-                    650,
-                )}
-                {label(c, 'PCIe ~25 GB/s', 202, 240, 214, 34, 28, warm, 'left', 700)}
-                {label(c, 'VRAM 24 GB (1,008 GB/s)', 48, 294, 368, 34, 28, blue, 'center', 800)}
-                {label(
-                    c,
-                    'Q4_K_M wts + FP16 KV',
-                    48,
-                    342,
-                    368,
-                    34,
-                    28,
-                    c.textPrimary,
-                    'center',
-                    650,
-                )}
-                {label(c, 'SMs: dequant + matmul', 48, 450, 368, 34, 28, green, 'center', 750)}
-
-                {/* Right: Unified */}
-                {label(c, 'Apple M5 Max / Ultra', 472, 118, 392, 34, 28, purple, 'center', 800)}
-                {label(c, 'Unified (614-1200 GB/s)', 484, 174, 368, 34, 28, purple, 'center', 750)}
-                {label(c, 'OS', 504, 250, 76, 34, 28, c.textSecondary, 'center', 700)}
-                {label(c, 'Q4 Wts', 598, 250, 118, 34, 28, blue, 'center', 750)}
-                {label(c, 'KV', 734, 250, 98, 34, 28, warm, 'center', 750)}
-                {label(
-                    c,
-                    'Zero PCIe; shared pool',
-                    484,
-                    336,
-                    368,
-                    34,
-                    28,
-                    c.textPrimary,
-                    'center',
-                    650,
-                )}
-                {label(c, 'Metal GPU: direct dequant', 484, 450, 368, 34, 28, green, 'center', 750)}
-
-                {/* Footer */}
-                {label(
-                    c,
-                    'Fit weights, KV, and workspace in active RAM.',
-                    36,
-                    556,
-                    828,
-                    36,
-                    28,
-                    c.textPrimary,
-                    'center',
-                    650,
-                )}
-            </Board>
-        ),
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    return frame(theme)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
+
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+
+    // Center hairline divider
+    fig.line(width / 2, 16, width / 2, 314, { color: c.borderSubtle, width: 1 })
+
+    // === Left: Discrete GPU (RTX 4090) ===
+    const lx = 24
+    const lw = 332
+    fig.text(lx + lw / 2, 24, 'Discrete GPU (RTX 4090)', {
+        size: 15,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+
+    // Host RAM box
+    fig.rect(lx, 46, lw, 46, {
+        fill: tint(c.textMuted, c.bg, isLight ? 0.1 : 0.18),
+        stroke: c.border,
+        strokeWidth: 1.4,
+        radius: 7,
+    })
+    fig.text(lx + lw / 2, 62, 'Host DRAM (offloaded blocks)', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(lx + lw / 2, 80, 'CPU fallback when model exceeds 24 GB', {
+        size: 11.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Narrow PCIe bottleneck arrow
+    fig.arrow(lx + lw / 2, 94, lx + lw / 2, 134, {
+        color: warm,
+        width: 2,
+        dash: '4 3',
+        head: 6,
+    })
+    fig.text(lx + lw / 2 + 10, 114, 'PCIe ~25 GB/s (40×)', {
+        size: 12,
+        weight: 700,
+        color: warm,
+        mono: true,
+    })
+
+    // VRAM 24 GB box
+    fig.rect(lx, 138, lw, 76, {
+        fill: tint(blue, c.bg, isLight ? 0.14 : 0.24),
+        stroke: blue,
+        strokeWidth: 1.8,
+        radius: 8,
+    })
+    fig.text(lx + lw / 2, 156, 'VRAM · 24 GB GDDR6X (1,008 GB/s)', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    // Inner Q4 weights + FP16 KV split
+    fig.rect(lx + 12, 170, 198, 32, {
+        fill: tint(blue, c.bg, isLight ? 0.22 : 0.36),
+        stroke: blue,
+        strokeWidth: 1.2,
+        radius: 5,
+    })
+    fig.text(lx + 111, 186, 'Q4_K_M weights', {
+        size: 12.5,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.rect(lx + 216, 170, 104, 32, {
+        fill: tint(warm, c.bg, isLight ? 0.2 : 0.32),
+        stroke: warm,
+        strokeWidth: 1.2,
+        radius: 5,
+    })
+    fig.text(lx + 268, 186, 'FP16 KV', {
+        size: 12.5,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    // Wide fast arrow to SMs
+    fig.arrow(lx + lw / 2, 216, lx + lw / 2, 250, { color: green, width: 3.2, head: 7 })
+    fig.text(lx + lw / 2 + 14, 232, '1,008 GB/s', {
+        size: 12,
+        weight: 700,
+        color: green,
+        mono: true,
+    })
+
+    // SMs box
+    fig.rect(lx, 254, lw, 46, {
+        fill: tint(green, c.bg, isLight ? 0.14 : 0.26),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 7,
+    })
+    fig.text(lx + lw / 2, 270, 'GPU SMs · register dequant + matmul', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(lx + lw / 2, 288, 'Fastest per token when resident in VRAM', {
+        size: 11.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // === Right: Apple Silicon Unified ===
+    const rx = 404
+    const rw = 332
+    fig.text(rx + rw / 2, 24, 'Apple Silicon Unified Memory', {
+        size: 15,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+
+    // Unified pool tall container
+    fig.rect(rx, 46, rw, 168, {
+        fill: tint(purple, c.bg, isLight ? 0.1 : 0.2),
+        stroke: purple,
+        strokeWidth: 1.8,
+        radius: 8,
+    })
+    fig.text(rx + rw / 2, 66, 'Single Shared Pool · 614–1,200 GB/s', {
+        size: 13,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+    fig.text(rx + rw / 2, 86, 'Up to 128–512 GB · zero PCIe transfer', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Proportional segments: OS | Q4 weights | FP16 KV
+    const segY = 108
+    const segH = 60
+    fig.rect(rx + 12, segY, 64, segH, {
+        fill: tint(c.textMuted, c.bg, isLight ? 0.15 : 0.26),
+        stroke: c.border,
+        strokeWidth: 1.2,
+        radius: 5,
+    })
+    fig.text(rx + 44, segY + 24, 'macOS', {
+        size: 12,
+        weight: 700,
+        color: c.textSecondary,
+        align: 'center',
+    })
+    fig.text(rx + 44, segY + 42, 'OS/apps', {
+        size: 11,
+        color: c.textMuted,
+        align: 'center',
+    })
+
+    fig.rect(rx + 82, segY, 152, segH, {
+        fill: tint(blue, c.bg, isLight ? 0.2 : 0.34),
+        stroke: blue,
+        strokeWidth: 1.4,
+        radius: 5,
+    })
+    fig.text(rx + 158, segY + 24, 'Q4_K_M weights', {
+        size: 12.5,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(rx + 158, segY + 42, 'large models fit whole', {
+        size: 11,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    fig.rect(rx + 240, segY, 80, segH, {
+        fill: tint(warm, c.bg, isLight ? 0.2 : 0.34),
+        stroke: warm,
+        strokeWidth: 1.4,
+        radius: 5,
+    })
+    fig.text(rx + 280, segY + 24, 'KV cache', {
+        size: 12,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+    fig.text(rx + 280, segY + 42, 'shared', {
+        size: 11,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    fig.text(rx + rw / 2, 194, 'CPU and Metal GPU read identical physical pages', {
+        size: 11.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Wide direct arrow to Metal GPU
+    fig.arrow(rx + rw / 2, 216, rx + rw / 2, 250, { color: purple, width: 3.2, head: 7 })
+    fig.text(rx + rw / 2 + 14, 232, 'Direct unified fabric', {
+        size: 12,
+        weight: 700,
+        color: purple,
+    })
+
+    fig.rect(rx, 254, rw, 46, {
+        fill: tint(green, c.bg, isLight ? 0.14 : 0.26),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 7,
+    })
+    fig.text(rx + rw / 2, 270, 'Metal GPU · direct dequant + matmul', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(rx + rw / 2, 288, 'Large resident capacity; keep headroom for macOS', {
+        size: 11.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // === Bottom bandwidth scale comparison ===
+    fig.line(24, 326, width - 24, 326, { color: c.borderSubtle, width: 1 })
+    fig.text(24, 344, 'Effective decode bandwidth scale', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const barX = 166
+    const maxBW = 454
+    const rows = [
+        { label: 'RTX 4090 VRAM', val: 1008, text: '1,008 GB/s', tone: blue },
+        { label: 'Unified Max/Ultra', val: 1200, text: '614–1,200 GB/s', tone: purple },
+        { label: 'PCIe 4.0 x16', val: 25, text: '~25 GB/s (offload cliff)', tone: warm },
+    ]
+    rows.forEach((r, i) => {
+        const y = 360 + i * 22
+        fig.text(24, y + 6, r.label, { size: 12, weight: 600, color: c.textSecondary })
+        const w = Math.max(10, (r.val / 1200) * maxBW)
+        fig.rect(barX, y, w, 12, {
+            fill: tint(r.tone, c.bg, isLight ? 0.32 : 0.48),
+            stroke: r.tone,
+            strokeWidth: 1.2,
+            radius: 3,
+        })
+        fig.text(barX + w + 8, y + 6, r.text, {
+            size: 12,
+            weight: 700,
+            color: r.tone,
+            mono: true,
+        })
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

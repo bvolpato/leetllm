@@ -211,7 +211,6 @@ OpenAI API compatibility is not a security boundary:[^vllm2026security][^vllm202
 2. **Media SSRF/OOM limits:** Restrict `--allowed-media-domains`, disable redirects (`VLLM_MEDIA_URL_ALLOW_REDIRECTS=0`), enforce pixel/size/duration caps, and keep `--trust-request-mm-kwargs` off by default.[^vllm2026release0310]
 3. **Internal fabric ports:** <span data-glossary="pytorch">PyTorch</span> distributed and KV-transfer ports have no auth/TLS; bind them to isolated private networks.
 
-<!-- leetllm: edition:reference:start -->
 ## Code-reading route
 
 Trace one request through six V1 files (`Apache-2.0`, UC Berkeley Sky Computing Lab origin[^vllm2026governance][^vllm2026license0280][^vllm2024]):
@@ -224,7 +223,6 @@ Trace one request through six V1 files (`Apache-2.0`, UC Berkeley Sky Computing 
 6. `vllm/v1/worker/gpu_worker.py` + `gpu_model_runner.py`: CUDA graphs, attention dispatch, sampling.
 
 When ITL climbs alongside low GPU utilization and high preemptions, check KV pool exhaustion, `max_num_batched_tokens` / `max_num_seqs` oversubscription, and engine-core CPU saturation before swapping attention kernels. Note that Prometheus `vllm:inter_token_latency_seconds` measures intervals between engine output reports (which may bundle tokens); measure client timestamps for strict per-token p99 ITL.[^vllm2026metrics]
-<!-- leetllm: edition:reference:end -->
 
 ## Architectural summary
 

@@ -1,455 +1,206 @@
-import { createElement, type ReactElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    VectorSegment,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const opaqueBackground = true
+export const width = 840
+export const height = 380
 export const alt =
     'DeepEP communication topology paths: Direct mode routes tokens directly from Rank 0 (Node A) to Rank 3 (Node B) across cross-node RDMA. Hybrid mode routes from Rank 0 to Rank 2 on Node B over an RDMA rail, then forwards to Rank 3 across high-bandwidth intranode NVLink.'
 
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
-
-function renderBoard(c: Colors, items: (ReactElement | ReactElement[])[]) {
-    const flat = items.flat() as ReactElement[]
-    const svg = flat.filter((el) => el?.type !== 'div')
-    const html = flat.filter((el) => el?.type === 'div')
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bg,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: createElement(
-                    'svg',
-                    { width, height, viewBox: `0 0 ${width} ${height}` },
-                    ...svg,
-                ),
-            }),
-            ...html,
-        ],
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const purple = getReadableToneColor('purple', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
     const muted = c.textSecondary
 
-    const leftX = 35
-    const cardW = 380
-    const rightX = 445
-    const cardY = 75
-    const cardH = 345
+    const drawNode = (
+        x: number,
+        y: number,
+        title: string,
+        tone: string,
+        topRank: { label: string; role?: string; tone: string; active: boolean },
+        botRank: { label: string; role?: string; tone: string; active: boolean },
+    ) => {
+        const nw = 148
+        const nh = 204
+        fig.rect(x, y, nw, nh, {
+            fill: tint(tone, c.bg, 0.07),
+            stroke: tint(tone, c.bg, 0.45),
+            strokeWidth: 1.25,
+            radius: 10,
+        })
+        fig.text(x + nw / 2, y + 22, title, {
+            size: 14,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            width: nw - 16,
+        })
 
-    return renderBoard(c, [
-        // Title & Subtitle
-        label(
-            c,
-            'DeepEP Communication Topologies: Direct vs Hybrid',
-            35,
-            18,
-            790,
-            26,
-            22,
-            c.textPrimary,
-            700,
-        ),
-        label(
-            c,
-            'Direct mode connects ranks point-to-point via RDMA; Hybrid mode pairs RDMA rails with intranode NVLink forwarding',
-            35,
-            46,
-            790,
-            20,
-            15,
-            muted,
-            400,
-        ),
+        const ranks = [
+            { r: topRank, ry: y + 46 },
+            { r: botRank, ry: y + 132 },
+        ]
+        for (const { r, ry } of ranks) {
+            fig.rect(x + 12, ry, nw - 24, 56, {
+                fill: r.active ? tint(r.tone, c.bg, 0.16) : tint(c.textMuted, c.bg, 0.05),
+                stroke: r.active ? r.tone : c.borderSubtle,
+                strokeWidth: r.active ? 1.75 : 1,
+                radius: 7,
+            })
+            fig.text(x + nw / 2, ry + (r.role ? 19 : 28), r.label, {
+                size: 14,
+                weight: r.active ? 700 : 500,
+                color: r.active ? r.tone : muted,
+                align: 'center',
+                width: nw - 28,
+            })
+            if (r.role) {
+                fig.text(x + nw / 2, ry + 39, r.role, {
+                    size: 12,
+                    weight: 600,
+                    color: c.textSecondary,
+                    align: 'center',
+                    width: nw - 28,
+                })
+            }
+        }
+    }
 
-        // Left Card: Direct Path
-        SvgFrame({
-            c,
-            x: leftX,
-            y: cardY,
-            width: cardW,
-            height: cardH,
-            rx: 8,
-            stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgCard,
-        }),
-        label(c, '1. DIRECT RDMA TRANSPORT', leftX + 16, cardY + 16, cardW - 32, 20, 13, cyan, 700),
-        label(
-            c,
-            'Single-hop cross-node communication',
-            leftX + 16,
-            cardY + 38,
-            cardW - 32,
-            16,
-            11,
-            muted,
-        ),
+    // --- Left Half: Direct Mode ---
+    fig.text(24, 24, 'Direct Mode (1-Hop RDMA)', {
+        size: 16,
+        weight: 700,
+        color: cyan,
+    })
+    fig.text(24, 46, 'Point-to-point cross-node transfer', { size: 13, color: muted })
 
-        // Node A
-        SvgFrame({
-            c,
-            x: leftX + 20,
-            y: cardY + 70,
-            width: 140,
-            height: 170,
-            rx: 6,
-            stroke: blue,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(88, 166, 255, 0.08)' : 'rgba(9, 105, 218, 0.05)',
-        }),
-        label(c, 'Node A', leftX + 20, cardY + 80, 140, 18, 12, blue, 700, 'center'),
-        // Rank 0
-        SvgFrame({
-            c,
-            x: leftX + 32,
-            y: cardY + 110,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: cyan,
-            strokeWidth: 1.5,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 0 (Source)', leftX + 32, cardY + 122, 116, 18, 11, cyan, 700, 'center'),
-        // Rank 1
-        SvgFrame({
-            c,
-            x: leftX + 32,
-            y: cardY + 180,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 1', leftX + 32, cardY + 192, 116, 18, 11, muted, 500, 'center'),
+    const lNodeA = 24
+    const lNodeB = 252
+    const nodeY = 78
 
-        // Node B
-        SvgFrame({
-            c,
-            x: leftX + 220,
-            y: cardY + 70,
-            width: 140,
-            height: 170,
-            rx: 6,
-            stroke: green,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(63, 185, 80, 0.08)' : 'rgba(26, 127, 55, 0.05)',
-        }),
-        label(c, 'Node B', leftX + 220, cardY + 80, 140, 18, 12, green, 700, 'center'),
-        // Rank 2
-        SvgFrame({
-            c,
-            x: leftX + 232,
-            y: cardY + 110,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 2', leftX + 232, cardY + 122, 116, 18, 11, muted, 500, 'center'),
-        // Rank 3
-        SvgFrame({
-            c,
-            x: leftX + 232,
-            y: cardY + 180,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: green,
-            strokeWidth: 1.5,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 3 (Dest)', leftX + 232, cardY + 192, 116, 18, 11, green, 700, 'center'),
+    drawNode(
+        lNodeA,
+        nodeY,
+        'Node A',
+        blue,
+        { label: 'Rank 0', role: 'Source', tone: cyan, active: true },
+        { label: 'Rank 1', tone: muted, active: false },
+    )
+    drawNode(
+        lNodeB,
+        nodeY,
+        'Node B',
+        green,
+        { label: 'Rank 2', tone: muted, active: false },
+        { label: 'Rank 3', role: 'Target', tone: green, active: true },
+    )
 
-        // Direct Arrow R0 -> R3
-        VectorArrow({
-            x1: leftX + 148,
-            y1: cardY + 131,
-            x2: leftX + 232,
-            y2: cardY + 201,
-            color: getReadableToneColor('cyan', c),
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
+    // Direct diagonal RDMA arrow: Rank 0 right edge -> Rank 3 left edge
+    fig.arrow(lNodeA + 136, nodeY + 74, lNodeB + 10, nodeY + 160, {
+        color: cyan,
+        width: 2.5,
+        head: 7,
+        dash: '6 4',
+    })
+    fig.text(212, nodeY + 92, 'RDMA', {
+        size: 13,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+    })
+    fig.text(212, nodeY + 184, 'cross-rail', {
+        size: 12,
+        weight: 500,
+        color: muted,
+        align: 'center',
+    })
 
-        label(
-            c,
-            'Full point-to-point network mesh',
-            leftX + 16,
-            cardY + 265,
-            cardW - 32,
-            18,
-            12,
-            c.textPrimary,
-            600,
-        ),
-        label(
-            c,
-            'Direct transfers minimize latency when network bisection bandwidth is unconstrained.',
-            leftX + 16,
-            cardY + 288,
-            cardW - 32,
-            40,
-            11,
-            muted,
-        ),
+    // Compact comparison metrics under Direct
+    fig.text(24, 314, '1 hop  ·  direct GPU-to-GPU RDMA', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(24, 338, 'Full cross-rail mesh increases QP count', {
+        size: 13,
+        color: muted,
+    })
 
-        // Right Card: Hybrid Path
-        SvgFrame({
-            c,
-            x: rightX,
-            y: cardY,
-            width: cardW,
-            height: cardH,
-            rx: 8,
-            stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgCard,
-        }),
-        label(
-            c,
-            '2. HYBRID RAIL + NVLINK TRANSPORT',
-            rightX + 16,
-            cardY + 16,
-            cardW - 32,
-            20,
-            13,
-            purple,
-            700,
-        ),
-        label(
-            c,
-            'Two-stage transfer mitigating cross-rail congestion',
-            rightX + 16,
-            cardY + 38,
-            cardW - 32,
-            16,
-            11,
-            muted,
-        ),
+    // Subtle vertical divider
+    fig.line(420, 18, 420, 360, { color: c.borderSubtle, width: 1 })
 
-        // Node A
-        SvgFrame({
-            c,
-            x: rightX + 20,
-            y: cardY + 70,
-            width: 140,
-            height: 170,
-            rx: 6,
-            stroke: blue,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(88, 166, 255, 0.08)' : 'rgba(9, 105, 218, 0.05)',
-        }),
-        label(c, 'Node A', rightX + 20, cardY + 80, 140, 18, 12, blue, 700, 'center'),
-        // Rank 0
-        SvgFrame({
-            c,
-            x: rightX + 32,
-            y: cardY + 110,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: cyan,
-            strokeWidth: 1.5,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 0 (Source)', rightX + 32, cardY + 122, 116, 18, 11, cyan, 700, 'center'),
-        // Rank 1
-        SvgFrame({
-            c,
-            x: rightX + 32,
-            y: cardY + 180,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 1', rightX + 32, cardY + 192, 116, 18, 11, muted, 500, 'center'),
+    // --- Right Half: Hybrid Mode ---
+    const rx = 440
+    fig.text(rx, 24, 'Hybrid Mode (Rail RDMA + NVLink)', {
+        size: 16,
+        weight: 700,
+        color: warm,
+    })
+    fig.text(rx, 46, 'Aligned RDMA rail, then intranode forward', { size: 13, color: muted })
 
-        // Node B
-        SvgFrame({
-            c,
-            x: rightX + 220,
-            y: cardY + 70,
-            width: 140,
-            height: 170,
-            rx: 6,
-            stroke: green,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(63, 185, 80, 0.08)' : 'rgba(26, 127, 55, 0.05)',
-        }),
-        label(c, 'Node B', rightX + 220, cardY + 80, 140, 18, 12, green, 700, 'center'),
-        // Rank 2 (Rail Peer)
-        SvgFrame({
-            c,
-            x: rightX + 232,
-            y: cardY + 110,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: warm,
-            strokeWidth: 1.5,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 2 (Rail Peer)', rightX + 232, cardY + 122, 116, 18, 11, warm, 700, 'center'),
-        // Rank 3 (Final Target)
-        SvgFrame({
-            c,
-            x: rightX + 232,
-            y: cardY + 180,
-            width: 116,
-            height: 42,
-            rx: 4,
-            stroke: green,
-            strokeWidth: 1.5,
-            fill: c.bgSubtle,
-        }),
-        label(c, 'Rank 3 (Dest)', rightX + 232, cardY + 192, 116, 18, 11, green, 700, 'center'),
+    const rNodeA = 440
+    const rNodeB = 668
 
-        // Hop 1: RDMA Rail R0 -> R2
-        VectorArrow({
-            x1: rightX + 148,
-            y1: cardY + 131,
-            x2: rightX + 232,
-            y2: cardY + 131,
-            color: getReadableToneColor('warm', c),
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
+    drawNode(
+        rNodeA,
+        nodeY,
+        'Node A',
+        blue,
+        { label: 'Rank 0', role: 'Source', tone: cyan, active: true },
+        { label: 'Rank 1', tone: muted, active: false },
+    )
+    drawNode(
+        rNodeB,
+        nodeY,
+        'Node B',
+        green,
+        { label: 'Rank 2', role: 'Rail peer', tone: warm, active: true },
+        { label: 'Rank 3', role: 'Target', tone: green, active: true },
+    )
 
-        // Hop 2: NVLink Forward R2 -> R3
-        VectorArrow({
-            x1: rightX + 290,
-            y1: cardY + 152,
-            x2: rightX + 290,
-            y2: cardY + 180,
-            color: getReadableToneColor('green', c),
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
+    // Hop 1: Horizontal RDMA rail Rank 0 -> Rank 2
+    fig.arrow(rNodeA + 136, nodeY + 74, rNodeB + 10, nodeY + 74, {
+        color: warm,
+        width: 2.5,
+        head: 7,
+        dash: '6 4',
+    })
+    fig.text(628, nodeY + 54, '1. RDMA rail', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        width: 96,
+    })
 
-        label(
-            c,
-            'Rail-aligned cross-node transfer',
-            rightX + 16,
-            cardY + 265,
-            cardW - 32,
-            18,
-            12,
-            c.textPrimary,
-            600,
-        ),
-        label(
-            c,
-            'Tokens traverse RDMA rail to node peer, then forward locally over high-bandwidth NVLink.',
-            rightX + 16,
-            cardY + 288,
-            cardW - 32,
-            40,
-            11,
-            muted,
-        ),
+    // Hop 2: Intranode NVLink Rank 2 -> Rank 3
+    fig.arrow(rNodeB + 74, nodeY + 102, rNodeB + 74, nodeY + 130, {
+        color: green,
+        width: 2.5,
+        head: 6,
+    })
+    fig.text(rNodeB + 86, nodeY + 116, '2. NVLink', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'left',
+    })
 
-        // Bottom summary frame
-        SvgFrame({
-            c,
-            x: leftX,
-            y: 435,
-            width: 790,
-            height: 42,
-            rx: 6,
-            stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgCard,
-        }),
-        label(
-            c,
-            'Direct Mode: Low latency, 1-hop point-to-point',
-            leftX + 20,
-            447,
-            260,
-            20,
-            12,
-            cyan,
-            600,
-        ),
-        label(
-            c,
-            'Hybrid Mode: Rail-aligned + NVLink forwarding',
-            leftX + 290,
-            447,
-            260,
-            20,
-            12,
-            warm,
-            600,
-            'center',
-        ),
-        label(
-            c,
-            'Optimized for Multi-Node MoE Clusters',
-            leftX + 540,
-            447,
-            230,
-            20,
-            12,
-            green,
-            600,
-            'right',
-        ),
-    ])
+    // Compact comparison metrics under Hybrid
+    fig.text(rx, 314, '2 hops  ·  rail-aligned RDMA + fast NVLink', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rx, 338, 'Curbs cross-rail congestion and QP count', {
+        size: 13,
+        color: muted,
+    })
+
+    return fig.render()
 }
 
 export default create()

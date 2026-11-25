@@ -1,241 +1,222 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableColor,
-    getReadableTextColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 760
+export const height = 395
 export const alt =
     'The client-visible output IDs 201 and 202 remain accepted through preemption. Before the pause, KV contains prompt positions 101, 102, and 103 plus generated position 201; sampled token 202 has no KV position yet. The pause releases those four cached positions. Resume replays 101, 102, 103, and 201 without sampling or emitting them again, then uses 202 as the next decode input.'
 
-export const width = 820
-export const height = 470
-
-const colX = [20, 292, 564]
-const colW = 228
-const cellW = 50
-const cellGap = 6
-const tokens = [101, 102, 103, 201]
-
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    value: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-    fontWeight = 500,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: Math.max(36, fontSize + 8),
-        children: TextLabel({ c, text: value, fontSize, fontWeight, color, align, width: w }),
-    })
-}
+const cachedTokens = [101, 102, 103, 201]
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme)
-    const positive = getReadableColor('positive', c)
-    const warning = getReadableColor('warning', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+
+    const colX = [28, 276, 524]
+    const cellW = 48
+    const cellGap = 6
+    const kvY = 72
+    const cellH = 40
+
     const stages = [
-        { title: 'Before pause', note: '4 held in KV', nextNote: 'no KV yet' },
-        { title: 'Paused', note: 'all 4 released', nextNote: 'waits' },
-        { title: 'Resumed', note: 'replay, no sample', nextNote: 'next decode' },
+        { head: '1. Before pause', sub: '4 tokens held in KV', nextNote: 'no KV yet', tone: blue },
+        { head: '2. Paused', sub: 'all 4 KV slots freed', nextNote: 'queued', tone: warm },
+        {
+            head: '3. Resumed',
+            sub: 'silent replay (no emit)',
+            nextNote: 'next decode input',
+            tone: green,
+        },
     ]
 
-    const art = (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-            {tokens.map((id, i) => {
-                const fill = id < 200 ? c.primary : c.secondary
-                return [
-                    SvgFrame({
-                        key: `a-${id}`,
-                        c,
-                        x: colX[0] + i * (cellW + cellGap),
-                        y: 112,
-                        width: cellW,
-                        height: 48,
-                        rx: 6,
-                        fill,
-                        stroke: fill,
-                        strokeWidth: 2,
-                    }),
-                    <rect
-                        key={`b-${id}`}
-                        x={colX[1] + i * (cellW + cellGap)}
-                        y={112}
-                        width={cellW}
-                        height={48}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={c.borderLight}
-                        strokeWidth={2}
-                        strokeDasharray="5 4"
-                    />,
-                    <rect
-                        key={`c-${id}`}
-                        x={colX[2] + i * (cellW + cellGap)}
-                        y={112}
-                        width={cellW}
-                        height={48}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={c.warning}
-                        strokeWidth={2}
-                        strokeDasharray="5 4"
-                    />,
-                ]
-            })}
-            {VectorArrow({
-                x1: colX[0] + 224,
-                y1: 136,
-                x2: colX[1] - 6,
-                y2: 136,
-                color: c.warning,
-                strokeWidth: 3,
-            })}
-            {VectorArrow({
-                x1: colX[1] + 224,
-                y1: 136,
-                x2: colX[2] - 6,
-                y2: 136,
-                color: c.warning,
-                strokeWidth: 3,
-            })}
-            {colX.map((x, idx) =>
-                SvgFrame({
-                    key: `n-${idx}`,
-                    c,
-                    x,
-                    y: 242,
-                    width: cellW + 10,
-                    height: 42,
-                    rx: 6,
-                    fill: c.bgCardAlt,
-                    stroke: c.secondary,
-                    strokeWidth: 2,
-                }),
-            )}
-            {SvgFrame({
-                c,
-                x: 20,
-                y: 342,
-                width: 780,
-                height: 60,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: c.positive,
-                strokeWidth: 2,
-            })}
-            {[201, 202].map((id, idx) =>
-                SvgFrame({
-                    key: `out-${id}`,
-                    c,
-                    x: 162 + idx * 74,
-                    y: 351,
-                    width: 64,
-                    height: 42,
-                    rx: 6,
-                    fill: c.positive,
-                    stroke: c.positive,
-                    strokeWidth: 2,
-                }),
-            )}
-        </svg>
-    )
+    // Stage column titles & KV slots
+    stages.forEach((st, idx) => {
+        const sx = colX[idx]!
+        fig.text(sx, 26, st.head, { size: 15, weight: 700, color: c.textPrimary })
+        fig.text(sx, 48, st.sub, { size: 12, weight: 600, color: st.tone })
 
-    const outFg = getReadableTextColor(c.positive, c, c.bg)
-    const children = [
-        CanvasItem({ x: 0, y: 0, width, height, children: art }),
-        label(
-            c,
-            'Preemption preserves accepted client tokens',
-            20,
-            14,
-            780,
-            30,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        ...stages.flatMap((s, idx) => [
-            label(c, s.title, colX[idx], 68, colW, 27, c.textPrimary, 'left', 700),
-            label(
-                c,
-                s.note,
-                colX[idx],
-                170,
-                colW,
-                25,
-                idx === 0 ? c.textSecondary : warning,
-                'left',
-                600,
-            ),
-            label(c, '202', colX[idx], 247, cellW + 10, 25, c.textPrimary, 'center', 700),
-            label(c, s.nextNote, colX[idx] + cellW + 20, 247, 165, 25, c.textSecondary),
-        ]),
-        ...tokens.flatMap((id, i) => {
-            const fill = id < 200 ? c.primary : c.secondary
-            return [
-                label(
-                    c,
-                    String(id),
-                    colX[0] + i * (cellW + cellGap),
-                    120,
-                    cellW,
-                    25,
-                    getReadableTextColor(fill, c, c.bg),
-                    'center',
-                    700,
-                ),
-                label(
-                    c,
-                    String(id),
-                    colX[2] + i * (cellW + cellGap),
-                    120,
-                    cellW,
-                    25,
-                    warning,
-                    'center',
-                    700,
-                ),
-            ]
-        }),
-        label(c, 'Next decode input', 20, 206, 300, 25, c.textPrimary, 'left', 650),
-        label(c, 'Accepted client output', 20, 304, 400, 26, positive, 'left', 700),
-        label(c, 'Ledger:', 34, 356, 120, 25, c.textPrimary, 'left', 650),
-        label(c, '201', 162, 356, 64, 25, outFg, 'center', 700),
-        label(c, '202', 236, 356, 64, 25, outFg, 'center', 700),
-        label(c, 'never sampled or emitted again', 316, 356, 470, 25, positive, 'left', 650),
-        label(
-            c,
-            'Pausing drops 4 KV slots and pays replay compute on resume.',
-            20,
-            422,
-            780,
-            25,
-            c.textSecondary,
-        ),
-    ]
+        cachedTokens.forEach((tok, tIdx) => {
+            const tx = sx + tIdx * (cellW + cellGap)
+            const isPrompt = tok < 200
+            const baseTone = isPrompt ? blue : purple
 
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({ c, width, height, background: 'transparent', children }),
+            if (idx === 0) {
+                fig.rect(tx, kvY, cellW, cellH, {
+                    fill: tint(baseTone, c.bg, theme === 'light' ? 0.22 : 0.34),
+                    stroke: baseTone,
+                    strokeWidth: 1.6,
+                    radius: 6,
+                })
+                fig.text(tx + cellW / 2, kvY + cellH / 2, String(tok), {
+                    size: 13,
+                    weight: 700,
+                    color: c.textPrimary,
+                    align: 'center',
+                    mono: true,
+                })
+            } else if (idx === 1) {
+                // Evicted empty slots (dashed)
+                fig.rect(tx, kvY, cellW, cellH, {
+                    fill: tint(c.textMuted, c.bg, 0.06),
+                    stroke: c.borderLight,
+                    strokeWidth: 1.4,
+                    radius: 6,
+                })
+                fig.line(tx + 8, kvY + cellH - 8, tx + cellW - 8, kvY + 8, {
+                    color: c.textMuted,
+                    width: 1,
+                    opacity: 0.45,
+                })
+            } else {
+                // Silent replay (warm dashed/tinted)
+                fig.rect(tx, kvY, cellW, cellH, {
+                    fill: tint(warm, c.bg, theme === 'light' ? 0.16 : 0.24),
+                    stroke: warm,
+                    strokeWidth: 1.6,
+                    radius: 6,
+                })
+                fig.text(tx + cellW / 2, kvY + cellH / 2, String(tok), {
+                    size: 13,
+                    weight: 700,
+                    color: warm,
+                    align: 'center',
+                    mono: true,
+                })
+            }
+        })
+
+        // Next decode input token 202
+        const nextY = 178
+        fig.rect(sx, nextY, 56, 36, {
+            fill: tint(purple, c.bg, theme === 'light' ? 0.18 : 0.28),
+            stroke: purple,
+            strokeWidth: 1.6,
+            radius: 6,
+        })
+        fig.text(sx + 28, nextY + 18, '202', {
+            size: 13,
+            weight: 700,
+            color: c.textPrimary,
+            align: 'center',
+            mono: true,
+        })
+        fig.text(sx + 68, nextY + 18, st.nextNote, {
+            size: 13,
+            weight: idx === 2 ? 700 : 500,
+            color: idx === 2 ? green : c.textSecondary,
+        })
     })
+
+    // Stage transition arrows
+    fig.arrow(colX[0]! + 214, kvY + cellH / 2, colX[1]! - 8, kvY + cellH / 2, {
+        color: warm,
+        width: 2,
+        head: 6.5,
+    })
+    fig.text((colX[0]! + 214 + colX[1]!) / 2 - 4, kvY + cellH / 2 - 14, 'evict', {
+        size: 11,
+        weight: 600,
+        color: warm,
+        align: 'center',
+    })
+
+    fig.arrow(colX[1]! + 214, kvY + cellH / 2, colX[2]! - 8, kvY + cellH / 2, {
+        color: green,
+        width: 2,
+        head: 6.5,
+    })
+    fig.text((colX[1]! + 214 + colX[2]!) / 2 - 4, kvY + cellH / 2 - 14, 'replay', {
+        size: 11,
+        weight: 600,
+        color: green,
+        align: 'center',
+    })
+
+    // Row label for pending decode token
+    fig.text(28, 152, 'Pending decode input (sampled, not yet in KV)', {
+        size: 13,
+        weight: 600,
+        color: purple,
+    })
+
+    // Hairline divider
+    fig.line(28, 244, 732, 244, { color: c.borderSubtle, width: 1 })
+
+    // --- Bottom: Continuous Client-Visible Emitted Stream (NO "Ledger"!) ---
+    fig.text(28, 270, 'Client-visible emitted tokens (unchanged across pause & replay)', {
+        size: 15,
+        weight: 600,
+        color: green,
+    })
+
+    const streamY = 296
+    const streamH = 54
+    fig.rect(28, streamY, 704, streamH, {
+        fill: tint(green, c.bg, theme === 'light' ? 0.1 : 0.16),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+
+    fig.text(46, streamY + streamH / 2, 'Emitted stream:', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    ;[201, 202].forEach((id, i) => {
+        const bx = 178 + i * 74
+        fig.rect(bx, streamY + 10, 62, 34, {
+            fill: tint(green, c.bg, theme === 'light' ? 0.78 : 0.86),
+            stroke: green,
+            strokeWidth: 1.5,
+            radius: 6,
+        })
+        fig.text(bx + 31, streamY + 27, String(id), {
+            size: 14,
+            weight: 700,
+            color: theme === 'light' ? '#ffffff' : '#0b0c10',
+            align: 'center',
+            mono: true,
+        })
+    })
+
+    fig.arrow(320, streamY + streamH / 2, 362, streamY + streamH / 2, {
+        color: green,
+        width: 1.75,
+        head: 6,
+    })
+    fig.rect(368, streamY + 10, 82, 34, {
+        fill: tint(c.textMuted, c.bg, 0.08),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 6,
+    })
+    fig.text(409, streamY + 27, '203 ...', {
+        size: 13,
+        weight: 600,
+        color: green,
+        align: 'center',
+        mono: true,
+    })
+
+    fig.text(472, streamY + streamH / 2, '201 & 202 never re-sampled', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+    })
+
+    // Compact legend for prompt vs generated tokens
+    fig.rect(28, 368, 12, 12, { fill: tint(blue, c.bg, 0.45), stroke: blue, strokeWidth: 1.2, radius: 2 })
+    fig.text(46, 374, 'Prompt tokens (101–103)', { size: 12, color: c.textSecondary })
+    fig.rect(226, 368, 12, 12, { fill: tint(purple, c.bg, 0.45), stroke: purple, strokeWidth: 1.2, radius: 2 })
+    fig.text(244, 374, 'Generated tokens (201, 202)', { size: 12, color: c.textSecondary })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create

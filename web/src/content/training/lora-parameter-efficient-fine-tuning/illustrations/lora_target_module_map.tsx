@@ -1,424 +1,205 @@
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    getToneFill,
-} from 'vizmatic'
-import type { ThemeMode, ToneName } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 720
-export const height = 780
+export const height = 475
 
 export const qwen2Modules = [
-    {
-        name: 'q_proj',
-        input: 16,
-        output: 16,
-        queryValue: true,
-        attention: true,
-        allLinear: true,
-    },
-    {
-        name: 'k_proj',
-        input: 16,
-        output: 8,
-        queryValue: false,
-        attention: true,
-        allLinear: true,
-    },
-    {
-        name: 'v_proj',
-        input: 16,
-        output: 8,
-        queryValue: true,
-        attention: true,
-        allLinear: true,
-    },
-    {
-        name: 'o_proj',
-        input: 16,
-        output: 16,
-        queryValue: false,
-        attention: true,
-        allLinear: true,
-    },
-    {
-        name: 'gate_proj',
-        input: 16,
-        output: 32,
-        queryValue: false,
-        attention: false,
-        allLinear: true,
-    },
-    {
-        name: 'up_proj',
-        input: 16,
-        output: 32,
-        queryValue: false,
-        attention: false,
-        allLinear: true,
-    },
-    {
-        name: 'down_proj',
-        input: 32,
-        output: 16,
-        queryValue: false,
-        attention: false,
-        allLinear: true,
-    },
-    {
-        name: 'lm_head',
-        input: 16,
-        output: 32,
-        queryValue: false,
-        attention: false,
-        allLinear: false,
-    },
+    { name: 'q_proj', input: 16, output: 16, queryValue: true, attention: true, allLinear: true },
+    { name: 'k_proj', input: 16, output: 8, queryValue: false, attention: true, allLinear: true },
+    { name: 'v_proj', input: 16, output: 8, queryValue: true, attention: true, allLinear: true },
+    { name: 'o_proj', input: 16, output: 16, queryValue: false, attention: true, allLinear: true },
+    { name: 'gate_proj', input: 16, output: 32, queryValue: false, attention: false, allLinear: true },
+    { name: 'up_proj', input: 16, output: 32, queryValue: false, attention: false, allLinear: true },
+    { name: 'down_proj', input: 32, output: 16, queryValue: false, attention: false, allLinear: true },
+    { name: 'lm_head', input: 16, output: 32, queryValue: false, attention: false, allLinear: false },
 ] as const
 
 const rank = 2
 export const targetTotals = {
     queryValue: qwen2Modules
-        .filter((module) => module.queryValue)
-        .reduce((sum, module) => sum + rank * (module.input + module.output), 0),
+        .filter((m) => m.queryValue)
+        .reduce((s, m) => s + rank * (m.input + m.output), 0),
     attention: qwen2Modules
-        .filter((module) => module.attention)
-        .reduce((sum, module) => sum + rank * (module.input + module.output), 0),
+        .filter((m) => m.attention)
+        .reduce((s, m) => s + rank * (m.input + m.output), 0),
     allLinear: qwen2Modules
-        .filter((module) => module.allLinear)
-        .reduce((sum, module) => sum + rank * (module.input + module.output), 0),
+        .filter((m) => m.allLinear)
+        .reduce((s, m) => s + rank * (m.input + m.output), 0),
 }
 
 export const alt =
-    'A module map for the one-layer Qwen2 CPU example with hidden width 16, intermediate width 32, two query heads, one key/value head, and rank 2. It lists the input and output widths and adapter parameter count for q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, and down_proj. The Q/V, all-attention, and all-linear columns mark the modules selected by each target set and total 112, 224, and 512 adapter parameters. The lm_head output projection is shown separately because PEFT all-linear excludes it for a PreTrainedModel.'
-
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({
-            c,
-            text,
-            width: w,
-            fontSize,
-            color,
-            fontWeight,
-            align,
-            mono,
-        }),
-    })
-}
-
-const coverageColumns = [
-    {
-        key: 'queryValue',
-        x: 418,
-        width: 72,
-        label: 'Q/V',
-        tone: 'purple' as const,
-    },
-    { key: 'attention', x: 508, width: 80, label: 'Attn', tone: 'cyan' as const },
-    {
-        key: 'allLinear',
-        x: 606,
-        width: 92,
-        label: 'All\nlinear',
-        tone: 'green' as const,
-    },
-] as const
-
-function isSelected(
-    module: (typeof qwen2Modules)[number],
-    key: (typeof coverageColumns)[number]['key'],
-) {
-    return module[key]
-}
-
-function addCell(
-    c: Colors,
-    x: number,
-    y: number,
-    cellWidth: number,
-    selected: boolean,
-    tone: ToneName,
-) {
-    const color = getReadableToneColor(tone, c, getToneFill(tone, c), c.bg)
-    const fill = selected ? getToneFill(tone, c) : c.bgCard
-    return SvgFrame({
-        c,
-        x,
-        y,
-        width: cellWidth,
-        height: 34,
-        rx: 6,
-        fill,
-        stroke: selected ? color : c.borderSubtle,
-        strokeWidth: selected ? 2 : 1,
-    })
-}
+    'A Qwen2 block diagram (hidden 16, MLP 32, 2 Q heads, 1 KV head, rank 2) maps LoRA adapter attachments across GQA attention projections (q_proj 64, k_proj 48, v_proj 48, o_proj 64) and SwiGLU MLP projections (gate_proj, up_proj, down_proj at 96 each), leaving lm_head excluded. Proportional bars compare total adapter parameters: 112 for Q/V, 224 for all-attention, and 512 for all-linear.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const purple = fig.tone('purple')
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
     const muted = c.textSecondary
-    const tableLeft = 20
-    const rowWidth = 680
-    const title = label(
-        c,
-        'Where this Qwen2 block gets LoRA',
-        20,
-        12,
-        680,
-        38,
-        34,
-        c.textPrimary,
-        800,
-    )
-    const setup = label(c, '1 layer · hidden 16 · MLP 32 · rank 2', 22, 52, 676, 32, 26, muted, 650)
-    const formula = label(
-        c,
-        'Per target: r(d_in + d_out) · r = 2',
-        22,
-        88,
-        676,
-        32,
-        26,
-        c.textPrimary,
-        700,
-        'left',
-        true,
-    )
-    const legend = label(
-        c,
-        '1 = adapter attached · 0 = module untouched',
-        22,
-        122,
-        676,
-        32,
-        26,
-        muted,
-        600,
-    )
-    const cellValueLabels = qwen2Modules.flatMap((module, index) => {
-        const y = index < 4 ? 266 + index * 40 : index < 7 ? 466 + (index - 4) * 40 : 642
-        return coverageColumns.map((column) => {
-            const selected = isSelected(module, column.key)
-            return label(
-                c,
-                selected ? '1' : '0',
-                column.x,
-                y + 2,
-                column.width,
-                30,
-                25,
-                selected ? c.textPrimary : c.textMuted,
-                750,
-                'center',
-                true,
-            )
+
+    // Top formula & legend
+    fig.math(20, 24, String.raw`\text{Per linear: } r(d_{\text{in}} + d_{\text{out}}),\; r=2`, {
+        size: 15,
+        color: c.textPrimary,
+    })
+    const legendItems = [
+        { label: 'Q/V (112)', color: purple, x: 344 },
+        { label: 'Attn (224)', color: cyan, x: 458 },
+        { label: 'All-Linear (512)', color: green, x: 568 },
+    ]
+    legendItems.forEach((lg) => {
+        fig.circle(lg.x, 24, 5, { fill: lg.color })
+        fig.text(lg.x + 10, 24, lg.label, { size: 14, weight: 700, color: lg.color })
+    })
+
+    // Left: Qwen2 block architecture
+    const leftX = 20
+    const groupW = 412
+
+    fig.rect(leftX, 56, groupW, 184, {
+        fill: tint(cyan, c.bg, 0.06),
+        stroke: tint(cyan, c.bg, 0.3),
+        strokeWidth: 1.2,
+        radius: 8,
+    })
+    fig.text(leftX + 12, 76, 'GQA Attention · 2 Q, 1 KV head', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+    })
+
+    fig.rect(leftX, 254, groupW, 142, {
+        fill: tint(green, c.bg, 0.06),
+        stroke: tint(green, c.bg, 0.3),
+        strokeWidth: 1.2,
+        radius: 8,
+    })
+    fig.text(leftX + 12, 274, 'SwiGLU MLP · 16 ↔ 32', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+
+    fig.rect(leftX, 410, groupW, 46, {
+        fill: tint(c.textMuted, c.bg, 0.06),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 7,
+    })
+
+    const rowPositions = [110, 146, 182, 218, 308, 344, 380, 433]
+    const barX = 210
+    const maxParams = 96
+    const barWMax = 100
+
+    qwen2Modules.forEach((m, idx) => {
+        const cy = rowPositions[idx]!
+        const isHead = m.name === 'lm_head'
+        const params = rank * (m.input + m.output)
+
+        fig.text(leftX + 12, cy, m.name, {
+            size: 14,
+            mono: true,
+            weight: isHead ? 500 : 700,
+            color: isHead ? muted : c.textPrimary,
+        })
+        fig.text(leftX + 114, cy, `${m.input}→${m.output}`, {
+            size: 14,
+            mono: true,
+            color: muted,
+        })
+
+        if (isHead) {
+            fig.text(barX, cy, 'excluded (all-linear)', {
+                size: 14,
+                color: muted,
+            })
+            return
+        }
+
+        const bw = (params / maxParams) * barWMax
+        const barTone = idx < 4 ? cyan : green
+        fig.rect(barX, cy - 9, bw, 18, {
+            fill: tint(barTone, c.bg, 0.28),
+            stroke: barTone,
+            strokeWidth: 1.2,
+            radius: 3,
+        })
+        fig.text(barX + bw + 8, cy, String(params), {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: barTone,
+        })
+
+        const dotXs = [362, 386, 410]
+        const flags = [m.queryValue, m.attention, m.allLinear]
+        const tones = [purple, cyan, green]
+        flags.forEach((on, cIdx) => {
+            const dx = dotXs[cIdx]!
+            const col = tones[cIdx]!
+            if (on) {
+                fig.circle(dx, cy, 5.5, { fill: col })
+            } else {
+                fig.circle(dx, cy, 4, { fill: 'none', stroke: c.border, width: 1.2 })
+            }
         })
     })
-    const moduleRowLabels = qwen2Modules.flatMap((module, index) => {
-        const y = index < 4 ? 266 + index * 40 : index < 7 ? 466 + (index - 4) * 40 : 642
-        const mutedRow = module.name === 'lm_head'
-        return [
-            label(c, module.name, 28, y + 2, 142, 30, 26, mutedRow ? muted : c.textPrimary, 700),
-            label(
-                c,
-                `${module.input}→${module.output}`,
-                180,
-                y + 2,
-                104,
-                30,
-                26,
-                mutedRow ? muted : c.textPrimary,
-                650,
-                'center',
-                true,
-            ),
-            label(
-                c,
-                mutedRow ? 'excluded' : String(rank * (module.input + module.output)),
-                304,
-                y + 2,
-                98,
-                30,
-                mutedRow ? 24 : 26,
-                mutedRow ? muted : c.textPrimary,
-                700,
-                'center',
-                !mutedRow,
-            ),
-        ]
-    })
 
-    const shapes = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        SvgFrame({
-            c,
-            x: tableLeft,
-            y: 164,
-            width: rowWidth,
-            height: 44,
-            rx: 7,
-            fill: c.bgCard,
-            stroke: c.border,
-            strokeWidth: 1.2,
-        }),
-        SvgFrame({
-            c,
-            x: tableLeft,
-            y: 230,
-            width: rowWidth,
-            height: 32,
-            rx: 6,
-            fill: getToneFill('blue', c),
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-        }),
-        SvgFrame({
-            c,
-            x: tableLeft,
-            y: 430,
-            width: rowWidth,
-            height: 32,
-            rx: 6,
-            fill: getToneFill('purple', c),
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-        }),
-        SvgFrame({
-            c,
-            x: tableLeft,
-            y: 602,
-            width: rowWidth,
-            height: 32,
-            rx: 6,
-            fill: getToneFill('neutral', c),
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-        }),
-        SvgFrame({
-            c,
-            x: tableLeft,
-            y: 642,
-            width: rowWidth,
-            height: 40,
-            rx: 7,
-            fill: c.bgSubtle,
-            stroke: c.border,
-            strokeWidth: 1.2,
-        }),
-        ...qwen2Modules.flatMap((module, index) => {
-            const y = index < 4 ? 266 + index * 40 : index < 7 ? 466 + (index - 4) * 40 : 642
-            const fill = module.name === 'lm_head' ? c.bgSubtle : c.bgCard
-            const stroke = module.name === 'lm_head' ? c.borderSubtle : c.border
-            const row = [
-                SvgFrame({
-                    c,
-                    x: tableLeft,
-                    y,
-                    width: rowWidth,
-                    height: 36,
-                    rx: 6,
-                    fill,
-                    stroke,
-                    strokeWidth: 1,
-                }),
-            ]
-            for (const column of coverageColumns) {
-                row.push(
-                    addCell(
-                        c,
-                        column.x,
-                        y + 1,
-                        column.width,
-                        isSelected(module, column.key),
-                        column.tone,
-                    ),
-                )
-            }
-            return row
-        }),
-    )
+    // Right: Total adapter params comparison chart
+    const rX = 456
+    fig.text(rX, 72, 'Total adapter params', { size: 16, weight: 700, color: c.textPrimary })
+    fig.text(rX, 96, 'Shared scale (0–512)', { size: 14, color: muted })
 
-    const totalY = 698
-    const totalsLabels = [
-        { key: 'queryValue', x: 418, width: 72, value: targetTotals.queryValue },
-        { key: 'attention', x: 508, width: 80, value: targetTotals.attention },
-        { key: 'allLinear', x: 606, width: 92, value: targetTotals.allLinear },
+    const totals = [
+        { name: 'Q / V only', sub: '2 projections', val: targetTotals.queryValue, color: purple, y: 140 },
+        { name: 'All attention', sub: '4 projections', val: targetTotals.attention, color: cyan, y: 230 },
+        { name: 'All linear', sub: '7 projections', val: targetTotals.allLinear, color: green, y: 320 },
     ]
 
-    return Board({
-        background: 'transparent',
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({ x: 0, y: 0, width, height, children: shapes }),
-            title,
-            setup,
-            formula,
-            legend,
-            ...moduleRowLabels,
-            ...cellValueLabels,
-            label(c, 'MODULE', 28, 168, 142, 32, 26, c.textPrimary, 800),
-            label(c, 'IN→OUT', 180, 168, 110, 32, 24, c.textPrimary, 800, 'center'),
-            label(c, 'PARAMS', 304, 168, 98, 32, 24, c.textPrimary, 800, 'center'),
-            label(c, 'Q/V', 418, 168, 72, 32, 26, getReadableToneColor('purple', c), 800, 'center'),
-            label(c, 'ATTN', 508, 168, 80, 32, 26, getReadableToneColor('cyan', c), 800, 'center'),
-            label(c, 'ALL', 606, 168, 92, 32, 26, getReadableToneColor('green', c), 800, 'center'),
-            label(c, 'ATTENTION · 2 Q heads · 1 KV head', 28, 230, 660, 32, 26, c.textPrimary, 800),
-            label(c, 'SWIGLU MLP', 28, 430, 660, 32, 26, c.textPrimary, 800),
-            label(c, 'OUTPUT PROJECTION', 28, 602, 660, 32, 26, muted, 800),
-            label(c, 'TOTAL ADAPTER PARAMS', 28, totalY + 2, 360, 32, 26, c.textPrimary, 800),
-            ...totalsLabels.flatMap(({ key, x, width: cellWidth, value }) => [
-                label(
-                    c,
-                    String(value),
-                    x,
-                    totalY - 2,
-                    cellWidth,
-                    34,
-                    28,
-                    getReadableToneColor(
-                        coverageColumns.find((column) => column.key === key)!.tone,
-                        c,
-                    ),
-                    800,
-                    'center',
-                    true,
-                ),
-            ]),
-            label(c, 'PEFT all-linear excludes lm_head.', 22, 742, 676, 32, 26, muted, 650),
-        ],
+    const maxBarW = 196
+    totals.forEach((t) => {
+        fig.text(rX, t.y, t.name, { size: 15, weight: 700, color: t.color })
+        fig.text(rX + maxBarW + 48, t.y, t.sub, { size: 13, color: muted, align: 'right' })
+
+        const barY = t.y + 24
+        const bw = (t.val / 512) * maxBarW
+        fig.rect(rX, barY, maxBarW, 26, {
+            fill: tint(c.textMuted, c.bg, 0.08),
+            radius: 4,
+        })
+        fig.rect(rX, barY, bw, 26, {
+            fill: tint(t.color, c.bg, 0.34),
+            stroke: t.color,
+            strokeWidth: 1.6,
+            radius: 4,
+        })
+        fig.text(rX + maxBarW + 10, barY + 13, String(t.val), {
+            size: 15,
+            mono: true,
+            weight: 700,
+            color: t.color,
+        })
     })
+
+    const axY = 394
+    fig.line(rX, axY, rX + maxBarW, axY, { color: c.textMuted, width: 1 })
+    ;[0, 256, 512].forEach((v) => {
+        const vx = rX + (v / 512) * maxBarW
+        fig.line(vx, axY, vx, axY + 5, { color: c.textMuted, width: 1 })
+        fig.text(vx, axY + 19, String(v), {
+            size: 13,
+            mono: true,
+            color: muted,
+            align: 'center',
+        })
+    })
+
+    fig.text(rX, 444, 'MLP adds 288 / 512 (56%).', { size: 14, weight: 600, color: muted })
+
+    return fig.render()
 }
 
 export default create('dark')

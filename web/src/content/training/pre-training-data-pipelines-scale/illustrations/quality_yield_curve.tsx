@@ -1,22 +1,11 @@
-import React, { createElement, type ReactNode } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    layoutAllocation,
-    type ThemeMode,
-    type ToneName,
-} from 'vizmatic'
+import type { ThemeMode, ToneName } from 'vizmatic'
+import { layoutAllocation } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 860
-export const height = 520
+export const width = 740
+export const height = 435
 export const alt =
-    'The five authored documents contain 120 proof tokens scored 0.98, 160 API-documentation tokens scored 0.92, 200 forum tokens scored 0.79, 240 news tokens scored 0.63 and 280 scrape tokens scored 0.31. Stacked contributions share a 0-to-1000-token scale. Thresholds 0, 0.50, 0.70, 0.90 and 0.95 retain 1000, 720, 480, 280 and 120 tokens. Their token-weighted mean classifier scores round to 0.661, 0.797, 0.881, 0.946 and 0.980. Threshold 0.90 retains proof and API documentation only; classifier score remains a selection proxy.'
+    'Five sources totaling 1,000 tokens (Proof 120 at 0.98, API-Doc 160 at 0.92, Forum 200 at 0.79, News 240 at 0.63, Scrape 280 at 0.31) are filtered across thresholds 0.00, 0.50, 0.70, 0.90, and 0.95. Left stacked bars show surviving token composition falling from 1,000 to 120 tokens; right trade-off curve plots surviving yield against rising mean classifier score from 0.661 to 0.980, highlighting cutoff 0.90 (280 tokens, 28% yield, mean 0.946).'
 
 export const documents = [
     { id: 'proof', label: 'Proof', tokens: 120, score: 0.98, tone: 'purple' as ToneName },
@@ -28,11 +17,6 @@ export const documents = [
 export const totalTokens = documents.reduce((sum, doc) => sum + doc.tokens, 0)
 export const thresholds = [0, 0.5, 0.7, 0.9, 0.95]
 
-const barX = 105
-const barWidth = 330
-const barStartY = 110
-const barRowGap = 58
-
 export const selections = thresholds.map((threshold, i) => {
     const kept = documents.filter((doc) => doc.score >= threshold)
     const tokens = kept.reduce((sum, doc) => sum + doc.tokens, 0)
@@ -43,9 +27,9 @@ export const selections = thresholds.map((threshold, i) => {
         yield: tokens / totalTokens,
         mean: kept.reduce((sum, doc) => sum + doc.tokens * doc.score, 0) / tokens,
         allocation: layoutAllocation({
-            x: barX,
-            y: barStartY + i * barRowGap + 6,
-            width: barWidth,
+            x: 90,
+            y: 96 + i * 50,
+            width: 240,
             height: 24,
             capacity: totalTokens,
             parts: kept.map((doc) => ({ id: doc.id, label: doc.id, value: doc.tokens })),
@@ -53,303 +37,152 @@ export const selections = thresholds.map((threshold, i) => {
     }
 })
 
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    size: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({
-            c,
-            text,
-            width: '100%',
-            fontSize: size,
-            color,
-            align,
-            fontWeight: 650,
-        }),
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
     const muted = c.textSecondary
-
-    const toneColors: Record<string, string> = {
-        proof: getReadableToneColor('purple', c),
-        'api-doc': getReadableToneColor('cyan', c),
-        forum: getReadableToneColor('blue', c),
-        news: getReadableToneColor('warm', c),
-        scrape: c.borderLight,
+    const colors: Record<string, string> = {
+        proof: fig.tone('purple'),
+        'api-doc': fig.tone('cyan'),
+        forum: fig.tone('blue'),
+        news: fig.tone('warm'),
+        scrape: c.textMuted,
     }
 
-    const barElements: ReactNode[] = []
+    // Top source legend strip (compact, zero overlap)
+    let lx = 18
+    documents.forEach((d) => {
+        const col = colors[d.id]!
+        fig.rect(lx, 15, 12, 12, { fill: col, radius: 3 })
+        const lbl = `${d.label} ${d.score.toFixed(2)}`
+        fig.text(lx + 16, 21, lbl, { size: 14, weight: 600, color: d.id === 'scrape' ? muted : col })
+        lx += lbl.length * 8.1 + 30
+    })
+
+    // Stacked token-survival bars by threshold
+    fig.text(18, 56, 'Surviving tokens by cutoff (of 1,000)', { size: 15, weight: 700 })
+    const barX = 78
+    const barW = 196
+    const startY = 94
+    const rowStep = 58
+
     selections.forEach((row, i) => {
-        barElements.push(
-            SvgFrame({
-                c,
-                ...row.allocation.bounds,
-                rx: 4,
-                fill: c.bgCardAlt,
-                stroke: c.borderSubtle,
-                strokeWidth: 1,
-                key: `bound-${i}`,
-            }),
-        )
-        row.allocation.parts.forEach((part) => {
-            barElements.push(
-                SvgFrame({
-                    c,
-                    ...part.bounds,
-                    rx: 3,
-                    fill: toneColors[part.id] || c.borderLight,
-                    key: `part-${i}-${part.id}`,
-                }),
-            )
+        const y = startY + i * rowStep
+        const isSel = row.threshold === 0.9
+        if (isSel) {
+            fig.rect(10, y - 10, 396, 48, {
+                fill: tint(colors['api-doc']!, c.bg, 0.08),
+                stroke: tint(colors['api-doc']!, c.bg, 0.4),
+                strokeWidth: 1.2,
+                radius: 7,
+            })
+        }
+        fig.text(barX - 8, y + 13, `≥${row.threshold.toFixed(2)}`, {
+            size: 14,
+            mono: true,
+            weight: isSel ? 700 : 600,
+            color: isSel ? colors['api-doc']! : c.textPrimary,
+            align: 'right',
+        })
+        fig.rect(barX, y, barW, 26, {
+            fill: tint(c.textMuted, c.bg, 0.07),
+            radius: 4,
+        })
+        let cx = barX
+        row.kept.forEach((doc) => {
+            const pw = (doc.tokens / totalTokens) * barW
+            fig.rect(cx, y, Math.max(2, pw - 1), 26, {
+                fill: colors[doc.id]!,
+                radius: 3,
+            })
+            cx += pw
+        })
+        // Clean readout with generous room
+        fig.text(barX + barW + 8, y + 5, `${row.tokens} (${Math.round(row.yield * 100)}%)`, {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: isSel ? colors['api-doc']! : c.textPrimary,
+        })
+        fig.text(barX + barW + 8, y + 23, `μ ${row.mean.toFixed(3)}`, {
+            size: 14,
+            mono: true,
+            color: muted,
         })
     })
 
-    const shapeSvg = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        // Left Panel (Threshold sweeps)
-        SvgFrame({
-            c,
-            x: 20,
-            y: 50,
-            width: 480,
-            height: 410,
-            rx: 8,
-            fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-left',
-        }),
-        // Highlight 0.90 threshold
-        SvgFrame({
-            c,
-            x: 26,
-            y: barStartY + 3 * barRowGap - 2,
-            width: 468,
-            height: 44,
-            rx: 6,
-            fill: 'transparent',
-            stroke: toneColors['api-doc'],
-            strokeWidth: 1.5,
-            key: 'highlight-09',
-        }),
-        // Right Panel (Source distributions and summary)
-        SvgFrame({
-            c,
-            x: 520,
-            y: 50,
-            width: 320,
-            height: 410,
-            rx: 8,
-            fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-right',
-        }),
-        ...barElements,
-        // Selected Threshold Callout Card
-        SvgFrame({
-            c,
-            x: 540,
-            y: 240,
-            width: 280,
-            height: 195,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: toneColors['api-doc'],
-            strokeWidth: 1.5,
-            key: 'card-selected',
-        }),
-    )
+    // Bottom axis on stacked bars
+    const axY = startY + 5 * rowStep - 12
+    fig.line(barX, axY, barX + barW, axY, { color: c.textMuted, width: 1 })
+    ;[0, 500, 1000].forEach((v) => {
+        const tx = barX + (v / 1000) * barW
+        fig.line(tx, axY, tx, axY + 4, { color: c.textMuted, width: 1 })
+        fig.text(tx, axY + 18, String(v), { size: 14, mono: true, color: muted, align: 'center' })
+    })
 
-    const rowLabels: ReactNode[] = []
-    selections.forEach((row, i) => {
-        const y = barStartY + i * barRowGap + 6
-        rowLabels.push(
-            label(
-                c,
-                `≥ ${row.threshold.toFixed(2)}`,
-                32,
-                y,
-                65,
-                24,
-                14,
-                row.threshold === 0.9 ? toneColors['api-doc'] : c.textPrimary,
-            ),
-            label(
-                c,
-                `${row.tokens} tok (${Math.round(row.yield * 100)}%)`,
-                barX + barWidth + 8,
-                y - 6,
-                85,
-                20,
-                11,
-                c.textPrimary,
-            ),
-            label(
-                c,
-                `mean: ${row.mean.toFixed(3)}`,
-                barX + barWidth + 8,
-                y + 10,
-                85,
-                18,
-                10,
-                muted,
-            ),
+    // Divider
+    fig.line(416, 48, 416, 408, { color: c.borderSubtle, width: 1 })
+
+    // Yield vs Mean Classifier Score Pareto Curve
+    const plotArea = { x: 482, y: 92, width: 238, height: 264 }
+    const plot = fig.plot(plotArea, { x: [0, 105], y: [0.6, 1.02] })
+
+    plot.axes({
+        xTicks: [0, 50, 100],
+        yTicks: [0.6, 0.7, 0.8, 0.9, 1.0],
+        xLabel: 'Surviving yield (%)',
+        yLabel: 'Mean proxy score',
+        grid: true,
+        labelSize: 14,
+        xFormat: (v) => `${v}%`,
+        yFormat: (v) => v.toFixed(2),
+    })
+
+    const pts = selections.map((s) => [s.yield * 100, s.mean] as const)
+    plot.smoothCurve(pts, { color: colors['api-doc']!, width: 2.6 })
+
+    selections.forEach((s) => {
+        const x = s.yield * 100
+        const y = s.mean
+        const isSel = s.threshold === 0.9
+        plot.point(x, y, {
+            color: isSel ? colors['api-doc']! : colors.purple!,
+            r: isSel ? 6 : 4.2,
+        })
+        const dx =
+            s.threshold === 0
+                ? -8
+                : s.threshold === 0.7
+                  ? -10
+                  : isSel
+                    ? 10
+                    : 10
+        const dy =
+            s.threshold === 0
+                ? 18
+                : s.threshold === 0.7
+                  ? 18
+                  : isSel
+                    ? -12
+                    : s.threshold === 0.95
+                      ? -10
+                      : -12
+        const align = s.threshold === 0 || s.threshold === 0.7 ? 'right' : 'left'
+        fig.text(
+            plot.px(x) + dx,
+            plot.py(y) + dy,
+            isSel ? '≥0.90 (28%)' : `≥${s.threshold.toFixed(2)}`,
+            {
+                size: 14,
+                mono: true,
+                weight: isSel ? 700 : 500,
+                color: isSel ? colors['api-doc']! : muted,
+                align,
+            },
         )
     })
 
-    const sourceRows: ReactNode[] = []
-    documents.forEach((doc, i) => {
-        const y = 92 + i * 26
-        sourceRows.push(
-            label(c, doc.label, 540, y, 90, 20, 12, toneColors[doc.id]),
-            label(c, `${doc.tokens} tok`, 640, y, 70, 20, 12, muted, 'right'),
-            label(
-                c,
-                `score ${doc.score.toFixed(2)}`,
-                720,
-                y,
-                95,
-                20,
-                12,
-                toneColors[doc.id],
-                'right',
-            ),
-        )
-    })
-
-    return (
-        <Board c={c} width={width} height={height}>
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                {shapeSvg}
-            </CanvasItem>
-            {label(
-                c,
-                'Quality Filtering: Token Yield vs Classifier Score Threshold',
-                20,
-                12,
-                width - 40,
-                30,
-                22,
-                c.textPrimary,
-                'center',
-            )}
-
-            {/* Left Panel */}
-            {label(
-                c,
-                'Retained Tokens by Score Threshold (1000 Total Tokens)',
-                35,
-                62,
-                450,
-                24,
-                16,
-                c.textPrimary,
-            )}
-            {label(
-                c,
-                'Colors represent surviving document slices on common scale',
-                35,
-                84,
-                450,
-                20,
-                12,
-                muted,
-            )}
-            {rowLabels}
-
-            {/* Right Panel */}
-            {label(c, 'Source Document Inventory', 535, 62, 290, 24, 16, c.textPrimary)}
-            {sourceRows}
-
-            {/* Callout Card */}
-            {label(
-                c,
-                'Operating Point: Cutoff ≥ 0.90',
-                555,
-                250,
-                250,
-                22,
-                14,
-                toneColors['api-doc'],
-            )}
-            {label(
-                c,
-                '• Kept: Proof (120 tok) & API-Doc (160 tok)',
-                555,
-                276,
-                250,
-                18,
-                11,
-                c.textPrimary,
-            )}
-            {label(
-                c,
-                '• Yield: 280 / 1000 tokens (28% retained)',
-                555,
-                300,
-                250,
-                18,
-                11,
-                toneColors['api-doc'],
-            )}
-            {label(
-                c,
-                '• Mean score rises: 0.661 → 0.946 (+43%)',
-                555,
-                324,
-                250,
-                18,
-                11,
-                getReadableToneColor('purple', c),
-            )}
-            {label(c, '• Discards: Forum, News, and Scrape (72%)', 555, 348, 250, 18, 11, muted)}
-            {label(
-                c,
-                'Aggressive thresholds increase quality density but require larger raw crawls to hit target token volume.',
-                555,
-                376,
-                250,
-                48,
-                10,
-                muted,
-            )}
-
-            {label(
-                c,
-                'Threshold selection trade-offs · Token yield decreases monotonically with classifier strictness',
-                20,
-                470,
-                width - 40,
-                24,
-                14,
-                muted,
-                'center',
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create('dark')

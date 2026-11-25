@@ -1,233 +1,172 @@
-import { createElement } from 'react'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Column,
-    ProgressList,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 740
+export const height = 400
 export const alt =
-    'Equal-unit log axes compare fitted allocation growth with compute: Kaplan parameter growth has slope 0.73, Kaplan token growth slope 0.27, and Chinchilla balanced growth slope 0.50. At 100-fold compute, their normalized multipliers are 28.84/3.47 and 10/10. A separate bar strip shows model-specific D/N ratios of 1.7:1 for GPT-3, 20:1 for Chinchilla, and 38.5:1 for Llama 3 405B.'
+    'Left: log-log plot comparing fitted allocation growth exponents across a 100-fold compute increase: Kaplan parameters grow with slope 0.73 to 28.84x, Chinchilla parameters and tokens both grow with slope 0.50 to 10x, and Kaplan tokens grow with slope 0.27 to 3.47x. Right: horizontal bar chart comparing historical token-to-parameter ratios (D/N) on a shared scale: GPT-3 at 1.7:1, Chinchilla at 20:1, and Llama 3 405B at 38.5:1.'
 
-export const width = 600
-export const height = 800
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const warm = fig.tone('warm')
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
 
-const board = { width: 600, height: 516 }
-const plot = { x: 110, y: 0, size: 380, padding: 42 }
-const domain = { min: 0, max: 2.15 }
-const inner = plot.size - plot.padding * 2
-const endpoints = [
-    { key: 'Kaplan parameters', slope: 0.73, tone: 'warm' as const },
-    { key: 'Kaplan tokens', slope: 0.27, tone: 'purple' as const },
-    { key: 'Chinchilla parameters and tokens', slope: 0.5, tone: 'blue' as const },
-]
+    // Left: log-log growth exponents plot
+    const left = fig.plot(
+        { x: 66, y: 46, width: 292, height: 282 },
+        { x: [1, 240], y: [1, 120], xScale: 'log', yScale: 'log' },
+    )
 
-const project = (logCompute: number, logGrowth: number) => ({
-    x: plot.x + plot.padding + ((logCompute - domain.min) / (domain.max - domain.min)) * inner,
-    y:
-        plot.y +
-        plot.padding +
-        inner -
-        ((logGrowth - domain.min) / (domain.max - domain.min)) * inner,
-})
-
-function label(
-    text: string,
-    x: number,
-    y: number,
-    width: number,
-    c: ThemeColors,
-    options: {
-        fontSize?: number
-        color?: string
-        align?: 'left' | 'center' | 'right'
-        fontWeight?: number
-        mono?: boolean
-    } = {},
-) {
-    const fontSize = options.fontSize ?? 21
-    return CanvasItem({
-        x,
-        y,
-        width,
-        height: fontSize * 1.45,
-        children: createElement(TextLabel, {
-            c,
-            text,
-            width,
-            fontSize,
-            fontWeight: options.fontWeight ?? 650,
-            color: options.color ?? c.textPrimary,
-            align: options.align ?? 'left',
-            mono: options.mono,
-        }),
+    left.logAxes({
+        xTicks: [1, 10, 100],
+        yTicks: [1, 10, 100],
+        xFormat: (v) => `${v}×`,
+        yFormat: (v) => `${v}×`,
+        xLabel: 'Compute multiplier C',
+        yLabel: 'Allocation multiplier',
+        labelSize: 14,
+        grid: true,
     })
+
+    // Reference dashed vertical at C = 100x
+    left.vline(100, undefined, { color: c.borderLight, width: 1.2, dash: '4 4' })
+
+    const series = [
+        { name: 'Kaplan N (0.73)', val: '28.8×', slope: 0.73, color: warm, dy: -16 },
+        { name: 'Chinchilla N,D (0.50)', val: '10×', slope: 0.5, color: blue, dy: -14 },
+        { name: 'Kaplan D (0.27)', val: '3.47×', slope: 0.27, color: purple, dy: 16 },
+    ]
+
+    for (const s of series) {
+        const endY = 100 ** s.slope
+        left.curve(
+            [
+                [1, 1],
+                [100, endY],
+            ],
+            { color: s.color, width: 2.75 },
+        )
+        fig.circle(left.px(100), left.py(endY), 6, { fill: s.color, stroke: c.bg, width: 2 })
+        fig.text(left.px(100) + 10, left.py(endY), s.val, {
+            size: 13.5,
+            color: s.color,
+            weight: 700,
+            mono: true,
+        })
+    }
+
+    // Clean direct key in open upper-left space (zero crossings with any log-log slope line)
+    const keyItems = [
+        { label: 'Kaplan N (0.73)', color: warm, y: left.area.y + 16 },
+        { label: 'Chinchilla N, D (0.50)', color: blue, y: left.area.y + 38 },
+        { label: 'Kaplan D (0.27)', color: purple, y: left.area.y + 60 },
+    ]
+    const kx = left.area.x + 12
+    for (const k of keyItems) {
+        fig.line(kx, k.y, kx + 18, k.y, { color: k.color, width: 2.75 })
+        fig.text(kx + 24, k.y, k.label, {
+            size: 13.5,
+            color: k.color,
+            weight: 700,
+            align: 'left',
+        })
+    }
+
+    // Right: historical D/N ratio bars on a shared 0..44 scale
+    const rx = 432
+    const rw = 286
+    const right = fig.plot({ x: rx, y: 72, width: rw, height: 256 }, { x: [0, 44], y: [0, 3] })
+
+    fig.text(rx, 32, 'Historical D/N snapshots', {
+        size: 15,
+        color: c.textPrimary,
+        weight: 700,
+    })
+    fig.text(rx, 52, 'Training tokens per parameter', {
+        size: 13.5,
+        color: c.textSecondary,
+    })
+
+    // Vertical gridlines & bottom ticks on right panel
+    for (const tick of [0, 10, 20, 30, 40]) {
+        const tx = right.px(tick)
+        fig.line(tx, right.area.y, tx, right.bottom, {
+            color: tick === 20 ? blue : c.borderSubtle,
+            width: tick === 20 ? 1.4 : 1,
+            dash: tick === 20 ? '4 4' : undefined,
+            opacity: tick === 20 ? 0.75 : 1,
+        })
+        fig.text(tx, right.bottom + 15, tick === 0 ? '0' : `${tick}:1`, {
+            size: 13.5,
+            color: tick === 20 ? blue : c.textSecondary,
+            align: 'center',
+            mono: true,
+            weight: tick === 20 ? 700 : 400,
+        })
+    }
+    fig.line(rx, right.bottom, rx + rw, right.bottom, { color: c.textMuted, width: 1 })
+    fig.text(rx + rw / 2, right.bottom + 36, 'Tokens per parameter (D / N)', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    const bars = [
+        { name: 'GPT-3 (175B)', ratio: 1.7, label: '1.7:1', sub: 'undertrained', color: warm, row: 2.35 },
+        {
+            name: 'Chinchilla (70B)',
+            ratio: 20,
+            label: '20:1',
+            sub: 'compute-optimal',
+            color: blue,
+            row: 1.45,
+        },
+        {
+            name: 'Llama 3 405B',
+            ratio: 38.5,
+            label: '38.5:1',
+            sub: 'overtrained',
+            color: green,
+            row: 0.55,
+        },
+    ]
+
+    const barH = 26
+    for (const b of bars) {
+        const cy = right.py(b.row)
+        const barW = Math.max(8, right.px(b.ratio) - rx)
+        fig.text(rx, cy - 22, b.name, {
+            size: 14,
+            color: c.textPrimary,
+            weight: 700,
+        })
+        fig.text(rx + rw, cy - 22, b.sub, {
+            size: 13,
+            color: b.color,
+            align: 'right',
+            weight: 600,
+        })
+        fig.rect(rx, cy - barH / 2, barW, barH, {
+            fill: tint(b.color, c.bg, theme === 'dark' ? 0.36 : 0.25),
+            stroke: b.color,
+            strokeWidth: 1.75,
+            radius: 4,
+        })
+        const valX = b.ratio > 32 ? rx + barW - 8 : rx + barW + 8
+        const valAlign = b.ratio > 32 ? 'right' : 'left'
+        fig.text(valX, cy, b.label, {
+            size: 14,
+            color: b.ratio > 32 ? c.textPrimary : b.color,
+            align: valAlign,
+            mono: true,
+            weight: 700,
+        })
+    }
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((colors) => {
-    const c = { ...colors, preset: 'engineering' as const, shadow: 'transparent' }
-    const curves = endpoints.map((series) => ({
-        ...series,
-        points: Array.from({ length: 49 }, (_, index) => {
-            const x = index / 24
-            return { x, y: series.slope * x }
-        }),
-    }))
-    const endPoints = endpoints.map((series) => ({
-        x: 2,
-        y: series.slope * 2,
-        tone: series.tone,
-        r: 8,
-        stroke: c.bgCard,
-        strokeWidth: 2,
-    }))
-
-    return Scene({
-        c,
-        title: 'Growth frontiers and model token ratios',
-        subtitle: 'Compute multiplier C on x · allocation multiplier on y · equal log units',
-        padding: 0,
-        gap: 8,
-        contentWidth: board.width,
-        children: [
-            Board({
-                c,
-                width: board.width,
-                height: board.height,
-                background: c.bg,
-                children: [
-                    label('Allocation multiplier', plot.x, 0, 250, c, {
-                        fontSize: 21,
-                        color: c.textSecondary,
-                        fontWeight: 700,
-                    }),
-                    CanvasItem({
-                        x: plot.x,
-                        y: plot.y,
-                        width: plot.size,
-                        height: plot.size,
-                        children: AxisPlot({
-                            c,
-                            width: plot.size,
-                            height: plot.size,
-                            padding: plot.padding,
-                            xMin: domain.min,
-                            xMax: domain.max,
-                            yMin: domain.min,
-                            yMax: domain.max,
-                            showFrame: false,
-                            showGrid: true,
-                            gridCount: 3,
-                            paths: curves.map((series) => ({
-                                points: series.points,
-                                tone: series.tone,
-                                strokeWidth: 4,
-                            })),
-                            points: endPoints,
-                        }),
-                    }),
-                    ...[0, 1, 2].map((value) => {
-                        const point = project(value, domain.min)
-                        return label(
-                            `${10 ** value}×`,
-                            point.x - 31,
-                            plot.y + plot.padding + inner + 5,
-                            62,
-                            c,
-                            { fontSize: 21, color: c.textMuted, align: 'center', mono: true },
-                        )
-                    }),
-                    ...[0, 1, 2].map((value) => {
-                        const point = project(domain.min, value)
-                        return label(`${10 ** value}×`, 23, point.y - 13, 70, c, {
-                            fontSize: 21,
-                            color: c.textMuted,
-                            align: 'right',
-                            mono: true,
-                        })
-                    }),
-                    label('Compute multiplier C →', plot.x + 58, plot.y + plot.size + 6, 260, c, {
-                        fontSize: 21,
-                        color: c.textSecondary,
-                        align: 'center',
-                        fontWeight: 700,
-                    }),
-                    label('At 100× compute:', 48, 410, 510, c, {
-                        fontSize: 21,
-                        color: c.textMuted,
-                        fontWeight: 650,
-                    }),
-                    label('Kaplan N · 28.84×', 48, 433, 510, c, {
-                        fontSize: 21,
-                        color: getReadableToneColor('warm', c),
-                        fontWeight: 750,
-                    }),
-                    label('Kaplan D · 3.47×', 48, 456, 510, c, {
-                        fontSize: 21,
-                        color: getReadableToneColor('purple', c),
-                        fontWeight: 750,
-                    }),
-                    label('Chinchilla N and D · 10× each', 48, 479, 510, c, {
-                        fontSize: 21,
-                        color: getReadableToneColor('blue', c),
-                        fontWeight: 750,
-                    }),
-                ],
-            }),
-            Column({
-                width: 584,
-                style: { marginLeft: 8 },
-                gap: 5,
-                align: 'stretch',
-                children: [
-                    TextLabel({
-                        c,
-                        text: 'Model-specific data-to-parameter ratios',
-                        fontSize: 22,
-                        fontWeight: 850,
-                        align: 'center',
-                    }),
-                    TextLabel({
-                        c,
-                        text: 'Historical D/N snapshots · common bar scale to 42:1',
-                        fontSize: 21,
-                        color: c.textMuted,
-                        align: 'center',
-                    }),
-                    ProgressList({
-                        c,
-                        gap: 8,
-                        labelWidth: 150,
-                        valueWidth: 84,
-                        barHeight: 15,
-                        fontSize: 21,
-                        rows: [
-                            { label: 'GPT-3', value: 1.7 / 42, valueLabel: '1.7:1', tone: 'warm' },
-                            {
-                                label: 'Chinchilla',
-                                value: 20 / 42,
-                                valueLabel: '20:1',
-                                tone: 'blue',
-                            },
-                            {
-                                label: 'Llama 3 405B',
-                                value: 38.5 / 42,
-                                valueLabel: '38.5:1',
-                                tone: 'green',
-                            },
-                        ],
-                    }),
-                ],
-            }),
-        ],
-    })
-})
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

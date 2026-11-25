@@ -1,414 +1,170 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const height = 400
 export const alt =
-    'Architecture of an LLM-powered search engine showing offline document ingestion with cryptographic span hashing, dual lexical and dense index retrieval, and online grounded synthesis. Before citation publication, an authority gate verifies tenant access, document revision freshness, and verbatim claim support, invalidating stale or revoked sources.'
-
-export const numericAnchors = {
-    sourceRevisions: ['policy@2', 'exception@1'],
-    spanPolicy: '0-80',
-    spanException: '0-101',
-    hashPrefixPolicy: '91e45d8e',
-    hashPrefixException: '0b7226d8',
-}
+    'Architecture of an LLM-powered search engine flowing left to right: offline ingestion hashes policy@2 [0-80] and exception@1 [0-101] with SHA-256 digests into BM25 lexical and dense HNSW indexes scoped to workspace-a, followed by RRF fusion, reranking, grounded synthesis, and an online verification gate checking RBAC, current revision, and exact spans before streaming verified citations. A current-revision registry feeds invalidation updates directly into both retrieval and the verification gate.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 13,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const stageFill = (color: string, amt = 0.1) => tint(color, c.bg, amt)
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <defs>
-                        <marker
-                            id="llm-arr"
-                            viewBox="0 0 10 10"
-                            refX="6"
-                            refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
-                            orient="auto-start-reverse"
-                        >
-                            <path d="M 0 1 L 8 5 L 0 9 z" fill={c.textMuted} />
-                        </marker>
-                    </defs>
+    // Column headers (frameless, subtle accent)
+    fig.text(105, 24, '1. Ingestion', { size: 13, color: blue, align: 'center', weight: 700 })
+    fig.text(305, 24, '2. Hybrid Retrieval', { size: 13, color: purple, align: 'center', weight: 700 })
+    fig.text(500, 24, '3. Synthesis + Gate', { size: 13, color: warm, align: 'center', weight: 700 })
+    fig.text(725, 24, '4. Verified Stream', { size: 13, color: green, align: 'center', weight: 700 })
 
-                    {/* Column 1 Box */}
-                    <rect
-                        x={44}
-                        y={76}
-                        width={230}
-                        height={180}
-                        rx={10}
-                        fill={theme === 'dark' ? '#111827' : '#f0f9ff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={52}
-                        y={106}
-                        width={214}
-                        height={64}
-                        rx={6}
-                        fill={theme === 'dark' ? '#1f2937' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={52}
-                        y={178}
-                        width={214}
-                        height={68}
-                        rx={6}
-                        fill={theme === 'dark' ? '#1a2744' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
+    // Stage 1: Two versioned source chunks with digests
+    const docs = [
+        { y: 58, id: 'policy@2 [0-80]', detail: '30d base · 91e45d8e' },
+        { y: 150, id: 'exception@1 [0-101]', detail: '60d cond · 0b7226d8' },
+    ]
+    for (const d of docs) {
+        fig.rect(22, d.y, 168, 66, {
+            fill: stageFill(blue, 0.11),
+            stroke: blue,
+            strokeWidth: 1.25,
+            radius: 8,
+        })
+        fig.text(34, d.y + 22, d.id, { size: 13, color: c.textPrimary, weight: 700, mono: true })
+        fig.text(34, d.y + 45, d.detail, { size: 12, color: c.textSecondary, mono: true })
+    }
 
-                    {/* Column 2 Box */}
-                    <rect
-                        x={314}
-                        y={76}
-                        width={230}
-                        height={180}
-                        rx={10}
-                        fill={theme === 'dark' ? '#181324' : '#faf5ff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={322}
-                        y={106}
-                        width={214}
-                        height={64}
-                        rx={6}
-                        fill={theme === 'dark' ? '#241a35' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={322}
-                        y={178}
-                        width={214}
-                        height={68}
-                        rx={6}
-                        fill={theme === 'dark' ? '#2e1c44' : '#fdf4ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                    />
+    // Stage 2: Tenant-scoped Dual Index + RRF/Rerank
+    fig.rect(220, 46, 172, 184, {
+        fill: stageFill(purple, 0.06),
+        stroke: c.border,
+        strokeWidth: 1,
+        radius: 10,
+    })
+    fig.text(306, 63, 'scope: workspace-a', {
+        size: 12,
+        color: purple,
+        align: 'center',
+        weight: 600,
+        mono: true,
+    })
+    fig.rect(234, 78, 144, 40, {
+        fill: stageFill(purple, 0.14),
+        stroke: purple,
+        strokeWidth: 1.2,
+        radius: 6,
+    })
+    fig.text(306, 98, 'BM25 Lexical', { size: 13, color: c.textPrimary, align: 'center', weight: 600 })
 
-                    {/* Column 3 Box */}
-                    <rect
-                        x={584}
-                        y={76}
-                        width={232}
-                        height={180}
-                        rx={10}
-                        fill={theme === 'dark' ? '#0f241a' : '#f0fdf4'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={592}
-                        y={106}
-                        width={216}
-                        height={64}
-                        rx={6}
-                        fill={theme === 'dark' ? '#2d2212' : '#fffbeb'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={592}
-                        y={178}
-                        width={216}
-                        height={68}
-                        rx={6}
-                        fill={theme === 'dark' ? '#143522' : '#dcfce7'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
+    fig.rect(234, 128, 144, 40, {
+        fill: stageFill(purple, 0.14),
+        stroke: purple,
+        strokeWidth: 1.2,
+        radius: 6,
+    })
+    fig.text(306, 148, 'Dense HNSW', { size: 13, color: c.textPrimary, align: 'center', weight: 600 })
 
-                    {/* Connector lines between columns */}
-                    <line
-                        x1={274}
-                        y1={166}
-                        x2={314}
-                        y2={166}
-                        stroke={c.textMuted}
-                        strokeWidth={2}
-                        markerEnd="url(#llm-arr)"
-                    />
-                    <line
-                        x1={544}
-                        y1={166}
-                        x2={584}
-                        y2={166}
-                        stroke={c.textMuted}
-                        strokeWidth={2}
-                        markerEnd="url(#llm-arr)"
-                    />
+    fig.rect(234, 178, 144, 38, {
+        fill: stageFill(blue, 0.12),
+        stroke: blue,
+        strokeWidth: 1.1,
+        radius: 6,
+    })
+    fig.text(306, 197, 'RRF + Rerank', { size: 13, color: blue, align: 'center', weight: 600 })
 
-                    {/* Published Citations Box */}
-                    <rect
-                        x={44}
-                        y={272}
-                        width={772}
-                        height={96}
-                        rx={10}
-                        fill={theme === 'dark' ? '#111f19' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={56}
-                        y={300}
-                        width={360}
-                        height={56}
-                        rx={6}
-                        fill={theme === 'dark' ? '#182f25' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={432}
-                        y={300}
-                        width={372}
-                        height={56}
-                        rx={6}
-                        fill={theme === 'dark' ? '#182f25' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    // Arrows Stage 1 -> Stage 2
+    fig.arrow(190, 91, 220, 98, { color: c.textMuted, width: 1.5, head: 6 })
+    fig.arrow(190, 183, 220, 148, { color: c.textMuted, width: 1.5, head: 6 })
 
-                    {/* Arrow down to citations */}
-                    <line
-                        x1={700}
-                        y1={256}
-                        x2={700}
-                        y2={272}
-                        stroke={greenTone}
-                        strokeWidth={2}
-                        markerEnd="url(#llm-arr)"
-                    />
+    // Stage 3: Synthesis + Authority & Span Gate
+    fig.rect(424, 58, 152, 66, {
+        fill: stageFill(warm, 0.1),
+        stroke: warm,
+        strokeWidth: 1.25,
+        radius: 8,
+    })
+    fig.text(500, 81, 'Grounded LLM', { size: 13, color: c.textPrimary, align: 'center', weight: 700 })
+    fig.text(500, 103, 'Pack + draft claims', { size: 12, color: c.textSecondary, align: 'center' })
 
-                    {/* Invalidation Alert Footer */}
-                    <rect
-                        x={44}
-                        y={384}
-                        width={772}
-                        height={82}
-                        rx={10}
-                        fill={theme === 'dark' ? '#241a12' : '#fffbeb'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    fig.rect(424, 150, 152, 76, {
+        fill: stageFill(red, 0.1),
+        stroke: red,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(500, 172, 'Verification Gate', { size: 13, color: red, align: 'center', weight: 700 })
+    fig.text(500, 193, 'Live RBAC + rev', { size: 12, color: c.textPrimary, align: 'center' })
+    fig.text(500, 211, 'SHA-256 + span', { size: 12, color: c.textSecondary, align: 'center', mono: true })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Grounded LLM Search Architecture & Evidence Provenance',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Documents travel from ingestion to verified citations through an active authority and freshness gate',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.arrow(392, 138, 424, 96, { color: c.textMuted, width: 1.5, head: 6 })
+    fig.arrow(500, 124, 500, 150, { color: warm, width: 1.6, head: 6 })
 
-            {/* Stage Columns */}
-            {/* Column 1: Ingestion & Normalization */}
-            {label(44, 84, 230, '1. INGESTION & HASHING', 11, blueTone, 'left', 700)}
-            {label(56, 114, 206, 'Source Documents', 13, c.textPrimary, 'left', 600)}
-            {label(
-                56,
-                134,
-                206,
-                'policy@2 (spans 0-80) · exception@1 (spans 0-101)',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Stage 4: Verified Stream output
+    fig.rect(612, 58, 226, 168, {
+        fill: stageFill(green, 0.08),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 10,
+    })
+    fig.text(725, 81, 'Published Citations', { size: 13, color: green, align: 'center', weight: 700 })
 
-            {label(56, 186, 206, 'Content Addressing', 13, blueTone, 'left', 600)}
-            {label(
-                56,
-                206,
-                206,
-                'SHA-256 span digests: · 91e45d8e… / 0b7226d8…',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.rect(626, 102, 198, 50, {
+        fill: stageFill(green, 0.14),
+        stroke: green,
+        strokeWidth: 1,
+        radius: 6,
+    })
+    fig.text(638, 119, 'policy@2 [0-80]', { size: 13, color: c.textPrimary, weight: 700, mono: true })
+    fig.text(638, 138, '30-day rule · 91e45d8e', { size: 12, color: c.textSecondary })
 
-            {/* Column 2: Dual Retrieval & Fusion */}
-            {label(314, 84, 230, '2. HYBRID RETRIEVAL & FUSION', 11, purpleTone, 'left', 700)}
-            {label(326, 114, 206, 'Multi-Index Search', 13, c.textPrimary, 'left', 600)}
-            {label(
-                326,
-                134,
-                206,
-                'Lexical BM25 + Dense HNSW · Tenant scope: workspace-a',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.rect(626, 162, 198, 50, {
+        fill: stageFill(green, 0.14),
+        stroke: green,
+        strokeWidth: 1,
+        radius: 6,
+    })
+    fig.text(638, 179, 'exception@1 [0-101]', { size: 13, color: c.textPrimary, weight: 700, mono: true })
+    fig.text(638, 198, '60d + security approval', { size: 12, color: c.textSecondary })
 
-            {label(326, 186, 206, 'Rerank & Pack', 13, purpleTone, 'left', 600)}
-            {label(
-                326,
-                206,
-                206,
-                'Cross-encoder scoring · Top-k context window pack',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.arrow(576, 188, 612, 164, { color: green, width: 1.75, head: 6 })
 
-            {/* Column 3: Authority Gate & Synthesis */}
-            {label(584, 84, 230, '3. VERIFICATION & CITATION', 11, greenTone, 'left', 700)}
-            {label(596, 114, 206, 'Online Authority Gate', 13, warmTone, 'left', 600)}
-            {label(
-                596,
-                134,
-                206,
-                'Access control re-check · Revision freshness check',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Bottom Control Plane: Current-Revision Registry with invalidation feedback
+    fig.rect(220, 294, 410, 68, {
+        fill: stageFill(warm, 0.12),
+        stroke: warm,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(425, 317, 'Current-Revision & Access Registry', {
+        size: 14,
+        color: warm,
+        align: 'center',
+        weight: 700,
+    })
+    fig.text(425, 341, 'Rev bump or ACL revoke invalidates stale hits & active streams', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {label(596, 186, 206, 'Streaming Synthesis', 13, greenTone, 'left', 600)}
-            {label(
-                596,
-                206,
-                206,
-                'Verbatim span alignment · Exact citation publishing',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Invalidation feedback arrows up to Retrieval, Gate, and Stream
+    fig.arrow(306, 294, 306, 232, { color: warm, width: 1.5, dash: '5 4', head: 6 })
+    fig.text(294, 263, 'filter stale', { size: 12, color: warm, align: 'right', weight: 600 })
 
-            {/* Published Citations Card (Bottom Center) */}
-            {label(52, 280, 756, 'PUBLISHED CITATION ARTIFACTS', 12, greenTone, 'left', 700)}
-            {label(64, 308, 350, 'Citation 1: policy@2 [0-80]', 12, c.textPrimary, 'left', 600)}
-            {label(
-                64,
-                328,
-                350,
-                'Hash: 91e45d8e... | RBAC: workspace-a authorized',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.arrow(500, 294, 500, 228, { color: red, width: 1.6, dash: '5 4', head: 6 })
+    fig.text(512, 263, 'recheck before emit', { size: 12, color: red, align: 'left', weight: 600 })
 
-            {label(
-                440,
-                308,
-                360,
-                'Citation 2: exception@1 [0-101]',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                440,
-                328,
-                360,
-                'Hash: 0b7226d8... | Condition: security approval',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Smooth return arrow to active stream invalidation
+    fig.path('M630 328 L725 328 L725 232', { color: warm, width: 1.4, dash: '5 4' })
+    fig.arrow(725, 244, 725, 228, { color: warm, width: 1.4, head: 6 })
+    fig.text(736, 276, 'halt stale stream', { size: 12, color: warm, align: 'left', weight: 600 })
 
-            {/* Registry Invalidation Notice (Bottom) */}
-            {label(52, 396, 756, 'Freshness Invalidation Guarantee', 12, warmTone, 'left', 700)}
-            {label(
-                52,
-                416,
-                756,
-                'Cached answers and active streams re-validate document revisions and RBAC grants before surfacing citations.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create()

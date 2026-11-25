@@ -1,278 +1,195 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    getReadableColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-const currentBytes = 40 * 4096 * 65_536
-const request16Bytes = 16_384 * 65_536
-const request64Bytes = 65_536 * 65_536
-const poolLimitBytes = 12_000_000_000
-const chartMaxBytes = 16_000_000_000
-
+export const width = 720
+export const height = 435
 export const alt =
-    'A 12 GB pool limit is compared on one scale with 40 current 4,096-token reservations totaling 10,737,418,240 bytes. Adding 16,384 tokens reaches 11,811,160,064 bytes and fits; adding 65,536 reaches 15,032,385,536 and exceeds the pool. Separately, 17 logical positions round to two 16-token pages: 32 allocated, with a 15-token unused tail.'
-
-export const width = 900
-export const height = 740
-
-const barX = 20
-const barW = 860
-const bytesToW = (b: number) => (barW * b) / chartMaxBytes
-
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    value: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-    fontWeight = 500,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: Math.max(36, fontSize + 8),
-        children: TextLabel({ c, text: value, fontSize, fontWeight, color, align, width: w }),
-    })
-}
+    'A 12 GB pool limit is compared on one scale with 40 current 4,096-token reservations totaling 10.737 GB (10,737,418,240 bytes). Adding 16,384 tokens reaches 11.811 GB and fits; adding 65,536 reaches 15.032 GB and exceeds the pool. Separately, 17 logical positions round to two 16-token pages: 32 allocated, with a 15-token unused tail.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme)
-    const primaryText = getReadableColor('primary', c)
-    const positive = getReadableColor('positive', c)
-    const warning = getReadableColor('warning', c)
-    const critical = getReadableColor('critical', c)
-    const limitX = barX + bytesToW(poolLimitBytes)
-    const curW = bytesToW(currentBytes)
-    const total16 = currentBytes + request16Bytes
-    const total64 = currentBytes + request64Bytes
-    const ticks = [
-        { val: 0, text: '0' },
-        { val: 4e9, text: '4' },
-        { val: 8e9, text: '8' },
-        { val: 12e9, text: '12 GB limit' },
-        { val: 16e9, text: '16 GB' },
-    ]
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-    const art = (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-            {[178, 304, 430].map((y, idx) => {
-                const extra = idx === 1 ? request16Bytes : idx === 2 ? request64Bytes : 0
-                const total = currentBytes + extra
-                const withinW = bytesToW(
-                    Math.min(
-                        Math.max(0, total - currentBytes),
-                        Math.max(0, poolLimitBytes - currentBytes),
-                    ),
-                )
-                const overW = bytesToW(Math.max(0, total - poolLimitBytes))
-                return [
-                    SvgFrame({
-                        key: `bg-${idx}`,
-                        c,
-                        x: barX,
-                        y,
-                        width: barW,
-                        height: 34,
-                        rx: 4,
-                        fill: c.bgCardAlt,
-                        stroke: c.borderLight,
-                        strokeWidth: 1,
-                    }),
-                    SvgFrame({
-                        key: `c-${idx}`,
-                        c,
-                        x: barX,
-                        y,
-                        width: curW,
-                        height: 34,
-                        rx: 4,
-                        fill: c.primary,
-                        stroke: c.primary,
-                        strokeWidth: 1,
-                    }),
-                    withinW > 0
-                        ? SvgFrame({
-                              key: `in-${idx}`,
-                              c,
-                              x: barX + curW,
-                              y,
-                              width: withinW,
-                              height: 34,
-                              rx: 2,
-                              fill: idx === 1 ? c.positive : c.warning,
-                              stroke: idx === 1 ? c.positive : c.warning,
-                              strokeWidth: 1,
-                          })
-                        : null,
-                    overW > 0
-                        ? SvgFrame({
-                              key: `ov-${idx}`,
-                              c,
-                              x: limitX,
-                              y,
-                              width: overW,
-                              height: 34,
-                              rx: 2,
-                              fill: c.critical,
-                              stroke: c.critical,
-                              strokeWidth: 1,
-                          })
-                        : null,
-                    <line
-                        key={`lim-${idx}`}
-                        x1={limitX}
-                        y1={y - 4}
-                        x2={limitX}
-                        y2={y + 38}
-                        stroke={c.critical}
-                        strokeWidth={3}
-                    />,
-                ]
-            })}
-            <line x1={20} y1={526} x2={880} y2={526} stroke={c.borderLight} strokeWidth={2} />
-            {Array.from({ length: 16 }, (_, cell) => [
-                SvgFrame({
-                    key: `p1-${cell}`,
-                    c,
-                    x: 20 + cell * 26,
-                    y: 616,
-                    width: 22,
-                    height: 30,
-                    rx: 3,
-                    fill: c.primary,
-                    stroke: c.primaryLight,
-                    strokeWidth: 1,
-                }),
-                SvgFrame({
-                    key: `p2-${cell}`,
-                    c,
-                    x: 464 + cell * 26,
-                    y: 616,
-                    width: 22,
-                    height: 30,
-                    rx: 3,
-                    fill: cell < 1 ? c.positive : c.bgCardAlt,
-                    stroke: cell < 1 ? c.positiveLight : c.borderLight,
-                    strokeWidth: 1,
-                }),
-            ])}
-        </svg>
-    )
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const red = fig.tone('red')
 
-    const children = [
-        CanvasItem({ x: 0, y: 0, width, height, children: art }),
-        label(
-            c,
-            'Pool scheduling follows reserved bytes',
-            20,
-            14,
-            860,
-            34,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        label(
-            c,
-            '40 active sequences · 4,096 tokens each · 65,536 B/token',
-            20,
-            56,
-            860,
-            30,
-            c.textSecondary,
-        ),
-        label(
-            c,
-            'Current pool use: 10.737 GB (10,737,418,240 B)',
-            20,
-            134,
-            860,
-            30,
-            primaryText,
-            'left',
-            700,
-        ),
-        ...ticks.map((t) => {
-            const tx = t.val === 0 ? 20 : t.val === 16e9 ? 710 : barX + bytesToW(t.val) - 85
-            return label(
-                c,
-                t.text,
-                tx,
-                218,
-                170,
-                27,
-                t.val === 12e9 ? critical : c.textSecondary,
-                t.val === 0 ? 'left' : t.val === 16e9 ? 'right' : 'center',
-                t.val === 12e9 ? 700 : 500,
-            )
-        }),
-        label(
-            c,
-            `New 16,384 tokens (+${(request16Bytes / 1e9).toFixed(3)} GB): ${(total16 / 1e9).toFixed(3)} GB · fits`,
-            20,
-            260,
-            860,
-            30,
-            positive,
-            'left',
-            700,
-        ),
-        label(
-            c,
-            `+65,536 tokens (+${(request64Bytes / 1e9).toFixed(3)} GB): ${(total64 / 1e9).toFixed(3)} GB · over 12 GB`,
-            20,
-            386,
-            860,
-            30,
-            warning,
-            'left',
-            700,
-        ),
-        label(c, 'Over budget by 3.032 GB', 480, 472, 400, 28, critical, 'right', 700),
-        label(
-            c,
-            'Page rounding: 17 tokens across 16-token blocks',
-            20,
-            540,
-            860,
-            31,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        label(c, 'Page 1: 16 used', 20, 578, 410, 29, primaryText, 'left', 650),
-        label(c, 'Page 2: 1 used, 15 unused', 464, 578, 416, 29, c.textSecondary, 'left', 650),
-        label(
-            c,
-            '32 positions allocated; 15 stay unused in final page.',
-            20,
-            662,
-            860,
-            30,
-            c.textPrimary,
-            'left',
-            650,
-        ),
-    ]
+    const currentGb = (40 * 4096 * 65_536) / 1e9 // 10.7374
+    const req16Gb = (16_384 * 65_536) / 1e9 // 1.0737
+    const req64Gb = (65_536 * 65_536) / 1e9 // 4.2950
+    const limitGb = 12
+    const maxGb = 16
 
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({ c, width, height, background: 'transparent', children }),
+    const barX = 148
+    const barW = 540
+    const toW = (gb: number) => (gb / maxGb) * barW
+    const limitX = barX + toW(limitGb)
+
+    // === Top: Pool Admission Scale (0..16 GB) ===
+    fig.text(24, 22, 'KV pool admission follows reserved bytes (12 GB cap)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
     })
+
+    // Top axis ticks (stop cleanly below 3rd bar so bottom label is unobstructed)
+    const tickY = 48
+    for (const gb of [0, 4, 8, 12, 16]) {
+        const tx = barX + toW(gb)
+        fig.line(tx, tickY + 12, tx, 204, {
+            color: gb === 12 ? red : c.borderSubtle,
+            width: gb === 12 ? 1.8 : 1,
+            dash: gb === 12 ? '5 3' : undefined,
+        })
+        fig.text(tx, tickY, gb === 12 ? '12 GB cap' : `${gb}`, {
+            size: 14.5,
+            weight: gb === 12 ? 700 : 500,
+            color: gb === 12 ? red : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    const curW = toW(currentGb)
+    const rows = [
+        {
+            y: 70,
+            label: 'Active (40×4K)',
+            extra: 0,
+            totalText: '10.74 GB',
+            tone: blue,
+        },
+        {
+            y: 120,
+            label: '+16K request',
+            extra: req16Gb,
+            totalText: '11.81 GB · fits',
+            tone: green,
+        },
+        {
+            y: 170,
+            label: '+64K request',
+            extra: req64Gb,
+            totalText: '15.03 GB (+3.03 over)',
+            tone: red,
+        },
+    ]
+
+    for (const r of rows) {
+        fig.text(24, r.y + 15, r.label, {
+            size: 14.5,
+            weight: 700,
+            color: r.tone,
+        })
+        // Base active bar
+        fig.rect(barX, r.y, curW, 30, {
+            fill: tint(blue, c.bg, isLight ? 0.2 : 0.34),
+            stroke: blue,
+            strokeWidth: 1.5,
+            radius: 5,
+        })
+        if (r.extra > 0) {
+            const within = Math.min(r.extra, Math.max(0, limitGb - currentGb))
+            const over = Math.max(0, currentGb + r.extra - limitGb)
+            if (within > 0) {
+                fig.rect(barX + curW + 2, r.y, toW(within) - 2, 30, {
+                    fill: tint(over > 0 ? warm : green, c.bg, isLight ? 0.24 : 0.38),
+                    stroke: over > 0 ? warm : green,
+                    strokeWidth: 1.5,
+                    radius: 4,
+                })
+            }
+            if (over > 0) {
+                fig.rect(limitX + 2, r.y, toW(over) - 2, 30, {
+                    fill: tint(red, c.bg, isLight ? 0.24 : 0.38),
+                    stroke: red,
+                    strokeWidth: 1.6,
+                    radius: 4,
+                })
+            }
+        }
+        // Label inside base bar or to right
+        if (r.extra === 0) {
+            fig.text(barX + curW / 2, r.y + 15, r.totalText, {
+                size: 14.5,
+                weight: 700,
+                color: blue,
+                align: 'center',
+                mono: true,
+            })
+        } else if (r.extra < 2) {
+            fig.text(barX + curW + toW(r.extra) + 10, r.y + 15, r.totalText, {
+                size: 14.5,
+                weight: 700,
+                color: green,
+                mono: true,
+            })
+        } else {
+            fig.text(barX + curW / 2, r.y + 15, '10.74 GB', {
+                size: 14.5,
+                weight: 600,
+                color: blue,
+                align: 'center',
+                mono: true,
+            })
+            fig.text(barX + barW, r.y + 44, r.totalText, {
+                size: 14.5,
+                weight: 700,
+                color: red,
+                align: 'right',
+                mono: true,
+            })
+        }
+    }
+
+    // === Bottom: Page Rounding (17 tokens -> two 16-token pages) ===
+    const sepY = 250
+    fig.line(24, sepY, width - 24, sepY, { color: c.borderSubtle, width: 1 })
+    fig.text(24, sepY + 24, 'Page rounding: 17 logical tokens -> 32 allocated slots', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const cellW = 18
+    const cellGap = 3
+    const p1X = 24
+    const p2X = 368
+    const pY = sepY + 72
+
+    fig.text(p1X, pY - 14, 'Page 1: 16 used', { size: 14.5, weight: 700, color: blue })
+    fig.text(p2X, pY - 14, 'Page 2: 1 used + 15 tail', { size: 14.5, weight: 700, color: warm })
+
+    for (let i = 0; i < 16; i++) {
+        fig.rect(p1X + i * (cellW + cellGap), pY, cellW, 28, {
+            fill: tint(blue, c.bg, isLight ? 0.24 : 0.4),
+            stroke: blue,
+            strokeWidth: 1.2,
+            radius: 3,
+        })
+        const used = i === 0
+        fig.rect(p2X + i * (cellW + cellGap), pY, cellW, 28, {
+            fill: tint(used ? green : c.textMuted, c.bg, isLight ? (used ? 0.28 : 0.09) : used ? 0.44 : 0.16),
+            stroke: used ? green : c.border,
+            strokeWidth: used ? 1.4 : 1,
+            radius: 3,
+        })
+    }
+
+    const tailStart = p2X + (cellW + cellGap)
+    const tailEnd = p2X + 16 * cellW + 15 * cellGap
+    fig.brace(tailStart, pY + 34, tailEnd, pY + 34, '15 unused slots (internal fragmentation)', {
+        side: 1,
+        depth: 8,
+        color: warm,
+        labelColor: warm,
+        labelSize: 14.5,
+        labelGap: 16,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

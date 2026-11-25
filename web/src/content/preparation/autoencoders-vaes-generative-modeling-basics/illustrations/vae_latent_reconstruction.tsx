@@ -1,293 +1,196 @@
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    defineIllustration,
-    getReadableToneColor,
-    type ThemeColors,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 704
-export const height = 592
+export const width = 800
+export const height = 478
 export const alt =
-    'Both lanes use the posterior with mu = [0.400, -0.200] and sigma approximately [0.705, 1.051]. Normal.sample passes a draw to the decoder while its reconstruction gradient ends at z. Normal.rsample uses fixed epsilon = [0.500, -1.000] to produce rounded z approximately [0.752, -1.251], with a path back to mu and sigma. Analytic KL gradients reach the encoder in both lanes.'
+    'Both lanes use posterior mu = [0.400, -0.200] and sigma approximately [0.705, 1.051]. Top lane: Normal.sample draws z directly, so the red reconstruction gradient stops at a blocked barrier before mu and sigma. Bottom lane: Normal.rsample pulls external noise epsilon ~ N(0, I) into deterministic z = mu + sigma * epsilon, letting the green reconstruction gradient flow uninterrupted back to mu and sigma. Analytic KL gradients reach the encoder in both lanes.'
 
-const boardWidth = 672
-const boardHeight = 560
-const labelScale = width / boardWidth
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-function label(
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    text: string,
-    size = 24,
-    color = c.textPrimary,
-    mono = false,
-    weight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * 1.5,
-        children: TextLabel({
-            c,
-            text,
-            fontSize: size * labelScale,
-            color,
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const cyan = fig.tone('cyan')
+    const amberMark = isLight ? '#d07a12' : '#f2b84b'
+    const amberText = isLight ? '#9a5204' : '#f2b84b'
+
+    const node = (
+        cx: number,
+        cy: number,
+        w: number,
+        h: number,
+        label: string,
+        stroke: string,
+        textColor: string,
+        dashed = false,
+        mono = false,
+    ) => {
+        fig.rect(cx - w / 2, cy - h / 2, w, h, {
+            fill: tint(stroke, c.bg, isLight ? 0.1 : 0.17),
+            stroke,
+            strokeWidth: dashed ? 1.8 : 1.7,
+            radius: 11,
+        })
+        if (dashed) {
+            // Subtle inner dashed emphasis border
+            fig.path(
+                `M${cx - w / 2 + 3} ${cy - h / 2 + 3} H${cx + w / 2 - 3} V${cy + h / 2 - 3} H${cx - w / 2 + 3} Z`,
+                { color: stroke, width: 1.2, dash: '5 4', opacity: 0.7 },
+            )
+        }
+        fig.text(cx, cy, label, {
+            size: 18,
             mono,
-            fontWeight: weight,
-            align,
-        }),
+            weight: 700,
+            color: textColor,
+            align: 'center',
+            width: w - 8,
+        })
+    }
+
+    // ── Header with worked parameter values ─────────────────────────────────
+    fig.text(22, 22, 'Sampling controls the reconstruction gradient path', {
+        size: 21,
+        weight: 750,
+        color: c.textPrimary,
     })
+    fig.text(22, 50, 'μ=[0.40, −0.20] · σ≈[0.71, 1.05] · ε=[0.50, −1.00] → z≈[0.75, −1.25]', {
+        size: 16,
+        mono: true,
+        color: c.textSecondary,
+        weight: 600,
+    })
+
+    // Shared x positions for the 4 forward stages
+    const xEnc = 104
+    const xDraw = 318
+    const xDec = 528
+    const xLoss = 708
+
+    // ── Lane 1: sample() (blocked gradient) ─────────────────────────────────
+    const y1 = 132
+    fig.text(22, 86, '1. Normal.sample(): stochastic node blocks backprop', {
+        size: 18,
+        weight: 700,
+        color: red,
+    })
+
+    node(xEnc, y1, 118, 44, 'μ, σ', purple, purple, false, true)
+    node(xDraw, y1, 146, 44, 'sample() → z', red, red, true)
+    node(xDec, y1, 130, 44, 'Decoder', blue, blue)
+    node(xLoss, y1, 134, 44, 'Recon loss', amberMark, amberText)
+
+    // Forward arrows
+    fig.arrow(xEnc + 61, y1, xDraw - 75, y1, { color: c.textMuted, width: 2.2, head: 6.5 })
+    fig.arrow(xDraw + 75, y1, xDec - 67, y1, { color: c.textMuted, width: 2.2, head: 6.5 })
+    fig.arrow(xDec + 67, y1, xLoss - 69, y1, { color: c.textMuted, width: 2.2, head: 6.5 })
+
+    // Analytic KL gradient loop on left
+    fig.rect(xEnc - 56, y1 + 48, 112, 32, {
+        fill: tint(purple, c.bg, isLight ? 0.1 : 0.16),
+        stroke: purple,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(xEnc, y1 + 64, 'KL loss', { size: 16, weight: 700, color: purple, align: 'center' })
+    fig.arrow(xEnc, y1 + 46, xEnc, y1 + 24, { color: purple, width: 2.2, head: 6 })
+
+    // Blocked red backward gradient arrow stopping at barrier
+    const y1Grad = y1 + 58
+    const barrierX = 240
+    fig.arrow(xLoss, y1Grad, barrierX + 6, y1Grad, {
+        color: red,
+        width: 2.8,
+        dash: '6 4',
+        head: 7,
+    })
+    // Bold vertical red barrier bar
+    fig.line(barrierX, y1Grad - 16, barrierX, y1Grad + 16, { color: red, width: 4 })
+    fig.text(barrierX + 20, y1Grad + 24, 'Gradient stops at sample(), never reaches μ, σ', {
+        size: 16,
+        weight: 700,
+        color: red,
+    })
+
+    // Divider
+    fig.line(22, 240, width - 22, 240, { color: c.borderSubtle, width: 1.25 })
+
+    // ── Lane 2: rsample() with explicit external noise node ─────────────────
+    const y2 = 358
+    fig.text(22, 268, '2. Normal.rsample(): external ε keeps path open', {
+        size: 18,
+        weight: 700,
+        color: green,
+    })
+
+    // Explicit external noise node feeding from above into z = mu + sigma * eps
+    const yEps = 294
+    fig.rect(xDraw - 68, yEps - 18, 136, 36, {
+        fill: tint(cyan, c.bg, isLight ? 0.12 : 0.18),
+        stroke: cyan,
+        strokeWidth: 1.6,
+        radius: 18,
+    })
+    fig.text(xDraw, yEps, 'ε ~ N(0, I)', {
+        size: 17,
+        mono: true,
+        weight: 750,
+        color: cyan,
+        align: 'center',
+    })
+    fig.arrow(xDraw, yEps + 20, xDraw, y2 - 24, { color: cyan, width: 2.2, head: 6 })
+    fig.text(xDraw + 12, (yEps + y2) / 2 - 4, 'fixed draw', {
+        size: 15,
+        color: cyan,
+        weight: 600,
+    })
+
+    node(xEnc, y2, 118, 44, 'μ, σ', purple, purple, false, true)
+    node(xDraw, y2, 152, 44, 'z = μ + σ ⊙ ε', green, green, false, true)
+    node(xDec, y2, 130, 44, 'Decoder', blue, blue)
+    node(xLoss, y2, 134, 44, 'Recon loss', amberMark, amberText)
+
+    // Forward arrows
+    fig.arrow(xEnc + 61, y2, xDraw - 78, y2, { color: c.textMuted, width: 2.2, head: 6.5 })
+    fig.arrow(xDraw + 78, y2, xDec - 67, y2, { color: c.textMuted, width: 2.2, head: 6.5 })
+    fig.arrow(xDec + 67, y2, xLoss - 69, y2, { color: c.textMuted, width: 2.2, head: 6.5 })
+
+    // Analytic KL loop on left
+    fig.rect(xEnc - 56, y2 + 48, 112, 32, {
+        fill: tint(purple, c.bg, isLight ? 0.1 : 0.16),
+        stroke: purple,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(xEnc, y2 + 64, 'KL loss', { size: 16, weight: 700, color: purple, align: 'center' })
+    fig.arrow(xEnc, y2 + 46, xEnc, y2 + 24, { color: purple, width: 2.2, head: 6 })
+
+    // Flowing green backward gradient curving all the way into [μ, σ]
+    const y2Grad = y2 + 58
+    fig.path(
+        `M${xLoss} ${y2Grad} H${xEnc + 84} Q${xEnc + 64} ${y2Grad} ${xEnc + 64} ${y2 + 34} V${y2 + 24}`,
+        { color: green, width: 3.4 },
+    )
+    // Upward arrowhead landing right on bottom-right of [μ, σ]
+    fig.path(
+        `M${xEnc + 64} ${y2 + 18} L${xEnc + 59} ${y2 + 28} L${xEnc + 69} ${y2 + 28} Z`,
+        { fill: green },
+    )
+    fig.text(448, y2Grad + 24, '∂z/∂μ = 1,  ∂z/∂σ = ε  (reconstruction flows back to μ, σ)', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+        width: 560,
+    })
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((c) => {
-    const purple = getReadableToneColor('purple', c)
-    const blue = getReadableToneColor('blue', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
-    const red = getReadableToneColor('critical', c)
-
-    const boxes = createElement(
-        'svg',
-        {
-            width: boardWidth,
-            height: boardHeight,
-            viewBox: `0 0 ${boardWidth} ${boardHeight}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        ...[
-            { x: 8, y: 160, w: 145, h: 56, color: purple },
-            { x: 176, y: 160, w: 145, h: 56, color: red },
-            { x: 344, y: 160, w: 145, h: 56, color: blue },
-            { x: 512, y: 160, w: 145, h: 56, color: warm },
-            { x: 8, y: 365, w: 145, h: 56, color: purple },
-            { x: 176, y: 365, w: 145, h: 56, color: green },
-            { x: 344, y: 365, w: 145, h: 56, color: blue },
-            { x: 512, y: 365, w: 145, h: 56, color: warm },
-            { x: 8, y: 235, w: 145, h: 36, color: purple },
-            { x: 8, y: 440, w: 145, h: 36, color: purple },
-        ].map((box) =>
-            SvgFrame({
-                c,
-                x: box.x,
-                y: box.y,
-                width: box.w,
-                height: box.h,
-                rx: 10,
-                fill: c.bgCard,
-                stroke: box.color,
-                strokeWidth: 2,
-            }),
-        ),
-        ...[
-            [153, 188, 172, 188, c.textMuted],
-            [321, 188, 340, 188, c.textMuted],
-            [489, 188, 508, 188, c.textMuted],
-            [153, 393, 172, 393, c.textMuted],
-            [321, 393, 340, 393, c.textMuted],
-            [489, 393, 508, 393, c.textMuted],
-        ].map(([x1, y1, x2, y2, color], index) =>
-            VectorArrow({
-                key: `forward-${index}`,
-                x1: Number(x1),
-                y1: Number(y1),
-                x2: Number(x2),
-                y2: Number(y2),
-                color: String(color),
-                strokeWidth: 3,
-                arrowSize: 7,
-            }),
-        ),
-        VectorArrow({
-            x1: 80,
-            y1: 235,
-            x2: 80,
-            y2: 221,
-            color: purple,
-            strokeWidth: 3,
-            arrowSize: 7,
-        }),
-        VectorArrow({
-            x1: 80,
-            y1: 440,
-            x2: 80,
-            y2: 426,
-            color: purple,
-            strokeWidth: 3,
-            arrowSize: 7,
-        }),
-        VectorArrow({
-            x1: 586,
-            y1: 279,
-            x2: 165,
-            y2: 279,
-            color: red,
-            strokeWidth: 3,
-            arrowSize: 7,
-        }),
-        VectorArrow({
-            x1: 586,
-            y1: 488,
-            x2: 33,
-            y2: 488,
-            color: green,
-            strokeWidth: 4,
-            arrowSize: 8,
-        }),
-        createElement('line', {
-            key: 'sample-stop',
-            x1: 165,
-            y1: 267,
-            x2: 165,
-            y2: 292,
-            stroke: red,
-            strokeWidth: 4,
-        }),
-    )
-
-    return Scene({
-        c,
-        padding: 16,
-        gap: 0,
-        contentWidth: boardWidth,
-        children: Board({
-            c,
-            width: boardWidth,
-            height: boardHeight,
-            children: [
-                CanvasItem({ x: 0, y: 0, width: boardWidth, height: boardHeight, children: boxes }),
-                label(
-                    c,
-                    12,
-                    8,
-                    648,
-                    'Sampling controls the gradient path',
-                    28,
-                    c.textPrimary,
-                    false,
-                    800,
-                ),
-                label(
-                    c,
-                    8,
-                    48,
-                    656,
-                    'μ=[0.400,−0.200]  σ≈[0.705,1.051]',
-                    24,
-                    purple,
-                    true,
-                    650,
-                    'center',
-                ),
-                label(
-                    c,
-                    12,
-                    80,
-                    648,
-                    'ε=[0.500,−1.000]  →  z≈[0.752,−1.251]',
-                    24,
-                    green,
-                    true,
-                    650,
-                    'center',
-                ),
-                label(
-                    c,
-                    8,
-                    119,
-                    648,
-                    'sample() · the reconstruction path stops at the draw',
-                    24,
-                    c.textPrimary,
-                    false,
-                    700,
-                    'center',
-                ),
-                label(c, 11, 174, 139, 'μ, σ', 24, purple, true, 750, 'center'),
-                label(c, 179, 174, 139, 'sample()', 24, red, false, 750, 'center'),
-                label(c, 347, 174, 139, 'Decoder', 24, blue, false, 750, 'center'),
-                label(c, 515, 174, 139, 'Recon loss', 24, warm, false, 750, 'center'),
-                label(
-                    c,
-                    175,
-                    286,
-                    480,
-                    'Pathwise route ends before μ, σ.',
-                    24,
-                    red,
-                    false,
-                    700,
-                    'center',
-                ),
-                label(c, 8, 239, 145, 'KL loss', 24, purple, false, 700, 'center'),
-                label(
-                    c,
-                    164,
-                    239,
-                    488,
-                    'Analytic KL gradient → μ, σ',
-                    24,
-                    purple,
-                    false,
-                    650,
-                    'left',
-                ),
-                label(c, 8, 444, 145, 'KL loss', 24, purple, false, 700, 'center'),
-                label(
-                    c,
-                    164,
-                    444,
-                    488,
-                    'Analytic KL gradient → μ, σ',
-                    24,
-                    purple,
-                    false,
-                    650,
-                    'left',
-                ),
-                label(
-                    c,
-                    8,
-                    324,
-                    648,
-                    'rsample() · fixed ε keeps the path to μ, σ',
-                    24,
-                    c.textPrimary,
-                    false,
-                    700,
-                    'center',
-                ),
-                label(c, 11, 379, 139, 'μ, σ', 24, purple, true, 750, 'center'),
-                label(c, 179, 379, 139, 'μ + σ ⊙ ε', 24, green, true, 750, 'center'),
-                label(c, 347, 379, 139, 'Decoder', 24, blue, false, 750, 'center'),
-                label(c, 515, 379, 139, 'Recon loss', 24, warm, false, 750, 'center'),
-                label(
-                    c,
-                    12,
-                    500,
-                    648,
-                    '∂zᵢ/∂μᵢ = 1     ∂zᵢ/∂σᵢ = εᵢ',
-                    26,
-                    green,
-                    true,
-                    700,
-                    'center',
-                ),
-            ],
-        }),
-    })
-})
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

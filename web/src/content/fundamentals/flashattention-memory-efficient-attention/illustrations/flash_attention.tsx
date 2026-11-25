@@ -234,30 +234,46 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: red,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         GPU COMPUTE
                     </span>
-                    <span style={{ fontFamily: c.fontMono, fontSize: 30, color: c.textPrimary }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontMono,
+                            fontSize: 27,
+                            color: c.textPrimary,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         QKᵀ / √d
                     </span>
-                    <span style={{ fontFamily: c.fontMono, fontSize: 30, color: c.textPrimary }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontMono,
+                            fontSize: 27,
+                            color: c.textPrimary,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         softmax → PV
                     </span>
                 </div>
             </CanvasItem>
             {transfers.map((t) => (
-                <CanvasItem key={t.label} x={332} y={t.y - 16} width={320} height={32}>
+                <CanvasItem key={t.label} x={332} y={t.y - 18} width={320} height={36}>
                     <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
                         <span
                             style={{
                                 fontFamily: c.fontMono,
-                                fontSize: 30,
+                                fontSize: 26,
                                 fontWeight: 750,
                                 color: t.tone,
+                                whiteSpace: 'nowrap',
                             }}
                         >
                             {t.label}
@@ -335,46 +351,70 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: blue,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         ON-CHIP SRAM
                     </span>
-                    <span style={{ fontFamily: c.fontMono, fontSize: 30, color: c.textPrimary }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontMono,
+                            fontSize: 27,
+                            color: c.textPrimary,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         Qᵢ pinned · mᵢ, ℓᵢ, Nᵢ
                     </span>
-                    <span style={{ fontFamily: c.fontMono, fontSize: 30, color: warm }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontMono,
+                            fontSize: 27,
+                            color: warm,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         Sᵢⱼ → Pᵢⱼ → PV
                     </span>
-                    <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textSecondary }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontSans,
+                            fontSize: 27,
+                            color: c.textSecondary,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         Discard S/P tiles
                     </span>
                 </div>
             </CanvasItem>
-            <CanvasItem x={524} y={554} width={170} height={36}>
+            <CanvasItem x={524} y={554} width={170} height={38}>
                 <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: blue,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         Kⱼ, Vⱼ
                     </span>
                 </div>
             </CanvasItem>
-            <CanvasItem x={524} y={638} width={170} height={36}>
+            <CanvasItem x={524} y={638} width={170} height={38}>
                 <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: green,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         O + LSE
@@ -394,17 +434,32 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: green,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         HBM
                     </span>
-                    <span style={{ fontFamily: c.fontMono, fontSize: 30, color: blue }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontMono,
+                            fontSize: 27,
+                            color: blue,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         K, V tiles
                     </span>
-                    <span style={{ fontFamily: c.fontMono, fontSize: 30, color: green }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontMono,
+                            fontSize: 27,
+                            color: green,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         O + 8 MiB
                     </span>
                 </div>

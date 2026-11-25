@@ -1,134 +1,158 @@
-import React from 'react'
-import type { ThemeMode } from 'vizmatic'
+import { createElement } from 'react'
 import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+    Board,
+    CanvasItem,
+    SvgFrame,
+    TextLabel,
+    VectorArrow,
+    getReadableToneColor,
+    getThemeColors,
+    withColorAlpha,
+    type ThemeMode,
+} from 'vizmatic'
 
-export const width = 860
-export const height = 500
+type Colors = ReturnType<typeof getThemeColors>
+
+export const width = 760
+export const height = 410
 export const alt =
-    'Dynamic high-resolution image tiling architecture. A high-resolution image decomposes into a downsampled global overview thumbnail for spatial context and selected high-resolution crops for fine OCR and detail. Patch tokens from both views are concatenated into a structured sequence with coordinate-preserving separator tokens.'
+    'Dynamic AnyRes tiling schematic: a high-resolution 1344x896 chart divides into a 3x2 tile grid highlighting Tile 3 (upper-right metric badge) and Tile 4 (bottom axis timestamps). It emits one downsampled 336x336 global thumbnail plus two native-resolution local crops with normalized [y0, x0, y1, x1] coordinates, concatenated into an ordered decoder prefix of 1,728 visual tokens plus text prompt.'
+
+function lbl(
+    c: Colors,
+    text: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    fontSize: number,
+    color = c.textPrimary,
+    fontWeight = 650,
+    align: 'left' | 'center' | 'right' = 'left',
+    mono = false,
+) {
+    return CanvasItem({
+        x,
+        y,
+        width: w,
+        height: h,
+        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
+    })
+}
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
+    const blue = getReadableToneColor('blue', c)
+    const green = getReadableToneColor('green', c)
+    const warm = getReadableToneColor('warm', c)
+    const muted = c.textSecondary
 
-    // Header
-    a.text(40, 32, 'Dynamic High-Resolution Tiling & Token Packaging', { size: 22, weight: 700 })
-    a.text(
-        40,
-        58,
-        'Decomposing large visual documents into macro global context and micro high-res local crops',
-        { size: 15, color: k.mid },
-    )
+    const gridX = 28
+    const gridY = 82
+    const cellW = 64
+    const cellH = 56
 
-    // Column 1: High-Res Input & Grid (Left)
-    a.rect(40, 85, 240, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(56, 102, 160, 24, 'INPUT RESOLUTION', {
-        fill: tint(k.decode, 0.15),
-        stroke: tint(k.decode, 0.4),
-        color: k.decode,
-        weight: 700,
-    })
-    a.text(56, 148, 'High-Res Image (1344×896)', { size: 15, weight: 700, color: k.prefill })
-
-    // Draw 3x2 grid of tiles
-    const gridX = 56,
-        gridY = 168,
-        cellW = 65,
-        cellH = 50
+    const tileRects = []
+    const tileLabels = []
     for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 3; c++) {
-            const x = gridX + c * (cellW + 4)
-            const y = gridY + r * (cellH + 4)
-            const isCrop1 = r === 1 && c === 0
-            const isCrop2 = r === 0 && c === 2
-            const fill = isCrop1
-                ? tint(k.pass, 0.25)
-                : isCrop2
-                  ? tint(k.wait, 0.25)
-                  : tint(k.c.bg, 0.12)
-            const stroke = isCrop1 ? k.pass : isCrop2 ? k.wait : k.line
-            a.rect(x, y, cellW, cellH, { fill, stroke, r: 4 })
-            a.text(x + 10, y + 25, `Tile ${r * 3 + c + 1}`, {
-                size: 15,
-                weight: 600,
-                color: isCrop1 ? k.pass : isCrop2 ? k.wait : k.mid,
-            })
+        for (let col = 0; col < 3; col++) {
+            const idx = r * 3 + col + 1
+            const x = gridX + col * (cellW + 6)
+            const y = gridY + r * (cellH + 6)
+            const isBadge = idx === 3
+            const isAxis = idx === 4
+            const stroke = isAxis ? green : isBadge ? warm : c.borderSubtle
+            const fill = isAxis
+                ? withColorAlpha(green, 0.24)
+                : isBadge
+                  ? withColorAlpha(warm, 0.24)
+                  : c.bgSubtle
+            tileRects.push(
+                SvgFrame({ c, key: `tile-${idx}`, x, y, width: cellW, height: cellH, rx: 6, fill, stroke, strokeWidth: isAxis || isBadge ? 2 : 1.2 }),
+            )
+            tileLabels.push(
+                lbl(c, `T${idx}`, x, y + 17, cellW, 22, 16, isAxis ? green : isBadge ? warm : muted, 700, 'center', true),
+            )
         }
     }
 
-    a.rect(56, 285, 205, 75, { fill: tint(k.pass, 0.08), stroke: tint(k.pass, 0.3), r: 6 })
-    a.text(66, 310, 'Active Crop 1 (Tile 4)', { size: 15, weight: 700, color: k.pass })
-    a.text(66, 335, 'Bottom Axis / Fine Timestamps', { size: 15, color: k.mid })
+    const geometry = [
+        // Column 1: High-res Grid (frameless transparent column with subtle top rule)
+        SvgFrame({ c, key: 'c1', x: 14, y: 14, width: 232, height: 382, rx: 10, fill: withColorAlpha(c.borderSubtle, 0.14), stroke: withColorAlpha(c.borderSubtle, 0.7), strokeWidth: 1 }),
+        ...tileRects,
+        SvgFrame({ c, key: 't4-tag', x: 28, y: 222, width: 204, height: 70, rx: 8, fill: withColorAlpha(green, 0.1), stroke: green, strokeWidth: 1.4 }),
+        SvgFrame({ c, key: 't3-tag', x: 28, y: 306, width: 204, height: 70, rx: 8, fill: withColorAlpha(warm, 0.1), stroke: warm, strokeWidth: 1.4 }),
 
-    a.rect(56, 375, 205, 75, { fill: tint(k.wait, 0.08), stroke: tint(k.wait, 0.3), r: 6 })
-    a.text(66, 400, 'Active Crop 2 (Tile 3)', { size: 15, weight: 700, color: k.wait })
-    a.text(66, 425, 'Upper-Right Metric Badge', { size: 15, color: k.mid })
+        // Column 2: Multi-Scale Views
+        SvgFrame({ c, key: 'c2', x: 276, y: 14, width: 212, height: 382, rx: 10, fill: withColorAlpha(c.borderSubtle, 0.14), stroke: withColorAlpha(c.borderSubtle, 0.7), strokeWidth: 1 }),
+        SvgFrame({ c, key: 'v-glob', x: 288, y: 74, width: 188, height: 118, rx: 8, fill: withColorAlpha(blue, 0.12), stroke: blue, strokeWidth: 1.6 }),
+        SvgFrame({ c, key: 'v-loc', x: 288, y: 218, width: 188, height: 158, rx: 8, fill: withColorAlpha(green, 0.1), stroke: green, strokeWidth: 1.6 }),
 
-    // Column 2: Tiling Decomposition Process (Center)
-    a.rect(305, 85, 230, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(321, 102, 145, 24, 'TRANSFORMATION', {
-        fill: tint(k.wait, 0.15),
-        stroke: tint(k.wait, 0.4),
-        color: k.wait,
-        weight: 700,
-    })
-    a.text(321, 148, 'Multi-Scale Views', { size: 15, weight: 700, color: k.state })
+        // Column 3: Ordered Prefix
+        SvgFrame({ c, key: 'c3', x: 518, y: 14, width: 228, height: 382, rx: 10, fill: withColorAlpha(c.borderSubtle, 0.14), stroke: withColorAlpha(c.borderSubtle, 0.7), strokeWidth: 1 }),
+        SvgFrame({ c, key: 'p0', x: 530, y: 74, width: 204, height: 58, rx: 7, fill: withColorAlpha(blue, 0.14), stroke: blue, strokeWidth: 1.5 }),
+        SvgFrame({ c, key: 'p1', x: 530, y: 144, width: 204, height: 58, rx: 7, fill: withColorAlpha(green, 0.14), stroke: green, strokeWidth: 1.5 }),
+        SvgFrame({ c, key: 'p2', x: 530, y: 214, width: 204, height: 58, rx: 7, fill: withColorAlpha(warm, 0.14), stroke: warm, strokeWidth: 1.5 }),
+        SvgFrame({ c, key: 'p3', x: 530, y: 284, width: 204, height: 54, rx: 7, fill: c.bgSubtle, stroke: c.borderSubtle, strokeWidth: 1.3 }),
 
-    // Global view card
-    a.rect(321, 168, 198, 95, { fill: tint(k.prefill, 0.08), stroke: tint(k.prefill, 0.3), r: 6 })
-    a.text(333, 192, 'Global View (Resized)', { size: 15, weight: 700, color: k.prefill })
-    a.text(333, 218, 'Downsampled to 448×448', { size: 15, color: k.mid })
-    a.text(333, 242, 'Captures macro layout structure', { size: 15, color: k.mid })
-
-    // Local crops card
-    a.rect(321, 280, 198, 110, { fill: tint(k.pass, 0.08), stroke: tint(k.pass, 0.3), r: 6 })
-    a.text(333, 305, 'Selected Local Crops', { size: 15, weight: 700, color: k.pass })
-    a.text(333, 330, 'Native 448×448 crops', { size: 15, color: k.mid })
-    a.text(333, 355, 'Preserves pixel-level legibility', { size: 15, color: k.mid })
-    a.text(333, 375, 'Normalized box: [y0, x0, y1, x1]', { size: 15, weight: 600, color: k.pass })
-
-    // Arrows 1 -> 2
-    a.arrow(280, 205, 321, 205, k.prefill, { width: 1.5 })
-    a.arrow(280, 320, 321, 320, k.pass, { width: 1.5 })
-
-    // Column 3: Token Sequence Assembly (Right)
-    a.rect(560, 85, 260, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(576, 102, 145, 24, 'TOKEN PACKAGING', {
-        fill: tint(k.pass, 0.15),
-        stroke: tint(k.pass, 0.4),
-        color: k.pass,
-        weight: 700,
-    })
-    a.text(576, 148, 'Concatenated Prefix', { size: 15, weight: 700, color: k.pass })
-
-    const seqItems = [
-        { tag: '<image_global>', label: '576 tokens (448px thumbnail)', tone: k.prefill, y: 168 },
-        { tag: '<crop_tile_4>', label: '576 tokens (Bottom Axis)', tone: k.pass, y: 232 },
-        { tag: '<crop_tile_3>', label: '576 tokens (Metric Badge)', tone: k.wait, y: 296 },
-        { tag: '<user_prompt>', label: 'Did latency rise after deploy?', tone: k.mid, y: 360 },
+        // Arrows
+        VectorArrow({ x1: 248, y1: 132, x2: 284, y2: 132, color: blue, strokeWidth: 2, arrowSize: 6 }),
+        VectorArrow({ x1: 248, y1: 292, x2: 284, y2: 292, color: green, strokeWidth: 2, arrowSize: 6 }),
+        VectorArrow({ x1: 478, y1: 104, x2: 526, y2: 104, color: blue, strokeWidth: 2, arrowSize: 6 }),
+        VectorArrow({ x1: 478, y1: 256, x2: 526, y2: 208, color: green, strokeWidth: 2, arrowSize: 6 }),
     ]
 
-    seqItems.forEach((item) => {
-        a.rect(576, item.y, 228, 52, {
-            fill: tint(item.tone, 0.1),
-            stroke: tint(item.tone, 0.35),
-            r: 5,
-        })
-        a.text(586, item.y + 18, item.tag, { size: 15, weight: 700, color: item.tone })
-        a.text(586, item.y + 38, item.label, { size: 15, color: k.mid })
+    const labels = [
+        // Column headers
+        lbl(c, '1 · 1344×896 Grid', 26, 28, 208, 24, 17, c.textPrimary, 800, 'center'),
+        lbl(c, '2 · AnyRes Views', 288, 28, 188, 24, 17, c.textPrimary, 800, 'center'),
+        lbl(c, '3 · Token Prefix', 530, 28, 204, 24, 17, c.textPrimary, 800, 'center'),
+
+        ...tileLabels,
+
+        // Selected crop legends
+        lbl(c, 'T4 · Bottom axis', 40, 232, 180, 22, 16, green, 800),
+        lbl(c, 'Fine timestamps', 40, 260, 180, 22, 16, muted, 600),
+        lbl(c, 'T3 · Metric badge', 40, 316, 180, 22, 16, warm, 800),
+        lbl(c, 'Upper-right OCR', 40, 344, 180, 22, 16, muted, 600),
+
+        // Column 2 cards
+        lbl(c, 'Slot 0: Global', 300, 86, 164, 22, 16, blue, 800),
+        lbl(c, 'Resized 336×336', 300, 118, 164, 22, 16, c.textPrimary, 650),
+        lbl(c, 'Layout context', 300, 150, 164, 22, 16, muted, 600),
+
+        lbl(c, 'Local Crops', 300, 230, 164, 22, 16, green, 800),
+        lbl(c, 'Native 336×336', 300, 262, 164, 22, 16, c.textPrimary, 650),
+        lbl(c, 'Box coordinates:', 300, 298, 164, 22, 16, muted, 600),
+        lbl(c, '[y0, x0, y1, x1]', 300, 328, 164, 22, 16, green, 700, 'left', true),
+
+        // Column 3 prefix items
+        lbl(c, '<global>', 542, 82, 180, 22, 16, blue, 800, 'left', true),
+        lbl(c, '576 tokens', 542, 106, 180, 22, 16, muted, 650),
+
+        lbl(c, '<crop_T4>', 542, 152, 180, 22, 16, green, 800, 'left', true),
+        lbl(c, '576 tokens (axis)', 542, 176, 180, 22, 16, muted, 650),
+
+        lbl(c, '<crop_T3>', 542, 222, 180, 22, 16, warm, 800, 'left', true),
+        lbl(c, '576 tokens (badge)', 542, 246, 180, 22, 16, muted, 650),
+
+        lbl(c, '<user_prompt>', 542, 300, 180, 22, 16, c.textPrimary, 700, 'left', true),
+
+        lbl(c, '1,728 vis + text', 530, 356, 204, 22, 16, green, 800, 'center', true),
+    ]
+
+    const svg = createElement(
+        'svg',
+        { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
+        ...geometry,
+    )
+    return Board({
+        c,
+        width,
+        height,
+        background: 'transparent',
+        children: [CanvasItem({ x: 0, y: 0, width, height, children: svg }), ...labels],
     })
-
-    // Arrow 2 -> 3
-    a.arrow(519, 215, 576, 195, k.prefill, { width: 1.5 })
-    a.arrow(519, 335, 576, 260, k.pass, { width: 1.5 })
-
-    a.text(576, 438, 'Total: 1,728 visual + text tokens', { size: 15, weight: 700, color: k.pass })
-
-    return a.render()
 }
 
 export default create('dark')

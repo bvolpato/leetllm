@@ -1,115 +1,267 @@
-import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 390
 export const alt =
-    'Reasoning agent architecture with test-time compute. A gateway checks authentication and reserves token budget. A difficulty router selects an adaptive search budget: single fast path, Best-of-3, or capped tree search. Candidates execute with prefix KV cache reuse and converge at a two-stage verifier (exact deterministic checks before learned proxy scores). The release gate returns an eligible solution or safely abstains.'
+    'Gateway and difficulty router send requests to a 1x single path, a Best-of-3 lane, or a capped tree, then rejoin at one verifier before releasing an answer.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const critical = fig.tone('critical')
+    const muted = c.textSecondary
 
-    // Header
-    a.text(40, 36, 'Reasoning Agent Test-Time Compute Architecture', { size: 22, weight: 700 })
-    a.text(
-        40,
-        62,
-        'Dynamic search budget allocation, shared prefix execution, and deterministic-first verification',
-        { size: 16, color: k.mid },
-    )
+    const connect = (x1: number, y1: number, x2: number, y2: number, color: string) => {
+        const mx = (x1 + x2) / 2
+        fig.path(`M${x1} ${y1}C${mx} ${y1},${mx} ${y2},${x2 - 6} ${y2}`, {
+            color,
+            width: 2,
+        })
+        fig.arrow(x2 - 12, y2, x2 - 2, y2, { color, width: 2, head: 5 })
+    }
 
-    // 4 Stages Layout
-    // Stage 1: Ingestion & Gateway (x=40, w=170)
-    a.rect(40, 90, 175, 375, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(55, 118, '1. Gateway & Budget', { size: 16, weight: 700, color: k.prefill })
+    // Column headers
+    fig.text(98, 22, '1. Gateway', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+        width: 150,
+    })
+    fig.text(320, 22, '2. Difficulty Router', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        width: 200,
+    })
+    fig.text(566, 22, '3. Shared Verifier', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        width: 196,
+    })
+    fig.text(764, 22, '4. Release', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+        width: 112,
+    })
 
-    a.rect(55, 145, 145, 70, { fill: tint(k.prefill, 0.15), stroke: k.prefill, r: 6 })
-    a.text(127, 170, 'Client Request', { size: 15, weight: 650, align: 'center', color: k.ink })
-    a.text(127, 192, 'Token Quotas', { size: 13, align: 'center', color: k.mid })
+    // --- Col 1: Gateway & Budget ---
+    const gX = 24
+    const gW = 148
+    fig.rect(gX, 114, gW, 152, {
+        fill: tint(cyan, c.bg, 0.11),
+        stroke: cyan,
+        strokeWidth: 1.75,
+        radius: 9,
+    })
+    fig.text(gX + gW / 2, 146, 'Gateway', {
+        size: 15,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+        width: gW - 12,
+    })
+    fig.text(gX + gW / 2, 174, 'Auth + quota', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'center',
+        width: gW - 12,
+    })
+    fig.rect(gX + 12, 198, gW - 24, 52, {
+        fill: tint(cyan, c.bg, 0.2),
+        stroke: tint(cyan, c.bg, 0.55),
+        strokeWidth: 1,
+        radius: 6,
+    })
+    fig.text(gX + gW / 2, 215, 'Budget Reserve', {
+        size: 12,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+        width: gW - 28,
+    })
+    fig.text(gX + gW / 2, 236, 'Cap: 4k tokens', {
+        size: 12,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: gW - 28,
+    })
 
-    a.arrow(127, 215, 127, 245, k.line)
-
-    a.rect(55, 245, 145, 80, { fill: tint(k.state, 0.15), stroke: k.state, r: 6 })
-    a.text(127, 270, 'Budget Reserve', { size: 15, weight: 650, align: 'center', color: k.ink })
-    a.text(127, 292, 'Cap: 4,000 tokens', { size: 13, mono: true, align: 'center', color: k.state })
-    a.text(127, 310, 'Concurrency Lock', { size: 12, align: 'center', color: k.mid })
-
-    a.arrow(200, 285, 235, 285, k.prefill)
-
-    // Stage 2: Adaptive Difficulty Router (x=235, w=245)
-    a.rect(235, 90, 245, 375, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(250, 118, '2. Difficulty Router', { size: 16, weight: 700, color: k.state })
-
-    // 3 Lanes
+    // --- Col 2: 3 Adaptive Lanes ---
+    const lX = 224
+    const lW = 192
+    const lH = 74
     const lanes = [
-        { name: 'Fast Lane', desc: '1 path · Greedy (1x)', color: k.pass, y: 150 },
-        { name: 'Medium Lane', desc: 'Best-of-3 Sampling (3x)', color: k.state, y: 245 },
-        { name: 'Deep Search', desc: 'Capped Tree / MCTS (8x)', color: k.wait, y: 340 },
-    ]
+        { y: 54, title: '1x Single Path', sub: 'Easy · greedy decode', tone: green },
+        { y: 154, title: '3x Best-of-3', sub: 'Medium · parallel samples', tone: blue },
+        { y: 254, title: '8x Capped Tree', sub: 'Hard · pruned tree search', tone: warm },
+    ] as const
 
-    lanes.forEach((l) => {
-        a.rect(250, l.y, 215, 75, { fill: tint(l.color, 0.15), stroke: l.color, r: 6 })
-        a.text(265, l.y + 25, l.name, { size: 15, weight: 700, color: l.color })
-        a.text(265, l.y + 48, l.desc, { size: 13, color: k.mid })
-        a.arrow(465, l.y + 37, 495, 275, l.color)
+    lanes.forEach((ln) => {
+        const midY = ln.y + lH / 2
+        connect(gX + gW, 190, lX, midY, ln.tone)
+        fig.rect(lX, ln.y, lW, lH, {
+            fill: tint(ln.tone, c.bg, 0.13),
+            stroke: ln.tone,
+            strokeWidth: 1.75,
+            radius: 8,
+        })
+        fig.text(lX + 14, ln.y + 26, ln.title, { size: 14, weight: 700, color: ln.tone })
+        fig.text(lX + 14, ln.y + 50, ln.sub, { size: 12, color: muted })
+        connect(lX + lW, midY, 468, 190, ln.tone)
     })
 
-    // Stage 3: Execution & Dual Verification (x=495, w=200)
-    a.rect(495, 90, 200, 375, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(510, 118, '3. Dual Verifier', { size: 16, weight: 700, color: k.decode })
+    // --- Col 3: Shared Dual Verifier ---
+    const vX = 468
+    const vW = 196
+    fig.rect(vX, 54, vW, 274, {
+        fill: tint(purple, c.bg, 0.05),
+        stroke: tint(purple, c.bg, 0.45),
+        strokeWidth: 1.5,
+        radius: 10,
+    })
 
-    // Radix Prefix Engine
-    a.rect(510, 145, 170, 60, { fill: tint(k.decode, 0.15), stroke: k.decode, r: 6 })
-    a.text(595, 170, 'Radix Prefix KV', { size: 14, weight: 700, align: 'center', color: k.decode })
-    a.text(595, 190, 'Shared Stem Reuse', { size: 12, align: 'center', color: k.mid })
-
-    a.arrow(595, 205, 595, 235, k.line)
-
-    // Verification Step A: Exact checks
-    a.rect(510, 235, 170, 85, { fill: tint(k.fail, 0.12), stroke: k.fail, r: 6 })
-    a.text(595, 258, '1. Exact Invariants', {
-        size: 14,
+    // Shared Prefix KV chip at top
+    fig.rect(vX + 14, 70, vW - 28, 42, {
+        fill: tint(cyan, c.bg, 0.14),
+        stroke: cyan,
+        strokeWidth: 1.25,
+        radius: 6,
+    })
+    fig.text(vX + vW / 2, 91, 'Radix Prefix KV', {
+        size: 13,
         weight: 700,
+        color: cyan,
         align: 'center',
-        color: k.fail,
+        width: vW - 32,
     })
-    a.text(595, 278, 'Unit Tests / Syntax', { size: 12, align: 'center', color: k.ink })
-    a.text(595, 298, 'Zero False-Accept', { size: 12, weight: 600, align: 'center', color: k.fail })
 
-    a.arrow(595, 320, 595, 345, k.line)
-
-    // Verification Step B: Learned PRM / ORM
-    a.rect(510, 345, 170, 75, { fill: tint(k.pass, 0.12), stroke: k.pass, r: 6 })
-    a.text(595, 368, '2. Learned PRM / ORM', {
-        size: 14,
+    // Gate 1: Exact Invariants
+    fig.rect(vX + 14, 128, vW - 28, 76, {
+        fill: tint(critical, c.bg, 0.11),
+        stroke: critical,
+        strokeWidth: 1.5,
+        radius: 7,
+    })
+    fig.text(vX + vW / 2, 150, '1. Exact Invariants', {
+        size: 13,
         weight: 700,
+        color: critical,
         align: 'center',
-        color: k.pass,
+        width: vW - 32,
     })
-    a.text(595, 388, 'Proxy Quality Score', { size: 12, align: 'center', color: k.ink })
-    a.text(595, 406, 'Stepwise Pruning', { size: 12, align: 'center', color: k.mid })
+    fig.text(vX + vW / 2, 172, 'Tests + schema checks', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        width: vW - 32,
+    })
+    fig.text(vX + vW / 2, 191, '0 false-accepts', {
+        size: 11,
+        weight: 600,
+        color: critical,
+        align: 'center',
+        width: vW - 32,
+    })
 
-    a.arrow(680, 382, 715, 275, k.pass)
+    fig.arrow(vX + vW / 2, 204, vX + vW / 2, 232, { color: purple, width: 1.75, head: 5 })
 
-    // Stage 4: Release Gate (x=715, w=105)
-    a.rect(715, 90, 105, 375, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(725, 118, '4. Release', { size: 15, weight: 700, color: k.pass })
+    // Gate 2: Learned PRM / ORM
+    fig.rect(vX + 14, 236, vW - 28, 76, {
+        fill: tint(purple, c.bg, 0.14),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 7,
+    })
+    fig.text(vX + vW / 2, 258, '2. Learned PRM/ORM', {
+        size: 13,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        width: vW - 32,
+    })
+    fig.text(vX + vW / 2, 280, 'Rank valid survivors', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        width: vW - 32,
+    })
+    fig.text(vX + vW / 2, 299, 'Stepwise pruning', {
+        size: 11,
+        color: muted,
+        align: 'center',
+        width: vW - 32,
+    })
 
-    a.rect(725, 185, 85, 80, { fill: tint(k.pass, 0.2), stroke: k.pass, r: 6 })
-    a.text(767, 215, 'Release', { size: 15, weight: 700, align: 'center', color: k.pass })
-    a.text(767, 238, 'Verified', { size: 13, align: 'center', color: k.ink })
+    // --- Col 4: Release / Abstain ---
+    const rX = 712
+    const rW = 104
+    connect(vX + vW, 175, rX, 134, green)
+    connect(vX + vW, 215, rX, 248, critical)
 
-    a.rect(725, 305, 85, 80, { fill: tint(k.fail, 0.15), stroke: k.fail, r: 6 })
-    a.text(767, 335, 'Abstain', { size: 15, weight: 700, align: 'center', color: k.fail })
-    a.text(767, 358, 'Fallback', { size: 13, align: 'center', color: k.mid })
+    fig.rect(rX, 94, rW, 80, {
+        fill: tint(green, c.bg, 0.18),
+        stroke: green,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(rX + rW / 2, 124, 'Release', {
+        size: 15,
+        weight: 700,
+        color: green,
+        align: 'center',
+        width: rW - 8,
+    })
+    fig.text(rX + rW / 2, 150, 'Verified', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        width: rW - 8,
+    })
 
-    return a.render()
+    fig.rect(rX, 208, rW, 80, {
+        fill: tint(critical, c.bg, 0.12),
+        stroke: critical,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(rX + rW / 2, 238, 'Abstain', {
+        size: 15,
+        weight: 700,
+        color: critical,
+        align: 'center',
+        width: rW - 8,
+    })
+    fig.text(rX + rW / 2, 264, 'Fallback', {
+        size: 12,
+        color: muted,
+        align: 'center',
+        width: rW - 8,
+    })
+
+    // Bottom frameless takeaway line
+    fig.line(24, 350, 816, 350, { color: c.borderSubtle, width: 1 })
+    fig.text(420, 372, 'Route by difficulty first so easy queries stay 1x  ·  Every lane rejoins one shared verifier', {
+        size: 13,
+        weight: 600,
+        color: muted,
+        align: 'center',
+        width: 760,
+    })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create()

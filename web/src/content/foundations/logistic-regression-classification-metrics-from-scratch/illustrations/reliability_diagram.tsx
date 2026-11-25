@@ -1,268 +1,199 @@
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    type ThemeColors,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 860
+export const height = 390
 export const alt =
-    'Four calibration-bin points compare mean predicted probability with observed review frequency against the perfect-calibration diagonal. Their bin sizes weight absolute gaps of 0.175, 0.325, 0.110, and 0.020 into ECE contributions 0.066, 0.041, 0.027, and 0.005, totaling 0.139.'
-const boardWidth = 600
-const boardHeight = 584
-export const width = 632
-export const height = 616
-const labelScale = width / boardWidth
+    'Side-by-side reliability diagram and weighted Expected Calibration Error (ECE) bars for four validation probability bins. Left: bin points B1 through B4 compare mean predicted probability against observed positive fraction relative to the diagonal, with vertical gap stems. Right: bin-size weighted gaps (0.066, 0.041, 0.027, 0.005) sum to validation ECE = 0.139.'
 
-const bins = [
+const BINS = [
     {
         id: 'B1',
+        range: '[0.00, 0.25)',
         n: 3,
         score: (0.061 + 0.169 + 0.244) / 3,
         observed: 1 / 3,
-        contribution: (1 - 0.061 - 0.169 - 0.244) / 8,
-        color: 'infoLight' as const,
+        contrib: (1 - 0.061 - 0.169 - 0.244) / 8,
+        tone: 'cyan' as const,
     },
     {
         id: 'B2',
+        range: '[0.25, 0.50)',
         n: 1,
         score: 0.325,
         observed: 0,
-        contribution: 0.325 / 8,
-        color: 'warningLight' as const,
+        contrib: 0.325 / 8,
+        tone: 'warm' as const,
     },
     {
         id: 'B3',
+        range: '[0.50, 0.75)',
         n: 2,
         score: (0.595 + 0.624) / 2,
         observed: 0.5,
-        contribution: (0.595 + 0.624 - 1) / 8,
-        color: 'primaryLight' as const,
+        contrib: (0.595 + 0.624 - 1) / 8,
+        tone: 'blue' as const,
     },
     {
         id: 'B4',
+        range: '[0.75, 1.00]',
         n: 2,
         score: (0.971 + 0.99) / 2,
         observed: 1,
-        contribution: (2 - 0.971 - 0.99) / 8,
-        color: 'positiveLight' as const,
+        contrib: (2 - 0.971 - 0.99) / 8,
+        tone: 'green' as const,
     },
-]
-const ece = bins.reduce((sum, bin) => sum + bin.contribution, 0)
-const plot = { x: 76, y: 83, width: 430, height: 236 }
-const px = (value: number) => plot.x + (value / 1.05) * plot.width
-const py = (value: number) => plot.y + ((1.05 - value) / 1.1) * plot.height
+] as const
 
-const text = (
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    value: string,
-    size = 18,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'center',
-) =>
-    CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size + 8,
-        children: TextLabel({
-            c,
-            text: value,
-            width: w,
-            fontSize: size * labelScale,
-            color,
-            mono: false,
-            align,
-        }),
+const ECE = BINS.reduce((s, b) => s + b.contrib, 0)
+
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
+
+    // Left: Reliability diagram (frameless, side-by-side)
+    fig.text(64, 22, 'Reliability diagram (4 equal-width bins)', { size: 15, weight: 700 })
+
+    const plot = fig.plot(
+        { x: 66, y: 56, width: 334, height: 274 },
+        { x: [-0.04, 1.06], y: [-0.05, 1.06] },
+    )
+    plot.axes({
+        xTicks: [0, 0.25, 0.5, 0.75, 1.0],
+        yTicks: [0, 0.25, 0.5, 0.75, 1.0],
+        xFormat: (v) => v.toFixed(2),
+        yFormat: (v) => v.toFixed(2),
+        xLabel: 'Mean predicted probability',
+        yLabel: 'Observed positive rate',
+        grid: true,
+        labelSize: 12,
     })
 
-const illustration = defineIllustration((c) => {
-    const labelOffsets = [
-        { x: -26, y: -31 },
-        { x: 7, y: -28 },
-        { x: 5, y: -28 },
-        { x: 10, y: 5 },
+    // Perfect-calibration diagonal y = x
+    fig.line(plot.px(0), plot.py(0), plot.px(1), plot.py(1), {
+        color: c.textMuted,
+        width: 1.75,
+        dash: '5 4',
+    })
+    fig.text(plot.px(0.56), plot.py(0.76), 'perfect calibration', {
+        size: 11,
+        color: c.textMuted,
+        align: 'center',
+    })
+
+    // Label offsets keeping B1, B2, B3, B4 completely clear of dots and stems!
+    const offsets = [
+        { dx: -14, dy: -22, align: 'left' as const }, // B1 well above-left of dot
+        { dx: 12, dy: -16, align: 'left' as const }, // B2 clean right-above
+        { dx: 12, dy: 14, align: 'left' as const }, // B3 clean right-below
+        { dx: -14, dy: 4, align: 'right' as const }, // B4 clean left
     ]
-    const contributionRows = bins.flatMap((bin, index) => {
-        const y = 421 + index * 31
-        const labelColor = getReadableToneColor(
-            bin.color === 'infoLight'
-                ? 'cyan'
-                : bin.color === 'warningLight'
-                  ? 'warm'
-                  : bin.color === 'primaryLight'
-                    ? 'blue'
-                    : 'green',
-            c,
-        )
-        return [
-            text(c, 20, y - 2, 122, `${bin.id}  n=${bin.n}`, 21, labelColor, 'left'),
-            text(c, 490, y - 2, 88, bin.contribution.toFixed(3), 21, labelColor, 'right'),
-        ]
-    })
-    const contributionPlot = CanvasItem({
-        x: 152,
-        y: 421,
-        width: 326,
-        height: 120,
-        children: AxisPlot({
-            c,
-            width: 326,
-            height: 120,
-            xMin: 0,
-            xMax: 0.07,
-            yMin: 0,
-            yMax: 4,
-            padding: 0,
-            showFrame: false,
-            showAxes: false,
-            showGrid: false,
-            paths: [0, 0.035, 0.07].map((tick) => ({
-                points: [
-                    { x: tick, y: 0 },
-                    { x: tick, y: 4 },
-                ],
-                color: c.borderSubtle,
-                strokeWidth: 1,
-            })),
-            vectors: bins.map((bin, index) => ({
-                x1: 0,
-                y1: 3.5 - index,
-                x2: bin.contribution,
-                y2: 3.5 - index,
-                color: c[bin.color],
-                strokeWidth: 18,
-            })),
-        }),
+
+    BINS.forEach((bin, i) => {
+        const tone = fig.tone(bin.tone)
+        const px = plot.px(bin.score)
+        const pyObs = plot.py(bin.observed)
+        const pyDiag = plot.py(bin.score)
+
+        // Vertical calibration-gap stem from diagonal to observed rate
+        fig.line(px, pyDiag, px, pyObs, { color: tone, width: 2.6 })
+        fig.circle(px, pyDiag, 3.5, { fill: c.bg, stroke: tone, width: 1.5 })
+        const radius = bin.n === 3 ? 8.5 : bin.n === 2 ? 7 : 5.5
+        fig.circle(px, pyObs, radius, { fill: tone, stroke: c.bg, width: 2 })
+
+        const off = offsets[i]!
+        fig.text(px + off.dx, pyObs + off.dy, `${bin.id} (n=${bin.n})`, {
+            size: 12,
+            weight: 700,
+            color: tone,
+            align: off.align,
+            mono: true,
+        })
     })
 
-    return Scene({
-        c,
-        padding: 16,
-        gap: 0,
-        contentWidth: boardWidth,
-        children: Board({
-            c,
-            width: boardWidth,
-            height: boardHeight,
-            children: [
-                text(
-                    c,
-                    18,
-                    12,
-                    564,
-                    'Do scores match observed frequencies?',
-                    23,
-                    c.textPrimary,
-                    'left',
-                ),
-                text(c, 76, 53, 450, 'observed positive fraction', 21, c.textSecondary, 'left'),
-                CanvasItem({
-                    x: plot.x,
-                    y: plot.y,
-                    width: plot.width,
-                    height: plot.height,
-                    children: AxisPlot({
-                        c,
-                        width: plot.width,
-                        height: plot.height,
-                        xMin: 0,
-                        xMax: 1.05,
-                        yMin: -0.05,
-                        yMax: 1.05,
-                        padding: 0,
-                        showFrame: true,
-                        showAxes: false,
-                        showGrid: true,
-                        gridCount: 4,
-                        paths: [
-                            {
-                                points: [
-                                    { x: 0, y: 0 },
-                                    { x: 1, y: 1 },
-                                ],
-                                color: c.textMuted,
-                                strokeWidth: 3,
-                                dashed: true,
-                            },
-                        ],
-                        vectors: bins.map((bin) => ({
-                            x1: bin.score,
-                            y1: bin.score,
-                            x2: bin.score,
-                            y2: bin.observed,
-                            color: c[bin.color],
-                            strokeWidth: 3,
-                        })),
-                        points: bins.map((bin) => ({
-                            x: bin.score,
-                            y: bin.observed,
-                            r: bin.n === 3 ? 11 : 8,
-                            fill: c[bin.color],
-                            stroke: c.bgSubtle,
-                            strokeWidth: 2,
-                        })),
-                    }),
-                }),
-                ...bins.map((bin, index) => {
-                    const offset = labelOffsets[index]
-                    const tone =
-                        bin.color === 'infoLight'
-                            ? 'cyan'
-                            : bin.color === 'warningLight'
-                              ? 'warm'
-                              : bin.color === 'primaryLight'
-                                ? 'blue'
-                                : 'green'
-                    return text(
-                        c,
-                        px(bin.score) + offset.x,
-                        py(bin.observed) + offset.y,
-                        66,
-                        bin.id,
-                        21,
-                        getReadableToneColor(tone, c),
-                    )
-                }),
-                ...[0, 0.5, 1].map((tick) =>
-                    text(c, px(tick) - 20, 323, 40, tick.toFixed(1), 18, c.textSecondary),
-                ),
-                ...[0, 0.5, 1].map((tick) =>
-                    text(c, 20, py(tick) - 11, 45, tick.toFixed(1), 18, c.textSecondary, 'right'),
-                ),
-                text(c, 126, 354, 406, 'mean predicted probability', 21, c.textSecondary),
-                text(
-                    c,
-                    18,
-                    389,
-                    564,
-                    'Weighted ECE pieces (bin share of 8)',
-                    21,
-                    c.textPrimary,
-                    'left',
-                ),
-                contributionPlot,
-                ...contributionRows,
-                text(
-                    c,
-                    18,
-                    544,
-                    564,
-                    `0.066 + 0.041 + 0.027 + 0.005 = ${ece.toFixed(3)}`,
-                    21,
-                    getReadableToneColor('green', c),
-                    'left',
-                ),
-            ],
-        }),
-    })
-})
+    // Vertical divider
+    fig.line(432, 28, 432, 366, { color: c.borderSubtle, width: 1 })
 
-export const create = illustration.create
-export default illustration.default
+    // Right: Weighted ECE contribution bars (side-by-side)
+    const rx = 462
+    fig.text(rx, 22, 'Weighted ECE contributions (n = 8)', { size: 15, weight: 700 })
+    fig.math(rx, 54, '\\text{ECE} = \\sum_b \\frac{|B_b|}{8}\\,|\\bar{p}_b - \\bar{y}_b|', {
+        size: 14,
+        color: c.textSecondary,
+    })
+
+    const barX = 562
+    const barW = 216
+    const maxContrib = 0.075
+    const xOf = (v: number) => barX + (v / maxContrib) * barW
+
+    // Axis baseline and subtle vertical guides
+    for (const tick of [0, 0.03, 0.06]) {
+        const tx = xOf(tick)
+        fig.line(tx, 86, tx, 286, {
+            color: c.borderSubtle,
+            width: 1,
+            dash: tick === 0 ? undefined : '3 3',
+        })
+        fig.text(tx, 300, tick === 0 ? '0' : tick.toFixed(2), {
+            size: 11,
+            color: c.textMuted,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    BINS.forEach((bin, idx) => {
+        const tone = fig.tone(bin.tone)
+        const y = 104 + idx * 48
+        const bw = Math.max(4, (bin.contrib / maxContrib) * barW)
+        const gap = Math.abs(bin.score - bin.observed)
+
+        fig.text(barX - 10, y - 6, `${bin.id} · n=${bin.n}`, {
+            size: 13,
+            weight: 700,
+            color: tone,
+            align: 'right',
+            mono: true,
+        })
+        fig.text(barX - 10, y + 11, `gap ${gap.toFixed(3)}`, {
+            size: 11,
+            color: c.textSecondary,
+            align: 'right',
+            mono: true,
+        })
+
+        fig.rect(barX, y - 10, bw, 22, {
+            fill: tint(tone, c.bg, isLight ? 0.28 : 0.4),
+            stroke: tone,
+            strokeWidth: 1.5,
+            radius: 4,
+        })
+        fig.text(barX + bw + 8, y + 1, bin.contrib.toFixed(3), {
+            size: 13,
+            weight: 700,
+            color: tone,
+            mono: true,
+        })
+    })
+
+    // Total ECE readout cleanly at bottom right
+    fig.line(rx, 326, 834, 326, { color: c.borderSubtle, width: 1 })
+    fig.text(rx, 352, '0.066 + 0.041 + 0.027 + 0.005 =', {
+        size: 13,
+        color: c.textSecondary,
+        mono: true,
+    })
+    fig.text(834, 352, `ECE ${ECE.toFixed(3)}`, {
+        size: 16,
+        weight: 700,
+        color: fig.tone('green'),
+        align: 'right',
+        mono: true,
+    })
+
+    return fig.render()
+}
+
+export default create

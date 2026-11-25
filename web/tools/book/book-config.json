@@ -15,8 +15,8 @@
   "presets": {
     "curated": {
       "title": "The AI & LLM Systems Engineering Handbook",
-      "subtitle": "From Zero to Production: Build, Evaluate, and Operate Language-Model Systems",
-      "edition": "First Edition (2026), Reader's Edition",
+      "subtitle": "From First-Principles Math to Transformers, Alignment, Agents, and GPU Inference",
+      "edition": "First Edition (2026)",
       "readingEdition": true,
       "chapterIntroductions": true,
       "excludeSections": [],
@@ -24,98 +24,118 @@
       "parts": [
         {
           "number": 0,
-          "title": "How a Model Learns",
+          "title": "Mathematical & PyTorch Foundations",
           "description": [
-            "If you can read code, you already have the habit this part depends on: you want to see the mechanism run. A language model is an enormous table of numbers and one procedure for nudging them, and that procedure works the same way on a problem small enough to check by hand.",
-            "So we start with a straight line and finish with a language model you train yourself, one that reads characters and writes more of them. You pick up the mathematics the rest of the book leans on at the moment it earns its place, then size up the machine that runs it. You need no machine-learning background, and everything here is here because a later chapter leans on it or a real training run will test it."
+            "Every language model is a cascade of matrix multiplications, probability distributions, and gradient updates. If you can read code, you already have the instinct this part builds on: you want to trace the numbers by hand and watch the mechanism run.",
+            "We start with tensor shapes and linear algebra, derive backpropagation and probability from first principles, and assemble a complete PyTorch training loop. Everything here earns its place in the Transformer and training chapters ahead."
           ],
           "chapterSlugs": [
-            "linear-regression-from-scratch",
+            "numpy-and-tensor-shapes",
             "linear-algebra-machine-learning-deeper",
-            "probability-for-machine-learning",
             "calculus-gradients-backpropagation-optimization",
-            "pytorch-training-loops",
-            "cuda-gpu-computing-for-ml"
+            "probability-for-machine-learning",
+            "pytorch-training-loops"
           ]
         },
         {
           "number": 1,
-          "title": "Models, Messages, and Measurement",
+          "title": "Inside the Transformer & Language Modeling",
           "description": [
-            "A language model turns text into a row of probabilities, one token at a time. Follow that path closely, and surprising answers start to have causes you can find and settings you can choose on purpose.",
-            "We go from the pieces of a sentence to a complete Transformer, then on to decoding, chat formats, and measurement. By the end, when a fluent answer comes back, you will know how to test whether it did the job."
+            "A language model turns raw text into token IDs, mixes context across positions through attention, and outputs a probability distribution over the next token. Follow that forward pass closely and every architectural choice has a concrete cause.",
+            "We move from subword tokenization into scaled dot-product attention, rotary positional encoding, Pre-LN normalization, and the full Transformer block, then finish with decoding strategies and perplexity."
           ],
           "chapterSlugs": [
             "tokenization-bpe-wordpiece-sentencepiece",
+            "scaled-dot-product-attention",
+            "positional-encoding-rope-alibi",
+            "layer-normalization-pre-ln-post-ln",
             "transformer-architecture-end-to-end",
             "decoding-strategies-greedy-beam-nucleus",
-            "perplexity-language-model-evaluation",
-            "llm-evaluation-benchmarks-limitations"
+            "perplexity-language-model-evaluation"
           ]
         },
         {
           "number": 2,
-          "title": "Evidence and Grounded Answers",
+          "title": "Modern Architectures Beyond Dense Text",
           "description": [
-            "An application's facts usually live in documents that change on their own schedule, and the model knows none of them. A useful answer depends on those facts surviving a long trip: from a file to a record, from a record to a search result, and from a search result into the words of a response.",
-            "This part follows that trip through extraction, chunking, search, and evaluation, with permissions traveling alongside the text. Each stage gives you a place to find out where an answer went wrong, and the last question is always the same: is this answer supported, and was this reader allowed to see what supports it?"
+            "Dense text-only Transformers are only the starting point. Frontier models decouple parameter count from active compute, replace quadratic attention with recurrent state spaces, fuse vision with language, and generate images by reversing noise.",
+            "These four chapters trace Mixture of Experts, Mamba state-space models, vision-language multimodal architectures, and diffusion models down to their core equations and memory tradeoffs."
+          ],
+          "chapterSlugs": [
+            "mixture-of-experts-architecture",
+            "state-space-models-mamba-alternatives",
+            "multimodal-llms-architecture-design",
+            "image-generation-diffusion-models"
+          ]
+        },
+        {
+          "number": 3,
+          "title": "Retrieval, Embeddings & Grounded Evaluation",
+          "description": [
+            "Private knowledge changes on its own schedule and never sat inside pretraining weights. Grounding answers means keeping source facts intact from chunking and embedding through approximate nearest-neighbor search and generation.",
+            "We build the full retrieval stack from chunking, cosine similarity, and HNSW/IVF vector indexes to production RAG pipelines, then test outputs rigorously with benchmarks, model judges, and hallucination checks."
           ],
           "chapterSlugs": [
             "chunking-strategies-document-processing",
             "embeddings-cosine-dot-product-quantization",
             "core-retrieval-algorithms",
+            "vector-database-internals-hnsw-ivf",
             "design-production-rag-pipeline",
+            "llm-evaluation-benchmarks-limitations",
             "llm-as-judge-automated-evaluation",
             "hallucination-detection-mitigation"
           ]
         },
         {
-          "number": 3,
-          "title": "Learning from Examples and Preferences",
+          "number": 4,
+          "title": "Pretraining, Fine-Tuning, Alignment & Reasoning",
           "description": [
-            "Your evaluation just told you what the model gets wrong. Now you have to teach it better, and every way of teaching has its own way of fooling you.",
-            "We start with reviewed examples and follow them through training, floating-point arithmetic, adapters, and preference learning, then attack the result. One question keeps coming back: when a number improves, did the behavior you wanted improve with it?"
+            "When prompting and retrieval reach their ceiling, you change the weights. Each training stage, from compute-optimal scaling to post-training alignment, has its own numerical traps and failure modes.",
+            "We follow scaling laws, CUDA execution, mixed precision, FSDP/ZeRO sharding, SFT, and LoRA into reward modeling, RLHF, DPO, verifiable-reward reinforcement learning (RLVR), and test-time reasoning compute."
           ],
           "chapterSlugs": [
-            "supervised-fine-tuning-pipeline",
+            "scaling-laws-compute-optimal-training",
+            "cuda-gpu-computing-for-ml",
             "mixed-precision-training-loss-scaling",
+            "distributed-training-fsdp-deepspeed-zero",
+            "supervised-fine-tuning-pipeline",
             "lora-parameter-efficient-fine-tuning",
             "reward-modeling-from-preference-data",
-            "rlhf-dpo-aligning-language-models"
-          ]
-        },
-        {
-          "number": 4,
-          "title": "Agents That Can Act and Recover",
-          "description": [
-            "A model can propose a useful next step, and your application stays responsible for what actually happens. Turning that proposal into a dependable workflow takes clear inputs, real observations, permissions, and rules for when to stop.",
-            "These chapters build that control around a working loop. We look at how context shapes a decision, how untrusted text reaches the model, and how a person reviews one exact action. The last chapter follows an interrupted operation far enough to decide how it can safely continue."
-          ],
-          "chapterSlugs": [
-            "function-calling-tool-use-llms",
-            "structured-output-constrained-generation",
-            "agentic-architectures-react-plan-execute",
-            "long-context-engineering-beyond-management",
-            "prompt-injection-defense-strategies",
-            "code-generation-agents-sandboxing",
-            "agent-failure-states-retry-fallback"
+            "rlhf-dpo-aligning-language-models",
+            "rlvr-verifiable-rewards-training",
+            "reasoning-models-test-time-compute"
           ]
         },
         {
           "number": 5,
-          "title": "Serving Under Real Workloads",
+          "title": "Agents, Tool Use & Reliability",
           "description": [
-            "A model that works in a notebook still has to work at nine in the morning, when everyone shows up at once. Serving is where latency, memory, and cost become one problem, and where a correct decision can still arrive too late.",
-            "We follow one request from the first wait to the last token, then widen out: the memory it holds, the work it can reuse, the scheduler it competes in, the bits its weights are stored in. From there we watch it in production, ship new versions safely, run a fleet through a morning surge, and finish by earning the benchmark number all of that depended on."
+            "A model can propose a tool call or a multi-step plan, while your runtime owns what actually executes. Turning free-form completions into dependable workflows requires typed schemas, bounded control loops, curated context, and explicit trust boundaries.",
+            "These five chapters build reliable agents from constrained generation and function calling through ReAct planning, context engineering, and prompt-injection defense."
+          ],
+          "chapterSlugs": [
+            "structured-output-constrained-generation",
+            "function-calling-tool-use-llms",
+            "agentic-architectures-react-plan-execute",
+            "long-context-engineering-beyond-management",
+            "prompt-injection-defense-strategies"
+          ]
+        },
+        {
+          "number": 6,
+          "title": "GPU Kernels & High-Throughput Inference Serving",
+          "description": [
+            "A model that works in a notebook still has to serve concurrent users under strict latency and memory limits. Inference is where HBM bandwidth, KV-cache fragmentation, scheduling, and low-bit precision become one coupled systems problem.",
+            "We measure TTFT and decode throughput first, then eliminate every bottleneck in order: FlashAttention, PagedAttention, continuous batching, speculative decoding, quantization, and GPU fleet autoscaling."
           ],
           "chapterSlugs": [
             "inference-mechanics-ttft-tps-kv-cache",
+            "flashattention-memory-efficient-attention",
             "kv-cache-paged-attention-llm-serving",
             "continuous-batching-request-scheduling",
+            "speculative-decoding",
             "model-quantization-gptq-awq-gguf",
-            "llm-cost-engineering-token-economics",
-            "llm-deployment-gpu-serving-autoscaling",
-            "serving-benchmark-engineering"
+            "llm-deployment-gpu-serving-autoscaling"
           ]
         }
       ]
@@ -141,7 +161,7 @@
           "title": "Language Models, Evaluation & Applications",
           "description": [
             "A model can sound sure and still be wrong about the document in front of you. Look at the text it actually received, the representations it built, and a check that tells you whether the answer is usable.",
-            "With that, you can put together tools, retrieval, safety checks, a record of what happened, and a release decision you would explain to a teammate. The later chapters on model internals and serving are easier once you know what the system is for."
+            "With that, you can put together tools, retrieval, safety checks, and evaluations you can defend. The later chapters on model internals and serving are easier once you know what the system is for."
           ],
           "sections": [
             "Core LLM Foundations",
@@ -153,7 +173,7 @@
           "title": "Transformer Architectures & Attention",
           "description": [
             "When an application depends on a model, a bad token often comes from inside the forward pass. The model may have skipped a position, hidden the wrong context, or flattened the scores before decoding.",
-            "Stay with one representation as it moves through embeddings, attention, images, position, and normalization, until it becomes the next token. When you later change training, you should know which step moved the prediction."
+            "Stay with one representation as it moves through embeddings, attention, images, position, and normalization, until it becomes the next token."
           ],
           "sections": [
             "Transformer & Multimodal Architectures"
@@ -163,8 +183,8 @@
           "number": 3,
           "title": "Pretraining, Fine-Tuning & Alignment",
           "description": [
-            "A model that is almost right is a good reason to teach it something more specific. You want an example that would change the behavior, and a test that would show the change is real.",
-            "The chapters here are that plan: data, a small model you can inspect, precision, distributed training, adapters, preferences, rewards you can check, distillation, and merging. Each one changes behavior and leaves you a way to test the result."
+            "A model that is almost right is a good reason to teach it something more specific. You want an example that changes the behavior, and a test that confirms the change is real.",
+            "The chapters here cover scaling laws, pretraining data, precision, distributed training, adapters, preferences, verifiable rewards, reasoning, and distillation."
           ],
           "sections": [
             "Training, Fine-Tuning & Alignment"
@@ -174,8 +194,8 @@
           "number": 4,
           "title": "Autonomous Agents, Tool Protocols & Sandboxing",
           "description": [
-            "Giving a model a tool is the easy part. The satisfying work is deciding what you trust in the result. The model can suggest a step. Your runtime decides what may run, what may be remembered, and when a person should look.",
-            "These chapters take retrieval and tool use into larger indexes and longer jobs: access control, structured output, execution limits, human review, memory, and recovery. The model's words stay a suggestion."
+            "Giving a model a tool is the easy part. The engineering work is deciding what your runtime trusts, remembers, isolates, and retries.",
+            "These chapters take retrieval and tool use into vector indexes, GraphRAG, working memory, sandboxing, recovery, and multi-agent orchestration."
           ],
           "sections": [
             "Advanced Agents & Retrieval"
@@ -185,8 +205,8 @@
           "number": 5,
           "title": "High-Throughput Inference & Serving Systems",
           "description": [
-            "A good answer that shows up late is a different product from the one you had in mind. Once many people arrive together, memory, batching, and scheduling are part of how the product feels.",
-            "Follow one request into the serving engine. KV state, parallelism, kernels, precision, and decoding are how you get to capacity, recovery after a failure, and quality you can still measure after launch."
+            "Once many requests arrive together, KV-cache memory, batching, kernels, and scheduling determine how the product feels.",
+            "Follow a request through FlashAttention, PagedAttention, continuous batching, speculative decoding, quantization, CUDA kernels, and autoscaling."
           ],
           "sections": [
             "GPU Systems & LLM Inference"
@@ -196,8 +216,8 @@
           "number": 6,
           "title": "System Design & Production Codebases",
           "description": [
-            "A chapter can be right on its own and still cause trouble beside the rest of the system. Serving changes the latency budget. Retrieval changes what the model may claim. Training changes which failures you can see.",
-            "The last chapters put those pieces into full designs, then follow the same choices through real training and inference code. You will have pinned source and measurements to lean on, including the place where the design stops holding."
+            "A chapter can be right on its own and still cause trouble beside the rest of the system. Serving changes the latency budget; retrieval changes what the model may claim.",
+            "The final chapters assemble full end-to-end architectures and inspect canonical open-source systems from PyTorch and vLLM to FlashInfer, DeepGEMM, DeepEP, NCCL, and Megatron."
           ],
           "sections": [
             "AI System Design & Interviewing",
@@ -208,23 +228,23 @@
       "edition": "First Edition (2026), Extended Reference"
     },
     "full": {
-      "title": "The AI & LLM Systems Engineering Handbook (Full Reference)",
+      "title": "The AI & LLM Systems Engineering Handbook (Complete Curriculum)",
       "coverTitleLines": [
         "The AI & LLM",
         "Systems Engineering",
         "Handbook",
-        "(Full Reference)"
+        "(Complete Curriculum)"
       ],
-      "subtitle": "From Computing and Mathematical Foundations to Production AI Systems",
+      "subtitle": "All 102 Lessons from Mathematical Foundations to Production AI Systems",
       "excludeSections": [],
       "excludeSlugs": [],
       "parts": [
         {
           "number": 1,
-          "title": "Foundations of AI Systems & Applied Mathematics",
+          "title": "Math, Tensors & Deep Learning Foundations",
           "description": [
-            "The work gets more interesting once your workspace gives the same answer twice, and once you can see why a number moved. Start with a reproducible setup, tensors, probability, and a small network you train yourself.",
-            "Take that into language modeling, prompting, and a small application. When a prediction surprises you, you should be able to name the earlier idea that explains it."
+            "Every model rests on tensor shapes, linear algebra, gradients, probability, and clean PyTorch training loops.",
+            "Start with small hand-checked numbers and build neural networks from scratch before scaling up."
           ],
           "sections": [
             "Math & Tensor Foundations",
@@ -233,10 +253,10 @@
         },
         {
           "number": 2,
-          "title": "Classical Machine Learning & Production ML Systems",
+          "title": "Classical Machine Learning & Evaluation",
           "description": [
-            "Fitting the rows you trained on is a good start. What you want next is a decent guess on a new row, and a way to notice when the data, the split, or the metric led you astray.",
-            "These chapters fit simple models, check whether they travel to new rows, and build the path around them: data quality, experiments, training loops, features, and monitoring. Later language-model work uses the same habits."
+            "Fitting the rows you trained on is easy. Knowing whether a model generalizes to new data requires clean splits, sharp metrics, and disciplined experiments.",
+            "These chapters build core predictive models and evaluation habits that carry directly into LLM engineering."
           ],
           "sections": [
             "Classical ML & Evaluation"
@@ -246,8 +266,7 @@
           "number": 3,
           "title": "Language Models, Evaluation & Applications",
           "description": [
-            "A model can sound sure and still be wrong about the document in front of you. Look at the text it actually received, the representations it built, and a check that tells you whether the answer is usable.",
-            "With that, you can put together tools, retrieval, safety checks, a record of what happened, and a release decision you would explain to a teammate. The later chapters on model internals and serving are easier once you know what the system is for."
+            "Trace text through tokenization, contrastive embeddings, the Transformer block, decoding, prompting, RAG, and rigorous evaluation."
           ],
           "sections": [
             "Core LLM Foundations",
@@ -256,10 +275,9 @@
         },
         {
           "number": 4,
-          "title": "Transformer Architectures & Attention",
+          "title": "Transformer & Multimodal Architectures",
           "description": [
-            "When an application depends on a model, a bad token often comes from inside the forward pass. The model may have skipped a position, hidden the wrong context, or flattened the scores before decoding.",
-            "Stay with one representation as it moves through embeddings, attention, images, position, and normalization, until it becomes the next token. When you later change training, you should know which step moved the prediction."
+            "Look inside attention, RoPE, LayerNorm, Mixture of Experts, Mamba, Vision Transformers, multimodal fusion, diffusion, and mechanistic interpretability."
           ],
           "sections": [
             "Transformer & Multimodal Architectures"
@@ -269,8 +287,7 @@
           "number": 5,
           "title": "Pretraining, Fine-Tuning & Alignment",
           "description": [
-            "A model that is almost right is a good reason to teach it something more specific. You want an example that would change the behavior, and a test that would show the change is real.",
-            "The chapters here are that plan: data, a small model you can inspect, precision, distributed training, adapters, preferences, rewards you can check, distillation, and merging. Each one changes behavior and leaves you a way to test the result."
+            "Scale, adapt, and align language models with scaling laws, CUDA, mixed precision, FSDP, SFT, LoRA, RLHF, DPO, RLVR, reasoning, and distillation."
           ],
           "sections": [
             "Training, Fine-Tuning & Alignment"
@@ -278,10 +295,9 @@
         },
         {
           "number": 6,
-          "title": "Autonomous Agents, Tool Protocols & Sandboxing",
+          "title": "Advanced Agents & Retrieval",
           "description": [
-            "Giving a model a tool is the easy part. The satisfying work is deciding what you trust in the result. The model can suggest a step. Your runtime decides what may run, what may be remembered, and when a person should look.",
-            "These chapters take retrieval and tool use into larger indexes and longer jobs: access control, structured output, execution limits, human review, memory, and recovery. The model's words stay a suggestion."
+            "Build vector indexes, GraphRAG, working memory, isolated sandboxes, failure recovery, and multi-agent workflows."
           ],
           "sections": [
             "Advanced Agents & Retrieval"
@@ -289,10 +305,9 @@
         },
         {
           "number": 7,
-          "title": "High-Throughput Inference & Serving Systems",
+          "title": "GPU Systems & LLM Inference",
           "description": [
-            "A good answer that shows up late is a different product from the one you had in mind. Once many people arrive together, memory, batching, and scheduling are part of how the product feels.",
-            "Follow one request into the serving engine. KV state, parallelism, kernels, precision, and decoding are how you get to capacity, recovery after a failure, and quality you can still measure after launch."
+            "Eliminate serving bottlenecks from KV caches, FlashAttention, PagedAttention, and CUDA kernels to quantization and fleet autoscaling."
           ],
           "sections": [
             "GPU Systems & LLM Inference"
@@ -302,8 +317,7 @@
           "number": 8,
           "title": "System Design & Production Codebases",
           "description": [
-            "A chapter can be right on its own and still cause trouble beside the rest of the system. Serving changes the latency budget. Retrieval changes what the model may claim. Training changes which failures you can see.",
-            "The last chapters put those pieces into full designs, then follow the same choices through real training and inference code. You will have pinned source and measurements to lean on, including the place where the design stops holding."
+            "Design production AI systems end to end and read the architecture of PyTorch, vLLM, SGLang, FlashInfer, DeepGEMM, DeepEP, NCCL, and Megatron."
           ],
           "sections": [
             "AI System Design & Interviewing",

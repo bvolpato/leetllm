@@ -1,289 +1,176 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const height = 400
 export const alt =
-    'Query route serving economics across full synthesis (0.97 cents), semantic cache (0.03 cents), and structured API lookups (0.10 cents). For a 60/30/10 traffic mix, the weighted average cost is 0.601 cents per query, totaling $360.60 per minute at 1,000 queries per second.'
-
-export const numericAnchors = {
-    fullCostCents: 0.97,
-    cacheCostCents: 0.03,
-    apiCostCents: 0.1,
-    fullShare: 0.6,
-    cacheShare: 0.3,
-    apiShare: 0.1,
-    weightedMeanCents: 0.601,
-    qps: 1000,
-    costPerMinute: 360.6,
-}
+    'Two-panel route economics chart at 1,000 QPS. Left: horizontal unit-cost bar chart comparing full synthesis ($0.0097), structured lookup ($0.0010), and validated cache ($0.0003), with a dashed reference line at the 60/30/10 weighted mean of $0.00601 per query (-38%). Right: 100% stacked comparison showing that 60% full-synthesis traffic accounts for 96.8% of total spend ($0.00582 of $0.00601, or $360.60/min), while 30% cache and 10% structured routes account for only 3.2% combined.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
 
-    const label = (
-        x: number,
+    const fill = (color: string, amt = 0.22) => tint(color, c.bg, amt)
+
+    // ==================== LEFT PANEL: UNIT COST PER QUERY ====================
+    fig.text(146, 26, 'Unit Cost per Query ($)', { size: 14, color: c.textPrimary, weight: 700 })
+
+    const leftPlot = fig.plot(
+        { x: 146, y: 56, width: 294, height: 240 },
+        { x: [0, 0.011], y: [0, 3.6] },
+    )
+    leftPlot.axes({
+        xTicks: [0, 0.005, 0.01],
+        xFormat: (v) => (v === 0 ? '$0' : `$${v.toFixed(3)}`),
+        xLabel: 'USD per query',
+        grid: true,
+        labelSize: 12,
+    })
+
+    const routes = [
+        { y: 2.85, name: 'Full synthesis', sub: '60% traffic', cost: 0.0097, color: blue },
+        { y: 1.75, name: 'Structured API', sub: '10% traffic', cost: 0.001, color: warm },
+        { y: 0.65, name: 'Validated cache', sub: '30% traffic', cost: 0.0003, color: green },
+    ]
+    const bh = 34
+    for (const r of routes) {
+        const py = leftPlot.py(r.y)
+        fig.text(134, py - 8, r.name, {
+            size: 13,
+            color: c.textPrimary,
+            align: 'right',
+            weight: 700,
+        })
+        fig.text(134, py + 10, r.sub, {
+            size: 11.5,
+            color: c.textSecondary,
+            align: 'right',
+        })
+        const w = Math.max(8, leftPlot.px(r.cost) - leftPlot.px(0))
+        fig.rect(leftPlot.px(0), py - bh / 2, w, bh, {
+            fill: fill(r.color, 0.25),
+            stroke: r.color,
+            strokeWidth: 1.4,
+            radius: 4,
+        })
+        const labelInside = w > 120
+        fig.text(
+            labelInside ? leftPlot.px(r.cost) - 8 : leftPlot.px(0) + w + 8,
+            py,
+            `$${r.cost.toFixed(4)}`,
+            {
+                size: 12.5,
+                color: labelInside ? c.textPrimary : r.color,
+                align: labelInside ? 'right' : 'left',
+                weight: 700,
+                mono: true,
+            },
+        )
+    }
+
+    // Weighted mean vertical reference line ($0.00601)
+    leftPlot.vline(0.00601, 'Mean: $0.00601', {
+        color: purple,
+        width: 1.75,
+        dash: '5 4',
+        labelPosition: 'bottom',
+        labelOffset: 24,
+        labelSize: 12.5,
+        align: 'left',
+        weight: 700,
+    })
+
+    // Center hairline divider
+    fig.line(472, 22, 472, 372, { color: c.borderSubtle, width: 1 })
+
+    // ==================== RIGHT PANEL: TRAFFIC VS SPEND SHARE ====================
+    fig.text(500, 26, 'Traffic Mix vs. Spend Share (60 / 30 / 10)', {
+        size: 14,
+        color: c.textPrimary,
+        weight: 700,
+    })
+
+    const rx = 500
+    const rw = 330
+    const drawStack = (
         y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+        heading: string,
+        segments: { frac: number; color: string; label?: string }[],
+    ) => {
+        fig.text(rx, y - 18, heading, { size: 13, color: c.textSecondary, weight: 600 })
+        let x = rx
+        for (const seg of segments) {
+            const w = seg.frac * rw
+            fig.rect(x, y, Math.max(4, w - 2), 40, {
+                fill: fill(seg.color, 0.26),
+                stroke: seg.color,
+                strokeWidth: 1.35,
+                radius: 4,
+            })
+            if (seg.label && w >= 28) {
+                fig.text(x + w / 2, y + 20, seg.label, {
+                    size: w < 42 ? 11.5 : 12.5,
+                    color: c.textPrimary,
+                    align: 'center',
+                    weight: 700,
+                })
+            }
+            x += w
+        }
+    }
 
-    // Stacked contribution width scale: total 0.601 cents mapped to 600px
-    const totalW = 600
-    const fullW = Math.round((0.582 / 0.601) * totalW) // 581
-    const cacheW = Math.round((0.009 / 0.601) * totalW) // 9
-    const apiW = totalW - fullW - cacheW // 10
+    drawStack(86, 'Request volume (1,000 QPS)', [
+        { frac: 0.6, color: blue, label: '60% Full' },
+        { frac: 0.3, color: green, label: '30% Cache' },
+        { frac: 0.1, color: warm, label: '10%' },
+    ])
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Top 3 Cards */}
-                    <rect
-                        x={40}
-                        y={74}
-                        width={248}
-                        height={96}
-                        rx={8}
-                        fill={theme === 'dark' ? '#141d2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={300}
-                        y={74}
-                        width={248}
-                        height={96}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={560}
-                        y={74}
-                        width={260}
-                        height={96}
-                        rx={8}
-                        fill={theme === 'dark' ? '#241b12' : '#fffbeb'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
+    drawStack(186, 'Total spend ($0.00601 / query)', [
+        { frac: 0.968, color: blue, label: '96.8% Full ($0.00582)' },
+        { frac: 0.015, color: green },
+        { frac: 0.017, color: warm },
+    ])
 
-                    {/* Stacked Bar Track (y=236) */}
-                    <rect
-                        x={110}
-                        y={236}
-                        width={totalW}
-                        height={28}
-                        rx={4}
-                        fill={theme === 'dark' ? '#181b22' : '#f1f5f9'}
-                    />
-                    <rect x={110} y={236} width={fullW} height={28} rx={4} fill={blueTone} />
-                    <rect
-                        x={110 + fullW}
-                        y={236}
-                        width={cacheW}
-                        height={28}
-                        rx={2}
-                        fill={greenTone}
-                    />
-                    <rect
-                        x={110 + fullW + cacheW}
-                        y={236}
-                        width={apiW}
-                        height={28}
-                        rx={4}
-                        fill={warmTone}
-                    />
+    // Callout for tiny 3.2% Cache + API spend sliver
+    fig.callout([rx + rw - 6, 228], [rx + rw - 42, 260], 'Cache 1.5% + API 1.7%', {
+        color: green,
+        labelColor: green,
+        size: 12,
+        weight: 600,
+        align: 'right',
+        bend: 0.15,
+    })
 
-                    {/* Legend Indicators */}
-                    <circle cx={98} cy={282} r={5} fill={blueTone} />
-                    <circle cx={338} cy={282} r={5} fill={greenTone} />
-                    <circle cx={578} cy={282} r={5} fill={warmTone} />
+    // Fleet spend summary strip (frameless tinted accent band)
+    fig.rect(rx, 294, rw, 70, {
+        fill: fill(purple, 0.1),
+        stroke: purple,
+        strokeWidth: 1.35,
+        radius: 8,
+    })
+    fig.text(rx + 16, 317, '1,000 QPS operating spend', {
+        size: 12.5,
+        color: c.textSecondary,
+        weight: 600,
+    })
+    fig.text(rx + 16, 344, '$360.60 / min', {
+        size: 17,
+        color: purple,
+        weight: 700,
+        mono: true,
+    })
+    fig.text(rx + rw - 14, 344, 'vs $582/min uncached', {
+        size: 12.5,
+        color: green,
+        align: 'right',
+        weight: 600,
+    })
 
-                    {/* Spend Summary Box (y=320) */}
-                    <rect
-                        x={40}
-                        y={320}
-                        width={780}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#141720' : '#f8fafc'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <line x1={295} y1={330} x2={295} y2={386} stroke={stroke} strokeWidth={1} />
-                    <line x1={555} y1={330} x2={555} y2={386} stroke={stroke} strokeWidth={1} />
-
-                    {/* Insight Card (y=412) */}
-                    <rect
-                        x={40}
-                        y={412}
-                        width={780}
-                        height={66}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
-
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Query Serving Economics: Multi-Tier Route Cost Blending',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Caching and direct API routing dramatically suppress unit costs while preserving revision freshness',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Top 3 Route Profile Cards */}
-            {/* Card 1: Full Synthesis */}
-            {label(52, 84, 230, 'ROUTE 1: FULL SYNTHESIS', 11, blueTone, 'left', 700)}
-            {label(52, 106, 230, '0.97¢ / query (60% traffic)', 13, c.textPrimary, 'left', 600)}
-            {label(
-                52,
-                126,
-                230,
-                '1,500 prompt + 400 output tokens · Weighted share: 0.582¢ / query',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Card 2: Valid Cache */}
-            {label(312, 84, 230, 'ROUTE 2: SEMANTIC CACHE HIT', 11, greenTone, 'left', 700)}
-            {label(312, 106, 230, '0.03¢ / query (30% traffic)', 13, greenTone, 'left', 600)}
-            {label(
-                312,
-                126,
-                230,
-                'Re-validates access & revision · Weighted share: 0.009¢ (32x savings)',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Card 3: Structured API */}
-            {label(572, 84, 230, 'ROUTE 3: STRUCTURED LIVE API', 11, warmTone, 'left', 700)}
-            {label(572, 106, 230, '0.10¢ / query (10% traffic)', 13, warmTone, 'left', 600)}
-            {label(
-                572,
-                126,
-                230,
-                'Direct microservice data query · Weighted share: 0.010¢ / query',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Middle Section: Weighted Blend Bar */}
-            {label(
-                40,
-                186,
-                780,
-                'WEIGHTED UNIT COST CONTRIBUTIONS (TOTAL: 0.601¢ PER QUERY)',
-                11,
-                c.textMuted,
-                'left',
-                700,
-            )}
-
-            {/* Breakdown numbers above bar */}
-            {label(110, 212, 200, 'Full Synthesis: 0.582¢ (96.8%)', 11, blueTone, 'left', 600)}
-            {label(680, 212, 140, 'Cache + API: 0.019¢ (3.2%)', 11, greenTone, 'right', 600)}
-
-            {/* Bar Legend */}
-            {label(110, 276, 200, 'Synthesis Cost (0.582¢)', 11, blueTone, 'left', 500)}
-            {label(350, 276, 200, 'Cache Hit Cost (0.009¢)', 11, greenTone, 'left', 500)}
-            {label(590, 276, 200, 'Structured API Cost (0.010¢)', 11, warmTone, 'left', 500)}
-
-            {/* Bottom Fleet Spend Metrics */}
-            {label(52, 332, 240, 'Traffic Throughput', 11, c.textMuted, 'left', 500)}
-            {label(52, 350, 240, '1,000 QPS (60,000 req/min)', 14, c.textPrimary, 'left', 700)}
-
-            {label(312, 332, 240, 'Average Unit Cost', 11, c.textMuted, 'left', 500)}
-            {label(312, 350, 240, '$0.00601 USD / query', 14, greenTone, 'left', 700)}
-
-            {label(572, 332, 240, 'Total Operating Spend', 11, c.textMuted, 'left', 500)}
-            {label(572, 350, 240, '$360.60 / min ($21.6k / hour)', 14, purpleTone, 'left', 700)}
-
-            {/* Architecture Insight Note */}
-            {label(52, 426, 756, 'Economic Impact of Tiered Routing', 12, blueTone, 'left', 700)}
-            {label(
-                52,
-                446,
-                756,
-                'The 30% cache hit tier saves $132.84 per minute ($7,970/hr) compared to a pure synthesis fleet. Ensuring that cache hits perform lightweight revision checks guarantees correctness without paying the GPU generation penalty.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create()

@@ -32,21 +32,22 @@
 }
 ---
 
-<!-- leetllm: edition:reference:start -->
-A customer-support assistant handles 8,500 live queries and 2,000 nightly offline evaluations per day against a monthly generation ceiling of \$750. Depending on the query, the service can return a stored semantic answer, route to a fast 8B model and escalate to a frontier model only on low confidence or schema failure, hit a warm KV prompt prefix, or queue offline evaluations in an asynchronous batch lane. All four paths look identical to a caller, yet each moves a different line on the monthly invoice.
+A lower price per token can still produce a higher monthly bill. When a model pads replies with verbose prose, burns hidden reasoning tokens, retries malformed JSON, or crosses a context-tier cutoff, a cheaper nominal tariff ends up costing more per accepted answer than a disciplined pipeline.
+
+Consider an assistant handling 8,500 live queries and 2,000 nightly offline evaluations per day against a monthly generation ceiling of \$750. Depending on the request, the service can return a stored semantic answer, route to a fast 8B model and escalate to a frontier model only on low confidence or schema failure, hit a warm KV prompt prefix, or queue offline evaluations in an asynchronous batch lane. All four paths look identical to a caller, yet each moves a different line on the monthly invoice.
 
 Across 10,500 daily calls under a parameterized frontier rate card, concise structured replies paired with batched evaluations cost \$23.906/day (\$717.18 over 30 days), leaving just \$32.82 (4.4%) of headroom before a traffic spike or cold cache breaches the cap. Controlling spend without hurting accuracy requires tracing every dollar to GPU execution, guarding caches from semantic collisions, and cascading routine turns away from frontier decoding.
 
 ## Separate avoided generation from billed token lanes
 
-Before multiplying <span data-glossary="token">tokens</span> by rates, separate requests that skip inference from requests that execute auto-regressive decoding. A semantic cache hit serves a stored response from vector storage for \$0 in generation fees. A provider prompt-prefix hit reuses resident <span data-glossary="kv-cache">KV-cache</span> tensors over a shared header, yet still runs prefill on fresh query tokens and full sequential decoding. Calling both a "cache hit" hides massive bill variance.
+Before multiplying <span data-glossary="token">tokens</span> by rates, separate requests that skip inference from requests that execute auto-regressive decoding. A **semantic cache hit** serves a stored response from vector storage for \$0 in generation fees. A **provider prompt-prefix hit** reuses resident <span data-glossary="kv-cache">KV-cache</span> tensors over a shared header, yet still runs prefill on fresh query tokens and full sequential decoding. Calling both a "cache hit" hides massive bill variance.
 
 <figure>
   <img src="illustrations/_generated/generation_billing_paths_dark.png" alt="Generation billing paths split between stored-answer hits and four token-billed usage lines alongside token tariffs" />
   <figcaption>Separating stored semantic cache hits from interactive prefix reads, cold cache writes, long-context escalation, and asynchronous batch runs keeps unit costs traceable to actual GPU computation.</figcaption>
 </figure>
 
-Scheduling lane and prompt length add two orthogonal cost multipliers: asynchronous 24-hour batch queues cut token prices in half[^openai2026batch], whereas crossing a model's long-context threshold reprices every token in the turn onto a steeper tier[^openai2026gpt54].
+Scheduling lane and prompt length add two orthogonal cost multipliers: asynchronous 24-hour batch queues cut token prices in half,[^openai2026batch] whereas crossing a model's long-context threshold reprices every token in the turn onto a steeper tier.[^openai2026gpt54]
 
 | Request outcome | GPU work executed | Pricing treatment |
 |---|---|---|
@@ -56,13 +57,13 @@ Scheduling lane and prompt length add two orthogonal cost multipliers: asynchron
 | Long-context turn | Attention over >272K context tokens | Entire turn repriced on long-context tier |
 | Asynchronous batch job | Offline queue scheduled within 24h SLA | 50% discount across input, read, and output |
 
-Billing ratios mirror hardware bottlenecks: prompt prefill runs parallel matrix multiplications (`GEMM`) that saturate GPU tensor cores, whereas auto-regressive decoding reloads weights and growing KV tensors from `HBM` on every step, making decoding memory-bandwidth bound[^vllm2026optimization][^leviathan2023]. Providers therefore price output tokens 4x to 6x higher than fresh input, while discounting exact-prefix KV reads by 75% to 90%[^openai2026pricing][^openai2026promptcaching][^anthropic2026promptcaching]. Hidden reasoning tokens billed inside `completion_tokens` expand output charges linearly even when the visible answer is short[^openai2026reasoning].
+Billing ratios mirror hardware bottlenecks: prompt prefill runs parallel matrix multiplications (`GEMM`) that saturate GPU tensor cores, whereas auto-regressive decoding reloads weights and growing KV tensors from `HBM` on every step, making decoding memory-bandwidth bound.[^vllm2026optimization][^leviathan2023] Providers therefore price output tokens 4x to 6x higher than fresh input, while discounting exact-prefix KV reads by 75% to 90%.[^openai2026pricing][^openai2026promptcaching][^anthropic2026promptcaching] Hidden reasoning tokens billed inside `completion_tokens` expand output charges linearly even when the visible answer is short.[^openai2026reasoning]
 
 ## Parameterize rate cards and disjoint token buckets
 
-Hardcoding dated provider pricing tables breaks silently whenever tariffs change. Parameterize every tier by its structural rates (`input_rate`, `cached_input_rate`, `cache_write_rate`, `output_rate`, `long_context_threshold`, and batch discount) and normalize provider payloads into four disjoint buckets `[fresh_input, cached_read, cache_write, output]`. OpenAI nests `cached_tokens` inside `prompt_tokens` and `reasoning_tokens` inside `completion_tokens`, whereas Anthropic reports uncached input, `cache_creation_input_tokens`, and `cache_read_input_tokens` separately[^openai2026pricing][^anthropic2026promptcaching].
+Hardcoding dated provider pricing tables breaks silently whenever tariffs change. Parameterize every tier by its structural rates (`input_rate`, `cached_input_rate`, `cache_write_rate`, `output_rate`, `long_context_threshold`, and batch discount) and normalize provider payloads into four disjoint buckets `[fresh_input, cached_read, cache_write, output]`. OpenAI nests `cached_tokens` inside `prompt_tokens` and `reasoning_tokens` inside `completion_tokens`, whereas Anthropic reports uncached input, `cache_creation_input_tokens`, and `cache_read_input_tokens` separately.[^openai2026pricing][^anthropic2026promptcaching]
 
-<!-- leetllm: test, output=show, id=cost-ledger, deps=numpy -->
+<!-- leetllm: test, output=show, id=cost-pricing, deps=numpy -->
 ```python title="parameterized-token-pricing.py"
 from dataclasses import dataclass
 import numpy as np
@@ -140,28 +141,28 @@ Frontier interactive cost: $0.007280 (output share: 69.2%)
 
 ## Context cliffs, prefix amortization, and semantic-cache collisions
 
-Three nonlinear effects dominate caching and context spend. First, crossing the `272,000`-token long-context cutoff reprices the entire turn retroactively[^openai2026gpt54]. Second, explicit prefix writes carry a `1.25x` surcharge over uncached prefill[^anthropic2026promptcaching]: with write multiplier $C_{\text{write}} = 1.25$ and read multiplier $C_{\text{read}} = 0.10$, $n$ shared calls beat uncached prefill once:
+Three nonlinear effects dominate caching and context spend. First, crossing the `272,000`-token long-context cutoff reprices the entire turn retroactively.[^openai2026gpt54] Second, explicit prefix writes carry a `1.25x` surcharge over uncached prefill:[^anthropic2026promptcaching] with write multiplier $C_{\text{write}} = 1.25$ and read multiplier $C_{\text{read}} = 0.10$, $n$ shared calls beat uncached prefill once:
 
 $$
 1.25 + 0.10(n - 1) < n \iff 1.15 < 0.90n \iff n \ge 2
 $$
 
-Prefix caching breaks even on the second call ($1.35\times$ vs. $2.00\times$) and cuts six-call prefix cost by 70.8%; putting a per-request timestamp at the front of the prompt keeps every call stuck at $n = 1$ (a permanent 25% surcharge)[^openai2026promptcaching].
+Prefix caching breaks even on the second call ($1.35\times$ vs. $2.00\times$) and cuts six-call prefix cost by 70.8%; putting a per-request timestamp at the front of the prompt keeps every call stuck at $n = 1$ (a permanent 25% surcharge).[^openai2026promptcaching]
 
 <figure>
   <img src="illustrations/_generated/cost_optimization_dark.png" alt="Prefix-cache amortization break-even curve over six calls paired with the cost-versus-quality Pareto frontier" />
   <figcaption>Explicit prompt-prefix writes pay back their 1.25x surcharge by the second shared call and cut six-call prefix spend below one-third of uncached prefill, while the Pareto curve flags configurations that dominate slower, higher-cost alternatives.</figcaption>
 </figure>
 
-Third, **semantic response caching** carries a failure mode that **KV prefix caching** never has: **antonym and negation collision**. Semantic caches retrieve stored replies when <span data-glossary="cosine-similarity">cosine similarity</span> clears a cutoff $\tau$ and beat fresh inference only above break-even hit rate $h^*$[^bang2023][^reimers2019]:
+Third, **semantic response caching** carries a failure mode that **KV prefix caching** never has: **antonym and negation collision**. Semantic caches retrieve stored replies when <span data-glossary="cosine-similarity">cosine similarity</span> clears a cutoff $\tau$ and beat fresh inference only above break-even hit rate $h^*$:[^bang2023][^reimers2019]
 
 $$
 \operatorname{cosine}(a, b) = \frac{a \cdot b}{\lVert a \rVert_2 \lVert b \rVert_2}, \qquad h^* = \frac{c_{\text{lookup}}}{c_{\text{gen}}}
 $$
 
-Because embeddings measure topical and lexical overlap rather than logical equivalence, opposite commands like `"enable TLS"` vs. `"disable TLS"` or `"refund eligible"` vs. `"not eligible"` routinely score `0.90` to `0.96` under dense encoders, serving inverted answers on a cache hit. **KV prefix caching** hashes **exact token IDs from token 0 forward**, splitting `"enable"` from `"disable"` deterministically at zero semantic collision risk[^vllm2026prefix][^openai2026promptcaching]. Put semantic caches behind strict scope keys (tenant, access scope, corpus version, schema) plus intent/polarity gates, and verify your store's metric direction (cosine similarity $\ge 0.88$ vs. Redis cosine distance $d_{\text{cos}} \le 0.12$)[^redis2026SemanticCacheApi].
+Because embeddings measure topical and lexical overlap rather than logical equivalence, opposite commands like `"enable TLS"` vs. `"disable TLS"` or `"refund eligible"` vs. `"not eligible"` routinely score `0.90` to `0.96` under dense encoders, serving inverted answers on a cache hit. **KV prefix caching** hashes **exact token IDs from token 0 forward**, splitting `"enable"` from `"disable"` deterministically at zero semantic collision risk.[^vllm2026prefix][^openai2026promptcaching] Put semantic caches behind strict scope keys (tenant, access scope, corpus version, schema) plus intent/polarity gates, and verify your store's metric direction (cosine similarity $\ge 0.88$ vs. Redis cosine distance $d_{\text{cos}} \le 0.12$).[^redis2026SemanticCacheApi]
 
-<!-- leetllm: test, output=show, continue=cost-ledger, id=cost-frontier-and-collisions, deps=numpy,scikit-learn -->
+<!-- leetllm: test, output=show, continue=cost-pricing, id=cost-frontier-and-collisions, deps=numpy,scikit-learn -->
 ```python title="cliffs-amortization-and-antonym-collisions.py"
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -202,9 +203,9 @@ Pair 3: cosine=0.530 | exact shared word prefix=2/7
 
 Notice the inversion: both opposite-intent pairs (`0.762` for `"enable TLS"` vs. `"disable TLS"` and `0.793` for `"refund eligible"` vs. `"not eligible"`) outscore the valid paraphrase (`0.530`). Dense neural embeddings show the same geometry at `0.94` to `0.96`, whereas exact prefix hashing splits Pair 1 cleanly at word 3 (`"enable"` vs. `"disable"`).
 
-To use a semantic cache safely in production, layer three gates before checking cosine similarity:
+To use a semantic cache safely in production, layer three checks before cosine matching:
 
-- **Canonical scope key:** Hash `tenant_id`, `access_scope`, `corpus_version`, `locale`, and `response_schema` together so a cached answer from an older policy snapshot or another customer never leaks across boundaries.
+- **Canonical scope key:** Hash `tenant_id`, `access_scope`, `corpus_version`, `locale`, and `response_schema` together so a cached answer from an older revision or another customer never leaks across boundaries.
 - **Intent and polarity filter:** Route state-changing verbs (`enable` vs. `disable`, `upgrade` vs. `downgrade`, `eligible` vs. `not eligible`) through a fast deterministic classifier or exact-match allowlist so opposite instructions never share a vector bucket.
 - **Shadow calibration before live serving:** Measure hit precision against live generation in shadow mode before turning on cached replies, and track the break-even hit rate $h^* = c_{\text{lookup}} / c_{\text{gen}}$ so lookup infrastructure never costs more than the calls it avoids.
 
@@ -212,12 +213,12 @@ Choosing an operating point across prompt length, output cap, and model size als
 
 ## Cascade fast models to frontier with schema-preserving fallback
 
-Dynamic requests (such as live order lookups) change on every turn and cannot hit a semantic cache. **Model cascading** cuts their cost by routing incoming queries to a fast 8B tier first and escalating to a frontier model only on low confidence, strict JSON schema failure, or a pre-output transport error[^routellm2024][^litellm2026reliability]. In a multi-provider gateway, track an exponentially weighted moving average (`EWMA`) of each lane's latency and transport error rate so degraded endpoints lose rank smoothly before a full outage occurs.
+Dynamic requests (such as live order lookups) change on every turn and cannot hit a semantic cache. **Model cascading** cuts their cost by routing incoming queries to a fast 8B tier first and escalating to a frontier model only on low confidence, strict JSON schema failure, or a pre-output transport error.[^routellm2024][^litellm2026reliability] In a multi-provider gateway, track an exponentially weighted moving average (`EWMA`) of each lane's latency and transport error rate so degraded endpoints lose rank smoothly before a full outage occurs.
 
 Three engineering rules keep cascading and failover reliable in production:
 
-1. **Preserve schema and privacy scope:** Every fallback lane must honor the exact same JSON schema (`cited-support-answer-v3`) and data-residency boundary. Register evaluated lane capabilities explicitly because native structured-output wire fields differ across APIs (OpenAI `text.format` / `response_format` vs. Anthropic `output_config.format`), and compatibility wrappers can silently disable prompt caching or tool-level strictness[^openai_structured_outputs][^anthropic2026StructuredOutputs].
-2. **Buffer before streaming:** Silent failover is valid only before any token streams to the caller; post-output failover cannot splice two partial responses together, and auth errors (`401`/`403`) or safety refusals should abort failover rather than masking broken credentials[^awsbackoff].
+1. **Preserve schema and privacy scope:** Every fallback lane must honor the exact same JSON schema (`cited-support-answer-v3`) and data-residency boundary. Register evaluated lane capabilities explicitly because native structured-output wire fields differ across APIs (OpenAI `text.format` / `response_format` vs. Anthropic `output_config.format`), and compatibility wrappers can silently disable prompt caching or tool-level strictness.[^openai_structured_outputs][^anthropic2026StructuredOutputs]
+2. **Buffer before streaming:** Silent failover is valid only before any token streams to the caller; post-output failover cannot splice two partial responses together, and auth errors (`401`/`403`) or safety refusals should abort failover rather than masking broken credentials.[^awsbackoff]
 3. **Share one deadline and dollar ceiling:** Subtract first-hop latency and spend before dialing the frontier tier, aborting escalation if remaining time is shorter than the frontier model's EWMA latency.
 
 <!-- leetllm: test, output=show, continue=cost-frontier-and-collisions, id=model-cascade, deps=numpy,scikit-learn -->
@@ -327,13 +328,15 @@ Daily billed: $23.906 -> 30-day bill: $717.18 (headroom vs $750: $32.82)
 ```
 <!-- leetllm: output:end -->
 
-A 4.4% monthly cushion fails immediately under realistic drift: +10% interactive traffic (`+10%`), a batch outage falling back to interactive (`ColdEval`), or a dynamic header breaking prefix reuse (`ColdAll`) each breach \$750. Before promoting a prompt compression or fast-tier cascade to reclaim margin, size your zero-defect evaluation set with the Rule of Three at 95% confidence:
+A 4.4% monthly cushion fails immediately under realistic drift: +10% interactive traffic (`+10%`), a batch outage falling back to interactive (`ColdEval`), or a dynamic header breaking prefix reuse (`ColdAll`) each breach \$750. Applying the 70/30 `Orders` cascade drops the 30-day bill from \$717.18 to \$520.96, reclaiming \$229.04 of headroom.
+
+Before promoting a prompt compression or fast-tier cascade, size your zero-defect evaluation set with the Rule of Three at 95% confidence:
 
 $$
 (1 - p)^n \ge 0.05 \implies \ln(1 - p) \approx -p \ge \frac{\ln 0.05}{n} \approx -\frac{3.0}{n} \implies p_{\max} \approx \frac{3}{n}
 $$
 
-Zero errors across $n = 100$ cases still leaves a `3.0%` latent defect ceiling; pushing $p_{\max}$ to `0.5%` requires at least $n = 600$ independent defect-free checks ($n = 1,000$ gives `0.30%`). Enforce the resulting unit economics in the gateway via `max_output_tokens = 300` and a **\$0.01 cumulative request ceiling** across attempts.
+Zero errors across $n = 100$ cases still leaves a `3.0%` latent defect ceiling; pushing $p_{\max}$ to `0.5%` requires at least $n = 600$ independent defect-free checks ($n = 1,000$ gives `0.30%`).
 
 <figure>
   <img src="illustrations/_generated/release_budget_gate_dark.png" alt="Monthly spend sensitivity scenarios against a USD 750 cap paired with the 3/n zero-defect confidence bound" />
@@ -374,6 +377,8 @@ Zero-defect n=1000 -> 3/n=0.30% (exact=0.30%)
 Gateway cap: max_output=300, ceiling=$0.01, max_fresh_prompt=3200 tokens
 ```
 <!-- leetllm: output:end -->
+
+Monthly invoices arrive too late to catch a runaway retry loop or a mutated prefix header. Enforce the resulting economics in the model gateway via `max_output_tokens = 300` and a **\$0.01 cumulative request ceiling** spanning both fast and escalated hops alongside one shared wall-clock deadline.[^jiang2024]
 
 ```mastery-quiz
 [
@@ -436,124 +441,3 @@ Gateway cap: max_output=300, ceiling=$0.01, max_fresh_prompt=3200 tokens
 ```
 
 > **Next:** Continue to [Scaled Dot-Product Attention](/learn/scaled-dot-product-attention).
-<!-- leetllm: edition:reference:end -->
-
-<!-- leetllm: edition:reader:start -->
-A lower price per token can still produce a higher monthly bill. When a model pads replies with verbose prose, burns hidden reasoning tokens, retries malformed JSON, or crosses a context-tier cutoff, a cheaper nominal tariff ends up costing more per accepted answer than a disciplined pipeline. Making LLM unit economics predictable means tracing cost down to GPU work, avoiding semantic cache traps, and routing routine turns away from frontier decoding.
-
-## Start with the model work that actually executed
-
-Before opening a rate card, separate requests that execute auto-regressive decoding from requests that bypass inference completely. A **semantic cache hit** returns a stored answer from vector storage for \$0 in generation fees. A **provider prompt-prefix read** loads resident KV-cache tensors for a shared system prompt, skipping redundant prefill on the header while still running fresh query prefill and sequential output decoding[^openai2026promptcaching][^anthropic2026promptcaching].
-
-<figure>
-  <img src="illustrations/_generated/generation_billing_paths_dark.png" alt="Generation billing paths split between stored-answer hits and four token-billed usage lines alongside token tariffs" />
-  <figcaption>Separating stored semantic cache hits from interactive prefix reads, cold cache writes, long-context escalation, and asynchronous batch runs keeps unit costs traceable to actual GPU computation.</figcaption>
-</figure>
-
-Output decoding dominates GPU spend because generating tokens sequentially reloads model weights and KV tensors from memory every step (memory-bandwidth bound), whereas parallel prompt prefill saturates compute cores cleanly[^vllm2026optimization][^leviathan2023]. Parameterized rate cards mirror that physics directly: on a typical frontier tier (`input_rate = 2.00`, `cached_input_rate = 0.20`, `cache_write_rate = 2.50`, `output_rate = 12.00` per million tokens), output costs 6x fresh input and 60x cached reads[^openai2026pricing].
-
-## Parameterize rate cards and separate disjoint token buckets
-
-Avoid hardcoding dated provider pricing tables or double-counting nested usage fields. On OpenAI-style responses, `cached_tokens` sits inside `prompt_tokens`, and hidden `reasoning_tokens` already sit inside `completion_tokens`[^openai2026reasoning]. Subtracting cached and write tokens isolates fresh input, and reading `completion_tokens` directly prices reasoning without double billing.
-
-```python title="reader-price-usage-record.py"
-import numpy as np
-
-MILLION = 1_000_000.0
-
-
-def price_usage_record(
-    prompt_tokens, cached_read, cache_write, completion_tokens,
-    *, input_rate=2.00, cached_rate=0.20, write_rate=2.50, output_rate=12.00,
-    lane="interactive", long_threshold=272_000,
-):
-    in_mult = 2.0 if prompt_tokens > long_threshold else 1.0
-    out_mult = 1.5 if prompt_tokens > long_threshold else 1.0
-    lane_mult = 0.5 if lane == "batch" else 1.0
-    fresh = max(0, prompt_tokens - cached_read - cache_write)
-    vec = np.array([fresh, cached_read, cache_write, completion_tokens], dtype=np.float64)
-    rates = np.array([input_rate * in_mult, cached_rate * in_mult, write_rate * in_mult, output_rate * out_mult]) * lane_mult
-    return float(np.dot(vec, rates) / MILLION)
-```
-
-Notice two sharp pricing cliffs built into that helper. First, crossing the `272,000`-token long-context cutoff reprices every token in the turn, not merely the tokens beyond `272K`[^openai2026gpt54]. Second, explicit prefix writes carry a `1.25x` surcharge over uncached prefill, so a prompt header that mutates on every call (for example from an injected timestamp) loses 25% immediately, whereas a stable header breaks even on the second call (`1.35x < 2.00x`) and cuts six-call prefix cost by 70.8%.
-
-<figure>
-  <img src="illustrations/_generated/cost_optimization_dark.png" alt="Prefix-cache amortization break-even curve over six calls paired with the cost-versus-quality Pareto frontier" />
-  <figcaption>Explicit prompt-prefix writes pay back their 1.25x surcharge by the second shared call and cut six-call prefix spend below one-third of uncached prefill, while the Pareto curve flags configurations that dominate slower, higher-cost alternatives.</figcaption>
-</figure>
-
-## Guard semantic caches against antonym collisions
-
-Semantic caching and KV prefix caching solve different problems and carry opposite risk profiles. A semantic cache embeds user queries and reuses stored responses above a cosine similarity cutoff $\tau$[^bang2023][^reimers2019]. Because embeddings capture topical similarity rather than logical equivalence, opposite commands routinely collide at cosine `0.90` to `0.96`: `"enable TLS"` vs. `"disable TLS"`, or `"refund eligible"` vs. `"not eligible"`. Returning a cached answer across an antonym or negation swap hands users the inverted answer.
-
-**KV prefix caching** eliminates that collision risk completely because it hashes **exact token IDs from token 0 forward**[^vllm2026prefix][^openai2026promptcaching]. The moment `"enable"` changes to `"disable"`, the prefix match ends deterministically and the model recomputes fresh attention for the tail. Keep semantic caches behind strict scoping keys (tenant, access scope, corpus version, response schema) plus explicit intent gates, verify your vector store's metric direction (similarity $\ge \tau$ vs. distance $\le 1 - \tau$)[^redis2026SemanticCacheApi], and check that hit rate exceeds the break-even floor $h^* = c_{\text{lookup}} / c_{\text{gen}}$.
-
-## Cascade fast models to frontier with schema-preserving fallback
-
-Dynamic requests (such as live order lookups) change every turn and bypass semantic caches. Instead of sending all of them straight to a frontier model, route them through a **model cascade**[^routellm2024][^litellm2026reliability]:
-
-1. **Try a fast 8B tier first** under the exact same structured JSON schema and privacy scope.
-2. **Buffer before streaming** so a low confidence score, JSON schema failure, or pre-output transport error (`429`/`503`/timeout) can escalate cleanly to the frontier tier without splicing partial tokens into the user's stream[^awsbackoff].
-3. **Share one deadline and dollar ceiling** across both hops: subtract first-hop latency and spend before dialing the frontier model, and abort escalation if the remaining clock cannot fit the frontier tier's expected latency.
-
-If a fast 8B model costs roughly one-tenth of a frontier call and resolves 70% of dynamic queries cleanly while escalating 30% to frontier, blended unit cost drops by nearly **60%** while preserving identical schema guarantees on every accepted response.
-
-## Build and stress-test a cohort-level monthly forecast
-
-Forecast spend cohort by cohort so high-leverage traffic stands out. Across 10,500 daily requests under the frontier baseline, 3,200 stored semantic hits cost \$0 while avoiding \$13.82/day of live generation, 3,000 live order lookups drive \$11.03/day (46.1% of spend), shared doc prompts add \$7.78/day (32.5%), access reviews add \$2.29/day (9.6%), and 2,000 asynchronous batch evaluations add \$2.82/day (11.8%)[^openai2026batch]. Together they cost \$23.91/day (\$717.18/month), leaving just \$32.82 beneath a \$750 ceiling.
-
-<figure>
-  <img src="illustrations/_generated/cost_guardrail_flow_dark.png" alt="Cohort share of the daily generation bill compared with avoided stored-answer generation" />
-  <figcaption>Cohorts with dynamic per-request payloads generate nearly half of total daily cash spend, whereas avoided semantic cache hits represent a separate exposure pool that returns to the bill immediately if cache precision drops.</figcaption>
-</figure>
-
-<!-- leetllm: test, output=show, id=reader-cost-forecast, deps=numpy -->
-```python title="reader-cohort-and-cascade-forecast.py"
-import numpy as np
-
-MILLION = 1_000_000.0
-FRONTIER = np.array([2.00, 0.20, 2.50, 12.00])  # fresh, read, write, output ($/1M)
-FAST_8B  = np.array([0.25, 0.025, 0.3125, 1.00])
-
-# Cohorts: (name, daily_calls, batch_mult, fresh, read, write, out)
-cohorts = [
-    ("Orders", 3_000, 1.0, 1_000,   400,  0, 133),
-    ("Docs",   1_800, 1.0,   450,   830, 20, 267),
-    ("Review",   500, 1.0,   500, 1_400, 40, 266),
-    ("Eval",   2_000, 0.5,   400, 1_320,  0, 146),
-]
-
-daily_base = sum(calls * float(np.dot([f, r, w, o], FRONTIER * mult) / MILLION) for _, calls, mult, f, r, w, o in cohorts)
-monthly_base = daily_base * 30.0
-
-# Route 70% of dynamic Orders cleanly on fast-8b; escalate 30% to frontier
-order_frontier = float(np.dot([1_000, 400, 0, 133], FRONTIER) / MILLION)
-order_fast = float(np.dot([1_000, 400, 0, 133], FAST_8B) / MILLION)
-order_cascade = 0.70 * order_fast + 0.30 * (order_fast + order_frontier)
-monthly_cascaded = (daily_base - 3_000 * (order_frontier - order_cascade)) * 30.0
-
-print(f"Baseline 30-day bill: ${monthly_base:.2f} (headroom vs $750: ${750 - monthly_base:.2f})")
-print(f"With 70/30 Orders cascade: ${monthly_cascaded:.2f} (headroom vs $750: ${750 - monthly_cascaded:.2f})")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-Baseline 30-day bill: $717.18 (headroom vs $750: $32.82)
-With 70/30 Orders cascade: $520.96 (headroom vs $750: $229.04)
-```
-<!-- leetllm: output:end -->
-
-Without cascading, a 4.4% monthly cushion breaks easily: +10% interactive traffic reaches \$780.45, losing batch evaluation jumps to \$804.06, and cold prompt prefixes surge past \$915. Adding the 70/30 fast-to-frontier cascade on the dynamic `Orders` cohort drops the 30-day bill from \$717.18 to \$520.98, creating \$229 of safety margin. Before shipping any prompt compression or cascade, validate quality with enough independent examples: by the Rule of Three (`3/n`), passing 100 checks with zero failures still leaves a 3.0% upper defect risk, so clearing a `0.5%` ceiling requires `600` to `1,000` independent zero-defect checks.
-
-<figure>
-  <img src="illustrations/_generated/release_budget_gate_dark.png" alt="Monthly spend sensitivity scenarios against a USD 750 cap paired with the 3/n zero-defect confidence bound" />
-  <figcaption>A 10% interactive traffic uptick, lost batch scheduling, or cold prompt prefixes each breach the \$750 monthly cap, while the Rule of Three shows how sample size tightens zero-defect reliability guarantees.</figcaption>
-</figure>
-
-## Enforce the economics in the gateway
-
-Monthly bills arrive far too late to catch a runaway retry loop or broken prefix header. Translate your forecast into two stateless per-request limits in the model gateway: a `300`-token `max_output_tokens` cap matching your structured JSON schema, and a **\$0.01 cumulative request ceiling** spanning both fast and escalated attempts alongside one shared wall-clock deadline[^jiang2024]. Pairing disjoint token accounting, deterministic KV prefix caching, collision-safe semantic lookup, and schema-preserving model cascades turns unpredictable LLM invoices into an engineered budget.
-
-> **Next:** Continue to [Scaled Dot-Product Attention](/learn/scaled-dot-product-attention).
-<!-- leetllm: edition:reader:end -->

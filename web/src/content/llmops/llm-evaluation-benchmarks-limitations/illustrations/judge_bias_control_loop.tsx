@@ -1,122 +1,122 @@
-import { Column, GraphDiagram, Scene, TextLabel, defineIllustration, withDensity } from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 720
-export const height = 800
+export const width = 780
+export const height = 430
 export const alt =
-    'Two order-swapped judge checks. When equivalent answers trigger slot-A tie bias, concise wins first and verbose wins second, sending the flipped identity to human review. When one answer omits a rule, concise wins in slot A and then slot B, yielding a stable winner that still needs rubric accuracy validation.'
+    'Side-by-side order-swapped judge checks. On the left, equivalent answers with slot-A tie bias pick Concise first and Verbose second, mapping to conflicting candidate IDs and routing to human review. On the right, when one reply omits a rule, Concise wins in slot A and then slot B, confirming order stability while still requiring human accuracy calibration.'
 
-function prepTheme(base: ThemeColors): ThemeColors {
-    return {
-        ...withDensity(base, 2.2),
-        shadow: 'transparent',
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const warm = fig.tone('warm')
+    const red = fig.tone('critical')
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+
+    const soft = (hex: string, amount = 0.13) => tint(hex, c.bg, amount)
+
+    const drawBox = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        title: string,
+        sub: string,
+        toneHex: string,
+        strong = false,
+    ) => {
+        fig.rect(x, y, w, h, {
+            fill: soft(toneHex, strong ? 0.18 : 0.12),
+            stroke: toneHex,
+            strokeWidth: strong ? 2 : 1.5,
+            radius: 8,
+        })
+        fig.text(x + w / 2, y + h / 2 - 11, title, {
+            size: strong ? 15.5 : 14.5,
+            weight: 700,
+            color: strong ? toneHex : c.textPrimary,
+            align: 'center',
+        })
+        fig.text(x + w / 2, y + h / 2 + 12, sub, {
+            size: 13.5,
+            weight: strong ? 500 : 600,
+            color: strong ? c.textSecondary : toneHex,
+            align: 'center',
+            mono: !strong,
+        })
     }
+
+    // Center hairline divider between the two side-by-side cases
+    fig.line(390, 18, 390, height - 18, { color: c.borderLight, width: 1, dash: '5 4' })
+
+    // Left column: Equal facts + slot-A tie bias -> Review
+    fig.text(192, 24, 'Equal facts + slot-A tie bias', {
+        size: 16,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+    fig.text(192, 46, 'Slot bias flips the mapped candidate ID', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    drawBox(24, 72, 336, 68, 'Run 1: (Concise, Verbose)', 'Vote A  =>  Concise', warm)
+    drawBox(24, 162, 336, 68, 'Run 2: (Verbose, Concise)', 'Vote A  =>  Verbose', red)
+
+    // Converging lines down to outcome
+    fig.path('M112 140 V 252 H 192', { color: warm, width: 1.8 })
+    fig.path('M272 230 V 252 H 192', { color: red, width: 1.8 })
+    fig.arrow(192, 252, 192, 304, { color: red, width: 2.2, head: 7 })
+    fig.text(204, 276, 'Conflict: Concise vs Verbose', {
+        size: 12.5,
+        weight: 600,
+        color: red,
+        align: 'left',
+    })
+
+    drawBox(44, 308, 296, 86, 'Flipped winner', 'Route pair to human review', red, true)
+
+    // Right column: Omission present -> Stable winner
+    fig.text(588, 24, 'Omission present -> Stable pick', {
+        size: 16,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(588, 46, 'Both slot orders resolve to the same ID', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    drawBox(420, 72, 336, 68, 'Run 1: (Concise, Omission)', 'Vote A  =>  Concise', blue)
+    drawBox(420, 162, 336, 68, 'Run 2: (Omission, Concise)', 'Vote B  =>  Concise', blue)
+
+    fig.path('M508 140 V 252 H 588', { color: blue, width: 1.8 })
+    fig.path('M668 230 V 252 H 588', { color: blue, width: 1.8 })
+    fig.arrow(588, 252, 588, 304, { color: green, width: 2.2, head: 7 })
+    fig.text(600, 276, 'Same ID in both orders', {
+        size: 12.5,
+        weight: 600,
+        color: green,
+        align: 'left',
+    })
+
+    drawBox(
+        440,
+        308,
+        296,
+        86,
+        'Stable: Concise',
+        'Calibrate accuracy vs humans',
+        green,
+        true,
+    )
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((base) => {
-    const c = prepTheme(base)
-    const innerW = width - 40
-    return Scene({
-        c,
-        padding: 6,
-        gap: 6,
-        contentWidth: innerW,
-        children: Column({
-            width: innerW,
-            gap: 10,
-            children: [
-                TextLabel({
-                    c,
-                    text: 'Equal facts + tie bias -> send to human review',
-                    width: innerW,
-                    fontSize: 23,
-                    fontWeight: 700,
-                    color: c.warningLight,
-                }),
-                GraphDiagram({
-                    c,
-                    width: innerW,
-                    height: 270,
-                    padding: 4,
-                    direction: 'LR',
-                    arrowSize: 6,
-                    routing: 'dagre',
-                    nodeWidth: 270,
-                    nodeGap: 8,
-                    rankGap: 28,
-                    nodes: [
-                        {
-                            id: 'eq1',
-                            label: '(Concise, Verbose)',
-                            detail: 'Vote A -> Concise',
-                            tone: 'warm',
-                        },
-                        {
-                            id: 'eq2',
-                            label: '(Verbose, Concise)',
-                            detail: 'Vote A -> Verbose',
-                            tone: 'warm',
-                        },
-                        {
-                            id: 'eq_out',
-                            label: 'Flipped winner',
-                            detail: 'Route to review',
-                            tone: 'warm',
-                        },
-                    ],
-                    edges: [
-                        { from: 'eq1', to: 'eq_out', tone: 'warm' },
-                        { from: 'eq2', to: 'eq_out', tone: 'warm' },
-                    ],
-                }),
-                TextLabel({
-                    c,
-                    text: 'Omission present -> stable winner (verify accuracy)',
-                    width: innerW,
-                    fontSize: 23,
-                    fontWeight: 700,
-                    color: c.primaryLight,
-                }),
-                GraphDiagram({
-                    c,
-                    width: innerW,
-                    height: 270,
-                    padding: 4,
-                    direction: 'LR',
-                    arrowSize: 6,
-                    routing: 'dagre',
-                    nodeWidth: 270,
-                    nodeGap: 10,
-                    rankGap: 30,
-                    nodes: [
-                        {
-                            id: 'm1',
-                            label: '(Concise, Omission)',
-                            detail: 'Vote A -> Concise',
-                            tone: 'blue',
-                        },
-                        {
-                            id: 'm2',
-                            label: '(Omission, Concise)',
-                            detail: 'Vote B -> Concise',
-                            tone: 'blue',
-                        },
-                        {
-                            id: 'm_out',
-                            label: 'Stable: Concise',
-                            detail: 'Check human labels',
-                            tone: 'blue',
-                        },
-                    ],
-                    edges: [
-                        { from: 'm1', to: 'm_out', tone: 'blue' },
-                        { from: 'm2', to: 'm_out', tone: 'blue' },
-                    ],
-                }),
-            ],
-        }),
-    })
-})
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

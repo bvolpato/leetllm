@@ -196,8 +196,9 @@ describe("book rendering", () => {
     const doc = new DOMParser().parseFromString(renderChapter(q, 7), "text/html")
     const citation = doc.querySelector("sup a")
     expect(citation?.getAttribute("href")).toBe("#ref-print-fixture-1")
-    expect(doc.getElementById("ref-print-fixture-1")?.textContent).toContain("A useful paper")
-    expect(doc.getElementById("ref-print-fixture-1")?.textContent).toContain("https://example.org/paper")
+    const item = doc.getElementById("ref-print-fixture-1")
+    expect(item?.textContent).toContain("A useful paper")
+    expect(item?.querySelector("a")?.getAttribute("href")).toBe("https://example.org/paper")
   })
 
   it("removes quiz-only headings while retaining the next substantive section", () => {
@@ -274,7 +275,46 @@ describe("book rendering", () => {
     expect(doc.querySelector("li")?.textContent).toContain("Aho")
   })
 
-  it("names running-head sections from headings without their markup or entities", () => {
+  it("names running-head sections from headings without their markup, entities, or raw KaTeX annotations", () => {
     expect(chapterSections('<h2 id="a">Cost &amp; <em>latency</em></h2><h3 id="b">Skipped</h3><h2 id="c"></h2>')).toEqual([{ id: "a", title: "Cost & latency" }])
+    const mathHeading = '<h2 id="scale">Why scale by <span class="katex"><span class="katex-mathml"><math><semantics><annotation encoding="application/x-tex">\\sqrt{d_k}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span>dk\u200b</span></span></span>?</h2>'
+    expect(chapterSections(mathHeading)).toEqual([{ id: "scale", title: "Why scale by √d_k?" }])
+  })
+
+  it("collapses web code-folding scaffolding blocks, strips repeated chapter imports, and omits trivial outputs", () => {
+    const first = [
+      "import math",
+      "print(math.sqrt(4))",
+    ].join("\n")
+    const second = [
+      "# fold:start Setup helpers",
+      "HELPER_CONST = 9",
+      "# fold:end",
+      "import math",
+      "print(math.sqrt(HELPER_CONST))",
+      "# fold:start print & assert harness",
+      "assert True",
+      "# fold:end",
+    ].join("\n")
+    const third = [
+      "import math",
+      "x = math.sqrt(16)",
+    ].join("\n")
+    const doc = documentFor([
+      `\`\`\`python\n${first}\n\`\`\``,
+      `\`\`\`text output\nAll checks passed.\n\`\`\``,
+      `\`\`\`python\n${second}\n\`\`\``,
+      `\`\`\`python\n${third}\n\`\`\``,
+    ].join("\n\n"))
+    const listings = [...doc.querySelectorAll("pre")].map((pre) => pre.textContent ?? "")
+    expect(listings).toHaveLength(3)
+    expect(listings[0]).toContain("import math")
+    expect(listings[1]).toContain("# ... Setup helpers")
+    expect(listings[1]).not.toContain("HELPER_CONST = 9")
+    expect(listings[1]).not.toContain("assert True")
+    expect(listings[1]).not.toContain("print & assert harness")
+    expect(listings[2]).not.toContain("import math")
+    expect(listings[2]).toContain("x = math.sqrt(16)")
+    expect(doc.querySelector(".code-output")).toBeNull()
   })
 })

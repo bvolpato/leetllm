@@ -1,287 +1,173 @@
-import React from 'react'
-import {
-    AxisPlot,
-    BadgePill,
-    Column,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getToneColor,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 520
+export const width = 760
+export const height = 398
 export const alt =
-    'An illustrative, equal-scale two-dimensional cosine plot shows reference directions modular arithmetic [1, 0] and API pagination [0, 1]. Each cosine 0.82 cone has a 34.9 degree half-angle; cyan rays and short arcs mark their edges. Candidate A modular arithmetic [0.99, 0.02] scores 0.9998 against the arithmetic reference and is rejected. B pagination [0.45, 0.40] lies between the two cones, has maximum similarity 0.7474 to the old pool, and is admitted. C pagination [0.46, 0.41] then scores 0.999999 against newly admitted B and is rejected. The plotted coordinates provide a clean geometric visualization.'
+    'An equal-scale 2D cosine-similarity plot shows two existing seed directions: Arithmetic [1, 0] and Pagination [0, 1], each surrounded by a 34.9-degree exclusion cone (cosine > 0.82). Candidate A [0.99, 0.02] lands inside the Arithmetic cone (cos 0.9998) and is rejected. Candidate B [0.45, 0.40] sits between both cones (max cos 0.7474) and enters the pool. Candidate C [0.46, 0.41] then collides with newly added B (cos 0.999999) and is rejected.'
 
-const plotDim = 390
-const cosineCutoff = 0.82
-const coneHalfAngle = Math.acos(cosineCutoff)
-const cutoffFromArithmetic = { x: Math.cos(coneHalfAngle), y: Math.sin(coneHalfAngle) }
-const cutoffFromPagination = { x: Math.sin(coneHalfAngle), y: Math.cos(coneHalfAngle) }
+const cosCutoff = 0.82
+const halfAngle = Math.acos(cosCutoff) // ~34.9 deg
 
-const plotScale = (plotDim - 64) / 1.16
-const plotOrigin = 32 + 0.08 * plotScale
-const arcRadius = 32
-const boundaryAngle = coneHalfAngle
-const docsBoundaryAngle = Math.PI / 2 - coneHalfAngle
-const arithmeticArcEnd = {
-    x: plotOrigin + arcRadius * Math.cos(boundaryAngle),
-    y: plotDim - plotOrigin - arcRadius * Math.sin(boundaryAngle),
-}
-const paginationArcStart = {
-    x: plotOrigin + arcRadius * Math.cos(docsBoundaryAngle),
-    y: plotDim - plotOrigin - arcRadius * Math.sin(docsBoundaryAngle),
-}
-const paginationArcEnd = { x: plotOrigin, y: plotDim - plotOrigin - arcRadius }
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const muted = c.textSecondary
 
-function candidateRow(
-    c: Parameters<typeof BadgePill>[0]['c'],
-    id: 'A' | 'B' | 'C',
-    label: string,
-    vector: string,
-    comparison: string,
-    action: 'REJECT' | 'KEEP',
-) {
-    const tone = action === 'KEEP' ? 'green' : 'critical'
-    return (
-        <Row gap={8} align="center">
-            <BadgePill c={c} text={id} tone={tone} filled fontSize={13} width={28} height={26} />
-            <Column gap={2} width={115}>
-                <TextLabel c={c} text={label} fontSize={13} fontWeight={700} />
-                <TextLabel c={c} text={vector} fontSize={11} color={c.textSecondary} mono />
-            </Column>
-            <TextLabel c={c} text={comparison} fontSize={12} width={150} color={c.textSecondary} />
-            <BadgePill
-                c={c}
-                text={action}
-                tone={tone}
-                filled
-                fontSize={12}
-                width={68}
-                height={26}
-                padding="0 2px"
-            />
-        </Row>
+    // Left: Equal-scale 2D embedding quadrant (x, y in [0, 1.08])
+    const size = 276
+    const area = { x: 56, y: 46, width: size, height: size }
+    const plot = fig.plot(area, { x: [0, 1.08], y: [0, 1.08] })
+
+    const ox = plot.px(0)
+    const oy = plot.py(0)
+    const rPx = plot.px(1.0) - ox
+
+    // Shaded exclusion cones (34.9 deg from x-axis and 34.9 deg from y-axis)
+    const aEndX = ox + rPx * Math.cos(halfAngle)
+    const aEndY = oy - rPx * Math.sin(halfAngle)
+    fig.path(
+        `M${ox} ${oy} L${ox + rPx} ${oy} A${rPx} ${rPx} 0 0 0 ${aEndX.toFixed(2)} ${aEndY.toFixed(2)} Z`,
+        { fill: blue, fillOpacity: 0.1, color: cyan, width: 1.4, dash: '4 3' },
     )
+
+    const pStartX = ox + rPx * Math.sin(halfAngle)
+    const pStartY = oy - rPx * Math.cos(halfAngle)
+    fig.path(
+        `M${ox} ${oy} L${pStartX.toFixed(2)} ${pStartY.toFixed(2)} A${rPx} ${rPx} 0 0 0 ${ox} ${oy - rPx} Z`,
+        { fill: purple, fillOpacity: 0.1, color: cyan, width: 1.4, dash: '4 3' },
+    )
+
+    plot.axes({
+        xTicks: [0, 0.5, 1.0],
+        yTicks: [0, 0.5, 1.0],
+        xLabel: 'Dim 1 (Arithmetic)',
+        yLabel: 'Dim 2 (Pagination)',
+        grid: true,
+        labelSize: 12,
+        format: (v) => v.toFixed(1),
+    })
+
+    // Seed vectors [1,0] and [0,1]
+    fig.arrow(ox, oy, plot.px(1), plot.py(0), { color: blue, width: 2.6, head: 7 })
+    fig.arrow(ox, oy, plot.px(0), plot.py(1), { color: purple, width: 2.6, head: 7 })
+
+    // Candidate vectors & points: A (reject), B (keep), C (reject by B)
+    fig.line(ox, oy, plot.px(0.99), plot.py(0.02), { color: red, width: 1.5, opacity: 0.55 })
+    fig.line(ox, oy, plot.px(0.45), plot.py(0.4), { color: green, width: 2.2 })
+    fig.line(ox, oy, plot.px(0.46), plot.py(0.41), { color: red, width: 1.4, dash: '3 3', opacity: 0.7 })
+
+    plot.point(0.99, 0.02, { color: red, r: 5.5 })
+    plot.point(0.45, 0.4, { color: green, r: 6 })
+    fig.circle(plot.px(0.46), plot.py(0.41), 9.5, { fill: 'none', stroke: red, width: 1.8 })
+
+    // Crisp non-overlapping point labels
+    fig.text(plot.px(0.99) - 2, plot.py(0.02) - 16, 'A (reject)', {
+        size: 12,
+        weight: 700,
+        color: red,
+        align: 'right',
+    })
+    fig.text(plot.px(0.45) - 10, plot.py(0.4) - 18, 'B (keep)', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+    fig.text(plot.px(0.46) + 14, plot.py(0.41) + 12, 'C (near B)', {
+        size: 12,
+        weight: 700,
+        color: red,
+    })
+
+    // Cutoff angle label
+    fig.text(ox + 96, oy - 30, '34.9°', { size: 12, mono: true, weight: 700, color: cyan })
+    fig.text(area.x + size / 2, 382, 'Cutoff: arccos(0.82) = 34.9° cone', {
+        size: 12,
+        mono: true,
+        color: muted,
+        align: 'center',
+    })
+
+    // Vertical divider
+    fig.line(372, 24, 372, 364, { color: c.borderSubtle, width: 1 })
+
+    // Right: Sequential greedy admission trace (frameless clean rows)
+    const rx = 396
+    fig.text(rx, 26, 'Greedy sequential pool update', { size: 15, weight: 700 })
+    fig.text(rx, 47, 'Each accepted candidate expands the exclusion set', {
+        size: 12,
+        color: muted,
+    })
+
+    // Existing seeds badges
+    fig.rect(rx, 68, 152, 26, { fill: tint(blue, c.bg, 0.14), stroke: blue, strokeWidth: 1.2, radius: 5 })
+    fig.text(rx + 76, 81, 'Seed 1: [1, 0]', { size: 12, mono: true, weight: 700, color: blue, align: 'center' })
+    fig.rect(rx + 164, 68, 166, 26, { fill: tint(purple, c.bg, 0.14), stroke: purple, strokeWidth: 1.2, radius: 5 })
+    fig.text(rx + 247, 81, 'Seed 2: [0, 1]', { size: 12, mono: true, weight: 700, color: purple, align: 'center' })
+
+    const steps = [
+        {
+            id: 'A',
+            title: 'Modular inverse  [0.99, 0.02]',
+            score: 'cos(A, Seed 1) = 0.9998 > 0.82',
+            verdict: 'REJECT',
+            col: red,
+            y: 124,
+        },
+        {
+            id: 'B',
+            title: 'API pagination  [0.45, 0.40]',
+            score: 'max cos = 0.7474 < 0.82 → joins pool',
+            verdict: 'KEEP',
+            col: green,
+            y: 204,
+        },
+        {
+            id: 'C',
+            title: 'Pagination dup  [0.46, 0.41]',
+            score: 'cos(C, B) = 0.999999 > 0.82 → blocked by B',
+            verdict: 'REJECT',
+            col: red,
+            y: 284,
+        },
+    ]
+
+    steps.forEach((st) => {
+        fig.rect(rx, st.y, 340, 64, {
+            fill: tint(st.col, c.bg, 0.08),
+            stroke: tint(st.col, c.bg, 0.4),
+            strokeWidth: 1.3,
+            radius: 8,
+        })
+        fig.circle(rx + 22, st.y + 32, 13, {
+            fill: tint(st.col, c.bg, 0.25),
+            stroke: st.col,
+            width: 1.5,
+        })
+        fig.text(rx + 22, st.y + 32, st.id, {
+            size: 13,
+            weight: 700,
+            color: st.col,
+            align: 'center',
+        })
+        fig.text(rx + 46, st.y + 21, st.title, { size: 13, weight: 700, color: c.textPrimary })
+        fig.text(rx + 46, st.y + 44, st.score, { size: 11, mono: true, color: muted })
+        fig.text(rx + 328, st.y + 21, st.verdict, {
+            size: 12,
+            mono: true,
+            weight: 700,
+            color: st.col,
+            align: 'right',
+        })
+    })
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((c) => (
-    <Scene
-        c={c}
-        title="The pool changes the next decision"
-        subtitle="Greedy cosine filtering in 2-D embedding space · threshold = 0.82"
-        padding={20}
-        gap={12}
-        contentWidth={820}
-    >
-        <Row gap={16} align="center">
-            <Column gap={6} align="center">
-                <AxisPlot
-                    c={c}
-                    width={plotDim}
-                    height={plotDim}
-                    xMin={-0.08}
-                    xMax={1.08}
-                    yMin={-0.08}
-                    yMax={1.08}
-                    padding={32}
-                    showGrid
-                    gridCount={3}
-                    vectors={[
-                        {
-                            x1: 0,
-                            y1: 0,
-                            x2: 1,
-                            y2: 0,
-                            tone: 'blue',
-                            strokeWidth: 3,
-                            arrow: true,
-                            arrowSize: 6,
-                        },
-                        {
-                            x1: 0,
-                            y1: 0,
-                            x2: 0,
-                            y2: 1,
-                            tone: 'purple',
-                            strokeWidth: 3,
-                            arrow: true,
-                            arrowSize: 6,
-                        },
-                    ]}
-                    paths={[
-                        {
-                            points: [{ x: 0, y: 0 }, cutoffFromArithmetic],
-                            tone: 'cyan',
-                            strokeWidth: 2,
-                            opacity: 0.9,
-                        },
-                        {
-                            points: [{ x: 0, y: 0 }, cutoffFromPagination],
-                            tone: 'cyan',
-                            strokeWidth: 2,
-                            opacity: 0.9,
-                        },
-                        {
-                            points: [
-                                { x: 0, y: 0 },
-                                { x: 0.99, y: 0.02 },
-                            ],
-                            tone: 'critical',
-                            strokeWidth: 2,
-                            opacity: 0.5,
-                        },
-                        {
-                            points: [
-                                { x: 0, y: 0 },
-                                { x: 0.46, y: 0.41 },
-                            ],
-                            tone: 'critical',
-                            strokeWidth: 2,
-                            opacity: 0.5,
-                        },
-                        {
-                            points: [
-                                { x: 0, y: 0 },
-                                { x: 0.45, y: 0.4 },
-                            ],
-                            tone: 'green',
-                            strokeWidth: 2,
-                            opacity: 0.9,
-                        },
-                    ]}
-                    points={[
-                        {
-                            x: 0.99,
-                            y: 0.02,
-                            tone: 'critical',
-                            r: 6,
-                            stroke: c.bgCard,
-                            strokeWidth: 1.5,
-                        },
-                        {
-                            x: 0.46,
-                            y: 0.41,
-                            fill: 'transparent',
-                            stroke: c.criticalLight,
-                            strokeWidth: 2,
-                            r: 8,
-                        },
-                        { x: 0.45, y: 0.4, tone: 'green', r: 6, stroke: c.bgCard, strokeWidth: 1 },
-                    ]}
-                >
-                    <path
-                        d={`M ${plotOrigin + arcRadius} ${plotDim - plotOrigin} A ${arcRadius} ${arcRadius} 0 0 0 ${arithmeticArcEnd.x} ${arithmeticArcEnd.y}`}
-                        fill="none"
-                        stroke={getToneColor('cyan', c)}
-                        strokeWidth={3}
-                    />
-                    <path
-                        d={`M ${paginationArcStart.x} ${paginationArcStart.y} A ${arcRadius} ${arcRadius} 0 0 0 ${paginationArcEnd.x} ${paginationArcEnd.y}`}
-                        fill="none"
-                        stroke={getToneColor('cyan', c)}
-                        strokeWidth={3}
-                    />
-                </AxisPlot>
-                <TextLabel
-                    c={c}
-                    text="Cosine cutoff angle: arccos(0.82) = 34.9°"
-                    fontSize={12}
-                    color={c.textSecondary}
-                    align="center"
-                />
-            </Column>
-
-            <Column gap={12} width={410}>
-                <Row gap={12} align="center">
-                    <BadgePill
-                        c={c}
-                        text="Arithmetic [1, 0]"
-                        tone="blue"
-                        filled={false}
-                        fontSize={13}
-                        height={28}
-                    />
-                    <BadgePill
-                        c={c}
-                        text="Pagination [0, 1]"
-                        tone="purple"
-                        filled={false}
-                        fontSize={13}
-                        height={28}
-                    />
-                </Row>
-
-                <Panel
-                    c={c}
-                    title="Candidates arrive in order"
-                    tone="cyan"
-                    padding={12}
-                    gap={8}
-                    titleFontSize={14}
-                >
-                    <Column gap={8}>
-                        {candidateRow(
-                            c,
-                            'A',
-                            'Modular inverse',
-                            '[0.99, 0.02]',
-                            'cos 0.9998 > 0.82',
-                            'REJECT',
-                        )}
-                        {candidateRow(
-                            c,
-                            'B',
-                            'API pagination',
-                            '[0.45, 0.40]',
-                            'pool max 0.7474 < 0.82',
-                            'KEEP',
-                        )}
-                        {candidateRow(
-                            c,
-                            'C',
-                            'Pagination dup',
-                            '[0.46, 0.41]',
-                            'to B 0.999999 > 0.82',
-                            'REJECT',
-                        )}
-                    </Column>
-                </Panel>
-
-                <Panel
-                    c={c}
-                    title="Sequential pool update"
-                    tone="neutral"
-                    padding={10}
-                    gap={4}
-                    titleFontSize={13}
-                >
-                    <TextLabel
-                        c={c}
-                        text="1. Candidate A matches Arithmetic seed and is rejected."
-                        fontSize={12}
-                        color={c.textSecondary}
-                    />
-                    <TextLabel
-                        c={c}
-                        text="2. Candidate B clears all seeds and enters the pool."
-                        fontSize={12}
-                        color={c.textSecondary}
-                    />
-                    <TextLabel
-                        c={c}
-                        text="3. Candidate C is evaluated against [Seed 1, Seed 2, B] and is rejected by B."
-                        fontSize={12}
-                        color={c.textSecondary}
-                    />
-                </Panel>
-            </Column>
-        </Row>
-    </Scene>
-))
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

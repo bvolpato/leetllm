@@ -1,354 +1,150 @@
-import { Buffer } from 'node:buffer'
-import { createElement, type ReactNode } from 'react'
-import {
-    Board,
-    CanvasItem,
-    Panel,
-    Scene,
-    TextLabel,
-    VectorArrow,
-    getToneColor,
-    getToneFill,
-    getThemeColors,
-    renderMathSvg,
-    type ToneName,
-    type ThemeMode,
-} from 'vizmatic'
-
-type PositionedNode = {
-    id: string
-    x: number
-    y: number
-    width: number
-    height: number
-    label: ReactNode
-    detail?: ReactNode
-    tone: ToneName
-}
-type PortSide = 'top' | 'right' | 'bottom' | 'left'
-type Connection = {
-    from: string
-    to: string
-    fromSide: PortSide
-    toSide: PortSide
-    fromOffset?: number
-    toOffset?: number
-    tone: 'warm' | 'purple' | 'blue' | 'cyan'
-}
-
-const graphConnections = (
-    c: ReturnType<typeof getThemeColors>,
-    nodes: PositionedNode[],
-    edges: Connection[],
-    width: number,
-    height: number,
-    padding: number,
-) => {
-    const nodeMap = new Map(
-        nodes.map((node) => {
-            const cx = Math.max(
-                node.width / 2,
-                Math.min(width - node.width / 2, padding + node.x * (width - padding * 2)),
-            )
-            const cy = Math.max(
-                node.height / 2,
-                Math.min(height - node.height / 2, padding + node.y * (height - padding * 2)),
-            )
-            return [node.id, { ...node, cx, cy }]
-        }),
-    )
-
-    const port = (
-        node: PositionedNode & { cx: number; cy: number },
-        side: PortSide,
-        offset: number,
-    ) => ({
-        x:
-            side === 'left'
-                ? node.cx - node.width / 2
-                : side === 'right'
-                  ? node.cx + node.width / 2
-                  : node.cx - node.width / 2 + node.width * offset,
-        y:
-            side === 'top'
-                ? node.cy - node.height / 2
-                : side === 'bottom'
-                  ? node.cy + node.height / 2
-                  : node.cy - node.height / 2 + node.height * offset,
-    })
-
-    const arrows = edges.map((edge, index) => {
-        const from = nodeMap.get(edge.from)
-        const to = nodeMap.get(edge.to)
-        if (!from || !to) return null
-        const start = port(from, edge.fromSide, edge.fromOffset ?? 0.5)
-        const end = port(to, edge.toSide, edge.toOffset ?? 0.5)
-        const dx = end.x - start.x
-        const dy = end.y - start.y
-        const length = Math.hypot(dx, dy)
-        const ux = dx / length
-        const uy = dy / length
-
-        return VectorArrow({
-            key: `backward-edge-${index}`,
-            x1: start.x + ux * 0.5,
-            y1: start.y + uy * 0.5,
-            x2: end.x - ux * 1.5,
-            y2: end.y - uy * 1.5,
-            color: getToneColor(edge.tone, c),
-            strokeWidth: 2.3,
-            arrowSize: 5.5,
-        })
-    })
-
-    return createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-            style: { display: 'block', overflow: 'visible' },
-        },
-        ...arrows,
-    )
-}
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const alt =
     'A backward computation graph runs from squared loss L=1 through error e=1 and prediction ŷ=6, then splits into prompt and queue paths before returning to shared weight w=2. The prompt contribution is 2×1×2=4, the queue contribution is 2×1×1=2, and the shared weight gradient adds them to 6.'
 
-export const width = 640
-export const height = 850
-export const preset = 'engineering'
-
-const math = (tex: string, fontSize: number, color: string) => {
-    const rendered = renderMathSvg(tex, { fontSize, color })
-    const src = `data:image/svg+xml;base64,${Buffer.from(rendered.svg).toString('base64')}`
-    return createElement('img', {
-        src,
-        alt: '',
-        width: rendered.width,
-        height: rendered.height,
-        style: { display: 'block', width: rendered.width, height: rendered.height },
-    })
-}
-
-const label = (c: ReturnType<typeof getThemeColors>, text: string, fontSize: number) =>
-    TextLabel({
-        c,
-        text,
-        fontSize,
-        fontWeight: 750,
-        color: c.textPrimary,
-        width: '100%',
-        align: 'center',
-    })
+export const width = 780
+export const height = 360
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? preset : 'default')
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const critical = fig.tone('critical')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
 
-    return Scene({
-        c,
-        padding: 16,
-        gap: 8,
-        title: 'One shared weight collects both gradients',
-        subtitle: 'The loss signal follows each route, then the two contributions meet at w.',
-        contentWidth: 608,
-        align: 'center',
-        children: (() => {
-            const nodes: PositionedNode[] = [
-                {
-                    id: 'loss',
-                    label: label(c, 'Loss', 23),
-                    detail: math(
-                        String.raw`L=1,\;\frac{\partial L}{\partial L}=1`,
-                        18,
-                        c.textSecondary,
-                    ),
-                    x: 0.5,
-                    y: 0.08,
-                    width: 190,
-                    height: 94,
-                    tone: 'critical',
-                },
-                {
-                    id: 'error',
-                    label: label(c, 'Error · e=1', 23),
-                    detail: math(String.raw`2e=2`, 19, c.textSecondary),
-                    x: 0.5,
-                    y: 0.29,
-                    width: 190,
-                    height: 94,
-                    tone: 'warm',
-                },
-                {
-                    id: 'prediction',
-                    label: label(c, 'Prediction', 23),
-                    detail: math(
-                        String.raw`\hat{y}=6,\;\frac{\partial L}{\partial \hat{y}}=2`,
-                        19,
-                        c.textSecondary,
-                    ),
-                    x: 0.5,
-                    y: 0.5,
-                    width: 190,
-                    height: 94,
-                    tone: 'purple',
-                },
-                {
-                    id: 'prompt-path',
-                    label: math(String.raw`\text{Prompt}\;x_p=2`, 24, c.textPrimary),
-                    detail: math(String.raw`2\times1\times x_p=4`, 19, c.textSecondary),
-                    x: 0.24,
-                    y: 0.7,
-                    width: 220,
-                    height: 100,
-                    tone: 'blue',
-                },
-                {
-                    id: 'queue-path',
-                    label: math(String.raw`\text{Queue}\;x_q=1`, 24, c.textPrimary),
-                    detail: math(String.raw`2\times1\times x_q=2`, 19, c.textSecondary),
-                    x: 0.76,
-                    y: 0.7,
-                    width: 220,
-                    height: 100,
-                    tone: 'cyan',
-                },
-                {
-                    id: 'shared-weight',
-                    label: math(String.raw`\text{Shared weight}\;w=2`, 24, c.textPrimary),
-                    detail: math(
-                        String.raw`\frac{\partial L}{\partial w}=4+2=6`,
-                        19,
-                        c.textSecondary,
-                    ),
-                    x: 0.5,
-                    y: 0.9,
-                    width: 260,
-                    height: 100,
-                    tone: 'green',
-                },
-            ]
-            const connections: Connection[] = [
-                { from: 'loss', to: 'error', fromSide: 'bottom', toSide: 'top', tone: 'warm' },
-                {
-                    from: 'error',
-                    to: 'prediction',
-                    fromSide: 'bottom',
-                    toSide: 'top',
-                    tone: 'purple',
-                },
-                {
-                    from: 'prediction',
-                    to: 'prompt-path',
-                    fromSide: 'bottom',
-                    fromOffset: 0.28,
-                    toSide: 'top',
-                    tone: 'blue',
-                },
-                {
-                    from: 'prediction',
-                    to: 'queue-path',
-                    fromSide: 'bottom',
-                    fromOffset: 0.72,
-                    toSide: 'top',
-                    tone: 'cyan',
-                },
-                {
-                    from: 'prompt-path',
-                    to: 'shared-weight',
-                    fromSide: 'bottom',
-                    toSide: 'top',
-                    toOffset: 0.32,
-                    tone: 'blue',
-                },
-                {
-                    from: 'queue-path',
-                    to: 'shared-weight',
-                    fromSide: 'bottom',
-                    toSide: 'top',
-                    toOffset: 0.68,
-                    tone: 'cyan',
-                },
-            ]
+    const fillAmt = theme === 'dark' ? 0.16 : 0.1
 
-            const nodeMap = new Map(
-                nodes.map((node) => {
-                    const cx = Math.max(
-                        node.width / 2,
-                        Math.min(600 - node.width / 2, 24 + node.x * 552),
-                    )
-                    const cy = Math.max(
-                        node.height / 2,
-                        Math.min(600 - node.height / 2, 24 + node.y * 552),
-                    )
-                    return [node.id, { ...node, cx, cy }]
-                }),
-            )
-            const cards = nodes.map((node) => {
-                const positioned = nodeMap.get(node.id)
-                if (!positioned) return null
-                const left = positioned.cx - node.width / 2
-                const top = positioned.cy - node.height / 2
-
-                return createElement(
-                    CanvasItem,
-                    {
-                        key: `node-${node.id}`,
-                        x: left,
-                        y: top,
-                        width: node.width,
-                        height: node.height,
-                    },
-                    Panel({
-                        c,
-                        title: node.label,
-                        children: node.detail,
-                        tone: node.tone,
-                        width: node.width - 2,
-                        height: node.height - 2,
-                        padding: 0,
-                        gap: 5,
-                        align: 'center',
-                        justify: 'center',
-                        shadow: false,
-                        background: getToneFill(node.tone, c),
-                        borderColor: getToneColor(node.tone, c),
-                        titleFontSize: 23,
-                        accentWidth: 0,
-                        accentHeight: 0,
-                        bodyStyle: { alignItems: 'center' },
-                    }),
-                )
+    const node = (
+        cx: number,
+        cy: number,
+        w: number,
+        h: number,
+        color: string,
+        title: string,
+        tex: string,
+        titleIsTex = false,
+    ) => {
+        fig.rect(cx - w / 2, cy - h / 2, w, h, {
+            fill: tint(color, c.bg, fillAmt),
+            stroke: color,
+            strokeWidth: 1.75,
+            radius: 10,
+        })
+        if (titleIsTex) {
+            fig.math(cx, cy - 15, title, { size: 15, color: c.textPrimary, align: 'center' })
+        } else {
+            fig.text(cx, cy - 15, title, {
+                size: 14,
+                weight: 700,
+                color: c.textPrimary,
+                align: 'center',
             })
+        }
+        fig.math(cx, cy + 16, tex, { size: 13.5, color: c.textSecondary, align: 'center' })
+    }
 
-            return createElement(
-                'div',
-                {
-                    role: 'img',
-                    'aria-label': alt,
-                    style: { width: 600, height: 600 },
-                },
-                Board({
-                    c,
-                    width: 600,
-                    height: 600,
-                    children: [
-                        CanvasItem({
-                            x: 0,
-                            y: 0,
-                            width: 600,
-                            height: 600,
-                            children: graphConnections(c, nodes, connections, 600, 600, 24),
-                        }),
-                        ...cards,
-                    ],
-                }),
-            )
-        })(),
+    fig.text(width / 2, 22, 'Reverse-mode gradient splits across both branches and sums at shared weight w', {
+        size: 14,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
     })
+
+    // Non-overlapping horizontal layout (width 780):
+    // Shared w: [12..148] (cx=80, w=136)
+    // gap 40 -> Prompt/Queue: [188..330] (cx=259, w=142)
+    // gap 38 -> Prediction: [368..478] (cx=423, w=110)
+    // gap 30 -> Error: [508..608] (cx=558, w=100)
+    // gap 30 -> Loss: [638..768] (cx=703, w=130)
+    const midY = 194
+    const topY = 112
+    const botY = 276
+
+    // Arrows (right-to-left)
+    fig.arrow(636, midY, 610, midY, { color: warm, width: 2.3, head: 7 })
+    fig.arrow(506, midY, 480, midY, { color: purple, width: 2.3, head: 7 })
+
+    // Prediction splits into Prompt & Queue
+    fig.path(`M368 ${midY - 14} C350 ${midY - 14}, 350 ${topY}, 336 ${topY}`, {
+        color: blue,
+        width: 2.3,
+    })
+    fig.arrow(342, topY, 331, topY, { color: blue, width: 2.3, head: 7 })
+
+    fig.path(`M368 ${midY + 14} C350 ${midY + 14}, 350 ${botY}, 336 ${botY}`, {
+        color: cyan,
+        width: 2.3,
+    })
+    fig.arrow(342, botY, 331, botY, { color: cyan, width: 2.3, head: 7 })
+
+    // Prompt & Queue reconverge into Shared weight w
+    fig.path(`M188 ${topY} C166 ${topY}, 170 ${midY - 18}, 154 ${midY - 18}`, {
+        color: blue,
+        width: 2.3,
+    })
+    fig.arrow(160, midY - 18, 149, midY - 18, { color: blue, width: 2.3, head: 7 })
+
+    fig.path(`M188 ${botY} C166 ${botY}, 170 ${midY + 18}, 154 ${midY + 18}`, {
+        color: cyan,
+        width: 2.3,
+    })
+    fig.arrow(160, midY + 18, 149, midY + 18, { color: cyan, width: 2.3, head: 7 })
+
+    // Branch sum cues
+    fig.text(168, topY - 14, '+4', { size: 13, weight: 700, color: blue, align: 'center' })
+    fig.text(168, botY + 16, '+2', { size: 13, weight: 700, color: cyan, align: 'center' })
+
+    // Nodes
+    node(703, midY, 130, 78, critical, 'Loss', String.raw`L=1,\;\tfrac{\partial L}{\partial L}=1`)
+    node(558, midY, 100, 78, warm, 'Error · e=1', String.raw`2e = 2`)
+    node(423, midY, 110, 78, purple, 'Prediction', String.raw`\hat{y}=6,\;\tfrac{\partial L}{\partial \hat{y}}=2`)
+    node(
+        259,
+        topY,
+        142,
+        74,
+        blue,
+        String.raw`\text{Prompt } x_p = 2`,
+        String.raw`2 \times 1 \times x_p = 4`,
+        true,
+    )
+    node(
+        259,
+        botY,
+        142,
+        74,
+        cyan,
+        String.raw`\text{Queue } x_q = 1`,
+        String.raw`2 \times 1 \times x_q = 2`,
+        true,
+    )
+
+    // Shared weight w (sum node)
+    fig.rect(12, midY - 48, 136, 96, {
+        fill: tint(green, c.bg, theme === 'dark' ? 0.2 : 0.13),
+        stroke: green,
+        strokeWidth: 2.25,
+        radius: 11,
+    })
+    fig.text(80, midY - 26, 'Shared weight', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.math(80, midY - 2, String.raw`w = 2`, { size: 15, color: c.textPrimary, align: 'center' })
+    fig.math(80, midY + 26, String.raw`\tfrac{\partial L}{\partial w} = 4 + 2 = 6`, {
+        size: 14,
+        color: green,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create()

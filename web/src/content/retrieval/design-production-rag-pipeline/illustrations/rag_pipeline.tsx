@@ -1,94 +1,114 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    withColorAlpha,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 920
-export const height = 500
+export { createFilm } from './_parts/rag-narrowing-film'
+
+export const width = 760
+export const height = 472
 export const alt =
     'A log-scaled RAG candidate narrowing funnel reduces 100,000 indexed chunks to 18,000 ACL- and version-permitted chunks (2 ms, privacy boundary), 50 hybrid BM25+dense RRF candidates (18 ms, recall), 5 cross-encoder reranked parent sections (35 ms, precision), and 1,800 packed prompt tokens driving a cited answer or abstention (320 ms model TTFT).'
 
-const illustration = defineIllustration((c) => {
-    const purple = getReadableToneColor('purple', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const warm = getReadableToneColor('warm', c)
-    const green = getReadableToneColor('green', c)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const purple = fig.tone('purple')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
 
-    const funnelLeft = 224
-    const funnelMaxW = 396 // log10(100,000) = 5.0
-    const logW = (count: number) => Math.max(26, (Math.log10(count) / 5) * funnelMaxW)
+    const funnelLeft = 206
+    const funnelMaxW = 310 // log10(100,000) = 5.0
+    const logW = (count: number) => Math.max(30, (Math.log10(count) / 5) * funnelMaxW)
+    const barH = 48
 
     const stages = [
         {
-            name: '0 · Raw Corpus',
+            name: '0 · Corpus Index',
             sub: 'All indexed chunks',
             countLabel: '100,000 chunks',
             w: logW(100_000),
-            y: 86,
+            y: 74,
             color: c.textSecondary,
-            fill: withColorAlpha(c.border, 0.45),
+            fill: tint(c.border, c.bg, 0.35),
             latency: 'Offline',
             latencyW: 0,
             invariant: 'Versioned bundle',
         },
         {
             name: '1 · ACL Pre-Filter',
-            sub: 'Tenant, group, active rev',
+            sub: 'Tenant, group, rev',
             countLabel: '18,000 eligible',
             w: logW(18_000),
-            y: 164,
+            y: 148,
             color: purple,
-            fill: withColorAlpha(purple, 0.24),
+            fill: withColorAlpha(purple, 0.22),
             latency: '2 ms',
             latencyW: 12,
-            invariant: 'No ACL leaks',
+            invariant: 'Privacy boundary',
         },
         {
-            name: '2 · Hybrid Retrieval',
-            sub: 'BM25 + dense RRF',
+            name: '2 · Hybrid RRF',
+            sub: 'BM25 + dense search',
             countLabel: '50 candidates',
             w: logW(50),
-            y: 242,
+            y: 222,
             color: cyan,
-            fill: withColorAlpha(cyan, 0.24),
+            fill: withColorAlpha(cyan, 0.22),
             latency: '18 ms',
-            latencyW: 28,
+            latencyW: 26,
             invariant: 'High recall',
         },
         {
-            name: '3 · Rerank & Expand',
-            sub: 'Cross-encoder -> parent',
+            name: '3 · Rerank + Parent',
+            sub: 'Cross-encoder top-5',
             countLabel: '5 parents',
             w: logW(5),
-            y: 320,
+            y: 296,
             color: warm,
-            fill: withColorAlpha(warm, 0.24),
+            fill: withColorAlpha(warm, 0.22),
             latency: '35 ms',
-            latencyW: 44,
-            invariant: 'Precision + clauses',
+            latencyW: 40,
+            invariant: 'High precision',
         },
         {
-            name: '4 · Context -> LLM',
-            sub: 'Pack [E1]..[E5] + cite',
+            name: '4 · Context Packing',
+            sub: 'Pack [E1]..[E5] for LLM',
             countLabel: '1,800 prompt tok',
-            w: 170,
-            y: 398,
+            w: 220,
+            y: 374,
             color: green,
-            fill: withColorAlpha(green, 0.22),
+            fill: withColorAlpha(green, 0.2),
             latency: '320 ms',
-            latencyW: 126,
+            latencyW: 86,
             invariant: 'Cited or abstain',
         },
-    ]
+    ] as const
 
-    const barH = 48
-    const centerX = funnelLeft + funnelMaxW / 2
+    // ── Column Headings (frameless) ──────────────────────────────────────────
+    fig.text(20, 18, 'Candidate Narrowing Funnel (log₁₀ scale)', {
+        size: 16,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const rightX = 548
+    fig.text(rightX, 18, 'Latency & Invariant', {
+        size: 16,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(rightX, 42, '375 ms e2e TTFT', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: warm,
+    })
+
+    // Subtle vertical divider between funnel and latency column
+    fig.line(532, 16, 532, 446, { color: c.borderSubtle, width: 1 })
+
+    // ── Log10 Axis Ticks & Hairline Grid ─────────────────────────────────────
     const ticks = [
         { exp: 0, label: '1' },
         { exp: 1, label: '10' },
@@ -96,257 +116,107 @@ const illustration = defineIllustration((c) => {
         { exp: 3, label: '10³' },
         { exp: 4, label: '10⁴' },
         { exp: 5, label: '10⁵' },
-    ]
+    ] as const
 
-    return (
-        <Scene c={c} padding={0} gap={0} contentWidth={width}>
-            <Board c={c} width={width} height={height}>
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {/* Outer panels */}
-                        <rect
-                            x={16}
-                            y={14}
-                            width={618}
-                            height={472}
-                            rx={14}
-                            fill={c.bgCard}
-                            stroke={c.borderLight}
-                            strokeWidth={1.5}
-                        />
-                        <rect
-                            x={648}
-                            y={14}
-                            width={256}
-                            height={472}
-                            rx={14}
-                            fill={c.bgCard}
-                            stroke={c.borderLight}
-                            strokeWidth={1.5}
-                        />
+    for (const t of ticks) {
+        const gx = funnelLeft + (t.exp / 5) * funnelMaxW
+        fig.line(gx, 66, gx, 350, {
+            color: c.borderSubtle,
+            width: 1,
+            dash: '3 4',
+        })
+        fig.text(gx, 48, t.label, {
+            size: 13,
+            mono: true,
+            color: c.textMuted,
+            align: t.exp === 5 ? 'right' : 'center',
+        })
+    }
 
-                        {/* Log10 vertical gridlines inside funnel panel (left-aligned log axis) */}
-                        {ticks.map((t) => {
-                            const gx = funnelLeft + (t.exp / 5) * funnelMaxW
-                            return (
-                                <line
-                                    key={`grid-${t.exp}`}
-                                    x1={gx}
-                                    y1={76}
-                                    x2={gx}
-                                    y2={376}
-                                    stroke={c.border}
-                                    strokeWidth={1}
-                                    strokeDasharray="3 4"
-                                />
-                            )
-                        })}
+    // ── Narrowing Trapezoids between stages 0 -> 1 -> 2 -> 3 ────────────────
+    for (let i = 0; i < 3; i++) {
+        const a = stages[i]!
+        const b = stages[i + 1]!
+        fig.path(
+            `M${funnelLeft} ${a.y + barH}L${funnelLeft + a.w} ${a.y + barH}L${funnelLeft + b.w} ${b.y}L${funnelLeft} ${b.y}Z`,
+            { fill: b.color, fillOpacity: 0.12 },
+        )
+    }
 
-                        {/* Connecting trapezoids between chunk stages 0->1->2->3 */}
-                        {[0, 1, 2].map((i) => {
-                            const a = stages[i]
-                            const b = stages[i + 1]
-                            return (
-                                <polygon
-                                    key={`trap-${i}`}
-                                    points={`${funnelLeft},${a.y + barH} ${funnelLeft + a.w},${a.y + barH} ${funnelLeft + b.w},${b.y} ${funnelLeft},${b.y}`}
-                                    fill={withColorAlpha(b.color, 0.12)}
-                                />
-                            )
-                        })}
+    // Expansion arrow from 5 parents -> 1,800 packed prompt tokens
+    const s3 = stages[3]!
+    const s4 = stages[4]!
+    fig.arrow(funnelLeft + s3.w / 2, s3.y + barH + 2, funnelLeft + s3.w / 2, s4.y - 3, {
+        color: green,
+        width: 2.2,
+        head: 7,
+    })
 
-                        {/* Arrow from Stage 3 (5 parents) to Stage 4 (1,800 packed tokens) */}
-                        <line
-                            x1={funnelLeft + stages[3].w / 2}
-                            y1={stages[3].y + barH}
-                            x2={funnelLeft + stages[3].w / 2}
-                            y2={stages[4].y - 6}
-                            stroke={green}
-                            strokeWidth={2.5}
-                        />
-                        <polygon
-                            points={`${funnelLeft + stages[3].w / 2},${stages[4].y} ${funnelLeft + stages[3].w / 2 - 5},${stages[4].y - 9} ${funnelLeft + stages[3].w / 2 + 5},${stages[4].y - 9}`}
-                            fill={green}
-                        />
+    // ── Stage Bars, Stage Titles, and Latency/Invariant Rows ─────────────────
+    stages.forEach((s, i) => {
+        fig.rect(funnelLeft, s.y, s.w, barH, {
+            fill: s.fill,
+            stroke: s.color,
+            strokeWidth: 1.8,
+            radius: 7,
+        })
 
-                        {/* Horizontal stage bars */}
-                        {stages.map((s, i) => (
-                            <g key={`bar-${i}`}>
-                                <rect
-                                    x={funnelLeft}
-                                    y={s.y}
-                                    width={s.w}
-                                    height={barH}
-                                    rx={8}
-                                    fill={s.fill}
-                                    stroke={s.color}
-                                    strokeWidth={2}
-                                />
-                                {/* Horizontal divider in right panel */}
-                                {i > 0 && (
-                                    <line
-                                        x1={664}
-                                        y1={s.y - 14}
-                                        x2={888}
-                                        y2={s.y - 14}
-                                        stroke={c.border}
-                                        strokeWidth={1}
-                                    />
-                                )}
-                                {/* Latency bar on right */}
-                                {s.latencyW > 0 && (
-                                    <rect
-                                        x={668}
-                                        y={s.y + 8}
-                                        width={s.latencyW}
-                                        height={16}
-                                        rx={4}
-                                        fill={s.color}
-                                    />
-                                )}
-                            </g>
-                        ))}
+        // Left stage title + subtitle
+        fig.text(20, s.y + 15, s.name, {
+            size: 14,
+            weight: 700,
+            color: i === 0 ? c.textPrimary : s.color,
+        })
+        fig.text(20, s.y + 35, s.sub, {
+            size: 13,
+            color: c.textSecondary,
+        })
 
-                        {/* Small reference bar for centerX unused suppression */}
-                        <line
-                            x1={centerX}
-                            y1={0}
-                            x2={centerX}
-                            y2={0}
-                            stroke="none"
-                        />
-                    </svg>
-                </CanvasItem>
+        // Count inside wide bars, or cleanly to the right of narrow bars
+        const inside = s.w >= 175
+        fig.text(inside ? funnelLeft + 12 : funnelLeft + s.w + 10, s.y + barH / 2, s.countLabel, {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: i === 0 ? c.textPrimary : s.color,
+        })
 
-                {/* Left panel header */}
-                <CanvasItem x={34} y={24} width={580} height={24}>
-                    <TextLabel
-                        c={c}
-                        text="Candidate Narrowing Funnel (log₁₀ chunk scale)"
-                        fontSize={18}
-                        fontWeight={800}
-                        color={c.textPrimary}
-                    />
-                </CanvasItem>
+        // Right column row separator
+        if (i > 0) {
+            fig.line(rightX, s.y - 12, width - 20, s.y - 12, {
+                color: c.borderSubtle,
+                width: 1,
+            })
+        }
 
-                {/* Top log10 axis ticks */}
-                {ticks.map((t) => {
-                    const gx = funnelLeft + (t.exp / 5) * funnelMaxW
-                    return (
-                        <CanvasItem key={`tlbl-${t.exp}`} x={gx - 20} y={54} width={40} height={18}>
-                            <TextLabel
-                                c={c}
-                                text={t.label}
-                                fontSize={12}
-                                mono
-                                color={c.textMuted}
-                                align="center"
-                            />
-                        </CanvasItem>
-                    )
-                })}
+        // Latency bar + label
+        if (s.latencyW > 0) {
+            fig.rect(rightX, s.y + 7, s.latencyW, 14, {
+                fill: s.color,
+                radius: 4,
+            })
+        }
+        fig.text(s.latencyW > 0 ? rightX + s.latencyW + 8 : rightX, s.y + 14, s.latency, {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: i === 0 ? c.textMuted : s.color,
+        })
+        fig.text(rightX, s.y + 36, s.invariant, {
+            size: 13,
+            weight: 600,
+            color: c.textSecondary,
+        })
+    })
 
-                {/* Right panel header */}
-                <CanvasItem x={666} y={24} width={224} height={24}>
-                    <TextLabel
-                        c={c}
-                        text="Latency & Invariant"
-                        fontSize={18}
-                        fontWeight={800}
-                        color={c.textPrimary}
-                    />
-                </CanvasItem>
-                <CanvasItem x={666} y={50} width={224} height={20}>
-                    <TextLabel
-                        c={c}
-                        text="375 ms e2e TTFT budget"
-                        fontSize={13}
-                        fontWeight={600}
-                        color={c.textSecondary}
-                    />
-                </CanvasItem>
+    // Bottom crisp reduction summary
+    fig.text(20, 448, '20,000× candidate reduction · zero unauthorized chunks scored', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+    })
 
-                {/* Stage labels, bar values, and right-column latency + invariant */}
-                {stages.map((s, i) => {
-                    const labelInside = s.w >= 145
-                    const valueX = labelInside ? funnelLeft + 10 : funnelLeft + s.w + 10
-                    const valueW = labelInside ? s.w - 20 : 180
-                    return (
-                        <React.Fragment key={`stage-txt-${i}`}>
-                            <CanvasItem x={30} y={s.y + 4} width={186} height={22}>
-                                <TextLabel
-                                    c={c}
-                                    text={s.name}
-                                    fontSize={15}
-                                    fontWeight={800}
-                                    color={i === 0 ? c.textPrimary : s.color}
-                                />
-                            </CanvasItem>
-                            <CanvasItem x={30} y={s.y + 26} width={186} height={18}>
-                                <TextLabel
-                                    c={c}
-                                    text={s.sub}
-                                    fontSize={12}
-                                    color={c.textSecondary}
-                                />
-                            </CanvasItem>
+    return fig.render()
+}
 
-                            {/* Bar quantity label */}
-                            <CanvasItem x={valueX} y={s.y + 14} width={valueW} height={22}>
-                                <TextLabel
-                                    c={c}
-                                    text={s.countLabel}
-                                    fontSize={14}
-                                    fontWeight={800}
-                                    mono
-                                    color={i === 0 ? c.textPrimary : s.color}
-                                    align="left"
-                                />
-                            </CanvasItem>
-
-                            {/* Right panel: latency text + invariant */}
-                            <CanvasItem
-                                x={s.latencyW > 0 ? 676 + s.latencyW : 668}
-                                y={s.y + 5}
-                                width={90}
-                                height={22}
-                            >
-                                <TextLabel
-                                    c={c}
-                                    text={s.latency}
-                                    fontSize={14}
-                                    fontWeight={800}
-                                    mono
-                                    color={i === 0 ? c.textMuted : s.color}
-                                />
-                            </CanvasItem>
-                            <CanvasItem x={668} y={s.y + 28} width={220} height={20}>
-                                <TextLabel
-                                    c={c}
-                                    text={s.invariant}
-                                    fontSize={13}
-                                    fontWeight={600}
-                                    color={c.textSecondary}
-                                />
-                            </CanvasItem>
-                        </React.Fragment>
-                    )
-                })}
-
-                {/* Bottom note in left panel */}
-                <CanvasItem x={34} y={456} width={580} height={20}>
-                    <TextLabel
-                        c={c}
-                        text="20,000× candidate reduction before LLM context · zero unauthorized chunks scored"
-                        fontSize={13}
-                        fontWeight={600}
-                        color={c.textSecondary}
-                    />
-                </CanvasItem>
-            </Board>
-        </Scene>
-    )
-})
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

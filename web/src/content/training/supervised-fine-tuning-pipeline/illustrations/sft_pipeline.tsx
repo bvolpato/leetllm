@@ -1,5 +1,6 @@
 import type { ThemeMode, ToneName } from 'vizmatic'
 import { WEB, makeKit, type Layout } from './_kit'
+export { createFilm } from './_parts/sft-masking-film'
 
 export const width = 672
 export const height = 412

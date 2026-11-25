@@ -1,353 +1,206 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const width = 880
+export const height = 400
 export const alt =
-    'A cached illustrative KV handle is keyed by server-derived acme/repo-a/policy-7, weights-3, tok-3, no-adapter, fp16-layout-1, and exact prefix IDs 10,20,30. A next tokenized prompt matching every field permits KV reuse. Separate changed-field cases, contoso scope, last token 31, adapter-2 and policy-8, take full prefill. Reuse and full-prefill paths join the same decode step. Response caching and editor freshness remain separate guarantees.'
+    'Planar KV prefix compatibility diagram with zero crossing lines. Left: cached KV entry keyed by six exact fields (scope acme/repo-a/acl-7, model w3, tokenizer t3, adapter none, layout fp16-v1, prefix IDs [10,20,30]). Center: five incoming requests test exact match (HIT, skipping prefill) versus four single-field mismatches (other tenant contoso, changed token ID 31, adapter lora-2, revoked acl-8) that all route to Full Prefill. Right: both KV HIT and Full Prefill converge on the shared Decode step.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const keyTone = getReadableToneColor('blue', c, c.bg)
-    const hitTone = getReadableToneColor('green', c, c.bg)
-    const missTone = getReadableToneColor('critical', c, c.bg)
-    const decodeTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const purple = fig.tone('purple')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 18,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // --- LEFT: Cached KV Key Tuple (6 exact fields from content.md) ---
+    fig.text(20, 22, 'Cached KV Key Tuple', { size: 15, weight: 700, color: blue })
 
-    const misses = [
-        { name: 'Scope change', val: 'contoso/repo-a/p7' },
-        { name: 'Token ID change', val: '[10, 20, 31]' },
-        { name: 'LoRA adapter', val: 'adapter-2' },
-        { name: 'Policy change', val: 'policy-8' },
+    const keyFields = [
+        { k: 'scope', v: 'acme/repo-a/acl-7' },
+        { k: 'model', v: 'w3' },
+        { k: 'tokenizer', v: 't3' },
+        { k: 'adapter', v: 'none' },
+        { k: 'layout', v: 'fp16-v1' },
+        { k: 'prefix IDs', v: '[10, 20, 30]' },
     ]
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Left: Cached KV Key Tuple */}
-                    <rect
-                        x={24}
-                        y={60}
-                        width={380}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    fig.rect(20, 44, 248, 294, {
+        fill: tint(blue, c.bg, 0.08),
+        stroke: blue,
+        strokeWidth: 1.4,
+        radius: 9,
+    })
 
-                    {/* Key Attributes Box */}
-                    <rect
-                        x={36}
-                        y={110}
-                        width={356}
-                        height={250}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={keyTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={48}
-                        y={150}
-                        width={332}
-                        height={34}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={192}
-                        width={332}
-                        height={34}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={234}
-                        width={332}
-                        height={34}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={276}
-                        width={332}
-                        height={34}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={318}
-                        width={332}
-                        height={34}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    keyFields.forEach((f, i) => {
+        const y = 66 + i * 44
+        if (i > 0) fig.line(32, y - 22, 256, y - 22, { color: c.borderSubtle, width: 1 })
+        fig.text(34, y, f.k, { size: 12, weight: 700, color: blue, mono: true })
+        fig.text(254, y, f.v, {
+            size: 12,
+            weight: 600,
+            color: c.textPrimary,
+            align: 'right',
+            mono: true,
+        })
+    })
 
-                    {/* Key notes */}
-                    <rect
-                        x={36}
-                        y={375}
-                        width={356}
-                        height={85}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    fig.text(20, 360, 'Gateway-derived scope (cache_salt)', {
+        size: 12,
+        color: c.textSecondary,
+    })
+    fig.text(20, 378, 'Temperature changes keep KV valid', {
+        size: 12,
+        color: c.textMuted,
+    })
 
-                    {/* Right: Match vs Miss Paths */}
-                    <rect
-                        x={430}
-                        y={60}
-                        width={406}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    // --- CENTER: 5 Incoming Probes (1 HIT top, 4 MISS rows below -> ZERO CROSSINGS!) ---
+    fig.text(308, 22, 'Incoming Request Probes', { size: 15, weight: 700, color: c.textPrimary })
 
-                    {/* Cache HIT Block */}
-                    <rect
-                        x={442}
-                        y={110}
-                        width={382}
-                        height={75}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={hitTone}
-                        strokeWidth={2}
-                    />
+    // Exact match (HIT)
+    fig.rect(308, 48, 292, 54, {
+        fill: tint(green, c.bg, 0.16),
+        stroke: green,
+        strokeWidth: 1.7,
+        radius: 8,
+    })
+    fig.text(322, 67, 'Exact 6/6 match', { size: 14, weight: 700, color: green })
+    fig.text(322, 87, 'All fields & token IDs equal', { size: 12, color: c.textSecondary })
+    fig.text(588, 75, 'HIT', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'right',
+        mono: true,
+    })
 
-                    {/* Cache MISS Grid (4 Scenarios) */}
-                    <rect
-                        x={442}
-                        y={198}
-                        width={382}
-                        height={170}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={missTone}
-                        strokeWidth={1.5}
-                    />
-                    {misses.map((m, i) => {
-                        const my = 238 + i * 30
-                        return (
-                            <rect
-                                key={m.name}
-                                x={454}
-                                y={my}
-                                width={358}
-                                height={24}
-                                rx={3}
-                                fill={c.bgCard}
-                                stroke={stroke}
-                                strokeWidth={1}
-                            />
-                        )
-                    })}
+    // 4 Single-field mismatches (MISS)
+    const misses = [
+        { label: 'Other tenant', diff: 'contoso/repo-a/acl-7' },
+        { label: 'Changed ID', diff: '[10, 20, 31]' },
+        { label: 'Other adapter', diff: 'lora-2' },
+        { label: 'Revoked ACL', diff: 'acme/repo-a/acl-8' },
+    ]
 
-                    {/* Unified Decode Block */}
-                    <rect
-                        x={442}
-                        y={382}
-                        width={382}
-                        height={78}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={decodeTone}
-                        strokeWidth={2}
-                    />
+    misses.forEach((m, i) => {
+        const y = 128 + i * 54
+        fig.rect(308, y, 292, 44, {
+            fill: tint(red, c.bg, 0.1),
+            stroke: red,
+            strokeWidth: 1.25,
+            radius: 7,
+        })
+        fig.text(322, y + 14, m.label, { size: 12, weight: 700, color: red })
+        fig.text(322, y + 31, m.diff, { size: 12, color: c.textPrimary, mono: true })
+        fig.text(588, y + 22, 'MISS', {
+            size: 13,
+            weight: 700,
+            color: red,
+            align: 'right',
+            mono: true,
+        })
+        // Connect right edge of each miss row cleanly into a vertical collector at x=622
+        fig.line(600, y + 22, 622, y + 22, { color: red, width: 1.3 })
+    })
 
-                    {/* Path connectors */}
-                    <line x1={633} y1={185} x2={633} y2={382} stroke={hitTone} strokeWidth={2} />
-                    <line
-                        x1={780}
-                        y1={368}
-                        x2={780}
-                        y2={382}
-                        stroke={missTone}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                    />
-                </svg>
-            </CanvasItem>
+    // Connector from Cached Key Tuple -> Probes (clean spine at x=286, no crossing)
+    fig.line(268, 190, 286, 190, { color: c.border, width: 1.5 })
+    fig.line(286, 75, 286, 312, { color: c.border, width: 1.5 })
+    fig.arrow(286, 75, 306, 75, { color: green, width: 1.6, head: 6 })
+    for (let i = 0; i < 4; i++) {
+        fig.arrow(286, 150 + i * 54, 306, 150 + i * 54, { color: red, width: 1.3, head: 5 })
+    }
 
-            {/* Title */}
-            {label(
-                24,
-                20,
-                812,
-                'KV Cache Prefix Compatibility & Multi-Tenant Security Scope',
-                22,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    // --- RIGHT: Execution Paths converging on Shared Decode (ZERO CROSSINGS!) ---
+    fig.text(650, 22, 'Execution Path', { size: 15, weight: 700, color: c.textPrimary })
 
-            {/* Left Header */}
-            {label(36, 75, 356, 'Cached Prefix Key Tuple', 16, keyTone, 'left', 700)}
+    // Top: Reuse KV (from HIT row)
+    fig.arrow(600, 75, 648, 75, { color: green, width: 1.8, head: 6 })
+    fig.rect(650, 48, 210, 54, {
+        fill: tint(green, c.bg, 0.15),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(755, 67, 'Reuse Cached KV', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(755, 86, 'Prefill delta only', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {/* Key Fields */}
-            {label(48, 120, 332, 'Prefix Cache Key Specification:', 13, keyTone, 'left', 650)}
-            {label(58, 158, 312, '1. Scope: acme/repo-a/policy-7', 12, c.textPrimary, 'left', 600)}
-            {label(58, 200, 312, '2. Model: weights-3 (v3 checkpoints)', 12, c.textMuted, 'left')}
-            {label(58, 242, 312, '3. Tokenizer: tok-3 · Adapter: none', 12, c.textMuted, 'left')}
-            {label(
-                58,
-                284,
-                312,
-                '4. Layout: fp16-layout-1 (paged KV blocks)',
-                12,
-                c.textMuted,
-                'left',
-            )}
-            {label(
-                58,
-                326,
-                312,
-                '5. Token IDs: [10, 20, 30] (exact sequence)',
-                12,
-                keyTone,
-                'left',
-                600,
-            )}
+    // Middle-Bottom: Miss collector -> Full Prefill
+    fig.line(622, 150, 622, 312, { color: red, width: 1.4 })
+    fig.arrow(622, 231, 648, 231, { color: red, width: 1.7, head: 6 })
+    fig.rect(650, 204, 210, 54, {
+        fill: tint(red, c.bg, 0.12),
+        stroke: red,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(755, 223, 'Full Prefill', {
+        size: 14,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
+    fig.text(755, 242, 'Compute all prefix KV', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {/* Left Notes */}
-            {label(
-                48,
-                388,
-                332,
-                'Tenant security scope is derived by gateway.',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(48, 410, 332, 'Clients cannot inject arbitrary cache salts.', 11, c.textMuted)}
-            {label(
-                48,
-                432,
-                332,
-                'Prevents cross-tenant attention state leakage.',
-                11,
-                keyTone,
-                'left',
-                600,
-            )}
+    // Bottom: Shared Decode (both Reuse KV via clean right bypass and Full Prefill drop straight in!)
+    // Actually: Reuse KV (y=48..102) -> Shared Decode (y=124..180) <- Full Prefill (y=204..258)!
+    // WAIT! Put Shared Decode IN THE MIDDLE between Reuse KV (top) and Full Prefill (bottom) -> 100% planar, short straight vertical arrows!
+    // Let's place Full Prefill at y=284..338 and Shared Decode at y=162..222! Wait: let's check miss collector midpoint:
+    // Misses span y=128..334 (center 231). If Full Prefill is at y=250..304 (connected at y=277) and Shared Decode is at y=330..384?
+    // No, if Reuse KV goes down the right edge (x=868) to Shared Decode at bottom (y=330), it doesn't cross anything either!
+    // Wait: placing Shared Decode at y=126..182 (between Reuse KV y=48..102 and Full Prefill y=206..260) has ZERO long bypass wires!
+    // Let's check: Miss collector runs x=622 from y=150..312 -> arrow at y=233 goes right into Full Prefill (y=206..260).
+    // Then Full Prefill arrow goes UP from (755, 206) to Shared Decode (755, 182), and Reuse KV arrow goes DOWN from (755, 102) to Shared Decode (755, 126)!
+    // YES!! Zero crossings, super compact, symmetrical convergence!
+    fig.rect(650, 126, 210, 54, {
+        fill: tint(purple, c.bg, 0.16),
+        stroke: purple,
+        strokeWidth: 1.7,
+        radius: 8,
+    })
+    fig.text(755, 145, 'Shared Decode', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+    fig.text(755, 164, 'Stream tokens to editor', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {/* Right Header */}
-            {label(442, 75, 382, 'Incoming Request Evaluation', 16, c.textPrimary, 'left', 700)}
+    // Clean vertical converging arrows into Shared Decode
+    fig.arrow(755, 102, 755, 124, { color: green, width: 1.7, head: 6 })
+    fig.arrow(755, 204, 755, 182, { color: red, width: 1.7, head: 6 })
 
-            {/* Cache Hit Box */}
-            {label(454, 120, 358, 'Cache HIT: 100% Tuple Match', 14, hitTone, 'left', 700)}
-            {label(
-                454,
-                142,
-                358,
-                '• Reuse existing KV attention blocks directly in VMM/GPU',
-                11,
-                c.textMuted,
-            )}
-            {label(
-                454,
-                160,
-                358,
-                '• Skips prefill computation (saves 70%+ compute)',
-                11,
-                hitTone,
-                'left',
-                600,
-            )}
+    // Re-state freshness separation quietly below Full Prefill
+    fig.text(755, 294, 'Response cache & editor', {
+        size: 12,
+        color: c.textMuted,
+        align: 'center',
+    })
+    fig.text(755, 312, 'freshness stay separate', {
+        size: 12,
+        color: c.textMuted,
+        align: 'center',
+    })
 
-            {/* Cache Miss Box */}
-            {label(
-                454,
-                208,
-                358,
-                'Cache MISS: Any Field Discrepancy → Full Prefill',
-                13,
-                missTone,
-                'left',
-                700,
-            )}
-            {misses.map((m, i) => (
-                <React.Fragment key={m.name}>
-                    {label(464, 242 + i * 30, 160, `• ${m.name}:`, 11, c.textMuted, 'left')}
-                    {label(620, 242 + i * 30, 180, m.val, 11, missTone, 'right', 600)}
-                </React.Fragment>
-            ))}
-
-            {/* Decode Box */}
-            {label(454, 392, 358, 'Autoregressive Decode Phase', 14, decodeTone, 'left', 700)}
-            {label(
-                454,
-                415,
-                358,
-                'Both HIT and MISS paths converge on the same streaming token engine.',
-                11,
-                c.textMuted,
-            )}
-            {label(
-                454,
-                435,
-                358,
-                'Generates completion tokens one by one into the editor.',
-                11,
-                decodeTone,
-                'left',
-                600,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create('dark')

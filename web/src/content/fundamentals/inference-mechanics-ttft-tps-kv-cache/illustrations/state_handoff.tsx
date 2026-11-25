@@ -1,274 +1,133 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-const raw4kGb = 268_435_456 / 1e9
-const raw64kGb = 4_294_967_296 / 1e9
-const floor4kMs = (1000 * raw4kGb) / 25
-const floor64kMs = (1000 * raw64kGb) / 25
-
+export const width = 720
+export const height = 435
 export const alt =
     'Separate prefill and decode worker pools hand off compatible KV state, request metadata, and any needed recurrent state. A bandwidth-only estimate isolates raw K/V payload: 4K is 0.268 GB and takes at least 10.7 ms; 64K is 4.295 GB and takes at least 171.8 ms over an ideal 25 GB/s (200 Gbps) link. State serialization, network overhead, and scheduling are outside these payload-only floors.'
 
-export const width = 900
-export const height = 740
-
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    value: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-    fontWeight = 500,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: Math.max(36, fontSize + 8),
-        children: TextLabel({ c, text: value, fontSize, fontWeight, color, align, width: w }),
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme)
-    const purple = getReadableColor('primary', c)
-    const blue = getReadableColor('secondary', c)
-    const positive = getReadableColor('positive', c)
-    const barX = 120
-    const barW = 540
-    const handoffItems = [
-        { name: 'KV state', color: c.primary, y: 122 },
-        { name: 'metadata', color: c.info, y: 168 },
-        { name: 'recurrent state', color: c.warning, y: 214 },
-    ]
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-    const art = (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-            {SvgFrame({
-                c,
-                x: 20,
-                y: 118,
-                width: 220,
-                height: 140,
-                rx: 10,
-                fill: c.bgCardAlt,
-                stroke: c.primary,
-                strokeWidth: 3,
-            })}
-            {VectorArrow({
-                x1: 248,
-                y1: 188,
-                x2: 304,
-                y2: 188,
-                color: c.secondary,
-                strokeWidth: 3,
-            })}
-            {handoffItems.map((h) =>
-                SvgFrame({
-                    key: h.name,
-                    c,
-                    x: 314,
-                    y: h.y,
-                    width: 272,
-                    height: 38,
-                    rx: 4,
-                    fill: c.bgCardAlt,
-                    stroke: h.color,
-                    strokeWidth: 2,
-                }),
-            )}
-            {VectorArrow({
-                x1: 594,
-                y1: 188,
-                x2: 650,
-                y2: 188,
-                color: c.secondary,
-                strokeWidth: 3,
-            })}
-            {SvgFrame({
-                c,
-                x: 660,
-                y: 118,
-                width: 220,
-                height: 140,
-                rx: 10,
-                fill: c.bgCardAlt,
-                stroke: c.secondary,
-                strokeWidth: 3,
-            })}
-            <line x1={20} y1={286} x2={880} y2={286} stroke={c.borderLight} strokeWidth={2} />
-            {SvgFrame({
-                c,
-                x: barX,
-                y: 344,
-                width: barW,
-                height: 30,
-                rx: 4,
-                fill: c.bgCardAlt,
-                stroke: c.borderLight,
-                strokeWidth: 1,
-            })}
-            {SvgFrame({
-                c,
-                x: barX,
-                y: 344,
-                width: (barW * raw4kGb) / raw64kGb,
-                height: 30,
-                rx: 4,
-                fill: c.primary,
-                stroke: c.primary,
-                strokeWidth: 1,
-            })}
-            {SvgFrame({
-                c,
-                x: barX,
-                y: 388,
-                width: barW,
-                height: 30,
-                rx: 4,
-                fill: c.primary,
-                stroke: c.primary,
-                strokeWidth: 1,
-            })}
-            <line x1={20} y1={444} x2={880} y2={444} stroke={c.borderLight} strokeWidth={2} />
-            {SvgFrame({
-                c,
-                x: barX,
-                y: 504,
-                width: barW,
-                height: 30,
-                rx: 4,
-                fill: c.bgCardAlt,
-                stroke: c.borderLight,
-                strokeWidth: 1,
-            })}
-            {SvgFrame({
-                c,
-                x: barX,
-                y: 504,
-                width: (barW * floor4kMs) / 180,
-                height: 30,
-                rx: 4,
-                fill: c.positive,
-                stroke: c.positive,
-                strokeWidth: 1,
-            })}
-            {SvgFrame({
-                c,
-                x: barX,
-                y: 548,
-                width: barW,
-                height: 30,
-                rx: 4,
-                fill: c.bgCardAlt,
-                stroke: c.borderLight,
-                strokeWidth: 1,
-            })}
-            {SvgFrame({
-                c,
-                x: barX,
-                y: 548,
-                width: (barW * floor64kMs) / 180,
-                height: 30,
-                rx: 4,
-                fill: c.positive,
-                stroke: c.positive,
-                strokeWidth: 1,
-            })}
-        </svg>
-    )
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
 
-    const children = [
-        CanvasItem({ x: 0, y: 0, width, height, children: art }),
-        label(
-            c,
-            'Disaggregation moves state between pools',
-            20,
-            14,
-            860,
-            34,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        label(
-            c,
-            'Prefill and decode run on separate worker pools.',
-            20,
-            56,
-            860,
-            30,
-            c.textSecondary,
-        ),
-        label(c, 'PREFILL', 20, 144, 220, 32, purple, 'center', 700),
-        label(c, 'worker pool', 20, 196, 220, 29, c.textSecondary, 'center', 600),
-        ...handoffItems.map((h) =>
-            label(c, h.name, 326, h.y + 3, 248, 29, c.textPrimary, 'center', 650),
-        ),
-        label(c, 'DECODE', 660, 144, 220, 32, blue, 'center', 700),
-        label(c, 'worker pool', 660, 196, 220, 29, c.textSecondary, 'center', 600),
-        label(
-            c,
-            'Raw K/V payload (shared scale to 4.295 GB)',
-            20,
-            300,
-            860,
-            31,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        label(c, '4K', 20, 342, 80, 30, c.textPrimary, 'left', 700),
-        label(c, `${raw4kGb.toFixed(3)} GB`, 676, 342, 200, 30, c.textPrimary, 'left', 700),
-        label(c, '64K', 20, 386, 80, 30, c.textPrimary, 'left', 700),
-        label(c, `${raw64kGb.toFixed(3)} GB`, 676, 386, 200, 30, c.textPrimary, 'left', 700),
-        label(
-            c,
-            'Payload-only transfer floor · 25 GB/s (200 Gbps)',
-            20,
-            460,
-            860,
-            31,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        label(c, '4K', 20, 502, 80, 30, c.textPrimary, 'left', 700),
-        label(c, `>= ${floor4kMs.toFixed(1)} ms`, 676, 502, 200, 30, positive, 'left', 700),
-        label(c, '64K', 20, 546, 80, 30, c.textPrimary, 'left', 700),
-        label(c, `>= ${floor64kMs.toFixed(1)} ms`, 676, 546, 200, 30, positive, 'left', 700),
-        label(
-            c,
-            'Serialization, protocol overhead, and scheduling add work.',
-            20,
-            616,
-            860,
-            30,
-            c.textSecondary,
-        ),
-        label(c, 'Payload floors exclude active-stream stalls.', 20, 658, 860, 30, c.textSecondary),
-    ]
+    const raw4kGb = 268_435_456 / 1e9 // 0.268
+    const raw64kGb = 4_294_967_296 / 1e9 // 4.295
+    const floor4kMs = (1000 * raw4kGb) / 25 // 10.7
+    const floor64kMs = (1000 * raw64kGb) / 25 // 171.8
 
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({ c, width, height, background: 'transparent', children }),
+    // === Band 1: Disaggregated Prefill -> Decode Handoff ===
+    fig.text(24, 22, '1. Disaggregated worker pools hand off live request state', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
     })
+
+    const topY = 46
+    const poolH = 98
+    fig.rect(24, topY, 174, poolH, {
+        fill: tint(purple, c.bg, isLight ? 0.14 : 0.24),
+        stroke: purple,
+        strokeWidth: 1.7,
+        radius: 8,
+    })
+    fig.text(111, topY + 36, 'PREFILL', { size: 15, weight: 700, color: purple, align: 'center' })
+    fig.text(111, topY + 62, 'worker pool', { size: 14.5, color: c.textSecondary, align: 'center' })
+
+    fig.arrow(204, topY + poolH / 2, 246, topY + poolH / 2, { color: blue, width: 2.2, head: 6 })
+
+    const items = [
+        { name: 'KV state', tone: purple, y: topY },
+        { name: 'Metadata', tone: cyan, y: topY + 35 },
+        { name: 'Recurrent state', tone: warm, y: topY + 70 },
+    ]
+    for (const it of items) {
+        fig.rect(252, it.y, 216, 28, {
+            fill: tint(it.tone, c.bg, isLight ? 0.14 : 0.24),
+            stroke: it.tone,
+            strokeWidth: 1.4,
+            radius: 5,
+        })
+        fig.text(360, it.y + 14, it.name, {
+            size: 14.5,
+            weight: 700,
+            color: it.tone,
+            align: 'center',
+        })
+    }
+
+    fig.arrow(474, topY + poolH / 2, 516, topY + poolH / 2, { color: blue, width: 2.2, head: 6 })
+
+    fig.rect(522, topY, 174, poolH, {
+        fill: tint(blue, c.bg, isLight ? 0.14 : 0.24),
+        stroke: blue,
+        strokeWidth: 1.7,
+        radius: 8,
+    })
+    fig.text(609, topY + 36, 'DECODE', { size: 15, weight: 700, color: blue, align: 'center' })
+    fig.text(609, topY + 62, 'worker pool', { size: 14.5, color: c.textSecondary, align: 'center' })
+
+    // === Band 2: Raw KV Payload (4K vs 64K) ===
+    const sep1 = 164
+    fig.line(24, sep1, width - 24, sep1, { color: c.borderSubtle, width: 1 })
+    fig.text(24, sep1 + 22, '2. Raw K/V payload (16× growth from 4K to 64K)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const barX = 88
+    const barW = 456
+
+    const drawBar = (y: number, label: string, frac: number, valText: string, tone: string) => {
+        fig.text(24, y + 13, label, { size: 14.5, weight: 700, color: c.textPrimary, mono: true })
+        fig.rect(barX, y, barW, 26, {
+            fill: tint(c.textMuted, c.bg, isLight ? 0.08 : 0.14),
+            stroke: c.borderSubtle,
+            strokeWidth: 1,
+            radius: 5,
+        })
+        fig.rect(barX, y, Math.max(12, barW * frac), 26, {
+            fill: tint(tone, c.bg, isLight ? 0.24 : 0.38),
+            stroke: tone,
+            strokeWidth: 1.5,
+            radius: 5,
+        })
+        fig.text(barX + barW + 12, y + 13, valText, {
+            size: 14.5,
+            weight: 700,
+            color: tone,
+            mono: true,
+        })
+    }
+
+    drawBar(sep1 + 42, '4K', raw4kGb / raw64kGb, `${raw4kGb.toFixed(3)} GB`, purple)
+    drawBar(sep1 + 78, '64K', 1.0, `${raw64kGb.toFixed(3)} GB`, purple)
+
+    // === Band 3: Payload-only transfer floor at 25 GB/s ===
+    const sep2 = 290
+    fig.line(24, sep2, width - 24, sep2, { color: c.borderSubtle, width: 1 })
+    fig.text(24, sep2 + 22, '3. Payload-only wire floor at 25 GB/s (200 Gbps)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    drawBar(sep2 + 42, '4K', floor4kMs / 180, `>= ${floor4kMs.toFixed(1)} ms`, green)
+    drawBar(sep2 + 78, '64K', floor64kMs / 180, `>= ${floor64kMs.toFixed(1)} ms`, green)
+
+    fig.text(24, 412, 'Serialization, protocol overhead, and queueing add on top of wire time.', {
+        size: 14.5,
+        color: c.textSecondary,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

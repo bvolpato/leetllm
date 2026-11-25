@@ -119,4 +119,29 @@ describe("code-folding", () => {
         expect(buildCodeFoldPlan(source, { language: "python", noFold: true }).hasFolds).toBe(false)
         expect(buildCodeFoldPlan(source, { language: "python", output: true }).hasFolds).toBe(false)
     })
+
+    test("automatically folds repeated leading Python imports shown earlier in the same lesson while keeping cleanCode runnable", () => {
+        const source = [
+            "import numpy as np",
+            "import json",
+            "",
+            "x = np.array([1.0, 2.0])",
+            "print(json.dumps(x.tolist()))",
+        ].join("\n")
+        const plan = buildCodeFoldPlan(source, {
+            language: "python",
+            priorImports: ["import numpy as np", "import json"],
+        })
+        expect(plan.hasFolds).toBe(true)
+        expect(plan.cleanCode).toContain("import numpy as np")
+        expect(plan.segments[0]).toMatchObject({
+            kind: "folded",
+            label: "repeated imports",
+            edge: "top",
+        })
+        expect(plan.segments[1]).toMatchObject({
+            kind: "visible",
+            lines: ["x = np.array([1.0, 2.0])", "print(json.dumps(x.tolist()))"],
+        })
+    })
 })

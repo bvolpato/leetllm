@@ -1,137 +1,175 @@
-import React from 'react'
-import type { ThemeMode } from 'vizmatic'
+import { createElement, type ReactNode } from 'react'
 import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+    Board,
+    CanvasItem,
+    SvgFrame,
+    TextLabel,
+    getReadableToneColor,
+    getThemeColors,
+    withColorAlpha,
+    type ThemeMode,
+} from 'vizmatic'
 
-export const width = 860
-export const height = 500
+type Colors = ReturnType<typeof getThemeColors>
+
+export const width = 760
+export const height = 370
 export const alt =
-    'Multimodal serving cache hierarchy showing four request execution paths against five pipeline stages. Cold requests execute vision encoding, projection, prefix prefill, query prefill, and decode. A feature cache hit reuses visual encoding. A projected token hit reuses encoding and connector projection. A prefix key-value cache hit reuses all visual processing and shared-prefix prefill, leaving only query prefill and answer decode.'
+    'Execution matrix of five multimodal serving stages across four cache tiers. Cold requests run all five stages. Feature cache reuses vision/audio encoding. Projected-token cache reuses encoding and projection. Prefix-KV cache reuses encoding, projection, and shared-prefix prefill, running only new-query prefill and autoregressive decode.'
+
+function lbl(
+    c: Colors,
+    text: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    fontSize: number,
+    color = c.textPrimary,
+    fontWeight = 650,
+    align: 'left' | 'center' | 'right' = 'left',
+    mono = false,
+) {
+    return CanvasItem({
+        x,
+        y,
+        width: w,
+        height: h,
+        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
+    })
+}
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
-
-    // Header
-    a.text(40, 32, 'Multimodal Serving Cache Hierarchy & Work Avoidance', { size: 22, weight: 700 })
-    a.text(
-        40,
-        58,
-        'Work execution matrix comparing Cold requests against Feature, Projection, and Prefix-KV cache hits',
-        { size: 15, color: k.mid },
-    )
+    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
+    const red = getReadableToneColor('critical', c)
+    const warm = getReadableToneColor('warm', c)
+    const blue = getReadableToneColor('blue', c)
+    const green = getReadableToneColor('green', c)
 
     const cols = [
-        { name: '1. Cold Request', tag: 'No Cache', x: 230, tone: k.fail },
-        { name: '2. Feature Cache', tag: 'ViT Embedding', x: 375, tone: k.state },
-        { name: '3. Projected Token', tag: 'Connector Latents', x: 520, tone: k.prefill },
-        { name: '4. Prefix KV Cache', tag: 'PagedAttention', x: 665, tone: k.pass },
+        { name: 'Cold', sub: 'No cache', x: 254, tone: red },
+        { name: 'Feature', sub: 'ViT out', x: 376, tone: warm },
+        { name: 'Projected', sub: 'Tokens', x: 498, tone: blue },
+        { name: 'Prefix KV', sub: 'Paged KV', x: 620, tone: green },
     ]
+    const colW = 112
 
     const stages = [
-        { name: '1. Vision / Audio Encode', cold: true, feat: false, proj: false, pkv: false },
-        { name: '2. Connector Projection', cold: true, feat: true, proj: false, pkv: false },
-        { name: '3. Shared-Prefix Prefill', cold: true, feat: true, proj: true, pkv: false },
-        { name: '4. New-Query Prefill', cold: true, feat: true, proj: true, pkv: true },
-        { name: '5. Autoregressive Decode', cold: true, feat: true, proj: true, pkv: true },
+        { name: '1 · Vision Encode', flags: [true, false, false, false] },
+        { name: '2 · Projection', flags: [true, true, false, false] },
+        { name: '3 · Prefix Prefill', flags: [true, true, true, false] },
+        { name: '4 · Query Prefill', flags: [true, true, true, true] },
+        { name: '5 · Token Decode', flags: [true, true, true, true] },
     ]
 
-    // Background container for table
-    a.rect(40, 85, 780, 295, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
+    const rowStart = 96
+    const rowStep = 50
 
-    // Column Headers
-    a.text(56, 120, 'Pipeline Stage', { size: 15, weight: 700 })
-
-    cols.forEach((col) => {
-        a.rect(col.x, 95, 130, 44, { fill: tint(col.tone, 0.1), stroke: tint(col.tone, 0.3), r: 6 })
-        a.text(col.x + 65, 110, col.name, {
-            size: 15,
-            weight: 700,
-            color: col.tone,
-            align: 'center',
-        })
-        a.text(col.x + 65, 128, col.tag, { size: 15, color: k.mid, align: 'center' })
-    })
-
-    // Rows
-    stages.forEach((stage, rIdx) => {
-        const y = 145 + rIdx * 45
-        // Row line
-        a.line(56, y + 42, 800, y + 42, tint(k.line, 0.4), { width: 1 })
-
-        // Stage label
-        a.text(56, y + 22, stage.name, { size: 15, weight: 600 })
-
-        // 4 Columns
-        const flags = [stage.cold, stage.feat, stage.proj, stage.pkv]
-        flags.forEach((runs, cIdx) => {
-            const col = cols[cIdx]
-            const cellX = col.x + 35
-            if (runs) {
-                // Compute indicator
-                a.dot(cellX + 28, y + 20, 9, tint(k.fail, 0.4))
-                a.text(cellX + 28, y + 20, 'RUN', {
-                    size: 15,
-                    weight: 700,
-                    color: k.fail,
-                    align: 'center',
-                })
-            } else {
-                // Reuse badge
-                a.rect(cellX + 6, y + 8, 48, 24, {
-                    fill: tint(k.pass, 0.15),
-                    stroke: tint(k.pass, 0.4),
-                    r: 4,
-                })
-                a.text(cellX + 30, y + 20, 'REUSE', {
-                    size: 15,
-                    weight: 700,
-                    color: k.pass,
-                    align: 'center',
-                })
-            }
-        })
-    })
-
-    // Bottom Summary Cards
-    const cards = [
-        {
-            title: 'Cold Request: 100% Latency',
-            desc: 'Full vision tower + projection + quadratic prefill + decode.',
-            tone: k.fail,
-            x: 40,
-            w: 245,
-        },
-        {
-            title: 'Token Projection Hit: ~60% TTFT',
-            desc: 'Avoids ViT computation & projector; requires full KV prefill.',
-            tone: k.prefill,
-            x: 305,
-            w: 245,
-        },
-        {
-            title: 'Prefix KV Hit: ~10% TTFT',
-            desc: 'Reuses precomputed key-values directly from memory.',
-            tone: k.pass,
-            x: 570,
-            w: 250,
-        },
+    const geometry = [
+        // Column header boxes (frameless on transparent canvas)
+        ...cols.map((col, idx) =>
+            SvgFrame({
+                c,
+                key: `ch-${idx}`,
+                x: col.x,
+                y: 26,
+                width: colW,
+                height: 54,
+                rx: 7,
+                fill: withColorAlpha(col.tone, 0.14),
+                stroke: col.tone,
+                strokeWidth: 1.5,
+            }),
+        ),
+        createElement('line', {
+            key: 'hdr-rule',
+            x1: 28,
+            y1: 88,
+            x2: 732,
+            y2: 88,
+            stroke: c.borderSubtle,
+            strokeWidth: 1.2,
+        }),
+        // Row dividers & status pills
+        ...stages.flatMap((st, rIdx) => {
+            const y = rowStart + rIdx * rowStep
+            const rowItems: ReactNode[] =
+                rIdx < stages.length - 1
+                    ? [
+                          createElement('line', {
+                              key: `rl-${rIdx}`,
+                              x1: 28,
+                              y1: y + 44,
+                              x2: 732,
+                              y2: y + 44,
+                              stroke: c.borderSubtle,
+                              strokeWidth: 1,
+                          }),
+                      ]
+                    : []
+            st.flags.forEach((runs, cIdx) => {
+                const col = cols[cIdx]
+                rowItems.push(
+                    SvgFrame({
+                        c,
+                        key: `cell-${rIdx}-${cIdx}`,
+                        x: col.x + 12,
+                        y: y + 5,
+                        width: colW - 24,
+                        height: 32,
+                        rx: 6,
+                        fill: withColorAlpha(runs ? red : green, runs ? 0.16 : 0.2),
+                        stroke: runs ? red : green,
+                        strokeWidth: 1.5,
+                    }),
+                )
+            })
+            return rowItems
+        }),
     ]
 
-    cards.forEach((card) => {
-        a.rect(card.x, 395, card.w, 80, {
-            fill: tint(card.tone, 0.08),
-            stroke: tint(card.tone, 0.3),
-            r: 6,
-        })
-        a.text(card.x + 14, 420, card.title, { size: 15, weight: 700, color: card.tone })
-        a.text(card.x + 14, 448, card.desc, { size: 15, color: k.mid })
-    })
+    const labels = [
+        lbl(c, 'Pipeline Stage', 30, 44, 210, 24, 17, c.textPrimary, 800),
+        ...cols.flatMap((col) => [
+            lbl(c, col.name, col.x, 32, colW, 22, 16, col.tone, 800, 'center'),
+            lbl(c, col.sub, col.x, 54, colW, 22, 16, c.textSecondary, 600, 'center'),
+        ]),
+        ...stages.flatMap((st, rIdx) => {
+            const y = rowStart + rIdx * rowStep
+            return [
+                lbl(c, st.name, 30, y + 10, 214, 22, 16, c.textPrimary, 700),
+                ...st.flags.map((runs, cIdx) => {
+                    const col = cols[cIdx]
+                    return lbl(
+                        c,
+                        runs ? 'RUN' : 'REUSE',
+                        col.x + 12,
+                        y + 10,
+                        colW - 24,
+                        22,
+                        16,
+                        runs ? red : green,
+                        800,
+                        'center',
+                        true,
+                    )
+                }),
+            ]
+        }),
+    ]
 
-    return a.render()
+    const svg = createElement(
+        'svg',
+        { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
+        ...geometry,
+    )
+    return Board({
+        c,
+        width,
+        height,
+        background: 'transparent',
+        children: [CanvasItem({ x: 0, y: 0, width, height, children: svg }), ...labels],
+    })
 }
 
 export default create('dark')

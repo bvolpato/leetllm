@@ -1,211 +1,224 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 600
-export const height = 790
+export const width = 760
+export const height = 456
 export const alt =
-    'A retrieved policy says temporary tokens-per-minute increases require approval. Candidate A, which follows that clause, receives weighted relevance, support, and utility contributions of 0.184, 0.576, and 0.162, totaling 0.922. Candidate B claims all launch traffic is unlimited and totals 0.534 from contributions 0.190, 0.168, and 0.176. A leads in support by 0.408; B leads in relevance and utility by 0.020; A leads overall by 0.388.'
-export const caption =
-    'The bars show reflection-token probabilities with weights 0.2, 0.6, and 0.2 and equal generation likelihood assumed. The weighted critique reward scores candidate support against retrieved evidence.'
-
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align }),
-    })
-}
-
-function frame(
-    c: Colors,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fill: string,
-    stroke = c.border,
-    rx = 10,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: React.createElement(
-            'svg',
-            {
-                width: w,
-                height: h,
-                viewBox: `0 0 ${w} ${h}`,
-                role: 'presentation',
-                'aria-hidden': true,
-            },
-            SvgFrame({ c, x: 0, y: 0, width: w, height: h, rx, fill, stroke, strokeWidth: 1.2 }),
-        ),
-    })
-}
-
-function candidateRow(
-    c: Colors,
-    y: number,
-    input: {
-        letter: 'A' | 'B'
-        sentence: string
-        evidence: string
-        values: readonly [number, number, number]
-        total: number
-    },
-    fills: readonly [string, string, string],
-    accent: string,
-) {
-    const x = 22
-    const barX = 38
-    const barY = y + 68
-    const barWidth = 410
-    const barHeight = 22
-    const children: React.ReactNode[] = [
-        frame(c, x, y, 556, 154, c.bgCard, input.letter === 'A' ? accent : c.border, 12),
-        label(c, input.letter, 38, y + 10, 25, 24, 20, accent, 850, 'center'),
-        label(c, input.sentence, 74, y + 9, 476, 26, 20, c.textPrimary, 750),
-        label(c, input.evidence, 74, y + 35, 476, 27, 20, accent, 650),
-        frame(c, barX, barY, barWidth, barHeight, c.bgCardAlt, c.borderSubtle, 5),
-        label(c, input.total.toFixed(3), 458, y + 59, 100, 29, 23, accent, 850, 'right'),
-        label(c, '0', barX, y + 94, 24, 25, 20, c.textMuted, 600),
-        label(c, '1.0', barX + barWidth - 42, y + 94, 42, 25, 20, c.textMuted, 600, 'right'),
-        label(
-            c,
-            `${input.values[0].toFixed(3)} + ${input.values[1].toFixed(3)} + ${input.values[2].toFixed(3)} = ${input.total.toFixed(3)}`,
-            barX,
-            y + 123,
-            510,
-            25,
-            20,
-            c.textSecondary,
-            650,
-        ),
-    ]
-    let offset = 0
-    for (const [index, value] of input.values.entries()) {
-        const segmentWidth = barWidth * value
-        children.push(
-            frame(c, barX + offset, barY, segmentWidth, barHeight, fills[index], 'none', 0),
-        )
-        offset += segmentWidth
-    }
-    return children
-}
+    'A retrieved approval clause states that temporary tokens-per-minute increases require approval. With critique weights 0.2 relevance, 0.6 support, and 0.2 utility, stacked weighted bars on a shared 0 to 1 scale show Candidate A (following the approval clause) totaling 0.922 (0.184 + 0.576 + 0.162) versus Candidate B (claiming unlimited launch traffic) totaling 0.534 (0.190 + 0.168 + 0.176). Below, component deltas show Candidate A gains +0.408 on support while trailing by only 0.020 on relevance and utility combined, yielding a +0.388 net lead.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c, c.bgCard)
-    const green = getReadableToneColor('green', c, c.bgCard)
-    const purple = getReadableToneColor('purple', c, c.bgCard)
-    const warm = getReadableToneColor('warm', c, c.bgCard)
-    const fills = [
-        getReadableToneColor('blue', c, c.bgCardAlt),
-        getReadableToneColor('green', c, c.bgCardAlt),
-        getReadableToneColor('purple', c, c.bgCardAlt),
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+
+    // ── Top: Retrieved Approval Clause Strip (no heavy box, soft accent rule) ─
+    fig.rect(20, 14, 4, 42, { fill: blue, radius: 2 })
+    fig.text(34, 24, 'Retrieved Approval Clause', { size: 13, weight: 700, color: blue })
+    fig.text(34, 45, '"Temporary tokens-per-minute increases require approval."', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(width - 20, 24, 'Weights: (0.2, 0.6, 0.2)', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    // Compact legend
+    const legY = 78
+    const legItems = [
+        { x: 20, color: blue, label: 'Relevance (w = 0.2)' },
+        { x: 196, color: green, label: 'Support (w = 0.6)' },
+        { x: 356, color: purple, label: 'Utility (w = 0.2)' },
     ] as const
-    const children: React.ReactNode[] = [
-        label(c, 'One policy clause changes the winner', 24, 14, 552, 34, 25, c.textPrimary, 800),
-        label(
-            c,
-            'Weights: relevance 0.2 · support 0.6 · utility 0.2',
-            24,
-            51,
-            552,
-            28,
-            20,
-            c.textSecondary,
-            600,
-        ),
-        frame(c, 22, 84, 556, 84, c.bgCard, c.borderSubtle, 12),
-        label(c, 'RETRIEVED POLICY', 38, 91, 520, 25, 20, blue, 800),
-        label(
-            c,
-            '“Temporary tokens-per-minute increases require approval.”',
-            38,
-            117,
-            520,
-            43,
-            20,
-            c.textPrimary,
-            700,
-        ),
+    for (const item of legItems) {
+        fig.rect(item.x, legY - 5, 12, 12, { fill: item.color, radius: 3 })
+        fig.text(item.x + 18, legY + 1, item.label, {
+            size: 13,
+            weight: 600,
+            color: c.textSecondary,
+        })
+    }
 
-        frame(c, 36, 180, 12, 12, fills[0], fills[0], 3),
-        label(c, 'Relevance', 54, 174, 101, 27, 20, blue, 700),
-        frame(c, 168, 180, 12, 12, fills[1], fills[1], 3),
-        label(c, 'Support', 186, 174, 86, 27, 20, green, 700),
-        frame(c, 289, 180, 12, 12, fills[2], fills[2], 3),
-        label(c, 'Utility', 307, 174, 80, 27, 20, purple, 700),
+    // ── Middle: Shared 0..1 Stacked Weighted Critique Bars ───────────────────
+    const barX = 166
+    const barW = 472
+    const valX = barX + barW + 14
 
-        ...candidateRow(
-            c,
-            208,
+    // Subtle vertical scale gridlines (0, 0.25, 0.50, 0.75, 1.0)
+    const scaleTop = 104
+    const scaleBot = 276
+    for (const tick of [0, 0.25, 0.5, 0.75, 1.0]) {
+        const gx = barX + tick * barW
+        fig.line(gx, scaleTop, gx, scaleBot, {
+            color: tick === 0 ? c.textMuted : c.borderSubtle,
+            width: tick === 0 ? 1.25 : 1,
+            dash: tick === 0 ? undefined : '3 4',
+        })
+        fig.text(gx, scaleBot + 14, tick.toFixed(2).replace(/\.00$/, '.0'), {
+            size: 12,
+            mono: true,
+            color: c.textMuted,
+            align: tick === 0 ? 'left' : tick === 1 ? 'right' : 'center',
+        })
+    }
+
+    const candidates = [
+        {
+            y: 118,
+            name: 'Candidate A',
+            quote: 'Requires approval',
+            vals: [0.184, 0.576, 0.162] as const,
+            total: 0.922,
+            accent: green,
+            winner: true,
+        },
+        {
+            y: 204,
+            name: 'Candidate B',
+            quote: 'Claims unlimited',
+            vals: [0.19, 0.168, 0.176] as const,
+            total: 0.534,
+            accent: warm,
+            winner: false,
+        },
+    ] as const
+
+    const segColors = [blue, green, purple] as const
+
+    for (const cand of candidates) {
+        const barH = 34
+        fig.text(20, cand.y + 8, cand.name, { size: 15, weight: 700, color: cand.accent })
+        fig.text(20, cand.y + 28, cand.quote, { size: 13, color: c.textSecondary })
+
+        // Track background
+        fig.rect(barX, cand.y, barW, barH, {
+            fill: tint(c.border, c.bg, 0.25),
+            radius: 5,
+        })
+
+        // Stacked segments
+        let off = 0
+        cand.vals.forEach((v, idx) => {
+            const w = v * barW
+            fig.rect(barX + off, cand.y, Math.max(2, w - 1), barH, {
+                fill: segColors[idx],
+                opacity: idx === 1 ? 0.92 : 0.78,
+                radius: idx === 0 || idx === 2 ? 4 : 1,
+            })
+            if (w >= 54) {
+                fig.text(barX + off + w / 2, cand.y + barH / 2, v.toFixed(3), {
+                    size: 12,
+                    mono: true,
+                    weight: 700,
+                    color: c.bg,
+                    align: 'center',
+                })
+            }
+            off += w
+        })
+
+        // Total score readout
+        fig.text(valX, cand.y + 11, cand.total.toFixed(3), {
+            size: 17,
+            mono: true,
+            weight: 800,
+            color: cand.accent,
+        })
+        fig.text(valX, cand.y + 30, cand.winner ? 'selected' : 'rejected', {
+            size: 12,
+            weight: 700,
+            color: cand.accent,
+        })
+
+        // Exact additive breakdown right beneath the bar
+        fig.text(
+            barX,
+            cand.y + 46,
+            `${cand.vals[0].toFixed(3)} + ${cand.vals[1].toFixed(3)} + ${cand.vals[2].toFixed(3)} = ${cand.total.toFixed(3)}`,
             {
-                letter: 'A',
-                sentence: 'Temporary TPM increase requires approval.',
-                evidence: 'Follows the retrieved approval clause',
-                values: [0.184, 0.576, 0.162],
-                total: 0.922,
+                size: 12,
+                mono: true,
+                color: c.textSecondary,
             },
-            fills,
-            green,
-        ),
-        ...candidateRow(
-            c,
-            372,
-            {
-                letter: 'B',
-                sentence: 'All launch traffic is unlimited.',
-                evidence: 'The retrieved clause gives no such access',
-                values: [0.19, 0.168, 0.176],
-                total: 0.534,
-            },
-            fills,
-            warm,
-        ),
+        )
+    }
 
-        frame(c, 22, 534, 556, 231, c.bgCardAlt, c.borderSubtle, 12),
-        label(c, 'Support carries most of A’s lead', 38, 546, 520, 26, 21, c.textPrimary, 750),
-        label(c, 'Support scores · shared 0–1 scale', 38, 576, 520, 25, 20, c.textMuted, 600),
-        label(c, 'A', 38, 615, 38, 25, 20, green, 800),
-        frame(c, 78, 615, 346, 23, c.bgCard, c.borderSubtle, 5),
-        frame(c, 78, 615, 346 * 0.576, 23, fills[1], 'none', 0),
-        label(c, '0.576', 432, 613, 72, 27, 20, green, 800),
-        label(c, 'B', 38, 651, 38, 25, 20, warm, 800),
-        frame(c, 78, 651, 346, 23, c.bgCard, c.borderSubtle, 5),
-        frame(c, 78, 651, 346 * 0.168, 23, fills[1], 'none', 0),
-        label(c, '0.168', 432, 649, 72, 27, 20, warm, 800),
-        label(c, 'Support advantage for A: +0.408', 38, 686, 520, 26, 20, green, 750),
-        label(c, 'Net lead: 0.408 − 0.020 = +0.388', 38, 718, 520, 26, 20, c.textPrimary, 750),
-    ]
-    return Board({ c, width, height, children })
+    // ── Bottom: Component Margin Breakdown (A − B) ───────────────────────────
+    fig.line(20, 312, width - 20, 312, { color: c.borderSubtle, width: 1 })
+    fig.text(20, 332, 'Score Margin (Candidate A − Candidate B)', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const zeroX = 246
+    const scalePx = 430 // 0.408 -> ~175px right
+    const deltas = [
+        { label: 'Support (0.6)', delta: +0.408, color: green, y: 364 },
+        { label: 'Relevance (0.2)', delta: -0.006, color: blue, y: 394 },
+        { label: 'Utility (0.2)', delta: -0.014, color: purple, y: 424 },
+    ] as const
+
+    fig.line(zeroX, 350, zeroX, 438, { color: c.textMuted, width: 1.25 })
+
+    for (const d of deltas) {
+        fig.text(zeroX - 18, d.y, d.label, {
+            size: 13,
+            weight: 600,
+            color: c.textSecondary,
+            align: 'right',
+        })
+        const w = Math.max(5, Math.abs(d.delta) * scalePx)
+        const bx = d.delta >= 0 ? zeroX : zeroX - w
+        fig.rect(bx, d.y - 8, w, 16, {
+            fill: d.color,
+            opacity: d.delta >= 0 ? 0.9 : 0.75,
+            radius: 3,
+        })
+        fig.text(
+            d.delta >= 0 ? zeroX + w + 8 : zeroX + 8,
+            d.y,
+            `${d.delta >= 0 ? '+' : ''}${d.delta.toFixed(3)}`,
+            {
+                size: 13,
+                mono: true,
+                weight: 700,
+                color: d.delta >= 0 ? green : warm,
+            },
+        )
+    }
+
+    // Net lead callout on right
+    const boxX = 508
+    fig.rect(boxX, 354, 232, 78, {
+        fill: withColorAlpha(green, 0.1),
+        stroke: withColorAlpha(green, 0.55),
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(boxX + 116, 378, 'Net Lead: +0.388', {
+        size: 16,
+        mono: true,
+        weight: 800,
+        color: green,
+        align: 'center',
+    })
+    fig.text(boxX + 116, 404, '+0.408 support − 0.020 other', {
+        size: 12,
+        mono: true,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

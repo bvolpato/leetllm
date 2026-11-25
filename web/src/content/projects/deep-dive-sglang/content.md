@@ -313,7 +313,6 @@ Return to our opening alert: GPU utilization fell to 35%, TTFT doubled, and two 
 
 Now invert the symptoms: GPU utilization is high and prefix hits are healthy, yet decode ITL spikes whenever a long prompt arrives. That pattern points directly to prefill chunk size, collective synchronization, or P/D routing rather than cache capacity: increasing cache size cannot fix a token budget that lets long prefills monopolize every step.
 
-<!-- leetllm: edition:reference:start -->
 
 ## Applications and workload shape
 
@@ -360,7 +359,6 @@ Record full environment metadata (GPU SKU, topology, SGLang/model/tokenizer revi
 
 Separate **qualified <span data-glossary="goodput">goodput</span>** (valid completions meeting TTFT and ITL SLOs divided by full window duration) from **offered-load capacity** (highest offered request rate whose qualifying fraction meets the SLO target, counting rejected, failed, and late attempts in the denominator). Use Nsight Systems for scheduling/transfer gaps and Nsight Compute for individual kernel limits.[^nsightSystems2026][^nsightCompute2026]
 
-<!-- leetllm: edition:reference:end -->
 
 ## Architectural summary
 
@@ -371,7 +369,6 @@ Separate **qualified <span data-glossary="goodput">goodput</span>** (valid compl
 - **Speculative decoding** (EAGLE, MTP, DFlash, n-gram, UNO) trades draft compute for multi-token verification commits whenever acceptance length is high.
 - **P/D disaggregation** isolates prefill compute from decode memory bandwidth, limited by KV transfer size, link bandwidth, and destination slot reservations.
 
-<!-- leetllm: edition:reference:start -->
 
 ### Evaluation rubric
 
@@ -394,7 +391,6 @@ Chunked prefill is enabled, yet decodes still spike. What should you inspect bef
 Check whether mixed-chunk batching is actually enabled, inspect real batch traces, KV reservations, running-request caps, and collective timings, then tune chunk size against measured TTFT and ITL on your target arrival rate.
 ```
 
-<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [

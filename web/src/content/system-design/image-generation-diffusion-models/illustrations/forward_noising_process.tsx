@@ -1,164 +1,142 @@
 import React from 'react'
 import type { ThemeMode } from 'vizmatic'
 export { createFilm } from './_parts/diffusion-film'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 395
 export const alt =
-    'Forward variance-preserving diffusion process across four stages. Moving from clean image x0 at t=0 to pure Gaussian noise xT at t=1000. Signal coefficient sqrt(alpha_bar_t) diminishes from 1.0 to 0.032 while noise coefficient sqrt(1 - alpha_bar_t) rises from 0.0 to 0.999.'
+    'Four 12x12 heatmaps of an oak table silhouette corrupted at alpha-bar 1.000, 0.900, 0.500, and 0.001 showing structure fading into Gaussian static while paired signal and noise bars hold total variance constant.'
+
+function buildTableAndNoise(): { clean: number[][]; eps: number[][] } {
+    const clean: number[][] = Array.from({ length: 12 }, (_, r) =>
+        Array.from({ length: 12 }, (_, c) => {
+            if ((r === 4 || r === 5) && c >= 1 && c <= 10) return 0.95
+            if (r >= 6 && r <= 10 && (c === 2 || c === 9)) return 0.8
+            if (r >= 1 && r <= 3 && c >= 4 && c <= 7) return 0.35
+            return -0.75
+        }),
+    )
+    let seed = 20260401
+    const rand = () => {
+        seed = (seed + 0x6d2b79f5) >>> 0
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    const eps: number[][] = Array.from({ length: 12 }, () =>
+        Array.from({ length: 12 }, () => {
+            const u1 = Math.max(1e-6, rand())
+            const u2 = rand()
+            const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
+            return Math.max(-1.8, Math.min(1.8, z))
+        }),
+    )
+    return { clean, eps }
+}
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const green = fig.tone('green')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const red = fig.tone('red')
+    const { clean, eps } = buildTableAndNoise()
 
-    // Header
-    a.text(40, 32, 'Variance-Preserving Forward Diffusion Process', { size: 22, weight: 700 })
-    a.text(
-        40,
-        58,
-        'q(x_t | x_0) = N(x_t; sqrt(alpha_bar_t) * x_0, (1 - alpha_bar_t) * I) across discrete time steps',
-        { size: 15, mono: true, color: k.mid },
+    fig.math(
+        width / 2,
+        22,
+        'x_t = \\sqrt{\\bar{\\alpha}_t}\\,x_0 + \\sqrt{1 - \\bar{\\alpha}_t}\\,\\epsilon, \\qquad \\epsilon \\sim \\mathcal{N}(0, \\mathbf{I})',
+        { size: 16, color: c.textPrimary, align: 'center' },
     )
 
-    // Four horizontal columns for the stages
     const stages = [
-        {
-            t: 't = 0',
-            name: 'Original Clean x_0',
-            alpha: '1.000',
-            sig: '1.000',
-            noise: '0.000',
-            snr: '+inf dB',
-            tone: k.pass,
-            desc: 'Pure signal · Zero noise',
-        },
-        {
-            t: 't = 250',
-            name: 'Early Noising',
-            alpha: '0.900',
-            sig: '0.949',
-            noise: '0.316',
-            snr: '+9.54 dB',
-            tone: k.prefill,
-            desc: 'High SNR · Coarse edges intact',
-        },
-        {
-            t: 't = 500',
-            name: 'Midway Pivot',
-            alpha: '0.500',
-            sig: '0.707',
-            noise: '0.707',
-            snr: '0.0 dB',
-            tone: k.wait,
-            desc: 'Equal variance partition',
-        },
-        {
-            t: 't = 1000',
-            name: 'Terminal Prior x_T',
-            alpha: '0.001',
-            sig: '0.032',
-            noise: '0.999',
-            snr: '-29.99 dB',
-            tone: k.fail,
-            desc: 'Isotropic Gaussian N(0, I)',
-        },
+        { t: 't = 0', ab: 1.0, snr: '∞', label: 'Clean x₀', tone: green },
+        { t: 't = 250', ab: 0.9, snr: '9.0', label: 'High SNR', tone: blue },
+        { t: 't = 500', ab: 0.5, snr: '1.0', label: 'Equal var.', tone: warm },
+        { t: 't = 1000', ab: 0.001, snr: '0.001', label: 'Static x_T', tone: red },
     ]
 
-    const cardW = 180
-    const startX = 40
-    const gap = 16
+    const gridSize = 144
+    const startX = 24
+    const stepX = 188
+    const gridY = 92
 
-    stages.forEach((st, i) => {
-        const x = startX + i * (cardW + gap)
+    stages.forEach((st, idx) => {
+        const gx = startX + idx * stepX
+        const cx = gx + gridSize / 2
+        const sig = Math.sqrt(st.ab)
+        const noi = Math.sqrt(1 - st.ab)
 
-        // Stage Card
-        a.rect(x, 85, cardW, 260, { fill: tint(st.tone, 0.05), stroke: tint(st.tone, 0.35), r: 8 })
-
-        // Header pill
-        a.cell(x + 12, 100, 60, 22, st.t, {
-            fill: tint(st.tone, 0.15),
-            stroke: tint(st.tone, 0.4),
-            color: st.tone,
-            weight: 700,
-            mono: true,
+        fig.rect(cx - 48, 50, 96, 28, {
+            fill: tint(st.tone, c.bg, theme === 'light' ? 0.14 : 0.2),
+            stroke: tint(st.tone, c.bg, 0.45),
+            strokeWidth: 1,
+            radius: 6,
         })
-        a.text(x + 80, 111, st.name, { size: 15, weight: 600 })
+        fig.text(cx, 64, st.t, { size: 15.5, weight: 700, mono: true, color: st.tone, align: 'center' })
 
-        // Schematic visual grid of image/noise
-        const gridX = x + (cardW - 80) / 2
-        const gridY = 135
-        a.rect(gridX, gridY, 80, 80, { fill: tint(k.c.bg, 0.2), stroke: k.line, r: 4 })
+        const cell = gridSize / 12
+        const loColor = theme === 'light' ? '#ebe6d9' : '#131822'
+        const hiColor = theme === 'light' ? '#0f4c5c' : '#65c4f0'
+        const midColor = theme === 'light' ? '#b07d24' : '#e6b85c'
 
-        // Render mock 4x4 patch grid reflecting noise level
-        for (let r = 0; r < 4; r++) {
-            for (let c = 0; c < 4; c++) {
-                const cellX = gridX + c * 20
-                const cellY = gridY + r * 20
-                let cellTone = st.tone
-                let opacity = 0.8
-                if (i === 0) {
-                    opacity = (r === 1 || r === 2) && (c === 1 || c === 2) ? 0.9 : 0.3
-                } else if (i === 1) {
-                    opacity = (r + c) % 2 === 0 ? 0.7 : 0.3
-                } else if (i === 2) {
-                    opacity = ((r * 2 + c * 3) % 5) / 5
-                } else {
-                    opacity = ((r * 7 + c * 11) % 7) / 7
-                }
-                a.rect(cellX + 2, cellY + 2, 16, 16, {
-                    fill: tint(cellTone, Math.max(0.1, opacity * 0.7)),
-                    r: 2,
-                })
+        for (let r = 0; r < 12; r++) {
+            for (let col = 0; col < 12; col++) {
+                const v = sig * clean[r]![col]! + noi * eps[r]![col]!
+                const norm = Math.max(0, Math.min(1, (v + 1.4) / 2.8))
+                const fill =
+                    norm < 0.55
+                        ? tint(hiColor, loColor, norm / 0.55)
+                        : tint(midColor, hiColor, (norm - 0.55) / 0.45)
+                fig.rect(gx + col * cell, gridY + r * cell, cell - 0.7, cell - 0.7, { fill, radius: 1.2 })
             }
         }
+        fig.rect(gx, gridY, gridSize, gridSize, { stroke: tint(st.tone, c.bg, 0.5), strokeWidth: 1.25, radius: 4 })
 
-        // Metrics inside card
-        a.text(x + 12, 235, `alpha_bar = ${st.alpha}`, { size: 15, mono: true, weight: 700 })
-        a.text(x + 12, 258, `Signal: ${st.sig}`, { size: 15, mono: true, color: k.pass })
-        a.text(x + 12, 280, `Noise:  ${st.noise}`, { size: 15, mono: true, color: k.fail })
-        a.text(x + 12, 302, `SNR:    ${st.snr}`, { size: 15, mono: true, color: k.mid })
-        a.text(x + 12, 326, st.desc, { size: 15, color: k.mid })
-
-        // Connecting arrow between stages
-        if (i < stages.length - 1) {
-            const nextX = startX + (i + 1) * (cardW + gap)
-            a.arrow(x + cardW + 2, 215, nextX - 2, 215, k.line, { width: 1.5 })
+        if (idx < stages.length - 1) {
+            fig.arrow(gx + gridSize + 8, gridY + gridSize / 2, gx + stepX - 8, gridY + gridSize / 2, {
+                color: c.textMuted,
+                width: 1.75,
+                head: 6,
+            })
         }
+
+        const baseY = gridY + gridSize + 20
+        fig.text(cx, baseY, `ᾱ = ${st.ab.toFixed(st.ab === 0.001 ? 3 : 1)}`, {
+            size: 15.5,
+            mono: true,
+            weight: 700,
+            color: c.textPrimary,
+            align: 'center',
+        })
+
+        // Paired compact bars
+        const barX = gx + 36
+        const barW = gridSize - 82
+        const ySig = baseY + 26
+        fig.text(gx, ySig, 'sig', { size: 15, mono: true, color: green })
+        fig.rect(barX, ySig - 5, barW, 10, { fill: tint(c.borderSubtle, c.bg, 0.45), radius: 3 })
+        fig.rect(barX, ySig - 5, Math.max(2, sig * barW), 10, { fill: green, radius: 3 })
+        fig.text(gx + gridSize, ySig, sig.toFixed(2), { size: 15, mono: true, color: green, align: 'right' })
+
+        const yNoi = baseY + 52
+        fig.text(gx, yNoi, 'noi', { size: 15, mono: true, color: red })
+        fig.rect(barX, yNoi - 5, barW, 10, { fill: tint(c.borderSubtle, c.bg, 0.45), radius: 3 })
+        fig.rect(barX, yNoi - 5, Math.max(2, noi * barW), 10, { fill: red, radius: 3 })
+        fig.text(gx + gridSize, yNoi, noi.toFixed(2), { size: 15, mono: true, color: red, align: 'right' })
+
+        fig.text(cx, baseY + 80, st.label, { size: 15.5, color: st.tone, weight: 700, align: 'center' })
     })
 
-    // Bottom explanation panel: Math & Key Invariant
-    a.rect(40, 360, 770, 110, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(56, 376, 110, 24, 'KEY INVARIANT', {
-        fill: tint(k.state, 0.15),
-        stroke: tint(k.state, 0.4),
-        color: k.state,
-        weight: 700,
+    fig.math(width / 2, 376, '(\\sqrt{\\bar{\\alpha}_t})^2 + (\\sqrt{1 - \\bar{\\alpha}_t})^2 = 1', {
+        size: 15.5,
+        color: c.textSecondary,
+        align: 'center',
     })
-    a.text(
-        180,
-        388,
-        'Variance Preservation: (sqrt(alpha_bar_t))^2 + (sqrt(1 - alpha_bar_t))^2 = 1.0',
-        { size: 16, weight: 700, mono: true },
-    )
-    a.text(
-        56,
-        420,
-        'Direct Sampling Trick: Any arbitrary noisy state x_t can be sampled in a single closed-form step without simulating intermediate steps:',
-        { size: 15, color: k.mid },
-    )
-    a.text(
-        56,
-        444,
-        'x_t = sqrt(alpha_bar_t) * x_0 + sqrt(1 - alpha_bar_t) * eps,   where eps ~ N(0, I)',
-        { size: 15, mono: true, weight: 700, color: k.ink },
-    )
 
-    return a.render()
+    return fig.render()
 }
 
 export default create('dark')

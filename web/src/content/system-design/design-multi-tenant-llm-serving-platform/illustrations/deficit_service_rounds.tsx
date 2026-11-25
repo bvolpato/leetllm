@@ -1,304 +1,251 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import { getReadableTextColor, type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 820
+export const height = 435
 export const alt =
-    'Deficit Round Robin (DRR) token scheduling across three rounds. Tenant A receives 4 credits per round with 3-token chunks; Tenant B receives 2 credits with 1-token chunks. Across three rounds, Tenant A serves 3, 3, and 6 tokens (carrying over 1, 2, and 0 credits), while Tenant B serves 2 tokens each round. Cumulative work is exactly 2:1 (12 to 6 tokens), proving fair-share allocation despite different chunk sizes.'
-
-export const numericAnchors = {
-    quantumA: 4,
-    quantumB: 2,
-    chunkA: 3,
-    chunkB: 1,
-    rounds: [
-        { round: 1, aCredits: 4, aServed: 3, aCarry: 1, bCredits: 2, bServed: 2, bCarry: 0 },
-        { round: 2, aCredits: 5, aServed: 3, aCarry: 2, bCredits: 2, bServed: 2, bCarry: 0 },
-        { round: 3, aCredits: 6, aServed: 6, aCarry: 0, bCredits: 2, bServed: 2, bCarry: 0 },
-    ],
-    totalTokensA: 12,
-    totalTokensB: 6,
-    totalChunksA: 4,
-    totalChunksB: 6,
-}
+    'Deficit round-robin scheduling across three rounds comparing Tenant A (quantum 4, chunk cost 3) and Tenant B (quantum 2, chunk cost 1). Left: per-round credit and served chunk bars show Tenant A serving 3, 3, and 6 work units while carrying over +1 and +2 credits, and Tenant B serving 2 work units per round. Right: cumulative totals show a 2:1 work-unit share (12 vs 6) alongside a 2:3 completed-chunk ratio (4 vs 6).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const onBlue = getReadableTextColor(blue, c, c.bg)
+    const onPurple = getReadableTextColor(purple, c, c.bg)
+    const soft = (hex: string, a = 0.16) => tint(hex, c.bg, a)
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Left panel: Per-round DRR credit & chunk bars (0..6 work-unit axis)
+    fig.text(24, 24, 'PER-ROUND CREDITS & SERVED CHUNKS', {
+        size: 12,
+        color: c.textSecondary,
+        weight: 700,
+        width: 300,
+    })
+    fig.text(24, 46, 'Tenant A: +4/round, cost 3', {
+        size: 13,
+        color: blue,
+        weight: 600,
+        width: 200,
+    })
+    fig.text(244, 46, 'Tenant B: +2/round, cost 1', {
+        size: 13,
+        color: purple,
+        weight: 600,
+        width: 200,
+    })
 
-    const rounds = [
-        {
-            round: 'Round 1',
-            aCredits: '4 credits',
-            aServed: 'Serves 1 chunk (3 tokens)',
-            aCarry: 'Carries +1',
-            bServed: 'Serves 2 chunks (2 tokens)',
-            bCarry: 'Carries 0',
-        },
-        {
-            round: 'Round 2',
-            aCredits: '1 + 4 = 5 credits',
-            aServed: 'Serves 1 chunk (3 tokens)',
-            aCarry: 'Carries +2',
-            bServed: 'Serves 2 chunks (2 tokens)',
-            bCarry: 'Carries 0',
-        },
-        {
-            round: 'Round 3',
-            aCredits: '2 + 4 = 6 credits',
-            aServed: 'Serves 2 chunks (6 tokens)',
-            aCarry: 'Carries 0',
-            bServed: 'Serves 2 chunks (2 tokens)',
-            bCarry: 'Carries 0',
-        },
+    const leftPlot = fig.plot({ x: 108, y: 74, width: 384, height: 276 }, { x: [0, 6], y: [0, 3] })
+    for (let u = 0; u <= 6; u++) {
+        const x = leftPlot.px(u)
+        fig.line(x, 74, x, 350, { color: c.borderSubtle, width: 1, opacity: 0.7 })
+        fig.line(x, 350, x, 356, { color: c.textMuted, width: 1.2 })
+        fig.text(x, 372, `${u}`, {
+            size: 13,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+            width: 30,
+        })
+    }
+    fig.line(leftPlot.px(0), 350, leftPlot.px(6), 350, { color: c.textMuted, width: 1.3 })
+    fig.text(leftPlot.px(3), 398, 'Work units per round (credit = served + carry)', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+        width: 350,
+    })
+
+    const roundData = [
+        { name: 'Round 1', y: 84, aChunks: [3], aCarry: 1, aCred: '4', bChunks: [1, 1] },
+        { name: 'Round 2', y: 176, aChunks: [3], aCarry: 2, aCred: '1+4=5', bChunks: [1, 1] },
+        { name: 'Round 3', y: 268, aChunks: [3, 3], aCarry: 0, aCred: '2+4=6', bChunks: [1, 1] },
     ]
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Top SLA Card */}
-                    <rect
-                        x={40}
-                        y={74}
-                        width={780}
-                        height={60}
-                        rx={8}
-                        fill={theme === 'dark' ? '#141d2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                    <line x1={420} y1={84} x2={420} y2={124} stroke={stroke} strokeWidth={1} />
+    const barH = 26
+    roundData.forEach((r, idx) => {
+        fig.text(24, r.y + 30, r.name, {
+            size: 14,
+            color: c.textPrimary,
+            weight: 700,
+            width: 78,
+        })
+        fig.text(98, r.y + 13, 'A', {
+            size: 13,
+            color: blue,
+            align: 'right',
+            weight: 700,
+            width: 20,
+        })
+        fig.text(98, r.y + 47, 'B', {
+            size: 13,
+            color: purple,
+            align: 'right',
+            weight: 700,
+            width: 20,
+        })
 
-                    {/* 3 Round Cards */}
-                    {[0, 1, 2].map((i) => {
-                        const rx = 40 + i * 266
-                        return (
-                            <g key={`round-card-${i}`}>
-                                <rect
-                                    x={rx}
-                                    y={148}
-                                    width={248}
-                                    height={206}
-                                    rx={8}
-                                    fill={theme === 'dark' ? '#141720' : '#ffffff'}
-                                    stroke={stroke}
-                                    strokeWidth={1}
-                                />
-                                <line
-                                    x1={rx + 12}
-                                    y1={258}
-                                    x2={rx + 236}
-                                    y2={258}
-                                    stroke={stroke}
-                                    strokeWidth={1}
-                                    strokeDasharray="3 2"
-                                />
-                            </g>
-                        )
-                    })}
-
-                    {/* Cumulative Totals Box */}
-                    <rect
-                        x={40}
-                        y={372}
-                        width={780}
-                        height={90}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
-                </svg>
-            </CanvasItem>
-
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Deficit Round Robin (DRR): Fair-Share Token Scheduling',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Deficit quantum guarantees proportional token throughput without penalizing large prefill chunks',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* SLA Configuration Bar */}
-            {label(
-                52,
-                82,
-                756,
-                'SLA WEIGHTED QUANTUM ALLOCATION: 2 : 1 RATIO',
-                11,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                102,
-                350,
-                'Tenant A: +4 credits / round (Chunk size = 3 tokens)',
-                12,
-                blueTone,
-                'left',
-                600,
-            )}
-            {label(
-                440,
-                102,
-                350,
-                'Tenant B: +2 credits / round (Chunk size = 1 token)',
-                12,
-                purpleTone,
-                'left',
-                600,
-            )}
-
-            {/* 3 Sequential Rounds */}
-            {rounds.map((r, i) => {
-                const rx = 40 + i * 266
-                return (
-                    <React.Fragment key={`round-col-${i}`}>
-                        {label(rx + 12, 156, 230, r.round, 13, c.textPrimary, 'left', 700)}
-                        {/* Tenant A state */}
-                        {label(rx + 12, 182, 230, 'Tenant A (Weight 4)', 11, blueTone, 'left', 600)}
-                        {label(rx + 12, 200, 230, r.aCredits, 11, c.textSecondary, 'left', 400)}
-                        {label(rx + 12, 218, 230, r.aServed, 11, c.textPrimary, 'left', 500)}
-                        {label(rx + 12, 236, 230, r.aCarry, 11, warmTone, 'left', 600)}
-
-                        {/* Divider */}
-                        {/* Tenant B state */}
-                        {label(
-                            rx + 12,
-                            268,
-                            230,
-                            'Tenant B (Weight 2)',
-                            11,
-                            purpleTone,
-                            'left',
-                            600,
-                        )}
-                        {label(
-                            rx + 12,
-                            286,
-                            230,
-                            '+2 credits available',
-                            11,
-                            c.textSecondary,
-                            'left',
-                            400,
-                        )}
-                        {label(rx + 12, 304, 230, r.bServed, 11, c.textPrimary, 'left', 500)}
-                        {label(rx + 12, 322, 230, r.bCarry, 11, c.textMuted, 'left', 400)}
-                    </React.Fragment>
+        // Tenant A served chunks
+        let cursor = 0
+        for (const cost of r.aChunks) {
+            const x0 = leftPlot.px(cursor)
+            const w = leftPlot.px(cursor + cost) - x0 - 3
+            fig.rect(x0, r.y, w, barH, { fill: blue, radius: 5 })
+            fig.text(x0 + w / 2, r.y + barH / 2, `${cost}u chunk`, {
+                size: 12,
+                color: onBlue,
+                align: 'center',
+                weight: 700,
+                width: w - 6,
+            })
+            cursor += cost
+        }
+        // Tenant A carryover credit
+        if (r.aCarry > 0) {
+            const x0 = leftPlot.px(cursor)
+            const w = leftPlot.px(cursor + r.aCarry) - x0
+            fig.rect(x0, r.y, w, barH, {
+                fill: soft(warm, theme === 'light' ? 0.16 : 0.24),
+                stroke: warm,
+                strokeWidth: 1.4,
+                radius: 5,
+            })
+            fig.text(x0 + w / 2, r.y + barH / 2, `+${r.aCarry}`, {
+                size: 12,
+                color: warm,
+                align: 'center',
+                weight: 700,
+                mono: true,
+                width: w - 4,
+            })
+            // Carryover path routed cleanly along open channel below Tenant B
+            if (idx < roundData.length - 1) {
+                const nextY = roundData[idx + 1]!.y
+                const rightX = x0 + w
+                const chanY = r.y + 73
+                const targetX = leftPlot.px(0) + 12
+                fig.path(
+                    `M${rightX + 2} ${r.y + 13}Q${rightX + 18} ${r.y + 13},${rightX + 18} ${chanY - 8}L${rightX + 18} ${chanY}L${targetX} ${chanY}L${targetX} ${nextY - 3}`,
+                    {
+                        color: warm,
+                        width: 1.35,
+                        dash: '4 3',
+                        opacity: 0.9,
+                    },
                 )
-            })}
+            }
+        }
 
-            {/* Cumulative Totals Footer Card */}
-            {label(
-                52,
-                386,
-                756,
-                'Cumulative Totals Across 3 Rounds: Work Units vs Request Counts',
-                12,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                408,
-                350,
-                'Token Work Done: Tenant A = 12 tokens | Tenant B = 6 tokens',
-                13,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(
-                440,
-                408,
-                350,
-                'Exact 2 : 1 Ratio (Conforms to SLA weights)',
-                12,
-                greenTone,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                432,
-                756,
-                'Completed chunks: Tenant A = 4, Tenant B = 6 (2:3). Token-weighted DRR preserves fair GPU share across variable lengths.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+        // Tenant B served chunks
+        let bCur = 0
+        for (const cost of r.bChunks) {
+            const x0 = leftPlot.px(bCur)
+            const w = leftPlot.px(bCur + cost) - x0 - 3
+            fig.rect(x0, r.y + 34, w, barH, { fill: purple, radius: 5 })
+            fig.text(x0 + w / 2, r.y + 34 + barH / 2, '1u', {
+                size: 12,
+                color: onPurple,
+                align: 'center',
+                weight: 700,
+                width: w - 4,
+            })
+            bCur += cost
+        }
+        fig.text(leftPlot.px(2) + 10, r.y + 47, '2u · carry 0', {
+            size: 12,
+            color: c.textSecondary,
+            width: 96,
+        })
+    })
+
+    // Divider between left rounds and right cumulative comparison
+    fig.line(524, 24, 524, 405, { color: c.borderSubtle, width: 1 })
+
+    // Right panel: Cumulative totals (Work units 2:1 vs Chunks 2:3)
+    fig.text(548, 24, '3-ROUND CUMULATIVE TOTALS', {
+        size: 12,
+        color: c.textSecondary,
+        weight: 700,
+        width: 248,
+    })
+
+    // Chart 1: Work units (0..12)
+    fig.text(548, 66, 'Work units served', {
+        size: 14,
+        color: c.textPrimary,
+        weight: 700,
+        width: 150,
+    })
+    fig.text(796, 66, '2 : 1 share', {
+        size: 13,
+        color: green,
+        align: 'right',
+        weight: 700,
+        width: 90,
+    })
+    const workBarX = 576
+    const workMaxW = 196
+    const drawSummaryBar = (y: number, tag: string, val: number, max: number, color: string) => {
+        const w = (val / max) * workMaxW
+        const ink = getReadableTextColor(color, c, c.bg)
+        fig.text(566, y + 15, tag, {
+            size: 13,
+            color,
+            align: 'right',
+            weight: 700,
+            width: 24,
+        })
+        fig.rect(workBarX, y, w, 30, { fill: color, radius: 5 })
+        fig.text(workBarX + w / 2, y + 15, `${val}`, {
+            size: 13,
+            color: ink,
+            align: 'center',
+            weight: 700,
+            mono: true,
+            width: Math.max(28, w - 6),
+        })
+    }
+    drawSummaryBar(90, 'A', 12, 12, blue)
+    drawSummaryBar(130, 'B', 6, 12, purple)
+
+    // Chart 2: Completed chunks (0..6)
+    fig.line(548, 190, 796, 190, { color: c.borderSubtle, width: 1, dash: '4 3' })
+    fig.text(548, 218, 'Chunks completed', {
+        size: 14,
+        color: c.textPrimary,
+        weight: 700,
+        width: 150,
+    })
+    fig.text(796, 218, '2 : 3 ratio', {
+        size: 13,
+        color: warm,
+        align: 'right',
+        weight: 700,
+        width: 90,
+    })
+    drawSummaryBar(242, 'A', 4, 6, blue)
+    drawSummaryBar(282, 'B', 6, 6, purple)
+
+    // Compact legend for carryover
+    fig.rect(548, 344, 248, 56, {
+        fill: soft(warm, theme === 'light' ? 0.08 : 0.14),
+        stroke: tint(warm, c.bg, 0.45),
+        strokeWidth: 1.1,
+        radius: 6,
+    })
+    fig.text(562, 362, 'Carryover (+1, +2) bridges', {
+        size: 13,
+        color: warm,
+        weight: 700,
+        width: 224,
+    })
+    fig.text(562, 383, 'large chunks without starvation', {
+        size: 12,
+        color: c.textSecondary,
+        width: 224,
+    })
+
+    return fig.render()
 }
-
-export default create()

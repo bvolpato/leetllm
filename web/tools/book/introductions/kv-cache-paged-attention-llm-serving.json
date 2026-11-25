@@ -1,15 +1,5 @@
 {
   "framing": "The memory that grows while the answer is still being written",
-  "paragraphs": [
-    "Most servers know roughly how much memory a request needs when it arrives. A model server doesn't. Every token adds to the request's cache, and nobody knows when the reply will end, so accepting a request is a bet on memory you haven't allocated yet.",
-    "The obvious way to make that bet safe is to reserve the maximum for everyone, which strands much of the pool on answers that never get that long. Paged allocation borrows from operating systems: hand out fixed-size blocks as needed, and keep a table from logical position to physical block.",
-    "We'll count the bytes one position adds, follow a request through a block table, and check that scattered storage gives the same attention result. Then we'll break things on purpose: two branches writing to one block, and a pool that runs dry mid-answer.",
-    "By the end, a phrase like \"we're out of GPU memory\" should sound imprecise to you. You'll want to know which bytes, owned by whom, and what happens to a request when its next block isn't there."
-  ],
-  "outcomes": [
-    "Calculate the cache one position and one request need for a given model shape.",
-    "Trace a logical position through a block table to the physical slot that holds it.",
-    "Explain copy-on-write for shared blocks, and a safe failure when the pool is empty."
-  ],
+  "paragraphs": [],
   "question": "A long request is one token from finishing when the pool runs out of blocks. What should happen to it, and what must you have built to make that possible?"
 }

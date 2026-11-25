@@ -1,104 +1,174 @@
-import React from 'react'
-import {
-    BarChart,
-    Column,
-    LineChart,
-    MetricCard,
-    Row,
-    Scene,
-    defineIllustration,
-    withDensity,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 680
-export const height = 770
-export const autoSize = false
+export const width = 780
+export const height = 395
 export const alt =
     'Clustered IVF benchmark on 1,000 16-dimensional vectors across 20 Voronoi cells and 100 queries. Probing 1 cell checks 70.7 distances (7.1% of flat search) with 0.584 Recall@10 and 0.640 1-Recall@10. Increasing nprobe to 6 and 8 lifts Recall@10 to 0.939 and 0.974 at 317.2 and 417.4 checks. Probing all 20 cells achieves 1.000 recall at 1,020 checks, exceeding the 1,000-vector flat scan by the 20 centroid checks.'
 
-const illustration = defineIllustration((baseC) => {
-    const c = withDensity(baseC, 2.0)
+const NPROBES = ['1', '2', '4', '6', '8', '20'] as const
+const RECALL10 = [0.584, 0.753, 0.887, 0.939, 0.974, 1.0] as const
+const ONE_RECALL10 = [0.64, 0.84, 0.93, 0.94, 0.99, 1.0] as const
+const CHECKS = [70.7, 121.9, 219.6, 317.2, 417.4, 1020] as const
 
-    return (
-        <Scene c={c} padding={12} gap={12} contentWidth={656}>
-            <Column gap={12} width={656}>
-                <Row gap={12} align="stretch">
-                    <MetricCard
-                        c={c}
-                        label="Corpus Scale"
-                        value="1,000"
-                        detail="D=16 · nlist=20 · Q=100"
-                        tone="blue"
-                        width={210}
-                    />
-                    <MetricCard
-                        c={c}
-                        label="nprobe = 1"
-                        value="0.584"
-                        detail="Recall@10 · 7.1% checks"
-                        tone="red"
-                        width={211}
-                    />
-                    <MetricCard
-                        c={c}
-                        label="nprobe = 8"
-                        value="0.974"
-                        detail="Recall@10 · 41.7% checks"
-                        tone="green"
-                        width={211}
-                    />
-                </Row>
-                <LineChart
-                    c={c}
-                    width={656}
-                    height={185}
-                    title="IVF Recall vs. Probed Cells (nlist = 20)"
-                    labels={['np=1', 'np=2', 'np=4', 'np=6', 'np=8', 'np=20']}
-                    min={0.5}
-                    max={1.08}
-                    format={(v) => v.toFixed(2)}
-                    showPoints
-                    directLabels
-                    showGrid={false}
-                    ariaLabel="Recall@10 rises from 0.584 at nprobe=1 to 0.974 at nprobe=8 and 1.000 at nprobe=20"
-                    series={[
-                        {
-                            name: 'Recall@10',
-                            color: 'positive',
-                            points: [0.584, 0.753, 0.887, 0.939, 0.974, 1.0],
-                        },
-                        {
-                            name: '1-Recall@10',
-                            color: 'primary',
-                            points: [0.64, 0.84, 0.93, 0.94, 0.99, 1.0],
-                        },
-                    ]}
-                />
-                <BarChart
-                    c={c}
-                    width={656}
-                    height={185}
-                    title="Mean Checks vs. Flat Scan (1,000)"
-                    min={0}
-                    max={1200}
-                    format="integer"
-                    showValues
-                    showGrid={false}
-                    ariaLabel="Distance checks grow from 70.7 at nprobe=1 to 1020 at nprobe=20 versus 1000 flat"
-                    data={[
-                        { label: 'np=1', value: 70.7, valueLabel: '71', color: 'positive' },
-                        { label: 'np=2', value: 121.9, valueLabel: '122', color: 'positive' },
-                        { label: 'np=4', value: 219.6, valueLabel: '220', color: 'primary' },
-                        { label: 'np=6', value: 317.2, valueLabel: '317', color: 'primary' },
-                        { label: 'np=8', value: 417.4, valueLabel: '417', color: 'warning' },
-                        { label: 'np=20', value: 1020, valueLabel: '1020', color: 'critical' },
-                        { label: 'Flat', value: 1000, valueLabel: '1000', color: 'neutral' },
-                    ]}
-                />
-            </Column>
-        </Scene>
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const critical = fig.tone('critical')
+
+    // Subtle context subtitle at top
+    fig.text(width / 2, 14, 'IVF trade-off on 1,000 vectors (D = 16, nlist = 20 cells, 100 queries)', {
+        size: 13.5,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // ─── LEFT PANEL: RECALL VS PROBED CELLS ───
+    fig.text(204, 36, 'Recall vs probed cells (nprobe)', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+
+    const leftPlot = fig.plot(
+        { x: 56, y: 80, width: 304, height: 238 },
+        { x: [0, 5], y: [0.5, 1.02] },
     )
-})
+    leftPlot.axes({
+        xTicks: [0, 1, 2, 3, 4, 5],
+        xFormat: (v) => NPROBES[v] ?? '',
+        yTicks: [0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        yFormat: (v) => v.toFixed(1),
+        xLabel: 'nprobe (cells scanned out of 20)',
+        yLabel: 'Recall',
+        grid: true,
+        labelSize: 13.5,
+    })
 
-export const create = illustration.create
-export default illustration.default
+    // Highlight sweet-spot column around nprobe = 8 (index 4)
+    fig.rect(leftPlot.px(4) - 18, leftPlot.area.y, 36, leftPlot.area.height, {
+        fill: green,
+        opacity: theme === 'dark' ? 0.14 : 0.09,
+        radius: 4,
+    })
+
+    const r10Pts = RECALL10.map((v, i) => [i, v] as const)
+    const oneR10Pts = ONE_RECALL10.map((v, i) => [i, v] as const)
+
+    leftPlot.smoothCurve(oneR10Pts, { color: blue, width: 2.5, dash: '5 3' })
+    leftPlot.smoothCurve(r10Pts, { color: green, width: 3 })
+
+    ONE_RECALL10.forEach((v, i) => leftPlot.point(i, v, { color: blue, r: 4.5 }))
+    RECALL10.forEach((v, i) => leftPlot.point(i, v, { color: green, r: 5 }))
+
+    // Direct curve labels + sweet-spot callout
+    fig.text(leftPlot.px(0.42), leftPlot.py(0.94), '1-Recall@10', {
+        size: 13.5,
+        weight: 700,
+        color: blue,
+        align: 'left',
+    })
+    fig.text(leftPlot.px(1.5), leftPlot.py(0.71), 'Recall@10', {
+        size: 13.5,
+        weight: 700,
+        color: green,
+        align: 'left',
+    })
+    fig.callout(
+        [leftPlot.px(4), leftPlot.py(0.974)],
+        [leftPlot.px(3.25), leftPlot.py(0.61)],
+        'np=8: 0.974',
+        {
+            color: green,
+            size: 13.5,
+            weight: 700,
+            bend: -0.18,
+            align: 'right',
+        },
+    )
+
+    // Divider
+    fig.line(392, 36, 392, 362, { color: c.borderSubtle, width: 1 })
+
+    // ─── RIGHT PANEL: MEAN DISTANCE CHECKS VS FLAT SCAN (1,000) ───
+    fig.text(594, 36, 'Mean distance checks vs flat scan', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+
+    const rightPlot = fig.plot(
+        { x: 454, y: 80, width: 300, height: 238 },
+        { x: [-0.5, 5.5], y: [0, 1150] },
+    )
+    rightPlot.axes({
+        xTicks: [0, 1, 2, 3, 4, 5],
+        xFormat: (v) => NPROBES[v] ?? '',
+        yTicks: [0, 250, 500, 750, 1000],
+        xLabel: 'nprobe',
+        yLabel: 'Checks / query',
+        grid: true,
+        labelSize: 13.5,
+    })
+
+    // Flat scan reference line at 1,000
+    rightPlot.hline(1000, 'Flat scan = 1,000', {
+        color: c.textSecondary,
+        width: 1.5,
+        dash: '5 4',
+        labelPosition: 'left',
+        labelSize: 13.5,
+        labelOffset: 10,
+    })
+
+    const barW = 30
+    CHECKS.forEach((val, i) => {
+        const cx = rightPlot.px(i)
+        const topY = rightPlot.py(val)
+        const h = rightPlot.bottom - topY
+        const barColor = i === 5 ? critical : i === 4 ? green : blue
+        fig.rect(cx - barW / 2, topY, barW, h, {
+            fill: i === 4 ? green : i === 5 ? critical : tint(blue, c.bg, theme === 'dark' ? 0.72 : 0.78),
+            radius: 4,
+        })
+        fig.text(cx, topY - 12, String(Math.round(val)), {
+            size: 13.5,
+            weight: 700,
+            color: barColor,
+            mono: true,
+            align: 'center',
+        })
+    })
+
+    // Clean callout explaining np=20 overhead (1000 docs + 20 centroids)
+    fig.callout(
+        [rightPlot.px(5) - 16, rightPlot.py(955)],
+        [rightPlot.px(3.2), rightPlot.py(820)],
+        '+20 centroid checks',
+        {
+            color: critical,
+            size: 13.5,
+            weight: 600,
+            bend: 0.18,
+            align: 'right',
+        },
+    )
+
+    // Compact bottom takeaway bar (consistent color link to np=8 sweet spot)
+    fig.text(
+        width / 2,
+        378,
+        'nprobe = 8 recovers 97.4% of exact top-10 neighbors while scanning only 41.7% of vectors',
+        { size: 13.5, weight: 600, color: warm, align: 'center' },
+    )
+
+    return fig.render()
+}
+
+export default create()

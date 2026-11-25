@@ -12,6 +12,7 @@ import type { Question } from "@/lib/questions"
 import { getQuestionRoute } from "@/lib/content-route-index"
 import { SyntaxHighlighter } from "@/components/content-syntax-highlighter"
 import { resolvePrismLanguage } from "@/components/prism-language"
+import { prepareCodeForPrint } from "@/lib/code-folding"
 import { resolveBookIllustration } from "../illustrations/book"
 import { resolveBookDiagram } from "../diagrams/book"
 import { FONT_FALLBACKS } from "./fonts"
@@ -19,16 +20,16 @@ import type { ChapterIntroduction } from "./introductions"
 
 const CONTENT_DIR = join(process.cwd(), "src", "content")
 
-/** Code colors chosen for paper: quiet, distinct in grayscale, and never bold. */
+/** Code colors chosen for warm-ivory print: crisp contrast, distinct in grayscale, never bold. */
 const BOOK_CODE_THEME: Record<string, React.CSSProperties> = {
-  'code[class*="language-"]': { color: "#1c1e21", fontFamily: `"JetBrains Mono", Inter, ${FONT_FALLBACKS}, monospace` },
-  'pre[class*="language-"]': { color: "#1c1e21", fontFamily: `"JetBrains Mono", Inter, ${FONT_FALLBACKS}, monospace` },
-  comment: { color: "#7a7f86" }, prolog: { color: "#7a7f86" }, doctype: { color: "#7a7f86" }, cdata: { color: "#7a7f86" },
-  keyword: { color: "#1b4f72" }, atrule: { color: "#1b4f72" }, "attr-name": { color: "#1b4f72" }, selector: { color: "#1b4f72" }, builtin: { color: "#1b4f72" },
-  string: { color: "#2f6b45" }, char: { color: "#2f6b45" }, "attr-value": { color: "#2f6b45" }, regex: { color: "#2f6b45" }, inserted: { color: "#2f6b45" },
-  number: { color: "#8a4b10" }, boolean: { color: "#8a4b10" }, constant: { color: "#8a4b10" }, symbol: { color: "#8a4b10" },
-  function: { color: "#5b3a8c" }, "class-name": { color: "#5b3a8c" }, decorator: { color: "#5b3a8c" },
-  operator: { color: "#4c5157" }, punctuation: { color: "#4c5157" }, deleted: { color: "#93332c" }, tag: { color: "#1b4f72" }, property: { color: "#1b4f72" }, variable: { color: "#1c1e21" },
+  'code[class*="language-"]': { color: "#14191f", fontFamily: `"JetBrains Mono", Inter, ${FONT_FALLBACKS}, monospace` },
+  'pre[class*="language-"]': { color: "#14191f", fontFamily: `"JetBrains Mono", Inter, ${FONT_FALLBACKS}, monospace` },
+  comment: { color: "#767d85", fontStyle: "italic" }, prolog: { color: "#767d85" }, doctype: { color: "#767d85" }, cdata: { color: "#767d85" },
+  keyword: { color: "#0f4c5c" }, atrule: { color: "#0f4c5c" }, "attr-name": { color: "#0f4c5c" }, selector: { color: "#0f4c5c" }, builtin: { color: "#0f4c5c" },
+  string: { color: "#245c3c" }, char: { color: "#245c3c" }, "attr-value": { color: "#245c3c" }, regex: { color: "#245c3c" }, inserted: { color: "#245c3c" },
+  number: { color: "#9a5b0c" }, boolean: { color: "#9a5b0c" }, constant: { color: "#9a5b0c" }, symbol: { color: "#9a5b0c" },
+  function: { color: "#4e337a" }, "class-name": { color: "#4e337a" }, decorator: { color: "#4e337a" },
+  operator: { color: "#495057" }, punctuation: { color: "#495057" }, deleted: { color: "#93332c" }, tag: { color: "#0f4c5c" }, property: { color: "#0f4c5c" }, variable: { color: "#14191f" },
 }
 
 export interface BookConfig {
@@ -285,8 +286,11 @@ function listingMetadata() {
   }
 }
 
+const TRIVIAL_OUTPUT_RE = /^(?:ok|true|passed|pass|done|all checks? pass(?:ed)?|all assertions? pass(?:ed)?|checks? pass(?:ed)?|verified|success)!?\.?$/i
+
 function createPrintComponents(chapterNumber: number, renderMarkdown: (markdown: string, inline?: boolean) => React.ReactNode): Components {
   let checkpointCount = 0
+  const seenPythonImports = new Set<string>()
   return {
     pre: ({ children }) => <>{children}</>,
     code({ node, className, children }) {
@@ -294,17 +298,16 @@ function createPrintComponents(chapterNumber: number, renderMarkdown: (markdown:
       const isBlock = attributes.dataCodeBlock || Boolean(className) || String(children).includes("\n")
       if (!isBlock) return <code className="inline-code">{children}</code>
       const language = /language-([^\s]+)/.exec(className ?? "")?.[1] ?? ""
-      const source = String(children).replace(/\n$/, "")
-      const lines = source.split("\n")
+      const rawSource = String(children).replace(/\n$/, "")
       if (language === "mermaid") throw new Error(`Unrendered Mermaid diagram in chapter ${chapterNumber}. Build the chapter diagrams before printing.`)
       if (language === "checkpoint") {
-        const separator = /^\s*---+\s*$/m.exec(source)
+        const separator = /^\s*---+\s*$/m.exec(rawSource)
         if (!separator) throw new Error(`Malformed checkpoint in chapter ${chapterNumber}: missing question/answer separator`)
-        const question = source.slice(0, separator.index).trim()
-        const answer = source.slice(separator.index + separator[0].length).trim()
+        const question = rawSource.slice(0, separator.index).trim()
+        const answer = rawSource.slice(separator.index + separator[0].length).trim()
         if (!question || !answer) throw new Error(`Malformed checkpoint in chapter ${chapterNumber}: empty question or answer`)
         checkpointCount++
-        return <aside className={`book-checkpoint${source.length > 1400 ? " checkpoint-long" : ""}`}>
+        return <aside className={`book-checkpoint${rawSource.length > 1400 ? " checkpoint-long" : ""}`}>
           <div className="checkpoint-header">Checkpoint {chapterNumber}.{checkpointCount}</div>
           <div className="checkpoint-qa-row checkpoint-question-row"><div className="checkpoint-qa-label">Q</div><div className="checkpoint-qa-text">{renderMarkdown(question)}</div></div>
           <div className="checkpoint-qa-row checkpoint-answer-row"><div className="checkpoint-qa-label">A</div><div className="checkpoint-qa-text">{renderMarkdown(answer)}</div></div>
@@ -314,7 +317,22 @@ function createPrintComponents(chapterNumber: number, renderMarkdown: (markdown:
       const rawTitle = String(attributes.dataCodeTitle ?? "").replace(/^reader[\s-]+/i, "")
       // A file name keeps its case, because that is how the reader would type it.
       const title = /^\S+\.[a-z0-9]+$/i.test(rawTitle) ? rawTitle : rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1)
-      const output = Boolean(attributes.dataCodeOutput) || ["console", "output"].includes(language) || (language === "text" && /\b(?:output|results?)\b/i.test(title))
+      const output = (attributes.dataCodeOutput !== undefined && attributes.dataCodeOutput !== false)
+        || ["console", "output"].includes(language)
+        || (language === "text" && /\b(?:output|results?)\b/i.test(title))
+
+      let source: string
+      if (output) {
+        source = rawSource.trim()
+        // Omit trivial single-line assertion-only confirmations in print so outputs stay high-signal.
+        if (!source || (!source.includes("\n") && TRIVIAL_OUTPUT_RE.test(source))) return null
+      } else {
+        const prepared = prepareCodeForPrint(rawSource, language, seenPythonImports)
+        for (const imp of prepared.imports) seenPythonImports.add(imp)
+        source = prepared.code
+      }
+
+      const lines = source.split("\n")
       const numbered = !output && language !== "text"
       // Longer listings may cross a page, because holding them together leaves large gaps.
       const long = lines.length > 10
@@ -330,12 +348,13 @@ function createPrintComponents(chapterNumber: number, renderMarkdown: (markdown:
           }
         }
       }
+      const headerLabel = title || (output ? "Output" : "")
       return <div className={`code-listing${long ? " code-listing-long" : ""}${output ? " code-output" : ""}`}>
-        <div className="code-header">{title || (output ? "Output" : language || "Code")}</div>
+        {headerLabel ? <div className="code-header">{headerLabel}</div> : null}
         <SyntaxHighlighter language={resolvePrismLanguage(language) || "text"} style={BOOK_CODE_THEME}
           showLineNumbers={numbered} wrapLines wrapLongLines
-          customStyle={{ margin: 0, padding: "3pt 7pt 5.5pt", fontSize: "7.75pt", lineHeight: "11pt", background: "transparent", border: "none", borderRadius: 0, fontFamily: '"JetBrains Mono", Menlo, Consolas, monospace', whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-          lineNumberStyle={{ minWidth: "2.2em", paddingRight: "0.8em", color: "#b4b6ba", textAlign: "right", textIndent: 0, userSelect: "none", fontStyle: "normal" }}
+          customStyle={{ margin: 0, padding: headerLabel ? "3pt 8pt 6pt" : "5.5pt 8pt 6pt", fontSize: "7.8pt", lineHeight: "11.35pt", background: "transparent", border: "none", borderRadius: 0, fontFamily: '"JetBrains Mono", Menlo, Consolas, monospace', whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+          lineNumberStyle={{ minWidth: "2.2em", paddingRight: "0.85em", color: "#b5b2a8", textAlign: "right", textIndent: 0, userSelect: "none", fontStyle: "normal" }}
           lineProps={(lineNumber) => ({ style: { display: "block", breakInside: "avoid", breakAfter: keepWithNext.has(lineNumber) ? "avoid-page" : undefined, overflowWrap: "anywhere", paddingLeft: numbered ? "2.2em" : 0, textIndent: numbered ? "-2.2em" : 0 } })}
         >{source}</SyntaxHighlighter>
       </div>
@@ -377,10 +396,12 @@ export function renderChapter(q: Question, chapterNumber: number, options: Chapt
   const bodyHtml = ReactDOMServer.renderToStaticMarkup(renderMarkdown(markdown))
   const sources = Array.from(citations, ([key, number]) => {
     const ref = q.references[key]
-    return `<li id="ref-${escapeHtml(q.slug)}-${number}" value="${number}">${escapeHtml(ref.authors)} (${ref.year}). ${citedTitle(ref.title)}${ref.venue ? ` ${escapeHtml(ref.venue)}.` : ""} <a href="${escapeHtml(ref.url)}">${escapeHtml(ref.url)}</a></li>`
+    const titleMarkup = ref.url ? `<a href="${escapeHtml(ref.url)}">${citedTitle(ref.title)}</a>` : citedTitle(ref.title)
+    return `<li id="ref-${escapeHtml(q.slug)}-${number}" value="${number}">${escapeHtml(ref.authors)} (${ref.year}). ${titleMarkup}${ref.venue ? ` ${escapeHtml(ref.venue)}.` : ""}</li>`
   }).join("\n")
   const introduction = options.introduction
-  const header = `<header class="chapter-header"><div class="chapter-number-label">Chapter ${chapterNumber}</div>
+  const chapterLabelNum = String(chapterNumber).padStart(2, "0")
+  const header = `<header class="chapter-header"><div class="chapter-kicker-row"><div class="chapter-numeral" aria-hidden="true">${chapterLabelNum}</div><div class="chapter-number-label">Chapter ${chapterNumber}</div></div>
     <h1 class="chapter-title">${escapeHtml(q.title)}</h1>
     ${!introduction && q.shortDescription ? `<p class="chapter-summary">${escapeHtml(q.shortDescription)}</p>` : ""}
   </header>`
@@ -390,7 +411,7 @@ export function renderChapter(q: Question, chapterNumber: number, options: Chapt
     introduction.outcomes?.length ? `<div class="introduction-outcomes"><h3>What you will be able to do</h3>
         <ul>${introduction.outcomes.map(outcome => `<li>${escapeHtml(outcome)}</li>`).join("\n")}</ul>
       </div>` : "",
-    introduction.question ? `<aside class="introduction-question"><h3>A question to carry into the chapter</h3><p>${escapeHtml(introduction.question)}</p></aside>` : "",
+    introduction.question ? `<aside class="introduction-question"><h3>Key question</h3><p>${escapeHtml(introduction.question)}</p></aside>` : "",
   ].filter(Boolean).join("\n") : ""
   const opening = introductionHtml ? `<div class="chapter-opening">${header}
     <section class="chapter-introduction" aria-label="Chapter introduction">${introductionHtml}</section>
@@ -410,11 +431,61 @@ export interface ChapterSection {
   title: string
 }
 
+function texToPlainHeading(tex: string): string {
+  return tex
+    .replace(/\\sqrt\{([^}]+)\}/g, "√$1")
+    .replace(/\\bar\{([^}]+)\}/g, "$1\u0304")
+    .replace(/\\times\b/g, "×")
+    .replace(/\\le\b/g, "≤")
+    .replace(/\\ge\b/g, "≥")
+    .replace(/\\neq\b/g, "≠")
+    .replace(/\\(?:text|mathrm|mathbf)\{([^}]+)\}/g, "$1")
+    .replace(/([_^])\{([^}]+)\}/g, "$1$2")
+    .replace(/[{}]/g, "")
+    .trim()
+}
+
+function stripKatexForHeading(fragment: string): string {
+  let result = ""
+  let cursor = 0
+  const marker = '<span class="katex">'
+  while (cursor < fragment.length) {
+    const start = fragment.indexOf(marker, cursor)
+    if (start < 0) {
+      result += fragment.slice(cursor)
+      break
+    }
+    result += fragment.slice(cursor, start)
+    let depth = 0
+    let pos = start
+    const tagRe = /<\/?span\b[^>]*>/g
+    tagRe.lastIndex = start
+    let match: RegExpExecArray | null
+    while ((match = tagRe.exec(fragment))) {
+      depth += match[0].startsWith("</") ? -1 : 1
+      pos = tagRe.lastIndex
+      if (depth === 0) break
+    }
+    const block = fragment.slice(start, pos)
+    const tex = /<annotation[^>]*encoding="application\/x-tex"[^>]*>([\s\S]*?)<\/annotation>/.exec(block)?.[1]
+    result += tex ? texToPlainHeading(tex) : block.replace(/<span class="katex-mathml">[\s\S]*?<\/span>/g, "")
+    cursor = pos
+  }
+  return result
+}
+
 /** Top-level sections of a rendered chapter, which become running heads. */
 export function chapterSections(html: string): ChapterSection[] {
   return Array.from(html.matchAll(/<h2 id="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g), (match) => ({
     id: match[1],
-    title: match[2].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').trim(),
+    title: stripKatexForHeading(match[2])
+      .replace(/<[^>]+>/g, "")
+      .replace(/\u200b/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&#x27;|&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/\s+/g, " ")
+      .trim(),
   })).filter((section) => section.title)
 }
 
@@ -456,9 +527,9 @@ export function renderFrontEssays(config: BookConfig, parts: Array<{ partNumber:
   <p>This book takes you from no machine-learning background to running language-model systems in production. By the end you will know how a model turns text into an answer, how to ground that answer in your own data, how to adapt a model, how to give it tools without losing control of it, and how to serve it to real users at a cost you can defend.</p>
   <h2>Where to start</h2><p>${start}</p>
   <h2>The path</h2>${partList}<p>Each part builds on the last. If you already know a part, skim its opening page and move on. Later chapters point back to the earlier ones they rely on.</p>
-  <h2>Read with a keyboard nearby</h2><p>Run the examples as you read, then change an input and explain the result. Listings and downloads identify their dependencies; output blocks show what the programs printed in our checks. Work through a small calculation on paper when the code moves too quickly.</p>
+  <h2>Read with a keyboard nearby</h2><p>Run the examples as you read, then change an input and explain the result. Printed listings focus on the core algorithm and condense repetitive setup scaffolding; every complete runnable script, output check, and interactive visualization lives at leetllm.com. Work through a small calculation on paper whenever the code moves too quickly.</p>
   <h2>Stop at the checkpoints</h2><p>When you reach a checkpoint, cover the answer and work it out. Answering a question, even wrongly, teaches you more than rereading the explanation does.</p>
-  <h2>Go further online</h2><p>The companion curriculum at leetllm.com holds longer tutorials and specialist topics. Software versions, hardware, and prices change quickly, so check the current documentation before you act on a version-specific detail.</p></section>
+  <h2>Go further online</h2><p>The companion platform at leetllm.com includes interactive mastery quizzes, animated visualizations, coding drills, and additional deep dives on production codebases. Software versions, hardware, and pricing change quickly, so check current documentation before acting on version-specific details.</p></section>
   <section class="front-essay about-numbers"><h1>About the numbers</h1>
   <p>This book teaches with small examples that you can check by hand. We choose token IDs, embedding weights, and datasets that make the computation easy to follow. You can change those inputs and use the same method to work out the result.</p>
   <p>Published measurements have citations, and recorded model runs include their inputs and outputs. The references at the end of each chapter lead to the underlying research and documentation. Assumptions appear where they help explain a calculation or guide a practical decision.</p></section>`

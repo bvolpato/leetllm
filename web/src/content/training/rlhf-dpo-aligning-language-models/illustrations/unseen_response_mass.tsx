@@ -61,8 +61,8 @@ export function draw(theme: ThemeMode, L: Layout) {
         tone: 'purple',
     })
     const reference = point(1 / 3, 1 / 3, 1 / 3)
-    k.dot(reference[0], reference[1], L.print ? 4.5 : 6, { fill: c.bg, stroke: c.textSecondary })
-    k.t(reference[0] + 8, reference[1] - L.S * 0.7, 110, 'reference', {
+    k.dot(reference[0], reference[1], L.print ? 4 : 5, { fill: c.bg, stroke: c.textSecondary })
+    k.t(reference[0] + (L.print ? 10 : 14), reference[1] - L.S * 0.7, 118, 'reference', {
         size: L.S,
         color: c.textSecondary,
     })

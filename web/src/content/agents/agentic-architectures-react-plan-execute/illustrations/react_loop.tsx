@@ -1,7 +1,8 @@
-import { GraphDiagram, Scene, TextLabel, getThemeColors, type ThemeMode } from 'vizmatic'
+import { GraphDiagram, Scene, getThemeColors, type ThemeMode } from 'vizmatic'
+export { createFilm } from './_parts/react-loop-film'
 
 export const width = 920
-export const height = 475
+export const height = 420
 export const alt =
     'The model chooses evaluate(baseline), the Python runtime runs four checks, and the actual result returns to the next model call: two pass, one overflows, and one divides by zero.'
 
@@ -25,7 +26,7 @@ export function create(theme: ThemeMode) {
                 nodeHeight: 100,
                 labelFontSize: 25,
                 detailFontSize: 21,
-                arrowSize: 8,
+                arrowSize: 6,
                 nodes: [
                     {
                         id: 'choose',
@@ -66,12 +67,6 @@ export function create(theme: ThemeMode) {
                     { from: 'observe', to: 'history', tone: 'warm', emphasis: true },
                     { from: 'history', to: 'choose', tone: 'green' },
                 ],
-            }),
-            TextLabel({
-                c,
-                text: 'Observation → updated history → next action',
-                fontSize: 24,
-                align: 'center',
             }),
         ],
     })

@@ -1,153 +1,194 @@
-import React from 'react'
-import {
-    Column,
-    MetricCard,
-    Panel,
-    Row,
-    Scene,
-    StackedBar,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    withDensity,
-} from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 600
-export const height = 740
+export const width = 760
+export const height = 310
 export const alt =
-    'BF16 weight pool comparison: 3B shared weights plus eight 2B expert partitions occupy 19B parameters (38 GB). One token computes with 3B shared weights plus two 2B selected partitions, or 7B parameters (14 GB). All 38 GB stay in memory, leaving a 24 GB shortfall on a 14 GB budget.'
+    'Aligned BF16 memory comparison against a 14 GB GPU VRAM cap: the stored resident pool totals 38 GB (6 GB shared + 8 GB for 2 active experts + 24 GB for 6 idle experts), exceeding the 14 GB cap by 24 GB even though each token computes with only 14 GB of active weights (7B of 19B parameters).'
 
-export function create(theme: ThemeMode = 'dark'): React.ReactElement {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const cd = withDensity(c, 1.85)
-    const purple = getReadableToneColor('purple', c)
-    const blue = getReadableToneColor('blue', c)
-    const neutral = getReadableToneColor('neutral', c)
-    const warn = getReadableToneColor('warm', c)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-    return Scene({
-        c,
-        padding: 12,
-        gap: 10,
-        contentWidth: 576,
-        children: Column({
-            gap: 10,
-            align: 'center',
-            children: [
-                Panel({
-                    c: cd,
-                    title: 'Stored pool: 19B weights require residency (38 GB)',
-                    titleFontSize: 20,
-                    width: 572,
-                    padding: 10,
-                    gap: 6,
-                    children: [
-                        StackedBar({
-                            c: cd,
-                            width: 544,
-                            height: 68,
-                            showLegend: true,
-                            segments: [
-                                {
-                                    label: 'Shared',
-                                    value: 6,
-                                    color: purple,
-                                    valueLabel: '6 GB',
-                                },
-                                {
-                                    label: '2 active',
-                                    value: 8,
-                                    color: blue,
-                                    valueLabel: '8 GB',
-                                },
-                                {
-                                    label: '6 idle',
-                                    value: 24,
-                                    color: neutral,
-                                    valueLabel: '24 GB',
-                                },
-                            ],
-                        }),
-                        TextLabel({
-                            c,
-                            text: 'All 8 expert partitions (16B) + 3B shared stay in memory.',
-                            fontSize: 18,
-                            color: c.textSecondary,
-                        }),
-                    ],
-                }),
-                Panel({
-                    c: cd,
-                    title: 'Active per token: 7B run vs 14 GB budget',
-                    titleFontSize: 20,
-                    width: 572,
-                    padding: 10,
-                    gap: 8,
-                    children: [
-                        StackedBar({
-                            c: cd,
-                            width: 544,
-                            height: 68,
-                            showLegend: true,
-                            segments: [
-                                {
-                                    label: 'Shared',
-                                    value: 6,
-                                    color: purple,
-                                    valueLabel: '6 GB',
-                                },
-                                {
-                                    label: '2 active',
-                                    value: 8,
-                                    color: blue,
-                                    valueLabel: '8 GB',
-                                },
-                                {
-                                    label: 'Shortfall',
-                                    value: 24,
-                                    color: warn,
-                                    valueLabel: '+24 GB over',
-                                },
-                            ],
-                        }),
-                        Row({
-                            gap: 8,
-                            children: [
-                                MetricCard({
-                                    c: cd,
-                                    label: 'Stored pool',
-                                    value: '38 GB',
-                                    valueFontSize: 28,
-                                    detail: '19B weights',
-                                    tone: 'neutral',
-                                    width: 170,
-                                }),
-                                MetricCard({
-                                    c: cd,
-                                    label: 'Active compute',
-                                    value: '14 GB',
-                                    valueFontSize: 28,
-                                    detail: '7B weights',
-                                    tone: 'blue',
-                                    width: 170,
-                                }),
-                                MetricCard({
-                                    c: cd,
-                                    label: '14 GB budget',
-                                    value: '−24 GB',
-                                    valueFontSize: 28,
-                                    detail: '6 idle missing',
-                                    tone: 'warm',
-                                    width: 170,
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
-            ],
-        }),
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const red = fig.tone('red')
+
+    const fill = (col: string, strong = false) =>
+        tint(col, c.bg, isLight ? (strong ? 0.22 : 0.1) : strong ? 0.36 : 0.18)
+
+    const barX = 160
+    const barW = 552
+    const maxGB = 40
+    const px = (gb: number) => barX + (gb / maxGB) * barW
+
+    // Top compact legend
+    const legY = 20
+    const leg = [
+        { x: 112, label: 'Shared (6 GB)', col: purple },
+        { x: 266, label: '2 active (8 GB)', col: blue },
+        { x: 434, label: '6 idle resident (24 GB)', col: warm },
+    ]
+    for (const item of leg) {
+        fig.rect(item.x, legY - 7, 14, 14, {
+            fill: fill(item.col, true),
+            stroke: item.col,
+            strokeWidth: 1.4,
+            radius: 3,
+        })
+        fig.text(item.x + 21, legY, item.label, { size: 14, weight: 600, color: item.col })
+    }
+
+    // Scale gridlines & ticks (0 .. 40 GB)
+    const gridTop = 68
+    const gridBot = 228
+    for (const gb of [0, 14, 20, 30, 38, 40]) {
+        const x = px(gb)
+        const isCap = gb === 14
+        fig.line(x, gridTop, x, gridBot, {
+            color: isCap ? red : c.borderSubtle,
+            width: isCap ? 1.8 : 1,
+            dash: isCap ? '5 4' : undefined,
+        })
+        if (gb !== 38) {
+            fig.text(x, gridTop - 15, isCap ? '14 GB cap' : `${gb}`, {
+                size: 14,
+                weight: isCap ? 700 : 500,
+                color: isCap ? red : c.textSecondary,
+                align: 'center',
+                mono: true,
+            })
+        }
+    }
+
+    const barH = 44
+
+    // Row 1: Stored resident pool (38 GB)
+    const y1 = 86
+    fig.text(barX - 14, y1 + 12, 'Stored pool', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'right',
     })
+    fig.text(barX - 14, y1 + 33, '19B · 38 GB', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'right',
+        mono: true,
+    })
+
+    fig.rect(barX, y1, px(6) - barX, barH, {
+        fill: fill(purple, true),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 5,
+    })
+    fig.text((barX + px(6)) / 2, y1 + barH / 2, '6 GB', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        mono: true,
+    })
+
+    fig.rect(px(6) + 2, y1, px(14) - px(6) - 4, barH, {
+        fill: fill(blue, true),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 5,
+    })
+    fig.text((px(6) + px(14)) / 2, y1 + barH / 2, '8 GB', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        mono: true,
+    })
+
+    fig.rect(px(14) + 2, y1, px(38) - px(14) - 2, barH, {
+        fill: fill(warm, true),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 5,
+    })
+    fig.text((px(14) + px(38)) / 2, y1 + barH / 2, '24 GB idle experts (in VRAM)', {
+        size: 14,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    // Row 2: Active compute per token (14 GB)
+    const y2 = 162
+    fig.text(barX - 14, y2 + 12, 'Active compute', {
+        size: 15,
+        weight: 700,
+        color: blue,
+        align: 'right',
+    })
+    fig.text(barX - 14, y2 + 33, '7B · 14 GB/tok', {
+        size: 14,
+        color: blue,
+        align: 'right',
+        mono: true,
+    })
+
+    fig.rect(barX, y2, px(6) - barX, barH, {
+        fill: fill(purple, true),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 5,
+    })
+    fig.text((barX + px(6)) / 2, y2 + barH / 2, '6 GB', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        mono: true,
+    })
+
+    fig.rect(px(6) + 2, y2, px(14) - px(6) - 4, barH, {
+        fill: fill(blue, true),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 5,
+    })
+    fig.text((px(6) + px(14)) / 2, y2 + barH / 2, '8 GB', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        mono: true,
+    })
+
+    // Dashed shortfall zone on Row 2 showing why 14 GB VRAM still OOMs
+    fig.rect(px(14) + 2, y2, px(38) - px(14) - 2, barH, {
+        fill: tint(red, c.bg, isLight ? 0.08 : 0.14),
+        stroke: red,
+        strokeWidth: 1.25,
+        radius: 5,
+    })
+    fig.text((px(14) + px(38)) / 2, y2 + barH / 2, '24 GB shortfall on 14 GB GPU', {
+        size: 14,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
+
+    // Curly brace spanning 14..38 GB
+    fig.brace(px(14) + 2, gridBot + 10, px(38), gridBot + 10, 'Sparse compute ≠ sparse VRAM residency', {
+        side: 1,
+        depth: 10,
+        color: red,
+        labelColor: red,
+        labelSize: 14.5,
+        labelGap: 16,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

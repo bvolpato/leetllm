@@ -96,9 +96,12 @@ describe("personalized visual sources", () => {
             { id: "V0005", kind: "vizmatic", name: "interval_overlap" },
             { id: "V0006", kind: "vizmatic", name: "passk_estimation" },
         ])
-        expect(visuals[1].source).toContain("MiniBarChart")
-        expect(visuals[2].source).toContain("BarChart")
-        expect(visuals[4].source).toContain("AxisPlot")
+        expect(visuals[1].source).toContain("Figure")
+        expect(visuals[1].source).toContain("Paired pass / fail grid")
+        expect(visuals[2].source).toContain("Figure")
+        expect(visuals[2].source).toContain("binomHalf")
+        expect(visuals[4].source).toContain("Figure")
+        expect(visuals[4].source).toContain("bootstrapDist")
         expect(visuals.every((visual) => visual.canonicalMarkup.startsWith("<figure"))).toBe(true)
         expect(visuals.every((visual) => visual.canonicalMarkup.includes("/cdn/content-image/"))).toBe(true)
     })
@@ -110,8 +113,8 @@ describe("personalized visual sources", () => {
 
         const visuals = extractPersonalizationVisuals(question!.slug, content)
 
-        expect(visuals.length).toBeGreaterThanOrEqual(10)
-        expect(visuals.length).toBeLessThanOrEqual(16)
+        expect(visuals.length).toBeGreaterThanOrEqual(6)
+        expect(visuals.length).toBeLessThanOrEqual(12)
     })
 
     test("replaces only mapped figures with stable visual placeholders", () => {

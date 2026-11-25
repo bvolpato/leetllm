@@ -1,53 +1,10 @@
-import { createElement } from 'react'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    VectorSegment,
-    defineIllustration,
-    getReadableToneColor,
-    type ThemeColors,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 632
-export const height = 802
+export const width = 800
+export const height = 472
 export const alt =
-    'Six activation functions use equal pixel scales for input z and output f(z), each ranging from minus 3 to 3. The linear function is a true 45-degree reference; sigmoid and tanh saturate, ReLU clips negatives to zero, and GELU and SiLU retain smooth negative dips. At z=-1, ReLU is 0, GELU is -0.159, and SiLU is -0.269.'
-
-const boardWidth = 600
-const boardHeight = 770
-const plot = { x: 54, y: 92, width: 520, height: 520, padding: 20 }
-const labelScale = width / boardWidth
-
-function label(
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    text: string,
-    size = 21,
-    color = c.textPrimary,
-    mono = false,
-    weight = 550,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size + 8,
-        children: TextLabel({
-            c,
-            text,
-            fontSize: size * labelScale,
-            color,
-            mono,
-            fontWeight: weight,
-            align: 'center',
-        }),
-    })
-}
+    'Six activation functions share equal scales for input z and output f(z) from minus 3 to 3. The linear reference runs at 45 degrees; sigmoid and tanh saturate in their tails; ReLU clips negatives to zero; and GELU and SiLU retain smooth negative dips. A zoomed inset at z = -1 highlights ReLU = 0, GELU = -0.159, and SiLU = -0.269.'
 
 function erf(x: number): number {
     const sign = x < 0 ? -1 : 1
@@ -68,196 +25,201 @@ function sigmoid(z: number): number {
     return ez / (1 + ez)
 }
 
-const functions = [
-    { name: 'Linear', color: 'neutral' as const, f: (z: number) => z },
-    { name: 'Sigmoid', color: 'warm' as const, f: sigmoid },
-    { name: 'Tanh', color: 'critical' as const, f: Math.tanh },
-    { name: 'ReLU', color: 'green' as const, f: (z: number) => Math.max(0, z) },
-    { name: 'GELU', color: 'blue' as const, f: (z: number) => z * 0.5 * (1 + erf(z / Math.SQRT2)) },
-    { name: 'SiLU', color: 'purple' as const, f: (z: number) => z * sigmoid(z) },
-]
-const samples = Array.from({ length: 121 }, (_, index) => -3 + index * 0.05)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-const illustration = defineIllustration((c) => {
-    const colors = Object.fromEntries(
-        functions.map((item) => [item.name, getReadableToneColor(item.color, c)]),
-    ) as Record<string, string>
-    const valuesAtMinusOne = functions.map((item) => ({
-        x: -1,
-        y: item.f(-1),
-        fill: colors[item.name],
-        r: 5.5,
-        stroke: c.bgSubtle,
-        strokeWidth: 1.5,
-    }))
-    const plotSvg = AxisPlot({
-        c,
-        width: plot.width,
-        height: plot.height,
-        xMin: -3,
-        xMax: 3,
-        yMin: -3,
-        yMax: 3,
-        padding: plot.padding,
-        showGrid: true,
-        gridCount: 5,
-        paths: [
-            {
-                points: [
-                    { x: -1, y: -3 },
-                    { x: -1, y: 3 },
-                ],
-                color: c.textMuted,
-                strokeWidth: 1.6,
-                dashed: true,
-            },
-            ...functions.map((item) => ({
-                points: samples.map((z) => ({ x: z, y: item.f(z) })),
-                color: colors[item.name],
-                strokeWidth: item.name === 'Linear' ? 3 : 4,
-            })),
-        ],
-        points: valuesAtMinusOne,
+    const green = fig.tone('green')
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const red = fig.tone('critical')
+    const amberMark = isLight ? '#d07a12' : '#f2b84b'
+    const amberText = isLight ? '#9a5204' : '#f2b84b'
+    const neutral = c.textMuted
+
+    const funcs = [
+        { name: 'Linear', color: neutral, textColor: c.textSecondary, dash: '6 5', width: 2.2, f: (z: number) => z },
+        { name: 'Sigmoid', color: amberMark, textColor: amberText, width: 2.6, f: sigmoid },
+        { name: 'Tanh', color: red, textColor: red, width: 2.6, f: Math.tanh },
+        { name: 'ReLU', color: green, textColor: green, width: 2.8, f: (z: number) => Math.max(0, z) },
+        { name: 'GELU', color: blue, textColor: blue, width: 2.8, f: (z: number) => z * 0.5 * (1 + erf(z / Math.SQRT2)) },
+        { name: 'SiLU', color: purple, textColor: purple, width: 2.8, f: (z: number) => z * sigmoid(z) },
+    ] as const
+
+    // ── Left: Equal-scale [-3, 3] x [-3, 3] plot ────────────────────────────
+    fig.text(24, 24, 'Shared scale: z, f(z) ∈ [−3, 3]', {
+        size: 21,
+        weight: 750,
+        color: c.textPrimary,
     })
 
-    const legend = functions
-        .map((item, index) => {
-            const row = index < 3 ? 0 : 1
-            const col = index % 3
-            const x = 20 + col * 190
-            const y = 652 + row * 36
-            return [
-                CanvasItem({
-                    x,
-                    y: y + 12,
-                    width: 30,
-                    height: 8,
-                    children: createElement(
-                        'svg',
-                        { width: 30, height: 8, viewBox: '0 0 30 8', 'aria-hidden': true },
-                        VectorSegment({
-                            x1: 0,
-                            y1: 4,
-                            x2: 26,
-                            y2: 4,
-                            color: colors[item.name],
-                            strokeWidth: 4,
-                            showEndDot: false,
-                        }),
-                    ),
-                }),
-                label(c, x + 31, y, 146, item.name, 22, colors[item.name], false, 700),
-            ]
-        })
-        .flat()
+    const main = fig.plot(
+        { x: 66, y: 66, width: 344, height: 344 },
+        { x: [-3, 3], y: [-3, 3] },
+    )
+    main.axes({
+        xTicks: [-3, -1, 0, 1, 3],
+        yTicks: [-3, -1, 0, 1, 3],
+        grid: true,
+        labelSize: 17,
+        xLabel: 'Input z',
+        yLabel: 'f(z)',
+    })
 
-    const guides = createElement(
-        'svg',
+    // Zero crosshairs
+    main.hline(0, undefined, { color: c.border, width: 1.2, dash: '' })
+    main.vline(0, undefined, { color: c.border, width: 1.2, dash: '' })
+    // z = -1 reference line
+    main.vline(-1, undefined, { color: purple, width: 1.4, dash: '4 4', opacity: 0.75 })
+
+    // Subtle highlight box showing zoomed region on main plot
+    const zx1 = main.px(-2.4)
+    const zx2 = main.px(0.4)
+    const zy1 = main.py(0.45)
+    const zy2 = main.py(-0.45)
+    fig.rect(zx1, zy1, zx2 - zx1, zy2 - zy1, {
+        fill: tint(purple, c.bg, isLight ? 0.06 : 0.1),
+        stroke: purple,
+        strokeWidth: 1.1,
+        radius: 3,
+    })
+
+    // Draw all 6 curves
+    for (const fn of funcs) {
+        main.fn(fn.f, {
+            color: fn.color,
+            width: fn.width,
+            dash: 'dash' in fn ? fn.dash : undefined,
+        }, 160)
+    }
+
+    // Points at z = -1
+    for (const fn of funcs) {
+        main.point(-1, fn.f(-1), { color: fn.color, r: 4 })
+    }
+
+    // Direct curve endpoint labels on main plot (clear of curves)
+    fig.text(main.px(2.4), main.py(2.82), 'Linear / ReLU', {
+        size: 16,
+        color: green,
+        align: 'right',
+        weight: 650,
+    })
+    fig.text(main.px(2.95), main.py(0.45), 'Sigmoid & Tanh', {
+        size: 16,
+        color: amberText,
+        align: 'right',
+        weight: 650,
+    })
+    fig.text(main.px(-2.92), main.py(-1.26), 'Tanh → −1', {
+        size: 15,
+        color: red,
+        weight: 650,
+    })
+    fig.text(main.px(-1.7), main.py(-2.45), 'Linear', {
+        size: 16,
+        color: c.textSecondary,
+        weight: 600,
+    })
+
+    // ── Right upper: Zoomed dip at z = -1 ───────────────────────────────────
+    fig.text(468, 24, 'Zoom: negative dip at z = −1', {
+        size: 21,
+        weight: 750,
+        color: purple,
+    })
+
+    const zoom = fig.plot(
+        { x: 506, y: 66, width: 266, height: 224 },
+        { x: [-2.4, 0.5], y: [-0.45, 0.45] },
+    )
+    zoom.axes({
+        xTicks: [-2, -1, 0],
+        yTicks: [-0.4, -0.2, 0, 0.2, 0.4],
+        grid: true,
+        labelSize: 16,
+    })
+    zoom.hline(0, undefined, { color: c.border, width: 1.1, dash: '' })
+    zoom.vline(-1, 'z = −1', {
+        color: purple,
+        width: 1.6,
+        dash: '4 4',
+        labelPosition: 'top',
+        labelSize: 16,
+        labelColor: purple,
+        align: 'left',
+    })
+
+    const dipFuncs = funcs.slice(3) // ReLU, GELU, SiLU
+    for (const fn of dipFuncs) {
+        zoom.fn(fn.f, { color: fn.color, width: 3 }, 140)
+        zoom.point(-1, fn.f(-1), { color: fn.color, r: 5.5 })
+    }
+
+    // Crisp direct callouts placed in wide-open whitespace clear of curves and axes
+    fig.callout([zoom.px(-1) - 5, zoom.py(0) - 4], [zoom.px(-1.32), zoom.py(0.28)], 'ReLU = 0', {
+        color: green,
+        labelColor: green,
+        size: 16,
+        weight: 700,
+        mono: true,
+        bend: 0.14,
+        align: 'right',
+        head: 5,
+    })
+    fig.callout(
+        [zoom.px(-1) - 6, zoom.py(-0.159)],
+        [zoom.px(-1.32), zoom.py(0.1)],
+        'GELU −.159',
         {
-            width: boardWidth,
-            height: boardHeight,
-            viewBox: `0 0 ${boardWidth} ${boardHeight}`,
-            role: 'presentation',
-            'aria-hidden': true,
+            color: blue,
+            labelColor: blue,
+            size: 16,
+            weight: 700,
+            mono: true,
+            bend: 0.12,
+            align: 'right',
+            head: 5,
         },
-        // Tick marks correspond to the shared -3..3 frame, not per-function scales.
-        VectorSegment({
-            x1: plot.x + plot.padding,
-            y1: plot.y + plot.height - plot.padding + 2,
-            x2: plot.x + plot.padding,
-            y2: plot.y + plot.height - plot.padding + 8,
-            color: c.textMuted,
-            strokeWidth: 1.5,
-            showEndDot: false,
-        }),
-        VectorSegment({
-            x1: plot.x + plot.width / 2,
-            y1: plot.y + plot.height - plot.padding + 2,
-            x2: plot.x + plot.width / 2,
-            y2: plot.y + plot.height - plot.padding + 8,
-            color: c.textMuted,
-            strokeWidth: 1.5,
-            showEndDot: false,
-        }),
-        VectorSegment({
-            x1: plot.x + plot.width - plot.padding,
-            y1: plot.y + plot.height - plot.padding + 2,
-            x2: plot.x + plot.width - plot.padding,
-            y2: plot.y + plot.height - plot.padding + 8,
-            color: c.textMuted,
-            strokeWidth: 1.5,
-            showEndDot: false,
-        }),
+    )
+    fig.callout(
+        [zoom.px(-1) + 4, zoom.py(-0.269) + 5],
+        [zoom.px(-0.62), zoom.py(-0.37)],
+        'SiLU −.269',
+        {
+            color: purple,
+            labelColor: purple,
+            size: 16,
+            weight: 700,
+            mono: true,
+            bend: 0.14,
+            align: 'left',
+            head: 5,
+        },
     )
 
-    return Scene({
-        c,
-        padding: 16,
-        gap: 0,
-        contentWidth: boardWidth,
-        background: 'transparent',
-        children: Board({
-            c,
-            width: boardWidth,
-            height: boardHeight,
-            background: 'transparent',
-            children: [
-                label(
-                    c,
-                    18,
-                    8,
-                    564,
-                    'Six activations share one output scale.',
-                    26,
-                    c.textPrimary,
-                    false,
-                    800,
-                ),
-                label(
-                    c,
-                    18,
-                    43,
-                    564,
-                    'Input z and output f(z) both range from −3 to 3.',
-                    20,
-                    c.textSecondary,
-                ),
-                CanvasItem({
-                    x: plot.x,
-                    y: plot.y,
-                    width: plot.width,
-                    height: plot.height,
-                    children: plotSvg,
-                }),
-                CanvasItem({
-                    x: 0,
-                    y: 0,
-                    width: boardWidth,
-                    height: boardHeight,
-                    children: guides,
-                }),
-                label(c, 8, 104, 42, '3', 20, c.textMuted, true),
-                label(c, 8, 344, 42, '0', 20, c.textMuted, true),
-                label(c, 8, 584, 42, '−3', 20, c.textMuted, true),
-                label(c, 48, 619, 52, '−3', 20, c.textMuted, true),
-                label(c, 288, 619, 52, '0', 20, c.textMuted, true),
-                label(c, 528, 619, 52, '3', 20, c.textMuted, true),
-                ...legend,
-                label(
-                    c,
-                    14,
-                    728,
-                    572,
-                    'At z=−1: ReLU=0 · GELU=−.159 · SiLU=−.269',
-                    22,
-                    getReadableToneColor('purple', c),
-                    true,
-                    700,
-                ),
-            ],
-        }),
+    // ── Right lower: Compact 2x3 color legend ───────────────────────────────
+    fig.line(468, 336, 774, 336, { color: c.borderSubtle, width: 1.1 })
+    funcs.forEach((fn, idx) => {
+        const col = idx % 3
+        const row = Math.floor(idx / 3)
+        const lx = 468 + col * 106
+        const ly = 368 + row * 40
+        fig.line(lx, ly, lx + 20, ly, {
+            color: fn.color,
+            width: 3,
+            dash: 'dash' in fn ? fn.dash : undefined,
+        })
+        fig.text(lx + 26, ly, fn.name, {
+            size: 17,
+            color: fn.textColor,
+            weight: 650,
+            width: 78,
+        })
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    return fig.render()
+}
+
+export default create('dark')

@@ -1,468 +1,179 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 880
+export const height = 390
 export const alt =
-    'Client-to-server security boundary for code completion prompt dispatch. Local redaction substitutes detected API tokens with placeholders before egress, retaining secret-to-placeholder mappings strictly inside client memory. The completion server and inference fleet receive only sanitized tokens and log allowlisted telemetry fields, preventing secret leakage into shared caches or server logs.'
+    'Client-to-cloud redaction boundary. Inside client memory, a local scanner detects demo_api_token_abc123 in the buffer, masks it to placeholder <API_KEY_1>, and keeps the secret-to-placeholder map strictly local (aborting if a reserved placeholder already exists). Only the sanitized prompt crosses the TLS trust boundary to the gateway, KV cache, and FIM model. Server telemetry logs allowlisted fields (tenant, model, bucket) and excludes prompt text and raw secrets.'
 
 export const numericAnchors = {
     sourceSecret: 'demo_api_token_abc123',
     placeholder: '<API_KEY_1>',
-    clientBoundaryX: 410,
-    telemetryAllowlist: ['tenant_id', 'model_version', 'latency_ms'],
+    clientBoundaryX: 430,
+    telemetryAllowlist: ['tenant', 'model', 'bucket'],
     telemetryExcluded: ['prompt', 'raw_secret'],
 }
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const redTone = getReadableToneColor('critical', c, c.bg)
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 13,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Subtle background zone tints (semantic trust boundary, no heavy nested cards)
+    fig.rect(18, 42, 396, 326, {
+        fill: tint(blue, c.bg, 0.05),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 10,
+    })
+    fig.rect(466, 42, 396, 326, {
+        fill: tint(purple, c.bg, 0.05),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 10,
+    })
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <defs>
-                        <marker
-                            id="redact-arr"
-                            viewBox="0 0 10 10"
-                            refX="6"
-                            refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
-                            orient="auto-start-reverse"
-                        >
-                            <path d="M 0 1 L 8 5 L 0 9 z" fill={c.textMuted} />
-                        </marker>
-                    </defs>
+    // Zone titles
+    fig.text(28, 22, 'Client Workstation (IDE Memory)', { size: 15, weight: 700, color: blue })
+    fig.text(476, 22, 'Remote Gateway & Inference Cloud', { size: 15, weight: 700, color: purple })
 
-                    {/* Left Client Container */}
-                    <rect
-                        x={40}
-                        y={76}
-                        width={340}
-                        height={316}
-                        rx={10}
-                        fill={theme === 'dark' ? '#111827' : '#f0f9ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                        strokeDasharray="4 2"
-                    />
+    // Bold dashed TLS Trust Boundary
+    fig.line(440, 26, 440, 376, { color: warm, width: 2, dash: '6 4' })
+    fig.rect(404, 44, 72, 34, {
+        fill: tint(warm, c.bg, 0.16),
+        stroke: warm,
+        strokeWidth: 1.3,
+        radius: 6,
+    })
+    fig.text(440, 55, 'TLS', { size: 12, weight: 700, color: warm, align: 'center' })
+    fig.text(440, 69, 'egress', { size: 11, color: c.textSecondary, align: 'center' })
 
-                    {/* Right Server Container */}
-                    <rect
-                        x={450}
-                        y={76}
-                        width={370}
-                        height={316}
-                        rx={10}
-                        fill={theme === 'dark' ? '#181324' : '#faf5ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                        strokeDasharray="4 2"
-                    />
+    // --- CLIENT SIDE ---
+    // Step 1: Raw Buffer
+    fig.rect(34, 60, 364, 68, {
+        fill: tint(red, c.bg, 0.09),
+        stroke: red,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(48, 79, '1. Active Editor Buffer (raw)', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(48, 105, "client = API('demo_api_token_abc123')", {
+        size: 13,
+        weight: 700,
+        color: red,
+        mono: true,
+    })
 
-                    {/* Client Card 1 */}
-                    <rect
-                        x={48}
-                        y={108}
-                        width={324}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1d1924' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    {/* Client Card 2 */}
-                    <rect
-                        x={48}
-                        y={204}
-                        width={324}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#14231b' : '#ffffff'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    {/* Client Card 3 */}
-                    <rect
-                        x={48}
-                        y={300}
-                        width={324}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#121e2e' : '#ffffff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
+    fig.arrow(216, 128, 216, 154, { color: c.textMuted, width: 1.6, head: 6 })
 
-                    {/* Client internal arrows */}
-                    <line
-                        x1={210}
-                        y1={184}
-                        x2={210}
-                        y2={202}
-                        stroke={c.textMuted}
-                        strokeWidth={1.5}
-                        markerEnd="url(#redact-arr)"
-                    />
-                    <line
-                        x1={210}
-                        y1={280}
-                        x2={210}
-                        y2={298}
-                        stroke={c.textMuted}
-                        strokeWidth={1.5}
-                        markerEnd="url(#redact-arr)"
-                    />
+    // Step 2: Local Regex + Entropy Scanner
+    fig.rect(34, 156, 364, 58, {
+        fill: tint(blue, c.bg, 0.12),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(48, 175, '2. Local Scanner & Redactor', { size: 13, weight: 700, color: blue })
+    fig.text(48, 197, 'Mask secret -> <API_KEY_1> · abort on collision', {
+        size: 12,
+        color: c.textSecondary,
+    })
 
-                    {/* Server Card 1 */}
-                    <rect
-                        x={458}
-                        y={108}
-                        width={354}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1e1629' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    {/* Server Card 2 */}
-                    <rect
-                        x={458}
-                        y={204}
-                        width={354}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1e1629' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    {/* Server Card 3 */}
-                    <rect
-                        x={458}
-                        y={300}
-                        width={354}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#16241b' : '#ffffff'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
+    // Split from Scanner: Down to Local Map (stays inside client) AND Right to Sanitized Egress
+    fig.arrow(128, 214, 128, 250, { color: green, width: 1.6, head: 6 })
+    fig.rect(34, 252, 206, 98, {
+        fill: tint(green, c.bg, 0.12),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(46, 272, 'Local-Only Map', { size: 13, weight: 700, color: green })
+    fig.text(46, 296, '<API_KEY_1> ->', { size: 12, weight: 700, color: c.textPrimary, mono: true })
+    fig.text(46, 315, 'demo_api_token_abc123', { size: 11, color: red, mono: true })
+    fig.text(46, 336, 'Never leaves client RAM', { size: 11, weight: 600, color: green })
 
-                    {/* Server internal arrows */}
-                    <line
-                        x1={635}
-                        y1={184}
-                        x2={635}
-                        y2={202}
-                        stroke={c.textMuted}
-                        strokeWidth={1.5}
-                        markerEnd="url(#redact-arr)"
-                    />
-                    <line
-                        x1={635}
-                        y1={280}
-                        x2={635}
-                        y2={298}
-                        stroke={c.textMuted}
-                        strokeWidth={1.5}
-                        markerEnd="url(#redact-arr)"
-                    />
+    // Sanitized Outbound Payload (right of client zone, crosses TLS boundary cleanly!)
+    fig.arrow(318, 214, 318, 250, { color: blue, width: 1.6, head: 6 })
+    fig.rect(252, 252, 148, 98, {
+        fill: tint(blue, c.bg, 0.14),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(264, 272, 'Sanitized Prompt', { size: 13, weight: 700, color: blue })
+    fig.text(264, 298, "API('<API_KEY_1>')", {
+        size: 12,
+        weight: 700,
+        color: green,
+        mono: true,
+    })
+    fig.text(264, 326, '0 raw credentials', { size: 12, color: c.textSecondary })
 
-                    {/* Boundary Barrier Line */}
-                    <line
-                        x1={415}
-                        y1={76}
-                        x2={415}
-                        y2={392}
-                        stroke={c.textMuted}
-                        strokeWidth={2}
-                        strokeDasharray="6 4"
-                    />
+    // Cross-boundary arrow from Sanitized Prompt (x=400, y=300) cleanly up-and-over into Gateway (x=482, y=94)
+    fig.path('M400 286 L422 286 L422 94 L478 94', { color: green, width: 2 })
+    fig.arrow(464, 94, 480, 94, { color: green, width: 2, head: 6 })
 
-                    {/* Cross-boundary arrow from Client (Card 3) to Server (Card 1) */}
-                    <path
-                        d="M 372 338 L 415 338 L 415 146 L 456 146"
-                        fill="none"
-                        stroke={greenTone}
-                        strokeWidth={2}
-                        markerEnd="url(#redact-arr)"
-                    />
+    // --- SERVER SIDE ---
+    // Step 3: Gateway & Tenant KV Cache
+    fig.rect(482, 60, 364, 68, {
+        fill: tint(purple, c.bg, 0.12),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(496, 80, '3. Gateway & Scoped KV Cache', { size: 13, weight: 700, color: purple })
+    fig.text(496, 104, 'Hashes sanitized tokens only · no secret in KV', {
+        size: 12,
+        color: c.textSecondary,
+    })
 
-                    {/* Bottom Guardrail Box */}
-                    <rect
-                        x={40}
-                        y={410}
-                        width={780}
-                        height={64}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111827' : '#f8fafc'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    fig.arrow(664, 128, 664, 154, { color: c.textMuted, width: 1.6, head: 6 })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Client-Side Redaction & Trust Boundary Architecture',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Detected secrets are redacted before dispatch; raw credentials never enter network payloads or remote caches',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Step 4: FIM Inference
+    fig.rect(482, 156, 364, 68, {
+        fill: tint(purple, c.bg, 0.08),
+        stroke: c.border,
+        strokeWidth: 1.3,
+        radius: 8,
+    })
+    fig.text(496, 176, '4. FIM Model Inference', { size: 13, weight: 700, color: c.textPrimary })
+    fig.text(496, 200, 'Treats <API_KEY_1> as token · no auto-restore', {
+        size: 12,
+        color: c.textSecondary,
+    })
 
-            {/* Zone Badges */}
-            {label(
-                40,
-                84,
-                340,
-                'CLIENT ENVIRONMENT (IDE / LOCAL WORKSTATION)',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                450,
-                84,
-                370,
-                'REMOTE SERVICE CLOUD (GATEWAY & INFERENCE FLEET)',
-                12,
-                purpleTone,
-                'left',
-                700,
-            )}
+    fig.arrow(664, 224, 664, 250, { color: c.textMuted, width: 1.6, head: 6 })
 
-            {/* Client Side Card 1: Local Buffer */}
-            {label(
-                56,
-                118,
-                308,
-                '1. Active Editor Buffer (Raw Content)',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(56, 138, 308, 'client = API("sk-live-948194...")', 12, redTone, 'left', 500)}
-            {label(
-                56,
-                158,
-                308,
-                'High-entropy secret token identified by AST detector',
-                10,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Step 5: Allowlisted Telemetry
+    fig.rect(482, 252, 364, 98, {
+        fill: tint(green, c.bg, 0.09),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(496, 272, '5. Allowlisted Telemetry Only', { size: 13, weight: 700, color: green })
+    fig.text(496, 298, 'Log:   tenant, model, bucket', {
+        size: 12,
+        weight: 700,
+        color: green,
+        mono: true,
+    })
+    fig.text(496, 324, 'Drop:  prompt, code, raw_secret', {
+        size: 12,
+        weight: 700,
+        color: red,
+        mono: true,
+    })
 
-            {/* Client Side Card 2: Local Redaction Engine */}
-            {label(
-                56,
-                214,
-                308,
-                '2. In-Memory Redaction & Placeholder Map',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(56, 234, 308, '<API_KEY_1> -> sk-live-948194...', 12, greenTone, 'left', 500)}
-            {label(
-                56,
-                254,
-                308,
-                'Mapping stays in client memory; discarded on session close',
-                10,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Client Side Card 3: Outbound Request */}
-            {label(56, 310, 308, '3. Sanitized Outbound Payload', 12, c.textPrimary, 'left', 600)}
-            {label(56, 330, 308, 'client = API("<API_KEY_1>")', 12, blueTone, 'left', 500)}
-            {label(
-                56,
-                350,
-                308,
-                'Zero plaintext credentials cross the network perimeter',
-                10,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Boundary Label */}
-            {label(380, 210, 60, 'TLS / mTLS', 10, c.textMuted, 'center', 600)}
-            {label(380, 224, 60, 'Boundary', 10, c.textMuted, 'center', 600)}
-
-            {/* Server Side Card 1: Gateway Ingress & Prefix Cache */}
-            {label(
-                466,
-                118,
-                338,
-                '4. Gateway Ingress & KV-Cache Match',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                466,
-                138,
-                338,
-                'Prompt hash computed on sanitized tokens only',
-                12,
-                purpleTone,
-                'left',
-                500,
-            )}
-            {label(
-                466,
-                158,
-                338,
-                'Cached KV states cannot expose original credentials to peers',
-                10,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Server Side Card 2: Inference & Completion Generation */}
-            {label(466, 214, 338, '5. LLM Completion Generation', 12, c.textPrimary, 'left', 600)}
-            {label(
-                466,
-                234,
-                338,
-                'Model predicts syntax using placeholder as variable token',
-                12,
-                c.textPrimary,
-                'left',
-                500,
-            )}
-            {label(
-                466,
-                254,
-                338,
-                'Generated snippet preserves placeholder; no auto-substitution',
-                10,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Server Side Card 3: Audit & Telemetry Policy */}
-            {label(466, 310, 338, '6. Strict Telemetry Allowlist', 12, c.textPrimary, 'left', 600)}
-            {label(
-                466,
-                330,
-                338,
-                'Logged: tenant_id, model_version, latency_ms',
-                12,
-                greenTone,
-                'left',
-                500,
-            )}
-            {label(
-                466,
-                350,
-                338,
-                'Explicitly excluded: prompt body, user code, credentials',
-                10,
-                redTone,
-                'left',
-                500,
-            )}
-
-            {/* Footer Summary Notice */}
-            {label(
-                52,
-                420,
-                756,
-                'Security Guarantees & Enforcement Constraints',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                442,
-                756,
-                'Client-side placeholder substitution keeps secrets out of remote logs and prefix caches while preserving local restoration.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
-export default create()
+export default create('dark')

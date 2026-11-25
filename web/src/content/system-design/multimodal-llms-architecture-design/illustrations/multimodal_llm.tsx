@@ -1,124 +1,151 @@
-import React from 'react'
-import type { ThemeMode } from 'vizmatic'
+import { createElement } from 'react'
 import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+    Board,
+    CanvasItem,
+    SvgFrame,
+    TextLabel,
+    VectorArrow,
+    getReadableToneColor,
+    getThemeColors,
+    withColorAlpha,
+    type ThemeMode,
+} from 'vizmatic'
 
-export const width = 860
-export const height = 500
+type Colors = ReturnType<typeof getThemeColors>
+
+export const width = 760
+export const height = 410
 export const alt =
-    'Multimodal Large Language Model architecture overview. Vision and audio signals pass through modality-specific encoders and projection connectors, entering an autoregressive language decoder either as interleaved prefix tokens or via gated cross-attention memory to produce grounded outputs.'
+    'Multimodal LLM architecture schematic: Vision (ViT patches), Audio (100 Hz spectrogram), and Text (BPE tokens) pass through encoders and enter an autoregressive language decoder via either Pathway A (MLP/Q-Former prefix projection into shared self-attention) or Pathway B (Perceiver latent memory read by gated cross-attention), producing grounded text, boxes, and timestamps.'
+
+function lbl(
+    c: Colors,
+    text: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    fontSize: number,
+    color = c.textPrimary,
+    fontWeight = 650,
+    align: 'left' | 'center' | 'right' = 'left',
+    mono = false,
+) {
+    return CanvasItem({
+        x,
+        y,
+        width: w,
+        height: h,
+        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
+    })
+}
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
+    const blue = getReadableToneColor('blue', c)
+    const purple = getReadableToneColor('purple', c)
+    const green = getReadableToneColor('green', c)
+    const warm = getReadableToneColor('warm', c)
+    const muted = c.textSecondary
 
-    // Header
-    a.text(40, 32, 'Multimodal LLM Architecture: Dual Fusion Pathways', { size: 22, weight: 700 })
-    a.text(
-        40,
-        58,
-        'Bridging heterogeneous visual and acoustic signals into an autoregressive language model',
-        { size: 15, color: k.mid },
-    )
+    const geometry = [
+        // Stage 1: Encoders (x=14..216, w=202)
+        SvgFrame({ c, key: 's1', x: 14, y: 14, width: 202, height: 382, rx: 10, fill: c.bgCard, stroke: c.borderSubtle, strokeWidth: 1.2 }),
+        SvgFrame({ c, key: 'enc-v', x: 26, y: 66, width: 178, height: 84, rx: 8, fill: withColorAlpha(blue, 0.12), stroke: blue, strokeWidth: 1.6 }),
+        SvgFrame({ c, key: 'enc-a', x: 26, y: 174, width: 178, height: 84, rx: 8, fill: withColorAlpha(purple, 0.12), stroke: purple, strokeWidth: 1.6 }),
+        SvgFrame({ c, key: 'enc-t', x: 26, y: 282, width: 178, height: 84, rx: 8, fill: withColorAlpha(green, 0.12), stroke: green, strokeWidth: 1.6 }),
 
-    // Column 1: Modality Inputs & Encoders
-    a.rect(40, 85, 230, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(56, 102, 75, 24, 'STAGE 1', {
-        fill: tint(k.decode, 0.15),
-        stroke: tint(k.decode, 0.4),
-        color: k.decode,
-        weight: 700,
-    })
-    a.text(142, 114, 'Modality Encoders', { size: 16, weight: 700 })
+        // Stage 2: Connectors (x=254..486, w=232)
+        SvgFrame({ c, key: 's2', x: 254, y: 14, width: 232, height: 382, rx: 10, fill: c.bgCard, stroke: c.borderSubtle, strokeWidth: 1.2 }),
+        SvgFrame({ c, key: 'conn-a', x: 266, y: 66, width: 208, height: 132, rx: 8, fill: withColorAlpha(blue, 0.1), stroke: blue, strokeWidth: 1.6 }),
+        SvgFrame({ c, key: 'conn-b', x: 266, y: 226, width: 208, height: 132, rx: 8, fill: withColorAlpha(warm, 0.1), stroke: warm, strokeWidth: 1.6 }),
 
-    // Input cards
-    const inputs = [
-        {
-            label: 'Vision: Images / Video',
-            desc: 'ViT-H/14 · 14×14 patches',
-            tone: k.prefill,
-            y: 145,
-        },
-        {
-            label: 'Audio: Speech / Audio',
-            desc: 'Whisper / Conformer · 100 Hz',
-            tone: k.state,
-            y: 245,
-        },
-        { label: 'Language: Text Prompt', desc: 'BPE Tokenizer · Subwords', tone: k.pass, y: 345 },
+        // Stage 3: Decoder & Output (x=524..746, w=222)
+        SvgFrame({ c, key: 's3', x: 524, y: 14, width: 222, height: 382, rx: 10, fill: c.bgCard, stroke: c.borderSubtle, strokeWidth: 1.2 }),
+        SvgFrame({ c, key: 'dec', x: 536, y: 66, width: 198, height: 162, rx: 8, fill: withColorAlpha(green, 0.12), stroke: green, strokeWidth: 1.7 }),
+        SvgFrame({ c, key: 'out', x: 536, y: 270, width: 198, height: 106, rx: 8, fill: c.bgSubtle, stroke: green, strokeWidth: 1.4 }),
+
+        // Arrows Stage 1 -> Stage 2
+        VectorArrow({ x1: 206, y1: 108, x2: 262, y2: 108, color: blue, strokeWidth: 2, arrowSize: 6 }),
+        VectorArrow({ x1: 206, y1: 216, x2: 262, y2: 166, color: purple, strokeWidth: 2, arrowSize: 6 }),
+        VectorArrow({ x1: 206, y1: 216, x2: 262, y2: 274, color: purple, strokeWidth: 1.8, arrowSize: 6 }),
+
+        // Text bypass path along bottom to Decoder (never crosses Side Memory wire)
+        createElement('path', {
+            key: 'text-wire',
+            d: 'M 206 324 L 236 324 L 236 376 L 512 376 L 512 204 L 530 204',
+            fill: 'none',
+            stroke: green,
+            strokeWidth: 2,
+            strokeDasharray: '5 3',
+        }),
+        VectorArrow({ x1: 522, y1: 204, x2: 534, y2: 204, color: green, strokeWidth: 2, arrowSize: 6 }),
+
+        // Arrows Stage 2 -> Stage 3 (orthogonal elbow for Side Memory avoids crossing text wire)
+        VectorArrow({ x1: 476, y1: 132, x2: 534, y2: 132, color: blue, strokeWidth: 2, arrowSize: 6 }),
+        createElement('path', {
+            key: 'side-wire',
+            d: 'M 476 292 L 498 292 L 498 162 L 530 162',
+            fill: 'none',
+            stroke: warm,
+            strokeWidth: 2,
+        }),
+        VectorArrow({ x1: 522, y1: 162, x2: 534, y2: 162, color: warm, strokeWidth: 2, arrowSize: 6 }),
+
+        // Arrow Decoder -> Output
+        VectorArrow({ x1: 635, y1: 230, x2: 635, y2: 266, color: green, strokeWidth: 2.2, arrowSize: 6 }),
     ]
 
-    inputs.forEach((item) => {
-        a.rect(56, item.y, 198, 75, {
-            fill: tint(item.tone, 0.08),
-            stroke: tint(item.tone, 0.3),
-            r: 6,
-        })
-        a.text(68, item.y + 24, item.label, { size: 15, weight: 700, color: item.tone })
-        a.text(68, item.y + 50, item.desc, { size: 15, color: k.mid })
+    const labels = [
+        // Stage headers
+        lbl(c, '1 · Encoders', 26, 26, 178, 24, 17, c.textPrimary, 800, 'center'),
+        lbl(c, '2 · Connectors', 266, 26, 208, 24, 17, c.textPrimary, 800, 'center'),
+        lbl(c, '3 · LLM Decoder', 536, 26, 198, 24, 17, c.textPrimary, 800, 'center'),
+
+        // Stage 1 cards
+        lbl(c, 'Vision (ViT)', 38, 78, 154, 22, 16, blue, 800),
+        lbl(c, '14×14 patches', 38, 110, 154, 22, 16, muted, 600),
+
+        lbl(c, 'Audio (100 Hz)', 38, 186, 154, 22, 16, purple, 800),
+        lbl(c, 'Mel frames', 38, 218, 154, 22, 16, muted, 600),
+
+        lbl(c, 'Text Prompt', 38, 294, 154, 22, 16, green, 800),
+        lbl(c, 'BPE tokens', 38, 326, 154, 22, 16, muted, 600),
+
+        // Stage 2 cards
+        lbl(c, 'A · Prefix Projection', 278, 78, 184, 22, 16, blue, 800),
+        lbl(c, 'MLP / 2×2 / Q-Former', 278, 110, 184, 22, 16, c.textPrimary, 650),
+        lbl(c, 'Interleaved prefix', 278, 140, 184, 22, 16, muted, 600),
+        lbl(c, 'Shares KV cache', 278, 166, 184, 22, 16, muted, 600),
+
+        lbl(c, 'B · Side Memory', 278, 238, 184, 22, 16, warm, 800),
+        lbl(c, 'Perceiver Resampler', 278, 270, 184, 22, 16, c.textPrimary, 650),
+        lbl(c, 'External K_v, V_v', 278, 300, 184, 22, 16, muted, 600),
+        lbl(c, 'Off text prefix', 278, 326, 184, 22, 16, muted, 600),
+
+        // Stage 3 cards
+        lbl(c, 'Autoregressive LM', 548, 80, 174, 22, 16, green, 800),
+        lbl(c, 'Self-Attention', 548, 114, 174, 22, 16, c.textPrimary, 650),
+        lbl(c, '+ Cross-Attention', 548, 144, 174, 22, 16, warm, 700),
+        lbl(c, 'Paged KV Cache', 548, 184, 174, 22, 16, muted, 600),
+
+        lbl(c, 'Grounded Output', 548, 282, 174, 22, 16, green, 800),
+        lbl(c, 'Answer + citations', 548, 314, 174, 22, 16, c.textPrimary, 600),
+        lbl(c, 'Boxes & timestamps', 548, 342, 174, 22, 16, muted, 600),
+    ]
+
+    const svg = createElement(
+        'svg',
+        { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
+        ...geometry,
+    )
+    return Board({
+        c,
+        width,
+        height,
+        background: 'transparent',
+        children: [CanvasItem({ x: 0, y: 0, width, height, children: svg }), ...labels],
     })
-
-    // Connectors column
-    a.rect(305, 85, 250, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(321, 102, 75, 24, 'STAGE 2', {
-        fill: tint(k.wait, 0.15),
-        stroke: tint(k.wait, 0.4),
-        color: k.wait,
-        weight: 700,
-    })
-    a.text(407, 114, 'Modality Connectors', { size: 16, weight: 700 })
-
-    // Connector cards
-    a.rect(321, 145, 218, 135, { fill: tint(k.prefill, 0.06), stroke: tint(k.prefill, 0.25), r: 6 })
-    a.text(333, 170, 'Pathway A: Prefix Projection', { size: 15, weight: 700, color: k.prefill })
-    a.text(333, 198, 'MLP / Q-Former / Resampler', { size: 15, weight: 600 })
-    a.text(333, 226, 'Maps patches directly into prefix tokens', { size: 15, color: k.mid })
-    a.text(333, 252, 'Shared sequence · KV-cache growth', { size: 15, color: k.mid })
-
-    a.rect(321, 305, 218, 135, { fill: tint(k.pass, 0.06), stroke: tint(k.pass, 0.25), r: 6 })
-    a.text(333, 330, 'Pathway B: Gated Attention', { size: 15, weight: 700, color: k.pass })
-    a.text(333, 358, 'Perceiver Latent Memory Bank', { size: 15, weight: 600 })
-    a.text(333, 386, 'External visual key-value memory', { size: 15, color: k.mid })
-    a.text(333, 412, 'Zero text-prefix KV cache expansion', { size: 15, color: k.mid })
-
-    // Arrows 1 -> 2
-    a.arrow(254, 182, 321, 182, k.prefill, { width: 2 })
-    a.arrow(254, 282, 321, 230, k.state, { width: 2 })
-    a.arrow(254, 282, 321, 372, k.state, { width: 1.5, dash: '3 3' })
-
-    // Column 3: LLM Decoder & Output
-    a.rect(590, 85, 230, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(606, 102, 75, 24, 'STAGE 3', {
-        fill: tint(k.pass, 0.15),
-        stroke: tint(k.pass, 0.4),
-        color: k.pass,
-        weight: 700,
-    })
-    a.text(692, 114, 'Decoder & Output', { size: 16, weight: 700 })
-
-    a.rect(606, 145, 198, 155, { fill: tint(k.c.bg, 0.12), stroke: k.line, r: 6 })
-    a.text(618, 172, 'Autoregressive LM', { size: 15, weight: 700, color: k.pass })
-    a.text(618, 198, 'Shared Self-Attention Layers', { size: 15, color: k.mid })
-    a.text(618, 226, '+ Gated Cross-Attention Blocks', { size: 15, color: k.mid })
-    a.text(618, 254, 'PagedAttention KV-Cache', { size: 15, weight: 600 })
-    a.text(618, 278, 'Prefix tokens + generated text', { size: 15, color: k.mid })
-
-    a.rect(606, 320, 198, 120, { fill: tint(k.pass, 0.08), stroke: tint(k.pass, 0.3), r: 6 })
-    a.text(618, 345, 'Grounded Output', { size: 15, weight: 700, color: k.pass })
-    a.text(618, 372, 'Answer text with citations', { size: 15, color: k.mid })
-    a.text(618, 398, 'Box regions [y0, x0, y1, x1]', { size: 15, color: k.mid })
-    a.text(618, 424, 'Audio / video timestamps', { size: 15, color: k.mid })
-
-    // Arrows 2 -> 3
-    a.arrow(539, 212, 606, 212, k.prefill, { width: 2 })
-    a.arrow(539, 372, 606, 230, k.pass, { width: 2 })
-    a.arrow(254, 382, 606, 250, k.mid, { width: 1.5, dash: '4 4' })
-    a.arrow(705, 300, 705, 320, k.pass, { width: 2 })
-
-    return a.render()
 }
 
 export default create('dark')

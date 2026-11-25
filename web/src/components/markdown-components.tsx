@@ -22,6 +22,7 @@ import { ContentCallout } from "./content-callout"
 import { GlossaryMarkdownSpan } from "./glossary-markdown-span"
 import { MarkdownCodeBlock, MarkdownImage } from "./markdown-interactive"
 import { resolvePrismLanguage } from "./prism-language"
+import { extractLeadingPythonImports } from "@/lib/code-folding"
 
 const CODE_META_SEPARATOR = "__meta_"
 
@@ -375,6 +376,7 @@ export function createMarkdownComponents({
     renderCheckpoint: (question: string, answer: string) => ReactNode
 }): Components {
     const headingIds = new Map<string, number>()
+    const seenPythonImports = new Set<string>()
 
     return {
         pre({ children }) {
@@ -396,7 +398,16 @@ export function createMarkdownComponents({
                     }
                 }
                 const { meta: rawMeta } = splitRenderedCodeFenceLanguage(match[1])
-                return <MarkdownCodeBlock code={codeString} language={language} meta={rawMeta ? parseCodeFenceMetaValue(rawMeta) : undefined} />
+                const parsedMeta = rawMeta ? parseCodeFenceMetaValue(rawMeta) : undefined
+                let priorImports: string[] | undefined
+                if (["python", "py", "python3"].includes(language.label) && !parsedMeta?.output) {
+                    const blockImports = extractLeadingPythonImports(codeString)
+                    if (seenPythonImports.size > 0 && blockImports.some((imp) => seenPythonImports.has(imp))) {
+                        priorImports = [...seenPythonImports]
+                    }
+                    for (const imp of blockImports) seenPythonImports.add(imp)
+                }
+                return <MarkdownCodeBlock code={codeString} language={language} meta={parsedMeta} priorImports={priorImports} />
             }
 
             const isBlock = codeString.includes("\n") || (props.node?.position && props.node.position.start.line !== props.node.position.end.line)

@@ -1,94 +1,105 @@
-import {
-    BadgePill,
-    Column,
-    FlowArrow,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    getThemeColors,
-    withDensity,
-} from 'vizmatic'
-import type { ThemeMode, ToneName } from 'vizmatic'
+import React from 'react'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 640
-export const height = 670
+export const width = 900
+export const height = 375
 export const alt =
-    'Extracted candidate facts require both an allowlisted schema field and source-text entailment: preference from t3 passes, unverified bug tag from t2 requires review, and deploy-now from t4 is blocked because t4 requires CI first.'
+    'Entity extraction provenance filter across three turns: turn t2 proposes invented bug_id KERN-104 (held for review), turn t3 proposes allowlisted and grounded test_cmd pytest -q tests/attn.py (saved), and turn t4 proposes disallowed bypass_ci contradicting source text (rejected).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = withDensity(
-        getThemeColors(theme, theme === 'light' ? 'engineering' : 'default'),
-        1.85,
-    )
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('red')
 
-    const extractionRow = (
-        label: string,
-        tone: ToneName,
-        source: string,
-        candidate: string,
-        verdict: string,
-    ) =>
-        Panel({
-            c,
-            title: label,
-            tone,
-            width: 608,
-            padding: 12,
-            titleFontSize: 20,
-            children: Column({
-                gap: 6,
-                children: [
-                    TextLabel({ c, text: source, fontSize: 19 }),
-                    Row({
-                        gap: 8,
-                        justify: 'center',
-                        align: 'center',
-                        children: [
-                            FlowArrow({ c, direction: 'right', length: 20, tone }),
-                            TextLabel({ c, text: candidate, fontSize: 19, mono: true }),
-                        ],
-                    }),
-                    BadgePill({
-                        c,
-                        text: verdict,
-                        tone,
-                        fontSize: 19,
-                    }),
-                ],
-            }),
+    // Column headers (frameless)
+    fig.text(168, 22, 'Source Turn Utterance', { size: 14, weight: 700, color: c.textSecondary, align: 'center' })
+    fig.text(476, 22, 'Candidate Extracted Field', { size: 14, weight: 700, color: c.textSecondary, align: 'center' })
+    fig.text(772, 22, 'Schema + Grounding Verdict', { size: 14, weight: 700, color: c.textSecondary, align: 'center' })
+
+    const rows = [
+        {
+            turn: 't2 · Inferred ID',
+            src: '"Softmax produced NaN in flash kernel"',
+            cand: '{bug_id: "KERN-104"}',
+            verdict: 'HOLD',
+            reason: 'KERN-104 not in source',
+            tone: warm,
+        },
+        {
+            turn: 't3 · Supported Pref',
+            src: '"Run pytest -q tests/attn.py"',
+            cand: '{test_cmd: "pytest -q ..."}',
+            verdict: 'SAVED',
+            reason: 'allowlisted & entailed',
+            tone: green,
+        },
+        {
+            turn: 't4 · Dropped Cond',
+            src: '"Deploy after CI passes"',
+            cand: '{bypass_ci: true}',
+            verdict: 'REJECTED',
+            reason: 'disallowed & contradicts t4',
+            tone: red,
+        },
+    ]
+
+    rows.forEach((r, idx) => {
+        const y = 52 + idx * 106
+        const cy = y + 38
+
+        // Source utterance block
+        fig.rect(20, y, 296, 76, {
+            fill: tint(c.borderSubtle, c.bg, theme === 'light' ? 0.25 : 0.22),
+            stroke: c.borderSubtle,
+            strokeWidth: 1.2,
+            radius: 8,
+        })
+        fig.text(34, y + 22, r.turn, { size: 13, weight: 700, color: r.tone })
+        fig.text(34, y + 48, r.src, { size: 12.5, color: c.textPrimary })
+
+        fig.arrow(318, cy, 354, cy, { color: r.tone, width: 1.8, head: 6.5 })
+
+        // Candidate JSON chip
+        fig.rect(358, y + 8, 236, 60, {
+            fill: tint(r.tone, c.bg, theme === 'light' ? 0.08 : 0.13),
+            stroke: tint(r.tone, c.bg, 0.55),
+            strokeWidth: 1.4,
+            radius: 8,
+        })
+        fig.text(476, cy, r.cand, {
+            size: 13,
+            mono: true,
+            weight: 700,
+            color: c.textPrimary,
+            align: 'center',
         })
 
-    return Scene({
-        c,
-        title: 'Entity Extraction: Source Links and Field Allowlists',
-        padding: 16,
-        gap: 12,
-        contentWidth: 608,
-        children: [
-            extractionRow(
-                'Turn t2 · Inferred Identifier',
-                'warm',
-                'Source: "Softmax produced NaN in flash kernel"',
-                '{bug_id: "KERN-104", conf: 0.90}',
-                'Hold: turn t2 exists, but KERN-104 is invented',
-            ),
-            extractionRow(
-                'Turn t3 · Supported Preference',
-                'green',
-                'Source: "Run pytest -q tests/attn.py"',
-                '{test_cmd: "pytest -q tests/attn.py"}',
-                'Saved: schema allowlisted and matches t3',
-            ),
-            extractionRow(
-                'Turn t4 · Dropped Condition',
-                'red',
-                'Source: "Deploy after CI passes"',
-                '{bypass_ci: true}',
-                'Rejected: field disallowed and contradicts t4',
-            ),
-        ],
+        fig.arrow(596, cy, 640, cy, { color: r.tone, width: 1.8, head: 6.5 })
+
+        // Verdict pill
+        fig.rect(644, y + 4, 236, 68, {
+            fill: tint(r.tone, c.bg, theme === 'light' ? 0.14 : 0.22),
+            stroke: r.tone,
+            strokeWidth: 1.8,
+            radius: 8,
+        })
+        fig.text(762, y + 26, r.verdict, {
+            size: 14.5,
+            weight: 700,
+            color: r.tone,
+            align: 'center',
+        })
+        fig.text(762, y + 50, r.reason, {
+            size: 12.5,
+            color: c.textPrimary,
+            align: 'center',
+        })
     })
+
+    return fig.render()
 }
 
 export default create('dark')

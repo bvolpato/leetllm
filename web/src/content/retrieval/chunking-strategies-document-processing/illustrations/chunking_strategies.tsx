@@ -1,287 +1,275 @@
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    VectorArrow,
-    defineIllustration,
-    getReadableToneColor,
-    type ThemeColors,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'default'
-export const width = 672
-export const height = 832
+export const width = 740
+export const height = 474
 export const alt =
-    'Two size-6 windows overlap by two words: the first ends after “15,” and the next reuses “within 15” before completing “minutes with deploy ID.” A search hit on the first window carries the condition and number but not the complete deadline or ID. A heading-aware section keeps the rule and page=7 locator together.'
+    'A 12-word specification rule from inference-api-spec-v2.md section 4.2 reads: Streaming timeout: close idle SSE connections after 90 seconds without heartbeat frames. On the left, fixed 8-word windows with 2-word overlap cut directly between 90 and seconds, leaving Chunk 1 without the unit or heartbeat exception and Chunk 2 without the SSE trigger. On the right, heading-aware section chunking keeps the trigger, numeric threshold, exception, and section 4.2 locator together in one chunk.'
 
-const boardWidth = 640
-const boardHeight = 800
-const labelScale = width / boardWidth
+const TOKENS = [
+    { text: 'Streaming', w: 72 },
+    { text: 'timeout:', w: 62 },
+    { text: 'close', w: 44 },
+    { text: 'idle', w: 34 },
+    { text: 'SSE', w: 36 },
+    { text: 'connections', w: 86 },
+    { text: 'after', w: 42 },
+    { text: '90', w: 30 },
+    { text: 'seconds', w: 64 },
+    { text: 'without', w: 58 },
+    { text: 'heartbeat', w: 72 },
+    { text: 'frames.', w: 58 },
+] as const
 
-function label(
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    text: string,
-    size = 23,
-    color = c.textPrimary,
-    weight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-    lines: 1 | 2 = 1,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * labelScale * (lines === 1 ? 1.3 : 2.5),
-        children: TextLabel({
-            c,
-            text,
-            width: w,
-            fontSize: size * labelScale,
-            color,
-            fontWeight: weight,
-            align,
-            mono,
-            math: false,
-        }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const red = fig.tone('critical')
+    const cyan = fig.tone('cyan')
+
+    // ── Top: Source Token Stream (inference-api-spec-v2.md · sec 4.2) ────────
+    fig.text(20, 20, 'Source Specification · inference-api-spec-v2.md', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
     })
+    fig.text(width - 20, 20, 'section 4.2 · 12 words', {
+        size: 13,
+        mono: true,
+        weight: 600,
+        color: cyan,
+        align: 'right',
+    })
+
+    const stripY = 48
+    const tokenH = 34
+    const gap = 4
+    let tx = 20
+    let cutX = 0
+
+    TOKENS.forEach((tok, idx) => {
+        const isNum = tok.text === '90'
+        const isUnit = tok.text === 'seconds'
+        const fill = isNum
+            ? withColorAlpha(warm, 0.22)
+            : isUnit
+              ? withColorAlpha(red, 0.16)
+              : withColorAlpha(c.bgSubtle, theme === 'light' ? 0.75 : 0.55)
+        const stroke = isNum ? warm : isUnit ? red : c.borderSubtle
+
+        fig.rect(tx, stripY, tok.w, tokenH, {
+            fill,
+            stroke,
+            strokeWidth: isNum || isUnit ? 1.6 : 1,
+            radius: 5,
+        })
+        fig.text(tx + tok.w / 2, stripY + tokenH / 2, tok.text, {
+            size: 13,
+            weight: isNum || isUnit ? 700 : 500,
+            mono: isNum,
+            color: isNum ? warm : isUnit ? red : c.textPrimary,
+            align: 'center',
+        })
+        if (idx === 7) {
+            cutX = tx + tok.w + gap / 2
+        }
+        tx += tok.w + gap
+    })
+
+    // Crisp boundary cut marker right between "90" and "seconds" (zero overlap with digits!)
+    fig.line(cutX, stripY - 10, cutX, stripY + tokenH + 14, {
+        color: red,
+        width: 2.2,
+        dash: '4 3',
+    })
+    fig.text(cutX, stripY + tokenH + 26, 'fixed-window cut (word 8 | 9)', {
+        size: 14,
+        weight: 700,
+        color: red,
+        align: 'center',
+    })
+
+    // Divider below source stream
+    fig.line(20, 128, width - 20, 128, { color: c.borderSubtle, width: 1 })
+
+    // ── Left: Fixed-Size Windows (size 8, overlap 2) ─────────────────────────
+    const lx = 20
+    const colW = 336
+
+    fig.text(lx, 152, 'Fixed Window (size = 8, overlap = 2)', {
+        size: 15,
+        weight: 700,
+        color: red,
+    })
+
+    // Window 1
+    const w1Y = 176
+    fig.rect(lx, w1Y, colW, 74, {
+        fill: withColorAlpha(blue, 0.1),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(lx + 12, w1Y + 18, 'Chunk 1 · words 1–8', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: blue,
+    })
+    fig.text(lx + colW - 12, w1Y + 18, 'top hit', {
+        size: 13.5,
+        weight: 700,
+        color: blue,
+        align: 'right',
+    })
+    fig.text(lx + 12, w1Y + 42, 'Streaming timeout: close idle SSE', {
+        size: 13,
+        color: c.textPrimary,
+    })
+    fig.text(lx + 12, w1Y + 60, 'connections after 90', {
+        size: 13,
+        weight: 700,
+        color: warm,
+    })
+
+    // Window 2 (overlapping "after 90")
+    const w2Y = 264
+    fig.rect(lx, w2Y, colW, 74, {
+        fill: withColorAlpha(warm, 0.08),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(lx + 12, w2Y + 18, 'Chunk 2 · words 7–14', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: warm,
+    })
+    fig.text(lx + colW - 12, w2Y + 18, '2-word overlap', {
+        size: 13.5,
+        color: warm,
+        align: 'right',
+    })
+    fig.text(lx + 12, w2Y + 42, 'after 90 seconds without heartbeat', {
+        size: 13,
+        color: c.textPrimary,
+    })
+    fig.text(lx + 12, w2Y + 60, 'frames. Batch retention: ...', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    // Failure summary strip
+    const failY = 358
+    fig.rect(lx, failY, colW, 88, {
+        fill: withColorAlpha(red, 0.08),
+        stroke: withColorAlpha(red, 0.5),
+        strokeWidth: 1.3,
+        radius: 8,
+    })
+    fig.text(lx + 12, failY + 20, 'Severed Clause', {
+        size: 14,
+        weight: 700,
+        color: red,
+    })
+    fig.text(lx + 12, failY + 44, 'Chunk 1: trigger + "90", no unit or exception', {
+        size: 13,
+        color: c.textSecondary,
+    })
+    fig.text(lx + 12, failY + 66, 'Chunk 2: "90 s" + heartbeat, no SSE trigger', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    // Center hairline divider
+    fig.line(370, 144, 370, 452, { color: c.borderSubtle, width: 1 })
+
+    // ── Right: Heading-Aware Section Chunk ───────────────────────────────────
+    const rx = 386
+    fig.text(rx, 152, 'Heading-Aware Section', {
+        size: 15,
+        weight: 700,
+        color: green,
+    })
+
+    const secY = 176
+    fig.rect(rx, secY, colW, 162, {
+        fill: withColorAlpha(green, 0.1),
+        stroke: green,
+        strokeWidth: 1.8,
+        radius: 8,
+    })
+    fig.text(rx + 14, secY + 20, '§ 4.2 · Streaming Timeout', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+    fig.text(rx + colW - 14, secY + 20, 'sec=4.2', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: cyan,
+        align: 'right',
+    })
+    fig.line(rx + 12, secY + 36, rx + colW - 12, secY + 36, {
+        color: withColorAlpha(green, 0.35),
+        width: 1,
+    })
+
+    fig.text(rx + 14, secY + 62, 'Streaming timeout: close idle SSE', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rx + 14, secY + 88, 'connections after 90 seconds', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(rx + 14, secY + 114, 'without heartbeat frames.', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rx + 14, secY + 142, 'source: inference-api-spec-v2.md', {
+        size: 13.5,
+        mono: true,
+        color: cyan,
+    })
+
+    // Intact checklist strip
+    const okY = 358
+    fig.rect(rx, okY, colW, 88, {
+        fill: withColorAlpha(green, 0.08),
+        stroke: withColorAlpha(green, 0.5),
+        strokeWidth: 1.3,
+        radius: 8,
+    })
+    fig.text(rx + 12, okY + 20, 'Complete Answerable Unit', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+
+    const badges = [
+        { label: 'Trigger: idle SSE', y: okY + 44 },
+        { label: 'Threshold: 90 seconds', y: okY + 66 },
+    ] as const
+    for (const b of badges) {
+        fig.circle(rx + 18, b.y, 4, { fill: green })
+        fig.text(rx + 28, b.y, b.label, { size: 13, color: c.textPrimary })
+    }
+    fig.circle(rx + 194, okY + 44, 4, { fill: green })
+    fig.text(rx + 204, okY + 44, 'Exception: heartbeat', { size: 13, color: c.textPrimary })
+    fig.circle(rx + 194, okY + 66, 4, { fill: cyan })
+    fig.text(rx + 204, okY + 66, 'Locator: sec 4.2', { size: 13, color: cyan })
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((c) => {
-    const blue = getReadableToneColor('blue', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
-    const red = getReadableToneColor('critical', c)
-    const gray = c.textMuted
-
-    const geometry = createElement(
-        'svg',
-        {
-            width: boardWidth,
-            height: boardHeight,
-            viewBox: `0 0 ${boardWidth} ${boardHeight}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        createElement('rect', {
-            key: 'source',
-            x: 14,
-            y: 94,
-            width: 612,
-            height: 140,
-            rx: 18,
-            fill: c.bgSubtle,
-            stroke: cyan,
-            strokeWidth: 2,
-        }),
-        createElement('rect', {
-            key: 'first-window',
-            x: 14,
-            y: 254,
-            width: 612,
-            height: 242,
-            rx: 18,
-            fill: `${red}0c`,
-            stroke: red,
-            strokeWidth: 2,
-        }),
-        createElement('rect', {
-            key: 'selected-span',
-            x: 26,
-            y: 318,
-            width: 570,
-            height: 78,
-            rx: 12,
-            fill: `${blue}16`,
-            stroke: blue,
-            strokeWidth: 2,
-        }),
-        createElement('rect', {
-            key: 'next-span',
-            x: 26,
-            y: 402,
-            width: 570,
-            height: 46,
-            rx: 10,
-            fill: `${warm}12`,
-            stroke: warm,
-            strokeWidth: 2,
-            strokeDasharray: '8 6',
-        }),
-        createElement('line', {
-            key: 'split-cut',
-            x1: 81,
-            x2: 81,
-            y1: 189,
-            y2: 218,
-            stroke: red,
-            strokeWidth: 5,
-            strokeLinecap: 'round',
-        }),
-        createElement('line', {
-            key: 'split-crossbar',
-            x1: 72,
-            x2: 90,
-            y1: 196,
-            y2: 210,
-            stroke: red,
-            strokeWidth: 3,
-            strokeLinecap: 'round',
-        }),
-        VectorArrow({
-            x1: 320,
-            y1: 237,
-            x2: 320,
-            y2: 250,
-            color: gray,
-            strokeWidth: 3,
-            arrowSize: 7,
-        }),
-        createElement('rect', {
-            key: 'section',
-            x: 14,
-            y: 528,
-            width: 612,
-            height: 238,
-            rx: 18,
-            fill: `${green}0c`,
-            stroke: green,
-            strokeWidth: 2,
-        }),
-        createElement('rect', {
-            key: 'complete-rule',
-            x: 26,
-            y: 592,
-            width: 570,
-            height: 100,
-            rx: 12,
-            fill: `${green}16`,
-            stroke: green,
-            strokeWidth: 2,
-        }),
-        VectorArrow({
-            x1: 320,
-            y1: 498,
-            x2: 320,
-            y2: 520,
-            color: green,
-            strokeWidth: 3,
-            arrowSize: 7,
-        }),
-    )
-
-    return Scene({
-        c,
-        padding: 16,
-        gap: 0,
-        contentWidth: boardWidth,
-        children: Board({
-            c,
-            width: boardWidth,
-            height: boardHeight,
-            background: 'transparent',
-            children: [
-                CanvasItem({
-                    x: 0,
-                    y: 0,
-                    width: boardWidth,
-                    height: boardHeight,
-                    children: geometry,
-                }),
-                label(
-                    c,
-                    28,
-                    102,
-                    568,
-                    'SOURCE · INCIDENT-RUNBOOK-V3.PDF',
-                    23,
-                    cyan,
-                    750,
-                    'left',
-                    true,
-                ),
-                label(
-                    c,
-                    28,
-                    155,
-                    584,
-                    'Rollback failure: page on-call within',
-                    23,
-                    c.textPrimary,
-                    650,
-                ),
-                label(c, 28, 184, 42, '15', 24, warm, 800, 'left', true),
-                label(c, 102, 184, 340, 'minutes with deploy ID.', 23, c.textPrimary, 650),
-                label(c, 494, 202, 110, 'page=7', 23, cyan, 700, 'right', true),
-                label(c, 28, 263, 450, 'SIZE 6 · OVERLAP 2', 23, red, 800, 'left', true),
-                label(c, 470, 263, 136, 'page=7', 23, cyan, 750, 'right', true),
-                label(
-                    c,
-                    42,
-                    326,
-                    535,
-                    'Rollback failure: page on-call within',
-                    23,
-                    c.textPrimary,
-                    650,
-                ),
-                label(c, 42, 359, 60, '15', 24, warm, 800, 'left', true),
-                label(c, 37, 407, 130, 'NEXT 6', 23, warm, 800, 'left', true),
-                label(
-                    c,
-                    184,
-                    407,
-                    406,
-                    'within 15 minutes with deploy ID.',
-                    23,
-                    c.textSecondary,
-                    650,
-                ),
-                label(
-                    c,
-                    30,
-                    455,
-                    576,
-                    'First hit: condition + 15 · unit and ID missing',
-                    23,
-                    red,
-                    700,
-                ),
-                label(c, 28, 537, 194, 'SECTION-AWARE', 23, green, 800, 'left', true),
-                label(c, 228, 537, 230, 'Rollback failure', 23, green, 700),
-                label(c, 494, 537, 110, 'page=7', 23, cyan, 750, 'right', true),
-                label(c, 42, 602, 540, 'Page on-call within 15 minutes', 24, c.textPrimary, 700),
-                label(c, 42, 637, 540, 'with deploy ID.', 24, c.textPrimary, 700),
-                label(
-                    c,
-                    42,
-                    697,
-                    540,
-                    'condition + deadline + ID stay in one chunk',
-                    23,
-                    green,
-                    700,
-                ),
-                label(
-                    c,
-                    42,
-                    728,
-                    540,
-                    'Rule text and page locator stay together.',
-                    23,
-                    c.textSecondary,
-                    550,
-                ),
-            ],
-        }),
-    })
-})
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

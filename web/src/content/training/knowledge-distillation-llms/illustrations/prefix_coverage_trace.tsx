@@ -1,285 +1,196 @@
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorSegment,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 672
-export const height = 550
+export const width = 760
+export const height = 390
 export const alt =
-    'Token prefix matching between teacher demonstrations and student generations. Two reference teacher prefixes and three student rollouts share common initial tokens while branching at later positions. Distinct token paths expand teacher evaluation coverage across four unique candidate prefixes.'
-
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
+    'A branching prefix tree starts from the shared prompt "How long is this disabled key restorable? Answer:". The teacher trajectory visits "...7" and "...7 days". Live student sampling visits the shared prefix "...7" but branches onto "...30" and "...30 days", creating 2 new teacher-scored prefixes and 4 distinct scored prefixes in total.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const fixed = getReadableToneColor('cyan', c)
-    const shared = getReadableToneColor('green', c)
-    const newScore = getReadableToneColor('warm', c)
-    const fixedX = [230, 365]
-    const studentX = [230, 365, 500]
-    const chipWidth = 128
-    const chipHeight = 54
-    const fixedY = 160
-    const studentY = 250
-    const uniqueY = 425
-    const uniqueX = [26, 184, 342, 500]
-    const uniqueLabels = ['…7', '…7 days', '…30', '…30 days']
-    const uniqueColors = [shared, fixed, newScore, newScore]
-    const frame = (x: number, y: number, stroke: string, fill = c.bgCard) =>
-        SvgFrame({
-            c,
-            x,
-            y,
-            width: chipWidth,
-            height: chipHeight,
-            rx: 9,
-            fill,
-            stroke,
-            strokeWidth: 1.6,
-        })
-    const shapes = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        frame(fixedX[0], fixedY, fixed),
-        frame(fixedX[1], fixedY, fixed),
-        frame(studentX[0], studentY, shared),
-        frame(studentX[1], studentY, newScore, `${newScore}12`),
-        frame(studentX[2], studentY, newScore, `${newScore}12`),
-        VectorSegment({
-            x1: fixedX[0] + chipWidth / 2,
-            y1: fixedY + chipHeight,
-            x2: studentX[0] + chipWidth / 2,
-            y2: studentY,
-            color: shared,
-            strokeWidth: 2.4,
-            showStartDot: false,
-            showEndDot: false,
-        }),
-        ...uniqueX.map((x, index) =>
-            SvgFrame({
-                c,
-                x,
-                y: uniqueY,
-                width: 145,
-                height: 52,
-                rx: 8,
-                fill: `${uniqueColors[index]}12`,
-                stroke: uniqueColors[index],
-                strokeWidth: 1.4,
-            }),
-        ),
-    )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const muted = c.textSecondary
 
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bgSubtle,
-        children: [
-            CanvasItem({ x: 0, y: 0, width, height, children: shapes }),
-            label(
-                c,
-                'On-policy prefixes extend scoring coverage',
-                18,
-                11,
-                636,
-                35,
-                29,
-                c.textPrimary,
-                800,
-            ),
-            label(
-                c,
-                'Prefix tree branching and union coverage analysis',
-                18,
-                48,
-                636,
-                25,
-                22,
-                c.textSecondary,
-                600,
-            ),
-            label(
-                c,
-                'Prompt: How long is this disabled key restorable? Answer:',
-                18,
-                82,
-                636,
-                30,
-                22,
-                c.textPrimary,
-                650,
-            ),
-            label(c, 'Fixed teacher · 2', 20, 173, 196, 27, 24, c.textPrimary, 700),
-            label(c, 'Student set · 3', 20, 263, 196, 27, 24, c.textPrimary, 700),
-            label(
-                c,
-                '…7',
-                fixedX[0] + 4,
-                fixedY + 13,
-                chipWidth - 8,
-                27,
-                24,
-                fixed,
-                750,
-                'center',
-                true,
-            ),
-            label(
-                c,
-                '…7 days',
-                fixedX[1] + 4,
-                fixedY + 13,
-                chipWidth - 8,
-                27,
-                24,
-                fixed,
-                750,
-                'center',
-                true,
-            ),
-            label(
-                c,
-                '…7',
-                studentX[0] + 4,
-                studentY + 13,
-                chipWidth - 8,
-                27,
-                24,
-                shared,
-                750,
-                'center',
-                true,
-            ),
-            label(
-                c,
-                '…30',
-                studentX[1] + 4,
-                studentY + 13,
-                chipWidth - 8,
-                27,
-                24,
-                newScore,
-                750,
-                'center',
-                true,
-            ),
-            label(
-                c,
-                '…30 days',
-                studentX[2] + 4,
-                studentY + 13,
-                chipWidth - 8,
-                27,
-                24,
-                newScore,
-                750,
-                'center',
-                true,
-            ),
-            label(c, 'same', 298, 220, 62, 24, 22, shared, 700, 'center'),
-            label(
-                c,
-                'Green = overlap · amber = two new teacher-score requests',
-                18,
-                319,
-                636,
-                26,
-                22,
-                c.textSecondary,
-                600,
-                'center',
-            ),
-            label(
-                c,
-                '2 fixed  +  2 new  =  4 unique',
-                18,
-                357,
-                636,
-                32,
-                28,
-                c.textPrimary,
-                800,
-                'center',
-                true,
-            ),
-            label(
-                c,
-                'Union of distinct prefixes',
-                18,
-                393,
-                636,
-                26,
-                22,
-                c.textSecondary,
-                650,
-                'center',
-            ),
-            ...uniqueLabels.flatMap((text, index) => [
-                label(
-                    c,
-                    text,
-                    uniqueX[index] + 4,
-                    uniqueY + 12,
-                    137,
-                    27,
-                    24,
-                    uniqueColors[index],
-                    700,
-                    'center',
-                    true,
-                ),
-            ]),
-            label(
-                c,
-                'The suffixes above follow the shared prompt exactly.',
-                18,
-                491,
-                636,
-                25,
-                22,
-                c.textSecondary,
-                600,
-                'center',
-            ),
-        ],
+    // Root prompt node on left
+    const rootX = 24
+    const rootY = 128
+    const rootW = 216
+    const rootH = 92
+    fig.rect(rootX, rootY, rootW, rootH, {
+        fill: tint(c.textMuted, c.bg, 0.08),
+        stroke: c.border,
+        strokeWidth: 1.4,
+        radius: 8,
     })
+    fig.text(rootX + 14, rootY + 22, 'Shared prompt', { size: 13, weight: 600, color: muted })
+    fig.text(rootX + 14, rootY + 46, '“How long is this disabled', { size: 13, weight: 600 })
+    fig.text(rootX + 14, rootY + 66, 'key restorable? Answer:”', { size: 13, weight: 600 })
+
+    // Branch 1 (upper): Teacher fixed dataset path (...7 to ...7 days)
+    const midX = 304
+    const leafX = 524
+    const nodeW = 148
+    const nodeH = 44
+
+    const topY = 74
+    const botY = 204
+
+    // Shared node "...7" (top branch step 1)
+    fig.arrow(rootX + rootW + 2, rootY + 30, midX - 4, topY + nodeH / 2, {
+        color: green,
+        width: 2,
+        head: 7,
+    })
+    fig.rect(midX, topY, nodeW, nodeH, {
+        fill: tint(green, c.bg, 0.18),
+        stroke: green,
+        strokeWidth: 1.75,
+        radius: 7,
+    })
+    fig.text(midX + nodeW / 2, topY + 15, '… 7', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(midX + nodeW / 2, topY + 34, 'shared overlap', {
+        size: 11,
+        weight: 600,
+        color: green,
+        align: 'center',
+    })
+
+    // Teacher continuation "...7 days"
+    fig.arrow(midX + nodeW + 2, topY + nodeH / 2, leafX - 4, topY + nodeH / 2, {
+        color: cyan,
+        width: 2,
+        head: 7,
+    })
+    fig.rect(leafX, topY, nodeW, nodeH, {
+        fill: tint(cyan, c.bg, 0.16),
+        stroke: cyan,
+        strokeWidth: 1.6,
+        radius: 7,
+    })
+    fig.text(leafX + nodeW / 2, topY + 15, '… 7 days', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+    })
+    fig.text(leafX + nodeW / 2, topY + 34, 'fixed teacher', {
+        size: 11,
+        weight: 600,
+        color: cyan,
+        align: 'center',
+    })
+
+    // Branch labels
+    fig.text(midX, 38, 'Fixed teacher dataset (2 prefixes)', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+    })
+    fig.text(midX, 174, 'Student on-policy divergence (+2 new prefixes)', {
+        size: 14,
+        weight: 700,
+        color: warm,
+    })
+
+    // Branch 2 (lower): Student branches to "...30" and "...30 days"
+    fig.arrow(rootX + rootW + 2, rootY + 66, midX - 4, botY + nodeH / 2, {
+        color: warm,
+        width: 2,
+        head: 7,
+    })
+    fig.rect(midX, botY, nodeW, nodeH, {
+        fill: tint(warm, c.bg, 0.18),
+        stroke: warm,
+        strokeWidth: 1.75,
+        radius: 7,
+    })
+    fig.text(midX + nodeW / 2, botY + 15, '… 30', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+    fig.text(midX + nodeW / 2, botY + 34, 'new teacher query', {
+        size: 11,
+        weight: 600,
+        color: warm,
+        align: 'center',
+    })
+
+    fig.arrow(midX + nodeW + 2, botY + nodeH / 2, leafX - 4, botY + nodeH / 2, {
+        color: warm,
+        width: 2,
+        head: 7,
+    })
+    fig.rect(leafX, botY, nodeW, nodeH, {
+        fill: tint(warm, c.bg, 0.18),
+        stroke: warm,
+        strokeWidth: 1.75,
+        radius: 7,
+    })
+    fig.text(leafX + nodeW / 2, botY + 15, '… 30 days', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+    fig.text(leafX + nodeW / 2, botY + 34, 'new teacher query', {
+        size: 11,
+        weight: 600,
+        color: warm,
+        align: 'center',
+    })
+
+    // Bottom union summary bar
+    const sumY = 304
+    fig.line(24, sumY - 22, width - 24, sumY - 22, { color: c.borderSubtle, width: 1 })
+    fig.text(24, sumY + 4, 'Union scored by teacher', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(24, sumY + 26, '2 fixed + 2 new = 4 unique', {
+        size: 13,
+        mono: true,
+        color: muted,
+    })
+
+    const unionItems = [
+        { label: '… 7', color: green },
+        { label: '… 7 days', color: cyan },
+        { label: '… 30', color: warm },
+        { label: '… 30 days', color: warm },
+    ]
+    unionItems.forEach((u, i) => {
+        const ux = 264 + i * 120
+        fig.rect(ux, sumY - 2, 108, 38, {
+            fill: tint(u.color, c.bg, 0.14),
+            stroke: u.color,
+            strokeWidth: 1.5,
+            radius: 6,
+        })
+        fig.text(ux + 54, sumY + 17, u.label, {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: u.color,
+            align: 'center',
+        })
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

@@ -1,328 +1,178 @@
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Column,
-    Row,
-    Scene,
-    TextLabel,
-    TiledMatrix,
-    getReadableToneColor,
-    getThemeColors,
-} from 'vizmatic'
-import type { ThemeMode as Theme } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 660
-export const height = 700
+export const width = 740
+export const height = 458
 export const alt =
-    'Standard attention writes an N-by-N score matrix to HBM, scaling quadratically from 2 MB at sequence length 1024 to 512 MB at length 16384 per head in FP16, while tiled FlashAttention keeps the active tile in on-chip SRAM with linear O(N) HBM output.'
+    'Top: side-by-side 8x8 attention grids contrast Standard Attention materializing the entire N by N score matrix in HBM (O(N^2)) against FlashAttention streaming a single active B_r by B_c tile in on-chip SRAM (O(N) temporary HBM). Bottom: FP16 score-matrix size per head grows quadratically from 2 MB at N=1k to 32 MB at 4k, 128 MB at 8k, and 512 MB at 16k, while tiled FlashAttention stays flat near the bottom axis.'
 
-const yTicks = [
-    { y: 512, label: '512 MB' },
-    { y: 256, label: '256 MB' },
-    { y: 0, label: '0 MB' },
-]
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const cyan = fig.tone('cyan')
+    const isDark = theme === 'dark'
 
-const xTicks = [
-    { x: 0, label: '0', highlight: false },
-    { x: 4, label: '4k', highlight: false },
-    { x: 8, label: '8k', highlight: false },
-    { x: 12, label: '12k', highlight: false },
-    { x: 16, label: '16k', highlight: true },
-]
+    // ─── TOP: Vivid 8x8 HBM vs SRAM tiled attention matrices ───
+    const cell = 15
+    const gap = 3
+    const gridSpan = 8 * cell + 7 * gap // 141px
+    const gridY = 38
 
-export function create(theme: Theme) {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-
-    const boardW = 636
-    const boardH = 258
-    const plotX = 96
-    const plotY = 12
-    const plotW = 496
-    const plotH = 206
-    const pad = 16
-    const xMin = 0
-    const xMax = 16
-    const yMin = 0
-    const yMax = 512
-    const innerW = plotW - pad * 2
-    const innerH = plotH - pad * 2
-    const sx = (x: number) => plotX + pad + ((x - xMin) / (xMax - xMin)) * innerW
-    const sy = (y: number) => plotY + pad + innerH - ((y - yMin) / (yMax - yMin)) * innerH
-
-    const gridH = yTicks.map(({ y }) => ({
-        points: [
-            { x: xMin, y },
-            { x: xMax, y },
-        ],
-        tone: 'neutral' as const,
-        strokeWidth: y === yMin ? 2 : 1,
-        opacity: y === yMin ? 0.65 : 0.32,
-    }))
-    const gridV = xTicks.map(({ x }) => ({
-        points: [
-            { x, y: yMin },
-            { x, y: yMax },
-        ],
-        tone: 'neutral' as const,
-        strokeWidth: x === xMin ? 2 : 1,
-        opacity: x === xMin ? 0.65 : 0.32,
-    }))
-
-    const curvePoints = Array.from({ length: 17 }, (_, k) => {
-        const n = Math.max(1, k)
-        return { x: n, y: 2 * n * n }
-    })
-    const sramPoints = Array.from({ length: 17 }, (_, k) => {
-        const n = Math.max(1, k)
-        return { x: n, y: 0.25 * n }
+    // Left: Standard Attention (full N x N in HBM)
+    const lx = 104
+    fig.text(lx + gridSpan / 2, 16, 'Standard attention (HBM)', {
+        size: 14.5,
+        color: warm,
+        align: 'center',
+        weight: 700,
     })
 
-    return Scene({
-        c,
-        title: 'Score-matrix materialization scales quadratically with N',
-        contentWidth: 640,
-        padding: 10,
-        gap: 12,
-        children: [
-            Row({
-                gap: 16,
-                align: 'start',
-                justify: 'center',
-                children: [
-                    Column({
-                        gap: 6,
-                        align: 'center',
-                        children: [
-                            TextLabel({
-                                c,
-                                text: 'Standard attention (HBM)',
-                                fontSize: 21,
-                                fontWeight: 700,
-                                align: 'center',
-                            }),
-                            TiledMatrix({
-                                c,
-                                rows: 8,
-                                cols: 8,
-                                cellSize: 22,
-                                gap: 3,
-                                muted: true,
-                                tone: 'neutral',
-                                regions: [
-                                    {
-                                        rowStart: 0,
-                                        rowEnd: 8,
-                                        colStart: 0,
-                                        colEnd: 8,
-                                        tone: 'warm',
-                                    },
-                                ],
-                                ariaLabel:
-                                    'Dense 8 by 8 materialized attention score matrix in HBM',
-                            }),
-                            TextLabel({
-                                c,
-                                text: 'Full N×N · O(N²) HBM',
-                                fontSize: 20,
-                                mono: true,
-                                fontWeight: 700,
-                                color: c.textPrimary,
-                                align: 'center',
-                            }),
-                        ],
-                    }),
-                    Column({
-                        gap: 6,
-                        align: 'center',
-                        children: [
-                            TextLabel({
-                                c,
-                                text: 'FlashAttention (SRAM)',
-                                fontSize: 21,
-                                fontWeight: 700,
-                                align: 'center',
-                            }),
-                            TiledMatrix({
-                                c,
-                                rows: 8,
-                                cols: 8,
-                                cellSize: 22,
-                                gap: 3,
-                                muted: true,
-                                tone: 'neutral',
-                                regions: [
-                                    {
-                                        rowStart: 2,
-                                        rowEnd: 4,
-                                        colStart: 2,
-                                        colEnd: 4,
-                                        tone: 'purple',
-                                    },
-                                ],
-                                ariaLabel:
-                                    'Tiled attention computing one small highlighted block in SRAM',
-                            }),
-                            TextLabel({
-                                c,
-                                text: 'One B_r×B_c tile · O(N)',
-                                fontSize: 20,
-                                mono: true,
-                                fontWeight: 700,
-                                color: c.textPrimary,
-                                align: 'center',
-                            }),
-                        ],
-                    }),
-                ],
-            }),
-            Column({
-                gap: 6,
-                align: 'center',
-                children: [
-                    TextLabel({
-                        c,
-                        text: 'FP16 score-matrix size per head (2N² bytes) vs sequence length N',
-                        fontSize: 21,
-                        fontWeight: 700,
-                        align: 'center',
-                    }),
-                    Board({
-                        c,
-                        width: boardW,
-                        height: boardH,
-                        children: [
-                            ...yTicks.map(({ y, label }) =>
-                                CanvasItem({
-                                    x: 0,
-                                    y: sy(y) - 12,
-                                    width: plotX - 8,
-                                    height: 24,
-                                    children: TextLabel({
-                                        c,
-                                        text: label,
-                                        width: plotX - 8,
-                                        fontSize: 19,
-                                        mono: true,
-                                        align: 'right',
-                                        color: c.textMuted,
-                                    }),
-                                }),
-                            ),
-                            CanvasItem({
-                                x: plotX,
-                                y: plotY,
-                                width: plotW,
-                                height: plotH,
-                                children: AxisPlot({
-                                    c,
-                                    width: plotW,
-                                    height: plotH,
-                                    padding: pad,
-                                    xMin,
-                                    xMax,
-                                    yMin,
-                                    yMax,
-                                    showGrid: false,
-                                    showAxes: false,
-                                    paths: [
-                                        ...gridH,
-                                        ...gridV,
-                                        { points: curvePoints, tone: 'warm', strokeWidth: 4 },
-                                        { points: sramPoints, tone: 'purple', strokeWidth: 4 },
-                                    ],
-                                    points: [
-                                        { x: 1, y: 2, tone: 'warm', r: 6 },
-                                        { x: 4, y: 32, tone: 'warm', r: 6 },
-                                        { x: 8, y: 128, tone: 'warm', r: 6 },
-                                        { x: 16, y: 512, tone: 'warm', r: 7 },
-                                        { x: 16, y: 4, tone: 'purple', r: 7 },
-                                    ],
-                                    ariaLabel:
-                                        'Quadratic growth of FP16 attention score memory versus sequence length compared to linear O(N) tiled SRAM footprint',
-                                }),
-                            }),
-                            ...xTicks.map(({ x, label, highlight }) =>
-                                CanvasItem({
-                                    x: sx(x) - 34,
-                                    y: plotY + plotH - pad / 2 + 6,
-                                    width: 68,
-                                    height: 24,
-                                    children: TextLabel({
-                                        c,
-                                        text: label,
-                                        width: 68,
-                                        fontSize: 20,
-                                        mono: true,
-                                        fontWeight: highlight ? 700 : 400,
-                                        align: 'center',
-                                        color: highlight
-                                            ? getReadableToneColor('warm', c)
-                                            : c.textMuted,
-                                    }),
-                                }),
-                            ),
-                        ],
-                    }),
-                    Row({
-                        gap: 16,
-                        justify: 'center',
-                        children: [
-                            TextLabel({
-                                c,
-                                text: '1k: 2 MB',
-                                fontSize: 19,
-                                mono: true,
-                                color: c.textMuted,
-                            }),
-                            TextLabel({
-                                c,
-                                text: '4k: 32 MB',
-                                fontSize: 19,
-                                mono: true,
-                                color: c.textMuted,
-                            }),
-                            TextLabel({
-                                c,
-                                text: '8k: 128 MB',
-                                fontSize: 19,
-                                mono: true,
-                                color: c.textMuted,
-                            }),
-                            TextLabel({
-                                c,
-                                text: '16k: 512 MB',
-                                fontSize: 19,
-                                mono: true,
-                                fontWeight: 700,
-                                color: getReadableToneColor('warm', c),
-                            }),
-                        ],
-                    }),
-                    Row({
-                        gap: 18,
-                        justify: 'center',
-                        children: [
-                            TextLabel({
-                                c,
-                                text: 'Orange: Standard O(N²) HBM',
-                                fontSize: 19,
-                                fontWeight: 700,
-                                color: getReadableToneColor('warm', c),
-                            }),
-                            TextLabel({
-                                c,
-                                text: 'Purple: FlashAttention O(N) SRAM',
-                                fontSize: 19,
-                                fontWeight: 700,
-                                color: getReadableToneColor('purple', c),
-                            }),
-                        ],
-                    }),
-                ],
-            }),
-        ],
+    for (let r = 0; r < 8; r++) {
+        for (let col = 0; col < 8; col++) {
+            const x = lx + col * (cell + gap)
+            const y = gridY + r * (cell + gap)
+            fig.rect(x, y, cell, cell, {
+                fill: tint(warm, c.bg, isDark ? 0.44 : 0.3),
+                stroke: warm,
+                strokeWidth: 1.1,
+                radius: 2.5,
+            })
+        }
+    }
+    fig.math(lx + gridSpan / 2, gridY + gridSpan + 22, String.raw`\text{Full } N \times N \;\cdot\; O(N^2)`, {
+        size: 14,
+        color: warm,
+        align: 'center',
     })
+
+    // Right: FlashAttention (single active B_r x B_c tile in on-chip SRAM)
+    const rx = 444
+    fig.text(rx + gridSpan / 2, 16, 'FlashAttention (on-chip SRAM)', {
+        size: 14.5,
+        color: purple,
+        align: 'center',
+        weight: 700,
+    })
+
+    const inactiveFill = isDark ? '#1e2536' : '#eee9df'
+    const inactiveStroke = isDark ? '#344158' : '#d0c9bb'
+
+    for (let r = 0; r < 8; r++) {
+        for (let col = 0; col < 8; col++) {
+            const x = rx + col * (cell + gap)
+            const y = gridY + r * (cell + gap)
+            const active = r >= 2 && r < 4 && col >= 2 && col < 4
+            fig.rect(x, y, cell, cell, {
+                fill: active ? tint(purple, c.bg, isDark ? 0.65 : 0.45) : inactiveFill,
+                stroke: active ? (isDark ? '#d8b4fe' : purple) : inactiveStroke,
+                strokeWidth: active ? 1.8 : 1,
+                radius: 2.5,
+            })
+        }
+    }
+
+    // Crisp bounding highlight + B_r / B_c callouts on the active 2x2 SRAM tile
+    const tileX = rx + 2 * (cell + gap) - 2
+    const tileY = gridY + 2 * (cell + gap) - 2
+    const tileW = 2 * cell + gap + 4
+    fig.rect(tileX, tileY, tileW, tileW, {
+        stroke: cyan,
+        strokeWidth: 2,
+        radius: 4,
+    })
+    fig.callout(
+        [tileX + tileW + 2, tileY + tileW / 2],
+        [rx + gridSpan + 16, tileY + tileW / 2],
+        String.raw`B_r \times B_c`,
+        {
+            color: cyan,
+            labelColor: cyan,
+            size: 14,
+            tex: true,
+            align: 'left',
+            bend: 0,
+            head: 5,
+        },
+    )
+    fig.text(rx + gridSpan + 18, tileY + tileW / 2 + 20, 'active SRAM tile', {
+        size: 12.5,
+        color: c.textSecondary,
+    })
+
+    fig.math(rx + gridSpan / 2, gridY + gridSpan + 22, String.raw`\text{One } B_r \times B_c \text{ tile} \;\cdot\; O(N)`, {
+        size: 14,
+        color: purple,
+        align: 'center',
+    })
+
+    // Subtle divider
+    fig.line(24, 218, width - 24, 218, { color: c.borderSubtle, width: 1 })
+
+    // ─── BOTTOM: Quadratic HBM vs Linear O(N) SRAM curve ───
+    const plot = fig.plot({ x: 82, y: 248, width: 616, height: 156 }, { x: [0, 16.5], y: [0, 560] })
+
+    plot.axes({
+        xTicks: [0, 4, 8, 12, 16],
+        yTicks: [0, 128, 256, 384, 512],
+        xFormat: (v) => (v === 0 ? '0' : `${v}k`),
+        yFormat: (v) => `${v} MB`,
+        xLabel: 'Sequence length N  (FP16 score matrix per head = 2N² bytes)',
+        yLabel: 'HBM per head',
+        labelSize: 13.5,
+        grid: true,
+    })
+
+    // Shaded area under quadratic curve
+    plot.fillArea((k) => 2 * k * k, {
+        range: [0, 16],
+        baseline: 0,
+        fill: warm,
+        fillOpacity: 0.12,
+        samples: 120,
+    })
+
+    // Smooth quadratic O(N^2) curve & linear O(N) FlashAttention line
+    plot.fn((k) => 2 * k * k, { color: warm, width: 2.8 }, 160, [0, 16])
+    plot.fn((k) => 0.25 * k, { color: purple, width: 2.8 }, 80, [0, 16])
+
+    // Key points along Standard O(N^2) curve with direct labels
+    const pts: Array<{ k: number; mb: number; dx: number; dy: number; align: 'left' | 'center' | 'right' }> = [
+        { k: 1, mb: 2, dx: 6, dy: -16, align: 'left' },
+        { k: 4, mb: 32, dx: 0, dy: -16, align: 'center' },
+        { k: 8, mb: 128, dx: -10, dy: -14, align: 'right' },
+        { k: 16, mb: 512, dx: -10, dy: 4, align: 'right' },
+    ]
+    for (const p of pts) {
+        const px = plot.px(p.k)
+        const py = plot.py(p.mb)
+        fig.circle(px, py, 5.2, { fill: warm, stroke: c.bg, width: 1.8 })
+        fig.text(px + p.dx, py + p.dy, `${p.k}k: ${p.mb} MB`, {
+            size: 13,
+            color: warm,
+            align: p.align,
+            mono: true,
+            weight: 700,
+        })
+    }
+
+    // Direct curve labels
+    fig.text(plot.px(11.6), plot.py(2 * 11.6 * 11.6) - 20, 'Standard O(N²) HBM', {
+        size: 14,
+        color: warm,
+        align: 'right',
+        weight: 700,
+    })
+    fig.circle(plot.px(16), plot.py(4), 5.2, { fill: purple, stroke: c.bg, width: 1.8 })
+    fig.text(plot.px(15.6), plot.py(34), 'FlashAttention O(N) SRAM', {
+        size: 14,
+        color: purple,
+        align: 'right',
+        weight: 700,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

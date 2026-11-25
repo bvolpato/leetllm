@@ -87,7 +87,7 @@ Length is not depth. Trim repetitive recaps, redundant checklists, and padded sc
 
 - **Core lessons:** target roughly **2,000 to 3,500 words**.
 - **Deep multi-lab capstones or system designs:** up to **~4,500 words** when every section carries distinct code, math, or architecture.
-- **Dual-edition alignment:** Where `edition:reader` and `edition:reference` exist, keep the Reader edition (default web view) tight and self-contained, moving secondary extensions into `<details>` Deep Dive blocks or Reference sections.
+- **Single unified edition:** Every lesson has one cohesive manuscript shared by the website and the book (no separate `edition:reader` vs. `edition:reference` toggles). Move secondary derivations or niche extensions into `<details>` Deep Dive blocks instead of duplicating the article.
 
 ### NONO 10: Zero Em Dashes Everywhere
 

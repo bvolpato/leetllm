@@ -4,20 +4,21 @@ import {
     CanvasItem,
     SvgFrame,
     TextLabel,
-    VectorArrow,
+    VectorSegment,
     getReadableToneColor,
     getThemeColors,
+    withColorAlpha,
     type ThemeMode,
 } from 'vizmatic'
 
-export const width = 860
-export const height = 520
+export const width = 760
+export const height = 470
 export const alt =
-    'A three-stage FSDP2 lifecycle diagram follows one rank across forward, backward, and optimizer update. Phase 1 shows the forward all-gather to reconstruct full BF16 parameters followed by immediate resharding. Phase 2 shows backward all-gather and reduce-scatter returning reduced gradient shard dW_r. Phase 3 executes local AdamW updates on the owned shard P_r and clears gradients. Top bar illustrates persistent 1 GB FP32 shard residency.'
+    'Live GPU HBM footprint of a 1B FSDP2 unit across 4 ranks over six step events. The 1 GB FP32 parameter shard stays resident throughout. Forward all-gather temporarily adds 2 GB of BF16 weights to peak at 3 GB, then post-forward reshard drops back to 1 GB. Backward all-gather again peaks at 3 GB, reduce-scatter frees BF16 weights leaving 1 GB shard plus 1 GB FP32 gradient shard (2 GB), and local AdamW plus zero_grad returns to the 1 GB rest state.'
 
 type Colors = ReturnType<typeof getThemeColors>
 
-function label(
+function lbl(
     c: Colors,
     text: string,
     x: number,
@@ -26,7 +27,7 @@ function label(
     h: number,
     fontSize: number,
     color = c.textPrimary,
-    fontWeight = 600,
+    fontWeight = 650,
     align: 'left' | 'center' | 'right' = 'left',
     mono = false,
 ) {
@@ -39,20 +40,6 @@ function label(
     })
 }
 
-function frame(
-    c: Colors,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    color: string,
-    fill: string,
-    rx = 8,
-    strokeWidth = 1.5,
-) {
-    return SvgFrame({ c, x, y, width: w, height: h, rx, fill, stroke: color, strokeWidth })
-}
-
 export function create(theme: ThemeMode = 'dark') {
     const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
     const green = getReadableToneColor('green', c)
@@ -61,268 +48,203 @@ export function create(theme: ThemeMode = 'dark') {
     const warm = getReadableToneColor('warm', c)
     const muted = c.textSecondary
 
-    const geometry = [
-        // Persistent Shard Bar
-        frame(c, 24, 70, 812, 44, green, `${green}12`, 8, 1.5),
+    const plotLeft = 86
+    const plotRight = 740
+    const baseY = 382
+    const gbPx = 76 // 1 GB = 76px, 3 GB = 228px -> top at y = 154
+    const yForGb = (gb: number) => baseY - gb * gbPx
 
-        // Phase 1: Forward Pass
-        frame(c, 24, 126, 258, 332, blue, `${blue}0a`, 10, 1.5),
-        frame(c, 36, 172, 234, 66, c.borderSubtle, c.bgCard, 6, 1),
-        frame(c, 36, 246, 234, 66, blue, `${blue}15`, 6, 1.2),
-        frame(c, 36, 320, 234, 66, warm, `${warm}15`, 6, 1.2),
-        frame(c, 36, 394, 234, 52, c.borderSubtle, c.bgCard, 6, 1),
-
-        // Phase 2: Backward Pass
-        frame(c, 301, 126, 258, 332, purple, `${purple}0a`, 10, 1.5),
-        frame(c, 313, 172, 234, 66, purple, `${purple}15`, 6, 1.2),
-        frame(c, 313, 246, 234, 66, warm, `${warm}15`, 6, 1.2),
-        frame(c, 313, 320, 234, 66, purple, `${purple}18`, 6, 1.2),
-        frame(c, 313, 394, 234, 52, c.borderSubtle, c.bgCard, 6, 1),
-
-        // Phase 3: Optimizer Step
-        frame(c, 578, 126, 258, 332, green, `${green}0a`, 10, 1.5),
-        frame(c, 590, 172, 234, 78, green, `${green}15`, 6, 1.2),
-        frame(c, 590, 258, 234, 78, green, `${green}15`, 6, 1.2),
-        frame(c, 590, 344, 234, 102, c.borderSubtle, c.bgCard, 6, 1),
+    const events = [
+        { name: 'Rest', phase: 'fwd', shard: 1, bf16: 0, grad: 0, freed: false, total: '1 GB', tone: green },
+        { name: 'Fwd AG', phase: 'fwd', shard: 1, bf16: 2, grad: 0, freed: false, total: '3 GB', tone: blue },
+        { name: 'Reshard', phase: 'fwd', shard: 1, bf16: 0, grad: 0, freed: true, total: '1 GB', tone: blue },
+        { name: 'Bwd AG', phase: 'bwd', shard: 1, bf16: 2, grad: 0, freed: false, total: '3 GB', tone: purple },
+        { name: 'Red-Scat', phase: 'bwd', shard: 1, bf16: 0, grad: 1, freed: false, total: '2 GB', tone: warm },
+        { name: 'AdamW', phase: 'opt', shard: 1, bf16: 0, grad: 0, freed: false, total: '1 GB', tone: green },
     ]
 
-    const arrows = [
-        // Arrow from Phase 1 to Phase 2
-        VectorArrow({
-            x1: 282,
-            y1: 292,
-            x2: 301,
-            y2: 292,
-            color: blue,
-            strokeWidth: 2,
-            arrowSize: 6,
+    const colW = (plotRight - plotLeft) / events.length
+    const barW = 76
+
+    const geometry = [
+        // Phase header bands
+        SvgFrame({
+            c,
+            key: 'phase-fwd',
+            x: plotLeft + 6,
+            y: 66,
+            width: colW * 3 - 12,
+            height: 30,
+            rx: 6,
+            fill: withColorAlpha(blue, 0.12),
+            stroke: blue,
+            strokeWidth: 1.2,
         }),
-        // Arrow from Phase 2 to Phase 3
-        VectorArrow({
-            x1: 559,
-            y1: 292,
-            x2: 578,
-            y2: 292,
-            color: purple,
-            strokeWidth: 2,
-            arrowSize: 6,
+        SvgFrame({
+            c,
+            key: 'phase-bwd',
+            x: plotLeft + colW * 3 + 6,
+            y: 66,
+            width: colW * 2 - 12,
+            height: 30,
+            rx: 6,
+            fill: withColorAlpha(purple, 0.12),
+            stroke: purple,
+            strokeWidth: 1.2,
+        }),
+        SvgFrame({
+            c,
+            key: 'phase-opt',
+            x: plotLeft + colW * 5 + 6,
+            y: 66,
+            width: colW - 12,
+            height: 30,
+            rx: 6,
+            fill: withColorAlpha(green, 0.12),
+            stroke: green,
+            strokeWidth: 1.2,
+        }),
+
+        // Legend swatches
+        SvgFrame({ c, key: 'leg-p', x: 24, y: 20, width: 20, height: 20, rx: 4, fill: withColorAlpha(green, 0.35), stroke: green, strokeWidth: 1.6 }),
+        SvgFrame({ c, key: 'leg-w', x: 266, y: 20, width: 20, height: 20, rx: 4, fill: withColorAlpha(blue, 0.3), stroke: blue, strokeWidth: 1.6 }),
+        SvgFrame({ c, key: 'leg-g', x: 518, y: 20, width: 20, height: 20, rx: 4, fill: withColorAlpha(warm, 0.32), stroke: warm, strokeWidth: 1.6 }),
+
+        // Horizontal gridlines at 0, 1, 2, 3 GB
+        ...[0, 1, 2, 3].map((gb) =>
+            createElement('line', {
+                key: `grid-${gb}`,
+                x1: plotLeft,
+                y1: yForGb(gb),
+                x2: plotRight,
+                y2: yForGb(gb),
+                stroke: gb === 0 ? muted : gb === 1 ? green : c.borderSubtle,
+                strokeWidth: gb === 0 ? 1.8 : gb === 1 ? 1.5 : 1,
+                strokeDasharray: gb === 0 ? undefined : '5 4',
+            }),
+        ),
+        // Y axis
+        VectorSegment({ x1: plotLeft, y1: yForGb(3) - 18, x2: plotLeft, y2: baseY, color: muted, strokeWidth: 1.8, showStartDot: false, showEndDot: false }),
+
+        // Event stacked bars
+        ...events.flatMap((ev, i) => {
+            const cx = plotLeft + i * colW + colW / 2
+            const bx = cx - barW / 2
+            const items = [
+                // Resident 1 GB FP32 shard
+                SvgFrame({
+                    c,
+                    key: `shard-${i}`,
+                    x: bx,
+                    y: yForGb(1),
+                    width: barW,
+                    height: gbPx,
+                    rx: 5,
+                    fill: withColorAlpha(green, 0.28),
+                    stroke: green,
+                    strokeWidth: 1.8,
+                }),
+            ]
+            if (ev.bf16 > 0) {
+                const topColor = ev.phase === 'fwd' ? blue : purple
+                items.push(
+                    SvgFrame({
+                        c,
+                        key: `bf16-${i}`,
+                        x: bx,
+                        y: yForGb(3),
+                        width: barW,
+                        height: gbPx * 2 - 4,
+                        rx: 5,
+                        fill: withColorAlpha(topColor, 0.25),
+                        stroke: topColor,
+                        strokeWidth: 1.8,
+                    }),
+                )
+            }
+            if (ev.freed) {
+                items.push(
+                    createElement('rect', {
+                        key: `freed-${i}`,
+                        x: bx,
+                        y: yForGb(3),
+                        width: barW,
+                        height: gbPx * 2 - 4,
+                        rx: 5,
+                        fill: 'none',
+                        stroke: c.borderSubtle,
+                        strokeWidth: 1.6,
+                        strokeDasharray: '5 4',
+                    }),
+                )
+            }
+            if (ev.grad > 0) {
+                items.push(
+                    SvgFrame({
+                        c,
+                        key: `grad-${i}`,
+                        x: bx,
+                        y: yForGb(2),
+                        width: barW,
+                        height: gbPx - 4,
+                        rx: 5,
+                        fill: withColorAlpha(warm, 0.28),
+                        stroke: warm,
+                        strokeWidth: 1.8,
+                    }),
+                )
+            }
+            return items
         }),
     ]
 
     const labels = [
-        // Title & Header
-        label(
-            c,
-            'FSDP2 Unit Lifecycle Across a Training Step',
-            24,
-            14,
-            812,
-            28,
-            22,
-            c.textPrimary,
-            700,
-        ),
-        label(
-            c,
-            'Parameter unshard, forward compute, reshard, backward compute, reduce-scatter, and optimizer step for 1B unit across 4 ranks',
-            24,
-            44,
-            812,
-            20,
-            13,
-            muted,
-            500,
+        // Legend labels
+        lbl(c, 'FP32 shard Pᵣ (1 GB)', 52, 18, 204, 24, 16, c.textPrimary, 700),
+        lbl(c, 'BF16 gather W (2 GB)', 294, 18, 212, 24, 16, c.textPrimary, 700),
+        lbl(c, 'FP32 grad dWᵣ (1 GB)', 546, 18, 200, 24, 16, c.textPrimary, 700),
+
+        // Phase headers
+        lbl(c, '1 · Forward', plotLeft + 6, 70, colW * 3 - 12, 22, 16, blue, 800, 'center'),
+        lbl(c, '2 · Backward', plotLeft + colW * 3 + 6, 70, colW * 2 - 12, 22, 16, purple, 800, 'center'),
+        lbl(c, '3 · Step', plotLeft + colW * 5 + 6, 70, colW - 12, 22, 16, green, 800, 'center'),
+
+        // Y-axis ticks
+        ...[0, 1, 2, 3].map((gb) =>
+            lbl(c, `${gb} GB`, 14, yForGb(gb) - 11, 64, 22, 16, gb === 1 ? green : muted, 700, 'right', true),
         ),
 
-        // Persistent Shard Bar
-        label(
-            c,
-            'RESIDENT STATE: Owned FP32 Parameter Shard Pᵣ (1 GB) remains in GPU HBM throughout the entire step',
-            36,
-            82,
-            788,
-            20,
-            13,
-            green,
-            700,
-            'center',
-        ),
+        // Per-event labels
+        ...events.flatMap((ev, i) => {
+            const cx = plotLeft + i * colW + colW / 2
+            const peakGb = ev.shard + ev.bf16 + ev.grad
+            const peakY = yForGb(peakGb) - 28
+            const arr = [
+                lbl(c, ev.total, cx - 44, peakY, 88, 22, 16, ev.tone, 800, 'center', true),
+                lbl(c, 'Pᵣ', cx - 32, yForGb(0.5) - 11, 64, 22, 16, green, 800, 'center', true),
+                lbl(c, ev.name, cx - 50, baseY + 14, 100, 24, 16, c.textPrimary, 700, 'center'),
+            ]
+            if (ev.bf16 > 0) {
+                const topColor = ev.phase === 'fwd' ? blue : purple
+                arr.push(lbl(c, 'W (2G)', cx - 36, yForGb(2) - 11, 72, 22, 16, topColor, 700, 'center', true))
+            }
+            if (ev.freed) {
+                arr.push(lbl(c, 'freed', cx - 36, yForGb(2) - 11, 72, 22, 16, muted, 600, 'center'))
+            }
+            if (ev.grad > 0) {
+                arr.push(lbl(c, 'dWᵣ', cx - 32, yForGb(1.5) - 11, 64, 22, 16, warm, 800, 'center', true))
+            }
+            return arr
+        }),
 
-        // Phase 1: Forward Pass
-        label(c, '1 · Forward Pass', 36, 138, 234, 22, 15, blue, 700),
-        label(c, 'Step 1 · Rest State', 44, 178, 218, 16, 12, c.textPrimary, 600),
-        label(
-            c,
-            'Only owned shard Pᵣ (1 GB) resident.\n.grad is None, activations clear.',
-            44,
-            196,
-            218,
-            34,
-            11,
-            muted,
-            400,
-        ),
-
-        label(c, 'Step 2 · Forward All-Gather', 44, 252, 218, 16, 12, blue, 600),
-        label(
-            c,
-            'Gathers shards from all 4 ranks.\nFull unit (2 GB BF16) materialized.',
-            44,
-            270,
-            218,
-            34,
-            11,
-            c.textPrimary,
-            400,
-        ),
-
-        label(c, 'Step 3 · Forward Compute', 44, 326, 218, 16, 12, warm, 600),
-        label(
-            c,
-            'Runs Y = Layer(X) forward kernel.\nSaves activations needed for backward.',
-            44,
-            344,
-            218,
-            34,
-            11,
-            c.textPrimary,
-            400,
-        ),
-
-        label(c, 'Step 4 · Post-Forward Reshard', 44, 400, 218, 16, 12, c.textPrimary, 600),
-        label(
-            c,
-            'Full 2 GB BF16 weights immediately freed!\nOnly Pᵣ shard and activations remain.',
-            44,
-            416,
-            218,
-            28,
-            11,
-            muted,
-            400,
-        ),
-
-        // Phase 2: Backward Pass
-        label(c, '2 · Backward Pass', 313, 138, 234, 22, 15, purple, 700),
-        label(c, 'Step 5 · Backward All-Gather', 321, 178, 218, 16, 12, purple, 600),
-        label(
-            c,
-            'Full BF16 unit gathered again.\nWeights needed to compute dX = dY Wᵀ.',
-            321,
-            196,
-            218,
-            34,
-            11,
-            c.textPrimary,
-            400,
-        ),
-
-        label(c, 'Step 6 · Backward Compute', 321, 252, 218, 16, 12, warm, 600),
-        label(
-            c,
-            'Computes input gradient dX and\nlocal unreduced weight gradient dW.',
-            321,
-            270,
-            218,
-            34,
-            11,
-            c.textPrimary,
-            400,
-        ),
-
-        label(c, 'Step 7 · Reduce-Scatter', 321, 326, 218, 16, 12, purple, 600),
-        label(
-            c,
-            'Sums dW across ranks; leaves each\nrank only its assigned shard dWᵣ.',
-            321,
-            344,
-            218,
-            34,
-            11,
-            c.textPrimary,
-            400,
-        ),
-
-        label(c, 'Step 8 · Post-Backward Reshard', 321, 400, 218, 16, 12, c.textPrimary, 600),
-        label(
-            c,
-            'Full weights freed. Rank holds only\nowned weight shard Pᵣ and gradient dWᵣ.',
-            321,
-            416,
-            218,
-            28,
-            11,
-            muted,
-            400,
-        ),
-
-        // Phase 3: Optimizer Step
-        label(c, '3 · Optimizer Step', 590, 138, 234, 22, 15, green, 700),
-        label(c, 'Step 9 · Local AdamW Update', 598, 180, 218, 16, 12, green, 600),
-        label(
-            c,
-            'Updates owned FP32 shard Pᵣ using dWᵣ\nand local moment buffers mᵣ and vᵣ.\nZero cross-rank communication required!',
-            598,
-            198,
-            218,
-            46,
-            11,
-            c.textPrimary,
-            400,
-        ),
-
-        label(c, 'Step 10 · zero_grad()', 598, 266, 218, 16, 12, green, 600),
-        label(
-            c,
-            'zero_grad(set_to_none=True) clears\ngradient memory references, restoring\nexact baseline rest state for next step.',
-            598,
-            284,
-            218,
-            46,
-            11,
-            c.textPrimary,
-            400,
-        ),
-
-        label(c, 'Memory Wall Defeated', 598, 352, 218, 16, 12, c.textPrimary, 600),
-        label(
-            c,
-            'Peak weight memory bounded to one unit\nat a time, rather than the full 70B model.\nCommunication is overlapped via CUDA streams.',
-            598,
-            372,
-            218,
-            64,
-            11,
-            muted,
-            400,
-        ),
-
-        // Footer Note
-        label(
-            c,
-            'Prefetching: FSDP2 enqueues All-Gather of unit i+1 on a communication stream during compute of unit i to hide transfer latency.',
-            24,
-            474,
-            812,
-            20,
-            12,
-            muted,
-            500,
-            'center',
-        ),
+        // Bottom concise axis label
+        lbl(c, '1B unit across 4 ranks · reshard_after_forward = True', plotLeft, 434, plotRight - plotLeft, 22, 16, muted, 600, 'center'),
     ]
 
     const svg = createElement(
         'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
+        { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
         ...geometry,
-        ...arrows,
     )
     return Board({
         c,

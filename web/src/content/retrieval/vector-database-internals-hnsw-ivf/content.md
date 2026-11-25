@@ -41,113 +41,54 @@
 }
 ---
 
-Suppose your search engine holds 100 million 1,536-dimensional <span data-glossary="embedding">embeddings</span>, and a user query arrives with a 15-millisecond latency budget. Checking every vector exactly means streaming 572 GiB of float32 numbers and scoring 153.6 billion scalar components for a single request. Yet skipping 99.9% of the corpus risks missing the exact passage the user needed. How can an index ignore almost every vector in a 1,536-dimensional space and still land in the right neighborhood?
+Suppose your search engine holds 100 million 1,536-dimensional <span data-glossary="embedding">embeddings</span>, and a query arrives with a 15-millisecond latency budget. Exact scan streams 572 GiB of float32 numbers and scores 153.6 billion scalar components for a single request. Yet skipping 99.9% of the corpus risks missing the exact passage the user needed. How can an index ignore almost every vector in $\mathbb{R}^{1536}$ and still land in the right neighborhood?
 
-Three ideas answer that question, and every modern vector database builds on them: **<span data-glossary="hnsw">Hierarchical Navigable Small World (HNSW)</span>** walks a multi-layer proximity graph, **<span data-glossary="ivf">Inverted File (IVF)</span>** partitions space into coarse Voronoi cells and opens only a few, and **<span data-glossary="product-quantization">Product Quantization (PQ)</span>** compresses each vector into short byte codes so billions of records fit in RAM.
+Every modern vector database builds on three ideas: **<span data-glossary="hnsw">Hierarchical Navigable Small World (HNSW)</span>** navigates a multi-layer proximity graph, **<span data-glossary="ivf">Inverted File (IVF)</span>** partitions space into coarse Voronoi cells and opens only a few, and **<span data-glossary="product-quantization">Product Quantization (PQ)</span>** compresses vectors into short byte codes so billions fit in RAM.
 
-The [embedding lesson](/learn/embeddings-cosine-dot-product-quantization) fixed the ranking rule: compare vectors using the distance metric and normalization expected by the embedding model. A vector index approximates that exact ranking faster and in less memory; it cannot fix weak embeddings, and its accuracy is always measured against exact search on the same vectors.
+The [embedding lesson](/learn/embeddings-cosine-dot-product-quantization) fixed the ranking rule (metric and normalization). A vector index approximates that exact ranking faster and in less memory; it cannot rescue weak embeddings, and its accuracy is always judged against exact search on the same vectors.
 
 ## The brute-force problem
 
-**Exact search** (flat search) computes the distance from query <span data-glossary="vector">vector</span> $q$ to every stored vector and returns the $k$ closest ($k$-NN). For $N$ vectors of dimension $d$, each unfiltered query does <span data-glossary="big-o-notation">$O(N \cdot d)$</span> arithmetic, and storing the raw float32 matrix alone takes:
+**Exact search** (flat search) scores query <span data-glossary="vector">vector</span> $q$ against every stored vector in <span data-glossary="big-o-notation">$O(N \cdot d)$</span> work. Raw float32 storage alone requires:
 
 $$
 100{,}000{,}000 \text{ vectors} \times 1{,}536 \text{ dims} \times 4 \text{ bytes} \approx 614 \text{ GB} \approx 572.2 \text{ GiB}
 $$
 
-Why not reach for a classic k-d tree? Spatial trees partition one axis at a time and prune subtrees whose bounding boxes cannot beat the best distance found so far. That works beautifully in 2D or 3D, but breaks down quickly as dimension grows: SciPy notes that by roughly 20 dimensions, a k-d tree often inspects nearly as many points as brute force.[^scipyKDTree2026] In high-dimensional spaces, **distance concentration** makes pairwise distances cluster closely around their mean whenever many coordinates carry independent variance, so axis-aligned bounding boxes overlap almost everywhere. (Intrinsic dimension still matters: padding 1D points with 767 zeros leaves their distances untouched.)
+Classic k-d trees partition one coordinate axis at a time and prune subtrees via bounding boxes, which works in 2D or 3D but collapses around 20 dimensions.[^scipyKDTree2026] When many coordinates carry independent variance, **distance concentration** clusters pairwise distances tightly around their mean so bounding boxes overlap almost everywhere (whereas zero-padding 1D points into 768D leaves their true intrinsic distances unchanged).
 
-<!-- leetllm: test, output=show -->
-```python title="estimate-flat-storage-and-work.py"
-import math
+**<span data-glossary="ann-search">Approximate nearest-neighbor (ANN) search</span>** inspects a tiny candidate subset and scores its accuracy against exact top-$k$ with **<span data-glossary="recall-at-k">Recall@k</span>**:
 
-n_vectors = 100_000_000
-dimensions = 1_536
+$$
+\text{Recall@}k = \frac{\lvert S_{\text{approx}} \cap S_{\text{exact}} \rvert}{k}
+$$
 
-raw_gib = n_vectors * dimensions * 4 / (1024 ** 3)
-scalar_ops = n_vectors * dimensions
-print(f"raw float32 storage: {raw_gib:.1f} GiB")
-print(f"scalar components scored per flat query: {scalar_ops:,}")
+If exact top-5 is `[10, 21, 34, 55, 89]`, a fast setting returning `[10, 21, 8, 13, 5]` achieves 40% Recall@5, while a tuned setting returning `[10, 21, 34, 55, 3]` reaches 80%. Keep ANN recall distinct from relevance recall: an index can hit 100% ANN recall while faithfully reproducing a mediocre embedding model.
 
-# Zero-padding adds coordinates without changing intrinsic 1D geometry.
-origin = [0.0] * 768
-padded = [[value] + [0.0] * 767 for value in (1.0, 10.0)]
-print(f"zero-padded 768D distances: {[math.dist(origin, p) for p in padded]}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-raw float32 storage: 572.2 GiB
-scalar components scored per flat query: 153,600,000,000
-zero-padded 768D distances: [1.0, 10.0]
-```
-<!-- leetllm: output:end -->
-
-**<span data-glossary="ann-search">Approximate nearest-neighbor (ANN) search</span>** trades a tiny fraction of exact matches for orders-of-magnitude less work. We measure that trade-off with **<span data-glossary="recall-at-k">Recall@k</span>**: the fraction of the exact top-$k$ neighbors recovered by the approximate index (computed with the same metric, snapshot, and filter). Keep ANN recall separate from end-to-end relevance recall: an index can score 100% ANN recall while faithfully reproducing a mediocre embedding model.
-
-<!-- leetllm: test, output=show -->
-```python title="measure-recall-at-k.py"
-def recall_at_k(exact_ids: list[int], approx_ids: list[int]) -> float:
-    return len(set(exact_ids) & set(approx_ids)) / len(exact_ids)
-
-exact_top_5 = [10, 21, 34, 55, 89]
-fast_setting = [10, 21, 8, 13, 5]
-tuned_setting = [10, 21, 34, 55, 3]
-
-print(f"fast setting recall@5:  {recall_at_k(exact_top_5, fast_setting):.0%}")
-print(f"tuned setting recall@5: {recall_at_k(exact_top_5, tuned_setting):.0%}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-fast setting recall@5:  40%
-tuned setting recall@5: 80%
-```
-<!-- leetllm: output:end -->
-
-> **Key insight:** Never evaluate latency without Recall@k. Sweeping search parameters traces a **Recall@k vs. QPS Pareto frontier**; pick the fastest operating point on that frontier that clears your recall target. Exact flat search stays useful both as your ground-truth benchmark and as the fastest path when a selective metadata filter shrinks the eligible set to a few thousand rows.[^pgvector_docs]
+> **Key insight:** Never report latency without Recall@k. Sweeping search parameters traces a **Recall@k vs. QPS Pareto frontier**; pick the fastest point that clears your recall floor. Exact flat search remains both your recall baseline and the fastest engine when a selective filter shrinks the eligible pool to a few thousand rows.[^pgvector_docs]
 
 <figure>
   <img src="illustrations/_generated/vector_db_internals_dark.png" alt="Two constructed index mechanisms narrow a query’s scoring work. In HNSW, a search follows graph links from an entry through closer neighbors and expands a base-layer neighborhood. In IVF, query q at x=4.9 lies in List 0, whose members are v0, v1, and v2; List 1 contains v3 and v4. Both methods send only their candidate pool to the same metric-scoring and top-k step." />
   <figcaption>HNSW walks proximity-graph links while IVF opens selected Voronoi lists. Both shrink the candidate pool handed to exact distance scoring.</figcaption>
 </figure>
 
-```checkpoint
-Why is unfiltered exact vector search expensive at 100 million 1,536-dimensional vectors?
----
-Storing raw float32 vectors alone requires ~572 GiB, and every unfiltered query must score all 153.6 billion scalar components. ANN indexes inspect a tiny candidate subset while exact search remains the recall baseline.
-```
-
 ## HNSW (Hierarchical Navigable Small World)
 
-When your working set fits in RAM and you want low latency without an offline clustering phase, **HNSW** is usually the first index to try.[^malkov2018]
+When your working set fits in RAM and you want low latency without offline clustering, **HNSW** is usually the first index to try.[^malkov2018]
 
 ### Skip-lists generalized to high-dimensional graphs
 
-Picture a 1D skip-list: an ordered linked list topped by sparser express lanes that jump across large spans in a single hop, dropping down to denser lanes only near the target. HNSW applies that hierarchy to a proximity graph in $\mathbb{R}^d$.[^malkov2018]
-
-When a new vector $v$ is inserted, its maximum layer $\ell$ is sampled from an exponential decay distribution:
+HNSW generalizes a 1D skip-list to a proximity graph in $\mathbb{R}^d$.[^malkov2018] Each inserted vector $v$ samples its maximum layer $\ell$ from an exponential decay distribution. Setting $m_L = 1 / \ln(M)$ yields a geometric ladder:
 
 $$
-P(\text{level} \ge \ell) = \exp(-\ell / m_L)
+P(\text{level} \ge \ell) = \exp(-\ell / m_L) = \left(\frac{1}{M}\right)^\ell
 $$
 
-Setting $m_L = 1 / \ln(M)$ (for $M > 1$) turns this into a clean geometric ladder:
-
-$$
-P(\text{level} \ge \ell) = \exp(-\ell \ln M) = \left(\frac{1}{M}\right)^\ell
-$$
-
-Every vector lives on Layer 0. Roughly $N/M$ vectors appear on Layer 1, $N/M^2$ on Layer 2, and the tallest layer sits near $\log_M N$. Upper layers are sparse highways linking distant regions; Layer 0 is a dense local road network.
+Every vector resides on Layer 0, roughly $N/M$ on Layer 1, $N/M^2$ on Layer 2, up to height $\approx \log_M N$. Upper layers act as sparse express highways; Layer 0 is the dense local road network.
 
 Search runs in two phases:
-
-1. **Greedy descent on upper layers.** Starting from the global entry point on the top layer, repeatedly hop to any neighbor closer to query $q$. When no neighbor improves the distance, you have hit a local minimum on that layer. Drop straight down to the *same vector* on the next layer below and repeat.
-2. **Beam search on Layer 0.** A greedy walk on the dense base layer gets trapped in local minima, so Layer 0 switches to a wider beam search parameterized by `ef_search`. It maintains two heaps:
-   - `candidates`: a min-heap of unexpanded nodes ordered by ascending distance to $q$.
-   - `results`: a max-heap holding at most `ef_search` closest vectors found so far.
-
-At each step, pop the closest node $c$ from `candidates`. If $c$ is already farther from $q$ than the worst vector in `results` (once `results` is full), stop and return the best $k$ items from `results`. Otherwise inspect $c$'s unvisited neighbors and push any that improve `results` onto both heaps.
+1. **Greedy descent on upper layers:** From the global entry point on the top layer, hop to any closer neighbor until reaching a local minimum, then drop to the *same vector* on the next layer below.
+2. **Beam search on Layer 0:** A greedy walk on Layer 0 traps in local minima, so Layer 0 expands a beam of width `ef_search` using two heaps: a min-heap `candidates` (closest unexpanded node first) and a max-heap `results` (holding at most `ef_search` closest vectors found so far). Pop the closest candidate $c$; if `results` is full and $c$ is farther than the worst item in `results`, stop and return the best $k$ items. Otherwise inspect $c$'s unvisited neighbors and push improvements onto both heaps.
 
 <figure>
   <img src="illustrations/_generated/hnsw_layers_dark.png" alt="Constructed HNSW search descends through three layers while preserving the same vector ID: entry v7 routes to v4 on Layer 2, v4 descends into Layer 1 and routes to v6, and v6 descends into Layer 0 where v8 and v3 are inspected as neighbors. The solid links show greedy hops and dashed links show same-ID descents. A separate min-heap expands the closest unexpanded candidate first; a max-heap retains at most ef_search results. The expansion queue or visited set can exceed that result limit." />
@@ -156,24 +97,23 @@ At each step, pop the closest node $c$ from `candidates`. If $c$ is already fart
 
 ### Why HNSW prefers diverse neighbors over nearest neighbors
 
-Three build knobs control graph connectivity: `M` (links per node on upper layers), `M0` (Layer-0 link cap, usually $2M$), and `ef_construction` (beam width during insertion).
-
-A subtle design detail makes HNSW navigate across clusters: when wiring a new node $v$, connecting it blindly to its $M$ closest neighbors creates dense local cliques with no bridges pointing toward other clusters. Instead, HNSW's **diversity heuristic** (`SELECT-NEIGHBORS-HEURISTIC`) inspects candidates in ascending distance to $v$ and accepts candidate $e$ only if it is closer to $v$ than to every already-selected neighbor $n$:
+Three build parameters shape the graph: `M` (upper-layer link cap), `M0` (Layer-0 cap, normally $2M$), and `ef_construction` (insertion beam width). Wiring a new node $v$ blindly to its $M$ closest neighbors creates dense local cliques with poor inter-cluster bridges. HNSW's **diversity heuristic** (`SELECT-NEIGHBORS-HEURISTIC`) visits candidates in ascending distance to $v$ and keeps candidate $e$ only if it is closer to $v$ than to every already-selected neighbor $n$:
 
 $$
 d(e, v) < d(e, n) \quad \forall n \in \text{selected}
 $$
 
-If $e$ lies right behind an already-selected neighbor in the same direction, it is skipped in favor of a neighbor pointing in a new direction.[^malkov2018]
+Skipping candidates hidden right behind existing links forces edges to point outward in fresh directions.[^malkov2018]
 
 ### Tracing an insertion and building a working HNSW
 
-Inserting a new vector mirrors search: sample its top layer $\ell$, greedily descend all layers *above* $\ell$ to land in the right region, then run a beam search of width `ef_construction` on layers $\ell$ down to $0$, adding reciprocal links and pruning any adjacency list that exceeds its cap (`2M` on Layer 0, `M` above). Only if $\ell$ exceeds the graph's current maximum layer does the new node become the global entry point.
+Insertion mirrors search: sample top layer $\ell$, greedily descend layers *above* $\ell$, then run beam search of width `ef_construction` on layers $\ell$ down to $0$, adding reciprocal links and pruning adjacency lists exceeding `2M` (Layer 0) or `M` (upper layers). The global entry point changes only if $\ell$ strictly exceeds the current maximum layer.
 
-Here is a compact, self-contained HNSW implementation (using nearest-$M$ pruning for brevity) that builds a 2-layer graph, searches it, and demonstrates why widening `ef_search` rescues a query when the only path to the true nearest neighbor crosses a farther bridge node:
+This self-contained HNSW (using nearest-$M$ pruning for brevity) builds a 2-layer graph and shows why widening `ef_search` rescues a query whose only path to the true nearest neighbor crosses a farther bridge node:
 
 <!-- leetllm: test, output=show -->
 ```python title="hnsw-insert-and-search.py"
+# fold:start imports, distance helper & MiniHNSW structure
 import heapq
 import math
 import random
@@ -201,25 +141,28 @@ class MiniHNSW:
         return list(self.edges.get((node_id, level), []))
 
 
+def prune(graph: MiniHNSW, node_id: int, level: int, cap: int) -> None:
+    linked = graph.edges[(node_id, level)]
+    if len(linked) > cap:
+        graph.edges[(node_id, level)] = sorted(
+            linked, key=lambda other: sq_l2(graph.vectors[node_id], graph.vectors[other])
+        )[:cap]
+# fold:end
+
+
 def greedy_search(graph: MiniHNSW, query: tuple[float, ...], entry: int, level: int) -> int:
     current = entry
     while True:
-        best = min(
-            [current, *graph.neighbors(current, level)],
-            key=lambda n: sq_l2(query, graph.vectors[n]),
-        )
+        best = min([current, *graph.neighbors(current, level)], key=lambda n: sq_l2(query, graph.vectors[n]))
         if best == current:
             return current
         current = best
 
 
-def search_layer(
-    graph: MiniHNSW, query: tuple[float, ...], entry: int, level: int, ef: int
-) -> list[int]:
+def search_layer(graph: MiniHNSW, query: tuple[float, ...], entry: int, level: int, ef: int) -> list[int]:
     visited = {entry}
     d0 = sq_l2(query, graph.vectors[entry])
-    candidates = [(d0, entry)]     # min-heap: closest unexplored first
-    results = [(-d0, entry)]       # max-heap: farthest retained at index 0
+    candidates, results = [(d0, entry)], [(-d0, entry)]  # min-heap & bounded max-heap
     while candidates:
         dist, current = heapq.heappop(candidates)
         if len(results) >= ef and dist > -results[0][0]:
@@ -235,14 +178,6 @@ def search_layer(
                 if len(results) > ef:
                     heapq.heappop(results)
     return [node for _, node in sorted((-neg, node) for neg, node in results)]
-
-
-def prune(graph: MiniHNSW, node_id: int, level: int, cap: int) -> None:
-    linked = graph.edges[(node_id, level)]
-    if len(linked) > cap:
-        graph.edges[(node_id, level)] = sorted(
-            linked, key=lambda other: sq_l2(graph.vectors[node_id], graph.vectors[other])
-        )[:cap]
 
 
 def insert(graph: MiniHNSW, node_id: int, vector: tuple[float, ...], level: int) -> None:
@@ -284,6 +219,7 @@ def search(graph: MiniHNSW, query: tuple[float, ...], k: int = 2, ef_search: int
     return search_layer(graph, query, current, 0, ef_search)[:k]
 
 
+# fold:start graph demo & bridge-node test
 rng = random.Random(0)
 mL = 1 / math.log(16)
 draws, level = 0, 0
@@ -307,11 +243,11 @@ print("Exact top-2:", sorted(graph.vectors, key=lambda i: sq_l2(q, graph.vectors
 bridge = MiniHNSW(
     vectors={0: (0.9, 0.0), 1: (2.0, 0.0), 2: (0.1, 0.0)},
     edges={(0, 0): [1], (1, 0): [2], (2, 0): []},
-    entry_point=0,
-    max_level=0,
+    entry_point=0, max_level=0,
 )
 print("bridge ef=1:", search(bridge, (0.0, 0.0), k=1, ef_search=1))
 print("bridge ef=3:", search(bridge, (0.0, 0.0), k=1, ef_search=3))
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
@@ -324,66 +260,35 @@ bridge ef=3: [2]
 ```
 <!-- leetllm: output:end -->
 
-Look closely at the bridge output: with `ef_search = 1`, node 1 is farther from the query than entry node 0, so the beam stops immediately and never sees node 2. Raising `ef_search` to 3 keeps node 1 in the beam long enough to cross the bridge and discover node 2. Also note that `ef_search` must be at least `k` (libraries like `hnswlib` reject `ef < k`).[^hnswlibParameters2026][^pgvector_docs]
+With `ef_search = 1`, node 1 is farther than entry 0 so the beam stops immediately and misses node 2; raising `ef_search` to 3 crosses the bridge. Always keep `ef_search >= k` (`results` holds at most `ef_search` items, and engines like `hnswlib` reject `ef < k`).[^hnswlibParameters2026][^pgvector_docs]
 
 ### Key HNSW knobs and memory budget
 
 | Parameter | Role | Starting value | Trade-off |
 |-----------|------|----------------|-----------|
-| `M` | Neighbors wired per new node (upper-layer cap) | `16` | Higher `M` strengthens recall and raises RAM + build time. |
-| `M0` | Layer-0 adjacency cap | `2 * M` | Denser base layer improves local routing at extra link memory. |
-| `ef_construction` | Build-time beam width | `200` | Higher values build cleaner graphs at slower indexing speed. |
-| `ef_search` | Query-time beam width | `64` (for `k=10`) | Tunable per query without rebuilding; higher raises recall and latency. |
-| `mL` | Layer-sampling scale | $1 / \ln(M)$ | Higher values populate upper layers more densely. |
+| `M` | Upper-layer link cap per node | `16` | Higher `M` boosts recall at extra RAM and build time. |
+| `M0` | Layer-0 adjacency cap | `2 * M` | Denser base layer improves local routing. |
+| `ef_construction` | Build-time beam width | `200` | Cleaner graph at slower indexing speed. |
+| `ef_search` | Query-time beam width (`>= k`) | `64` (for `k=10`) | Tunable per query without rebuilding; higher raises recall and latency. |
+| `mL` | Layer-sampling scale | $1 / \ln(M)$ | Controls upper-layer density. |
 
-People often assume HNSW's graph edges are what blow up RAM. For high-dimensional float32 embeddings, the raw vectors themselves dominate: at $d = 1{,}536$ and $M = 16$, a vector takes $1{,}536 \times 4 = 6{,}144$ bytes, while $2M = 32$ 4-byte Layer-0 neighbor IDs take only 128 bytes (98.0% vector, 2.0% Layer-0 links, before upper layers and allocator headers). Graph links only become a large fraction after vector compression or at low dimensions.
+At high float32 dimensions, raw vectors dominate RAM rather than graph links: for $d = 1{,}536$ and $M = 16$, each vector takes $6{,}144$ bytes while $2M = 32$ 4-byte Layer-0 neighbor IDs take only $128$ bytes (98.0% vector, 2.0% Layer-0 links). Links become a large share only after compression or at low dimensions. Tune `ef_search` at query time by sweeping recall against p95 latency and choosing the fastest setting that clears your floor (for example, choosing `ef_search = 48` at 0.97 recall and 6.8 ms p95 over `ef_search = 24` at 0.91 recall or `96` at 12.4 ms against a 0.96 recall / 10 ms target).
 
-Because `ef_search` can be changed at query time, pick it by sweeping recall against p95 latency on representative queries and selecting the fastest setting that clears your recall floor:
-
-<!-- leetllm: test, output=show -->
-```python title="select-hnsw-operating-point.py"
-vec_bytes = 1536 * 4
-layer0_link_bytes = (2 * 16) * 4
-print(f"float32 vector: {vec_bytes:,} B | layer-0 links (M=16): {layer0_link_bytes} B | vector share: {vec_bytes / (vec_bytes + layer0_link_bytes):.1%}")
-
-sweep = [
-    {"ef_search": 24, "recall": 0.91, "p95_ms": 4.1},
-    {"ef_search": 48, "recall": 0.97, "p95_ms": 6.8},
-    {"ef_search": 96, "recall": 0.985, "p95_ms": 12.4},
-]
-eligible = [p for p in sweep if p["recall"] >= 0.96 and p["p95_ms"] <= 10.0]
-best = min(eligible, key=lambda p: p["p95_ms"])
-print(f"selected ef_search={best['ef_search']} (recall={best['recall']:.3f}, p95={best['p95_ms']} ms)")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
-float32 vector: 6,144 B | layer-0 links (M=16): 128 B | vector share: 98.0%
-selected ef_search=48 (recall=0.970, p95=6.8 ms)
-```
-<!-- leetllm: output:end -->
-
-Graph traversal shines in RAM, yet it still requires storing full adjacency lists and struggles when you want a crisp, predictable scan fraction or tight compression. What if we partition the space into regions instead?
+Graph traversal shines in RAM, yet it still requires adjacency lists and lacks a fixed scan fraction. Partitioning space into cells solves both.
 
 ## IVF (Inverted File Index)
 
-**IVF (Inverted File Index)** replaces graph links with coarse geometric partitioning. Before serving begins, offline <span data-glossary="k-means">k-means clustering</span> learns $K = \text{nlist}$ cluster centroids $c_1, \dots, c_K$ (the **coarse quantizer**). Under Euclidean distance, those centroids partition $\mathbb{R}^d$ into $K$ **Voronoi cells**:
+**IVF** replaces graph links with coarse geometric partitions. Offline <span data-glossary="k-means">k-means</span> learns $K = \text{nlist}$ cluster centroids $c_1, \dots, c_K$ (the **coarse quantizer**), dividing $\mathbb{R}^d$ into $K$ **Voronoi cells**:
 
 $$
 V_i = \{x \in \mathbb{R}^d \mid \|x - c_i\|^2 \le \|x - c_j\|^2 \;\; \forall j \ne i\}
 $$
 
-During indexing, every vector $x$ is assigned to its closest centroid $i(x) = \arg\min_j \|x - c_j\|^2$ and appended to that centroid's **inverted list**. At query time, search compares $q$ against the `nlist` centroids, picks the closest `nprobe` cells, and scans only those `nprobe` lists.[^johnson2017][^faiss2026indexes]
-
-### Counting the work saved
-
-With 1 million vectors, `nlist = 1,024`, and `nprobe = 5`:
-- Brute force computes $1{,}000{,}000$ distances.
-- IVF scores $1{,}024$ centroids plus $5 \times (1{,}000{,}000 / 1{,}024) \approx 4{,}883$ vectors (assuming balanced lists), totaling roughly $5{,}907$ distance computations, about **169x fewer comparisons**.
+Each indexed vector appends to its nearest centroid's **inverted list**. A query scores all `nlist` centroids, picks the closest `nprobe` cells, and scans only those lists.[^johnson2017][^faiss2026indexes] With 1 million vectors, `nlist = 1,024`, and `nprobe = 5`, balanced IVF scores $1{,}024$ centroids plus $5 \times (10^6 / 1{,}024) \approx 4{,}883$ list vectors ($\approx 5{,}907$ total comparisons, **169x less work** than brute force).
 
 ### Why `nprobe = 1` misses neighbors across cell edges
 
-If a query lands near the dividing plane between two Voronoi cells, its true nearest neighbor can easily sit just across that edge in the neighboring cell. Opening only `nprobe = 1` list misses it completely; raising `nprobe` opens adjacent cells and recovers it.
+When a query lands near the dividing plane between two Voronoi cells, its true nearest neighbor can sit just across the line in the neighboring cell. Raising `nprobe` opens adjacent cells and recovers it:
 
 <figure>
   <img src="illustrations/_generated/ivf_probe_flow_dark.png" alt="Equal-unit 2D plots show centroids C0=(0,0) and C1=(10,0), their Voronoi boundary x=5, query q=(4.9,0), and vectors v0=(0.2,0.1), v1=(0.4,-0.1), v2=(4.6,0), v3=(5.4,0), and v4=(9.8,0.2). Distances from q are 0.30 to v2, 0.50 to v3, and 4.50 to v1. Probing List 0 alone returns v2 and v1 for 1/2 exact top-two neighbors; probing both lists returns v2 and v3 for 2/2." />
@@ -392,6 +297,7 @@ If a query lands near the dividing plane between two Voronoi cells, its true nea
 
 <!-- leetllm: test, output=show -->
 ```python title="ivf-nprobe-edge-miss.py"
+# fold:start distance helper, centroids & inverted-list build
 def sq_l2(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     return sum((x - y) ** 2 for x, y in zip(a, b))
 
@@ -401,8 +307,8 @@ vectors = {0: (0.2, 0.1), 1: (0.4, -0.1), 2: (4.6, 0.0), 3: (5.4, 0.0), 4: (9.8,
 
 lists: dict[int, list[int]] = {0: [], 1: []}
 for vid, vec in vectors.items():
-    cid = min(centroids, key=lambda c: sq_l2(vec, centroids[c]))
-    lists[cid].append(vid)
+    lists[min(centroids, key=lambda c: sq_l2(vec, centroids[c]))].append(vid)
+# fold:end
 
 
 def ivf_search(query: tuple[float, ...], nprobe: int, k: int = 2) -> list[int]:
@@ -411,11 +317,13 @@ def ivf_search(query: tuple[float, ...], nprobe: int, k: int = 2) -> list[int]:
     return [vid for _, vid in sorted(scored)[:k]]
 
 
+# fold:start probe comparison prints
 query = (4.9, 0.0)
 print("inverted lists:", lists)
 print("exact top-2:   ", sorted(vectors, key=lambda vid: sq_l2(query, vectors[vid]))[:2])
 print("nprobe=1:      ", ivf_search(query, nprobe=1))
 print("nprobe=2:      ", ivf_search(query, nprobe=2))
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
@@ -427,23 +335,13 @@ nprobe=2:       [2, 3]
 ```
 <!-- leetllm: output:end -->
 
-With balanced lists, IVF scans roughly `nprobe / nlist` of the corpus. In **IVF-Flat** (full-precision vectors inside each list), raising `nprobe` never lowers recall and scanning all `nlist` lists becomes exact search. In **IVF-PQ** (compressed codes), scanning every list still cannot eliminate quantization error.
-
-```checkpoint
-Why does raising `nprobe` improve IVF recall while increasing query work?
----
-Probing more coarse cells lets search inspect true neighbors that fell across a Voronoi cell edge, at the cost of scanning one more inverted list per added probe.
-```
+With balanced lists, IVF scans roughly `nprobe / nlist` of the corpus. In **IVF-Flat**, probing all `nlist` cells recovers exact search; in **IVF-PQ**, quantization error remains even at full scan.
 
 ### Distance metrics and centroid geometry
 
-Every index ranks vectors under one metric: **L2** (Euclidean straight-line distance, usually squared to skip the square root), **Inner Product (IP)** ($\langle x, y \rangle$, where vector magnitude boosts score), or **<span data-glossary="cosine-similarity">Cosine similarity</span>** (angle only, implemented by L2-normalizing both stored vectors and queries and running inner product).[^faissMetrics2026] On unit vectors, L2 and inner product induce identical rankings because:
+Every index ranks under one metric: squared **L2**, **Inner Product (IP)** ($\langle x, y \rangle$), or **<span data-glossary="cosine-similarity">Cosine similarity</span>** (L2-normalize stored vectors and queries, then run IP).[^faissMetrics2026] On unit vectors, L2 and IP induce identical rankings because $\|x - y\|^2 = 2 - 2\langle x, y \rangle$:
 
-$$
-\|x - y\|^2 = \|x\|^2 + \|y\|^2 - 2\langle x, y \rangle = 2 - 2\langle x, y \rangle
-$$
-
-> **Common mistake:** Switching an IVF index from raw L2 to cosine by normalizing only the queries. If the coarse centroids were trained on unnormalized vectors, unit queries get routed into the wrong Voronoi cells. Normalize the training set, stored vectors, and queries, then retrain the coarse quantizer.
+> **Common mistake:** Switching IVF from raw L2 to cosine by normalizing only the queries. Centroids trained on unnormalized vectors route unit queries into the wrong Voronoi cells. Normalize training, database, and query vectors, retrain centroids, and score with IP.
 
 <!-- leetllm: test, output=show -->
 ```python title="verify-cosine-inner-product-ranking.py"
@@ -451,15 +349,11 @@ import numpy as np
 
 vectors = np.array([[3.0, 0.0], [1.0, 1.0], [0.0, 2.0]])
 query = np.array([1.0, 0.8])
-
 unit_v = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
 unit_q = query / np.linalg.norm(query)
 
-ip_scores = unit_v @ unit_q
-l2_dists = np.sum((unit_v - unit_q) ** 2, axis=1)
-
-print("IP rank on unit vectors:", np.argsort(-ip_scores).tolist())
-print("L2 rank on unit vectors:", np.argsort(l2_dists).tolist())
+print("IP rank on unit vectors:", np.argsort(-(unit_v @ unit_q)).tolist())
+print("L2 rank on unit vectors:", np.argsort(np.sum((unit_v - unit_q) ** 2, axis=1)).tolist())
 ```
 
 <!-- leetllm: output:start -->
@@ -474,70 +368,38 @@ L2 rank on unit vectors: [1, 0, 2]
 | Feature | HNSW | IVF-Flat |
 |---------|------|----------|
 | **Structure** | Multi-layer proximity graph | Coarse centroids + inverted lists |
-| **Offline training** | None | Required (`k`-means centroids) |
+| **Offline training** | None | Required ($k$-means centroids) |
 | **Memory** | Raw vectors + ~$2M$ Layer-0 IDs | Raw vectors + IDs (no graph edges) |
-| **Updates & drift** | Incremental inserts; deletes vary by engine | Easy inserts; distribution drift degrades stale centroids |
+| **Updates & drift** | Incremental inserts; deletes vary by engine | Easy inserts; distribution drift stales centroids |
 | **Main query knob** | `ef_search` | `nprobe` |
-| **Best fit** | Low-latency, high-recall in-RAM search | Predictable scan fraction or base for PQ compression |
+| **Best fit** | Low-latency, high-recall in-RAM search | Predictable scan fraction or base for PQ |
 
-Notice that graph search and vector compression are orthogonal: Faiss supports `IndexHNSWFlat`, `IndexHNSWSQ`, and `IndexHNSWPQ` as well as `IndexIVFPQ`.[^faiss2026indexes]
-
-Still, both HNSW and IVF-Flat hold raw float32 vectors in memory. What happens when your corpus reaches one billion 768-dimensional vectors?
-
-$$
-10^9 \text{ vectors} \times 768 \text{ dims} \times 4 \text{ bytes} \approx 3.07 \text{ TB}
-$$
-
-To fit a billion vectors on ordinary RAM budgets, we need to shrink the vectors themselves.
+Graph search and compression are orthogonal (`IndexHNSWFlat`, `IndexHNSWSQ`, `IndexHNSWPQ`, `IndexIVFPQ` in Faiss).[^faiss2026indexes] Yet raw float32 vectors still break RAM at billion scale: $10^9 \times 768 \times 4\text{ bytes} \approx 3.07\text{ TB}$. Fitting a billion vectors into RAM requires shrinking each vector.
 
 ## Product Quantization (PQ)
 
-**Product Quantization (PQ)** compresses high-dimensional vectors by splitting them into disjoint subvectors and quantizing each subspace separately.[^jegou2011]
-
-### Splitting into subspaces and 1-byte codebooks
-
-Slice a $d$-dimensional vector $x$ into $m$ equal subvectors of dimension $d^* = d / m$:
-
-$$
-x = [u_1, u_2, \dots, u_m], \quad u_j \in \mathbb{R}^{d^*}
-$$
-
-For $d = 768$ and $m = 96$, each subvector has $d^* = 8$ dimensions. Run $k$-means independently on each subspace to learn a codebook $C_j$ of $K^* = 256$ sub-centroids. Why 256? Because $256 = 2^8$, so each centroid ID fits in a single unsigned byte (`uint8`). Encoding $x$ replaces every subvector $u_j$ with its nearest centroid index:
+**Product Quantization (PQ)** splits a $d$-dimensional vector into $m$ disjoint subvectors $x = [u_1, \dots, u_m]$ ($u_j \in \mathbb{R}^{d/m}$) and runs $k$-means independently on each subspace to learn a codebook $C_j$ of $K^* = 256$ centroids.[^jegou2011] Because $256 = 2^8$, each centroid ID fits in one `uint8` byte:
 
 $$
 \text{code}_j(x) = \arg\min_{k \in \{0, \dots, 255\}} \|u_j - c_{j,k}\|^2
 $$
 
-A 3,072-byte float32 vector shrinks to **96 bytes**: **32x code compression**. The 96 shared codebooks take only $96 \times 256 \times 8 \times 4 = 768\text{ KiB}$ across the entire index, yet their Cartesian product can represent $256^{96} = 2^{768}$ distinct reconstructed points. In L2 IVF-PQ, PQ normally encodes the **residual** $r = x - c_{\text{list}}$ relative to the coarse Voronoi centroid, which clusters closer to zero and quantizes more accurately.[^faiss2026ImplementationNotes]
+For $d = 768$ and $m = 96$ ($d^* = 8$), a 3,072-byte float32 vector shrinks to **96 bytes** (**32x code-only compression**; adding an 8-byte ID gives 104 bytes per record). The 96 shared codebooks use only $96 \times 256 \times 8 \times 4 = 768\text{ KiB}$ globally while spanning $256^{96}$ reconstructed points. In L2 IVF-PQ, PQ normally encodes the **residual** $r = x - c_{\text{list}}$ around each coarse centroid so residuals cluster near zero and quantize more accurately.[^faiss2026ImplementationNotes] **Optimized Product Quantization (OPQ)** learns an orthogonal rotation $R$ jointly with the codebooks to balance variance across subspaces while preserving L2 distance (`OPQ96,IVF4096,PQ96`).[^ge2013][^faissIndexFactory2026]
 
 <figure>
   <img src="illustrations/_generated/pq_encoding_pipeline_dark.png" alt="Product quantization splits a 768-dimensional float32 vector into 96 eight-dimensional subvectors. Each subvector maps to one of 256 centroids in its own codebook and contributes one byte. The code-row example maps the first subvector to centroid ID 42 and writes one uint8 code byte per subspace. The 96-byte code is 32 times smaller than the 3,072-byte raw vector, for code storage alone. At query time, an uncompressed query builds a 96 by 256 float32 distance table. Each byte selects one entry per subspace, and 96 selected distances are summed without reconstructing the full vector." />
   <figcaption>Each 8D subvector maps to one byte (a 32x code reduction from 3,072 B to 96 B). At query time, ADC precomputes a 96 x 256 lookup table so scoring a compressed vector requires only 96 table lookups and additions.</figcaption>
 </figure>
 
-**Optimized Product Quantization (OPQ)** addresses a weakness of fixed contiguous slices: if embedding <span data-glossary="variance">variance</span> is concentrated in certain coordinates, some subspaces waste centroids on near-constant dimensions. OPQ learns an orthogonal rotation <span data-glossary="matrix">matrix</span> $R$ jointly with the codebooks to spread variance more evenly while preserving L2 distances (e.g., Faiss's `OPQ96,IVF4096,PQ96`; note that dimension-reducing variants like `OPQ96_384` project away dimensions and do not preserve full L2 distances).[^ge2013][^faissIndexFactory2026]
-
 ### Asymmetric Distance Computation (ADC)
 
-The real magic of PQ happens at query time. We never decompress stored vectors back into 768 floats. Instead, **<span data-glossary="asymmetric-distance-computation">Asymmetric Distance Computation (ADC)</span>** leaves the query $q$ uncompressed and scores compressed codes via a lookup table:
-
-1. Slice $q$ into $m$ subvectors $[q_1, \dots, q_m]$.
-2. Precompute a float32 lookup table $T$ of shape $m \times 256$:
+At query time, **<span data-glossary="asymmetric-distance-computation">Asymmetric Distance Computation (ADC)</span>** leaves the query $q$ uncompressed and never reconstructs stored vectors. Slice $q = [q_1, \dots, q_m]$, precompute one cache-resident $m \times 256$ lookup table $T[j][k] = \|q_j - c_{j,k}\|^2$ (96 KiB for $m = 96$), and score any code $[c_1, \dots, c_m]$ with $m$ indexed additions:[^faiss2026ImplementationNotes]
 
 $$
-T[j][k] = \|q_j - c_{j,k}\|^2 \quad \text{for } j \in \{1, \dots, m\},\; k \in \{0, \dots, 255\}
+d(q, y)^2 \approx \sum_{j=1}^{m} T[j][c_j]
 $$
 
-For $m = 96$, that table is $96 \times 256 \times 4 = 96\text{ KiB}$, small enough to sit comfortably in CPU cache.
-3. Score any compressed vector $y$ with code $[c_1, \dots, c_m]$ by summing $m$ table entries:
-
-$$
-d(q, y)^2 \approx d(q, C(y))^2 = \sum_{j=1}^{m} T[j][c_j]
-$$
-
-Scoring drops from 768 floating-point subtractions and multiplications per candidate to 96 indexed additions (in residual IVF-PQ, the query residual $q - c_{\text{list}}$ or precomputed cross-terms are used).[^faiss2026ImplementationNotes]
-
-The runnable example below implements ADC and shows **code collision**: two distinct original vectors that quantize to the same PQ code become indistinguishable until you overfetch candidates and rerank against full-precision vectors.
+The script below implements ADC and shows **code collision**: two distinct vectors sharing one PQ code cannot be ordered until you overfetch and rerank against full-precision originals.
 
 <!-- leetllm: test, output=show -->
 ```python title="asymmetric-distance-computation-adc.py"
@@ -547,13 +409,12 @@ import numpy as np
 def adc_search(query: np.ndarray, codes: np.ndarray, codebooks: np.ndarray, k: int = 2) -> list[int]:
     m, _, d_sub = codebooks.shape
     q_subs = query.reshape(m, d_sub)
-    # Build (m, K*) squared-L2 lookup table once per query.
-    tables = np.sum((codebooks - q_subs[:, None, :]) ** 2, axis=2)
-    # Score every compressed code by summing m indexed table lookups.
-    dists = np.sum(tables[np.arange(m), codes], axis=1)
+    tables = np.sum((codebooks - q_subs[:, None, :]) ** 2, axis=2)  # (m, K*) lookup table
+    dists = np.sum(tables[np.arange(m), codes], axis=1)             # m additions per code
     return sorted(range(len(codes)), key=lambda i: (float(dists[i]), i))[:k]
 
 
+# fold:start sample codebooks, collision test & prints
 raw_bytes, code_bytes = 768 * 4, 96
 print(f"768D float32: {raw_bytes} B -> PQ96: {code_bytes} B ({raw_bytes // code_bytes}x), +8B ID = {code_bytes + 8} B")
 
@@ -564,7 +425,7 @@ codebooks = np.array([
 codes = np.array([[0, 0], [1, 0], [0, 1], [1, 1]])
 print("ADC top-2 for origin:", adc_search(np.array([0.0, 0.0, 0.0, 0.0]), codes, codebooks, k=2))
 
-# Code collision: two originals quantize to [0, 0]; overfetching + exact reranking fixes top-1.
+# Code collision: two originals quantize to [0, 0]; overfetch + exact rerank fixes top-1.
 q = np.array([0.9, 0.0, 0.0, 0.0])
 originals = np.array([[0.1, 0.0, 0.0, 0.0], [0.9, 0.0, 0.0, 0.0]])
 same_codes = np.array([[0, 0], [0, 0]])
@@ -573,6 +434,7 @@ compressed_top1 = adc_search(q, same_codes, codebooks, k=1)
 overfetched = adc_search(q, same_codes, codebooks, k=2)
 reranked_top1 = sorted(overfetched, key=lambda i: float(np.sum((q - originals[i]) ** 2)))[:1]
 print(f"collision top-1 without overfetch: {compressed_top1} | after overfetch+rerank: {reranked_top1}")
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
@@ -591,22 +453,11 @@ ADC precomputes a small lookup table of distances between the uncompressed query
 
 ## Filtered search
 
-Real retrieval rarely searches the entire index. Users filter by tenant, date range, region, or document type (`region = 'EU' AND created_at >= now() - interval '30 days'`). An index delivering 99% unfiltered recall can quietly collapse under selective metadata filters. Three execution strategies govern what happens:
+Real retrieval filters by tenant, region, or date (`region = 'EU'`). Three strategies behave very differently under selective filters:
 
-1. **Pre-filter then exact scan:** Resolve the metadata predicate first (for example via a B-tree or bitmap index), then run exact distance scoring on the matching subset. When only 500 rows match, flat scan is both exact and fast. When 10 million rows match, exact scan is too slow; on the flip side, deleting disallowed nodes from an HNSW graph before traversal can disconnect the graph and trap search in isolated islands.
-2. **Post-filtering:** Fetch an ANN candidate buffer of size $L$, then discard rows failing the predicate. This causes **buffer starvation**. If a filter matches a fraction $s = 0.005$ of records and $L = 100$ candidates are drawn with independent selectivity, the expected match count is:
-
-$$
-E[M] = L \cdot s = 100 \times 0.005 = 0.5
-$$
-
-and the probability of returning *zero* results is:
-
-$$
-P(M = 0) = (1 - s)^L = (0.995)^{100} \approx 60.6\%
-$$
-
-If neighboring vectors share metadata (say all 100 nearby chunks belong to `region = 'US'`), the expected count is still $0.5$, yet the empty-result probability jumps to $1 - s = 99.5\%$.
+1. **Pre-filter then exact scan:** Resolve metadata first via B-tree or bitmap, then run flat search on the matching rows. Fast and exact when only a few thousand rows match; too slow when millions match (and stripping disallowed nodes from an HNSW graph beforehand can disconnect it).
+2. **Post-filtering:** Fetch an unfiltered buffer of $L$ ANN candidates, then discard non-matches. With selectivity $s = 0.005$ and $L = 100$, expected matches are $E[M] = L \cdot s = 0.5$, and the probability of zero results is $(1 - s)^L = 0.995^{100} \approx 60.6\%$ under independence (or $1 - s = 99.5\%$ when nearby vectors share excluded metadata).
+3. **Filter-aware traversal and iterative scans:** <span data-glossary="pgvector">pgvector</span> expands iterative ANN scans (`hnsw.max_scan_tuples`, `ivfflat.max_probes`) until $k$ matches are collected or a scan cap hits.[^pgvector_docs] <span data-glossary="weaviate">Weaviate</span> sweeps across disallowed nodes without returning them and supports **ACORN** traversal, skipping distance computation on non-matches with multi-hop jumps from eligible entry points.[^patel2024acorn][^weaviate_filter_docs]
 
 <!-- leetllm: test, output=show -->
 ```python title="post-filter-starvation.py"
@@ -615,6 +466,7 @@ print(f"expected matches:              {L * s:.2f}")
 print(f"independent empty probability: {(1 - s) ** L:.1%}")
 print(f"correlated empty probability:  {1 - s:.1%}")
 
+# fold:start buffer underfill example
 candidates = ["eu-1", "us-1", "us-2", "us-3", "eu-2"]
 region = {"eu-1": "eu", "us-1": "us", "us-2": "us", "us-3": "us", "eu-2": "eu"}
 
@@ -623,6 +475,7 @@ def post_filter(pool: list[str], target: str, k: int) -> list[str]:
 
 print("buffer L=3:", post_filter(candidates[:3], "eu", k=2))
 print("buffer L=5:", post_filter(candidates, "eu", k=2))
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
@@ -635,91 +488,57 @@ buffer L=5: ['eu-1', 'eu-2']
 ```
 <!-- leetllm: output:end -->
 
-3. **Filter-aware traversal and iterative scans:** Modern engines bridge the gap inside the index. <span data-glossary="pgvector">pgvector</span> offers iterative ANN scans (`hnsw.max_scan_tuples`, `ivfflat.max_probes`) that expand the candidate pool automatically until $k$ matches are found or a scan limit hits.[^pgvector_docs] <span data-glossary="weaviate">Weaviate</span> supports sweeping across disallowed nodes without returning them as well as an **ACORN**-based traversal that skips distance computation on non-matching nodes and uses multi-hop jumps from eligible entry points.[^patel2024acorn][^weaviate_filter_docs]
-
 <figure>
   <img src="illustrations/_generated/filtered_search_boundary_dark.png" alt="Side-by-side 2D vector neighborhoods compare post-filtering versus pre-filtered ACORN traversal for query q=(5,5) with predicate region=EU and k=3. On the left, the unfiltered top-3 circle captures eu-1, us-1, and us-2; dropping disallowed US points leaves only eu-1 (1/3 underfilled). On the right, filter-aware ACORN traversal skips US nodes and steps cleanly through eligible EU vectors eu-4, eu-2, eu-1, and eu-3 to fill all 3/3 slots." />
   <figcaption>Post-filtering a fixed global top-3 neighborhood drops disallowed US neighbors and underfills at 1/3 (`eu-1` only); pre-filtered ACORN traversal skips excluded US nodes inside the index to fill all 3/3 eligible EU slots.</figcaption>
 </figure>
 
-> **Key insight:** Keep access-control filters *inside* the database or trusted retrieval service, never in application code after fetching raw passages. An index may traverse a disallowed graph node internally without returning it; fetching unauthorized text into application memory exposes it to logs, caches, and traces. See [RAG Security & Access Control](/learn/design-production-rag-pipeline).
-
-```checkpoint
-Why can a selective metadata filter make post-filtering return fewer than k results?
----
-Post-filtering discards non-matches from a fixed candidate buffer L. When selectivity s is low or neighboring vectors share excluded metadata, fewer than k eligible rows survive in that window.
-```
+> **Key insight:** Run access-control filters *inside* the database or trusted retrieval service, never in application code after fetching raw rows. Fetching unauthorized text into app memory exposes it to logs, caches, and traces. See [Production RAG Pipelines](/learn/design-production-rag-pipeline).
 
 ## Scaling to billions and choosing an index
 
-When a corpus outgrows a single machine's RAM, three architectural paths open up:
+Beyond single-machine RAM, three architectures dominate:
 
-1. **IVF-PQ in RAM:** Combining coarse partitioning with PQ compression drops storage dramatically. In Faiss, `IndexIVFPQ` uses `ceil(m_pq * nbits / 8) + 8` bytes per vector (code plus 64-bit ID).[^faiss2026indexes] A 32-byte code holds 1 billion vectors in ~40 GB (plus shared codebooks); a 96-byte code takes ~104 GB.
-2. **SSD-backed graphs (DiskANN):** **DiskANN** keeps a compact compressed index in RAM and stores the full-precision vectors and navigation graph on fast NVMe SSD, laying out adjacency lists to minimize random disk reads.[^subramanya2019] On SIFT1B with a single 16-core, 64 GB RAM + SSD machine, Subramanya et al. report over 5,000 QPS at under 3 ms mean latency and 95%+ 1-recall@1.[^subramanya2019]
-3. **Horizontal sharding (scatter-gather):** Split the corpus across $S$ disjoint shards, broadcast the query to all $S$ shards, and run an **$S$-way merge** over comparable scores (overfetching $L > K$ per shard if you rerank with full-precision vectors afterward).
+1. **IVF-PQ in RAM:** Faiss's `IndexIVFPQ` stores `ceil(m_pq * nbits / 8) + 8` bytes per vector (code + 64-bit ID): ~40 GB for 1B vectors at 32-byte codes, or ~104 GB at 96-byte codes.[^faiss2026indexes]
+2. **SSD-backed graphs (DiskANN):** Keeps a compact compressed index in RAM and stores full vectors and adjacency lists on NVMe SSD to minimize random reads, achieving >5,000 QPS at <3 ms mean latency and 95%+ 1-recall@1 on SIFT1B on one 16-core, 64 GB RAM + SSD machine.[^subramanya2019]
+3. **Horizontal sharding (scatter-gather):** Partition the corpus across $S$ disjoint shards, query all $S$ shards, and merge local top-$k$ lists on comparable scores. When every shard runs **exact** search with consistent tie-breaking and all $S$ shards respond, the $S \cdot k$ candidates are guaranteed to contain the exact global top-$k$ (any omitted item already trails $k$ items on its own shard); dropping a slow shard or using approximate per-shard search breaks that guarantee.
 
 <figure>
-  <img src="illustrations/_generated/scatter_gather_topk_dark.png" alt="Constructed four-shard timeline on one shared 0–95 ms axis. Shard 1 returns five candidates at 44 ms, Shard 2 at 58 ms, Shard 3 at 86 ms, and Shard 4 at 51 ms. The slowest response arrives at 86 ms; a separate 3 ms merge ends at 89 ms. Each shard contributes five local candidates, for 20 IDs to rank by comparable scores and reduce to a global top five. Fan-out latency is governed by the slowest shard response plus coordinator merge time." />
+  <img src="illustrations/_generated/scatter_gather_topk_dark.png" alt="Constructed four-shard timeline on one shared 0–95 ms axis. Shard 1 returns five candidates at 44 ms, Shard 2 at 58 ms, Shard 3 at 86 ms, and Shard 4 at 51 ms. The slowest response arrives at 86 ms; a separate 3 ms merge ends at 89 ms. Each shard contributes five local candidates, for 20 IDs to rank by comparable scores and reduce to a global top five. Fan-out latency is set by the slowest shard response plus coordinator merge time." />
   <figcaption>A scatter-gather coordinator waits for the slowest shard (86 ms) before running the final merge (3 ms, finishing at 89 ms).</figcaption>
 </figure>
 
-Waiting for every shard amplifies tail latency:
-
-$$
-T_{\text{query}} \ge \max(T_1, T_2, \dots, T_S) + T_{\text{merge}}
-$$
-
-If each shard independently stays under its single-shard threshold $t_{99}$ with probability $0.99$, then all $S$ shards finish within $t_{99}$ with probability $(0.99)^S$. For 4 shards that is 96.1%; for 20 shards it drops to 81.8%, meaning a 20-shard cluster's p99 hits the single-shard $0.99^{1/20} \approx 99.95\text{th}$ percentile! (Correlated infrastructure stalls change that joint rate, so measure real fan-out latency.) Hedged requests to replicas or per-shard deadlines with explicit partial-result flags help rein in tails.
-
-<!-- leetllm: test, output=show -->
-```python title="independent-shard-tail-probabilities.py"
-for shards in (4, 20):
-    print(f"{shards:2d} independent shards within single-shard t99: {0.99 ** shards:.1%}")
-print(f"single-shard quantile driving 20-shard p99:    {100 * 0.99 ** (1 / 20):.4f}%")
-```
-
-<!-- leetllm: output:start -->
-```text title="Output" output compact
- 4 independent shards within single-shard t99: 96.1%
-20 independent shards within single-shard t99: 81.8%
-single-shard quantile driving 20-shard p99:    99.9498%
-```
-<!-- leetllm: output:end -->
+Full fan-out amplifies tail latency ($T_{\text{query}} \ge \max(T_1, \dots, T_S) + T_{\text{merge}}$). If each shard independently clears its threshold $t_{99}$ with probability $0.99$, all $S$ shards clear it with probability $0.99^S$: 96.1% across 4 shards, dropping to 81.8% across 20 shards (where cluster p99 is driven by the single-shard $0.99^{1/20} \approx 99.95\text{th}$ percentile). Use replica hedging or per-shard deadlines with explicit partial-result flags to rein in tails.
 
 ### Index family comparison
 
 | Index family | Core mechanism | Strength | Main cost | Reach for it when |
 |--------------|----------------|----------|-----------|-------------------|
-| **HNSW** | Hierarchical proximity graph | Fast, high-recall in-RAM search | Raw-vector RAM, build time, delete handling | Vectors fit in RAM and low latency matters |
-| **IVF-Flat** | Coarse Voronoi cells + exact list scan | Simple, controllable scan fraction | Offline centroid training, raw-vector RAM | You want predictable scan work without graph overhead |
-| **IVF-PQ** | IVF + subspace byte codes + ADC | ~10x-32x smaller vector footprint | Quantization error, rerank/tuning complexity | RAM capacity is the primary bottleneck |
-| **DiskANN** | SSD-resident graph + compact RAM guide | Billion-scale on a single NVMe node | Storage-layout and I/O engineering | Corpus exceeds RAM but single-node SSD fits |
+| **HNSW** | Hierarchical proximity graph | Fast, high-recall in-RAM search | Raw-vector RAM, build time, deletes | Vectors fit in RAM and low latency matters |
+| **IVF-Flat** | Coarse Voronoi cells + exact list scan | Predictable scan fraction | Offline training, raw-vector RAM | You want fixed scan budgets without graph edges |
+| **IVF-PQ** | IVF + subspace byte codes + ADC | ~10x-32x smaller footprint | Quantization error, rerank tuning | RAM capacity is the primary bottleneck |
+| **DiskANN** | SSD-resident graph + compact RAM guide | Billion-scale on one NVMe node | Storage-layout and I/O engineering | Corpus exceeds RAM but single-node SSD fits |
 
-### Four enduring questions when evaluating any vector database
-
-Product logos shift faster than hardware constraints. Ask four questions before picking an engine:
-1. Which ANN families does it expose (HNSW, IVF, PQ, DiskANN, or an opaque managed index)?
-2. How does it execute filtered search (pre-filter, post-filter, iterative scan, or filter-aware graph traversal)?
-3. Where does the index live (RAM, NVMe SSD, or object storage)?
-4. What compression and full-precision reranking knobs are available?
+When evaluating any vector engine, check four fundamentals: which ANN families it exposes, how it executes filtered search, where the index lives (RAM, NVMe, object storage), and what compression plus full-precision reranking knobs it supports.
 
 ## When vector indexes break
 
 | Symptom | Likely root cause | Concrete fix |
 |---------|-------------------|--------------|
-| IVF recall drops over months | Embedding distribution drifted away from stale centroids | Retrain centroids on recent data and rebuild lists |
-| HNSW runs out of RAM | Raw float32 vectors + links + allocator overhead exceed host memory | Measure bytes/vector; evaluate PQ, SQ, or IVF-PQ |
-| Fast queries miss obvious matches | Too-small `ef_search` / `nprobe`, PQ error, or metric mismatch | Check exact baseline first; separate candidate recall from reranking |
-| Cosine switch tanks IVF recall | Centroids were trained on unnormalized L2 vectors | Normalize all vectors and retrain centroids for IP |
-| Deleted docs still appear or recall degrades | Tombstones, dead tuples, or lagging replicas | Test delete visibility and run index compaction or rebuild |
-| Adding shards spikes p99 | Full fan-out waits on slowest shard | Measure cluster tail latency, prune shard routing, or hedge requests |
+| IVF recall drops over months | Embedding distribution drifted from stale centroids | Retrain centroids on recent data and rebuild lists |
+| HNSW exhausts RAM | Float32 vectors + links + allocator overhead exceed memory | Measure bytes/vector; adopt SQ, PQ, or IVF-PQ |
+| Fast queries miss obvious matches | Too-small `ef_search` / `nprobe`, PQ error, or metric mismatch | Check exact baseline first; separate recall from reranking |
+| Cosine switch tanks IVF recall | Centroids trained on unnormalized L2 vectors | Normalize all vectors and retrain centroids for IP |
+| Deleted docs still appear | Tombstones, dead tuples, or lagging replicas | Test delete visibility; run compaction or index rebuild |
+| Adding shards spikes p99 | Full fan-out waits on slowest shard | Prune shard routing, hedge requests, or cap shard deadlines |
 
 ## Hands-on: metric migration and deletion in Faiss
 
-To see metric geometry and deletion behavior in a real engine, run this self-contained Faiss script with `uv run vector-index-replay.py`.[^faiss2026indexes][^faissMetrics2026] Under raw L2, `[1, 1]` is closer to `[1, 0.1]` than `[10, 0]`; once normalized for cosine similarity, `[10, 0]` points almost directly along the query and wins. Removing ID `101` from the `IndexIDMap2`-wrapped index returns Faiss's `-1` sentinel for the missing second slot.
+Run this self-contained Faiss script with `uv run vector-index-replay.py` to see metric geometry and deletion behavior directly.[^faiss2026indexes][^faissMetrics2026] Under raw L2, `[1, 1]` beats `[10, 0]` for query `[1, 0.1]`; after L2 normalization and inner-product indexing, `[10, 0]` aligns along the query and wins. Removing ID `101` leaves Faiss's `-1` sentinel in the unfilled second slot:
 
 <!-- leetllm: test, output=show, deps="faiss-cpu==1.15.1,numpy==2.4.3" -->
 ```python title="vector-index-replay.py"
+# fold:start uv script metadata & imports
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.12"
@@ -729,6 +548,7 @@ import faiss
 import numpy as np
 
 faiss.omp_set_num_threads(1)
+# fold:end
 vectors = np.array([[10.0, 0.0], [1.0, 1.0]], dtype="float32")
 ids = np.array([101, 202], dtype="int64")
 query = np.array([[1.0, 0.1]], dtype="float32")
@@ -744,13 +564,15 @@ cosine = faiss.IndexIDMap2(faiss.IndexFlatIP(2))
 cosine.add_with_ids(unit_vectors, ids)
 _, cosine_ids = cosine.search(unit_query, 1)
 
-print("Raw L2 winner:", int(raw_ids[0, 0]))
-print("Cosine winner after rebuilding:", int(cosine_ids[0, 0]))
-
 removed = cosine.remove_ids(np.array([101], dtype="int64"))
 _, after_delete = cosine.search(unit_query, 2)
+
+# fold:start print results
+print("Raw L2 winner:", int(raw_ids[0, 0]))
+print("Cosine winner after rebuilding:", int(cosine_ids[0, 0]))
 print("Removed records:", removed)
 print("Results after delete:", after_delete[0].tolist())
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
@@ -762,7 +584,7 @@ Results after delete: [202, -1]
 ```
 <!-- leetllm: output:end -->
 
-Always check for `-1` sentinels when fewer than `k` matches exist, propagate deletes across every replica before cutover, and benchmark `ef_search` or `nprobe` sweeps against your frozen exact top-$k$ baseline under real query load and metadata filters.
+Check for `-1` sentinels when fewer than `k` matches exist, propagate deletes across replicas before cutover, and benchmark `ef_search` or `nprobe` against an exact top-$k$ baseline under real queries and metadata filters.
 
 ```mastery-quiz
 [

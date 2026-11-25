@@ -1,34 +1,23 @@
-import React from 'react'
-import {
-    AxisPlot,
-    BarChart,
-    Card,
-    Column,
-    KeyValueList,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    withDensity,
-} from 'vizmatic'
-import type { ToneName } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
+export { createFilm } from './_parts/kmeans-film'
 
-export const width = 620
-export const height = 795
 export const alt =
     'One Lloyd k-means iteration on the six corpus vectors. Initial seeds at (1.0, 1.0), (4.0, 4.2), and (8.0, 1.0) attract pairs fin_A/fin_B, vis_A/vis_B, and sys_A/sys_B, then update to centroids (1.1, 1.4), (4.5, 4.0), and (8.5, 1.4), dropping inertia from 3.48 to 1.74.'
 
+export const width = 780
+export const height = 430
+
 interface ClusterStep {
     label: string
-    tone: ToneName
+    tone: 'blue' | 'purple' | 'green'
     seed: readonly [number, number]
     center: readonly [number, number]
     members: readonly [readonly [number, number], readonly [number, number]]
-    summary: string
+    names: readonly [string, string]
 }
 
-const clusters: ClusterStep[] = [
+const CLUSTERS: readonly ClusterStep[] = [
     {
         label: 'C0 Finance',
         tone: 'blue',
@@ -38,7 +27,7 @@ const clusters: ClusterStep[] = [
             [1.0, 1.0],
             [1.2, 1.8],
         ],
-        summary: '[1.1, 1.4]  (fin_A, fin_B)',
+        names: ['fin_A', 'fin_B'],
     },
     {
         label: 'C1 Vision',
@@ -49,7 +38,7 @@ const clusters: ClusterStep[] = [
             [4.0, 4.2],
             [5.0, 3.8],
         ],
-        summary: '[4.5, 4.0]  (vis_A, vis_B)',
+        names: ['vis_A', 'vis_B'],
     },
     {
         label: 'C2 Systems',
@@ -60,154 +49,209 @@ const clusters: ClusterStep[] = [
             [8.0, 1.0],
             [9.0, 1.8],
         ],
-        summary: '[8.5, 1.4]  (sys_A, sys_B)',
+        names: ['sys_A', 'sys_B'],
     },
 ]
 
-const illustration = defineIllustration((baseC) => {
-    const c = withDensity(baseC, 1.9)
-    const memberLinks = clusters.flatMap((cl) =>
-        cl.members.map(([x, y]) => ({
-            x1: x,
-            y1: y,
-            x2: cl.center[0],
-            y2: cl.center[1],
-            tone: cl.tone,
-            strokeWidth: 2.5,
-            opacity: 0.65,
-        })),
-    )
-    const seedShifts = clusters.map((cl) => ({
-        x1: cl.seed[0],
-        y1: cl.seed[1],
-        x2: cl.center[0],
-        y2: cl.center[1],
-        color: c.warning,
-        strokeWidth: 3.5,
-        arrow: true,
-        arrowSize: 8,
-    }))
-    const points = [
-        ...clusters.flatMap((cl) =>
-            cl.members.map(([x, y]) => ({
-                x,
-                y,
-                tone: cl.tone,
-                r: 7,
-                opacity: 0.85,
-            })),
-        ),
-        ...clusters.map((cl) => ({
-            x: cl.center[0],
-            y: cl.center[1],
-            tone: cl.tone,
-            r: 10,
-            stroke: c.textPrimary,
-            strokeWidth: 2.5,
-        })),
-    ]
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
 
-    return Scene({
-        c,
-        background: c.bg,
-        padding: 18,
-        children: Column({
-            gap: 10,
-            align: 'stretch',
-            children: [
-                Column({
-                    gap: 4,
-                    children: [
-                        TextLabel({
-                            c,
-                            text: "Lloyd's Update: Seeds Shift to Cluster Means",
-                            fontSize: 23,
-                            fontWeight: 700,
-                            color: c.textPrimary,
-                        }),
-                        TextLabel({
-                            c,
-                            text: 'Assign to nearest centers, then average each group into a new center.',
-                            fontSize: 19,
-                            color: c.textSecondary,
-                        }),
-                    ],
-                }),
-                Panel({
-                    c,
-                    title: 'Centroid Movement (1st Iteration)',
-                    padding: 10,
-                    children: Column({
-                        gap: 4,
-                        align: 'stretch',
-                        children: [
-                            AxisPlot({
-                                c,
-                                width: 562,
-                                height: 140,
-                                xMin: 0,
-                                xMax: 10,
-                                yMin: 0,
-                                yMax: 5.2,
-                                padding: 12,
-                                showFrame: false,
-                                showAxes: false,
-                                showGrid: true,
-                                gridCount: 4,
-                                vectors: [...memberLinks, ...seedShifts],
-                                points,
-                                ariaLabel: 'Seed shifts to updated cluster centroids',
-                            }),
-                            Row({
-                                justify: 'space-between',
-                                children: [
-                                    TextLabel({
-                                        c,
-                                        text: 'Arrows: seed -> mean',
-                                        fontSize: 19,
-                                        color: c.warning,
-                                    }),
-                                    TextLabel({
-                                        c,
-                                        text: 'Ringed dots: updated means',
-                                        fontSize: 19,
-                                        color: c.textSecondary,
-                                    }),
-                                ],
-                            }),
-                        ],
-                    }),
-                }),
-                BarChart({
-                    c,
-                    width: 584,
-                    height: 145,
-                    min: 0,
-                    title: 'Within-Cluster Inertia J (Squared Distance Sum)',
-                    data: [
-                        { label: 'Initial Seeds', value: 3.48, color: 'warning' },
-                        { label: 'After Mean Update', value: 1.74, color: 'positive' },
-                    ],
-                    format: 'decimal',
-                    showGrid: false,
-                    showValues: true,
-                }),
-                Card({
-                    c,
-                    padding: 10,
-                    children: KeyValueList({
-                        c,
-                        rows: clusters.map((cl) => ({
-                            key: cl.label,
-                            value: cl.summary,
-                            tone: cl.tone,
-                        })),
-                    }),
-                }),
-            ],
-        }),
+    // Left: Spacious 2D centroid-movement geometry
+    fig.text(266, 20, "Lloyd's update: seeds shift to cluster midpoints", {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+        align: 'center',
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    const plot = fig.plot(
+        { x: 52, y: 46, width: 440, height: 320 },
+        { x: [0, 10], y: [0, 5.2] },
+    )
+    plot.axes({
+        xTicks: [0, 2, 4, 6, 8, 10],
+        yTicks: [0, 1, 2, 3, 4, 5],
+        xLabel: 'Embedding dim 1',
+        yLabel: 'dim 2',
+        grid: true,
+        labelSize: 12,
+    })
+
+    for (const cl of CLUSTERS) {
+        const col = fig.tone(cl.tone)
+
+        // Assignment segments from both members to updated mean
+        for (const [mx, my] of cl.members) {
+            fig.line(plot.px(mx), plot.py(my), plot.px(cl.center[0]), plot.py(cl.center[1]), {
+                color: col,
+                width: 1.75,
+                dash: '3 3',
+                opacity: 0.7,
+            })
+        }
+
+        // Data points
+        plot.point(cl.members[0][0], cl.members[0][1], { color: col, r: 5.5 })
+        plot.point(cl.members[1][0], cl.members[1][1], { color: col, r: 5.5 })
+
+        // Hollow initial seed ring
+        fig.circle(plot.px(cl.seed[0]), plot.py(cl.seed[1]), 9, {
+            stroke: warm,
+            width: 2,
+        })
+
+        // Seed -> updated mean arrow
+        fig.arrow(
+            plot.px(cl.seed[0]),
+            plot.py(cl.seed[1]),
+            plot.px(cl.center[0]),
+            plot.py(cl.center[1]),
+            { color: warm, width: 2.5, head: 7 },
+        )
+
+        // Updated mean ringed dot
+        plot.point(cl.center[0], cl.center[1], { color: col, r: 7.5 })
+        fig.circle(plot.px(cl.center[0]), plot.py(cl.center[1]), 11, {
+            stroke: c.textPrimary,
+            width: 1.5,
+        })
+
+        // Cluster label + coordinates cleanly placed in open space away from dots
+        const lx =
+            cl.tone === 'blue'
+                ? plot.px(cl.center[0]) + 42
+                : cl.tone === 'green'
+                  ? plot.px(cl.center[0]) - 22
+                  : plot.px(cl.center[0])
+        const ly =
+            cl.tone === 'purple'
+                ? plot.py(cl.center[1]) - 46
+                : plot.py(cl.center[1]) - 56
+        fig.text(lx, ly, cl.label, {
+            size: 13,
+            weight: 700,
+            color: col,
+            align: 'center',
+        })
+        fig.text(lx, ly + 16, `[${cl.center[0].toFixed(1)}, ${cl.center[1].toFixed(1)}]`, {
+            size: 11.5,
+            color: c.textSecondary,
+            mono: true,
+            align: 'center',
+        })
+    }
+
+    // Compact bottom-left legend inside plot footer
+    fig.circle(68, 412, 5.5, { stroke: warm, width: 1.8 })
+    fig.text(80, 412, 'Initial seed', { size: 12, color: warm })
+    fig.arrow(174, 412, 206, 412, { color: warm, width: 2.2, head: 6 })
+    fig.text(214, 412, 'Shift to mean', { size: 12, color: c.textSecondary })
+    fig.circle(328, 412, 5.5, { fill: c.textPrimary })
+    fig.circle(328, 412, 8.5, { stroke: c.textPrimary, width: 1.2 })
+    fig.text(342, 412, 'Updated centroid', { size: 12, color: c.textSecondary })
+
+    // Right column: Within-cluster inertia J bar comparison
+    const rx = 532
+    const rw = 224
+    fig.text(rx + rw / 2, 20, 'Within-cluster inertia J', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(rx + rw / 2, 40, 'Sum of squared distances', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    const barPlot = fig.plot(
+        { x: rx + 26, y: 78, width: rw - 38, height: 220 },
+        { x: [0, 2], y: [0, 4] },
+    )
+    barPlot.axes({
+        yTicks: [0, 1, 2, 3, 4],
+        grid: true,
+        labelSize: 11.5,
+    })
+
+    const b1x = barPlot.px(0.48)
+    const b2x = barPlot.px(1.52)
+    const bw = 56
+    fig.rect(b1x - bw / 2, barPlot.py(3.48), bw, barPlot.bottom - barPlot.py(3.48), {
+        fill: warm,
+        radius: 6,
+    })
+    fig.rect(b2x - bw / 2, barPlot.py(1.74), bw, barPlot.bottom - barPlot.py(1.74), {
+        fill: green,
+        radius: 6,
+    })
+
+    fig.text(b1x, barPlot.py(3.48) - 12, '3.48', {
+        size: 14,
+        weight: 700,
+        color: warm,
+        mono: true,
+        align: 'center',
+    })
+    fig.text(b2x, barPlot.py(1.74) - 12, '1.74', {
+        size: 14,
+        weight: 700,
+        color: green,
+        mono: true,
+        align: 'center',
+    })
+    fig.text(b1x, barPlot.bottom + 16, 'Seeds', {
+        size: 12.5,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+    })
+    fig.text(b2x, barPlot.bottom + 16, 'Means', {
+        size: 12.5,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Curved -50% drop arrow between bars (lands clearly above 1.74 label)
+    fig.callout(
+        [b2x, barPlot.py(2.12)],
+        [b1x + 36, barPlot.py(3.35)],
+        '−50% inertia',
+        {
+            color: green,
+            size: 12.5,
+            weight: 700,
+            bend: -0.22,
+            align: 'left',
+            labelGap: 4,
+        },
+    )
+
+    // Compact summary callout below bars
+    fig.rect(rx + 6, 344, rw - 12, 54, {
+        fill: tint(green, c.bg, 0.09),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 8,
+    })
+    fig.text(rx + rw / 2, 362, '1st Lloyd step halves J', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(rx + rw / 2, 382, 'Each mean minimizes ∑‖x − μ‖²', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
+}
+
+export default create()

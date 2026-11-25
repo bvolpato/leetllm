@@ -1,382 +1,141 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-    getReadableToneColor,
-    getToneFill,
-    type ThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 395
 export const alt =
-    'Cascaded audio passes through STT, LLM, and TTS, allowing inline transcript inspection and independent component tuning. A native speech model emits audio directly with lower latency, handling transcripts and tool authorization via side channels. Both architectures require local VAD, barge-in cancellation, and a confirmed playout cursor.'
+    'Cascaded pipeline places transcript inspection and tool checks inline between STT, LLM, and TTS; native audio emits speech directly with transcript, tool authorization, and tracing handled on side channels. Both require turn detection, interruption, and a confirmed playout cursor.'
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    size = 20,
-    color = c.textPrimary,
-    weight = 500,
-    align: 'left' | 'center' | 'right' = 'center',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * 1.5,
-        children: (
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                fontWeight={weight}
-                color={color}
-                align={align}
-            />
-        ),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const cyan = fig.tone('cyan')
+    const muted = c.textSecondary
+
+    const box = (x: number, y: number, w: number, h: number, title: string, sub: string, tone: string) => {
+        fig.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, 0.13),
+            stroke: tone,
+            strokeWidth: 1.5,
+            radius: 8,
+        })
+        fig.text(x + w / 2, y + h * 0.36, title, {
+            size: 14,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            width: w - 8,
+        })
+        fig.text(x + w / 2, y + h * 0.72, sub, {
+            size: 12,
+            color: muted,
+            align: 'center',
+            width: w - 8,
+        })
+    }
+
+    // --- Row 1: Cascaded Pipeline ---
+    fig.text(24, 22, 'Cascaded Pipeline · Inline Text Checkpoints', {
+        size: 15,
+        weight: 700,
+        color: blue,
     })
-}
-
-export function create(mode: ThemeMode = 'dark') {
-    const c = getThemeColors(mode)
-    const tone = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getReadableToneColor(name, c)
-    const fill = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getToneFill(name, c)
-
-    const cascadedStages = [
-        { title: 'Audio', tone: 'warm' as const },
-        { title: 'STT', tone: 'purple' as const },
-        { title: 'LLM', tone: 'blue' as const },
-        { title: 'TTS', tone: 'green' as const },
-    ]
-
-    return Board({
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: (
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {/* Cascaded panel */}
-                        <rect
-                            x="24"
-                            y="54"
-                            width="396"
-                            height="346"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={tone('blue')}
-                            strokeWidth="1.5"
-                            strokeOpacity={0.6}
-                        />
-                        {cascadedStages.map((s, i) => {
-                            const x = 44 + i * 90
-                            return (
-                                <g key={s.title}>
-                                    <rect
-                                        x={x}
-                                        y="110"
-                                        width="72"
-                                        height="50"
-                                        rx="7"
-                                        fill={fill(s.tone)}
-                                        stroke={tone(s.tone)}
-                                        strokeWidth="1.5"
-                                    />
-                                    {i < 3 && (
-                                        <VectorArrow
-                                            x1={x + 72}
-                                            y1={135}
-                                            x2={x + 90}
-                                            y2={135}
-                                            color={c.textMuted}
-                                            strokeWidth={2}
-                                            arrowSize={3}
-                                        />
-                                    )}
-                                </g>
-                            )
-                        })}
-
-                        {/* Native panel */}
-                        <rect
-                            x="440"
-                            y="54"
-                            width="396"
-                            height="346"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={tone('green')}
-                            strokeWidth="1.5"
-                            strokeOpacity={0.6}
-                        />
-                        <rect
-                            x="460"
-                            y="110"
-                            width="80"
-                            height="50"
-                            rx="7"
-                            fill={fill('warm')}
-                            stroke={tone('warm')}
-                            strokeWidth="1.5"
-                        />
-                        <VectorArrow
-                            x1={540}
-                            y1={135}
-                            x2={565}
-                            y2={135}
-                            color={c.textMuted}
-                            strokeWidth={2}
-                            arrowSize={3}
-                        />
-                        <rect
-                            x="565"
-                            y="110"
-                            width="146"
-                            height="50"
-                            rx="7"
-                            fill={fill('green')}
-                            stroke={tone('green')}
-                            strokeWidth="1.5"
-                        />
-                        <VectorArrow
-                            x1={711}
-                            y1={135}
-                            x2={736}
-                            y2={135}
-                            color={c.textMuted}
-                            strokeWidth={2}
-                            arrowSize={3}
-                        />
-                        <rect
-                            x="736"
-                            y="110"
-                            width="80"
-                            height="50"
-                            rx="7"
-                            fill={fill('cyan')}
-                            stroke={tone('cyan')}
-                            strokeWidth="1.5"
-                        />
-
-                        {/* Side channels branch */}
-                        <VectorArrow
-                            x1={638}
-                            y1={160}
-                            x2={638}
-                            y2={196}
-                            color={tone('purple')}
-                            strokeWidth={2}
-                            arrowSize={4}
-                        />
-                        <rect
-                            x="480"
-                            y="196"
-                            width="316"
-                            height="44"
-                            rx="6"
-                            fill={fill('purple')}
-                            stroke={tone('purple')}
-                            strokeWidth="1.5"
-                        />
-
-                        {/* Universal requirements bottom bar */}
-                        <rect
-                            x="24"
-                            y="416"
-                            width="812"
-                            height="66"
-                            rx="10"
-                            fill={c.bgCard}
-                            stroke={c.border}
-                            strokeWidth="1.5"
-                        />
-                    </svg>
-                ),
-            }),
-            label(
-                c,
-                'Place checkpoints on each audio path',
-                24,
-                14,
-                812,
-                24,
-                c.textPrimary,
-                700,
-                'left',
-            ),
-
-            // Cascaded labels
-            label(
-                c,
-                'Cascaded · inline text checkpoints',
-                44,
-                68,
-                356,
-                19,
-                tone('blue'),
-                700,
-                'left',
-            ),
-            ...cascadedStages.map((s, i) =>
-                label(c, s.title, 44 + i * 90, 124, 72, 18, tone(s.tone), 650),
-            ),
-            label(
-                c,
-                '• Inspect transcript → authorize tools → speak',
-                44,
-                184,
-                356,
-                17,
-                c.textPrimary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Swap STT, LLM, and TTS independently',
-                44,
-                218,
-                356,
-                17,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Modularity supports strict content safety gates',
-                44,
-                252,
-                356,
-                17,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Latency: sum of stage TTFTs (~380–550 ms)',
-                44,
-                286,
-                356,
-                17,
-                c.textMuted,
-                500,
-                'left',
-            ),
-
-            // Native labels
-            label(
-                c,
-                'Native audio · direct speech model',
-                460,
-                68,
-                356,
-                19,
-                tone('green'),
-                700,
-                'left',
-            ),
-            label(c, 'Audio in', 460, 124, 80, 18, tone('warm'), 650),
-            label(c, 'Speech model', 565, 124, 146, 18, tone('green'), 650),
-            label(c, 'Audio out', 736, 124, 80, 18, tone('cyan'), 650),
-            label(
-                c,
-                'Side channels: transcript · tool calls · traces',
-                484,
-                208,
-                308,
-                16,
-                tone('purple'),
-                600,
-            ),
-            label(
-                c,
-                '• Retains human vocal nuance, prosody, and emotion',
-                460,
-                260,
-                356,
-                17,
-                c.textPrimary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Lower mouth-to-ear latency floor (~200–350 ms)',
-                460,
-                294,
-                356,
-                17,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Safety and tool calls evaluate asynchronously',
-                460,
-                328,
-                356,
-                17,
-                c.textMuted,
-                500,
-                'left',
-            ),
-
-            // Bottom bar labels
-            label(c, 'Both architectures require:', 42, 436, 210, 18, tone('warm'), 700, 'left'),
-            label(
-                c,
-                '• Local client VAD for instant mute (<100 ms)',
-                256,
-                428,
-                320,
-                16,
-                c.textPrimary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Confirmed playout cursor for memory integrity',
-                256,
-                452,
-                320,
-                16,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Real-time jitter buffer & packet loss concealment',
-                580,
-                438,
-                240,
-                16,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-        ],
+    fig.text(816, 22, 'Modular swap  ·  ~380-550 ms', {
+        size: 13,
+        weight: 600,
+        color: muted,
+        align: 'right',
     })
+
+    const r1Y = 46
+    const r1H = 68
+    box(24, r1Y, 96, r1H, 'Audio In', '20 ms', warm)
+    fig.arrow(120, r1Y + 34, 146, r1Y + 34, { color: c.textMuted, width: 2, head: 5 })
+    box(150, r1Y, 96, r1H, 'STT', 'speech->text', purple)
+    fig.arrow(246, r1Y + 34, 272, r1Y + 34, { color: blue, width: 2, head: 5 })
+
+    // Explicit inline checkpoint pill
+    fig.rect(276, r1Y - 4, 152, r1H + 8, {
+        fill: tint(blue, c.bg, 0.18),
+        stroke: blue,
+        strokeWidth: 2,
+        radius: 8,
+    })
+    fig.text(352, r1Y + 20, 'Inline Gate', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        width: 140,
+    })
+    fig.text(352, r1Y + 46, 'Transcript + Tool Auth', {
+        size: 12,
+        weight: 600,
+        color: c.textPrimary,
+        align: 'center',
+        width: 144,
+    })
+
+    fig.arrow(428, r1Y + 34, 454, r1Y + 34, { color: blue, width: 2, head: 5 })
+    box(458, r1Y, 102, r1H, 'LLM', 'text clause', blue)
+    fig.arrow(560, r1Y + 34, 586, r1Y + 34, { color: c.textMuted, width: 2, head: 5 })
+    box(590, r1Y, 100, r1H, 'TTS', 'text->audio', green)
+    fig.arrow(690, r1Y + 34, 716, r1Y + 34, { color: c.textMuted, width: 2, head: 5 })
+    box(720, r1Y, 96, r1H, 'Audio Out', 'playout', cyan)
+
+    // Divider
+    fig.line(24, 144, 816, 144, { color: c.borderSubtle, width: 1 })
+
+    // --- Row 2: Native Speech-to-Speech Model ---
+    fig.text(24, 170, 'Native Audio Model · Parallel Side Channels', {
+        size: 15,
+        weight: 700,
+        color: green,
+    })
+    fig.text(816, 170, 'Prosody preserved  ·  ~200-350 ms', {
+        size: 13,
+        weight: 600,
+        color: muted,
+        align: 'right',
+    })
+
+    const r2Y = 194
+    const r2H = 66
+    box(24, r2Y, 118, r2H, 'Audio In', 'direct frames', warm)
+    fig.arrow(142, r2Y + 33, 224, r2Y + 33, { color: green, width: 2.25, head: 6 })
+    box(228, r2Y, 384, r2H, 'Native Speech-to-Speech Model', 'Direct audio generation (fewer handoffs)', green)
+    fig.arrow(612, r2Y + 33, 694, r2Y + 33, { color: green, width: 2.25, head: 6 })
+    box(698, r2Y, 118, r2H, 'Audio Out', 'direct playout', cyan)
+
+    // Parallel side-channel branch underneath
+    fig.arrow(420, r2Y + r2H, 420, 290, { color: purple, width: 2, head: 6, dash: '5 4' })
+    fig.rect(180, 294, 480, 42, {
+        fill: tint(purple, c.bg, 0.12),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(420, 315, 'Side Channels: Async Transcript  ·  Tool Authorization  ·  Tracing', {
+        size: 13,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        width: 460,
+    })
+
+    // --- Bottom Shared Requirements Strip ---
+    fig.line(24, 354, 816, 354, { color: c.borderSubtle, width: 1 })
+    fig.text(24, 376, 'Required in both:', { size: 13, weight: 700, color: warm })
+    fig.text(168, 376, 'Turn detection + Local VAD mute (<100 ms)  ·  Barge-in cancel  ·  Confirmed playout cursor', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    return fig.render()
 }
 
 export default create()

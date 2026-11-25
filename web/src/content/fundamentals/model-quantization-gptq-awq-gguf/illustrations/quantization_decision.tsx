@@ -1,179 +1,208 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 700
-export const height = 760
+export const width = 760
+export const height = 410
 export const preset = 'engineering'
 export const alt =
-    'The same held-out inputs pass through a source baseline and an exported, reloaded candidate with matching tokenizer, chat template, and decoding controls. Paired bars on a shared axis compare baseline and 4-bit outputs for three held-out columns: minus 2.460 versus minus 2.457 (difference minus 0.003), minus 3.100 versus minus 2.714 (difference minus 0.386), and 6.800 versus 6.571 (difference plus 0.229). Artifact identity, task quality, and serving profile are checked as three separate evidence streams.'
+    'Paired held-out output comparison between source baseline and reloaded 4-bit model under identical tokenizer, chat template, and decoding controls. On a shared -4 to +8 axis, held-out column x0 shifts from -2.460 to -2.457 (delta -0.003), x1 shifts from -3.100 to -2.714 (delta -0.386), and x2 shifts from +6.800 to +6.571 (delta +0.229), exposing uneven per-input drift.'
 
-const columns = [
-    { name: 'x₀', baseline: -2.46, candidate: -2.457143, delta: 'Δ −0.003' },
-    { name: 'x₁', baseline: -3.1, candidate: -2.714286, delta: 'Δ −0.386' },
-    { name: 'x₂', baseline: 6.8, candidate: 6.571429, delta: 'Δ +0.229' },
+const rows = [
+    { name: 'x₀', base: -2.46, cand: -2.457, delta: '−0.003', sev: 'green' as const },
+    { name: 'x₁', base: -3.1, cand: -2.714, delta: '−0.386', sev: 'critical' as const },
+    { name: 'x₂', base: 6.8, cand: 6.571, delta: '+0.229', sev: 'warm' as const },
 ]
-const BAR_LEFT = 110
-const BAR_RIGHT = 548
-const valueX = (v: number) => BAR_LEFT + ((v + 4) / 11) * (BAR_RIGHT - BAR_LEFT)
-const rowTop = (index: number) => 410 + index * 48
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c, c.bg)
-    const purple = getReadableToneColor('purple', c, c.bg)
-    const warm = getReadableToneColor('warm', c, c.bg)
-    const green = getReadableToneColor('green', c, c.bg)
-    const grid = theme === 'light' ? '#94a3b8' : '#52627a'
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        size = 24,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-    ) => {
-        const displaySize = Math.max(size, 25)
-        return (
-            <CanvasItem
-                key={`${x}-${y}-${text}`}
-                x={x}
-                y={y}
-                width={w}
-                height={Math.ceil(displaySize * 1.42)}
-            >
-                <TextLabel
-                    c={c}
-                    text={text}
-                    fontSize={displaySize}
-                    color={color}
-                    width="100%"
-                    align={align}
-                />
-            </CanvasItem>
-        )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+
+    // --- Top compact paired evaluation strip ---
+    fig.rect(32, 18, 134, 42, {
+        fill: tint(purple, c.bg, theme === 'light' ? 0.14 : 0.24),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(99, 39, 'Held-out x₀, x₁, x₂', {
+        size: 13,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+
+    fig.arrow(168, 39, 206, 39, { color: purple, width: 1.6, head: 5.5 })
+
+    fig.rect(208, 18, 136, 42, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.14 : 0.24),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(276, 39, 'Source baseline', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+
+    fig.text(364, 39, 'vs', {
+        size: 13,
+        weight: 600,
+        color: c.textMuted,
+        align: 'center',
+    })
+
+    fig.rect(384, 18, 146, 42, {
+        fill: tint(warm, c.bg, theme === 'light' ? 0.14 : 0.24),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(457, 39, 'Reloaded 4-bit', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    fig.text(544, 28, 'Identical tokenizer, template,', { size: 13, color: c.textSecondary })
+    fig.text(544, 48, '& decoding controls', { size: 13, color: c.textSecondary })
+
+    fig.line(32, 78, 728, 78, { color: c.borderSubtle, width: 1 })
+
+    // --- Main Chart: Paired signed output bars + right delta column ---
+    fig.text(32, 102, 'Paired held-out outputs (baseline vs 4-bit)', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    // Legend
+    fig.rect(428, 96, 12, 12, { fill: blue, radius: 2 })
+    fig.text(446, 102, 'Baseline', { size: 13, color: c.textSecondary })
+    fig.rect(520, 96, 12, 12, { fill: warm, radius: 2 })
+    fig.text(538, 102, '4-bit', { size: 13, color: c.textSecondary })
+
+    fig.text(722, 102, 'Drift Δ', {
+        size: 13,
+        weight: 700,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    const barLeft = 104
+    const barRight = 576
+    const xOf = (v: number) => barLeft + ((v + 4) / 12) * (barRight - barLeft)
+    const zeroX = xOf(0)
+    const axisTop = 128
+    const axisBot = 316
+
+    // Gridlines & ticks (-4 to +8)
+    for (const tick of [-4, -2, 0, 2, 4, 6, 8]) {
+        const tx = xOf(tick)
+        const isZero = tick === 0
+        fig.line(tx, axisTop, tx, axisBot, {
+            color: isZero ? c.textSecondary : c.borderSubtle,
+            width: isZero ? 1.75 : 1,
+            dash: isZero ? undefined : '3 3',
+        })
+        fig.text(tx, axisBot + 16, tick > 0 ? `+${tick}` : tick < 0 ? `−${Math.abs(tick)}` : '0', {
+            size: 13,
+            weight: isZero ? 700 : 400,
+            color: isZero ? c.textPrimary : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
     }
-    const arrow = (x1: number, y: number, x2: number, color: string, key: string) => (
-        <g key={key}>
-            <line x1={x1} y1={y} x2={x2 - 11} y2={y} stroke={color} strokeWidth={3.5} />
-            <path d={`M${x2 - 17} ${y - 8} L${x2} ${y} L${x2 - 17} ${y + 8} Z`} fill={color} />
-        </g>
-    )
 
-    return (
-        <Board c={c} width={width} height={height}>
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <line x1={24} y1={153} x2={676} y2={153} stroke={grid} strokeWidth={1.5} />
-                    <line x1={24} y1={315} x2={676} y2={315} stroke={grid} strokeWidth={1.5} />
-                    {arrow(214, 126, 238, purple, 'calibration-fit')}
-                    {arrow(430, 126, 463, green, 'fit-export')}
-                    <line x1={190} y1={184} x2={196} y2={184} stroke={purple} strokeWidth={3} />
-                    <line x1={196} y1={184} x2={196} y2={235} stroke={purple} strokeWidth={3} />
-                    {arrow(196, 184, 236, purple, 'heldout-baseline')}
-                    {arrow(196, 235, 236, purple, 'heldout-candidate')}
-                    <rect x={24} y={378} width={16} height={16} rx={3} fill={blue} />
-                    <rect x={190} y={378} width={16} height={16} rx={3} fill={warm} />
-                    {columns.map((column, index) => {
-                        const top = rowTop(index)
-                        const zero = valueX(0)
-                        const bar = (value: number, y: number, color: string, key: string) => (
-                            <rect
-                                key={key}
-                                x={Math.min(zero, valueX(value))}
-                                y={y}
-                                width={Math.abs(valueX(value) - zero)}
-                                height={14}
-                                rx={3}
-                                fill={color}
-                            />
-                        )
-                        return (
-                            <g key={column.name}>
-                                {bar(column.baseline, top, blue, `${column.name}-base`)}
-                                {bar(column.candidate, top + 18, warm, `${column.name}-4b`)}
-                            </g>
-                        )
-                    })}
-                    <line
-                        x1={valueX(0)}
-                        y1={402}
-                        x2={valueX(0)}
-                        y2={rowTop(2) + 40}
-                        stroke={c.textSecondary}
-                        strokeWidth={2}
-                    />
-                    <line x1={24} y1={556} x2={676} y2={556} stroke={grid} strokeWidth={1.5} />
-                    <line x1={128} y1={696} x2={572} y2={696} stroke={grid} strokeWidth={2.2} />
-                    <circle cx={128} cy={696} r={7} fill={purple} />
-                    <circle cx={350} cy={696} r={7} fill={green} />
-                    <circle cx={572} cy={696} r={7} fill={warm} />
-                </svg>
-            </CanvasItem>
+    rows.forEach((row, idx) => {
+        const cy = 160 + idx * 62
+        const barH = 18
+        const sevColor = row.sev === 'green' ? green : row.sev === 'critical' ? red : warm
 
-            {label(24, 12, 650, 'Fair comparisons share inputs', 36)}
-            {label(
-                24,
-                68,
-                650,
-                'Calibration fits scales · held-out IDs test outputs',
-                23,
-                c.textSecondary,
-            )}
-            {label(24, 108, 190, 'calibration IDs', 23, purple)}
-            {label(245, 108, 180, 'fit quantizer', 23, green, 'center')}
-            {label(473, 108, 196, 'export artifact', 23, warm, 'center')}
-            {label(24, 166, 165, 'held-out IDs', 23, purple)}
-            {label(235, 164, 200, 'source baseline', 23, blue, 'center')}
-            {label(235, 215, 200, 'export → reload', 23, warm, 'center')}
-            {label(463, 164, 211, 'output trace', 23, blue, 'center')}
-            {label(463, 215, 211, 'candidate trace', 23, warm, 'center')}
-            {label(
-                24,
-                269,
-                650,
-                'Same tokenizer · chat template · decoding controls',
-                23,
-                c.textSecondary,
-            )}
+        fig.text(barLeft - 14, cy, row.name, {
+            size: 15,
+            weight: 700,
+            color: c.textPrimary,
+            align: 'right',
+            mono: true,
+        })
 
-            {label(24, 325, 650, 'Paired outputs on three held-out columns', 24)}
-            {label(48, 368, 130, 'baseline', 23, blue)}
-            {label(214, 368, 130, '4-bit', 23, warm)}
-            {columns.map((column, index) => (
-                <React.Fragment key={`${column.name}-labels`}>
-                    {label(24, rowTop(index) - 4, 70, column.name, 25, c.textSecondary)}
-                    {label(560, rowTop(index) - 4, 116, column.delta, 23, green, 'right')}
-                </React.Fragment>
-            ))}
+        // Baseline bar (upper)
+        const bStart = Math.min(zeroX, xOf(row.base))
+        const bW = Math.abs(xOf(row.base) - zeroX)
+        fig.rect(bStart, cy - barH - 2, bW, barH, {
+            fill: tint(blue, c.bg, theme === 'light' ? 0.78 : 0.85),
+            stroke: blue,
+            strokeWidth: 1.25,
+            radius: 3,
+        })
+        const bLblX = row.base < 0 ? zeroX + 8 : bStart + bW + 8
+        fig.text(bLblX, cy - barH / 2 - 2, row.base.toFixed(3), {
+            size: 13,
+            weight: 600,
+            color: blue,
+            align: 'left',
+            mono: true,
+        })
 
-            {label(24, 566, 650, 'Check three evidence streams', 25)}
-            {label(24, 596, 208, 'artifact identity', 23, purple, 'center')}
-            {label(246, 596, 208, 'task quality', 23, green, 'center')}
-            {label(468, 596, 208, 'serving profile', 23, warm, 'center')}
-            {label(24, 629, 208, 'hash + reload', 23, c.textSecondary, 'center')}
-            {label(246, 629, 208, 'held-out tasks', 23, c.textSecondary, 'center')}
-            {label(468, 629, 208, 'TTFT + ITL', 23, c.textSecondary, 'center')}
-            {label(24, 658, 208, 'tensor shape', 23, c.textSecondary, 'center')}
-            {label(246, 658, 208, 'quality metrics', 23, c.textSecondary, 'center')}
-            {label(468, 658, 208, 'memory', 23, c.textSecondary, 'center')}
-            {label(
-                24,
-                712,
-                650,
-                'Cold load and JIT stay outside warm request timing.',
-                23,
-                c.textPrimary,
-            )}
-        </Board>
-    )
+        // Candidate 4-bit bar (lower)
+        const cStart = Math.min(zeroX, xOf(row.cand))
+        const cW = Math.abs(xOf(row.cand) - zeroX)
+        fig.rect(cStart, cy + 2, cW, barH, {
+            fill: tint(warm, c.bg, theme === 'light' ? 0.78 : 0.85),
+            stroke: warm,
+            strokeWidth: 1.25,
+            radius: 3,
+        })
+        const cLblX = row.cand < 0 ? zeroX + 8 : cStart + cW + 8
+        fig.text(cLblX, cy + barH / 2 + 2, row.cand.toFixed(3), {
+            size: 13,
+            weight: 600,
+            color: warm,
+            align: 'left',
+            mono: true,
+        })
+
+        // Right-hand delta badge
+        fig.rect(612, cy - 16, 114, 32, {
+            fill: tint(sevColor, c.bg, theme === 'light' ? 0.14 : 0.24),
+            stroke: sevColor,
+            strokeWidth: 1.4,
+            radius: 6,
+        })
+        fig.text(669, cy, `Δ ${row.delta}`, {
+            size: 13,
+            weight: 700,
+            color: sevColor,
+            align: 'center',
+            mono: true,
+        })
+    })
+
+    // Bottom compact verification pillars (single clean strip)
+    fig.line(32, 354, 728, 354, { color: c.borderSubtle, width: 1 })
+    const pillars = [
+        { x: 136, label: '1. Artifact identity (hash & reload)', color: purple },
+        { x: 386, label: '2. Held-out task quality', color: green },
+        { x: 616, label: '3. Warm TTFT / ITL / VRAM', color: warm },
+    ]
+    for (const p of pillars) {
+        fig.text(p.x, 382, p.label, {
+            size: 13,
+            weight: 600,
+            color: p.color,
+            align: 'center',
+        })
+    }
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create

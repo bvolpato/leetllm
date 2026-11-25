@@ -194,11 +194,9 @@ DeepEP reports **logical bandwidth**: total algorithmic payload exchanged across
 
 Cutting intranode SM100 communication SMs from 64 to 24 keeps 89% of bandwidth while freeing 40 SMs for overlapping expert GEMMs. Always judge configs by **full MoE layer latency** (dispatch + experts + combine), not standalone transport GB/s.
 
-<!-- leetllm: edition:reference:start -->
 ## NCCL Gin V2 backend
 
 DeepEP initializes NCCL Gin by querying physical domains, requesting QP contexts and rail/full connections, registering symmetric GPU memory windows, and exposing a device communicator handle to JIT kernels. Never destroy the underlying NCCL communicator while an active `EventOverlap` hook or kernel still references its window; watch `EP_OVERRIDE_RDMA_SL` (InfiniBand service level) and `EP_BUFFER_DEBUG=1` when diagnosing cluster issues.
-<!-- leetllm: edition:reference:end -->
 
 ## EPHandle: route metadata with a lifetime
 
@@ -239,7 +237,6 @@ E=4, G=2, k=2 -> expected dests=1.6667
 
 Real DeepSeek-style routers are skewed and group-limited, so treat analytical sizing as a starting baseline and override `num_sms` from real routing histograms.
 
-<!-- leetllm: edition:reference:start -->
 ## JIT compilation is part of the runtime
 
 DeepEP JIT-compiles specialized kernels on first use for each `(topology, hidden, alignment, num_sms, num_qps)` combination (using `EP_JIT_CACHE_DIR` for persistent caches, `EP_JIT_PTXAS_CHECK` to catch register spills, and `EP_JIT_DUMP_SASS` for inspection). Pre-warm production shapes at startup so compile latency stays out of live requests.
@@ -253,7 +250,6 @@ DeepEP JIT-compiles specialized kernels on first use for each `(topology, hidden
 | `csrc/kernels/backend/nccl.cu` | NCCL Gin probing, rail/full setup, symmetric windows |
 | `csrc/kernels/elastic/dispatch.hpp` & `combine.hpp` | Direct/hybrid dispatch layout and inverse combine reduction |
 | `csrc/jit/compiler.hpp` & `cache.hpp` | Runtime kernel generation and disk cache |
-<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [

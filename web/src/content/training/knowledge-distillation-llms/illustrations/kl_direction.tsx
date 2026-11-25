@@ -1,280 +1,182 @@
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorSegment,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 672
-export const height = 654
+export const width = 760
+export const height = 400
 export const alt =
-    'Two scenarios compare teacher probabilities 0.58, 0.40, 0.02 against student distributions 0.54, 0.36, 0.10 and 0.40, 0.35, 0.25 for 7d, 3d, and never. All six tracks share a probability axis from zero to 0.60. The extra student mass on never is 0.08 and 0.23. Their forward and reverse KL results are 0.051 and 0.084, then 0.218 and 0.436. These full-support divergence values quantify distribution mismatch; factual correctness requires separate checks.'
+    'Two scenarios compare teacher probabilities (0.58, 0.40, 0.02) against student distributions for 7d, 3d, and never on a shared 0 to 0.60 axis. In Scenario A (student never = 0.10, +0.08 extra mass), forward KL is 0.051 and reverse KL is 0.084. In Scenario B (student never = 0.25, +0.23 extra mass), forward KL climbs to 0.218 while reverse KL jumps to 0.436, roughly twice as steep.'
 
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
-
-const scenarios = [
-    {
-        title: 'A · student never = 0.10 · extra mass +0.08',
-        forward: '0.051',
-        reverse: '0.084',
-        student: [0.54, 0.36, 0.1],
-    },
-    {
-        title: 'B · student never = 0.25 · extra mass +0.23',
-        forward: '0.218',
-        reverse: '0.436',
-        student: [0.4, 0.35, 0.25],
-    },
-]
 const teacher = [0.58, 0.4, 0.02]
 const outcomes = ['7d', '3d', 'never']
 
-export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const studentColor = getReadableToneColor('cyan', c)
-    const alertColor = getReadableToneColor('warm', c)
-    const axisStart = 150
-    const axisWidth = 224
-    const rows = [224, 260, 296]
-    const panelY = [117, 347]
-    const shapes = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        ...scenarios.flatMap((scenario, scenarioIndex) => {
-            const top = panelY[scenarioIndex]
-            return [
-                SvgFrame({
-                    c,
-                    x: 12,
-                    y: top,
-                    width: 648,
-                    height: 204,
-                    rx: 10,
-                    fill: c.bgCard,
-                    stroke: c.border,
-                    strokeWidth: 1.2,
-                }),
-                VectorSegment({
-                    x1: axisStart,
-                    y1: top + 92,
-                    x2: axisStart + axisWidth,
-                    y2: top + 92,
-                    color: c.borderLight,
-                    strokeWidth: 2,
-                    showStartDot: false,
-                    showEndDot: false,
-                }),
-                ...[0, 0.3, 0.6].flatMap((value) => {
-                    const x = axisStart + (axisWidth * value) / 0.6
-                    return [
-                        VectorSegment({
-                            x1: x,
-                            y1: top + 88,
-                            x2: x,
-                            y2: top + 98,
-                            color: c.textMuted,
-                            strokeWidth: 1.5,
-                            showStartDot: false,
-                            showEndDot: false,
-                        }),
-                    ]
-                }),
-                ...rows.flatMap((rowY, outcomeIndex) => {
-                    const teacherY = rowY + scenarioIndex * 230
-                    const studentY = teacherY + 11
-                    const teacherValue = teacher[outcomeIndex]
-                    const studentValue = scenario.student[outcomeIndex]
-                    return [
-                        VectorSegment({
-                            x1: axisStart,
-                            y1: teacherY,
-                            x2: axisStart + (axisWidth * teacherValue) / 0.6,
-                            y2: teacherY,
-                            color: c.textMuted,
-                            strokeWidth: 5,
-                            showStartDot: false,
-                            showEndDot: true,
-                            dotRadius: 4,
-                        }),
-                        VectorSegment({
-                            x1: axisStart,
-                            y1: studentY,
-                            x2: axisStart + (axisWidth * studentValue) / 0.6,
-                            y2: studentY,
-                            color: studentColor,
-                            strokeWidth: 6,
-                            showStartDot: false,
-                            showEndDot: true,
-                            dotRadius: 4.5,
-                        }),
-                    ]
-                }),
-            ]
-        }),
-    )
+const scenarios = [
+    {
+        title: 'Scenario A · mild tail leak',
+        sub: 'student never = 0.10 (+0.08)',
+        student: [0.54, 0.36, 0.1],
+        fwd: 0.051,
+        rev: 0.084,
+        accent: 'cyan' as const,
+    },
+    {
+        title: 'Scenario B · heavy tail leak',
+        sub: 'student never = 0.25 (+0.23)',
+        student: [0.4, 0.35, 0.25],
+        fwd: 0.218,
+        rev: 0.436,
+        accent: 'warm' as const,
+    },
+]
 
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bgSubtle,
-        children: [
-            CanvasItem({ x: 0, y: 0, width, height, children: shapes }),
-            label(
-                c,
-                'KL direction scores probability mismatch',
-                18,
-                12,
-                636,
-                34,
-                29,
-                c.textPrimary,
-                800,
-            ),
-            label(
-                c,
-                'Teacher=gray · student=cyan · shared P axis 0–0.60',
-                18,
-                49,
-                636,
-                26,
-                22,
-                c.textSecondary,
-                600,
-            ),
-            label(
-                c,
-                'Forward Dₖₗ(Pₜ∥Pₛ) · Reverse Dₖₗ(Pₛ∥Pₜ)',
-                18,
-                78,
-                636,
-                26,
-                22,
-                c.textPrimary,
-                650,
-            ),
-            ...scenarios.flatMap((scenario, index) => {
-                const top = panelY[index]
-                return [
-                    label(
-                        c,
-                        scenario.title,
-                        24,
-                        top + 7,
-                        620,
-                        25,
-                        24,
-                        index === 0 ? studentColor : alertColor,
-                        750,
-                    ),
-                    label(
-                        c,
-                        `Forward KL ${scenario.forward} · Reverse KL ${scenario.reverse}`,
-                        24,
-                        top + 35,
-                        620,
-                        24,
-                        24,
-                        c.textPrimary,
-                        700,
-                    ),
-                    ...[0, 0.3, 0.6].map((value) =>
-                        label(
-                            c,
-                            value.toFixed(1),
-                            axisStart + (axisWidth * value) / 0.6 - 22,
-                            top + 61,
-                            44,
-                            19,
-                            24,
-                            c.textMuted,
-                            550,
-                            'center',
-                            true,
-                        ),
-                    ),
-                    ...outcomes.flatMap((outcome, outcomeIndex) => {
-                        const rowY = rows[outcomeIndex] + index * 230
-                        const studentValue = scenario.student[outcomeIndex]
-                        return [
-                            label(c, outcome, 24, rowY - 10, 100, 25, 24, c.textPrimary, 700),
-                            label(
-                                c,
-                                `${teacher[outcomeIndex].toFixed(2)} / ${studentValue.toFixed(2)}`,
-                                397,
-                                rowY - 9,
-                                250,
-                                24,
-                                24,
-                                c.textPrimary,
-                                650,
-                                'left',
-                                true,
-                            ),
-                        ]
-                    }),
-                ]
-            }),
-            label(
-                c,
-                'Full-support probability comparison.',
-                18,
-                568,
-                636,
-                26,
-                22,
-                c.textSecondary,
-                600,
-                'center',
-            ),
-            label(
-                c,
-                'KL measures distribution mismatch.',
-                18,
-                596,
-                636,
-                26,
-                22,
-                c.textSecondary,
-                600,
-                'center',
-            ),
-        ],
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const blue = fig.tone('blue')
+    const red = fig.tone('critical')
+    const muted = c.textSecondary
+
+    // Top legend & formulas
+    fig.rect(24, 16, 14, 8, { fill: c.textMuted, radius: 2 })
+    fig.text(46, 20, 'Teacher P_T', { size: 14, weight: 600, color: muted })
+    fig.rect(162, 16, 14, 8, { fill: cyan, radius: 2 })
+    fig.text(184, 20, 'Student P_S', { size: 14, weight: 600, color: cyan })
+    fig.math(470, 20, String.raw`\text{Fwd: } D_{\mathrm{KL}}(P_T \| P_S)`, {
+        size: 14,
+        color: blue,
+        align: 'center',
     })
+    fig.math(654, 20, String.raw`\text{Rev: } D_{\mathrm{KL}}(P_S \| P_T)`, {
+        size: 14,
+        color: red,
+        align: 'center',
+    })
+
+    const panelW = 344
+    const panelXs = [24, 392]
+
+    scenarios.forEach((sc, sIdx) => {
+        const x0 = panelXs[sIdx]!
+        const accent = sc.accent === 'cyan' ? cyan : warm
+
+        // Header
+        fig.text(x0, 56, sc.title, { size: 16, weight: 700, color: c.textPrimary })
+        fig.text(x0, 77, sc.sub, { size: 13, color: accent, weight: 600 })
+
+        // Probability bars plot area (shared 0..0.60)
+        const axX = x0 + 58
+        const axW = 200
+        const topY = 104
+        const botY = 232
+        const px = (v: number) => axX + (v / 0.6) * axW
+
+        // Grid ticks at 0, 0.2, 0.4, 0.6
+        ;[0, 0.2, 0.4, 0.6].forEach((tick) => {
+            const tx = px(tick)
+            fig.line(tx, topY, tx, botY, {
+                color: c.borderSubtle,
+                width: 1,
+                dash: tick === 0 ? undefined : '3 3',
+            })
+            fig.text(tx, botY + 14, tick.toFixed(1), {
+                size: 12,
+                mono: true,
+                color: muted,
+                align: 'center',
+            })
+        })
+        fig.line(axX, botY, axX + axW, botY, { color: c.textMuted, width: 1 })
+
+        const rowYs = [124, 166, 208]
+        outcomes.forEach((label, rIdx) => {
+            const cy = rowYs[rIdx]!
+            const tv = teacher[rIdx]!
+            const sv = sc.student[rIdx]!
+            const isTail = rIdx === 2
+
+            fig.text(axX - 10, cy, label, {
+                size: 14,
+                mono: true,
+                weight: isTail ? 700 : 600,
+                color: isTail ? accent : c.textPrimary,
+                align: 'right',
+            })
+
+            // Teacher bar (top half)
+            fig.rect(axX, cy - 11, Math.max(2, px(tv) - axX), 9, {
+                fill: c.textMuted,
+                opacity: 0.72,
+                radius: 2,
+            })
+            // Student bar (bottom half)
+            fig.rect(axX, cy + 1, Math.max(2, px(sv) - axX), 10, {
+                fill: isTail ? accent : cyan,
+                radius: 2,
+            })
+
+            // Numeric readout to right
+            fig.text(axX + axW + 10, cy, `${tv.toFixed(2)} / ${sv.toFixed(2)}`, {
+                size: 13,
+                mono: true,
+                weight: isTail ? 700 : 500,
+                color: isTail ? accent : muted,
+            })
+        })
+
+        // KL divergence comparison bars below (shared 0..0.50 scale)
+        const klTop = 278
+        fig.line(x0, klTop - 14, x0 + panelW, klTop - 14, { color: c.borderSubtle, width: 1 })
+        fig.text(x0, klTop, 'KL divergence (nats)', { size: 13, weight: 600, color: muted })
+
+        const klAx = x0 + 82
+        const klW = 192
+        const klMax = 0.5
+
+        const klRows = [
+            { name: 'Forward', val: sc.fwd, color: blue },
+            { name: 'Reverse', val: sc.rev, color: red },
+        ]
+        klRows.forEach((kr, kIdx) => {
+            const ky = klTop + 28 + kIdx * 34
+            const bw = (kr.val / klMax) * klW
+            fig.text(klAx - 10, ky, kr.name, {
+                size: 14,
+                weight: 600,
+                color: kr.color,
+                align: 'right',
+            })
+            fig.rect(klAx, ky - 9, klW, 18, {
+                fill: tint(c.textMuted, c.bg, 0.08),
+                radius: 4,
+            })
+            fig.rect(klAx, ky - 9, Math.max(4, bw), 18, {
+                fill: tint(kr.color, c.bg, 0.32),
+                stroke: kr.color,
+                strokeWidth: 1.5,
+                radius: 4,
+            })
+            fig.text(klAx + klW + 10, ky, kr.val.toFixed(3), {
+                size: 14,
+                mono: true,
+                weight: 700,
+                color: kr.color,
+            })
+        })
+
+        if (sIdx === 1) {
+            fig.text(klAx, klTop + 92, 'Reverse KL = 2.0× Forward KL', {
+                size: 13,
+                weight: 700,
+                color: red,
+            })
+        }
+    })
+
+    // Vertical center hairline separator
+    fig.line(376, 46, 376, 376, { color: c.borderSubtle, width: 1 })
+
+    return fig.render()
 }
 
 export default create('dark')

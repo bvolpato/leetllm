@@ -5,20 +5,22 @@ import {
     SvgFrame,
     TextLabel,
     VectorArrow,
+    VectorSegment,
     getReadableToneColor,
     getThemeColors,
+    withColorAlpha,
     type ThemeMode,
 } from 'vizmatic'
 
 type Colors = ReturnType<typeof getThemeColors>
 
-export const width = 860
-export const height = 520
+export const width = 760
+export const height = 470
 
 export const alt =
-    'At w=0 with squared-error loss, rank 0 has one target [1] and local mean gradient −2; rank 1 has three targets [3,3,3] and local mean gradient −6. Equal averaging of rank means gives (−2−6)/2=−4. The pooled four-target mean gives (−2−6−6−6)/4=−5, which default DDP reproduces with factors 2×1/4=0.5 and 2×3/4=1.5 when both ranks use the shared total-target denominator.'
+    'At w=0 with squared-error loss, rank 0 has one target [1] (local mean gradient -2) and rank 1 has three targets [3, 3, 3] (local mean gradient -6). Equal-rank averaging gives (-2-6)/2 = -4, skewing toward sparse rank 0. Scaling each rank by N * n_r / total (0.5 and 1.5) gives (-1-9)/2 = -5, matching the exact four-target pooled mean.'
 
-function label(
+function lbl(
     c: Colors,
     text: string,
     x: number,
@@ -36,16 +38,7 @@ function label(
         y,
         width: w,
         height: h,
-        children: TextLabel({
-            c,
-            text,
-            width: w,
-            fontSize,
-            color,
-            fontWeight,
-            align,
-            mono,
-        }),
+        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
     })
 }
 
@@ -57,159 +50,155 @@ export const create = (theme: ThemeMode = 'dark') => {
     const warm = getReadableToneColor('warm', c)
     const muted = c.textSecondary
 
+    // Bar chart geometry for gradient magnitude 0 -> -6
+    const axisLeft = 220
+    const axisW = 360
+    const xForGrad = (g: number) => axisLeft + (Math.abs(g) / 6) * axisW
+    const pooledX = xForGrad(-5)
+
+    const tokenSlots = (baseX: number, filled: number, color: string, keyPrefix: string) =>
+        [0, 1, 2, 3].map((i) =>
+            createElement('rect', {
+                key: `${keyPrefix}-${i}`,
+                x: baseX + i * 78,
+                y: 62,
+                width: 68,
+                height: 36,
+                rx: 6,
+                fill: i < filled ? withColorAlpha(color, 0.2) : 'none',
+                stroke: i < filled ? color : c.borderSubtle,
+                strokeWidth: i < filled ? 1.8 : 1.4,
+                strokeDasharray: i < filled ? undefined : '4 3',
+            }),
+        )
+
     const shapeSvg = createElement(
         'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        // Left Panel (Ranks and Token Mass)
+        { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
+        // Rank 0 card
         SvgFrame({
             c,
-            x: 20,
-            y: 50,
-            width: 390,
-            height: 410,
-            rx: 8,
+            key: 'r0',
+            x: 16,
+            y: 16,
+            width: 352,
+            height: 176,
+            rx: 10,
             fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-left',
-        }),
-        // Right Panel (Reduction Math)
-        SvgFrame({
-            c,
-            x: 430,
-            y: 50,
-            width: 410,
-            height: 410,
-            rx: 8,
-            fill: c.bgCard,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'panel-right',
-        }),
-
-        // Rank 0 Box
-        SvgFrame({
-            c,
-            x: 40,
-            y: 110,
-            width: 350,
-            height: 100,
-            rx: 6,
-            fill: c.bgCardAlt,
             stroke: blue,
-            strokeWidth: 1.5,
-            key: 'box-rank-0',
+            strokeWidth: 1.6,
         }),
-        // Rank 1 Box
+        // Rank 1 card
         SvgFrame({
             c,
-            x: 40,
-            y: 230,
-            width: 350,
-            height: 100,
-            rx: 6,
-            fill: c.bgCardAlt,
+            key: 'r1',
+            x: 392,
+            y: 16,
+            width: 352,
+            height: 176,
+            rx: 10,
+            fill: c.bgCard,
             stroke: purple,
-            strokeWidth: 1.5,
-            key: 'box-rank-1',
+            strokeWidth: 1.6,
+        }),
+        ...tokenSlots(36, 1, blue, 'r0tok'),
+        ...tokenSlots(412, 3, purple, 'r1tok'),
+
+        // Down arrows into reduction panel
+        VectorArrow({ x1: 192, y1: 196, x2: 192, y2: 230, color: blue, strokeWidth: 2, arrowSize: 6 }),
+        VectorArrow({ x1: 568, y1: 196, x2: 568, y2: 230, color: purple, strokeWidth: 2, arrowSize: 6 }),
+
+        // Bottom comparison panel
+        SvgFrame({
+            c,
+            key: 'bottom',
+            x: 16,
+            y: 236,
+            width: 728,
+            height: 218,
+            rx: 10,
+            fill: c.bgCard,
+            stroke: c.borderSubtle,
+            strokeWidth: 1.2,
         }),
 
-        // Tokens in Rank 0 (1 token)
-        SvgFrame({
-            c,
-            x: 180,
-            y: 130,
-            width: 50,
-            height: 36,
-            rx: 4,
-            fill: blue,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'tok-r0-0',
-        }),
-
-        // Tokens in Rank 1 (3 tokens)
-        SvgFrame({
-            c,
-            x: 180,
-            y: 250,
-            width: 50,
-            height: 36,
-            rx: 4,
-            fill: purple,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'tok-r1-0',
-        }),
-        SvgFrame({
-            c,
-            x: 240,
-            y: 250,
-            width: 50,
-            height: 36,
-            rx: 4,
-            fill: purple,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'tok-r1-1',
-        }),
-        SvgFrame({
-            c,
-            x: 300,
-            y: 250,
-            width: 50,
-            height: 36,
-            rx: 4,
-            fill: purple,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-            key: 'tok-r1-2',
-        }),
-
-        // Right Panel: Naive card
-        SvgFrame({
-            c,
-            x: 450,
-            y: 110,
-            width: 370,
-            height: 90,
-            rx: 6,
-            fill: c.bgCardAlt,
-            stroke: warm,
-            strokeWidth: 1.5,
-            key: 'card-naive',
-        }),
-        // Right Panel: Correct Pooled card
-        SvgFrame({
-            c,
-            x: 450,
-            y: 220,
-            width: 370,
-            height: 100,
-            rx: 6,
-            fill: c.bgCardAlt,
+        // Shared gradient axis (0 to -6)
+        VectorSegment({ x1: axisLeft, y1: 404, x2: axisLeft + axisW, y2: 404, color: muted, strokeWidth: 1.6, showStartDot: false, showEndDot: false }),
+        ...[0, -2, -4, -5, -6].map((tick) =>
+            VectorSegment({
+                key: `tick-${tick}`,
+                x1: xForGrad(tick),
+                y1: 398,
+                x2: xForGrad(tick),
+                y2: 410,
+                color: tick === -5 ? green : muted,
+                strokeWidth: tick === -5 ? 2 : 1.4,
+                showStartDot: false,
+                showEndDot: false,
+            }),
+        ),
+        // Dashed reference line at exact pooled gradient = -5.0
+        createElement('line', {
+            key: 'pooled-ref',
+            x1: pooledX,
+            y1: 280,
+            x2: pooledX,
+            y2: 404,
             stroke: green,
-            strokeWidth: 1.5,
-            key: 'card-pooled',
+            strokeWidth: 2,
+            strokeDasharray: '5 4',
         }),
-        // Right Panel: DDP pre-scaling rule card
+
+        // Bar 1: Equal-rank average (-4.0)
         SvgFrame({
             c,
-            x: 450,
-            y: 335,
-            width: 370,
-            height: 105,
-            rx: 6,
-            fill: c.bgCardAlt,
+            key: 'bar-naive-track',
+            x: axisLeft,
+            y: 292,
+            width: axisW,
+            height: 36,
+            rx: 5,
+            fill: c.bgSubtle,
             stroke: c.borderSubtle,
             strokeWidth: 1,
-            key: 'card-ddp-rule',
+        }),
+        SvgFrame({
+            c,
+            key: 'bar-naive',
+            x: axisLeft,
+            y: 292,
+            width: xForGrad(-4) - axisLeft,
+            height: 36,
+            rx: 5,
+            fill: withColorAlpha(warm, 0.28),
+            stroke: warm,
+            strokeWidth: 1.8,
+        }),
+
+        // Bar 2: Token-weighted DDP (-5.0)
+        SvgFrame({
+            c,
+            key: 'bar-weighted-track',
+            x: axisLeft,
+            y: 350,
+            width: axisW,
+            height: 36,
+            rx: 5,
+            fill: c.bgSubtle,
+            stroke: c.borderSubtle,
+            strokeWidth: 1,
+        }),
+        SvgFrame({
+            c,
+            key: 'bar-weighted',
+            x: axisLeft,
+            y: 350,
+            width: xForGrad(-5) - axisLeft,
+            height: 36,
+            rx: 5,
+            fill: withColorAlpha(green, 0.28),
+            stroke: green,
+            strokeWidth: 1.8,
         }),
     )
 
@@ -220,188 +209,41 @@ export const create = (theme: ThemeMode = 'dark') => {
         background: 'transparent',
         children: [
             CanvasItem({ x: 0, y: 0, width, height, children: shapeSvg }),
-            label(
-                c,
-                'Distributed Data Parallel (DDP): Token-Weighted Gradient Reduction',
-                20,
-                12,
-                width - 40,
-                30,
-                22,
-                c.textPrimary,
-                700,
-                'center',
-            ),
 
-            // Left Panel
-            label(
-                c,
-                '1. Variable Token Batch Asymmetry (2 Ranks)',
-                35,
-                62,
-                360,
-                24,
-                16,
-                c.textPrimary,
-            ),
-            label(
-                c,
-                'Padded or masked sequences produce unequal active token counts',
-                35,
-                86,
-                360,
-                20,
-                12,
-                muted,
-            ),
+            // Rank 0 labels
+            lbl(c, 'Rank 0 · 1 token (25%)', 36, 28, 312, 24, 17, blue, 800),
+            lbl(c, 'y=1', 36, 70, 68, 22, 16, blue, 700, 'center', true),
+            lbl(c, 'local ∇ = −2.0', 36, 114, 312, 22, 16, c.textPrimary, 700, 'left', true),
+            lbl(c, 'scale 2×¼ = 0.5 → −1.0', 36, 148, 312, 22, 16, blue, 700, 'left', true),
 
-            label(c, 'Rank 0 (1 Token)', 55, 122, 120, 20, 13, blue),
-            label(c, 'Target: [1]', 55, 144, 120, 18, 11, muted),
-            label(c, 'y=1', 180, 138, 50, 20, 12, c.textPrimary, 650, 'center'),
-            label(c, 'Local Mean ∇ = −2.0  (25% of tokens)', 55, 180, 320, 20, 12, blue),
+            // Rank 1 labels
+            lbl(c, 'Rank 1 · 3 tokens (75%)', 412, 28, 312, 24, 17, purple, 800),
+            lbl(c, 'y=3', 412, 70, 68, 22, 16, purple, 700, 'center', true),
+            lbl(c, 'y=3', 490, 70, 68, 22, 16, purple, 700, 'center', true),
+            lbl(c, 'y=3', 568, 70, 68, 22, 16, purple, 700, 'center', true),
+            lbl(c, 'local ∇ = −6.0', 412, 114, 312, 22, 16, c.textPrimary, 700, 'left', true),
+            lbl(c, 'scale 2×¾ = 1.5 → −9.0', 412, 148, 312, 22, 16, purple, 700, 'left', true),
 
-            label(c, 'Rank 1 (3 Tokens)', 55, 242, 120, 20, 13, purple),
-            label(c, 'Targets: [3, 3, 3]', 55, 264, 120, 18, 11, muted),
-            label(c, 'y=3', 180, 258, 50, 20, 12, c.textPrimary, 650, 'center'),
-            label(c, 'y=3', 240, 258, 50, 20, 12, c.textPrimary, 650, 'center'),
-            label(c, 'y=3', 300, 258, 50, 20, 12, c.textPrimary, 650, 'center'),
-            label(c, 'Local Mean ∇ = −6.0  (75% of tokens)', 55, 300, 320, 20, 12, purple),
+            // Bottom panel title & pooled ref
+            lbl(c, 'All-Reduce Mean Gradient (N = 2)', 34, 248, 380, 24, 17, c.textPrimary, 800),
+            lbl(c, 'Pooled exact = −5.0', 440, 248, 280, 24, 16, green, 700, 'right', true),
 
-            label(
-                c,
-                'Total batch tokens = 4 (Rank 0: 1/4 = 25% · Rank 1: 3/4 = 75%)',
-                40,
-                355,
-                350,
-                20,
-                12,
-                c.textPrimary,
-            ),
-            label(
-                c,
-                'Unweighted all-reduce treats both ranks as 50/50 contributors.',
-                40,
-                380,
-                350,
-                20,
-                11,
-                warm,
-            ),
-            label(
-                c,
-                'This distorts the true empirical gradient direction.',
-                40,
-                402,
-                350,
-                20,
-                11,
-                muted,
-            ),
+            // Row 1 labels
+            lbl(c, 'Equal-rank DDP', 34, 298, 176, 24, 16, warm, 700),
+            lbl(c, '(−2 − 6)/2', axisLeft + 12, 299, 170, 22, 16, c.textPrimary, 700, 'left', true),
+            lbl(c, '−4.0 (skewed)', 592, 298, 140, 24, 16, warm, 800, 'left', true),
 
-            // Right Panel
-            label(c, '2. Gradient Reduction Comparison', 445, 62, 380, 24, 16, c.textPrimary),
-            label(
-                c,
-                'Correct pooled expectation vs naive average of rank means',
-                445,
-                86,
-                380,
-                20,
-                12,
-                muted,
-            ),
+            // Row 2 labels
+            lbl(c, 'Token-weighted', 34, 356, 176, 24, 16, green, 700),
+            lbl(c, '(−1 − 9)/2', axisLeft + 12, 357, 170, 22, 16, c.textPrimary, 700, 'left', true),
+            lbl(c, '−5.0 (exact)', 592, 356, 140, 24, 16, green, 800, 'left', true),
 
-            label(c, 'Naive Mean of Ranks (Wrong)', 465, 118, 340, 20, 13, warm),
-            label(c, '∇ = (−2.0 + −6.0) / 2 = −4.0', 465, 142, 340, 24, 15, warm, 650, 'center'),
-            label(
-                c,
-                'Over-weights Rank 0 (sparse batch) and under-weights Rank 1',
-                465,
-                172,
-                340,
-                18,
-                11,
-                muted,
-            ),
-
-            label(c, 'True Pooled Mean Over All Tokens (Correct)', 465, 228, 340, 20, 13, green),
-            label(
-                c,
-                '∇ = (−2 + 3 × −6) / 4 = −20 / 4 = −5.0',
-                465,
-                252,
-                340,
-                24,
-                15,
-                green,
-                650,
-                'center',
-            ),
-            label(
-                c,
-                'Matches exact single-GPU loss reduction over the 4 targets',
-                465,
-                282,
-                340,
-                18,
-                11,
-                green,
-            ),
-
-            label(c, 'DDP Implementation Rule', 465, 342, 340, 20, 13, c.textPrimary),
-            label(
-                c,
-                'Pre-scale local gradient before all-reduce by: (N × T_local) / T_total',
-                465,
-                366,
-                340,
-                18,
-                11,
-                c.textPrimary,
-            ),
-            label(
-                c,
-                '• Rank 0 factor: 2 × (1 / 4) = 0.50  →  ∇_local × 0.50 = −1.0',
-                465,
-                388,
-                340,
-                18,
-                11,
-                blue,
-            ),
-            label(
-                c,
-                '• Rank 1 factor: 2 × (3 / 4) = 1.50  →  ∇_local × 1.50 = −9.0',
-                465,
-                408,
-                340,
-                18,
-                11,
-                purple,
-            ),
-            label(
-                c,
-                'Sum = −10.0; NCCL all-reduce divides by N=2 to recover −5.0 exactly.',
-                465,
-                428,
-                340,
-                18,
-                10,
-                green,
-            ),
-
-            label(
-                c,
-                'Token-weighted all-reduce · Ensures multi-node DDP gradients exactly match single-device loss mathematics',
-                20,
-                480,
-                width - 40,
-                24,
-                14,
-                muted,
-                650,
-                'center',
-            ),
+            // Axis tick labels
+            lbl(c, '0', xForGrad(0) - 20, 416, 40, 22, 16, muted, 600, 'center', true),
+            lbl(c, '−2', xForGrad(-2) - 24, 416, 48, 22, 16, muted, 600, 'center', true),
+            lbl(c, '−4', xForGrad(-4) - 24, 416, 48, 22, 16, warm, 700, 'center', true),
+            lbl(c, '−5', xForGrad(-5) - 24, 416, 48, 22, 16, green, 800, 'center', true),
+            lbl(c, '−6', xForGrad(-6) - 24, 416, 48, 22, 16, muted, 600, 'center', true),
         ],
     })
 }

@@ -1,140 +1,206 @@
-import React from 'react'
-import {
-    BarChart,
-    LineChart,
-    MetricCard,
-    Panel,
-    Row,
-    Scene,
-    defineIllustration,
-    withDensity,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 600
-export const height = 760
+export const width = 860
+export const height = 390
 export const alt =
-    'A/A peeking simulation across 5,000 null trials: Trial 11 crosses z = +1.96 at look 4 (z = 2.58) yet finishes at look 20 inside the cutoff (z = 1.61). Across 5,000 trials, checking once at the end gives 231 false positives (4.6%), while stopping at first crossing across 5, 10, or 20 looks inflates false wins to 708 (14.2%), 961 (19.2%), and 1,244 (24.9%).'
+    'Side-by-side A/A peeking simulation across 5,000 zero-effect trials. Left: Trial 11 z-score trajectory crosses the +1.96 rejection boundary at look 4 (z = 2.58) yet returns inside the null band by look 20 (z = 1.61). Right: false-win rate climbs from 4.6% (231/5,000) at 1 planned final look to 14.2% at 5 looks, 19.2% at 10 looks, and 24.9% (1,244/5,000) at 20 peeks.'
 
-const z = [
+const Z_TRAJ = [
     0.28, 1.11, 1.57, 2.58, 2.05, 2.35, 2.45, 2.4, 2.21, 2.27, 1.78, 2.12, 2.15, 2.19, 2.08, 1.83,
     2.27, 2.07, 1.91, 1.61,
 ]
-const labels = [
-    '1',
-    '',
-    '',
-    '',
-    '5',
-    '',
-    '',
-    '',
-    '',
-    '10',
-    '',
-    '',
-    '',
-    '',
-    '15',
-    '',
-    '',
-    '',
-    '',
-    '20',
+
+const BARS = [
+    { label: '1', pct: 4.6, count: '231', tone: 'green' as const },
+    { label: '5', pct: 14.2, count: '708', tone: 'warm' as const },
+    { label: '10', pct: 19.2, count: '961', tone: 'warm' as const },
+    { label: '20', pct: 24.9, count: '1,244', tone: 'critical' as const },
 ]
 
-const illustration = defineIllustration((baseC) => {
-    const c = withDensity(baseC, 1.85)
-    return (
-        <Scene c={c} density={1.85} padding={10} gap={8} contentWidth={580}>
-            <Panel
-                c={c}
-                title="1. Trial #11 null z-trajectory: peek crosses +1.96 at look 4"
-                tone="blue"
-                width={580}
-                padding={8}
-                gap={6}
-            >
-                <LineChart
-                    c={c}
-                    width={560}
-                    height={150}
-                    labels={labels}
-                    min={-2.5}
-                    max={3.0}
-                    showPoints={false}
-                    directLabels
-                    format={(v) => v.toFixed(1)}
-                    series={[
-                        { name: 'z-score', points: z, color: 'primary' },
-                        { name: '+1.96', points: Array(20).fill(1.96), color: 'critical' },
-                    ]}
-                />
-            </Panel>
-            <Panel
-                c={c}
-                title="2. False-win rate out of 5,000 A/A trials by peeking count"
-                tone="critical"
-                width={580}
-                padding={8}
-                gap={6}
-            >
-                <BarChart
-                    c={c}
-                    width={560}
-                    height={135}
-                    min={0}
-                    max={30}
-                    format={(v) => `${Math.round(v)}%`}
-                    showValues
-                    data={[
-                        {
-                            label: '1 look',
-                            value: 4.6,
-                            color: 'positive',
-                            valueLabel: '4.6%',
-                        },
-                        {
-                            label: '5 looks',
-                            value: 14.2,
-                            color: 'warning',
-                            valueLabel: '14.2%',
-                        },
-                        {
-                            label: '10 looks',
-                            value: 19.2,
-                            color: 'warning',
-                            valueLabel: '19.2%',
-                        },
-                        {
-                            label: '20 looks',
-                            value: 24.9,
-                            color: 'critical',
-                            valueLabel: '24.9%',
-                        },
-                    ]}
-                />
-                <Row gap={8}>
-                    <MetricCard
-                        c={c}
-                        width={276}
-                        label="Planned final look"
-                        value="231 / 5k"
-                        detail="4.6% (near 5% alpha)"
-                        tone="green"
-                    />
-                    <MetricCard
-                        c={c}
-                        width={276}
-                        label="Stop at any of 20 peeks"
-                        value="1,244 / 5k"
-                        detail="24.9% false-win rate"
-                        tone="critical"
-                    />
-                </Row>
-            </Panel>
-        </Scene>
-    )
-})
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const red = fig.tone('critical')
+    const green = fig.tone('green')
+    const isLight = theme === 'light'
 
-export const create = illustration.create
-export default illustration.default
+    // Left: Trial #11 null z-trajectory across 20 peeks
+    fig.text(56, 24, 'Null A/A trajectory (Trial #11)', {
+        size: 15,
+        weight: 700,
+    })
+
+    const leftPlot = fig.plot(
+        { x: 58, y: 54, width: 458, height: 274 },
+        { x: [1, 20], y: [-2.6, 3.1] },
+    )
+
+    // Shaded rejection zones (|z| > 1.96) and calm null band
+    fig.rect(leftPlot.area.x, leftPlot.area.y, leftPlot.area.width, leftPlot.py(1.96) - leftPlot.area.y, {
+        fill: tint(red, c.bg, isLight ? 0.1 : 0.16),
+    })
+    fig.rect(
+        leftPlot.area.x,
+        leftPlot.py(-1.96),
+        leftPlot.area.width,
+        leftPlot.bottom - leftPlot.py(-1.96),
+        {
+            fill: tint(red, c.bg, isLight ? 0.1 : 0.16),
+        },
+    )
+    fig.rect(
+        leftPlot.area.x,
+        leftPlot.py(1.96),
+        leftPlot.area.width,
+        leftPlot.py(-1.96) - leftPlot.py(1.96),
+        {
+            fill: tint(green, c.bg, isLight ? 0.05 : 0.08),
+        },
+    )
+
+    leftPlot.axes({
+        xTicks: [1, 5, 10, 15, 20],
+        yTicks: [-2, -1, 0, 1, 2, 3],
+        xLabel: 'Interim peek index (100 units / arm per look)',
+        yLabel: 'z-score',
+        grid: true,
+        labelSize: 12,
+    })
+
+    // Reference lines at +1.96, 0, -1.96
+    leftPlot.hline(1.96, undefined, {
+        color: red,
+        dash: '5 4',
+        width: 1.6,
+    })
+    fig.text(leftPlot.area.x + 6, leftPlot.py(1.96) - 11, '+1.96', {
+        size: 12,
+        weight: 700,
+        color: red,
+        mono: true,
+    })
+    leftPlot.hline(0, undefined, { color: c.textMuted, dash: '2 4', width: 1 })
+    leftPlot.hline(-1.96, '-1.96', {
+        color: red,
+        dash: '5 4',
+        width: 1.4,
+        labelPosition: 'right',
+        labelOffset: 10,
+        labelSize: 12,
+    })
+
+    // Random-walk polyline
+    const pts = Z_TRAJ.map((v, i) => [i + 1, v] as const)
+    leftPlot.curve(pts, { color: blue, width: 2.4 })
+    for (const [x, y] of pts) {
+        const over = Math.abs(y) > 1.96
+        leftPlot.point(x, y, { color: over ? red : blue, r: over ? 3.5 : 2.8 })
+    }
+
+    // Highlight first false crossing at look 4 (z = 2.58) and final look 20 (z = 1.61)
+    leftPlot.point(4, 2.58, { color: red, r: 6 })
+    fig.callout(
+        [leftPlot.px(4) + 6, leftPlot.py(2.58)],
+        [leftPlot.px(8.5), leftPlot.py(2.85)],
+        'Look 4: z = 2.58 (false stop)',
+        {
+            color: red,
+            labelColor: red,
+            align: 'left',
+            size: 12,
+            weight: 700,
+            bend: -0.14,
+        },
+    )
+
+    leftPlot.point(20, 1.61, { color: green, r: 6 })
+    fig.callout(
+        [leftPlot.px(20) - 4, leftPlot.py(1.61) + 6],
+        [leftPlot.px(14.5), leftPlot.py(0.55)],
+        'Look 20: z = 1.61 (null holds)',
+        {
+            color: green,
+            labelColor: green,
+            align: 'right',
+            size: 12,
+            weight: 700,
+            bend: 0.18,
+        },
+    )
+
+    // Divider
+    fig.line(542, 34, 542, 360, { color: c.borderSubtle, width: 1 })
+
+    // Right: False-win rate bar chart out of 5,000 A/A trials
+    fig.text(578, 24, 'False-win rate (5,000 A/A runs)', {
+        size: 15,
+        weight: 700,
+    })
+
+    const rightPlot = fig.plot(
+        { x: 598, y: 54, width: 214, height: 274 },
+        { x: [0.3, 4.7], y: [0, 30] },
+    )
+    rightPlot.axes({
+        yTicks: [0, 5, 10, 15, 20, 25, 30],
+        yFormat: (v) => `${v}%`,
+        xLabel: 'Number of peeks',
+        grid: true,
+        labelSize: 12,
+    })
+
+    // 5% nominal alpha line with label cleanly outside right edge
+    rightPlot.hline(5, undefined, {
+        color: green,
+        dash: '4 3',
+        width: 1.5,
+    })
+    fig.text(rightPlot.right + 4, rightPlot.py(5), '5% α', {
+        size: 11,
+        weight: 700,
+        color: green,
+    })
+
+    const barW = 36
+    BARS.forEach((b, i) => {
+        const cx = rightPlot.px(i + 1)
+        const yTop = rightPlot.py(b.pct)
+        const yBot = rightPlot.py(0)
+        const tone = fig.tone(b.tone)
+
+        fig.rect(cx - barW / 2, yTop, barW, yBot - yTop, {
+            fill: tint(tone, c.bg, isLight ? 0.24 : 0.36),
+            stroke: tone,
+            strokeWidth: 1.6,
+            radius: 4,
+        })
+        fig.text(cx, yTop - 14, `${b.pct.toFixed(1)}%`, {
+            size: 13,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            mono: true,
+        })
+        fig.text(cx, rightPlot.bottom + 15, b.label, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+            align: 'center',
+            mono: true,
+        })
+        if (i === 0 || i === 3) {
+            fig.text(cx, yTop - 29, `(${b.count})`, {
+                size: 11,
+                color: c.textSecondary,
+                align: 'center',
+                mono: true,
+            })
+        }
+    })
+
+    return fig.render()
+}
+
+export default create

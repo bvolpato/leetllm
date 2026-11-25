@@ -43,57 +43,38 @@
 }
 ---
 
-Your large language model finishes reading the prompt in milliseconds, then dribbles out its answer at a frustrating crawl. Every single token stalls waiting for a full pass through tens of billions of weights. What if a tiny draft model could guess five tokens ahead, and the big target model could grade all five at once in roughly the time of a single step, **without changing the output distribution at all**?
+Your LLM finishes reading the prompt in milliseconds, then dribbles out its answer one token at a time. Each step waits on a full read of tens of billions of weights. What if a tiny draft model guessed five tokens ahead, and the big target model graded all five in one pass in roughly the time of a single step, **without changing the output distribution at all**?
 
-That is <span data-glossary="speculative-decoding">speculative decoding</span>.[^leviathan2023][^chen2023a] Whereas the previous chapter deployed a [small language model](/learn/local-llm-deployment-hardware-quantization) to answer queries directly, here a cheap proposer (a smaller model, extra prediction heads, or an n-gram prompt lookup) drafts candidate tokens and an exact rejection-sampling rule accepts the valid prefix and corrects the first mismatch. In exact arithmetic, the output matches sampling from the target model alone, token for token in distribution (even though a fixed PRNG seed takes different random draws).
-
-To see *why* checking five guesses costs almost the same as generating one token, start with the hardware bottleneck.
+That is <span data-glossary="speculative-decoding">speculative decoding</span>.[^leviathan2023][^chen2023a] Whereas the previous chapter deployed a [small language model](/learn/local-llm-deployment-hardware-quantization) directly, here a cheap proposer (a smaller model, extra prediction heads, or n-gram prompt lookup) drafts candidates and an exact rejection-sampling rule accepts the valid prefix and corrects the first mismatch. In exact arithmetic, the output matches sampling from the target model alone in distribution.
 
 ## Why memory bandwidth throttles autoregressive decoding
 
-Autoregressive generation is sequential: you cannot sample token $t+1$ until you know token $t$. At batch size 1, a dense 30B-parameter BF16 model must stream $60\text{ GB}$ of weights out of HBM to perform just $60\text{ GFLOPs}$ of linear arithmetic per token, an <span data-glossary="arithmetic-intensity">arithmetic intensity</span> of **1 FLOP/byte**:
+Autoregressive generation is sequential: you cannot sample token $t+1$ until token $t$ is chosen. At batch size 1, a dense 30B BF16 model reads $60\text{ GB}$ of weights from HBM for just $60\text{ GFLOPs}$ of linear math per token, an <span data-glossary="arithmetic-intensity">arithmetic intensity</span> of **1 FLOP/byte** ($I = 2P / 2P = 1$).
+
+On an NVIDIA H100 SXM (3.35 TB/s HBM bandwidth and 989.5 TFLOP/s dense BF16 peak, half of the 1,979 TFLOP/s sparse headline[^nvidia2026h100]):
 
 $$
-I = \frac{2P \text{ FLOPs}}{2P \text{ bytes}} = 1\text{ FLOP/byte}.
+T_{\text{memory}} = \frac{60 \times 10^9\text{ B}}{3.35 \times 10^{12}\text{ B/s}} \approx 17.91\text{ ms}, \qquad T_{\text{compute}} = \frac{60 \times 10^9\text{ FLOPs}}{989.5 \times 10^{12}\text{ FLOPs/s}} \approx 0.061\text{ ms}.
 $$
 
-On an NVIDIA H100 SXM (3.35 TB/s HBM bandwidth and 989.5 TFLOP/s dense BF16 peak, half of the 1,979 TFLOP/s sparse headline[^nvidia2026h100]), the memory and compute floors are worlds apart:
-
-$$
-T_{\text{memory}} = \frac{60 \times 10^9\text{ bytes}}{3.35 \times 10^{12}\text{ bytes/s}} \approx 17.91\text{ ms}, \qquad T_{\text{compute}} = \frac{60 \times 10^9\text{ FLOPs}}{989.5 \times 10^{12}\text{ FLOPs/s}} \approx 0.061\text{ ms}.
-$$
-
-With a ridge point of $989.5 / 3.35 = 295.4$ FLOPs/byte, single-token decode caps out at $0.34\%$ of dense compute peak. Now pass $m = K + 1$ known input positions (1 pending committed token plus $K$ draft proposals) through the target model in parallel. The matrix-vector product becomes a matrix-matrix product ($Y = WX$, $X \in \mathbb{R}^{d \times m}$) that reuses the exact same 60 GB weight stream across all $m$ positions:
-
-$$
-I = \frac{2Pm\text{ FLOPs}}{2P\text{ bytes}} = m\text{ FLOP/byte}.
-$$
-
-For $K = 5$ ($m = 6$), the compute floor climbs to $0.364\text{ ms}$ while the weight-transfer floor stays flat at **$17.91\text{ ms}$**. Scoring six positions rides nearly for free on the memory transfer you were already paying for one.[^chen2023a]
+Single-token decode uses just $0.34\%$ of dense peak (ridge point $295.4$ FLOPs/byte). Passing $m = K + 1$ known positions (1 pending committed token plus $K$ draft proposals) through the target model turns matrix-vector products into matrix-matrix products ($Y = WX$) reusing the same 60 GB weight read across all $m$ positions ($I = m$ FLOP/byte). For $K = 5$ ($m = 6$), the compute floor climbs to $0.364\text{ ms}$ while weight transfer stays flat at **$17.91\text{ ms}$**: scoring six positions rides nearly for free on the memory read you already paid for one.[^chen2023a]
 
 <figure>
   <img src="illustrations/_generated/weight_reuse_verification_dark.png" alt="A 30B active BF16 weight set occupies 60 GB. One pending position or six positions reuse that same stream in separate passes. The memory time floor is 17.91 ms in both cases. Compute takes 0.061 or 0.364 ms, so memory remains the slower floor. Weight reuse raises arithmetic intensity from 1 to 6 FLOP per byte." />
   <figcaption>Reusing one 60 GB weight stream across 6 positions raises arithmetic intensity 6× while leaving the 17.91 ms weight-transfer floor unchanged.</figcaption>
 </figure>
 
-```checkpoint
-Does parallel verification violate autoregressive causality?
----
-No. Under causal masking, proposal $k$ is scored by the logits emitted at the preceding position (conditioned on the committed prefix and proposals $1 \dots k-1$). No position can see future proposals.
-```
-
 ## The draft-verify protocol and cache state
 
-One speculative cycle alternates cheap sequential drafting ($M_q$) with one parallel verification pass ($M_p$):
+One speculative cycle alternates sequential drafting ($M_q$) with one parallel target verification pass ($M_p$):
 
-| Phase | Component | Operations performed | What drives latency |
-|---|---|---|---|
-| Draft | Proposer $M_q$ | Generates $K$ candidates and records proposal distributions $q_1 \dots q_K$ | $K$ tiny serial passes + catch-up |
-| Verify | Target $M_p$ | Scores `[u, x1, ..., xK]` in parallel, emitting $p_1 \dots p_{K+1}$ | One batched target pass + KV attention |
-| Commit | Exact sampler | Accepts in order; stops and corrects at first rejection (or emits bonus) | Lightweight CPU/GPU sampling |
-| Synchronize | Serving engine | Retains valid KV states through last accepted token; queues pending token | Cache cropping or block release |
+| Phase | Operations | Latency driver |
+|---|---|---|
+| **Draft ($M_q$)** | Proposes $K$ tokens and records $q_1 \dots q_K$ | $K$ tiny serial passes + catch-up |
+| **Verify ($M_p$)** | Scores `[u, x1, ..., xK]` in parallel, emitting $p_1 \dots p_{K+1}$ | One batched target pass + KV attention |
+| **Commit & sync** | Accepts in order, corrects first rejection (or emits bonus), crops KV cache | Lightweight sampling + cache crop |
 
-Clean <span data-glossary="kv-cache">KV cache</span> bookkeeping relies on one rule: **emitting a token ID does not compute its KV entry.** With cached prefix `C` and pending committed token `u`, verification runs on `[u, x1, ..., xK]`. Logits `p1` (emitted after `u`) score `x1`, logits `p2` (after `x1`) score `x2`, and `p(K+1)` supplies the bonus distribution if all $K$ proposals survive. If `x1` through `xk` survive and `x(k+1)` is rejected, the target keeps computed KV through `xk`, discards `x(k+1)` and everything after it, and emits a correction token whose KV state will be computed as the pending input on the next round.
+Clean <span data-glossary="kv-cache">KV cache</span> bookkeeping rests on one rule: **emitting a token ID does not compute its KV entry.** With cached prefix `C` and pending committed token `u`, verification runs on `[u, x1, ..., xK]`. Under causal masking, logits `p1` (after `u`) score `x1`, logits `p2` (after `x1`) score `x2`, and `p(K+1)` supplies the bonus distribution if all $K$ proposals survive. If `x1..xk` survive and `x(k+1)` fails, the target keeps computed KV through `xk`, discards `x(k+1)` onward, and queues the correction token as the next round's pending input.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="emitted-is-not-computed.py"
@@ -126,15 +107,7 @@ after processing correction: [1, 12, 124]
 ```
 <!-- leetllm: output:end -->
 
-Trace a concrete round on prefix `The train` where the draft proposes `arrives at noon`:
-
-| Proposed token | Draft $q(x)$ | Target $p(x)$ | Acceptance $\alpha(x) = \min(1, p(x)/q(x))$ |
-|---|---:|---:|---:|
-| arrives | 0.40 | 0.60 | $1.00$ |
-| at | 0.35 | 0.40 | $1.00$ |
-| noon | 0.60 | 0.40 | $2/3$ |
-
-The first two tokens survive automatically because $q \le p$. At `noon`, a uniform draw of $0.90 > 2/3$ rejects the proposal, crops the target KV cache back to `at`, and draws the replacement `dawn` from the residual distribution.
+Trace a round on prefix `The train` where the draft proposes `arrives at noon` with $(q, p)$ pairs `(0.40, 0.60)`, `(0.35, 0.40)`, and `(0.60, 0.40)`. The first two survive automatically because $q \le p$. At `noon`, $\alpha = 0.40 / 0.60 = 2/3$; a uniform draw of `0.90` rejects it, crops target KV back to `at`, and samples `dawn` from the residual distribution.
 
 <figure>
   <img src="illustrations/_generated/draft_verify_dark.png" alt="The train arrives at noon is assembled from a committed prefix and three draft tokens. Arrives and at have q no greater than p and are kept. Noon has acceptance probability two-thirds; draw 0.90 rejects it, and one residual draw supplies dawn. The target cache retains the prefix through at. Dawn is emitted before its key and value are computed." />
@@ -148,13 +121,7 @@ The first two tokens survive automatically because $q \le p$. At `noon`, a unifo
 
 ## Exact correction sampling and distribution proof
 
-Why does this accept-or-resample rule recover the target model's exact distribution $p(x)$?[^leviathan2023][^chen2023a] For any candidate $x$ sampled from $q$ (so $q(x) > 0$), accept it with probability:
-
-$$
-\alpha(x) = \min\left(1, \frac{p(x)}{q(x)}\right).
-$$
-
-If rejected, discard the remaining draft tail and sample a replacement from the normalized positive deficit:
+For any candidate $x$ sampled from $q$ ($q(x) > 0$), accept it with probability $\alpha(x) = \min(1, p(x)/q(x))$.[^leviathan2023][^chen2023a] On rejection, discard the remaining draft tail and sample a replacement from the normalized positive deficit:
 
 $$
 r(x) = \frac{[p(x) - q(x)]_+}{Z}, \qquad [z]_+ = \max(0, z), \qquad Z = \sum_{y \in V} [p(y) - q(y)]_+.
@@ -169,26 +136,16 @@ $$
 
 An emitted token $X = x$ arrives through two mutually exclusive paths:
 
-1. **Proposal accepted:** Token $x$ is proposed with probability $q(x)$ and kept with probability $\alpha(x)$:
-$$
-\Pr(\text{proposed } x \text{ and accepted}) = q(x) \cdot \min\left(1, \frac{p(x)}{q(x)}\right) = \min(q(x), p(x)).
-$$
-2. **Proposal rejected and corrected:** The total probability of rejecting any proposal equals the normalization constant $Z$ of the residual distribution:
-$$
-\Pr(\text{rejected}) = 1 - \sum_{y \in V} \min(q(y), p(y)) = \sum_{y \in V} \bigl(p(y) - \min(q(y), p(y))\bigr) = \sum_{y \in V} [p(y) - q(y)]_+ = Z.
-$$
-Multiplying $\Pr(\text{rejected}) = Z$ by $r(x) = [p(x) - q(x)]_+ / Z$ cancels $Z$ cleanly:
-$$
-\Pr(\text{rejected and emit } x) = [p(x) - q(x)]_+.
-$$
+1. **Accepted:** $\Pr(\text{proposed } x \text{ and accepted}) = q(x)\min(1, p(x)/q(x)) = \min(q(x), p(x))$.
+2. **Rejected and corrected:** Total rejection probability equals $1 - \sum_y \min(q(y), p(y)) = \sum_y [p(y) - q(y)]_+ = Z$. Multiplying by $r(x) = [p(x) - q(x)]_+ / Z$ cancels $Z$, giving $[p(x) - q(x)]_+$.
 
-Summing both branches via the identity $\min(a, b) + \max(0, a - b) = a$ recovers the target distribution identically for every token in the vocabulary (even tokens with $q(x) = 0$!):
+Summing both branches via $\min(a, b) + \max(0, a - b) = a$ recovers $p(x)$ identically for every token in $V$ (including tokens with $q(x) = 0$):
 
 $$
 \Pr(X = x) = \min(q(x), p(x)) + [p(x) - q(x)]_+ = p(x) \quad \forall x \in V.
 $$
 
-> **Common mistake:** Never resample from the raw target $p$ after a rejection! The accepted branch already delivered $\min(p, q)$ of mass to every token, so drawing again from raw $p$ double-counts overlap tokens and starves under-proposed tokens.
+> **Common mistake:** Never resample from raw $p$ after rejection. Acceptance already contributed $\min(p, q)$, so redrawing from raw $p$ double-counts overlap tokens instead of exclusively refilling $[p(x) - q(x)]_+$.
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="reconstruct-the-target.py"
@@ -216,15 +173,9 @@ naive raw-p bug:  [0.48, 0.4, 0.12]
 ```
 <!-- leetllm: output:end -->
 
-```checkpoint
-Why does sampling from raw $p$ after rejection distort the output distribution?
----
-Acceptance already contributed $\min(p(x), q(x))$ to each token. Redrawing from raw $p$ gives extra probability to already-covered tokens instead of exclusively refilling the positive deficit $[p(x) - q(x)]_+$.
-```
-
 ## Serving transformations and tokenizer alignment
 
-The proof requires $p$ and $q$ to be the **post-transformation** distributions actually sampled at serving time (after temperature, top-$p$, top-$k$, min-$p$, and repetition penalties). Notice that the draft and target do **not** need matching sampling rules: a deterministic prompt lookup sets $q(x) = 1$ on its candidate, which simplifies acceptance to $\alpha(x) = p(x)$ and the residual to $r(y) = p(y)/(1 - p(x))$ for $y \ne x$.[^leviathan2023] Conversely, if the target applies top-2 truncation while the draft stays untruncated, you must compare against the truncated, renormalized $p$ so forbidden tokens get acceptance probability $0$:
+The proof requires $p$ and $q$ to be the **post-transformation** distributions actually sampled at serving time (after temperature, top-$p$, top-$k$, min-$p$, and repetition penalties). Draft and target need not share sampling rules: a deterministic prompt lookup sets $q(x) = 1$ on its proposed token, reducing acceptance to $\alpha(x) = p(x)$ and the residual to $r(y) = p(y)/(1 - p(x))$ for $y \ne x$.[^leviathan2023] When the target applies top-2 truncation while the draft stays untruncated, renormalize the retained target mass (`0.85`) so forbidden tokens get acceptance probability `0`:
 
 <!-- leetllm: test, output=show -->
 ```python title="actual-sampling-distributions.py"
@@ -242,21 +193,11 @@ token 2: raw ratio=0.600, correct=0.000
 ```
 <!-- leetllm: output:end -->
 
-<figure>
-  <img src="illustrations/_generated/transformed_distribution_dark.png" alt="The draft q remains [.40, .35, .25]. Top-2 truncation retains target masses .55 for noon and .30 for dawn, removes dusk at .15, then renormalizes .85 to p=[.6470588, .3529412, 0]. Raw acceptance factors (1, .857, .600) become (1, 1, 0), while q stays unchanged." />
-  <figcaption>Renormalizing the top-2 target moves acceptance factors from (1, 0.857, 0.600) to (1, 1, 0) while keeping the actual proposer distribution $q$ untouched.</figcaption>
-</figure>
-
-Both models must also speak the same token event space. Sharing an identical tokenizer is the cleanest path; cross-tokenizer extensions such as vLLM's Token-Level Intersection map shared token strings into target IDs (with documented greedy-draft restrictions).[^vllm2026spec]
+Both models must share one token event space: an identical tokenizer is cleanest, while cross-tokenizer engines such as vLLM's Token-Level Intersection map shared token strings into target IDs.[^vllm2026spec]
 
 ## Implement a complete probability-level round
 
-Let us assemble a complete speculative round on a 3-token Markov model (`noon`, `dawn`, `dusk`) whose target distribution depends on the preceding token, exercising rejection at position 1, rejection at position 2, and full acceptance with a bonus token. Always apply EOS and length caps in emitted order so tokens generated past EOS are discarded.
-
-<figure>
-  <img src="illustrations/_generated/round_control_and_stopping_dark.png" alt="A round drafts K tokens, scores the K proposal rows and one bonus position, then branches on the first rejection. Rejection emits the accepted prefix followed by a residual correction; full acceptance emits all K proposals followed by the target bonus. The scripted outcomes are dawn, noon dusk, and noon noon dawn. In the stopping example, the sequence uses noon as EOS, includes it, and drops the remaining block; a cap at two keeps x1 and x2 and drops x3." />
-  <figcaption>Rejection emits the accepted prefix plus one residual correction; full acceptance emits all $K$ drafts plus a target bonus. EOS and length limits trim the block in emitted order.</figcaption>
-</figure>
+Below is a full speculative round on a 3-token Markov model (`noon`, `dawn`, `dusk`), covering rejection at position 1, rejection at position 2, and full acceptance with a target bonus token. Always apply EOS and length caps in emitted order so tokens generated past EOS are discarded:
 
 <!-- leetllm: test, id=speculative-round, output=show -->
 ```python title="speculative-round.py"
@@ -329,7 +270,7 @@ bonus: noon noon dawn
 
 ### Test sequences across multiple positions
 
-Testing only the first token misses stale-prefix bugs. Running 60,000 two-token generations and comparing all nine pair frequencies against exact joint probabilities $p(x_1) p(x_2 \mid x_1)$ verifies multi-position conditioning directly:
+Testing only position 1 misses stale-prefix bugs. Comparing all nine pair frequencies over 60,000 two-token runs against exact joint probabilities $p(x_1)p(x_2 \mid x_1)$ verifies multi-position conditioning:
 
 <!-- leetllm: test, continue=speculative-round, output=show -->
 ```python title="sampling-checks.py"
@@ -354,21 +295,15 @@ Max two-token frequency error over 60,000 runs: 0.0037
 ```
 <!-- leetllm: output:end -->
 
-```checkpoint
-What state changes occur when proposal 2 is rejected?
----
-Emit proposal 1 and a residual correction at position 2; discard proposal 2 and all downstream drafts. Retain valid computed KV through proposal 1, and queue the correction as the pending input for the next pass.
-```
-
 ## Speedup dynamics and serving load
 
-Under a constant conditional acceptance rate $\alpha$ at each reached position, a depth-$K$ round emits 1 guaranteed token (correction or bonus) plus each surviving prefix position with probability $\alpha^i$:[^leviathan2023]
+Under constant conditional acceptance $\alpha$ at each reached position, a depth-$K$ round emits 1 guaranteed token (correction or bonus) plus each surviving prefix token with probability $\alpha^i$:[^leviathan2023]
 
 $$
 \mathbb{E}[N] = \sum_{i=0}^K \alpha^i = \frac{1 - \alpha^{K+1}}{1 - \alpha}, \qquad \text{Speedup} \approx \frac{\mathbb{E}[N]}{v(K) + K \cdot c}
 $$
 
-Here $c = T_{\text{draft}} / T_{\text{target}}$ and $v(K) = T_{\text{verify}}(K) / T_{\text{target}}$. With $\alpha = 0.8$, $c = 0.1$, and $K = 5$, expected yield is **3.69 tokens/round**. If verification stays flat ($v = 1.0$), speedup hits **$2.46\times$**; if verification grows slightly ($v = 1 + 0.05K = 1.25$), speedup dips to **$2.11\times$**. Notice that yield saturates at $1 / (1 - \alpha)$ (5 tokens at $\alpha = 0.8$), while draft cost $Kc$ keeps rising linearly, creating a clear interior peak!
+Here $c = T_{\text{draft}}/T_{\text{target}}$ and $v(K) = T_{\text{verify}}(K)/T_{\text{target}}$. At $\alpha = 0.8, c = 0.1, K = 5$, yield is **3.69 tokens/round**, giving **$2.46\times$** under flat verification ($v = 1.0$) or **$2.11\times$** if verification grows ($v = 1 + 0.05K$). Yield saturates at $1/(1-\alpha) = 5$ while drafting cost $Kc$ climbs linearly, creating an interior peak.
 
 <figure>
   <img src="illustrations/_generated/speedup_surface_dark.png" alt="Modeled speedup compares two verification-cost curves for alpha .8 and draft cost .1. Flat cost peaks at K=6 with 2.46964 times; rising cost peaks at K=5 with 2.10816 times. At K=5, a proportional bar splits 3.68928 expected emitted tokens into one correction or bonus and 2.68928 accepted-prefix tokens, the sum of 1, .8, .64, .512, .4096, and .32768." />
@@ -397,17 +332,11 @@ K=10: yield=4.57, flat(v=1)=2.29x, growing(v=1+0.05K)=1.83x
 
 ### Why larger batches can change the answer
 
-Why does speculative decoding shine brightest at low concurrency? As batch size $B$ climbs, ordinary decode already amortizes weights ($I_{\text{batch}} \approx B$ FLOPs/byte). In the extreme compute-limited limit where each verified position costs as much as an ordinary step ($v(K) = K + 1$), since $\mathbb{E}[N] \le K + 1$ and $Kc > 0$, serial speculation slows down:
-
-$$
-\text{Speedup}_{\text{equal-cost positions}} \approx \frac{\mathbb{E}[N]}{K + 1 + Kc} < 1 \quad (K > 0, c > 0).
-$$
-
-There is no magic batch-size cliff, however: on Llama 3.1 8B (H100, SGLang, MT-Bench), **EAGLE-3** still delivered **$1.38\times$ throughput at batch size 64** with a length-3 chain, whereas original EAGLE landed at $0.99\times$.[^li2025eagle3] Always sweep offered load on your real engine and workload.
+As batch size $B$ climbs, ordinary decode already amortizes weights ($I_{\text{batch}} \approx B$ FLOPs/byte). In the compute-limited extreme where every verified position costs a full step ($v(K) = K + 1$), $\mathbb{E}[N] / (K + 1 + Kc) < 1$ whenever $K > 0, c > 0$. Still, there is no universal batch cliff: on Llama 3.1 8B (H100, SGLang, MT-Bench), **EAGLE-3** reached **$1.38\times$ throughput at batch 64** with a length-3 chain, while original EAGLE sat at $0.99\times$.[^li2025eagle3]
 
 ### Verification work isn't committed output
 
-Schedulers reserve step capacity for **submitted verification positions**, not accepted output. With $16$ concurrent streams and a 64-position step budget, each stream submits $K + 1$ positions (1 pending + $K$ drafts): $K = 2$ fits ($48 / 64$), while $K = 4$ requests $80 / 64$ and overflows the step budget regardless of how high acceptance is!
+Schedulers reserve step capacity for **submitted verification positions**, not accepted output. With $16$ concurrent streams and a 64-position step budget, each stream submits $K + 1$ positions (1 pending + $K$ drafts): $K = 2$ fits (`48 / 64`), whereas $K = 4$ requests `80 / 64` and overflows regardless of acceptance rate.
 
 <figure>
   <img src="illustrations/_generated/verification_budget_dark.png" alt="With 16 concurrent streams and a 64-position budget, depth K asks for K+1 positions per stream. K=0 and K=2 request 16 and 48 positions and fit. K=4 and K=8 request 80 and 144, exceeding capacity. Their expected yields are 16, 39.04, 53.7856, and 69.26258 tokens under conditional acceptance .8; yield does not change the number of positions scheduled." />
@@ -416,34 +345,28 @@ Schedulers reserve step capacity for **submitted verification positions**, not a
 
 ## Speculative tree architectures and heuristic drafting
 
-On a single draft chain, one early rejection throws away every downstream guess ($\alpha^K = 0.70^5 \approx 16.8\%$ full-chain survival). Tree-based and self-drafting architectures widen the bet without training a separate full-size draft model:
+On a single chain, one early rejection discards all downstream guesses ($\alpha^5 = 16.8\%$ at $\alpha = 0.70$). Tree and self-drafting designs widen the bet without a separate full draft model:
 
 | Approach | Mechanism | Key distinction |
 |---|---|---|
 | Separate draft model | Smaller transformer proposes a chain | Exact with residual sampler; extra weights + KV cache |
 | **Medusa**[^cai2024] | Extra LM heads predict $t+1 \dots t+k$ from target features | Medusa-1 freezes backbone; Medusa-2 tunes jointly; typical acceptance relaxes exactness |
-| **EAGLE / EAGLE-2 / EAGLE-3**[^li2024][^li2024eagle2][^li2025eagle3] | Lightweight target-conditioned drafter | EAGLE predicts pre-head features; EAGLE-2 builds dynamic trees; EAGLE-3 fuses multi-layer features and trains direct token prediction |
-| **Native MTP & parallel drafts**[^vllmMTP2026][^vllmParallelDraft2026] | Model-family multi-token prediction heads or parallel proposers | Supported natively by modern engines like vLLM and SGLang[^sglang2026speculative] |
-| **Prompt lookup / n-gram**[^vllmNgram2026][^sglang2026speculative] | Copies matching n-gram continuations from prompt/cache | Zero extra weights; great for code edits and RAG; deterministic proposals still verified exactly |
+| **EAGLE 1/2/3**[^li2024][^li2024eagle2][^li2025eagle3] | Lightweight target-conditioned drafter | EAGLE predicts features; EAGLE-2 builds dynamic trees; EAGLE-3 fuses multi-layer features for direct token prediction |
+| **Native MTP & parallel drafts**[^vllmMTP2026][^vllmParallelDraft2026] | Multi-token prediction heads or parallel proposers | Native support in vLLM and SGLang[^sglang2026speculative] |
+| **Prompt lookup / n-gram**[^vllmNgram2026][^sglang2026speculative] | Copies matching n-gram spans from prompt/cache | Zero extra weights; exact when verified as $q(x) = 1$ |
 
-(Some engines such as SGLang also support optional **block verification** that tests draft prefixes jointly with its own correction rule, distinct from the token-wise first-rejection rule above.[^sglang2026speculative])
+(Engines like SGLang also offer optional **block verification** that tests draft prefixes jointly under its own correction rule, distinct from token-wise verification.[^sglang2026speculative])
 
 ### Tree attention masks for parallel verification
 
-To verify multiple competing branches in a single parallel pass without leaking sibling tokens into each other, flatten all $M$ tree nodes and build an ancestor mask $M_{\text{tree}} \in \{0, 1\}^{M \times M}$:
-
-$$
-M_{\text{tree}}[j, i] = \begin{cases} 1 & \text{if candidate } i \text{ is an ancestor of } j \text{ or } i = j, \\ 0 & \text{otherwise.} \end{cases}
-$$
-
-Equally important: assign RoPE position IDs by **prefix offset + tree depth** rather than flattened array index so sibling alternatives share the same position!
+To verify competing branches in one pass without leaking sibling tokens across paths, flatten all $M$ tree nodes and build an ancestor mask $M_{\text{tree}}[j, i] = 1$ iff candidate $i$ is an ancestor of $j$ or $i = j$. Assign RoPE position IDs by **prefix offset + tree depth** so sibling alternatives share the same position!
 
 <figure>
   <img src="illustrations/_generated/tree_visibility_and_position_dark.png" alt="Two alternatives at tree depth one become nodes 0 and 1 at position ID 10. Their children 2 and 3 share position ID 11. With parents [None, None, 0, 1], candidate attention rows are 1000, 0100, 1010, and 0101: each node sees itself and its ancestors, so sibling branches stay hidden. Shared-prefix columns are omitted from this candidate-only matrix." />
   <figcaption>Ancestor attention mask isolates sibling branches (`1010` for node 2, `0101` for node 3) while nodes at equal depth share position IDs (10 and 11).</figcaption>
 </figure>
 
-Watch what happens if you accidentally use a standard flattened causal mask instead of a tree mask: changing off-branch node 1's value from `100` to `10,000` leaves the tree-masked output untouched at `1.731`, while the flattened mask leaks it straight into node 2 (`97.598` $\to$ `9755.630`)!
+Perturbing off-branch node 1 from `100` to `10,000` proves why a standard flattened causal mask fails: the tree mask holds node 2 fixed at `1.731`, whereas the flattened mask leaks the off-branch edit (`97.598` $\to$ `9755.630`):
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="tree-visibility-and-isolation.py"
@@ -482,31 +405,18 @@ RoPE position IDs (prefix_len=10): [10, 10, 11, 11]
 ```
 <!-- leetllm: output:end -->
 
-<figure>
-  <img src="illustrations/_generated/tree_sibling_counterexample_dark.png" alt="For query node 2, tree attention includes ancestor node 0 and itself while excluding off-branch node 1. Raising that off-branch value from 100 to 10000 leaves the correct tree-masked output at 1.731. A flattened causal mask leaks the value, moving its output from 97.598 to 9755.630 on the plotted logarithmic axis." />
-  <figcaption>Perturbing off-branch node 1 proves isolation: the tree mask holds node 2 fixed at 1.731, whereas a flattened causal mask leaks the perturbation.</figcaption>
-</figure>
-
 ## Measure serving speedup with paired benchmarks
 
-Before enabling speculation in production, run a paired benchmark holding target checkpoint, quantization, prompts, sampling settings, and hardware fixed across both arms:
-
-- **TTFT and completion latency:** Speculation speeds up decode, not prefill; verify no first-token regression.
-- **Client token gaps (burstiness):** Speculative rounds deliver bursts of 3 to 5 tokens separated by longer pauses; track tail gaps, not just mean TPS.
-- **Acceptance by reached position:** Segment `accepted / reached` by depth and task (code vs. chat).
-- **SLO-qualified capacity under offered load:** Sweep request rate and report the highest offered load meeting latency attainment, tracking extra verification compute separately from committed output.
+Run a paired benchmark holding target checkpoint, quantization, prompts, sampling settings, and hardware fixed across both arms, tracking:
+- **TTFT, completion latency, and tail token gaps:** Speculation emits bursts of 3 to 5 tokens separated by longer pauses, so track client tail gaps alongside mean TPS.
+- **Acceptance by reached position (`accepted / reached`)** segmented by depth and task.
+- **SLO-qualified capacity:** Sweep offered request rate and report the highest tested rate meeting the attainment threshold (e.g., $\ge 95\%$ of offered requests within SLO) plus its qualified throughput over the full window.
 
 ### Follow-up questions
 
 #### How do position-dependent acceptance rates affect expected length?
 
-With conditional acceptance rates $a_i = \Pr(\text{accept } i \mid \text{accepted } 1 \dots i-1)$, expected yield per round is:
-
-$$
-\mathbb{E}[N] = 1 + a_1 + a_1 a_2 + \dots + \prod_{i=1}^K a_i.
-$$
-
-Early acceptance dominates because every later position depends on surviving position 1! Three depth-2 schedules with the exact same arithmetic mean ($0.50$) yield completely different outputs: `(0.9, 0.1)` yields **1.99**, `(0.5, 0.5)` yields **1.75**, and `(0.1, 0.9)` collapses to **1.19**.
+With conditional acceptance rates $a_i = \Pr(\text{accept } i \mid \text{accepted } 1 \dots i-1)$, expected yield is $\mathbb{E}[N] = 1 + a_1 + a_1 a_2 + \dots + \prod_{i=1}^K a_i$. Early acceptance dominates because later positions are only reached if earlier ones survive: three depth-2 schedules with identical mean `0.50` yield `1.99`, `1.75`, and `1.19` tokens/round:
 
 <!-- leetllm: test, deps=numpy, output=show -->
 ```python title="position-order-matters.py"
@@ -525,22 +435,15 @@ rates=(0.1, 0.9), mean=0.50, yield=1.19
 ```
 <!-- leetllm: output:end -->
 
-<figure>
-  <img src="illustrations/_generated/reached_position_yield_dark.png" alt="Three depth-two rate schedules have the same arithmetic mean conditional acceptance, .50. Their ordered rates produce survival products .09, .25, and .09 after two proposals. Adding the guaranteed correction or bonus and each reached accepted proposal gives yields 1.99, 1.75, and 1.19 tokens per round." />
-  <figcaption>Identical mean acceptance (0.50) produces yields from 1.99 down to 1.19 because position 1 controls whether position 2 is ever reached.</figcaption>
-</figure>
-
 #### How do you isolate a sampler defect from GPU kernel precision shifts?
 
-Test the rejection sampler first on fixed synthetic probability tables (including $p = q$, disjoint support, and scripted rejections). Once the sampler passes, compare serial target logits against batched verification logits on identical inputs: mismatches point to tree/causal masks, position-ID offsets, KV cache alignment, or quantized reduction-order rounding.[^vllm2026spec]
+Verify the rejection sampler first on fixed synthetic probability tables ($p = q$, disjoint support, scripted rejections), then compare serial target logits against batched verification logits on identical inputs to isolate mask, position-ID, KV-alignment, or quantized reduction-order bugs.[^vllm2026spec]
 
 ### What strong answers show
 
-- Connect single-token decode slowness to HBM weight bandwidth and show how verifying $K+1$ positions reuses one weight read.
-- Derive the exact target preservation identity $\min(p, q) + [p - q]_+ = p$ using post-transformation serving distributions.
-- Keep verification row alignment, valid KV cropping, and pending correction states distinct.
-- Evaluate speedup against drafting cost, verification growth, step position budgets, and SLO-qualified throughput under realistic batch load.
-- Distinguish chain drafters, Medusa, EAGLE 1/2/3, MTP, and n-gram lookup by both mechanism and exactness guarantees.
+- Tie single-token decode slowness to HBM weight bandwidth and show how verifying $K+1$ positions reuses one weight read.
+- Prove $\min(p, q) + [p - q]_+ = p$ on post-transformation serving distributions and keep logit alignment, KV cropping, and pending correction states distinct.
+- Size speculation against draft cost, step position budgets $B(K+1)$, and SLO-qualified throughput under load, distinguishing exact samplers from heuristic/joint-tuned methods like Medusa-2.
 
 ## Check your understanding
 

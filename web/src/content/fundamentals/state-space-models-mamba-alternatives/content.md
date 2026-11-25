@@ -73,12 +73,7 @@ The first term carries prior memory forward; the second writes the new token int
 | 3 | 4 | 0.6660 | 0.80 | **1.4660** |
 | 4 | 2 | 1.3194 | 0.40 | **1.7194** |
 
-Look at how clean that is: memory never grows, yet step 4 still carries echoes of all four inputs. Lower $\bar{A}$ from `0.9` to `0.1`, and the final state plunges to `0.4826` because early inputs wash out almost immediately. State retention depends on the **decay dynamics**, not just the state width.
-
-<figure>
-  <img src="illustrations/_generated/ssm_recurrence_dark.png" alt="Two-panel scalar SSM trace across steps t=1 to t=4 on inputs [3, 1, 4, 2]. Top bar chart tracks state h[t] rising from 0.6000 to 0.7400, 1.4660, and 1.7194 on a 0-to-2 axis. Bottom matrix decomposes each step into carried state 0.9 h[t-1] (0.0000, 0.5400, 0.6660, 1.3194), incoming write 0.2 x[t] (0.60, 0.20, 0.80, 0.40), and updated h[t]." />
-  <figcaption>Tracing $h_t = 0.9 h_{t-1} + 0.2 x_t$ on $[3, 1, 4, 2]$. By step 4, most of $h_4 = 1.7194$ comes from carried history rather than the latest write.</figcaption>
-</figure>
+Look at how clean that is: memory never grows, yet step 4 still carries echoes of all four inputs (most of $h_4 = 1.7194$ comes from carried history rather than the latest write). Lower $\bar{A}$ from `0.9` to `0.1`, and the final state plunges to `0.4826` because early inputs wash out almost immediately. State retention depends on the **decay dynamics**, not just the state width.
 
 ## Where $\bar{A}$ and $\bar{B}$ come from
 
@@ -166,11 +161,6 @@ Inside a **Mamba-1 block**, the projected input splits into two branches: the up
   <figcaption>Mamba-1 block: the main stream applies a width-4 causal convolution, SiLU, and input-selective SSM scan, then multiplies elementwise by a parallel SiLU(z) gate.</figcaption>
 </figure>
 
-<figure>
-  <img src="illustrations/_generated/selective_update_terms_dark.png" alt="Three-panel selective update trace for x = [3, 1, 4, 2]. Top panel shows stacked carry plus write bars on a shared 0-to-1.65 axis. Middle table lists x[t], Delta, a_bar, C[t], and h[t] across t=1..4. Bottom bar chart displays modulated readouts y[t] = C[t] h[t]: 0.67, 0.45, 1.76, and 1.19." />
-  <figcaption>Selective update trace on $x = [3, 1, 4, 2]$: larger inputs trigger bigger $\Delta_t$ (faster decay of old state, stronger new write) and modulated readouts $y_t = C_t h_t$.</figcaption>
-</figure>
-
 ### How do you parallelize a non-LTI recurrence on GPUs?
 
 Once $\bar{\mathbf{A}}_t$ and $\bar{\mathbf{B}}_t$ vary per token, FFT convolution no longer applies. Mamba recovers $O(\log L)$ parallel depth with two ideas:
@@ -236,13 +226,8 @@ In a selective SSM, every affine pair (a_t, b_t) depends only on the input seque
 
 Mamba-1 was linear time, yet its custom elementwise scan underutilized GPU Tensor Cores.
 
-- **Mamba-2 (State Space Duality, SSD)**[^dao2024] constrains each head's transition $\mathbf{A}_t$ to a scalar multiple of the identity matrix. That restriction exposes a direct duality with masked linear attention and splits sequence work into chunks (e.g., width 256): intra-chunk outputs and chunk-end states run as **batched Tensor Core matrix multiplications**, leaving only a tiny inter-chunk scan across chunk boundaries. Core layers run **2–8x faster** than Mamba-1's scan!
+- **Mamba-2 (State Space Duality, SSD)**[^dao2024] constrains each head's transition $\mathbf{A}_t$ to a scalar multiple of the identity matrix. That restriction exposes a direct duality with masked linear attention and splits sequence work into fixed chunks (e.g., width 256): intra-chunk outputs and chunk-end states run as **batched Tensor Core matrix multiplications**, leaving only a tiny inter-chunk scan across chunk boundaries. Core layers run **2–8x faster** than Mamba-1's scan!
 - **Mamba-3**[^gu2026] targets memory-bound decoding along three axes: **exponential-trapezoidal discretization** ($h_t = \alpha_t h_{t-1} + (1-\lambda_t)\Delta_t\alpha_t B_{t-1}x_{t-1} + \lambda_t\Delta_t B_t x_t$, replacing the separate conv buffer with a previous-write slot), **complex-valued rotations** for stronger state tracking (like parity and modular arithmetic), and **multi-input, multi-output (MIMO)** state updates that execute up to 4x more decode FLOPs at matched H100 latency by increasing <span data-glossary="arithmetic-intensity">arithmetic intensity</span> inside the memory-bound state read.
-
-<figure>
-  <img src="illustrations/_generated/ssd_boundary_chunks_dark.png" alt="Top-left 4x16 grid shows 16,384 tokens filling 64 green chunks of width B=256; top-right 5x16 grid shows 16,385 tokens filling 64 blue chunks plus 1 active cell in the 65th chunk with 255 pad slots. Bottom graph shows Chunks C (B=256 slices) branching into parallel End states (Scan h0..hk) and Local matmul (Y_diag chunk), summing into Final Y (Y_diag + C*h)." />
-  <figcaption>Mamba-2's SSD divides sequences into fixed chunks (e.g., 256 tokens), executing local work via Tensor Core matmuls and propagating only compact chunk-end states across chunks.</figcaption>
-</figure>
 
 ## Complexity comparison and hybrid architectures
 
@@ -270,33 +255,13 @@ Why do **hybrid architectures** dominate practical long-context SSM deployments?
   <figcaption>Hybrid backbones run every token sequentially through mostly recurrent layers plus occasional full-attention layers that restore direct token lookup at a fraction of the KV cost.</figcaption>
 </figure>
 
-<figure>
-  <img src="illustrations/_generated/state_collision_continuation_dark.png" alt="Left-to-right flow graph showing sequences B: [1, 2] and A: [3, 1] both merging at Collision h2 = 1.250 under h[t] = 0.5 h[t-1] + 0.5 x[t], then advancing identically along + x3=4 (h3 = 2.625) and + x4=2 (h4 = 2.313)." />
-  <figcaption>Two distinct prefixes $[3, 1]$ and $[1, 2]$ collide at $h_2 = 1.250$, illustrating why finite recurrent summaries cannot always recover arbitrary earlier tokens verbatim.</figcaption>
-</figure>
-
 ## Serving subtleties: checkpoints, conv buffers, and rollback
 
 Fixed live decode state changes how serving engines handle prefix caching and [speculative decoding](/learn/speculative-decoding):
 
 1. **Prefix snapshots still grow with length:** To resume a shared 64K prompt at arbitrary boundaries without re-running prefill, engines like vLLM cache periodic SSM checkpoints (e.g., 5 MiB every 1,024 tokens = `320 MiB` of snapshots beside the `5 MiB` live state).[^vllmMambaCache2026]
-2. **Save EVERY stateful buffer:** Resuming a Mamba-1 block requires saving *both* the recurrent state $h_t$ and the rolling causal convolution window. Restoring only $h_t$ while zeroing the conv buffer silently corrupts the very next token!
-3. **Speculative rollback needs snapshots, not truncation:** Unlike a KV cache (where rejecting draft tokens simply truncates trailing slots), an SSM mutates one state slot in place. And you cannot algebraically invert the step, because tiny decay factors like $e^{-1000}$ underflow to `0.0`! Engines must restore an accepted checkpoint or replay from the last accepted token.
-
-<figure>
-  <img src="illustrations/_generated/fixed_state_checkpoint_policy_dark.png" alt="Two-panel state retention comparison. Top bar chart compares 1 live state (5 MiB), 8 concurrent live requests (40 MiB), 8K context with 8 snapshots (45 MiB), and 64K context with 64 snapshots (325 MiB). Bottom panel illustrates the 64K footprint as a 64-tile snapshot grid next to a stacked 5 MiB live vs 320 MiB saved-snapshot bar (98.5% snapshots)." />
-  <figcaption>Periodic prefix checkpoints (every 1,024 tokens) grow linearly to 320 MiB at 64K context even though the active decode state stays flat at 5 MiB.</figcaption>
-</figure>
-
-<figure>
-  <img src="illustrations/_generated/stream_buffer_restore_dark.png" alt="Top flow branches from Prefix [3,1] (h2 = 2.15) into two paths on suffix [4, 2]: green Restore +4 -> Match +2 yields u=2.9, h=3.98 then u=2.4, h=4.388, while red dashed Zero +4 -> Drift +2 yields u=2.0, h=3.08 then u=2.2, h=3.738. Bottom panels compare Saved conv window [3*0.2, 1*0.3, 4*0.5] summing to u3 = 2.90 against Cleared conv window [0*0.2, 0*0.3, 4*0.5] summing to u3 = 2.00." />
-  <figcaption>Restoring only $h_2$ while clearing the rolling conv window drops the next filtered input from 2.90 to 2.00 and drifts the stream.</figcaption>
-</figure>
-
-<figure>
-  <img src="illustrations/_generated/recurrent_rollback_dark.png" alt="Left-to-right rollback graph starting at Prefix [3,1] (h2 = 1.250) to Accept 99 (Save 50.125), branching to dashed green Rollback + 4 (Valid 27.063) versus amber Reject 77 (Dirty 63.563) followed by red Dirty + 4 (Drift 33.781)." />
-  <figcaption>When speculative draft token 77 is rejected, stepping from the mutated state drifts to 33.781; restoring the saved snapshot after accepted token 99 recovers the exact state 27.063.</figcaption>
-</figure>
+2. **Save EVERY stateful buffer:** Resuming a Mamba-1 block requires saving *both* the recurrent state $h_t$ and the rolling causal convolution window. Restoring only $h_t$ while zeroing the conv buffer silently corrupts the very next token.
+3. **Speculative rollback needs snapshots, not truncation:** Unlike a KV cache (where rejecting draft tokens simply truncates trailing slots), an SSM mutates one state slot in place. And you cannot algebraically invert the step, because tiny decay factors like $e^{-1000}$ underflow to `0.0`. Engines must restore an accepted checkpoint or replay from the last accepted token.
 
 Let's verify both failure modes (missing conv buffer and dirty speculative rollback) plus the prefill-vs-decode latency crossover in one short NumPy script:
 

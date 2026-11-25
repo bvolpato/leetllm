@@ -1,292 +1,232 @@
-import React from 'react'
-import {
-    Board,
-    Scene,
-    SvgPoint,
-    VectorArrow,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import { PaddedLabel, labelHeight } from '../visual-helpers'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 1200
-export const height = 800
+export const width = 760
+export const height = 370
 export const alt =
-    'The left number line magnifies zero to the smallest E4M3 subnormal d = 2⁻⁹. The RNE midpoint 0.5d maps to signed zero, while 0.75d maps to d. The separate right range maps an unscaled input 500 with S = 1 to the finite E4M3 code 448 and reconstructs 448.'
+    'Dual-zoom FP8 E4M3 conversion boundary rulers. Left zoom magnifies 0 to the smallest E4M3 subnormal d = 2^-9: round-to-nearest-even maps tie midpoint 0.5d to signed zero (even) and 0.75d up to d. Right zoom spans 0 to 500 with S = 1: the finite E4M3 ceiling stops at 448, clamping unscaled input x = 500 to code q = 448 and reconstructing 448 without emitting NaN.'
 
-const illustration = defineIllustration((c) => {
-    const ink = c.textPrimary
-    const line = '#64748b'
-    const blue = getReadableToneColor('blue', c, c.bg)
-    const warm = getReadableToneColor('warm', c, c.bg)
-    const purple = getReadableToneColor('purple', c, c.bg)
-    const green = getReadableToneColor('green', c, c.bg)
-    const critical = getReadableToneColor('critical', c, c.bg)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
 
-    const svg = (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-            <line x1="62" y1="126" x2="62" y2="750" stroke={line} strokeWidth="2" />
-            <line x1="682" y1="126" x2="682" y2="750" stroke={line} strokeWidth="2" />
-
-            {/* A unit interval measured in subnormal steps: 0, 0.5d, 0.75d, d. */}
-            <line x1="132" y1="316" x2="632" y2="316" stroke={line} strokeWidth="4" />
-            {[132, 382, 507, 632].map((x, i) => (
-                <line
-                    key={`subnormal-tick-${i}`}
-                    x1={x}
-                    y1="302"
-                    x2={x}
-                    y2="330"
-                    stroke={line}
-                    strokeWidth="4"
-                />
-            ))}
-            <SvgPoint cx={132} cy={316} r={8} fill={ink} stroke={c.bg} strokeWidth={3} />
-            <SvgPoint cx={382} cy={316} r={10} fill={warm} stroke={c.bg} strokeWidth={3} />
-            <SvgPoint cx={507} cy={316} r={10} fill={blue} stroke={c.bg} strokeWidth={3} />
-            <SvgPoint cx={632} cy={316} r={8} fill={ink} stroke={c.bg} strokeWidth={3} />
-
-            <line x1="132" y1="526" x2="632" y2="526" stroke={line} strokeWidth="4" />
-            <SvgPoint cx={132} cy={526} r={10} fill={warm} stroke={c.bg} strokeWidth={3} />
-            <SvgPoint cx={632} cy={526} r={10} fill={green} stroke={c.bg} strokeWidth={3} />
-            <VectorArrow
-                x1={382}
-                y1={332}
-                x2={150}
-                y2={510}
-                color={warm}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <VectorArrow
-                x1={507}
-                y1={332}
-                x2={614}
-                y2={510}
-                color={blue}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-
-            {/* One shared original-value transform: x=0 at 748, x=500 at 1128. */}
-            <line x1="748" y1="316" x2="1128" y2="316" stroke={line} strokeWidth="4" />
-            <line x1="748" y1="302" x2="748" y2="330" stroke={line} strokeWidth="4" />
-            <line x1="1088.48" y1="292" x2="1088.48" y2="340" stroke={critical} strokeWidth="5" />
-            <VectorArrow
-                x1={1119}
-                y1={316}
-                x2={1098}
-                y2={316}
-                color={warm}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <SvgPoint cx={1088.48} cy={316} r={10} fill={critical} stroke={c.bg} strokeWidth={3} />
-            <SvgPoint cx={1128} cy={316} r={9} fill={warm} stroke={c.bg} strokeWidth={3} />
-            <line x1="1088.48" y1="268" x2="1088.48" y2="291" stroke={critical} strokeWidth="3" />
-            <line x1="1128" y1="325" x2="1128" y2="349" stroke={warm} strokeWidth="3" />
-
-            <path d="M748 548 H1128" fill="none" stroke={line} strokeWidth="3" />
-            <circle cx="748" cy="548" r="8" fill={line} />
-            <circle cx="1088.48" cy="548" r="8" fill={critical} />
-            <circle cx="1128" cy="548" r="8" fill={warm} />
-        </svg>
-    )
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: (
-            <Board c={c} width={width} height={height}>
-                {svg}
-                <PaddedLabel
-                    c={c}
-                    x={42}
-                    y={24}
-                    width={1116}
-                    height={labelHeight(48)}
-                    text="Rounding meets the finite grid at both ends."
-                    size={48}
-                    weight={730}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={82}
-                    y={116}
-                    width={580}
-                    height={labelHeight(44)}
-                    text="Subnormal step d = 2⁻⁹"
-                    size={44}
-                    color={blue}
-                    weight={720}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={720}
-                    y={116}
-                    width={430}
-                    height={labelHeight(44)}
-                    text="Unscaled · S = 1"
-                    size={44}
-                    color={warm}
-                    weight={720}
-                />
-
-                <PaddedLabel
-                    c={c}
-                    x={82}
-                    y={225}
-                    width={116}
-                    height={labelHeight(42)}
-                    text="0"
-                    size={42}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={323}
-                    y={225}
-                    width={118}
-                    height={labelHeight(42)}
-                    text="0.5d"
-                    size={42}
-                    align="center"
-                    color={warm}
-                    paddingX={10}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={435}
-                    y={225}
-                    width={144}
-                    height={labelHeight(42)}
-                    text="0.75d"
-                    size={42}
-                    align="center"
-                    color={blue}
-                    paddingX={10}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={572}
-                    y={225}
-                    width={120}
-                    height={labelHeight(42)}
-                    text="d"
-                    size={42}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={82}
-                    y={548}
-                    width={340}
-                    height={labelHeight(42)}
-                    text="signed zero"
-                    size={42}
-                    color={warm}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={592}
-                    y={548}
-                    width={80}
-                    height={labelHeight(42)}
-                    text="d"
-                    size={42}
-                    color={green}
-                    align="center"
-                    paddingX={0}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={100}
-                    y={606}
-                    width={470}
-                    height={labelHeight(42)}
-                    text="RNE output"
-                    size={42}
-                    color={ink}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={86}
-                    y={675}
-                    width={528}
-                    height={labelHeight(42)}
-                    text="Tie selects signed zero."
-                    size={42}
-                />
-
-                <PaddedLabel
-                    c={c}
-                    x={984}
-                    y={202}
-                    width={208}
-                    height={labelHeight(42)}
-                    text="q = 448"
-                    size={42}
-                    color={critical}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={993}
-                    y={350}
-                    width={190}
-                    height={labelHeight(42)}
-                    text="x = 500"
-                    size={42}
-                    color={warm}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={708}
-                    y={336}
-                    width={104}
-                    height={labelHeight(42)}
-                    text="0"
-                    size={42}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={741}
-                    y={468}
-                    width={425}
-                    height={labelHeight(42)}
-                    text="500 → 448 → 448"
-                    size={42}
-                    weight={700}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={742}
-                    y={564}
-                    width={424}
-                    height={labelHeight(42)}
-                    text="Input · 0–500"
-                    size={42}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={718}
-                    y={620}
-                    width={445}
-                    height={labelHeight(42)}
-                    text="Round → mode"
-                    size={42}
-                />
-            </Board>
-        ),
+    // --- Left Zoom: Subnormal RNE [0, d] ---
+    fig.text(32, 22, 'Subnormal RNE boundary', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
     })
-})
+    fig.math(248, 22, 'd = 2^{-9}', { size: 14, color: blue })
 
-export const create = illustration.create
-export default illustration.default
+    const lLeft = 52
+    const lRight = 342
+    const lx = (t: number) => lLeft + t * (lRight - lLeft)
+    const topRulerY = 124
+    const botRulerY = 248
+
+    // Subtle shaded rounding zones on top ruler
+    fig.rect(lx(0), topRulerY - 11, lx(0.5) - lx(0), 22, {
+        fill: tint(warm, c.bg, theme === 'light' ? 0.14 : 0.2),
+        radius: 4,
+    })
+    fig.rect(lx(0.5), topRulerY - 11, lx(1) - lx(0.5), 22, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.14 : 0.2),
+        radius: 4,
+    })
+
+    // Top ruler (real input)
+    fig.line(lLeft, topRulerY, lRight, topRulerY, { color: c.textMuted, width: 2 })
+    fig.text(lLeft, topRulerY - 46, 'Real input', {
+        size: 12,
+        weight: 600,
+        color: c.textSecondary,
+    })
+
+    const subTicks = [
+        { t: 0, label: '0', color: c.textPrimary },
+        { t: 0.5, label: '0.5d', color: warm },
+        { t: 0.75, label: '0.75d', color: blue },
+        { t: 1, label: 'd', color: c.textPrimary },
+    ]
+    for (const st of subTicks) {
+        const px = lx(st.t)
+        fig.line(px, topRulerY - 10, px, topRulerY + 10, { color: st.color, width: 1.75 })
+        fig.circle(px, topRulerY, st.t === 0.5 || st.t === 0.75 ? 5.5 : 4, {
+            fill: st.color,
+            stroke: c.bg,
+            width: 1.75,
+        })
+        fig.text(px, topRulerY - 24, st.label, {
+            size: 13,
+            weight: 600,
+            color: st.color,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    // Bottom ruler (E4M3 output)
+    fig.line(lLeft, botRulerY, lRight, botRulerY, { color: c.textMuted, width: 2 })
+    fig.circle(lx(0), botRulerY, 5.5, { fill: warm, stroke: c.bg, width: 2 })
+    fig.circle(lx(1), botRulerY, 5.5, { fill: green, stroke: c.bg, width: 2 })
+    fig.text(lx(0), botRulerY + 24, '±0 (even)', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(lx(1), botRulerY + 24, 'd (odd)', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(lLeft, botRulerY + 52, 'RNE output: midpoint tie selects even code (±0)', {
+        size: 12,
+        color: c.textSecondary,
+    })
+
+    // Mapping arrows
+    fig.arrow(lx(0.5) - 4, topRulerY + 14, lx(0) + 10, botRulerY - 12, {
+        color: warm,
+        width: 2,
+        head: 6.5,
+    })
+    fig.text((lx(0.5) + lx(0)) / 2 - 36, (topRulerY + botRulerY) / 2 - 6, 'tie → ±0', {
+        size: 12,
+        weight: 600,
+        color: warm,
+        align: 'center',
+    })
+
+    fig.arrow(lx(0.75) + 4, topRulerY + 14, lx(1) - 8, botRulerY - 12, {
+        color: blue,
+        width: 2,
+        head: 6.5,
+    })
+    fig.text((lx(0.75) + lx(1)) / 2 + 44, (topRulerY + botRulerY) / 2 - 4, 'round → d', {
+        size: 12,
+        weight: 600,
+        color: blue,
+        align: 'center',
+    })
+
+    // Vertical divider
+    fig.line(386, 22, 386, 344, { color: c.borderSubtle, width: 1 })
+
+    // --- Right Zoom: Saturation ceiling at 448 (S = 1) ---
+    fig.text(412, 22, 'Finite ceiling saturation', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(728, 22, 'S = 1', {
+        size: 14,
+        weight: 600,
+        color: warm,
+        align: 'right',
+        mono: true,
+    })
+
+    const rLeft = 424
+    const rRight = 720
+    const rx = (v: number) => rLeft + (v / 550) * (rRight - rLeft)
+    const satY = 148
+
+    // Finite range band [0, 448] vs saturated zone (448, 550]
+    fig.rect(rx(0), satY - 12, rx(448) - rx(0), 24, {
+        fill: tint(green, c.bg, theme === 'light' ? 0.14 : 0.2),
+        radius: 4,
+    })
+    fig.rect(rx(448), satY - 12, rx(550) - rx(448), 24, {
+        fill: tint(red, c.bg, theme === 'light' ? 0.18 : 0.26),
+        radius: 4,
+    })
+
+    // Spine & ceiling wall
+    fig.line(rLeft, satY, rRight, satY, { color: c.textMuted, width: 2 })
+    fig.line(rx(0), satY - 10, rx(0), satY + 10, { color: c.textSecondary, width: 1.75 })
+    fig.line(rx(448), satY - 26, rx(448), satY + 26, { color: red, width: 2.5 })
+
+    fig.text(rx(0), satY + 26, '0', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(rx(224), satY - 24, 'Finite E4M3 [0, 448]', {
+        size: 12,
+        weight: 600,
+        color: green,
+        align: 'center',
+    })
+    fig.text(rx(448), satY - 40, 'max = 448', {
+        size: 13,
+        weight: 700,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
+
+    // Point at x = 500 clamping back to 448
+    fig.circle(rx(500), satY, 5.5, { fill: warm, stroke: c.bg, width: 2 })
+    fig.circle(rx(448), satY, 5.5, { fill: red, stroke: c.bg, width: 2 })
+    fig.text(rx(500), satY + 28, 'x = 500', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
+
+    // Curved clamp arrow 500 -> 448
+    fig.path(
+        `M${rx(500).toFixed(1)} ${(satY - 8).toFixed(1)} Q${rx(476).toFixed(1)} ${(satY - 34).toFixed(1)}, ${(rx(448) + 6).toFixed(1)} ${(satY - 10).toFixed(1)}`,
+        { color: warm, width: 2 },
+    )
+    fig.arrow(rx(460), satY - 19, rx(448) + 4, satY - 8, { color: warm, width: 2, head: 6 })
+
+    // Compact reconstruction trace below
+    const traceY = 252
+    const traceBox = (x: number, w: number, top: string, bot: string, tone: string) => {
+        fig.rect(x, traceY - 22, w, 46, {
+            fill: tint(tone, c.bg, theme === 'light' ? 0.14 : 0.24),
+            stroke: tone,
+            strokeWidth: 1.5,
+            radius: 6,
+        })
+        fig.text(x + w / 2, traceY - 6, top, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+        })
+        fig.text(x + w / 2, traceY + 12, bot, {
+            size: 14,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            mono: true,
+        })
+    }
+    traceBox(420, 82, 'Input', '500', warm)
+    fig.arrow(504, traceY, 526, traceY, { color: c.textMuted, width: 1.6, head: 5.5 })
+    traceBox(528, 86, 'E4M3 code', '448', red)
+    fig.arrow(616, traceY, 638, traceY, { color: c.textMuted, width: 1.6, head: 5.5 })
+    traceBox(640, 84, 'Restored', '448', red)
+
+    fig.text(572, 304, 'Clamps to finite max 448 (error −52, no NaN)', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
+}
+
+export default create

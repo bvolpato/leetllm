@@ -1,326 +1,212 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 840
+export const height = 400
 export const alt =
-    'Freshness invalidation across the ingestion lag gap. When the authoritative registry bumps policy from revision 2 to 3 before the search index re-indexes it, the retrieval gate detects the mismatch, excludes stale revision 2, and withholds publication until current evidence is available.'
-
-export const numericAnchors = {
-    initialPolicyRevision: 2,
-    updatedPolicyRevision: 3,
-    exceptionRevision: 1,
-}
+    'Asynchronous revision lag timeline across three states. At T1, the registry and search index both hold policy@2 and exception@1 so publication succeeds. At T2, the registry advances policy to revision 3 while the search index still serves policy@2, creating a lag gap. During this gap, the publication gate rejects stale policy@2 (leaving the policy slot empty while exception@1 stays filled) and withholds the answer until policy@3 lands at T3.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const redTone = getReadableToneColor('critical', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const red = fig.tone('critical')
+    const blue = fig.tone('blue')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const fill = (color: string, amt = 0.13) => tint(color, c.bg, amt)
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <defs>
-                        <marker
-                            id="gap-arr"
-                            viewBox="0 0 10 10"
-                            refX="6"
-                            refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
-                            orient="auto-start-reverse"
-                        >
-                            <path d="M 0 1 L 8 5 L 0 9 z" fill={c.textMuted} />
-                        </marker>
-                    </defs>
+    // Horizontal timeline geometry
+    const xStart = 176
+    const xT2 = 382
+    const xT3 = 636
+    const xEnd = 808
 
-                    {/* Top 3 Phase Cards */}
-                    <rect
-                        x={40}
-                        y={74}
-                        width={248}
-                        height={146}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={300}
-                        y={74}
-                        width={248}
-                        height={146}
-                        rx={8}
-                        fill={theme === 'dark' ? '#241b12' : '#fffbeb'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={560}
-                        y={74}
-                        width={260}
-                        height={146}
-                        rx={8}
-                        fill={theme === 'dark' ? '#241417' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
+    // Highlighted Lag Gap column (T2 -> T3)
+    fig.rect(xT2, 36, xT3 - xT2, 198, {
+        fill: fill(red, 0.08),
+        stroke: red,
+        strokeWidth: 1,
+        radius: 6,
+    })
+    fig.text((xT2 + xT3) / 2, 22, 'Ingestion Lag Window (rev 2 ≠ 3)', {
+        size: 13,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
+    fig.text((xStart + xT2) / 2, 22, 'T1: Synced', {
+        size: 13,
+        color: green,
+        align: 'center',
+        weight: 700,
+    })
+    fig.text((xT3 + xEnd) / 2, 22, 'T3: Reindexed', {
+        size: 13,
+        color: blue,
+        align: 'center',
+        weight: 700,
+    })
 
-                    {/* Arrows between phases */}
-                    <line
-                        x1={288}
-                        y1={147}
-                        x2={300}
-                        y2={147}
-                        stroke={c.textMuted}
-                        strokeWidth={1.5}
-                        markerEnd="url(#gap-arr)"
-                    />
-                    <line
-                        x1={548}
-                        y1={147}
-                        x2={560}
-                        y2={147}
-                        stroke={c.textMuted}
-                        strokeWidth={1.5}
-                        markerEnd="url(#gap-arr)"
-                    />
+    // Vertical phase lines
+    fig.line(xT2, 36, xT2, 240, { color: warm, width: 1.5, dash: '4 4' })
+    fig.line(xT3, 36, xT3, 240, { color: blue, width: 1.5, dash: '4 4' })
 
-                    {/* Middle Slot Boxes */}
-                    <rect
-                        x={40}
-                        y={254}
-                        width={370}
-                        height={100}
-                        rx={8}
-                        fill={theme === 'dark' ? '#241417' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={450}
-                        y={254}
-                        width={370}
-                        height={100}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
+    // Lane 1: Authority Registry (policy)
+    const yL1 = 56
+    fig.text(162, yL1 + 18, 'Registry (policy)', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'right',
+        weight: 700,
+    })
+    fig.rect(xStart, yL1, xT2 - xStart - 4, 36, {
+        fill: fill(green, 0.16),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 6,
+    })
+    fig.text((xStart + xT2 - 4) / 2, yL1 + 18, 'current_rev = 2', {
+        size: 12.5,
+        color: green,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
 
-                    {/* Bottom Guardrail Box */}
-                    <rect
-                        x={40}
-                        y={382}
-                        width={780}
-                        height={78}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    fig.rect(xT2 + 4, yL1, xEnd - xT2 - 4, 36, {
+        fill: fill(blue, 0.16),
+        stroke: blue,
+        strokeWidth: 1.4,
+        radius: 6,
+    })
+    fig.text((xT2 + 4 + xEnd) / 2, yL1 + 18, 'current_rev = 3  (bumped at T2)', {
+        size: 12.5,
+        color: blue,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Revision Freshness Gap: Ingestion Lag & Authority Invalidation',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Authoritative registries bump document revisions asynchronously; stale index hits must be invalidated before synthesis',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Lane 2: Search Index (policy)
+    const yL2 = 114
+    fig.text(162, yL2 + 18, 'Index (policy)', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'right',
+        weight: 700,
+    })
+    fig.rect(xStart, yL2, xT2 - xStart - 4, 36, {
+        fill: fill(green, 0.16),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 6,
+    })
+    fig.text((xStart + xT2 - 4) / 2, yL2 + 18, 'policy@2 (fresh)', {
+        size: 12.5,
+        color: green,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
 
-            {/* Three Chronological Phases */}
-            {/* Phase 1: T1 Synchronized */}
-            {label(52, 84, 230, 'PHASE 1: SYNCHRONIZED (T1)', 11, greenTone, 'left', 700)}
-            {label(52, 108, 230, 'Registry: policy @ revision 2', 12, c.textPrimary, 'left', 600)}
-            {label(52, 128, 230, 'Search Index: policy@2 (Fresh)', 11, greenTone, 'left', 500)}
-            {label(
-                52,
-                150,
-                230,
-                'Status: ELIGIBLE · Both policy@2 and exception@1 pass verification and publish.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.rect(xT2 + 4, yL2, xT3 - xT2 - 8, 36, {
+        fill: fill(red, 0.2),
+        stroke: red,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text((xT2 + xT3) / 2, yL2 + 18, 'policy@2 (STALE)', {
+        size: 12.5,
+        color: red,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
 
-            {/* Phase 2: T2 Update in Registry */}
-            {label(312, 84, 230, 'PHASE 2: REGISTRY BUMP (T2)', 11, warmTone, 'left', 700)}
-            {label(312, 108, 230, 'Registry: policy 2 → revision 3', 12, warmTone, 'left', 600)}
-            {label(312, 128, 230, 'Search Index: policy@2 (Lagging)', 11, redTone, 'left', 500)}
-            {label(
-                312,
-                150,
-                230,
-                'Status: CRAWL LAG · Source database updated; inverted index crawler has not finished indexing @3.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.rect(xT3 + 4, yL2, xEnd - xT3 - 4, 36, {
+        fill: fill(blue, 0.16),
+        stroke: blue,
+        strokeWidth: 1.3,
+        radius: 6,
+    })
+    fig.text((xT3 + 4 + xEnd) / 2, yL2 + 18, 'policy@3 (fresh)', {
+        size: 12.5,
+        color: blue,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
 
-            {/* Phase 3: T3 Invalidation Gate */}
-            {label(572, 84, 230, 'PHASE 3: PUBLICATION GATE (T3)', 11, redTone, 'left', 700)}
-            {label(572, 108, 230, 'Gate Check: rev 2 < required 3', 12, redTone, 'left', 600)}
-            {label(572, 128, 230, 'Action: policy@2 WITHHELD', 11, redTone, 'left', 500)}
-            {label(
-                572,
-                150,
-                230,
-                'Status: INCOMPLETE CONTEXT · Previous answers invalidated. Generator does not emit stale advice.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Lane 3: Exception (unchanged)
+    const yL3 = 172
+    fig.text(162, yL3 + 18, 'Index (exception)', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'right',
+        weight: 700,
+    })
+    fig.rect(xStart, yL3, xEnd - xStart, 36, {
+        fill: fill(green, 0.12),
+        stroke: green,
+        strokeWidth: 1.2,
+        radius: 6,
+    })
+    fig.text((xStart + xEnd) / 2, yL3 + 18, 'exception@1  (matches registry rev 1 throughout)', {
+        size: 12.5,
+        color: green,
+        align: 'center',
+        weight: 600,
+        mono: true,
+    })
 
-            {/* Middle Section: Slot Availability Comparison */}
-            {label(
-                40,
-                236,
-                780,
-                'EVIDENCE SLOT OCCUPANCY AT PUBLICATION TIME',
-                11,
-                c.textMuted,
-                'left',
-                700,
-            )}
+    // Arrow down from Lag Window into Publication Gate snapshot at T2
+    fig.arrow((xT2 + xT3) / 2, 234, (xT2 + xT3) / 2, 272, { color: red, width: 1.75, head: 6 })
 
-            {/* Slot 1: Policy */}
-            {label(52, 266, 350, 'Slot 1: Migration Policy', 12, redTone, 'left', 600)}
-            {label(
-                52,
-                286,
-                350,
-                'Index returned policy@2 → REJECTED (Stale against registry rev 3)',
-                11,
-                redTone,
-                'left',
-                500,
-            )}
-            {label(
-                52,
-                306,
-                350,
-                'Slot State: EMPTY (Waiting for ingestion pipeline to surface rev 3)',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Bottom: Evidence Slot Snapshot during T2 Lag Window
+    fig.text(32, 274, 'Publication Gate at T2:', { size: 13.5, color: c.textPrimary, weight: 700 })
 
-            {/* Slot 2: Exception */}
-            {label(462, 266, 350, 'Slot 2: Security Exception', 12, greenTone, 'left', 600)}
-            {label(
-                462,
-                286,
-                350,
-                'Index returned exception@1 → ACCEPTED (Matches current registry rev 1)',
-                11,
-                greenTone,
-                'left',
-                500,
-            )}
-            {label(
-                462,
-                306,
-                350,
-                'Slot State: FILLED (Intact condition qualifier)',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Slot 1: Policy (EMPTY / REJECTED)
+    fig.rect(32, 294, 246, 76, {
+        fill: fill(red, 0.1),
+        stroke: red,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(46, 316, 'Slot 1: policy -> EMPTY', { size: 13, color: red, weight: 700, mono: true })
+    fig.text(46, 340, 'policy@2 excluded (2 < 3)', { size: 12.5, color: c.textSecondary })
 
-            {/* Bottom Guardrail Box */}
-            {label(
-                52,
-                396,
-                756,
-                'Architecture Principle: Decoupled Authority from Index Freshness',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                416,
-                756,
-                'Indexes lag behind live document updates; online version checks block stale citations during indexing windows.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    // Slot 2: Exception (FILLED)
+    fig.rect(298, 294, 246, 76, {
+        fill: fill(green, 0.1),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(312, 316, 'Slot 2: exception@1', { size: 13, color: green, weight: 700, mono: true })
+    fig.text(312, 340, 'Current & authorized', { size: 12.5, color: c.textSecondary })
+
+    // Gate decision
+    fig.arrow(544, 332, 578, 332, { color: red, width: 1.75, head: 6 })
+    fig.rect(582, 294, 226, 76, {
+        fill: fill(red, 0.16),
+        stroke: red,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(695, 320, 'WITHHOLD ANSWER', {
+        size: 13.5,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
+    fig.text(695, 344, 'Required slot missing', {
+        size: 12.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create()

@@ -1,237 +1,202 @@
-import React from 'react'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Column,
-    Row,
-    Scene,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-} from 'vizmatic'
-import type { ThemeColors, ThemeMode } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 560
-export const height = 650
+export const width = 730
+export const height = 405
 export const alt =
-    'A toy SAE training trace plots reconstruction MSE 1.4259, 0.2370, 0.1564 and weighted L1 contribution 0.5167, 0.2931, 0.2830 at epochs 0, 100, 200. The completed 300-epoch run reports MSE 0.128 and 18.9 active latents of 64; held-out results are MSE 0.128, FVU 0.169, and 19.5 active latents. Median best absolute cosine against known generating directions changes only from 0.798 to 0.799.'
+    'Left: SAE training loss curves over 300 epochs for objective MSE + 5.0 * mean(|z|). Reconstruction MSE plunges from 1.4259 at epoch 0 to 0.2370 at epoch 100, 0.1564 at epoch 200, and 0.128 at epoch 300, while weighted L1 penalty drops from 0.5167 to 0.2931 and 0.2830. Right: before-and-after comparison shows train MSE falling 91% (1.426 to 0.128, held-out FVU 0.169, 19.5/64 active latents) while median best cosine alignment to the 24 true directions stays flat (0.798 to 0.799).'
 
-const plot = {
-    x: 92,
-    y: 4,
-    width: 420,
-    height: 208,
-    padding: 32,
-    xMin: 0,
-    xMax: 2,
-    yMin: 0,
-    yMax: 1.6,
-}
-const plotInnerWidth = plot.width - 2 * plot.padding
-const plotInnerHeight = plot.height - 2 * plot.padding
-const xAt = (value: number) =>
-    plot.x + plot.padding + ((value - plot.xMin) / (plot.xMax - plot.xMin)) * plotInnerWidth
-const yAt = (value: number) =>
-    plot.y + plot.padding + ((plot.yMax - value) / (plot.yMax - plot.yMin)) * plotInnerHeight
+const msePts: readonly [number, number][] = [
+    [0, 1.4259],
+    [100, 0.237],
+    [200, 0.1564],
+    [300, 0.128],
+]
+const l1Pts: readonly [number, number][] = [
+    [0, 0.5167],
+    [100, 0.2931],
+    [200, 0.283],
+]
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    width: number,
-    color = c.textPrimary,
-    fontSize = 19,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-): React.ReactElement {
-    return CanvasItem({
-        x,
-        y,
-        width,
-        height: Math.ceil(fontSize * 1.4),
-        children: TextLabel({ c, text, width, color, fontSize, fontWeight: 650, align, mono }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const isDark = theme === 'dark'
+
+    // ─── LEFT: Smooth training objective trajectories ───
+    fig.text(64, 20, 'Objective: MSE + 5.0 · mean(|z|)', {
+        size: 14.5,
+        color: c.textPrimary,
+        weight: 700,
     })
-}
 
-function checkpointPlot(c: ThemeColors): React.ReactElement {
-    const mse = getReadableToneColor('green', c, c.bg, c.bg)
-    const sparsity = getReadableToneColor('warm', c, c.bg, c.bg)
-    return Board({
-        c,
-        width: 560,
-        height: 282,
-        children: [
-            CanvasItem({
-                x: plot.x,
-                y: plot.y,
-                width: plot.width,
-                height: plot.height,
-                children: AxisPlot({
-                    c,
-                    width: plot.width,
-                    height: plot.height,
-                    padding: plot.padding,
-                    xMin: plot.xMin,
-                    xMax: plot.xMax,
-                    yMin: plot.yMin,
-                    yMax: plot.yMax,
-                    showFrame: false,
-                    showAxes: true,
-                    showGrid: true,
-                    gridCount: 3,
-                    paths: [
-                        {
-                            points: [
-                                { x: 0, y: 1.4259 },
-                                { x: 1, y: 0.237 },
-                                { x: 2, y: 0.1564 },
-                            ],
-                            color: mse,
-                            strokeWidth: 5,
-                        },
-                        {
-                            points: [
-                                { x: 0, y: 0.5167 },
-                                { x: 1, y: 0.2931 },
-                                { x: 2, y: 0.283 },
-                            ],
-                            color: sparsity,
-                            strokeWidth: 5,
-                        },
-                    ],
-                }),
-            }),
-            ...[0, 0.5, 1, 1.5].map((value) =>
-                label(
-                    c,
-                    value.toFixed(1),
-                    10,
-                    yAt(value) - 12,
-                    48,
-                    c.textSecondary,
-                    19,
-                    'right',
-                    true,
-                ),
-            ),
-            ...[
-                { x: 0, text: '0' },
-                { x: 1, text: '100' },
-                { x: 2, text: '200' },
-            ].map(({ x, text }) =>
-                label(c, text, xAt(x) - 28, 178, 56, c.textSecondary, 20, 'center', true),
-            ),
-            label(c, 'epoch', 246, 204, 72, c.textSecondary, 20, 'center'),
-            label(c, 'MSE', 12, 224, 60, mse, 20, 'left', true),
-            label(c, '1.4259', xAt(0) - 42, 224, 84, c.textPrimary, 20, 'center', true),
-            label(c, '0.2370', xAt(1) - 42, 224, 84, c.textPrimary, 20, 'center', true),
-            label(c, '0.1564', xAt(2) - 42, 224, 84, c.textPrimary, 20, 'center', true),
-            label(c, 'λL1', 12, 250, 60, sparsity, 20, 'left', true),
-            label(c, '0.5167', xAt(0) - 42, 250, 84, c.textPrimary, 20, 'center', true),
-            label(c, '0.2931', xAt(1) - 42, 250, 84, c.textPrimary, 20, 'center', true),
-            label(c, '0.2830', xAt(2) - 42, 250, 84, c.textPrimary, 20, 'center', true),
-        ],
-    })
-}
+    const plot = fig.plot({ x: 64, y: 52, width: 378, height: 278 }, { x: [-12, 318], y: [0, 1.62] })
 
-function metric(c: ThemeColors, name: string, value: string, color: string): React.ReactElement {
-    return Column({
-        width: 262,
-        gap: 3,
-        align: 'center',
-        children: [
-            TextLabel({
-                c,
-                text: name,
-                width: 262,
-                fontSize: 19,
-                color: c.textSecondary,
-                fontWeight: 650,
-                align: 'center',
-            }),
-            TextLabel({
-                c,
-                text: value,
-                width: 262,
-                fontSize: 24,
-                color,
-                fontWeight: 750,
-                align: 'center',
-                mono: true,
-            }),
-        ],
+    plot.axes({
+        xTicks: [0, 100, 200, 300],
+        yTicks: [0, 0.5, 1.0, 1.5],
+        yFormat: (v) => v.toFixed(1),
+        xLabel: 'Training epoch',
+        yLabel: 'Loss term',
+        labelSize: 13.5,
+        grid: true,
     })
-}
 
-export function create(theme: ThemeMode = 'dark'): React.ReactElement {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const mse = getReadableToneColor('green', c, c.bg, c.bg)
-    const alignment = getReadableToneColor('purple', c, c.bg, c.bg)
-    return Scene({
-        c,
-        title: 'Reconstruction improves; alignment stays flat',
-        subtitle: 'Toy SAE · separate the objective checkpoints from end-of-run diagnostics',
-        padding: 10,
-        gap: 8,
-        align: 'center',
-        contentWidth: 560,
-        children: Column({
-            width: 560,
-            gap: 8,
-            align: 'center',
-            children: [
-                TextLabel({
-                    c,
-                    text: 'Objective: MSE + 5.0 × mean(|z|)',
-                    width: 540,
-                    fontSize: 22,
-                    fontWeight: 750,
-                    color: c.textPrimary,
-                    align: 'center',
-                    mono: true,
-                }),
-                TextLabel({
-                    c,
-                    text: 'Checkpoint contributions · epochs 0, 100, 200',
-                    width: 540,
-                    fontSize: 19,
-                    color: c.textSecondary,
-                    align: 'center',
-                }),
-                checkpointPlot(c),
-                TextLabel({
-                    c,
-                    text: 'Full 300-epoch run and held-out check',
-                    width: 540,
-                    fontSize: 21,
-                    fontWeight: 700,
-                    color: c.textPrimary,
-                    align: 'center',
-                }),
-                Row({
-                    width: 540,
-                    gap: 12,
-                    justify: 'center',
-                    align: 'center',
-                    children: [
-                        metric(c, 'final train MSE', '1.426 → 0.128', mse),
-                        metric(c, 'median best |cos|', '0.798 → 0.799', alignment),
-                    ],
-                }),
-                TextLabel({
-                    c,
-                    text: 'Active latents: 18.9/64 train · 19.5/64 held out · FVU 0.169',
-                    width: 540,
-                    fontSize: 19,
-                    color: c.textSecondary,
-                    align: 'center',
-                    mono: true,
-                }),
-            ],
-        }),
+    // Smooth monotone cubic trajectories
+    plot.smoothCurve(msePts, { color: green, width: 2.8 })
+    plot.smoothCurve(l1Pts, { color: warm, width: 2.6, dash: '6 4' })
+
+    // Direct labels & markers for MSE checkpoints (spaced cleanly away from axes!)
+    const mseLabels = [
+        { x: 0, y: 1.4259, txt: '1.426', dx: 10, dy: -6, align: 'left' as const },
+        { x: 100, y: 0.237, txt: '0.237', dx: -6, dy: 18, align: 'center' as const },
+        { x: 200, y: 0.1564, txt: '0.156', dx: 0, dy: 18, align: 'center' as const },
+        { x: 300, y: 0.128, txt: '0.128', dx: -2, dy: -16, align: 'right' as const },
+    ]
+    for (const pt of mseLabels) {
+        fig.circle(plot.px(pt.x), plot.py(pt.y), 5.2, { fill: green, stroke: c.bg, width: 1.8 })
+        fig.text(plot.px(pt.x) + pt.dx, plot.py(pt.y) + pt.dy, pt.txt, {
+            size: 13,
+            color: green,
+            align: pt.align,
+            mono: true,
+            weight: 700,
+        })
+    }
+
+    // Direct labels & markers for λL1 checkpoints
+    const l1Labels = [
+        { x: 0, y: 0.5167, txt: '0.517', dx: 10, dy: -14, align: 'left' as const },
+        { x: 100, y: 0.2931, txt: '0.293', dx: 6, dy: -19, align: 'center' as const },
+        { x: 200, y: 0.283, txt: '0.283', dx: 10, dy: -14, align: 'left' as const },
+    ]
+    for (const pt of l1Labels) {
+        fig.circle(plot.px(pt.x), plot.py(pt.y), 4.8, { fill: warm, stroke: c.bg, width: 1.8 })
+        fig.text(plot.px(pt.x) + pt.dx, plot.py(pt.y) + pt.dy, pt.txt, {
+            size: 13,
+            color: warm,
+            align: pt.align,
+            mono: true,
+            weight: 700,
+        })
+    }
+
+    // Direct legend inside open upper-right space of plot
+    fig.line(plot.px(178), plot.py(1.38), plot.px(206), plot.py(1.38), { color: green, width: 2.8 })
+    fig.text(plot.px(214), plot.py(1.38), 'Reconstruction MSE', { size: 13.5, color: green, weight: 700 })
+    fig.line(plot.px(178), plot.py(1.2), plot.px(206), plot.py(1.2), {
+        color: warm,
+        width: 2.6,
+        dash: '6 4',
     })
+    fig.text(plot.px(214), plot.py(1.2), 'Sparsity λL1', { size: 13.5, color: warm, weight: 700 })
+
+    // Vertical divider
+    fig.line(466, 24, 466, 376, { color: c.borderSubtle, width: 1 })
+
+    // ─── RIGHT: End-of-run contrast (MSE plunges, alignment stays flat) ───
+    const rx = 488
+    const rw = 224
+    fig.text(rx, 20, 'Epoch 0 → 300 diagnostics', {
+        size: 14.5,
+        color: c.textPrimary,
+        weight: 700,
+    })
+
+    // Bar pair 1: Train MSE (1.426 -> 0.128) on 0..1.5 scale
+    fig.text(rx, 66, 'Train MSE  (−91%)', { size: 14, color: green, weight: 700 })
+    const mseScale = (v: number) => Math.max(6, (v / 1.5) * rw)
+    // Epoch 0 bar
+    fig.rect(rx, 84, mseScale(1.426), 18, {
+        fill: tint(green, c.bg, 0.18),
+        stroke: c.borderLight,
+        strokeWidth: 1,
+        radius: 3,
+    })
+    fig.text(rx + mseScale(1.426) - 6, 93, 'ep 0: 1.426', {
+        size: 12.5,
+        color: c.textSecondary,
+        align: 'right',
+        mono: true,
+        weight: 600,
+    })
+    // Epoch 300 bar
+    fig.rect(rx, 108, mseScale(0.128), 20, {
+        fill: tint(green, c.bg, isDark ? 0.5 : 0.34),
+        stroke: green,
+        strokeWidth: 1.7,
+        radius: 3,
+    })
+    fig.text(rx + mseScale(0.128) + 8, 118, 'ep 300: 0.128', {
+        size: 13.5,
+        color: green,
+        mono: true,
+        weight: 700,
+    })
+
+    // Bar pair 2: Median alignment |cos| to 24 true directions (0.798 -> 0.799) on 0..1.0 scale
+    fig.text(rx, 174, 'Median |cos| to 24 true dirs', { size: 14, color: purple, weight: 700 })
+    const cosScale = (v: number) => Math.max(6, v * rw)
+    // Epoch 0 bar
+    fig.rect(rx, 192, cosScale(0.798), 18, {
+        fill: tint(purple, c.bg, 0.18),
+        stroke: c.borderLight,
+        strokeWidth: 1,
+        radius: 3,
+    })
+    fig.text(rx + cosScale(0.798) - 6, 201, 'ep 0: 0.798', {
+        size: 12.5,
+        color: c.textSecondary,
+        align: 'right',
+        mono: true,
+        weight: 600,
+    })
+    // Epoch 300 bar
+    fig.rect(rx, 216, cosScale(0.799), 20, {
+        fill: tint(purple, c.bg, isDark ? 0.46 : 0.3),
+        stroke: purple,
+        strokeWidth: 1.7,
+        radius: 3,
+    })
+    fig.text(rx + cosScale(0.799) - 6, 226, 'ep 300: 0.799', {
+        size: 13,
+        color: isDark ? '#ffffff' : c.textPrimary,
+        align: 'right',
+        mono: true,
+        weight: 700,
+    })
+    fig.text(rx, 252, '+0.001 change · virtually flat', {
+        size: 13,
+        color: purple,
+        weight: 600,
+    })
+
+    fig.line(rx, 276, rx + rw, 276, { color: c.borderSubtle, width: 1 })
+
+    // Compact held-out verification readouts
+    fig.text(rx, 300, 'Held-out check (ep 300)', { size: 13.5, color: c.textPrimary, weight: 700 })
+    fig.text(rx, 324, 'MSE: 0.128  ·  FVU: 0.169', {
+        size: 13.5,
+        color: c.textSecondary,
+        mono: true,
+        weight: 600,
+    })
+    fig.text(rx, 348, 'Active latents (of 64):', {
+        size: 13,
+        color: c.textSecondary,
+        weight: 600,
+    })
+    fig.text(rx, 368, '18.9 train  ·  19.5 held-out', {
+        size: 13,
+        color: c.textPrimary,
+        mono: true,
+        weight: 600,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

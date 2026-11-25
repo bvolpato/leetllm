@@ -1,284 +1,253 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 560
-export const height = 690
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const width = 760
+export const height = 450
 export const alt =
-    'For the query inference-api latency SLO, lexical search counts three matching terms in record 3155, two in 1842, and none in 2031, so top-two retrieval selects 3155 and 1842. Following the graph path inference-api to Redis Cache to Old Maxmemory Policy adds 2031. Annotated recall rises from 2/3 to 3/3; evaluate dense retrieval and causal attribution separately.'
+    'For the query inference-api latency SLO, lexical top-2 retrieval scores 3 matching terms in Record 3155, 2 in Record 1842, and 0 in Record 2031, selecting 3155 and 1842 for 2/3 recall. On the right, following the directed graph path inference-api to Redis Cache (source 1842) to Old Maxmemory Policy (source 2031) recovers Record 2031 and lifts evidence recall from 2/3 to 3/3.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const lexical = getReadableToneColor('blue', c, c.bg)
-    const retrieved = getReadableToneColor('green', c, c.bg)
-    const added = getReadableToneColor('purple', c, c.bg)
-    const omitted = getReadableToneColor('critical', c, c.bg)
-    const muted = getReadableToneColor('neutral', c, c.bg)
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 20,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <SvgFrame
-                        c={c}
-                        x={20}
-                        y={130}
-                        width={520}
-                        height={42}
-                        rx={6}
-                        fill={c.bgCard}
-                        stroke={muted}
-                        strokeWidth={1.2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={20}
-                        y={178}
-                        width={520}
-                        height={42}
-                        rx={6}
-                        fill={c.bgCard}
-                        stroke={muted}
-                        strokeWidth={1.2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={20}
-                        y={226}
-                        width={520}
-                        height={42}
-                        rx={6}
-                        fill={c.bgCard}
-                        stroke={muted}
-                        strokeWidth={1.2}
-                    />
-                    <rect x={122} y={144} width={120} height={12} rx={6} fill={c.border} />
-                    <rect x={122} y={144} width={120} height={12} rx={6} fill={lexical} />
-                    <rect x={122} y={192} width={120} height={12} rx={6} fill={c.border} />
-                    <rect x={122} y={192} width={80} height={12} rx={6} fill={lexical} />
-                    <rect x={122} y={240} width={120} height={12} rx={6} fill={c.border} />
+    // ── Top Query Strip ──────────────────────────────────────────────────────
+    fig.text(20, 20, 'Query:', { size: 14, weight: 700, color: c.textSecondary })
+    fig.rect(74, 6, 246, 28, {
+        fill: withColorAlpha(blue, 0.14),
+        stroke: withColorAlpha(blue, 0.6),
+        strokeWidth: 1.3,
+        radius: 6,
+    })
+    fig.text(197, 20, 'inference-api latency SLO', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(width - 20, 20, 'Required evidence: {3155, 1842, 2031}', {
+        size: 13,
+        mono: true,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'right',
+    })
+    fig.line(20, 46, width - 20, 46, { color: c.borderSubtle, width: 1 })
 
-                    <line x1={20} y1={288} x2={540} y2={288} stroke={c.border} strokeWidth={1.5} />
-                    <SvgFrame
-                        c={c}
-                        x={8}
-                        y={328}
-                        width={148}
-                        height={64}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={lexical}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={206}
-                        y={328}
-                        width={148}
-                        height={64}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={retrieved}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={404}
-                        y={328}
-                        width={148}
-                        height={64}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={added}
-                        strokeWidth={2}
-                    />
-                    <VectorArrow
-                        x1={159}
-                        y1={360}
-                        x2={201}
-                        y2={360}
-                        color={retrieved}
-                        strokeWidth={2.2}
-                        arrowSize={4}
-                    />
-                    <VectorArrow
-                        x1={357}
-                        y1={360}
-                        x2={399}
-                        y2={360}
-                        color={added}
-                        strokeWidth={2.2}
-                        arrowSize={4}
-                    />
+    // ── Left: Lexical Top-2 Ranking ──────────────────────────────────────────
+    const lx = 20
+    const lw = 336
 
-                    <line x1={20} y1={430} x2={540} y2={430} stroke={c.border} strokeWidth={1.5} />
-                    <SvgFrame
-                        c={c}
-                        x={208}
-                        y={530}
-                        width={54}
-                        height={28}
-                        rx={14}
-                        fill={retrieved}
-                        stroke={retrieved}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={274}
-                        y={530}
-                        width={54}
-                        height={28}
-                        rx={14}
-                        fill={c.bgCard}
-                        stroke={omitted}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={340}
-                        y={530}
-                        width={54}
-                        height={28}
-                        rx={14}
-                        fill={retrieved}
-                        stroke={retrieved}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={208}
-                        y={606}
-                        width={54}
-                        height={28}
-                        rx={14}
-                        fill={retrieved}
-                        stroke={retrieved}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={274}
-                        y={606}
-                        width={54}
-                        height={28}
-                        rx={14}
-                        fill={retrieved}
-                        stroke={retrieved}
-                        strokeWidth={2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={340}
-                        y={606}
-                        width={54}
-                        height={28}
-                        rx={14}
-                        fill={retrieved}
-                        stroke={retrieved}
-                        strokeWidth={2}
-                    />
-                </svg>
-            </CanvasItem>
+    fig.text(lx, 68, 'Lexical Top-2 Retrieval', { size: 16, weight: 700, color: blue })
+    fig.text(lx, 90, 'Counts shared query terms per record', { size: 13, color: c.textSecondary })
 
-            {label(
-                20,
-                10,
-                520,
-                'Graph expansion adds the missed record',
-                26,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(20, 52, 520, 'Query · inference-api latency SLO', 20, c.textSecondary)}
-            {label(
-                20,
-                93,
-                520,
-                'Lexical overlap · top two records are retrieved',
-                20,
-                lexical,
-                'left',
-                650,
-            )}
+    const lexRows = [
+        { id: '3155', terms: 3, status: '#1 kept', kept: true },
+        { id: '1842', terms: 2, status: '#2 kept', kept: true },
+        { id: '2031', terms: 0, status: 'missed', kept: false },
+    ] as const
 
-            {label(28, 137, 84, '3155', 20, c.textPrimary, 'left', 650)}
-            {label(252, 137, 112, '3 terms', 20, c.textPrimary, 'left', 600)}
-            {label(390, 137, 136, 'in top two', 20, retrieved, 'right', 650)}
-            {label(28, 185, 84, '1842', 20, c.textPrimary, 'left', 650)}
-            {label(252, 185, 112, '2 terms', 20, c.textPrimary, 'left', 600)}
-            {label(390, 185, 136, 'in top two', 20, retrieved, 'right', 650)}
-            {label(28, 233, 84, '2031', 20, c.textPrimary, 'left', 650)}
-            {label(252, 233, 112, '0 terms', 20, c.textSecondary, 'left', 600)}
-            {label(390, 233, 136, 'omitted', 20, omitted, 'right', 650)}
+    const barX = lx + 64
+    const barW = 148
+    lexRows.forEach((row, idx) => {
+        const ry = 132 + idx * 54
+        const col = row.kept ? green : red
+        fig.text(lx, ry, row.id, {
+            size: 15,
+            mono: true,
+            weight: 700,
+            color: row.kept ? c.textPrimary : red,
+        })
 
-            {label(20, 296, 520, 'Supplied, directed path', 20, c.textSecondary, 'left', 600)}
-            {label(12, 341, 140, 'inference-api', 20, c.textPrimary, 'center', 650)}
-            {label(210, 341, 140, 'Redis Cache', 20, c.textPrimary, 'center', 650)}
-            {label(408, 336, 140, 'maxmemory', 20, c.textPrimary, 'center', 650)}
-            {label(408, 362, 140, 'policy', 20, c.textPrimary, 'center', 650)}
-            {label(20, 397, 185, 'depends_on · 1842', 20, lexical, 'center', 600)}
-            {label(210, 397, 190, 'uses_policy · 2031', 20, added, 'center', 600)}
-            {label(
-                20,
-                439,
-                520,
-                'Annotated evidence recall · baseline vs graph',
-                20,
-                c.textPrimary,
-                'left',
-                650,
-            )}
-            {label(20, 474, 170, 'Lexical top two', 20, c.textSecondary)}
-            {label(20, 572, 170, 'After expansion', 20, c.textSecondary)}
-            {label(408, 474, 120, '2 / 3', 20, omitted, 'right', 700)}
-            {label(408, 572, 120, '3 / 3', 20, retrieved, 'right', 700)}
-            {label(205, 502, 60, '1842', 20, c.textSecondary, 'center', 600)}
-            {label(271, 502, 60, '2031', 20, c.textSecondary, 'center', 600)}
-            {label(337, 502, 60, '3155', 20, c.textSecondary, 'center', 600)}
-            {label(
-                20,
-                650,
-                520,
-                'Evaluation view · lexical ranking + graph expansion',
-                19,
-                c.textSecondary,
-            )}
-        </Board>
-    )
+        // Bar track (0..3 terms)
+        fig.rect(barX, ry - 9, barW, 18, {
+            fill: tint(c.border, c.bg, 0.28),
+            radius: 4,
+        })
+        if (row.terms > 0) {
+            fig.rect(barX, ry - 9, (row.terms / 3) * barW, 18, {
+                fill: blue,
+                opacity: 0.88,
+                radius: 4,
+            })
+        }
+
+        fig.text(barX + barW + 10, ry, `${row.terms}/3`, {
+            size: 13,
+            mono: true,
+            weight: 700,
+            color: row.kept ? blue : c.textMuted,
+        })
+        fig.text(lx + lw, ry, row.status, {
+            size: 13,
+            weight: 700,
+            color: col,
+            align: 'right',
+        })
+    })
+
+    fig.text(lx, 294, 'Record 2031 mentions neither "inference-api" nor "latency"', {
+        size: 12,
+        color: c.textMuted,
+    })
+
+    // Vertical hairline divider
+    fig.line(376, 56, 376, 434, { color: c.borderSubtle, width: 1 })
+
+    // ── Right: Directed Graph Expansion Walk ─────────────────────────────────
+    const rx = 398
+    const rw = 342
+    fig.text(rx, 68, 'Graph Expansion Walk', { size: 16, weight: 700, color: purple })
+    fig.text(rx, 90, 'Seed from Record 1842, follow 2 directed edges', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    // Compact vertical-stepped graph inside right column
+    const gx = rx + 12
+    const gnW = 200
+    const gnH = 44
+
+    // Node 1: inference-api
+    const g1Y = 114
+    fig.rect(gx, g1Y, gnW, gnH, {
+        fill: withColorAlpha(blue, 0.14),
+        stroke: blue,
+        strokeWidth: 1.7,
+        radius: 8,
+    })
+    fig.text(gx + gnW / 2, g1Y + 22, 'inference-api', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(gx + gnW + 14, g1Y + 22, 'seed entity', { size: 12, color: c.textSecondary })
+
+    // Edge 1: depends_on · 1842
+    const g2Y = 186
+    fig.arrow(gx + gnW / 2, g1Y + gnH + 3, gx + gnW / 2, g2Y - 3, {
+        color: green,
+        width: 2,
+        head: 7,
+    })
+    fig.text(gx + gnW / 2 + 14, (g1Y + gnH + g2Y) / 2, 'depends_on · src 1842', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: green,
+    })
+
+    // Node 2: Redis Cache
+    fig.rect(gx, g2Y, gnW, gnH, {
+        fill: withColorAlpha(green, 0.15),
+        stroke: green,
+        strokeWidth: 1.7,
+        radius: 8,
+    })
+    fig.text(gx + gnW / 2, g2Y + 22, 'Redis Cache', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(gx + gnW + 14, g2Y + 22, 'bridge node', { size: 12, color: c.textSecondary })
+
+    // Edge 2: uses_policy · 2031
+    const g3Y = 258
+    fig.arrow(gx + gnW / 2, g2Y + gnH + 3, gx + gnW / 2, g3Y - 3, {
+        color: purple,
+        width: 2,
+        head: 7,
+    })
+    fig.text(gx + gnW / 2 + 14, (g2Y + gnH + g3Y) / 2, 'uses_policy · src 2031', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: purple,
+    })
+
+    // Node 3: Old Maxmemory Policy -> pulls Rec 2031!
+    fig.rect(gx, g3Y, gnW, gnH, {
+        fill: withColorAlpha(purple, 0.16),
+        stroke: purple,
+        strokeWidth: 1.8,
+        radius: 8,
+    })
+    fig.text(gx + gnW / 2, g3Y + 22, 'Old Maxmemory Policy', {
+        size: 13,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+    fig.rect(gx + gnW + 12, g3Y + 8, 108, 28, {
+        fill: withColorAlpha(warm, 0.18),
+        stroke: warm,
+        strokeWidth: 1.4,
+        radius: 14,
+    })
+    fig.text(gx + gnW + 66, g3Y + 22, '+ Rec 2031', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    // ── Bottom Aligned Recall Comparison Strips ──────────────────────────────
+    const recStripY = 344
+    const drawRecallStrip = (
+        sx: number,
+        sw: number,
+        heading: string,
+        score: string,
+        scoreColor: string,
+        present: readonly boolean[],
+    ) => {
+        fig.line(sx, recStripY - 12, sx + sw, recStripY - 12, { color: c.borderSubtle, width: 1 })
+        fig.text(sx, recStripY + 10, heading, { size: 14, weight: 700, color: c.textPrimary })
+        fig.text(sx + sw, recStripY + 10, score, {
+            size: 16,
+            mono: true,
+            weight: 800,
+            color: scoreColor,
+            align: 'right',
+        })
+
+        const ids = ['3155', '1842', '2031'] as const
+        const pillW = 96
+        const pillGap = 16
+        ids.forEach((id, i) => {
+            const px = sx + i * (pillW + pillGap)
+            const ok = present[i]!
+            const col = ok ? green : red
+            fig.rect(px, recStripY + 34, pillW, 38, {
+                fill: ok ? withColorAlpha(green, 0.18) : withColorAlpha(red, 0.08),
+                stroke: col,
+                strokeWidth: 1.6,
+                radius: 8,
+            })
+            fig.text(px + pillW / 2, recStripY + 53, ok ? `${id} · hit` : `${id} · miss`, {
+                size: 13,
+                mono: true,
+                weight: 700,
+                color: col,
+                align: 'center',
+            })
+        })
+    }
+
+    drawRecallStrip(lx, lw, 'Baseline Recall', '2 / 3', red, [true, true, false])
+    drawRecallStrip(rx, rw, 'After Graph Expansion', '3 / 3', green, [true, true, true])
+
+    return fig.render()
 }
 
 export default create('dark')

@@ -1,322 +1,148 @@
-import React from 'react'
-import {
-    AxisPlot,
-    BadgePill,
-    Board,
-    CanvasItem,
-    Column,
-    Panel,
-    Row,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorSegment,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 540
+export const width = 760
+export const height = 370
 export const alt =
-    'The measured validation cross-entropy trace falls across updates 1, 41, 81, 161, 241, and 321, from 9.535 to 5.550 nats per token; a separate dashed line marks the analytic uniform reference ln(17,485) = 9.769. At update 81, validation loss is 6.050 and next-token accuracy is 17.1%; at update 321 they are 5.550 and 18.3%. The two text excerpts come from one sample at each checkpoint under the same prompt and decoding settings: “And the I the” and “And it .” early, then “I is the king :” and “The lord ?”. The loss estimate averages eight validation batches and 4,608 positions that may overlap, from one CPU run. The later prose still contains grammar errors and repetition.'
+    'Validation cross-entropy falls from the 9.769 uniform baseline (ln 17,485) to 6.050 at step 81 (17.1% accuracy, fragmented stopwords "And the I the and the to ...") and 5.550 at step 321 (18.3% accuracy, short Shakespearean clauses "And it is the king : the lord ? ...").'
 
-const points = [
-    { update: 1, loss: 9.535 },
-    { update: 41, loss: 6.416 },
-    { update: 81, loss: 6.05 },
-    { update: 161, loss: 5.747 },
-    { update: 241, loss: 5.721 },
-    { update: 321, loss: 5.55 },
+const points: readonly (readonly [number, number])[] = [
+    [1, 9.535],
+    [41, 6.416],
+    [81, 6.05],
+    [161, 5.747],
+    [241, 5.721],
+    [321, 5.55],
 ]
 
-function leftLossTraceBoard(c: ThemeColors) {
-    const w = 410
-    const h = 420
-    const cyan = getReadableToneColor('cyan', c)
-    const warm = getReadableToneColor('warm', c)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const muted = c.textSecondary
 
-    const plotX = 54
-    const plotY = 40
-    const plotW = 330
-    const plotH = 300
+    // Left: Validation Cross-Entropy Curve
+    fig.text(24, 22, 'Validation cross-entropy (nats / token)', { size: 14, weight: 700 })
+    const area = { x: 64, y: 58, width: 342, height: 248 }
+    const plot = fig.plot(area, { x: [0, 340], y: [5.0, 10.2] })
 
-    // X: 1 to 321
-    const sx = (u: number) => plotX + ((u - 1) / 320) * plotW
-    // Y: 5.0 to 10.0
-    const sy = (l: number) => plotY + ((10.0 - l) / 5.0) * plotH
-
-    const uniformY = sy(9.769)
-
-    const pathPoints = points.map((p) => ({ x: sx(p.update), y: sy(p.loss) }))
-
-    const label = (
-        x: number,
-        y: number,
-        width: number,
-        text: string,
-        fontSize = 13,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'center',
-    ) => (
-        <CanvasItem x={x} y={y} width={width} height={22}>
-            <TextLabel
-                c={c}
-                text={text}
-                width={width}
-                fontSize={fontSize}
-                color={color}
-                mono
-                align={align}
-            />
-        </CanvasItem>
-    )
-
-    return (
-        <Board c={c} width={w} height={h}>
-            <CanvasItem x={0} y={0} width={w} height={h}>
-                <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-                    {/* Uniform reference dashed line */}
-                    <line
-                        x1={plotX}
-                        y1={uniformY}
-                        x2={plotX + plotW}
-                        y2={uniformY}
-                        stroke={warm}
-                        strokeWidth={1.5}
-                        strokeDasharray="4 4"
-                    />
-
-                    {/* Y-axis ticks */}
-                    {[10.0, 8.0, 6.0].map((v) => (
-                        <VectorSegment
-                            key={v}
-                            x1={plotX}
-                            y1={sy(v)}
-                            x2={plotX + plotW}
-                            y2={sy(v)}
-                            color={c.borderLight}
-                            strokeWidth={1}
-                            showStartDot={false}
-                            showEndDot={false}
-                        />
-                    ))}
-
-                    {/* Loss path */}
-                    <path
-                        d={`M ${pathPoints.map((p) => `${p.x} ${p.y}`).join(' L ')}`}
-                        fill="none"
-                        stroke={cyan}
-                        strokeWidth={2.5}
-                    />
-
-                    {/* Points */}
-                    {points.map((p) => (
-                        <circle
-                            key={p.update}
-                            cx={sx(p.update)}
-                            cy={sy(p.loss)}
-                            r={5}
-                            fill={cyan}
-                        />
-                    ))}
-                </svg>
-            </CanvasItem>
-
-            {/* Labels */}
-            {label(10, uniformY - 11, 40, '9.77', 12, warm, 'right')}
-            {label(10, sy(8.0) - 11, 40, '8.0', 12, c.textSecondary, 'right')}
-            {label(10, sy(6.0) - 11, 40, '6.0', 12, c.textSecondary, 'right')}
-
-            {label(plotX - 15, plotY + plotH + 8, 30, '1', 12, c.textSecondary)}
-            {label(sx(81) - 15, plotY + plotH + 8, 30, '81', 12, c.textSecondary)}
-            {label(sx(161) - 15, plotY + plotH + 8, 30, '161', 12, c.textSecondary)}
-            {label(sx(241) - 15, plotY + plotH + 8, 30, '241', 12, c.textSecondary)}
-            {label(sx(321) - 25, plotY + plotH + 8, 50, '321', 12, c.textSecondary)}
-
-            {label(plotX, 10, plotW, 'Uniform reference: ln(17,485) = 9.769', 13, warm, 'left')}
-            {label(plotX, 386, plotW, 'Training Step / Update', 13, c.textSecondary, 'center')}
-        </Board>
-    )
-}
-
-function rightSampleCards(c: ThemeColors) {
-    return Column({
-        gap: 12,
-        align: 'stretch',
-        children: [
-            Panel({
-                c,
-                width: 374,
-                padding: 10,
-                gap: 6,
-                tone: 'warm',
-                title: 'Early Stage (Update 81)',
-                titleFontSize: 16,
-                children: Column({
-                    gap: 6,
-                    align: 'stretch',
-                    children: [
-                        Row({
-                            gap: 8,
-                            justify: 'space-between',
-                            children: [
-                                BadgePill({
-                                    c,
-                                    text: 'Loss: 6.050 nats',
-                                    tone: 'warm',
-                                    fontSize: 13,
-                                    height: 23,
-                                }),
-                                BadgePill({
-                                    c,
-                                    text: 'Accuracy: 17.1%',
-                                    tone: 'neutral',
-                                    fontSize: 13,
-                                    height: 23,
-                                }),
-                            ],
-                        }),
-                        TextLabel({
-                            c,
-                            text: 'Prompt: "And "',
-                            width: 350,
-                            fontSize: 13,
-                            color: c.textSecondary,
-                        }),
-                        Panel({
-                            c,
-                            width: 354,
-                            padding: 6,
-                            gap: 2,
-                            tone: 'neutral',
-                            title: 'Sample Output',
-                            titleFontSize: 13,
-                            children: TextLabel({
-                                c,
-                                text: '"And the I the and the to ..."',
-                                width: 338,
-                                fontSize: 13,
-                                color: c.textPrimary,
-                                mono: true,
-                            }),
-                        }),
-                        TextLabel({
-                            c,
-                            text: 'Frequent unigram words emerge; syntax and discourse remain degenerate.',
-                            width: 350,
-                            fontSize: 12,
-                            color: c.textSecondary,
-                        }),
-                    ],
-                }),
-            }),
-            Panel({
-                c,
-                width: 374,
-                padding: 10,
-                gap: 6,
-                tone: 'green',
-                title: 'Converged Stage (Update 321)',
-                titleFontSize: 16,
-                children: Column({
-                    gap: 6,
-                    align: 'stretch',
-                    children: [
-                        Row({
-                            gap: 8,
-                            justify: 'space-between',
-                            children: [
-                                BadgePill({
-                                    c,
-                                    text: 'Loss: 5.550 nats',
-                                    tone: 'green',
-                                    fontSize: 13,
-                                    height: 23,
-                                }),
-                                BadgePill({
-                                    c,
-                                    text: 'Accuracy: 18.3%',
-                                    tone: 'neutral',
-                                    fontSize: 13,
-                                    height: 23,
-                                }),
-                            ],
-                        }),
-                        TextLabel({
-                            c,
-                            text: 'Prompt: "And "',
-                            width: 350,
-                            fontSize: 13,
-                            color: c.textSecondary,
-                        }),
-                        Panel({
-                            c,
-                            width: 354,
-                            padding: 6,
-                            gap: 2,
-                            tone: 'neutral',
-                            title: 'Sample Output',
-                            titleFontSize: 13,
-                            children: TextLabel({
-                                c,
-                                text: '"And it is the king : the lord ? ..."',
-                                width: 338,
-                                fontSize: 13,
-                                color: c.textPrimary,
-                                mono: true,
-                            }),
-                        }),
-                        TextLabel({
-                            c,
-                            text: 'Archaic English dialogue rhythm and punctuation patterns emerge.',
-                            width: 350,
-                            fontSize: 12,
-                            color: c.textSecondary,
-                        }),
-                    ],
-                }),
-            }),
-        ],
+    plot.axes({
+        xTicks: [1, 81, 161, 241, 321],
+        yTicks: [5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+        xLabel: 'Optimizer step',
+        grid: true,
+        labelSize: 12,
+        yFormat: (v) => v.toFixed(1),
     })
+
+    // Uniform reference baseline ln(17,485) = 9.769
+    plot.hline(9.769, 'Uniform ln(17,485) = 9.77', {
+        color: warm,
+        dash: '5 4',
+        width: 1.5,
+        labelPosition: 'right',
+        labelOffset: 10,
+        labelSize: 12,
+    })
+
+    plot.fillArea(points, { baseline: 5.0, fill: cyan, fillOpacity: 0.08, stroke: false })
+    plot.curve(points, { color: cyan, width: 2.8 })
+
+    points.forEach(([x, y]) => {
+        const is81 = x === 81
+        const is321 = x === 321
+        const col = is81 ? warm : is321 ? green : cyan
+        plot.point(x, y, { color: col, r: is81 || is321 ? 6 : 4 })
+    })
+
+    // Direct callout labels for key checkpoints on plot
+    fig.text(plot.px(81) + 10, plot.py(6.05) - 18, 'Step 81: 6.050', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: warm,
+    })
+    fig.text(plot.px(321) - 6, plot.py(5.55) - 18, 'Step 321: 5.550', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+
+    // Right: Two crisp checkpoint sample cards (linked visually to steps 81 and 321)
+    const rx = 438
+    const rw = 300
+
+    // Checkpoint 1: Update 81
+    const c1Y = 58
+    fig.rect(rx, c1Y, rw, 124, {
+        fill: tint(warm, c.bg, 0.08),
+        stroke: tint(warm, c.bg, 0.45),
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(rx + 14, c1Y + 20, 'Step 81 · Early checkpoint', {
+        size: 14,
+        weight: 700,
+        color: warm,
+    })
+    fig.text(rx + 14, c1Y + 42, 'Loss 6.050 nats  ·  Acc 17.1%', {
+        size: 12,
+        mono: true,
+        color: muted,
+    })
+    fig.rect(rx + 14, c1Y + 56, rw - 28, 34, {
+        fill: tint(c.textMuted, c.bg, 0.08),
+        radius: 5,
+    })
+    fig.text(rx + 22, c1Y + 73, '“And the I the and the to …”', {
+        size: 12,
+        mono: true,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rx + 14, c1Y + 106, 'Frequent stopwords only; syntax absent', {
+        size: 12,
+        color: muted,
+    })
+
+    // Checkpoint 2: Update 321
+    const c2Y = 204
+    fig.rect(rx, c2Y, rw, 124, {
+        fill: tint(green, c.bg, 0.08),
+        stroke: tint(green, c.bg, 0.45),
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(rx + 14, c2Y + 20, 'Step 321 · Later checkpoint', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+    fig.text(rx + 14, c2Y + 42, 'Loss 5.550 nats  ·  Acc 18.3%', {
+        size: 12,
+        mono: true,
+        color: muted,
+    })
+    fig.rect(rx + 14, c2Y + 56, rw - 28, 34, {
+        fill: tint(c.textMuted, c.bg, 0.08),
+        radius: 5,
+    })
+    fig.text(rx + 22, c2Y + 73, '“And it is the king : the lord ?”', {
+        size: 12,
+        mono: true,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rx + 14, c2Y + 106, 'Short Shakespearean clauses & punctuation', {
+        size: 12,
+        color: muted,
+    })
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((c: ThemeColors) =>
-    Scene({
-        c,
-        padding: 18,
-        gap: 12,
-        align: 'center',
-        contentWidth: 824,
-        title: 'Validation Loss Decay and Sample Generation Quality',
-        subtitle:
-            'Validation cross-entropy falls steadily below uniform reference as coherent syntax forms.',
-        children: Row({
-            width: 824,
-            gap: 16,
-            align: 'center',
-            justify: 'space-between',
-            children: [
-                Panel({
-                    c,
-                    width: 430,
-                    padding: 8,
-                    gap: 4,
-                    tone: 'neutral',
-                    title: 'Validation Cross-Entropy',
-                    titleFontSize: 17,
-                    children: leftLossTraceBoard(c),
-                }),
-                Column({
-                    width: 374,
-                    gap: 8,
-                    align: 'stretch',
-                    children: [rightSampleCards(c)],
-                }),
-            ],
-        }),
-    }),
-)
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

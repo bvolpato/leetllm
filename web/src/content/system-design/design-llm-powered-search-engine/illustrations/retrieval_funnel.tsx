@@ -1,390 +1,220 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 840
+export const height = 420
 export const alt =
-    'Comparison between post-filtering and pre-filtering in search retrieval. Post-filtering (top-k then eligibility) fills top-2 slots with an unauthorized document from workspace-b and an obsolete policy revision, rejecting both and leaving zero usable passages. Pre-filtering (eligibility then top-k) enforces tenant RBAC and revision freshness first, capturing current policy revision 2 and exception revision 1 into both slots.'
+    'Side-by-side narrowing retrieval funnels at K = 2 over the four-document ranking [roadmap@1, policy@1, policy@2, exception@1]. Left: post-filtering truncates to Top-2 first, capturing forbidden roadmap@1 and obsolete policy@1, then drops both at eligibility check leaving 0 usable passages. Right: pre-filtering enforces workspace-a access and current revision before Top-2, preserving both policy@2 and exception@1.'
 
-export const numericAnchors = {
-    documents: [
-        { id: 'roadmap@1', tenant: 'workspace-b', status: 'forbidden' },
-        { id: 'policy@1', tenant: 'workspace-a', status: 'obsolete' },
-        { id: 'policy@2', tenant: 'workspace-a', status: 'current' },
-        { id: 'exception@1', tenant: 'workspace-a', status: 'current' },
-    ],
-    postFilterUsablePassages: 0,
-    preFilterUsablePassages: 2,
-    slots: 2,
+interface DocItem {
+    id: string
+    tag: string
+    ok: boolean
 }
 
+const DOCS: DocItem[] = [
+    { id: '#1 roadmap@1', tag: 'workspace-b', ok: false },
+    { id: '#2 policy@1', tag: 'obsolete rev', ok: false },
+    { id: '#3 policy@2', tag: 'current', ok: true },
+    { id: '#4 exception@1', tag: 'current', ok: true },
+]
+
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const redTone = getReadableToneColor('critical', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const red = fig.tone('critical')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const fill = (color: string, amt = 0.12) => tint(color, c.bg, amt)
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Visual Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <defs>
-                        <marker
-                            id="funnel-arr"
-                            viewBox="0 0 10 10"
-                            refX="6"
-                            refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
-                            orient="auto-start-reverse"
-                        >
-                            <path d="M 0 1 L 8 5 L 0 9 z" fill={c.textMuted} />
-                        </marker>
-                    </defs>
+    // Center divider hairline
+    fig.line(420, 20, 420, 398, { color: c.borderSubtle, width: 1 })
 
-                    {/* Left Column Box (Red Border) */}
-                    <rect
-                        x={40}
-                        y={76}
-                        width={370}
-                        height={290}
-                        rx={10}
-                        fill={theme === 'dark' ? '#181214' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
-                    {/* Left Step 1 card */}
-                    <rect
-                        x={48}
-                        y={106}
-                        width={354}
-                        height={54}
-                        rx={6}
-                        fill={theme === 'dark' ? '#241417' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    {/* Left Step 2 card */}
-                    <rect
-                        x={48}
-                        y={176}
-                        width={354}
-                        height={64}
-                        rx={6}
-                        fill={theme === 'dark' ? '#33161a' : '#fee2e2'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
-                    {/* Left Step 3 result card */}
-                    <rect
-                        x={48}
-                        y={268}
-                        width={354}
-                        height={64}
-                        rx={6}
-                        fill={theme === 'dark' ? '#3d1217' : '#fecaca'}
-                        stroke={redTone}
-                        strokeWidth={1.5}
-                    />
+    // ==================== LEFT FUNNEL: POST-FILTER ====================
+    fig.text(210, 24, 'Post-filter: Top-2 then Eligibility', {
+        size: 14,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
 
-                    {/* Left Internal arrows */}
-                    <line
-                        x1={225}
-                        y1={160}
-                        x2={225}
-                        y2={176}
-                        stroke={redTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#funnel-arr)"
-                    />
-                    <line
-                        x1={225}
-                        y1={240}
-                        x2={225}
-                        y2={268}
-                        stroke={redTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#funnel-arr)"
-                    />
+    // 4-doc ranked stack (extra 14px gap between #2 and #3 for clean K=2 cutoff line)
+    const rowY = (i: number) => 46 + i * 31 + (i >= 2 ? 16 : 0)
 
-                    {/* Right Column Box (Green Border) */}
-                    <rect
-                        x={450}
-                        y={76}
-                        width={370}
-                        height={290}
-                        rx={10}
-                        fill={theme === 'dark' ? '#101d16' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    {/* Right Step 1 card */}
-                    <rect
-                        x={458}
-                        y={106}
-                        width={354}
-                        height={54}
-                        rx={6}
-                        fill={theme === 'dark' ? '#162b1f' : '#ffffff'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    {/* Right Step 2 card */}
-                    <rect
-                        x={458}
-                        y={176}
-                        width={354}
-                        height={64}
-                        rx={6}
-                        fill={theme === 'dark' ? '#1b3827' : '#dcfce7'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    {/* Right Step 3 result card */}
-                    <rect
-                        x={458}
-                        y={268}
-                        width={354}
-                        height={64}
-                        rx={6}
-                        fill={theme === 'dark' ? '#134024' : '#bbf7d0'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
+    DOCS.forEach((d, i) => {
+        const y = rowY(i)
+        const truncated = i >= 2
+        fig.rect(36, y, 294, 26, {
+            fill: truncated ? tint(c.textMuted, c.bg, 0.06) : fill(red, 0.1),
+            stroke: truncated ? c.borderSubtle : red,
+            strokeWidth: truncated ? 1 : 1.2,
+            radius: 5,
+            opacity: truncated ? 0.65 : 1,
+        })
+        fig.text(48, y + 13, d.id, {
+            size: 12.5,
+            color: truncated ? c.textMuted : c.textPrimary,
+            weight: 600,
+            mono: true,
+        })
+        fig.text(318, y + 13, d.tag, {
+            size: 12,
+            color: truncated ? c.textMuted : red,
+            align: 'right',
+            weight: 600,
+        })
+    })
+    // Dashed K=2 cutoff line cleanly centered in the open gap with label in right gutter
+    const cutY = 113
+    fig.line(28, cutY, 336, cutY, { color: warm, width: 1.6, dash: '5 4' })
+    fig.text(342, cutY, 'K = 2 cut', { size: 12, color: warm, align: 'left', weight: 700 })
 
-                    {/* Right Internal arrows */}
-                    <line
-                        x1={635}
-                        y1={160}
-                        x2={635}
-                        y2={176}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#funnel-arr)"
-                    />
-                    <line
-                        x1={635}
-                        y1={240}
-                        x2={635}
-                        y2={268}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#funnel-arr)"
-                    />
+    // Visual narrowing trapezoid funnel (Top-2 -> Eligibility gate)
+    fig.path('M72 194 L340 194 L286 258 L126 258 Z', {
+        fill: fill(red, 0.12),
+        color: red,
+        width: 1.3,
+    })
+    fig.text(206, 216, '1. Top-2: roadmap@1, policy@1', {
+        size: 12.5,
+        color: c.textPrimary,
+        align: 'center',
+        weight: 600,
+    })
+    fig.text(206, 239, '2. Eligibility drops both', {
+        size: 12.5,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
 
-                    {/* Bottom Takeaway Card */}
-                    <rect
-                        x={40}
-                        y={386}
-                        width={780}
-                        height={74}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    fig.arrow(206, 258, 206, 296, { color: red, width: 1.75, head: 6 })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Retrieval Filtering Strategy: Pre-Filter vs Post-Filter Failure',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Applying security and freshness checks after Top-K selection causes context starvation when high-scoring items fail policy',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Empty output slots
+    fig.rect(56, 302, 142, 46, {
+        fill: tint(c.textMuted, c.bg, 0.05),
+        stroke: red,
+        strokeWidth: 1.2,
+        radius: 6,
+    })
+    fig.text(127, 325, '[ empty slot ]', {
+        size: 12.5,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
+    fig.rect(214, 302, 142, 46, {
+        fill: tint(c.textMuted, c.bg, 0.05),
+        stroke: red,
+        strokeWidth: 1.2,
+        radius: 6,
+    })
+    fig.text(285, 325, '[ empty slot ]', {
+        size: 12.5,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(206, 374, '0 / 2 usable passages', {
+        size: 14,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Left Column: Post-filtering (Failure) */}
-            {label(
-                40,
-                84,
-                370,
-                'ANTIPATTERN: TOP-K THEN ELIGIBILITY (POST-FILTER)',
-                11,
-                redTone,
-                'left',
-                700,
-            )}
+    // ==================== RIGHT FUNNEL: PRE-FILTER ====================
+    fig.text(630, 24, 'Pre-filter: Eligibility then Top-2', {
+        size: 14,
+        color: green,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Step 1 Left */}
-            {label(52, 114, 350, '1. Raw Top-2 Score Selection', 12, c.textPrimary, 'left', 600)}
-            {label(52, 132, 170, '#1: roadmap@1 (high score)', 11, c.textMuted, 'left', 400)}
-            {label(228, 132, 170, '#2: policy@1 (high score)', 11, c.textMuted, 'left', 400)}
+    // 4-doc ranked stack (top 2 filtered out BEFORE Top-K; bottom 2 pass)
+    DOCS.forEach((d, i) => {
+        const y = rowY(i)
+        const dropped = !d.ok
+        fig.rect(468, y, 324, 26, {
+            fill: dropped ? tint(c.textMuted, c.bg, 0.06) : fill(green, 0.14),
+            stroke: dropped ? c.borderSubtle : green,
+            strokeWidth: dropped ? 1 : 1.3,
+            radius: 5,
+            opacity: dropped ? 0.6 : 1,
+        })
+        fig.text(480, y + 13, d.id, {
+            size: 12.5,
+            color: dropped ? c.textMuted : c.textPrimary,
+            weight: 600,
+            mono: true,
+        })
+        fig.text(780, y + 13, dropped ? `dropped (${d.tag})` : 'eligible', {
+            size: 12,
+            color: dropped ? red : green,
+            align: 'right',
+            weight: 600,
+        })
+        if (dropped) {
+            fig.line(478, y + 13, 588, y + 13, { color: red, width: 1.2, opacity: 0.75 })
+        }
+    })
 
-            {/* Step 2 Left: Evaluation */}
-            {label(52, 186, 350, '2. Late Eligibility Check', 12, redTone, 'left', 600)}
-            {label(52, 206, 170, 'REJECT: Foreign tenant', 11, redTone, 'left', 500)}
-            {label(228, 206, 170, 'REJECT: Stale revision', 11, redTone, 'left', 500)}
+    // Visual narrowing trapezoid funnel (Filter pushdown -> Top-2)
+    fig.path('M496 194 L764 194 L710 258 L550 258 Z', {
+        fill: fill(green, 0.13),
+        color: green,
+        width: 1.3,
+    })
+    fig.text(630, 216, '1. Index pushdown (workspace-a)', {
+        size: 12.5,
+        color: c.textPrimary,
+        align: 'center',
+        weight: 600,
+    })
+    fig.text(630, 239, '2. Top-2 on eligible set', {
+        size: 12.5,
+        color: green,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Step 3 Left: Output */}
-            {label(
-                52,
-                278,
-                350,
-                '3. Prompt Context Ingress: 0 Usable Passages',
-                13,
-                redTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                300,
-                350,
-                'Both slots rejected. Generator receives empty context.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    fig.arrow(630, 258, 630, 296, { color: green, width: 1.75, head: 6 })
 
-            {/* Right Column: Pre-filtering (Success) */}
-            {label(
-                450,
-                84,
-                370,
-                'CORRECT: ELIGIBILITY THEN TOP-K (PRE-FILTER)',
-                11,
-                greenTone,
-                'left',
-                700,
-            )}
+    // Filled output slots
+    fig.rect(480, 302, 142, 46, {
+        fill: fill(green, 0.18),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 6,
+    })
+    fig.text(551, 325, 'policy@2', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
+    fig.rect(638, 302, 142, 46, {
+        fill: fill(green, 0.18),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 6,
+    })
+    fig.text(709, 325, 'exception@1', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
+    fig.text(630, 374, '2 / 2 usable passages', {
+        size: 14,
+        color: green,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Step 1 Right */}
-            {label(
-                462,
-                114,
-                350,
-                '1. Index RBAC & Revision Partitioning',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(462, 132, 170, 'Drop foreign tenants', 11, greenTone, 'left', 500)}
-            {label(638, 132, 170, 'Drop stale revisions', 11, greenTone, 'left', 500)}
-
-            {/* Step 2 Right: Top-K on Eligible Candidates */}
-            {label(
-                462,
-                186,
-                350,
-                '2. Top-2 Ranked Among Authorized Set',
-                12,
-                greenTone,
-                'left',
-                600,
-            )}
-            {label(462, 206, 170, '#1: policy@2 (current)', 11, greenTone, 'left', 500)}
-            {label(638, 206, 170, '#2: exception@1 (current)', 11, greenTone, 'left', 500)}
-
-            {/* Step 3 Right: Output */}
-            {label(
-                462,
-                278,
-                350,
-                '3. Prompt Context Ingress: 2 Usable Passages',
-                13,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(
-                462,
-                300,
-                350,
-                'Both slots filled with verified, current, authorized evidence.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Bottom Insight Box */}
-            {label(
-                52,
-                400,
-                756,
-                'Architecture Principle: Query-Time Filter Pushdown',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                420,
-                756,
-                'Push tenant and revision predicates into index scans (pre-filtering) to prevent top-K context starvation and leaks.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create()

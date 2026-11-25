@@ -195,9 +195,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: green,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         P Past: 6 tiles
@@ -205,9 +206,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: purple,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         D Diag: 4 tiles
@@ -215,14 +217,22 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: red,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         F Skip: 6 (37.5%)
                     </span>
-                    <span style={{ fontFamily: c.fontMono, fontSize: 30, color: c.textPrimary }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontMono,
+                            fontSize: 27,
+                            color: c.textPrimary,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         10 / 16 run
                     </span>
                 </div>
@@ -230,7 +240,13 @@ export function create(theme: ThemeMode = 'dark') {
 
             <CanvasItem x={518} y={80} width={394} height={46}>
                 <span
-                    style={{ fontFamily: c.fontMono, fontSize: 30, fontWeight: 800, color: purple }}
+                    style={{
+                        fontFamily: c.fontMono,
+                        fontSize: 27,
+                        fontWeight: 800,
+                        color: purple,
+                        whiteSpace: 'nowrap',
+                    }}
                 >
                     ZOOM: DIAGONAL Sᵢⱼ
                 </span>
@@ -264,9 +280,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: green,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         Green ✓ allowed
@@ -274,14 +291,22 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: red,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         Red −∞ masked
                     </span>
-                    <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textPrimary }}>
+                    <span
+                        style={{
+                            fontFamily: c.fontSans,
+                            fontSize: 27,
+                            color: c.textPrimary,
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
                         Mask before softmax
                     </span>
                 </div>

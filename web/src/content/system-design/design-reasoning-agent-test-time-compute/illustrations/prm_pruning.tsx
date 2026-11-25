@@ -1,118 +1,206 @@
-import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 415
 export const alt =
-    'Stepwise Process Supervision (PRM) compared to Terminal Outcome Scoring (ORM). Terminal evaluation generates all four steps (Parse, Pin parser, Removed API, Recommend) before scoring 0.15 and failing. Stepwise PRM checks score steps 1 and 2 (0.92 and 0.74), detects the removed API failure at step 3, and terminates immediately, avoiding the generation cost of step 4.'
+    'Outcome reward model runs all four steps before scoring 0.15, while process reward scoring halts at step 3 when the removed-API call fails.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const critical = fig.tone('critical')
+    const muted = c.textSecondary
 
-    // Header
-    a.text(40, 36, 'Stepwise Process Supervision (PRM) vs. Terminal Outcome Scoring', {
-        size: 22,
-        weight: 700,
-    })
-    a.text(
-        40,
-        62,
-        'Early branch pruning prevents cascading hallucination and saves downstream generation compute',
-        { size: 16, color: k.mid },
-    )
+    const leftX = 24
+    const rightX = 446
+    const colW = 370
+    const startY = 74
+    const stepH = 50
+    const gap = 18
 
-    // Left Container: Terminal Outcome Scoring
-    a.rect(40, 85, 370, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(60, 115, 'Terminal Scoring (ORM)', { size: 18, weight: 650, color: k.fail })
-    a.text(60, 137, 'Generates full trajectory before scoring', { size: 14, color: k.mid })
+    // --- Left Column: Outcome Scoring (ORM) ---
+    fig.text(leftX, 22, 'Outcome Scoring (ORM)', { size: 16, weight: 700, color: critical })
+    fig.text(leftX, 44, 'Runs all 4 steps before scoring', { size: 13, color: muted })
 
-    const steps = [
-        { name: '1. Parse Manifest', status: 'Generated', color: k.prefill },
-        { name: '2. Pin Parser v2', status: 'Generated', color: k.prefill },
-        { name: '3. Removed API Call', status: 'Fatal Error', color: k.fail },
-        { name: '4. Recommend Fix', status: 'Wasted Generation', color: k.fail },
-    ]
+    const ormSteps = [
+        { title: '1. Parse manifest', status: 'Generated', tone: blue },
+        { title: '2. Pin parser-v2', status: 'Generated', tone: blue },
+        { title: '3. Removed API call', status: 'Error (unchecked)', tone: critical },
+        { title: '4. Recommend fix', status: 'Wasted tokens', tone: critical },
+    ] as const
 
-    const yStart = 165
-    const stepH = 46
-    const gap = 16
-
-    steps.forEach((s, i) => {
-        const y = yStart + i * (stepH + gap)
-        a.rect(60, y, 330, stepH, { fill: tint(s.color, 0.15), stroke: s.color, r: 6 })
-        a.text(80, y + 24, s.name, { size: 15, weight: 650, color: k.ink })
-        a.text(370, y + 24, s.status, { size: 13, weight: 600, align: 'right', color: s.color })
-        if (i < 3) {
-            a.arrow(225, y + stepH, 225, y + stepH + gap, k.line)
+    ormSteps.forEach((st, i) => {
+        const y = startY + i * (stepH + gap)
+        fig.rect(leftX, y, colW, stepH, {
+            fill: tint(st.tone, c.bg, 0.12),
+            stroke: st.tone,
+            strokeWidth: 1.5,
+            radius: 7,
+        })
+        fig.text(leftX + 14, y + stepH / 2, st.title, {
+            size: 14,
+            weight: 600,
+            color: c.textPrimary,
+        })
+        fig.text(leftX + colW - 14, y + stepH / 2, st.status, {
+            size: 13,
+            weight: 700,
+            color: st.tone,
+            align: 'right',
+        })
+        if (i < ormSteps.length - 1) {
+            fig.arrow(leftX + colW / 2, y + stepH, leftX + colW / 2, y + stepH + gap - 2, {
+                color: c.textMuted,
+                width: 1.75,
+                head: 5,
+            })
         }
     })
 
-    // Terminal score callout
-    a.rect(60, 420, 330, 38, { fill: tint(k.fail, 0.2), stroke: k.fail, r: 6 })
-    a.text(225, 439, 'Terminal Score: 0.15 (REJECT ALL 4 STEPS)', {
-        size: 14,
+    // ORM terminal verdict
+    const endY = startY + 4 * (stepH + gap) + 4
+    fig.rect(leftX, endY, colW, 44, {
+        fill: tint(critical, c.bg, 0.18),
+        stroke: critical,
+        strokeWidth: 1.75,
+        radius: 7,
+    })
+    fig.text(leftX + colW / 2, endY + 22, 'Terminal score: 0.15  ->  Reject all 4 steps', {
+        size: 13,
         weight: 700,
+        color: critical,
         align: 'center',
-        color: k.fail,
+        width: colW - 16,
     })
 
-    // Right Container: Stepwise PRM Verification
-    a.rect(430, 85, 390, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(450, 115, 'Stepwise Verification (PRM)', { size: 18, weight: 650, color: k.pass })
-    a.text(450, 137, 'Verifies invariants and scores every partial step', {
-        size: 14,
-        color: k.mid,
-    })
+    // Vertical divider
+    fig.line(420, 18, 420, 398, { color: c.borderSubtle, width: 1 })
 
-    // PRM Steps
+    // --- Right Column: Process Scoring (PRM + Exact Checks) ---
+    fig.text(rightX, 22, 'Process Scoring (PRM + Exact Checks)', {
+        size: 16,
+        weight: 700,
+        color: green,
+    })
+    fig.text(rightX, 44, 'Checks every step and halts on failure', { size: 13, color: muted })
+
     // Step 1: Pass
-    a.rect(450, 165, 350, stepH, { fill: tint(k.pass, 0.15), stroke: k.pass, r: 6 })
-    a.text(470, 189, '1. Parse Manifest', { size: 15, weight: 650, color: k.ink })
-    a.text(780, 189, 'Score: 0.92 (PASS)', { size: 13, weight: 700, align: 'right', color: k.pass })
-    a.arrow(625, 211, 625, 227, k.pass)
+    const y0 = startY
+    fig.rect(rightX, y0, colW, stepH, {
+        fill: tint(green, c.bg, 0.13),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 7,
+    })
+    fig.text(rightX + 14, y0 + stepH / 2, '1. Parse manifest', {
+        size: 14,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rightX + colW - 14, y0 + stepH / 2, '0.92 · PASS', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'right',
+        mono: true,
+    })
+    fig.arrow(rightX + colW / 2, y0 + stepH, rightX + colW / 2, y0 + stepH + gap - 2, {
+        color: green,
+        width: 1.75,
+        head: 5,
+    })
 
     // Step 2: Pass
-    a.rect(450, 227, 350, stepH, { fill: tint(k.pass, 0.15), stroke: k.pass, r: 6 })
-    a.text(470, 251, '2. Pin Parser v2', { size: 15, weight: 650, color: k.ink })
-    a.text(780, 251, 'Score: 0.74 (PASS)', { size: 13, weight: 700, align: 'right', color: k.pass })
-    a.arrow(625, 273, 625, 289, k.pass)
-
-    // Step 3: Fail & Prune
-    a.rect(450, 289, 350, stepH, { fill: tint(k.fail, 0.2), stroke: k.fail, width: 2, r: 6 })
-    a.text(470, 313, '3. Removed API Call', { size: 15, weight: 700, color: k.fail })
-    a.text(780, 313, 'Check: FAILS (PRUNE)', {
+    const y1 = startY + (stepH + gap)
+    fig.rect(rightX, y1, colW, stepH, {
+        fill: tint(green, c.bg, 0.13),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 7,
+    })
+    fig.text(rightX + 14, y1 + stepH / 2, '2. Pin parser-v2', {
+        size: 14,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rightX + colW - 14, y1 + stepH / 2, '0.74 · PASS', {
         size: 13,
         weight: 700,
+        color: green,
         align: 'right',
-        color: k.fail,
+        mono: true,
+    })
+    fig.arrow(rightX + colW / 2, y1 + stepH, rightX + colW / 2, y1 + stepH + gap - 2, {
+        color: green,
+        width: 1.75,
+        head: 5,
     })
 
-    // Step 4: Avoided
-    a.rect(450, 351, 350, stepH, { fill: tint(k.line, 0.1), stroke: k.line, dash: '4,4', r: 6 })
-    a.text(470, 375, '4. Recommend Fix', { size: 15, weight: 500, color: k.mid })
-    a.text(780, 375, 'NEVER GENERATED', { size: 13, weight: 700, align: 'right', color: k.mid })
-
-    // Savings summary badge
-    a.rect(450, 412, 350, 46, { fill: tint(k.pass, 0.15), stroke: k.pass, r: 6 })
-    a.text(625, 429, 'Compute Saved: 25% Token Generation', {
-        size: 15,
+    // Step 3: Fail & Halt
+    const y2 = startY + 2 * (stepH + gap)
+    fig.rect(rightX, y2, colW, stepH, {
+        fill: tint(critical, c.bg, 0.2),
+        stroke: critical,
+        strokeWidth: 2,
+        radius: 7,
+    })
+    fig.text(rightX + 14, y2 + stepH / 2, '3. Removed API call', {
+        size: 14,
         weight: 700,
-        align: 'center',
-        color: k.pass,
+        color: critical,
     })
-    a.text(625, 447, 'Immediate backtracking frees budget for viable branches', {
+    fig.text(rightX + colW - 14, y2 + stepH / 2, 'FAIL -> HALT', {
         size: 13,
-        align: 'center',
-        color: k.mid,
+        weight: 700,
+        color: critical,
+        align: 'right',
+        mono: true,
     })
 
-    return a.render()
+    // Step 4: Skipped (never generated)
+    const y3 = startY + 3 * (stepH + gap)
+    fig.rect(rightX, y3, colW, stepH, {
+        fill: 'none',
+        stroke: c.borderSubtle,
+        strokeWidth: 1.25,
+        radius: 7,
+    })
+    fig.line(rightX + 14, y3 + stepH / 2, rightX + 148, y3 + stepH / 2, {
+        color: c.textMuted,
+        width: 1.25,
+        opacity: 0.65,
+    })
+    fig.text(rightX + 14, y3 + stepH / 2, '4. Recommend fix', {
+        size: 14,
+        color: c.textMuted,
+    })
+    fig.text(rightX + colW - 14, y3 + stepH / 2, 'SKIPPED (0 tokens)', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'right',
+        mono: true,
+    })
+
+    // PRM savings verdict
+    fig.rect(rightX, endY, colW, 44, {
+        fill: tint(green, c.bg, 0.16),
+        stroke: green,
+        strokeWidth: 1.75,
+        radius: 7,
+    })
+    fig.text(rightX + colW / 2, endY + 22, 'Halted at step 3  ->  25% budget preserved', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+        width: colW - 16,
+    })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create()

@@ -1,278 +1,158 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    getToneFill,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 820
-export const height = 504
+export const width = 780
+export const height = 400
 export const alt =
     'Eight token positions are divided between two four-thread blocks. The formula global id equals block id times four plus thread id maps block 1, thread 2 to T6. Each block occupies its own 32-lane warp: lanes 0 through 3 are active and lanes 4 through 31 are idle, so four of 32 lanes do useful work in this teaching kernel.'
 
-const lbl = (
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize = 25,
-    color = c.textSecondary,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-    fontWeight = 550,
-) =>
-    CanvasItem({
-        x,
-        y,
-        width: w,
-        height: fontSize + 10,
-        children: TextLabel({ c, text, width: w, fontSize, color, align, mono, fontWeight }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const fillAmt = theme === 'dark' ? 0.16 : 0.1
+
+    // ─── LEFT HALF: GLOBAL INDEX MAPPING ───
+    fig.text(20, 22, 'Global index mapping (2 blocks × 4 threads)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
     })
 
-const illustration = defineIllustration((c: ThemeColors) => {
-    const blue = getReadableToneColor('blue', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
-    const blockRows = [
-        {
-            name: 'Block 0',
-            y: 152,
-            tokens: ['T0', 'T1', 'T2', 'T3'],
-            base: 0,
-            tone: green,
-            key: 'green' as const,
-        },
-        {
-            name: 'Block 1',
-            y: 256,
-            tokens: ['T4', 'T5', 'T6', 'T7'],
-            base: 4,
-            tone: blue,
-            key: 'blue' as const,
-        },
-    ]
-    const warpX = 432
-    const warpW = 368
-    const activeW = (warpW * 4) / 32
-
-    const shapes: React.ReactNode[] = [
-        SvgFrame({
-            x: 16,
-            y: 100,
-            width: 392,
-            height: 384,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            x: 420,
-            y: 100,
-            width: 384,
-            height: 384,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        ...blockRows.map((row) =>
-            SvgFrame({
-                key: `${row.name}-band`,
-                x: 28,
-                y: row.y + 34,
-                width: 368,
-                height: 58,
-                c,
-                rx: 10,
-                fill: c.bgSubtle,
-                stroke: c.borderLight,
-                strokeWidth: 1.2,
-            }),
-        ),
-        SvgFrame({
-            x: 28,
-            y: 372,
-            width: 368,
-            height: 94,
-            c,
-            rx: 12,
-            fill: c.bgSubtle,
-            stroke: c.borderLight,
-            strokeWidth: 1.2,
-        }),
-        ...blockRows.flatMap((row, idx) => {
-            const wy = idx === 0 ? 202 : 306
-            return [
-                SvgFrame({
-                    key: `wt-${idx}`,
-                    x: warpX,
-                    y: wy,
-                    width: warpW - 12,
-                    height: 42,
-                    c,
-                    rx: 9,
-                    fill: c.bgSubtle,
-                    stroke: c.borderLight,
-                    strokeWidth: 1.4,
-                }),
-                SvgFrame({
-                    key: `wa-${idx}`,
-                    x: warpX,
-                    y: wy,
-                    width: activeW,
-                    height: 42,
-                    c,
-                    rx: 8,
-                    fill: getToneFill(row.key, c),
-                    stroke: row.tone,
-                    strokeWidth: 1.6,
-                }),
-            ]
-        }),
+    const blocks = [
+        { name: 'Block 0 (blockIdx = 0)', y: 66, tokens: ['T0', 'T1', 'T2', 'T3'], base: 0, color: green },
+        { name: 'Block 1 (blockIdx = 1)', y: 170, tokens: ['T4', 'T5', 'T6', 'T7'], base: 4, color: blue },
     ]
 
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({
-            background: 'transparent',
-            c,
-            width,
-            height,
-            children: [
-                CanvasItem({
-                    x: 0,
-                    y: 0,
-                    width,
-                    height,
-                    children: React.createElement(
-                        'svg',
-                        { width, height, viewBox: `0 0 ${width} ${height}` },
-                        ...shapes,
-                    ),
-                }),
-                lbl(
-                    c,
-                    'One block occupies one warp',
-                    20,
-                    14,
-                    780,
-                    29,
-                    c.textPrimary,
-                    'left',
-                    false,
-                    760,
-                ),
-                lbl(c, 'Eight token positions across two 4-thread blocks.', 20, 52, 780, 24),
-                lbl(c, 'Global index mapping', 28, 114, 368, 25, c.textPrimary, 'left', false, 700),
-                ...blockRows.flatMap((row) => [
-                    lbl(c, row.name, 28, row.y, 140, 24, row.tone, 'left', false, 700),
-                    ...row.tokens.map((tok, t) => {
-                        const tx = 34 + t * 90
-                        const id = row.base + t
-                        const hot = id === 6
-                        return lbl(
-                            c,
-                            `t${t}:${tok}`,
-                            tx,
-                            row.y + 46,
-                            86,
-                            24,
-                            hot ? warm : row.tone,
-                            'center',
-                            true,
-                            hot ? 760 : 620,
-                        )
-                    }),
-                ]),
-                lbl(
-                    c,
-                    'i = block × 4 + thread',
-                    36,
-                    384,
-                    352,
-                    24,
-                    c.textSecondary,
-                    'center',
-                    true,
-                    650,
-                ),
-                lbl(c, '1 × 4 + 2 = 6 → T6', 36, 422, 352, 25, warm, 'center', true, 760),
-                lbl(
-                    c,
-                    '32-lane warp allocation',
-                    432,
-                    114,
-                    360,
-                    25,
-                    c.textPrimary,
-                    'left',
-                    false,
-                    700,
-                ),
-                lbl(
-                    c,
-                    'Block 0 · 0–3 active, 4–31 idle',
-                    432,
-                    162,
-                    360,
-                    24,
-                    green,
-                    'left',
-                    false,
-                    650,
-                ),
-                lbl(
-                    c,
-                    'Block 1 · 0–3 active, 4–31 idle',
-                    432,
-                    266,
-                    360,
-                    24,
-                    blue,
-                    'left',
-                    false,
-                    650,
-                ),
-                lbl(
-                    c,
-                    '4 / 32 lanes active (12.5%)',
-                    432,
-                    382,
-                    360,
-                    25,
-                    c.textPrimary,
-                    'center',
-                    false,
-                    720,
-                ),
-                lbl(
-                    c,
-                    'Lane fraction, not throughput.',
-                    432,
-                    422,
-                    360,
-                    24,
-                    c.textSecondary,
-                    'center',
-                ),
-            ],
-        }),
+    for (const b of blocks) {
+        fig.text(20, b.y, b.name, { size: 13.5, weight: 700, color: b.color })
+        b.tokens.forEach((tok, t) => {
+            const tx = 20 + t * 84
+            const id = b.base + t
+            const hot = id === 6
+            const col = hot ? warm : b.color
+            fig.rect(tx, b.y + 18, 76, 52, {
+                fill: tint(col, c.bg, hot ? (theme === 'dark' ? 0.24 : 0.16) : fillAmt),
+                stroke: col,
+                strokeWidth: hot ? 2 : 1.4,
+                radius: 8,
+            })
+            fig.text(tx + 38, b.y + 33, `t${t}`, {
+                size: 14.5,
+                color: c.textSecondary,
+                mono: true,
+                align: 'center',
+            })
+            fig.text(tx + 38, b.y + 54, tok, {
+                size: 15,
+                weight: 700,
+                color: col,
+                mono: true,
+                align: 'center',
+            })
+        })
+    }
+
+    // Highlighted index formula
+    fig.rect(20, 274, 328, 86, {
+        fill: tint(warm, c.bg, theme === 'dark' ? 0.12 : 0.08),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 9,
     })
-})
+    fig.math(184, 300, String.raw`i = \text{blockIdx} \times 4 + \text{threadIdx}`, {
+        size: 15,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.math(184, 336, String.raw`1 \times 4 + 2 = 6 \;\longrightarrow\; \text{T6}`, {
+        size: 16,
+        color: warm,
+        align: 'center',
+    })
 
-export const create = illustration.create
-export default illustration.default
+    // Subtle vertical divider
+    fig.line(374, 22, 374, 376, { color: c.borderSubtle, width: 1 })
+
+    // ─── RIGHT HALF: ACTUAL 32-LANE SUBDIVIDED WARP ALLOCATION ───
+    const rx = 400
+    const laneW = 10
+    const laneGap = 1.5
+    const stripW = 32 * laneW + 31 * laneGap // 366.5
+
+    fig.text(rx, 22, '32-lane warp allocation (one warp per block)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const drawWarp = (y: number, label: string, color: string) => {
+        fig.text(rx, y, label, { size: 13.5, weight: 700, color })
+        for (let lane = 0; lane < 32; lane++) {
+            const lx = rx + lane * (laneW + laneGap)
+            const active = lane < 4
+            fig.rect(lx, y + 20, laneW, 40, {
+                fill: active ? color : tint(c.textMuted, c.bg, theme === 'dark' ? 0.14 : 0.1),
+                stroke: active ? color : c.borderSubtle,
+                strokeWidth: active ? 1 : 0.6,
+                radius: 2.5,
+            })
+        }
+        // Clean lane index ticks: 0, 3, and 31 (well spaced at print 8.5pt+)
+        fig.text(rx + 2, y + 73, '0', { size: 14.5, color, mono: true })
+        fig.text(rx + 3 * (laneW + laneGap) + 5, y + 73, '3', {
+            size: 14.5,
+            color,
+            mono: true,
+            align: 'center',
+        })
+        fig.text(rx + stripW, y + 73, '31', {
+            size: 14.5,
+            color: c.textMuted,
+            mono: true,
+            align: 'right',
+        })
+    }
+
+    drawWarp(66, 'Warp 0 (Block 0) · lanes 0–3 active, 4–31 idle', green)
+    drawWarp(176, 'Warp 1 (Block 1) · lanes 0–3 active, 4–31 idle', blue)
+
+    // Curly braces below Warp 1 highlighting active 4 vs idle 28
+    const activeEnd = rx + 4 * laneW + 3 * laneGap
+    const idleStart = rx + 4 * (laneW + laneGap)
+    fig.brace(rx, 264, activeEnd, 264, '4 active', {
+        side: 1,
+        depth: 7,
+        color: blue,
+        labelColor: blue,
+        labelSize: 14.5,
+        weight: 700,
+        labelGap: 15,
+    })
+    fig.brace(idleStart, 264, rx + stripW, 264, '28 idle lanes (same block)', {
+        side: 1,
+        depth: 7,
+        color: c.textMuted,
+        labelColor: c.textSecondary,
+        labelSize: 14.5,
+        labelGap: 15,
+    })
+
+    // Summary readout
+    fig.rect(rx, 314, 4, 48, { fill: blue, radius: 2 })
+    fig.text(rx + 16, 326, '4 / 32 lanes active per warp (12.5%)', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(rx + 16, 350, 'Use multiples of 32 threads per block', {
+        size: 14.5,
+        color: c.textSecondary,
+    })
+
+    return fig.render()
+}
+
+export default create()

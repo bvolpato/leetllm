@@ -1,33 +1,20 @@
-import {
-    BadgePill,
-    BarChart,
-    Column,
-    LineChart,
-    Panel,
-    Row,
-    Scene,
-    getThemeColors,
-    withDensity,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-const DENSITY = 2.5
-
-export const width = 848
-export const height = 800
+export const width = 740
+export const height = 470
 export const alt =
-    'Comparison of PI, NTK-aware scaling, and YaRN for 4K-to-16K extension (s=4, d=128). PI compresses all frequency pairs uniformly to 0.25x and maps index 16,383 to 4,095.75, NTK-aware base 40,890 decays geometrically from 1.0x to 0.25x, and YaRN keeps fast bands at 1.0x while scaling attention logits by a^2=1.296 (t=0.771).'
+    'Top: frequency multiplier theta-prime over theta across 64 rotary pairs for 4K-to-16K (s=4) context extension. PI scales uniformly to 0.25x, NTK-aware (base 40,890) decays smoothly from 1.00x to 0.25x, and YaRN preserves fast pairs at 1.00x before ramping to 0.25x on slow pairs. Bottom-left: YaRN multipliers for d=8 pairs are 1.000, 1.000, 0.384, and 0.250. Bottom-right: YaRN attention scaling factors for s=4 are Base 1.000, Q/K amplitude a=1.139, logit scale a^2=1.296, and temperature t=0.771.'
 
 const rotaryDim = 128
 const base = 10000
 const scale = 4
 const trainLen = 4096
-const ntkBase = base * Math.pow(scale, rotaryDim / (rotaryDim - 2)) // 40890
+const ntkBase = base * scale ** (rotaryDim / (rotaryDim - 2)) // 40890
 
-const ntkRatio = (pair: number) => Math.pow(base / ntkBase, (2 * pair) / rotaryDim)
-
+const ntkRatio = (pair: number) => (base / ntkBase) ** ((2 * pair) / rotaryDim)
 const yarnRatio = (pair: number) => {
-    const freq = Math.pow(base, -(2 * pair) / rotaryDim)
+    const freq = base ** (-(2 * pair) / rotaryDim)
     const turns = (trainLen * freq) / (2 * Math.PI)
     const preserve = Math.min(1, Math.max(0, (turns - 1) / 31))
     return preserve + (1 - preserve) / scale
@@ -40,123 +27,181 @@ const d8YarnRatios = d8Freqs.map((f) => {
     return preserve + (1 - preserve) / scale
 })
 
-function makeRopeScalingMethods(theme: ThemeMode = 'dark') {
-    const c = withDensity(getThemeColors(theme), DENSITY)
-    const pairGrid = [
-        0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46,
-        48, 50, 52, 54, 56, 58, 60, 63,
-    ]
-    const labels = pairGrid.map((i) => ([0, 16, 32, 48].includes(i) ? `i=${i}` : ''))
-
-    const topPanel = Panel({
-        c,
-        title: 'Frequency Multiplier θ′ / θ Across 64 Pairs (4K → 16K, s = 4)',
-        subtitle:
-            'PI=0.25× uniform; NTK b′=40,890 decays geometrically; YaRN preserves fast pairs (>32 turns)',
-        tone: 'neutral',
-        titleFontSize: 29,
-        padding: 10,
-        gap: 6,
-        width: 800,
-        children: LineChart({
-            c,
-            width: 760,
-            height: 205,
-            min: 0,
-            max: 1.1,
-            showGrid: true,
-            showPoints: false,
-            directLabels: true,
-            yAxisLabel: 'θ′ / θ',
-            labels,
-            format: (v) => v.toFixed(2),
-            series: [
-                {
-                    name: 'YaRN',
-                    points: pairGrid.map((i) => yarnRatio(i)),
-                    color: 'primary',
-                },
-                {
-                    name: 'NTK',
-                    points: pairGrid.map((i) => ntkRatio(i)),
-                    color: 'positive',
-                },
-                {
-                    name: 'PI',
-                    points: pairGrid.map(() => 0.25),
-                    color: 'warning',
-                },
-            ],
-        }),
-    })
-
-    const botLeft = Panel({
-        c,
-        title: 'YaRN Ratios (d = 8)',
-        subtitle: 'i0=1.00, i1=1.00, i2=.384, i3=.250',
-        tone: 'blue',
-        titleFontSize: 29,
-        padding: 10,
-        gap: 6,
-        width: 392,
-        children: BarChart({
-            c,
-            width: 356,
-            height: 165,
-            min: 0,
-            max: 1.2,
-            showValues: false,
-            format: (v) => v.toFixed(1),
-            data: [
-                { label: 'i=0', value: d8YarnRatios[0], color: 'primary', valueLabel: '1.000' },
-                { label: 'i=1', value: d8YarnRatios[1], color: 'primary', valueLabel: '1.000' },
-                { label: 'i=2', value: d8YarnRatios[2], color: 'warning', valueLabel: '0.384' },
-                { label: 'i=3', value: d8YarnRatios[3], color: 'positive', valueLabel: '0.250' },
-            ],
-        }),
-    })
-
-    const botRight = Panel({
-        c,
-        title: 'Attention Scaling (s = 4)',
-        subtitle: 'a=1.139 · a²=1.296 · t=0.771',
-        tone: 'warm',
-        titleFontSize: 29,
-        padding: 10,
-        gap: 6,
-        width: 392,
-        children: BarChart({
-            c,
-            width: 356,
-            height: 165,
-            min: 0,
-            max: 1.5,
-            showValues: false,
-            format: (v) => v.toFixed(1),
-            data: [
-                { label: 'Base', value: 1.0, color: 'neutral', valueLabel: '1.000' },
-                { label: 'Q/K', value: 1.139, color: 'primary', valueLabel: '1.139' },
-                { label: 'a²', value: 1.296, color: 'warning', valueLabel: '1.296' },
-                { label: 't', value: 0.771, color: 'positive', valueLabel: '0.771' },
-            ],
-        }),
-    })
-
-    return Scene({
-        c,
-        density: DENSITY,
-        padding: 12,
-        gap: 10,
-        contentWidth: 800,
-        children: Column({
-            gap: 10,
-            children: [topPanel, Row({ gap: 16, align: 'stretch', children: [botLeft, botRight] })],
-        }),
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    return makeRopeScalingMethods(theme)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+
+    // ─── TOP PLOT: Frequency multiplier across 64 rotary pairs ───
+    const top = fig.plot({ x: 70, y: 36, width: 644, height: 176 }, { x: [-2.5, 64], y: [0, 1.12] })
+
+    top.axes({
+        xTicks: [0, 16, 32, 48, 63],
+        yTicks: [0, 0.25, 0.5, 0.75, 1.0],
+        xFormat: (v) => `i=${v}`,
+        yFormat: (v) => v.toFixed(2),
+        xLabel: 'Rotary pair index i  (d = 128, 4K → 16K, s = 4)',
+        yLabel: "Frequency multiplier θ′ / θ",
+        labelSize: 13.5,
+        grid: true,
+    })
+
+    // Subtle shaded YaRN transition ramp band (where 0 < preserve < 1, roughly pairs 18..43)
+    const rampStart = top.px(18)
+    const rampEnd = top.px(44)
+    fig.rect(rampStart, top.area.y, rampEnd - rampStart, top.area.height, {
+        fill: tint(blue, c.bg, theme === 'dark' ? 0.1 : 0.08),
+    })
+    fig.text((rampStart + rampEnd) / 2, top.area.y + 13, 'YaRN ramp', {
+        size: 13.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Curves (dense 128-point sampling for crisp smooth curves)
+    top.fn(() => 0.25, { color: warm, width: 2.3, dash: '6 4' }, 64, [0, 63])
+    top.fn(ntkRatio, { color: green, width: 2.6 }, 160, [0, 63])
+    top.fn(yarnRatio, { color: blue, width: 2.85 }, 160, [0, 63])
+
+    // Direct non-colliding curve labels
+    fig.text(top.px(9), top.py(1.0) - 13, 'YaRN (band-preserving)', {
+        size: 13.5,
+        color: blue,
+        align: 'center',
+        weight: 700,
+    })
+    fig.text(top.px(6), top.py(0.56), 'NTK-aware (b′ = 40,890)', {
+        size: 13.5,
+        color: green,
+        align: 'left',
+        weight: 700,
+    })
+    fig.text(top.px(61), top.py(0.12), 'PI (0.25× uniform)', {
+        size: 13.5,
+        color: warm,
+        align: 'right',
+        weight: 700,
+    })
+
+    // Divider line
+    fig.line(24, 262, width - 24, 262, { color: c.borderSubtle, width: 1 })
+
+    // ─── BOTTOM-LEFT: YaRN ratios for d = 8 toy example ───
+    fig.text(68, 282, 'YaRN ratios (d = 8)', {
+        size: 14.5,
+        color: c.textPrimary,
+        weight: 700,
+    })
+
+    const bl = fig.plot({ x: 68, y: 308, width: 280, height: 126 }, { x: [0, 4], y: [0, 1.2] })
+    for (const tick of [0, 0.5, 1.0]) {
+        const py = bl.py(tick)
+        fig.line(bl.area.x, py, bl.right, py, {
+            color: tick === 0 ? c.textMuted : c.borderSubtle,
+            width: tick === 0 ? 1.2 : 1,
+        })
+        fig.text(bl.area.x - 8, py, tick.toFixed(1), {
+            size: 13.5,
+            color: c.textSecondary,
+            align: 'right',
+            mono: true,
+        })
+    }
+    fig.line(bl.area.x, bl.area.y, bl.area.x, bl.bottom, { color: c.textMuted, width: 1 })
+
+    const blItems = [
+        { label: 'i=0', val: d8YarnRatios[0]!, col: blue },
+        { label: 'i=1', val: d8YarnRatios[1]!, col: blue },
+        { label: 'i=2', val: d8YarnRatios[2]!, col: warm },
+        { label: 'i=3', val: d8YarnRatios[3]!, col: green },
+    ]
+    const blSlot = bl.area.width / 4
+    blItems.forEach((item, idx) => {
+        const cx = bl.area.x + (idx + 0.5) * blSlot
+        const y0 = bl.py(0)
+        const y1 = bl.py(item.val)
+        fig.rect(cx - 21, y1, 42, y0 - y1, {
+            fill: tint(item.col, c.bg, theme === 'dark' ? 0.36 : 0.25),
+            stroke: item.col,
+            strokeWidth: 1.6,
+            radius: 4,
+        })
+        fig.text(cx, y1 - 12, item.val.toFixed(3), {
+            size: 13,
+            color: item.col,
+            align: 'center',
+            mono: true,
+            weight: 700,
+        })
+        fig.text(cx, bl.bottom + 16, item.label, {
+            size: 13.5,
+            color: c.textPrimary,
+            align: 'center',
+            mono: true,
+            weight: 600,
+        })
+    })
+
+    // ─── BOTTOM-RIGHT: YaRN attention scaling (s = 4) ───
+    fig.text(426, 282, 'YaRN attention scaling (s = 4)', {
+        size: 14.5,
+        color: c.textPrimary,
+        weight: 700,
+    })
+
+    const br = fig.plot({ x: 426, y: 308, width: 288, height: 126 }, { x: [0, 4], y: [0, 1.55] })
+    for (const tick of [0, 0.5, 1.0, 1.5]) {
+        const py = br.py(tick)
+        fig.line(br.area.x, py, br.right, py, {
+            color: tick === 0 ? c.textMuted : tick === 1 ? c.borderLight : c.borderSubtle,
+            width: tick === 0 ? 1.2 : 1,
+            dash: tick === 1 ? '4 4' : undefined,
+        })
+        fig.text(br.area.x - 8, py, tick.toFixed(1), {
+            size: 13.5,
+            color: c.textSecondary,
+            align: 'right',
+            mono: true,
+        })
+    }
+    fig.line(br.area.x, br.area.y, br.area.x, br.bottom, { color: c.textMuted, width: 1 })
+
+    const brItems = [
+        { label: 'Base', val: 1.0, col: c.textSecondary },
+        { label: 'Q/K (a)', val: 1.139, col: blue },
+        { label: 'a²', val: 1.296, col: warm },
+        { label: 't = 1/a²', val: 0.771, col: green },
+    ]
+    const brSlot = br.area.width / 4
+    brItems.forEach((item, idx) => {
+        const cx = br.area.x + (idx + 0.5) * brSlot
+        const y0 = br.py(0)
+        const y1 = br.py(item.val)
+        fig.rect(cx - 21, y1, 42, y0 - y1, {
+            fill: tint(item.col, c.bg, theme === 'dark' ? 0.34 : 0.24),
+            stroke: item.col,
+            strokeWidth: 1.6,
+            radius: 4,
+        })
+        fig.text(cx, y1 - 12, item.val.toFixed(3), {
+            size: 13,
+            color: item.col,
+            align: 'center',
+            mono: true,
+            weight: 700,
+        })
+        fig.text(cx, br.bottom + 16, item.label, {
+            size: 13,
+            color: c.textPrimary,
+            align: 'center',
+            mono: true,
+            weight: 600,
+        })
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

@@ -1,401 +1,211 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 880
+export const height = 400
 export const alt =
-    'Server-Sent Events (SSE) ID inheritance hazard and explicit sequence resolution. When a second frame omits an explicit ID, the browser retains the previous frame’s lastEventId (12), causing naive deduplication to discard the distinct checked_claim payload. Emitting monotonic explicit IDs (12, then 13) guarantees delivery and clean reconnect resumption.'
-
-export const numericAnchors = {
-    firstFrameId: 12,
-    secondFrameMissingInheritedId: 12,
-    secondFrameExplicitId: 13,
-}
+    'Side-by-side Server-Sent Events wire trace comparing omitted vs explicit event IDs. Left: Frame 1 sends id: 12 (progress) and sets browser lastEventId = "12" (emitted). Frame 2 omits id for checked_claim, so the browser inherits lastEventId = "12" and client deduplication drops the verified claim. Right: Frame 2 sends explicit id: 13, updating lastEventId = "13" so both frames deliver cleanly and reconnects resume with Last-Event-ID: 13.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const redTone = getReadableToneColor('critical', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
+    const blue = fig.tone('blue')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const fill = (color: string, amt = 0.12) => tint(color, c.bg, amt)
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Visual Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <defs>
-                        <marker
-                            id="sse-arr"
-                            viewBox="0 0 10 10"
-                            refX="6"
-                            refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
-                            orient="auto-start-reverse"
-                        >
-                            <path d="M 0 1 L 8 5 L 0 9 z" fill={c.textMuted} />
-                        </marker>
-                    </defs>
+    // Center hairline divider
+    fig.line(440, 18, 440, 382, { color: c.borderSubtle, width: 1 })
 
-                    {/* Left Column Box */}
-                    <rect
-                        x={40}
-                        y={76}
-                        width={370}
-                        height={280}
-                        rx={10}
-                        fill={theme === 'dark' ? '#181214' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={106}
-                        width={354}
-                        height={54}
-                        rx={6}
-                        fill={theme === 'dark' ? '#241417' : '#ffffff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={178}
-                        width={354}
-                        height={54}
-                        rx={6}
-                        fill={theme === 'dark' ? '#33161a' : '#fee2e2'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={48}
-                        y={258}
-                        width={354}
-                        height={76}
-                        rx={6}
-                        fill={theme === 'dark' ? '#3d1217' : '#fecaca'}
-                        stroke={redTone}
-                        strokeWidth={1.5}
-                    />
+    const drawSide = (offsetX: number, explicit: boolean) => {
+        const accent = explicit ? green : red
+        const title = explicit
+            ? 'Explicit Monotonic IDs (Reliable)'
+            : 'Omitted ID Field (Silent Drop)'
+        fig.text(offsetX + 202, 24, title, {
+            size: 14,
+            color: accent,
+            align: 'center',
+            weight: 700,
+        })
 
-                    {/* Left Arrows */}
-                    <line
-                        x1={225}
-                        y1={160}
-                        x2={225}
-                        y2={178}
-                        stroke={redTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#sse-arr)"
-                    />
-                    <line
-                        x1={225}
-                        y1={232}
-                        x2={225}
-                        y2={258}
-                        stroke={redTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#sse-arr)"
-                    />
+        // Column sub-labels
+        fig.text(offsetX + 114, 52, 'SSE Wire Frame', {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            weight: 600,
+        })
+        fig.text(offsetX + 322, 52, 'Browser Callback', {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            weight: 600,
+        })
 
-                    {/* Right Column Box */}
-                    <rect
-                        x={450}
-                        y={76}
-                        width={370}
-                        height={280}
-                        rx={10}
-                        fill={theme === 'dark' ? '#101d16' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={458}
-                        y={106}
-                        width={354}
-                        height={54}
-                        rx={6}
-                        fill={theme === 'dark' ? '#162b1f' : '#ffffff'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={458}
-                        y={178}
-                        width={354}
-                        height={54}
-                        rx={6}
-                        fill={theme === 'dark' ? '#1b3827' : '#dcfce7'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={458}
-                        y={258}
-                        width={354}
-                        height={76}
-                        rx={6}
-                        fill={theme === 'dark' ? '#134024' : '#bbf7d0'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
+        // Frame 1 (identical on both sides; generous 212px width for mono payload)
+        fig.rect(offsetX + 8, 70, 212, 72, {
+            fill: fill(blue, 0.1),
+            stroke: blue,
+            strokeWidth: 1.25,
+            radius: 7,
+        })
+        fig.text(offsetX + 20, 92, 'id: 12', {
+            size: 13,
+            color: blue,
+            weight: 700,
+            mono: true,
+        })
+        fig.text(offsetX + 20, 118, 'data: {"type":"progress"}', {
+            size: 11.5,
+            color: c.textPrimary,
+            mono: true,
+        })
 
-                    {/* Right Arrows */}
-                    <line
-                        x1={635}
-                        y1={160}
-                        x2={635}
-                        y2={178}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#sse-arr)"
-                    />
-                    <line
-                        x1={635}
-                        y1={232}
-                        x2={635}
-                        y2={258}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#sse-arr)"
-                    />
+        fig.arrow(offsetX + 220, 106, offsetX + 244, 106, {
+            color: c.textMuted,
+            width: 1.5,
+            head: 6,
+        })
 
-                    {/* Bottom Guidance Box */}
-                    <rect
-                        x={40}
-                        y={372}
-                        width={780}
-                        height={90}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+        fig.rect(offsetX + 248, 70, 152, 72, {
+            fill: fill(green, 0.1),
+            stroke: green,
+            strokeWidth: 1.25,
+            radius: 7,
+        })
+        fig.text(offsetX + 324, 93, 'lastEventId = "12"', {
+            size: 11.5,
+            color: c.textPrimary,
+            align: 'center',
+            weight: 600,
+            mono: true,
+        })
+        fig.text(offsetX + 324, 120, 'EMIT (new ID)', {
+            size: 12.5,
+            color: green,
+            align: 'center',
+            weight: 700,
+        })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Server-Sent Events (SSE): ID Inheritance Trap & Client Deduplication',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Browser EventSource inherits previous event IDs on unlabelled frames, causing accidental drop of verified claims',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+        // Inheritance arrow on left side only
+        if (!explicit) {
+            fig.arrow(offsetX + 324, 142, offsetX + 324, 198, {
+                color: red,
+                width: 1.6,
+                dash: '4 3',
+                head: 6,
+            })
+            fig.text(offsetX + 314, 170, 'inherits "12"', {
+                size: 12,
+                color: red,
+                align: 'right',
+                weight: 700,
+            })
+        } else {
+            fig.arrow(offsetX + 114, 142, offsetX + 114, 198, {
+                color: green,
+                width: 1.5,
+                head: 6,
+            })
+            fig.text(offsetX + 126, 170, '+1 monotonic', {
+                size: 12,
+                color: green,
+                weight: 600,
+            })
+        }
 
-            {/* Left Column: ID Inheritance Hazard */}
-            {label(
-                40,
-                84,
-                370,
-                'ANTIPATTERN: OMITTED ID INHERITANCE (SILENT LOSS)',
-                11,
-                redTone,
-                'left',
-                700,
-            )}
+        // Frame 2
+        const f2Stroke = explicit ? green : warm
+        fig.rect(offsetX + 8, 202, 212, 74, {
+            fill: fill(f2Stroke, 0.12),
+            stroke: f2Stroke,
+            strokeWidth: 1.4,
+            radius: 7,
+        })
+        fig.text(offsetX + 20, 224, explicit ? 'id: 13' : '(no id: line)', {
+            size: 13,
+            color: f2Stroke,
+            weight: 700,
+            mono: true,
+        })
+        fig.text(offsetX + 20, 250, 'data: {"type":"checked_claim"}', {
+            size: 10.5,
+            color: c.textPrimary,
+            mono: true,
+        })
 
-            {/* Frame 1 Left */}
-            {label(
-                52,
-                114,
-                350,
-                'Frame 1: id: 12 | data: {"type": "progress"}',
-                12,
-                c.textPrimary,
-                'left',
-                500,
-            )}
-            {label(
-                52,
-                134,
-                350,
-                'Browser callback: lastEventId = 12 (Accepted)',
-                11,
-                greenTone,
-                'left',
-                500,
-            )}
+        fig.arrow(offsetX + 220, 239, offsetX + 244, 239, {
+            color: accent,
+            width: 1.6,
+            head: 6,
+        })
 
-            {/* Frame 2 Left */}
-            {label(
-                52,
-                186,
-                350,
-                'Frame 2: (No id field) | data: {"type": "checked_claim"}',
-                12,
-                warmTone,
-                'left',
-                500,
-            )}
-            {label(
-                52,
-                206,
-                350,
-                'Browser callback: lastEventId = 12 (Inherited!)',
-                11,
-                redTone,
-                'left',
-                600,
-            )}
+        // Browser callback for Frame 2
+        fig.rect(offsetX + 248, 202, 152, 74, {
+            fill: fill(accent, 0.15),
+            stroke: accent,
+            strokeWidth: 1.6,
+            radius: 7,
+        })
+        fig.text(
+            offsetX + 324,
+            224,
+            explicit ? 'lastEventId = "13"' : 'lastEventId = "12"',
+            {
+                size: 11.5,
+                color: explicit ? green : red,
+                align: 'center',
+                weight: 700,
+                mono: true,
+            },
+        )
+        fig.text(offsetX + 324, 252, explicit ? 'EMIT (distinct)' : 'DROPPED (seen)', {
+            size: 12.5,
+            color: accent,
+            align: 'center',
+            weight: 700,
+        })
 
-            {/* Disaster result Left */}
-            {label(52, 268, 350, 'Client Deduplication Failure: DROPPED', 13, redTone, 'left', 700)}
-            {label(
-                52,
-                290,
-                350,
-                'Client sees lastEventId=12 already seen → Discards frame! Verified search claim is lost from the UI.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+        // Outcome strip at bottom
+        fig.rect(offsetX + 8, 308, 392, 54, {
+            fill: fill(accent, 0.1),
+            stroke: accent,
+            strokeWidth: 1.25,
+            radius: 7,
+        })
+        fig.text(
+            offsetX + 204,
+            327,
+            explicit ? 'Verified claim delivered to UI' : 'Verified claim silently lost',
+            {
+                size: 13.5,
+                color: accent,
+                align: 'center',
+                weight: 700,
+            },
+        )
+        fig.text(
+            offsetX + 204,
+            348,
+            explicit
+                ? 'Reconnect cursor: Last-Event-ID: 13'
+                : 'Dedup sees "12" twice, discards frame 2',
+            {
+                size: 12,
+                color: c.textSecondary,
+                align: 'center',
+                mono: explicit,
+            },
+        )
+    }
 
-            {/* Right Column: Explicit Monotonic IDs */}
-            {label(
-                450,
-                84,
-                370,
-                'CORRECT: EXPLICIT MONOTONIC IDS (ROBUST STREAM)',
-                11,
-                greenTone,
-                'left',
-                700,
-            )}
+    drawSide(16, false)
+    drawSide(456, true)
 
-            {/* Frame 1 Right */}
-            {label(
-                462,
-                114,
-                350,
-                'Frame 1: id: 12 | data: {"type": "progress"}',
-                12,
-                c.textPrimary,
-                'left',
-                500,
-            )}
-            {label(
-                462,
-                134,
-                350,
-                'Browser callback: lastEventId = 12 (Accepted)',
-                11,
-                greenTone,
-                'left',
-                500,
-            )}
-
-            {/* Frame 2 Right */}
-            {label(
-                462,
-                186,
-                350,
-                'Frame 2: id: 13 | data: {"type": "checked_claim"}',
-                12,
-                greenTone,
-                'left',
-                600,
-            )}
-            {label(
-                462,
-                206,
-                350,
-                'Browser callback: lastEventId = 13 (Distinct)',
-                11,
-                greenTone,
-                'left',
-                600,
-            )}
-
-            {/* Success result Right */}
-            {label(462, 268, 350, 'Client Delivery & Replay: VERIFIED', 13, greenTone, 'left', 700)}
-            {label(
-                462,
-                290,
-                350,
-                'Client receives both frames. On disconnect, browser automatically sends "Last-Event-ID: 13" for seamless replay.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Bottom Guardrail Box */}
-            {label(52, 386, 756, 'Streaming Protocol Design Guidelines', 12, blueTone, 'left', 700)}
-            {label(
-                52,
-                406,
-                756,
-                '1. Emit monotonic SSE event IDs. · 2. Embed JSON sequence numbers. · 3. Replay reconnects from last acknowledged sequence.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create()

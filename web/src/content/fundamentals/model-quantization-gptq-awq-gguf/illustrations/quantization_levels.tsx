@@ -1,273 +1,219 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 700
-export const height = 825
+export const width = 740
+export const height = 430
 export const preset = 'engineering'
 export const alt =
     'On one 0 to 60 GB scale, a 27-billion-weight payload falls from 54 GB at BF16 to 27 GB at INT8, 13.5 GB of INT4 codes plus 0.421875 GB of group scales, and 10.125 GB of INT3 codes plus the same scales. The 24 GB line leaves other allocations to budget. One 128-weight INT4 group stores 64 code bytes and a 2-byte FP16 scale, totaling 4.125 bits per weight.'
 
 const parameters = 27_000_000_000
 const scaleGroups = Math.ceil(parameters / 128)
-const scaleBytes = scaleGroups * 2
-const scaleGb = scaleBytes / 1e9
+const scaleGb = (scaleGroups * 2) / 1e9 // 0.421875 GB
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c, c.bg)
-    const purple = getReadableToneColor('purple', c, c.bg)
-    const warm = getReadableToneColor('warm', c, c.bg)
-    const capacityText = theme === 'light' ? '#8a4b00' : c.warning
-    const green = getReadableToneColor('green', c, c.bg)
-    const grid = theme === 'light' ? '#94a3b8' : '#52627a'
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        size = 25,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-    ) => {
-        const displaySize = Math.max(size, 25)
-        return (
-            <CanvasItem
-                key={`${x}-${y}-${text}`}
-                x={x}
-                y={y}
-                width={w}
-                height={Math.ceil(displaySize * 1.42)}
-            >
-                <TextLabel
-                    c={c}
-                    text={text}
-                    fontSize={displaySize}
-                    color={color}
-                    width="100%"
-                    align={align}
-                />
-            </CanvasItem>
-        )
-    }
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
 
-    const x0 = 130
-    const x1 = 640
-    const xFor = (gb: number) => x0 + (gb / 60) * (x1 - x0)
+    // --- Header & Swatch Legend ---
+    fig.text(32, 22, '27B weight payload by precision (decimal GB)', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    // Crisp swatch legend (right-aligned, well separated)
+    const legY = 48
+    fig.rect(32, legY - 6, 12, 12, { fill: blue, radius: 3 })
+    fig.text(50, legY, 'Code payload', { size: 13, color: c.textSecondary })
+
+    fig.rect(164, legY - 6, 12, 12, { fill: warm, radius: 3 })
+    fig.text(182, legY, 'FP16 group scales (g=128)', { size: 13, color: c.textSecondary })
+
+    fig.line(388, legY, 408, legY, { color: warm, width: 2, dash: '4 3' })
+    fig.text(416, legY, '24 GB GPU envelope', { size: 13, weight: 600, color: warm })
+
+    // --- Top Chart: 0..60 GB Horizontal Stacked Bars ---
+    const x0 = 96
+    const x1 = 626
+    const axisTop = 74
+    const axisBot = 246
+    const xOf = (gb: number) => x0 + (gb / 60) * (x1 - x0)
+
+    // Gridlines & ticks
+    for (const tick of [0, 12, 24, 36, 48, 60]) {
+        const tx = xOf(tick)
+        const isCap = tick === 24
+        fig.line(tx, axisTop, tx, axisBot, {
+            color: isCap ? warm : c.borderSubtle,
+            width: isCap ? 2 : 1,
+            dash: isCap ? '6 4' : undefined,
+            opacity: isCap ? 0.95 : 0.75,
+        })
+        fig.text(tx, axisBot + 16, String(tick), {
+            size: 12,
+            weight: isCap ? 700 : 400,
+            color: isCap ? warm : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+    fig.text(x1 + 26, axisBot + 16, 'GB', {
+        size: 12,
+        color: c.textSecondary,
+        mono: true,
+    })
+    fig.text(xOf(24) + 6, axisTop + 8, '24 GB', {
+        size: 12,
+        weight: 700,
+        color: warm,
+        mono: true,
+    })
+
     const rows = [
-        { name: 'BF16', code: 54, metadata: 0, total: 54, color: blue, value: '54.000 GB' },
-        { name: 'INT8', code: 27, metadata: 0, total: 27, color: purple, value: '27.000 GB' },
+        { name: 'BF16', code: 54, meta: 0, total: 54, color: blue, val: '54.00 GB' },
+        { name: 'INT8', code: 27, meta: 0, total: 27, color: purple, val: '27.00 GB' },
         {
             name: 'INT4',
             code: 13.5,
-            metadata: scaleGb,
+            meta: scaleGb,
             total: 13.5 + scaleGb,
-            color: warm,
-            value: '13.922 GB',
+            color: blue,
+            val: '13.92 GB (+0.42 scale)',
         },
         {
             name: 'INT3',
             code: 10.125,
-            metadata: scaleGb,
+            meta: scaleGb,
             total: 10.125 + scaleGb,
             color: green,
-            value: '10.547 GB',
+            val: '10.55 GB (+0.42 scale)',
         },
     ]
-    const valueLabels = rows.map((row, index) => {
-        const y = 218 + index * 45
-        const x = Math.max(xFor(row.total) + 8, 350)
-        return index < 2
-            ? { x: xFor(row.total) + 13, y, width: 96, plate: true }
-            : { x, y, width: 100, plate: false }
+
+    rows.forEach((row, idx) => {
+        const cy = 104 + idx * 40
+        const barH = 22
+        const codeW = xOf(row.code) - x0
+        const totalX = xOf(row.total)
+
+        fig.text(x0 - 12, cy, row.name, {
+            size: 14,
+            weight: 700,
+            color: row.color,
+            align: 'right',
+            mono: true,
+        })
+        fig.rect(x0, cy - barH / 2, codeW, barH, {
+            fill: tint(row.color, c.bg, theme === 'light' ? 0.78 : 0.85),
+            stroke: row.color,
+            strokeWidth: 1.25,
+            radius: 4,
+        })
+        if (row.meta > 0) {
+            const metaW = Math.max(5, totalX - (x0 + codeW))
+            fig.rect(x0 + codeW, cy - barH / 2, metaW, barH, {
+                fill: warm,
+                radius: 2,
+            })
+        }
+        const labelX = row.meta > 0 ? Math.max(totalX + 10, xOf(24) + 12) : totalX + 10
+        if (row.meta > 0) {
+            fig.line(totalX + 2, cy, labelX - 4, cy, {
+                color: c.textMuted,
+                width: 1,
+                dash: '2 2',
+            })
+        }
+        fig.text(labelX, cy, row.val, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+            mono: true,
+        })
     })
 
-    return (
-        <Board c={c} width={width} height={height}>
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {[0, 12, 24, 36, 48, 60].map((value) => (
-                        <g key={`tick-${value}`}>
-                            <line
-                                x1={xFor(value)}
-                                y1={178}
-                                x2={xFor(value)}
-                                y2={392}
-                                stroke={value === 24 ? c.warning : grid}
-                                strokeWidth={value === 24 ? 3 : 1.5}
-                                strokeDasharray={value === 24 ? '8 7' : undefined}
-                                opacity={value === 24 ? 0.95 : 0.58}
-                            />
-                            <line
-                                x1={xFor(value)}
-                                y1={171}
-                                x2={xFor(value)}
-                                y2={181}
-                                stroke={grid}
-                                strokeWidth={2}
-                            />
-                        </g>
-                    ))}
-                    <line x1={x0} y1={180} x2={x1} y2={180} stroke={grid} strokeWidth={2} />
-                    {rows.map((row, index) => {
-                        const y = 224 + index * 45
-                        const codeX = xFor(row.code)
-                        const totalX = xFor(row.total)
-                        return (
-                            <g key={row.name}>
-                                <rect
-                                    x={x0}
-                                    y={y}
-                                    width={codeX - x0}
-                                    height={24}
-                                    rx={12}
-                                    fill={row.color}
-                                    opacity={0.9}
-                                />
-                                {row.metadata > 0 && (
-                                    <rect
-                                        x={codeX}
-                                        y={y}
-                                        width={totalX - codeX}
-                                        height={24}
-                                        rx={3}
-                                        fill={warm}
-                                    />
-                                )}
-                                <circle
-                                    cx={totalX}
-                                    cy={y + 12}
-                                    r={5}
-                                    fill={c.bg}
-                                    stroke={row.color}
-                                    strokeWidth={3}
-                                />
-                            </g>
-                        )
-                    })}
-                    {valueLabels.map(
-                        (item, index) =>
-                            item.plate && (
-                                <rect
-                                    key={`value-label-plate-${index}`}
-                                    x={item.x - 4}
-                                    y={item.y - 1}
-                                    width={item.width + 4}
-                                    height={38}
-                                    rx={5}
-                                    fill={c.bg}
-                                />
-                            ),
-                    )}
-                    <line x1={23} y1={573} x2={677} y2={573} stroke={grid} strokeWidth={1.5} />
-                    {Array.from({ length: 8 }, (_, i) => (
-                        <g key={`block-${i}`}>
-                            <rect
-                                x={36 + i * 61}
-                                y={655}
-                                width={53}
-                                height={33}
-                                rx={5}
-                                fill={blue}
-                                opacity={0.86}
-                            />
-                            <line
-                                x1={90 + i * 61}
-                                y1={655}
-                                x2={90 + i * 61}
-                                y2={688}
-                                stroke={c.bg}
-                                strokeWidth={2}
-                                opacity={0.7}
-                            />
-                        </g>
-                    ))}
-                    <rect x={544} y={655} width={36} height={33} rx={4} fill={warm} />
-                    <rect
-                        x={582}
-                        y={655}
-                        width={36}
-                        height={33}
-                        rx={4}
-                        fill={warm}
-                        opacity={0.65}
-                    />
-                </svg>
-            </CanvasItem>
+    // Hairline separator
+    fig.line(32, 282, 708, 282, { color: c.borderSubtle, width: 1 })
 
-            {label(24, 12, 650, 'The payload has a real scale', 36)}
-            {label(
-                24,
-                68,
-                650,
-                '27 billion weights · decimal GB · rounded totals',
-                24,
-                c.textSecondary,
-            )}
-            {label(24, 111, 175, 'Code payload', 23, blue)}
-            {label(200, 111, 225, 'FP16 group scales', 23, warm)}
-            {label(472, 111, 200, '24 GB capacity', 23, capacityText)}
-            {label(xFor(24) - 50, 139, 100, '24 GB', 23, capacityText, 'center')}
-            {label(25, 218, 92, 'BF16', 24, blue, 'right')}
-            {label(25, 263, 92, 'INT8', 24, purple, 'right')}
-            {label(25, 308, 92, 'INT4', 24, warm, 'right')}
-            {label(25, 353, 92, 'INT3', 24, green, 'right')}
-            {rows.map((row, index) =>
-                label(
-                    valueLabels[index].x,
-                    valueLabels[index].y,
-                    valueLabels[index].width,
-                    row.value.replace(' GB', ''),
-                    23,
-                    c.textPrimary,
-                ),
-            )}
-            {[0, 12, 24, 36, 48, 60].map((value) =>
-                label(xFor(value) - 26, 396, 52, `${value}`, 23, c.textSecondary, 'center'),
-            )}
-            {label(24, 396, 66, 'GB', 23, c.textSecondary)}
-            {label(25, 430, 650, 'INT4 13.5 + 0.421875 = 13.921875 GB', 23, c.textPrimary)}
-            {label(25, 465, 650, 'INT3 10.125 + 0.421875 = 10.546875 GB', 23, c.textPrimary)}
-            {label(
-                25,
-                500,
-                650,
-                '24 GB must also hold tensors, zeros and padding.',
-                23,
-                c.textSecondary,
-            )}
-            {label(
-                25,
-                534,
-                650,
-                'KV cache and workspace also draw from that budget.',
-                23,
-                c.textSecondary,
-            )}
+    // --- Bottom: Zoom into one 128-weight INT4 group ---
+    fig.text(32, 304, 'Zoom · one INT4 group of 128 weights', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(708, 304, '66 B / 128 w = 4.125 bpw (+3.125%)', {
+        size: 13,
+        weight: 600,
+        color: warm,
+        align: 'right',
+        mono: true,
+    })
 
-            {label(24, 578, 650, 'Zoom: one INT4 group of 128 weights', 27)}
-            {label(36, 618, 500, '8 code blocks × 8 bytes', 24, c.textSecondary, 'center')}
-            {label(36, 691, 480, '64 code bytes', 23, blue, 'center')}
-            {label(531, 618, 136, 'FP16 scale', 23, warm, 'center')}
-            {label(530, 688, 98, '2 bytes', 23, warm, 'center')}
-            {label(26, 717, 650, '66 B × 8 bits/B ÷ 128 weights', 25, c.textPrimary)}
-            {label(26, 749, 650, '= 4.125 bits/weight', 25, c.textPrimary)}
-            {label(
-                26,
-                785,
-                650,
-                'Scale overhead: 3.125% over the 4-bit codes',
-                23,
-                c.textSecondary,
-            )}
-        </Board>
-    )
+    const stripY = 332
+    const stripH = 34
+    const blockW = 62
+    const blockGap = 6
+    const stripX = 42
+    for (let i = 0; i < 8; i++) {
+        const bx = stripX + i * (blockW + blockGap)
+        fig.rect(bx, stripY, blockW, stripH, {
+            fill: tint(blue, c.bg, theme === 'light' ? 0.2 : 0.3),
+            stroke: blue,
+            strokeWidth: 1.4,
+            radius: 5,
+        })
+        fig.text(bx + blockW / 2, stripY + stripH / 2, '8 B', {
+            size: 12,
+            weight: 600,
+            color: c.textPrimary,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    const scaleX = stripX + 8 * (blockW + blockGap) + 10
+    const scaleW = 104
+    fig.rect(scaleX, stripY, scaleW, stripH, {
+        fill: tint(warm, c.bg, theme === 'light' ? 0.24 : 0.36),
+        stroke: warm,
+        strokeWidth: 1.75,
+        radius: 5,
+    })
+    fig.text(scaleX + scaleW / 2, stripY + stripH / 2, 'FP16 · 2 B', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
+
+    // Dimension braces below
+    const codeEnd = stripX + 8 * blockW + 7 * blockGap
+    fig.brace(stripX, stripY + stripH + 6, codeEnd, stripY + stripH + 6, '8 × 8 B = 64 code bytes (128 × 4-bit)', {
+        side: 1,
+        depth: 8,
+        color: blue,
+        labelColor: blue,
+        labelSize: 13,
+        labelGap: 14,
+        weight: 600,
+    })
+    fig.brace(scaleX, stripY + stripH + 6, scaleX + scaleW, stripY + stripH + 6, '1 scale', {
+        side: 1,
+        depth: 8,
+        color: warm,
+        labelColor: warm,
+        labelSize: 13,
+        labelGap: 14,
+        weight: 600,
+    })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create

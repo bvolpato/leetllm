@@ -1,171 +1,281 @@
-import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 395
 export const alt =
-    'Token budget reservation and concurrency cap in test-time compute. In a 4,000-token pool, candidate A and B each reserve 1,500 tokens, leaving 1,000 free. Candidate C requests 1,500 and must wait. Candidate A completes after spending 900 tokens and releases 600 tokens. Candidate C is admitted with 1,500 tokens, leaving 100 tokens free.'
+    'A 4,000-token shared budget holds two 1,500-token reservations. After call A finishes using 900 tokens, call C reserves 1,500 and 100 tokens remain free.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const critical = fig.tone('critical')
+    const muted = c.textSecondary
 
-    // Header
-    a.text(40, 36, 'Token Budget Reservation and Dynamic Concurrency Settlement', {
-        size: 22,
+    const barX = 24
+    const barW = 520 // 4,000 tokens -> 0.13 px/token
+    const total = 4000
+    const sx = (tok: number) => barX + (tok / total) * barW
+    const sw = (tok: number) => (tok / total) * barW
+
+    const cardX = 574
+    const cardW = 242
+
+    // Vertical gridlines across both phase bars (0, 1k, 2k, 3k, 4k)
+    for (const t of [0, 1000, 2000, 3000, 4000]) {
+        fig.line(sx(t), 46, sx(t), 334, {
+            color: c.borderSubtle,
+            width: 1,
+            dash: t === 0 || t === 4000 ? undefined : '3 4',
+        })
+    }
+
+    // --- Phase 1: Concurrent Reservation ---
+    fig.text(barX, 24, 'Phase 1 · Concurrent Reservation (3,000 / 4,000 reserved)', {
+        size: 14,
         weight: 700,
-    })
-    a.text(
-        40,
-        62,
-        'Hard generation ceiling: 4,000 tokens · Pessimistic reservation prevents out-of-budget OOM spills',
-        { size: 16, color: k.mid },
-    )
-
-    const totalCap = 4000
-    const barWidth = 490
-    const scale = barWidth / totalCap
-    const startX = 60
-
-    // Phase 1: Initial Allocation
-    a.rect(40, 85, 780, 160, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(60, 112, 'Phase 1: Concurrent Reservation (A: 1,500, B: 1,500)', {
-        size: 17,
-        weight: 650,
-        color: k.state,
+        color: c.textPrimary,
     })
 
-    // Bar 1
-    const y1 = 132
-    a.rect(startX, y1, 1500 * scale, 42, { fill: tint(k.state, 0.35), stroke: k.state, r: 4 })
-    a.text(startX + 750 * scale, y1 + 21, 'Candidate A (1,500 reserved)', {
+    const y1 = 56
+    const barH = 48
+
+    // Call A: 1,500 reserved
+    fig.rect(sx(0), y1, sw(1500) - 2, barH, {
+        fill: tint(blue, c.bg, 0.22),
+        stroke: blue,
+        strokeWidth: 1.75,
+        radius: 6,
+    })
+    fig.text(sx(750), y1 + 16, 'Call A', {
         size: 14,
-        weight: 600,
+        weight: 700,
+        color: blue,
         align: 'center',
-        color: k.ink,
+        width: sw(1500) - 10,
     })
-
-    a.rect(startX + 1500 * scale, y1, 1500 * scale, 42, {
-        fill: tint(k.prefill, 0.35),
-        stroke: k.prefill,
-        r: 4,
-    })
-    a.text(startX + 2250 * scale, y1 + 21, 'Candidate B (1,500 reserved)', {
-        size: 14,
-        weight: 600,
-        align: 'center',
-        color: k.ink,
-    })
-
-    a.rect(startX + 3000 * scale, y1, 1000 * scale, 42, {
-        fill: tint(k.line, 0.15),
-        stroke: k.line,
-        dash: '4,4',
-        r: 4,
-    })
-    a.text(startX + 3500 * scale, y1 + 21, '1,000 Free', {
-        size: 14,
-        weight: 600,
-        align: 'center',
-        color: k.mid,
-    })
-
-    a.text(startX, y1 + 58, 'Total Reserved: 3,000 / 4,000 tokens (75% allocated)', {
-        size: 14,
-        color: k.mid,
-    })
-
-    // Admission outcome 1
-    a.rect(575, 105, 230, 125, { fill: tint(k.fail, 0.12), stroke: k.fail, r: 6 })
-    a.text(590, 130, 'Candidate C Admission', { size: 16, weight: 700, color: k.fail })
-    a.text(590, 155, 'Needs: 1,500 tokens', { size: 14, mono: true, color: k.ink })
-    a.text(590, 178, 'Headroom: 1,000 tokens', { size: 14, mono: true, color: k.mid })
-    a.text(590, 205, 'Status: ADMISSION BLOCKED', { size: 14, weight: 700, color: k.fail })
-
-    // Transition Arrow between phases
-    a.arrow(260, 245, 260, 280, k.pass, { width: 2 })
-    a.text(
-        280,
-        265,
-        'Candidate A completes after 900 tokens → Releases 600 tokens back to headroom (1,600 free)',
-        { size: 14, weight: 650, color: k.pass },
-    )
-
-    // Phase 2: Settlement & Resumption
-    a.rect(40, 285, 780, 175, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.text(60, 312, 'Phase 2: Early Settlement & Candidate C Admission', {
-        size: 17,
-        weight: 650,
-        color: k.pass,
-    })
-
-    // Bar 2
-    const y2 = 332
-    a.rect(startX, y2, 900 * scale, 42, { fill: tint(k.pass, 0.45), stroke: k.pass, r: 4 })
-    a.text(startX + 450 * scale, y2 + 21, 'A: 900 Spent', {
-        size: 14,
-        weight: 600,
-        align: 'center',
-        color: k.ink,
-    })
-
-    a.rect(startX + 900 * scale, y2, 1500 * scale, 42, {
-        fill: tint(k.prefill, 0.35),
-        stroke: k.prefill,
-        r: 4,
-    })
-    a.text(startX + 1650 * scale, y2 + 21, 'B: 1,500 Reserved', {
-        size: 14,
-        weight: 600,
-        align: 'center',
-        color: k.ink,
-    })
-
-    a.rect(startX + 2400 * scale, y2, 1500 * scale, 42, {
-        fill: tint(k.state, 0.35),
-        stroke: k.state,
-        r: 4,
-    })
-    a.text(startX + 3150 * scale, y2 + 21, 'C: 1,500 Admitted', {
-        size: 14,
-        weight: 600,
-        align: 'center',
-        color: k.ink,
-    })
-
-    a.rect(startX + 3900 * scale, y2, 100 * scale, 42, {
-        fill: tint(k.line, 0.2),
-        stroke: k.line,
-        r: 4,
-    })
-    a.text(startX + 3950 * scale, y2 - 10, '100 Free', {
+    fig.text(sx(750), y1 + 35, '1,500 reserved', {
         size: 12,
-        weight: 600,
+        color: c.textPrimary,
         align: 'center',
-        color: k.mid,
+        mono: true,
+        width: sw(1500) - 10,
     })
 
-    a.text(
-        startX,
-        y2 + 58,
-        'Allocation: 900 spent + 3,000 reserved = 3,900 / 4,000 tokens (97.5% committed)',
-        { size: 14, color: k.mid },
-    )
+    // Call B: 1,500 reserved
+    fig.rect(sx(1500) + 2, y1, sw(1500) - 4, barH, {
+        fill: tint(purple, c.bg, 0.22),
+        stroke: purple,
+        strokeWidth: 1.75,
+        radius: 6,
+    })
+    fig.text(sx(2250), y1 + 16, 'Call B', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        width: sw(1500) - 10,
+    })
+    fig.text(sx(2250), y1 + 35, '1,500 reserved', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+        width: sw(1500) - 10,
+    })
 
-    // Admission outcome 2
-    a.rect(575, 305, 230, 140, { fill: tint(k.pass, 0.12), stroke: k.pass, r: 6 })
-    a.text(590, 330, 'Candidate C Admitted', { size: 16, weight: 700, color: k.pass })
-    a.text(590, 355, 'Headroom before: 1,600', { size: 14, mono: true, color: k.ink })
-    a.text(590, 378, 'Reserved: 1,500 tokens', { size: 14, mono: true, color: k.mid })
-    a.text(590, 400, 'Remaining free: 100', { size: 14, mono: true, color: k.mid })
-    a.text(590, 425, 'Status: IN-PROGRESS', { size: 14, weight: 700, color: k.pass })
+    // Free headroom: 1,000
+    fig.rect(sx(3000) + 2, y1, sw(1000) - 2, barH, {
+        fill: tint(c.textMuted, c.bg, 0.05),
+        stroke: c.border,
+        strokeWidth: 1.25,
+        radius: 6,
+    })
+    fig.text(sx(3500), y1 + 24, '1,000 free', {
+        size: 13,
+        weight: 600,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: sw(1000) - 8,
+    })
 
-    return a.render()
+    // Phase 1 Admission Outcome
+    fig.rect(cardX, 34, cardW, 92, {
+        fill: tint(critical, c.bg, 0.09),
+        stroke: critical,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(cardX + 14, 54, 'Call C (needs 1,500)', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(cardX + 14, 78, 'Headroom: 1,000 < 1,500', {
+        size: 12,
+        color: muted,
+        mono: true,
+    })
+    fig.text(cardX + 14, 104, 'BLOCKED · Waits in queue', {
+        size: 13,
+        weight: 700,
+        color: critical,
+    })
+
+    // --- Transition Event ---
+    fig.arrow(sx(900), 124, sx(900), 184, { color: green, width: 2.25, head: 6 })
+    fig.text(sx(900) + 14, 146, 'Call A finishes using 900 tokens', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+    fig.text(sx(900) + 14, 168, 'Releases 600 unused tokens -> headroom rises to 1,600', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    // --- Phase 2: Settlement & Call C Admission ---
+    fig.text(barX, 208, 'Phase 2 · Settlement & Admission (3,900 / 4,000)', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+
+    const y2 = 240
+
+    // A: 900 spent
+    fig.rect(sx(0), y2, sw(900) - 2, barH, {
+        fill: tint(green, c.bg, 0.24),
+        stroke: green,
+        strokeWidth: 1.75,
+        radius: 6,
+    })
+    fig.text(sx(450), y2 + 16, 'A: 900', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+        mono: true,
+        width: sw(900) - 8,
+    })
+    fig.text(sx(450), y2 + 35, 'spent', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        width: sw(900) - 8,
+    })
+
+    // B: 1,500 reserved
+    fig.rect(sx(900) + 2, y2, sw(1500) - 4, barH, {
+        fill: tint(purple, c.bg, 0.22),
+        stroke: purple,
+        strokeWidth: 1.75,
+        radius: 6,
+    })
+    fig.text(sx(1650), y2 + 16, 'Call B', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        width: sw(1500) - 10,
+    })
+    fig.text(sx(1650), y2 + 35, '1,500 reserved', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+        width: sw(1500) - 10,
+    })
+
+    // C: 1,500 admitted
+    fig.rect(sx(2400) + 2, y2, sw(1500) - 4, barH, {
+        fill: tint(blue, c.bg, 0.22),
+        stroke: blue,
+        strokeWidth: 1.75,
+        radius: 6,
+    })
+    fig.text(sx(3150), y2 + 16, 'Call C', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        width: sw(1500) - 10,
+    })
+    fig.text(sx(3150), y2 + 35, '1,500 reserved', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+        width: sw(1500) - 10,
+    })
+
+    // 100 free sliver + clean callout above so zero overlap
+    fig.rect(sx(3900) + 2, y2, sw(100) - 2, barH, {
+        fill: tint(c.textMuted, c.bg, 0.14),
+        stroke: c.textMuted,
+        strokeWidth: 1.25,
+        radius: 3,
+    })
+    fig.callout([sx(3950), y2 + 4], [sx(3950) - 34, y2 - 22], '100 free', {
+        color: muted,
+        labelColor: c.textPrimary,
+        size: 12,
+        weight: 700,
+        mono: true,
+        align: 'right',
+        bend: -0.25,
+        head: 5,
+    })
+
+    // Phase 2 Admission Outcome
+    fig.rect(cardX, 218, cardW, 92, {
+        fill: tint(green, c.bg, 0.09),
+        stroke: green,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(cardX + 14, 238, 'Call C (1,500 reserved)', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(cardX + 14, 262, 'Headroom: 1,600 >= 1,500', {
+        size: 12,
+        color: muted,
+        mono: true,
+    })
+    fig.text(cardX + 14, 288, 'ADMITTED · 100 free left', {
+        size: 13,
+        weight: 700,
+        color: green,
+    })
+
+    // --- Shared Calibrated Token Axis ---
+    const axisY = 334
+    fig.line(barX, axisY, barX + barW, axisY, { color: c.textMuted, width: 1.25 })
+    for (const t of [0, 1000, 2000, 3000, 4000]) {
+        fig.line(sx(t), axisY, sx(t), axisY + 5, { color: c.textMuted, width: 1.25 })
+        fig.text(sx(t), axisY + 20, t === 0 ? '0' : `${t / 1000}k`, {
+            size: 13,
+            weight: 600,
+            color: muted,
+            align: 'center',
+            mono: true,
+            width: 44,
+        })
+    }
+    fig.text(barX + barW / 2, axisY + 44, 'Shared request token budget (4,000-token hard cap)', {
+        size: 13,
+        color: muted,
+        align: 'center',
+        width: 440,
+    })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create()

@@ -1,209 +1,242 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 700
-export const height = 800
+export const width = 740
+export const height = 420
 export const preset = 'engineering'
 export const alt =
-    'For four weights [0.3, minus 1.2, 2, 0.7], three quantization grids reconstruct 8-bit [0.2992, minus 1.1969, 2, 0.6929], 4-bit [0.2857, minus 1.1429, 2, 0.5714], and 2-bit [0, minus 2, 2, 0]. The first held-out output contraction uses activation column [2, 1, minus 1, 0.2]. Across all three columns, baseline-minus-reconstruction errors yield MSE values 0.000204, 0.067010, and 1.007200. Ideal code payloads are 4, 2, and 1 bytes; scale bytes are excluded.'
+    'Comparison of 8-bit, 4-bit, and 2-bit symmetric quantization on four weights [0.3, -1.2, 2.0, 0.7]. Left aligned number lines show original weights snapping to 8-bit [0.2992, -1.1969, 2, 0.6929], 4-bit [0.2857, -1.1429, 2, 0.5714], and 2-bit [0, -2, 2, 0] with ideal code payloads 4, 2, and 1 bytes. Right bar chart compares held-out output MSE across three activation columns: 0.000204 at 8-bit, 0.067010 at 4-bit, and 1.007200 at 2-bit (a 15x jump).'
 
-const weight = [0.3, -1.2, 2, 0.7]
-const quantizedCodes = [
-    [19, -76, 127, 44],
-    [1, -4, 7, 2],
-    [0, -1, 1, 0],
-]
-const quantizationSteps = [2 / 127, 2 / 7, 2]
-const reconstructed = quantizedCodes.map((codes, rowIndex) =>
-    codes.map((code) => code * quantizationSteps[rowIndex]),
-)
+const weights = [0.3, -1.2, 2.0, 0.7]
 const levels = [
-    { bits: '8-bit', values: '[0.2992, −1.1969, 2, 0.6929]', color: 'blue' as const },
-    { bits: '4-bit', values: '[0.2857, −1.1429, 2, 0.5714]', color: 'warm' as const },
-    { bits: '2-bit', values: '[0, −2, 2, 0]', color: 'green' as const },
-]
-const outputErrors = [
     {
         bits: '8-bit',
-        error: ['−0.000157', '−0.021260', '0.012598'],
-        mse: '0.000204',
-        colorIndex: 0,
+        bytes: '4 B',
+        rebuilt: [19 * (2 / 127), -76 * (2 / 127), 2.0, 44 * (2 / 127)],
+        stepLabel: 'step 2/127',
+        mse: 0.000204,
+        mseText: '0.000204',
+        tone: 'blue' as const,
     },
     {
         bits: '4-bit',
-        error: ['−0.002857', '−0.385714', '0.228571'],
-        mse: '0.067010',
-        colorIndex: 1,
+        bytes: '2 B',
+        rebuilt: [1 * (2 / 7), -4 * (2 / 7), 2.0, 2 * (2 / 7)],
+        stepLabel: 'step 2/7',
+        mse: 0.06701,
+        mseText: '0.067010',
+        tone: 'warm' as const,
     },
-    { bits: '2-bit', error: ['1.54', '−0.10', '0.80'], mse: '1.007200', colorIndex: 2 },
+    {
+        bits: '2-bit',
+        bytes: '1 B',
+        rebuilt: [0, -2, 2, 0],
+        stepLabel: 'codes {-1,0,1}',
+        mse: 1.0072,
+        mseText: '1.007200',
+        tone: 'critical' as const,
+    },
 ]
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const colors = levels.map((level) => getReadableToneColor(level.color, c, c.bg))
-    const originalColor = getReadableToneColor('purple', c, c.bg)
-    const grid = theme === 'light' ? '#94a3b8' : '#52627a'
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        size = 24,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-    ) => {
-        const displaySize = Math.max(size, 25)
-        return (
-            <CanvasItem
-                key={`${x}-${y}-${text}`}
-                x={x}
-                y={y}
-                width={w}
-                height={Math.ceil(displaySize * 1.42)}
-            >
-                <TextLabel
-                    c={c}
-                    text={text}
-                    fontSize={displaySize}
-                    color={color}
-                    width="100%"
-                    align={align}
-                />
-            </CanvasItem>
-        )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const purple = fig.tone('purple')
+    const toneColors = levels.map((l) => fig.tone(l.tone))
+
+    // --- Left panel: 8/4/2-bit snapping number lines ---
+    fig.text(28, 22, 'Weight snapping on [-2, +2]', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    // Legend swatches
+    fig.circle(34, 48, 4.5, { fill: purple })
+    fig.text(46, 48, 'Original W = [0.3, −1.2, 2, 0.7]', {
+        size: 14,
+        color: purple,
+        mono: true,
+    })
+    fig.rect(336, 43, 10, 10, { fill: toneColors[1], radius: 2 })
+    fig.text(352, 48, 'Rebuilt Ŵ', { size: 14, color: c.textSecondary })
+
+    const xMin = 98
+    const xMax = 428
+    const xOf = (v: number) => xMin + ((v + 2) / 4) * (xMax - xMin)
+    const rowYs = [116, 212, 308]
+
+    // Shared vertical guides at -2, -1, 0, 1, 2
+    for (const tick of [-2, -1, 0, 1, 2]) {
+        const tx = xOf(tick)
+        fig.line(tx, 76, tx, 344, {
+            color: c.borderSubtle,
+            width: tick === 0 ? 1.25 : 0.85,
+            dash: tick === 0 ? undefined : '3 3',
+        })
+        fig.text(tx, 360, tick < 0 ? `−${Math.abs(tick)}` : String(tick), {
+            size: 14,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
     }
-    const plotX = (value: number) => 104 + ((value + 2) / 4) * 556
-    const rowY = [152, 200, 248]
 
-    return (
-        <Board c={c} width={width} height={height}>
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {rowY.map((y, rowIndex) => (
-                        <g key={`quant-grid-${rowIndex}`}>
-                            <line
-                                x1={plotX(-2)}
-                                y1={y}
-                                x2={plotX(2)}
-                                y2={y}
-                                stroke={grid}
-                                strokeWidth={2}
-                            />
-                            {[-2, -1, 0, 1, 2].map((tick) => (
-                                <line
-                                    key={`tick-${rowIndex}-${tick}`}
-                                    x1={plotX(tick)}
-                                    y1={y - 6}
-                                    x2={plotX(tick)}
-                                    y2={y + 6}
-                                    stroke={grid}
-                                    strokeWidth={1.5}
-                                    opacity={0.65}
-                                />
-                            ))}
-                            {weight.map((value, index) => {
-                                const xOriginal = plotX(value)
-                                const xRebuilt = plotX(reconstructed[rowIndex][index])
-                                return (
-                                    <g key={`weight-${rowIndex}-${index}`}>
-                                        <line
-                                            x1={xOriginal}
-                                            y1={y - 4}
-                                            x2={xRebuilt}
-                                            y2={y + 4}
-                                            stroke={colors[rowIndex]}
-                                            strokeWidth={3}
-                                            opacity={0.82}
-                                        />
-                                        <circle
-                                            cx={xOriginal}
-                                            cy={y - 6}
-                                            r={6.5}
-                                            fill={originalColor}
-                                            stroke={c.bg}
-                                            strokeWidth={1.5}
-                                        />
-                                        <rect
-                                            x={xRebuilt - 6.5}
-                                            y={y + 1}
-                                            width={13}
-                                            height={13}
-                                            rx={2}
-                                            fill={colors[rowIndex]}
-                                            stroke={c.bg}
-                                            strokeWidth={1.5}
-                                        />
-                                    </g>
-                                )
-                            })}
-                        </g>
-                    ))}
-                    <line x1={24} y1={434} x2={676} y2={434} stroke={grid} strokeWidth={1.5} />
-                </svg>
-            </CanvasItem>
+    levels.forEach((lvl, r) => {
+        const y = rowYs[r]!
+        const col = toneColors[r]!
 
-            {label(24, 12, 650, 'Every grid leaves a different footprint', 36)}
-            {label(
-                24,
-                68,
-                650,
-                'W = [0.3, −1.2, 2, 0.7] · ideal code bytes 4 / 2 / 1',
-                23,
-                c.textSecondary,
-            )}
-            {label(24, 107, 260, '○ original weight', 23, originalColor)}
-            {label(282, 107, 300, '□ reconstructed weight', 23, colors[1])}
-            {levels.map((level, index) =>
-                label(24, rowY[index] - 15, 74, level.bits, 23, colors[index]),
-            )}
-            {label(80, 260, 48, '−2', 23, c.textSecondary, 'center')}
-            {label(358, 260, 48, '0', 23, c.textSecondary, 'center')}
-            {label(636, 260, 48, '2', 23, c.textSecondary, 'center')}
-            {levels.map((level, index) =>
-                label(
-                    24,
-                    293 + index * 33,
-                    650,
-                    `Ŵ ${level.bits}: ${level.values}`,
-                    23,
-                    colors[index],
-                ),
-            )}
-            {label(24, 396, 650, '2-bit symmetric grid: codes −1, 0, 1 · step 2', 23, colors[2])}
+        // Row label + byte count
+        fig.text(84, y - 9, lvl.bits, {
+            size: 14,
+            weight: 700,
+            color: col,
+            align: 'right',
+        })
+        fig.text(84, y + 11, lvl.bytes, {
+            size: 14,
+            color: c.textSecondary,
+            align: 'right',
+            mono: true,
+        })
 
-            {label(24, 442, 650, 'One output contraction · first held-out column', 25)}
-            {label(24, 478, 310, 'x₀ = [2, 1, −1, 0.2]', 23, c.textSecondary)}
-            {label(359, 478, 317, 'baseline y₀ = −2.46', 23, c.textSecondary)}
-            {label(24, 512, 650, '4-bit: 0.2857×2 − 1.1429×1 − 2×1', 23, colors[1])}
-            {label(24, 545, 650, '+ 0.5714×0.2 ≈ −2.4571', 23, colors[1])}
-            {label(24, 578, 650, 'Residual y₀ − ŷ₀ = −0.00285714', 23, c.textPrimary)}
+        // Main spine
+        fig.line(xMin, y, xMax, y, { color: c.textMuted, width: 1.75 })
 
-            {label(24, 611, 650, 'd = W·X − Ŵ·X · MSE = mean(d²)', 23)}
-            {label(24, 650, 68, 'bits', 23, c.textSecondary)}
-            {label(94, 650, 140, 'd₀', 23, c.textSecondary, 'center')}
-            {label(224, 650, 140, 'd₁', 23, c.textSecondary, 'center')}
-            {label(362, 650, 140, 'd₂', 23, c.textSecondary, 'center')}
-            {label(528, 650, 148, 'MSE', 23, c.textSecondary, 'center')}
-            {outputErrors.flatMap((item, index) => {
-                const y = 679 + index * 33
-                const color = colors[item.colorIndex]
-                return [
-                    label(24, y, 68, item.bits, 23, color),
-                    label(94, y, 140, item.error[0], 23, c.textPrimary, 'center'),
-                    label(224, y, 140, item.error[1], 23, c.textPrimary, 'center'),
-                    label(362, y, 140, item.error[2], 23, c.textPrimary, 'center'),
-                    label(528, y, 148, item.mse, 23, color, 'center'),
-                ]
-            })}
-        </Board>
+        // Draw representable grid tick marks for 4-bit (15 marks) & 2-bit (3 marks)
+        if (r === 1) {
+            for (let q = -7; q <= 7; q++) {
+                const gx = xOf((q * 2) / 7)
+                fig.line(gx, y - 5, gx, y + 5, { color: col, width: 1, opacity: 0.45 })
+            }
+        } else if (r === 2) {
+            for (const q of [-2, 0, 2]) {
+                const gx = xOf(q)
+                fig.line(gx, y - 8, gx, y + 8, { color: col, width: 2, opacity: 0.7 })
+            }
+        }
+
+        // Original dots (top) snapping to reconstructed squares (bottom)
+        weights.forEach((w, i) => {
+            const xo = xOf(w)
+            const xr = xOf(lvl.rebuilt[i]!)
+            // Snap displacement line
+            if (Math.abs(xr - xo) > 1.5) {
+                fig.line(xo, y - 9, xr, y + 9, { color: col, width: 2.25, opacity: 0.85 })
+            } else {
+                fig.line(xo, y - 9, xr, y + 9, { color: col, width: 1.5, opacity: 0.6 })
+            }
+            fig.circle(xo, y - 10, 4.5, { fill: purple, stroke: c.bg, width: 1.5 })
+            fig.rect(xr - 4.5, y + 5.5, 9, 9, {
+                fill: col,
+                stroke: c.bg,
+                strokeWidth: 1.25,
+                radius: 2,
+            })
+        })
+
+        // Compact step annotation below each row
+        fig.text(xMax, y + 29, lvl.stepLabel, {
+            size: 14,
+            color: c.textMuted,
+            align: 'right',
+            mono: true,
+        })
+    })
+
+    fig.text(262, 394, '2-bit collapses 0.3 & 0.7 to 0 and −1.2 to −2', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // Vertical divider
+    fig.line(456, 22, 456, 398, { color: c.borderSubtle, width: 1 })
+
+    // --- Right panel: Compact Held-Out Output MSE bar chart ---
+    fig.text(476, 22, 'Held-out output MSE', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(476, 44, '3 columns · mean((WX − ŴX)²)', {
+        size: 14,
+        color: c.textSecondary,
+    })
+
+    const plot = fig.plot({ x: 516, y: 84, width: 198, height: 224 }, { x: [0, 3], y: [0, 1.15] })
+    plot.axes({
+        yTicks: [0, 0.25, 0.5, 0.75, 1.0],
+        yFormat: (v) => v.toFixed(2),
+        grid: true,
+        labelSize: 14,
+    })
+
+    levels.forEach((lvl, i) => {
+        const col = toneColors[i]!
+        const cx = plot.px(i + 0.5)
+        const barW = 40
+        const topY = plot.py(lvl.mse)
+        const h = Math.max(4, plot.bottom - topY)
+        fig.rect(cx - barW / 2, plot.bottom - h, barW, h, {
+            fill: tint(col, c.bg, theme === 'light' ? 0.78 : 0.85),
+            stroke: col,
+            strokeWidth: 1.5,
+            radius: 4,
+        })
+        fig.text(cx, plot.bottom + 18, lvl.bits, {
+            size: 14,
+            weight: 700,
+            color: col,
+            align: 'center',
+        })
+        // Stagger 4-bit value label higher than 8-bit so 8-char mono numbers never touch
+        const valY = i === 1 ? plot.bottom - h - 30 : plot.bottom - h - 14
+        if (i === 1) {
+            fig.line(cx, plot.bottom - h - 2, cx, valY + 10, {
+                color: col,
+                width: 1,
+                dash: '2 2',
+                opacity: 0.7,
+            })
+        }
+        fig.text(cx, valY, lvl.mseText, {
+            size: 14,
+            weight: 700,
+            color: col,
+            align: 'center',
+            mono: true,
+        })
+    })
+
+    // Crisp callout highlighting the 15x spike at 2-bit (arrow sweeps right, text sits cleanly left!)
+    fig.callout(
+        [plot.px(2.15), plot.py(0.7)],
+        [plot.px(1.52), plot.py(0.84)],
+        '15× jump',
+        {
+            color: toneColors[2],
+            size: 14,
+            weight: 700,
+            align: 'right',
+            bend: -0.15,
+        },
     )
+
+    fig.text(602, 360, 'x₀ = [2, 1, −1, 0.2]', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(602, 384, 'y₀ = −2.46 · 4-bit ŷ₀ = −2.457', {
+        size: 14,
+        color: toneColors[1],
+        align: 'center',
+        mono: true,
+    })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create

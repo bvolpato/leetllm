@@ -18,7 +18,6 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import {
-    ArticleEditionToggle,
     ArticleReaderBody,
     ArticleReaderProvider,
     ArticleReadingTime,
@@ -154,16 +153,7 @@ export default async function LearnArticlePage({ params }: PageProps) {
 
     const totalCount = allQuestions.length
     const { content, masteryQuestions, nextCallout } = extractLessonBody(question.content)
-    const referenceQuestion = question.hasAlternateEdition
-        ? getQuestionForUser(slug, false, "reference")
-        : undefined
-    const referenceBody = referenceQuestion ? extractLessonBody(referenceQuestion.content).content : undefined
-    const hasAlternateEdition = Boolean(
-        question.hasAlternateEdition && referenceBody && referenceBody !== content,
-    )
-    const allReferences = referenceQuestion
-        ? { ...question.references, ...referenceQuestion.references }
-        : question.references
+    const allReferences = question.references
     const shareImage = question.socialImage || question.coverImage
     const shareImageUrl = shareImage
         ? (shareImage.startsWith("http") ? shareImage : `https://leetllm.com${shareImage}`)
@@ -228,9 +218,7 @@ export default async function LearnArticlePage({ params }: PageProps) {
                 >
                     <ArticleReaderProvider
                         slug={slug}
-                        hasAlternateEdition={hasAlternateEdition}
                         readerTimeEstimate={question.timeEstimate}
-                        referenceTimeEstimate={referenceQuestion?.timeEstimate}
                     >
                         {/* Mobile back */}
                         <Link
@@ -284,7 +272,6 @@ export default async function LearnArticlePage({ params }: PageProps) {
 
                             <div data-print-hidden className="flex flex-wrap items-center justify-between gap-2 pt-1">
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                    <ArticleEditionToggle />
                                     {video && <LessonVideoButton key={video.sha256} video={video} />}
                                     <PersonalizeToolbarPopover align="left" />
                                 </div>
@@ -315,16 +302,6 @@ export default async function LearnArticlePage({ params }: PageProps) {
                                         showTableOfContents
                                         hideInlineTocOnDesktop
                                     />
-                                }
-                                referenceContent={
-                                    hasAlternateEdition && referenceBody ? (
-                                        <ServerMarkdownRenderer
-                                            content={referenceBody}
-                                            contentKey={`${slug}:reference`}
-                                            showTableOfContents
-                                            hideInlineTocOnDesktop
-                                        />
-                                    ) : undefined
                                 }
                                 hideInlineTocOnDesktop
                             />

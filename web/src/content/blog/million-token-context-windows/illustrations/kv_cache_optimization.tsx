@@ -1,141 +1,132 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-    getReadableToneColor,
-    getToneFill,
-    type ThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 640
-export const height = 780
+export const width = 780
+export const height = 385
 export const alt =
     'Per-sequence KV-cache bars on one zero-based scale: 16.8 GB at 128K tokens and eight KV heads, 65.5 GB at 500K, 131.1 GB at 1M, and 524.3 GB at 1M with 32 KV heads. All use 32 full-history layers, head dimension 128, and two-byte values; weights and overhead are excluded.'
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    size = 24,
-    color = c.textPrimary,
-    weight = 500,
-    align: 'left' | 'center' | 'right' = 'center',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * 1.6,
-        children: (
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                fontWeight={weight}
-                color={color}
-                align={align}
-            />
-        ),
-    })
-}
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
 
-export function create(mode: ThemeMode = 'dark') {
-    const c = getThemeColors(mode)
-    const tone = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getReadableToneColor(name, c)
-    const fill = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getToneFill(name, c)
-    const data = [
-        { label: '128K tokens · 8 heads', v: 16.777216 },
-        { label: '500K tokens · 8 heads', v: 65.536 },
-        { label: '1M tokens · 8 heads', v: 131.072 },
-        { label: '1M tokens · 32 heads', v: 524.288 },
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+
+    fig.text(28, 22, '32 full-history layers · head dim 128 · FP16 (2 B) · 1 sequence', {
+        size: 13.5,
+        color: c.textSecondary,
+    })
+
+    const rows = [
+        { label: '128K · 8 KV heads', gb: 16.777, color: blue, note: '1×' },
+        { label: '500K · 8 KV heads', gb: 65.536, color: blue, note: '3.9×' },
+        { label: '1M · 8 KV heads', gb: 131.072, color: purple, note: '7.8×' },
+        { label: '1M · 32 KV heads', gb: 524.288, color: warm, note: '31.3×' },
     ]
-    const x = (gb: number) => 40 + (gb / 560) * 450
-    return Board({
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: (
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {data.map((d, i) => (
-                            <rect
-                                key={d.label}
-                                x="40"
-                                y={250 + i * 105}
-                                width={x(d.v) - 40}
-                                height="33"
-                                rx="4"
-                                fill={tone(i === 3 ? 'warm' : 'purple')}
-                            />
-                        ))}
-                        <line
-                            x1="40"
-                            x2="490"
-                            y1="620"
-                            y2="620"
-                            stroke={c.textSecondary}
-                            strokeWidth="2"
-                        />
-                        {[0, 100, 200, 300, 400, 500].map((v) => (
-                            <line
-                                key={v}
-                                x1={x(v)}
-                                x2={x(v)}
-                                y1="614"
-                                y2="627"
-                                stroke={c.textSecondary}
-                                strokeWidth="2"
-                            />
-                        ))}
-                    </svg>
-                ),
-            }),
-            label(c, 'Long prompts keep more KV state alive', 20, 20, 600, 29, c.textPrimary, 700),
-            label(
-                c,
-                '32 full-history layers · head dimension 128',
-                25,
-                77,
-                590,
-                24,
-                c.textSecondary,
-            ),
-            label(c, '2 bytes per value · one sequence', 25, 119, 590, 24, c.textSecondary),
-            ...data.flatMap((d, i) => [
-                label(c, d.label, 25, 201 + i * 105, 590, 26, c.textPrimary, 650, 'left'),
-                label(
-                    c,
-                    d.v.toFixed(1),
-                    505,
-                    247 + i * 105,
-                    110,
-                    26,
-                    tone(i === 3 ? 'warm' : 'purple'),
-                    650,
-                    'right',
-                ),
-            ]),
-            ...[0, 100, 200, 300, 400, 500].map((v) =>
-                label(c, String(v), x(v) - 30, 637, 60, 24, c.textSecondary),
-            ),
-            label(c, 'KV payload (GB) · zero-based scale', 25, 685, 590, 25, c.textSecondary),
-            label(c, 'Weights and allocator overhead excluded', 25, 735, 590, 23, c.textMuted),
-        ],
+
+    const leftX = 186
+    const plotW = 486
+    const topY = 58
+    const rowStep = 64
+    const barH = 34
+    const maxGB = 560
+    const sx = (v: number) => leftX + (v / maxGB) * plotW
+    const axisY = topY + rows.length * rowStep - 10
+
+    // Vertical reference grid lines
+    for (const tick of [0, 100, 200, 300, 400, 500]) {
+        const tx = sx(tick)
+        fig.line(tx, topY - 6, tx, axisY, {
+            color: c.borderSubtle,
+            width: 1,
+        })
+        fig.line(tx, axisY, tx, axisY + 5, {
+            color: c.textMuted,
+            width: 1,
+        })
+        fig.text(tx, axisY + 19, `${tick}`, {
+            size: 12.5,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+    fig.line(leftX, axisY, leftX + plotW, axisY, { color: c.textMuted, width: 1 })
+    fig.line(leftX, topY - 6, leftX, axisY, { color: c.textMuted, width: 1 })
+
+    rows.forEach((r, i) => {
+        const y = topY + i * rowStep + 6
+        const w = Math.max(8, sx(r.gb) - leftX)
+
+        fig.text(leftX - 12, y + barH / 2, r.label, {
+            size: 14,
+            weight: i >= 2 ? 700 : 500,
+            color: c.textPrimary,
+            align: 'right',
+        })
+
+        fig.rect(leftX, y, w, barH, {
+            fill: r.color,
+            radius: 5,
+        })
+
+        fig.text(leftX + w + 10, y + barH / 2, `${r.gb.toFixed(1)} GB`, {
+            size: 14,
+            weight: 700,
+            color: r.color,
+            mono: true,
+        })
     })
+
+    // Explicit scaling annotations connecting the key jumps
+    const y0 = topY + 6 + barH / 2
+    const y2 = topY + 2 * rowStep + 6 + barH / 2
+    const y3 = topY + 3 * rowStep + 6 + barH / 2
+
+    // Bracket from 128K (16.8 GB) to 1M (131.1 GB) -> ×7.8 length
+    const b1X = sx(270)
+    fig.path(`M${sx(16.8) + 86} ${y0}H${b1X}V${y2}H${sx(131.1) + 94}`, {
+        color: purple,
+        width: 1.4,
+        dash: '4 3',
+    })
+    fig.rect(b1X + 12, (y0 + y2) / 2 - 14, 124, 28, {
+        fill: tint(purple, c.bg, theme === 'light' ? 0.12 : 0.18),
+        stroke: purple,
+        strokeWidth: 1,
+        radius: 14,
+    })
+    fig.text(b1X + 74, (y0 + y2) / 2, '×7.8 context', {
+        size: 12.5,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+
+    // Curved callout from 1M 8-head to 1M 32-head -> ×4 KV heads
+    fig.callout(
+        [sx(410), y3 - 20],
+        [sx(385), y2 + 12],
+        '×4 more KV heads (8 → 32)',
+        {
+            color: warm,
+            labelColor: warm,
+            size: 13.5,
+            weight: 700,
+            bend: -0.25,
+            align: 'left',
+        },
+    )
+
+    fig.text(leftX + plotW / 2, axisY + 42, 'KV cache payload (GB, zero-based scale)', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
-export default create()
+export default create('dark')

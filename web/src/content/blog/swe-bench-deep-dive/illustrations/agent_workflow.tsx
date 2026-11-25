@@ -1,114 +1,167 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    VectorArrow,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 640
-export const height = 730
+export const width = 800
+export const height = 350
 export const alt =
-    'Repository repair loop: issue to search and reproduce, then localize, patch, and run visible tests. Local feedback returns to search while budget remains. The selected patch goes to the hidden harness for a separate final grade.'
+    'Horizontal two-zone SWE-bench workflow. In the visible agent zone, an issue and pre-fix repository enter a cyclic repair loop of search and reproduce, localize and patch, and visible tests with evidence-led retries while budget remains. Crossing the submission divider passes the chosen patch to the hidden harness for final F2P and P2P grading.'
 
-const illustration = defineIllustration((c) => {
-    const blue = getReadableToneColor('blue', c),
-        green = getReadableToneColor('green', c),
-        purple = getReadableToneColor('purple', c),
-        warm = getReadableToneColor('warm', c)
-    const labels: React.ReactNode[] = [],
-        marks: React.ReactNode[] = []
-    const text = (
-        s: string,
+export function create(theme: ThemeMode = 'dark') {
+    const f = new Figure(theme, width, height)
+    const { c } = f
+    const blue = f.tone('blue')
+    const purple = f.tone('purple')
+    const warm = f.tone('warm')
+    const green = f.tone('green')
+
+    const drawNode = (
         x: number,
         y: number,
         w: number,
-        size = 26,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) =>
-        labels.push(
-            CanvasItem({
-                x,
-                y,
-                width: w,
-                height: size * 1.45,
-                children: TextLabel({
-                    c,
-                    text: s,
-                    width: w,
-                    fontSize: size,
-                    color,
-                    align,
-                    fontWeight: weight,
-                }),
-            }),
-        )
-    const box = (x: number, y: number, w: number, h: number, color = c.border) =>
-        marks.push(
-            <rect
-                x={x}
-                y={y}
-                width={w}
-                height={h}
-                rx={6}
-                fill="none"
-                stroke={color}
-                strokeWidth={2}
-            />,
-        )
-    const arrow = (x1: number, y1: number, x2: number, y2: number, color = c.textSecondary) =>
-        marks.push(VectorArrow({ x1, y1, x2, y2, color, strokeWidth: 2, arrowSize: 5 }))
+        h: number,
+        title: string,
+        detail: string,
+        tone: string,
+    ) => {
+        f.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, 0.13),
+            stroke: tone,
+            strokeWidth: 1.65,
+            radius: 9,
+        })
+        f.text(x + w / 2, y + h * 0.36, title, {
+            size: 14.5,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            width: w - 12,
+        })
+        f.text(x + w / 2, y + h * 0.7, detail, {
+            size: 12.5,
+            color: c.textSecondary,
+            align: 'center',
+            width: w - 12,
+        })
+    }
 
-    const steps = [
-        ['Issue + repository', 'required behavior', blue],
-        ['Search + reproduce', 'collect evidence', blue],
-        ['Localize + patch', 'narrow code change', purple],
-        ['Visible tests', 'local feedback', warm],
-        ['Hidden harness', 'final F2P + P2P grade', green],
-    ]
-    steps.forEach(([title, detail, color], i) => {
-        const y = 24 + i * 140
-        box(76, y, 416, 92, color)
-        text(title, 92, y + 10, 384, 29, color, 'center', 650)
-        text(detail, 92, y + 49, 384, 25, c.textSecondary, 'center')
-        if (i < 4) arrow(284, y + 92, 284, y + 136, i === 3 ? green : c.textSecondary)
+    // Zone 1 (Left): Visible Agent Repair Loop
+    f.rect(14, 18, 514, 314, {
+        fill: tint(blue, c.bg, 0.04),
+        stroke: c.borderSubtle,
+        strokeWidth: 1.25,
+        radius: 12,
     })
-    marks.push(
-        <polyline
-            points="492,490 540,490 540,210 492,210"
-            fill="none"
-            stroke={warm}
-            strokeWidth={2}
-            strokeDasharray="6 5"
-        />,
+    f.text(28, 38, 'Visible agent workspace · budgeted repair loop', {
+        size: 14,
+        weight: 700,
+        color: blue,
+    })
+
+    // Zone 2 (Right): Hidden Evaluation Harness
+    f.rect(606, 18, 180, 314, {
+        fill: tint(green, c.bg, 0.07),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 12,
+    })
+    f.text(696, 38, 'Hidden harness', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    // Vertical submission divider between zones
+    const divX = 567
+    f.line(divX, 20, divX, 330, { color: green, width: 1.75, dash: '5 5' })
+
+    // Nodes in Visible Zone
+    const nIssue = { x: 26, y: 82, w: 126, h: 76 }
+    const nSearch = { x: 184, y: 82, w: 146, h: 76 }
+    const nPatch = { x: 362, y: 82, w: 150, h: 76 }
+    const nVis = { x: 274, y: 214, w: 164, h: 76 }
+
+    // Nodes in Hidden Zone
+    const nEval = { x: 622, y: 92, w: 148, h: 86 }
+    const nGrade = { x: 622, y: 224, w: 148, h: 70 }
+
+    // Forward flow arrows inside Visible Zone
+    f.arrow(nIssue.x + nIssue.w, 120, nSearch.x - 2, 120, { color: blue, width: 1.75, head: 6 })
+    f.arrow(nSearch.x + nSearch.w, 120, nPatch.x - 2, 120, { color: purple, width: 1.75, head: 6 })
+
+    // Patch -> Visible tests (clean right-side elbow well clear of nVis right edge)
+    const elbowX = nPatch.x + nPatch.w - 28
+    f.path(`M${elbowX} ${nPatch.y + nPatch.h} V252 H${nVis.x + nVis.w + 8}`, {
+        color: warm,
+        width: 1.75,
+    })
+    f.arrow(nVis.x + nVis.w + 18, 252, nVis.x + nVis.w + 2, 252, {
+        color: warm,
+        width: 1.75,
+        head: 6,
+    })
+
+    // Retry feedback loop: Visible tests -> Search + reproduce
+    f.path(`M${nVis.x} 252 H${nSearch.x + nSearch.w / 2} V${nSearch.y + nSearch.h + 8}`, {
+        color: warm,
+        width: 1.75,
+        dash: '5 4',
+    })
+    f.arrow(
+        nSearch.x + nSearch.w / 2,
+        nSearch.y + nSearch.h + 18,
+        nSearch.x + nSearch.w / 2,
+        nSearch.y + nSearch.h + 2,
+        { color: warm, width: 1.75, head: 6 },
     )
-    arrow(522, 210, 492, 210, warm)
-    text('retry', 548, 327, 76, 24, warm, 'left')
-    text('submit', 299, 537, 150, 24, green)
-
-    return Board({
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: (
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {marks}
-                    </svg>
-                ),
-            }),
-            ...labels,
-        ],
+    f.rect(178, 240, 82, 24, {
+        fill: tint(warm, c.bg, 0.2),
+        stroke: warm,
+        strokeWidth: 1.2,
+        radius: 12,
     })
-})
-export const create = illustration.create
-export default illustration.default
+    f.text(219, 252, 'retry loop', {
+        size: 12,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    // Submit patch crossing divider into Hidden harness
+    f.path(`M${nVis.x + nVis.w / 2} ${nVis.y + nVis.h} V308 H544 V135 H${nEval.x - 8}`, {
+        color: green,
+        width: 1.9,
+    })
+    f.arrow(nEval.x - 16, 135, nEval.x - 2, 135, { color: green, width: 1.9, head: 6 })
+    f.rect(divX - 32, 122, 64, 26, {
+        fill: tint(green, c.bg, 0.22),
+        stroke: green,
+        strokeWidth: 1.35,
+        radius: 13,
+    })
+    f.text(divX, 135, 'Submit', {
+        size: 12.5,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    // Hidden harness -> Final grade
+    f.arrow(nEval.x + nEval.w / 2, nEval.y + nEval.h, nGrade.x + nGrade.w / 2, nGrade.y - 2, {
+        color: green,
+        width: 1.85,
+        head: 6,
+    })
+
+    // Draw nodes
+    drawNode(nIssue.x, nIssue.y, nIssue.w, nIssue.h, 'Issue + repo', 'pre-fix commit', blue)
+    drawNode(nSearch.x, nSearch.y, nSearch.w, nSearch.h, 'Search + repro', 'gather evidence', blue)
+    drawNode(nPatch.x, nPatch.y, nPatch.w, nPatch.h, 'Localize + patch', 'narrow code edit', purple)
+    drawNode(nVis.x, nVis.y, nVis.w, nVis.h, 'Visible tests', 'local feedback', warm)
+    drawNode(nEval.x, nEval.y, nEval.w, nEval.h, 'Run test patch', 'F2P + P2P checks', green)
+    drawNode(nGrade.x, nGrade.y, nGrade.w, nGrade.h, 'Final grade', '0 or 1 resolved', green)
+
+    return f.render()
+}
+
+export default create('dark')

@@ -1,254 +1,258 @@
-import React from 'react'
-import {
-    AxisPlot,
-    BadgePill,
-    Column,
-    FlowArrow,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 412
 export const alt =
-    'A request timeline shows 2 ms authorization, 18 ms retrieval, and 1 ms packing before 320 ms model startup. The first token arrives at 341 ms, 410 ms of generation ends at 751 ms, and a separate nonblocking trace write ends at 754 ms. The timeline assumes immediate streaming without transport or buffering delay.'
+    'A critical-path Gantt timeline on a 0 to 800 ms scale breaks down one streaming RAG request: 2 ms caller authorization, 18 ms hybrid retrieval, and 1 ms context packing (21 ms evidence prep) followed by 320 ms model startup and prefill reach caller-visible TTFT at 341 ms. Streaming decode runs 410 ms to finish at 751 ms, while a nonblocking 3 ms trace write completes off the critical path at 754 ms.'
 
-const illustration = defineIllustration((c) => {
-    const cyan = getReadableToneColor('cyan', c)
-    const purple = getReadableToneColor('purple', c)
-    const warm = getReadableToneColor('warm', c)
-    const green = getReadableToneColor('green', c)
-    const blue = getReadableToneColor('blue', c)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
 
-    return (
-        <Scene
-            c={c}
-            title="End-to-End RAG Request Latency Budget"
-            subtitle="Dissecting evidence retrieval, model prefill, and streaming token generation"
-            padding={20}
-            gap={12}
-            contentWidth={820}
-        >
-            <Column gap={12} align="center">
-                {/* 1. Milestone Timeline Grid */}
-                <Panel
-                    c={c}
-                    title="Sequential request timeline (0 to 754 ms)"
-                    tone="cyan"
-                    padding={12}
-                    gap={8}
-                    titleFontSize={14}
-                    width={816}
-                >
-                    <Column gap={8}>
-                        <AxisPlot
-                            c={c}
-                            width={790}
-                            height={80}
-                            xMin={0}
-                            xMax={800}
-                            yMin={0}
-                            yMax={1}
-                            padding={10}
-                            showGrid
-                            gridCount={8}
-                            showAxes
-                            vectors={[
-                                { x1: 0, y1: 0.5, x2: 21, y2: 0.5, tone: 'cyan', strokeWidth: 8 },
-                                { x1: 21, y1: 0.5, x2: 341, y2: 0.5, tone: 'warm', strokeWidth: 8 },
-                                {
-                                    x1: 341,
-                                    y1: 0.5,
-                                    x2: 751,
-                                    y2: 0.5,
-                                    tone: 'green',
-                                    strokeWidth: 8,
-                                },
-                                {
-                                    x1: 751,
-                                    y1: 0.5,
-                                    x2: 754,
-                                    y2: 0.5,
-                                    tone: 'neutral',
-                                    strokeWidth: 8,
-                                },
-                            ]}
-                            points={[
-                                { x: 0, y: 0.5, tone: 'neutral', r: 4 },
-                                { x: 21, y: 0.5, tone: 'cyan', r: 4 },
-                                { x: 341, y: 0.5, tone: 'warm', r: 5 },
-                                { x: 751, y: 0.5, tone: 'green', r: 5 },
-                            ]}
-                        />
-                        <Row gap={12} align="center" justify="space-between">
-                            <TextLabel
-                                c={c}
-                                text="t = 0 ms: Query Arrival"
-                                fontSize={11}
-                                color={c.textSecondary}
-                            />
-                            <TextLabel
-                                c={c}
-                                text="t = 21 ms: Context Ready"
-                                fontSize={11}
-                                color={cyan}
-                            />
-                            <TextLabel
-                                c={c}
-                                text="t = 341 ms: First Token (TTFT)"
-                                fontSize={11}
-                                color={warm}
-                                fontWeight={700}
-                            />
-                            <TextLabel
-                                c={c}
-                                text="t = 751 ms: Stream Done"
-                                fontSize={11}
-                                color={green}
-                                fontWeight={700}
-                            />
-                        </Row>
-                    </Column>
-                </Panel>
+    const axisX = 166
+    const axisW = 566
+    const tMax = 800
+    const tx = (ms: number) => axisX + (ms / tMax) * axisW
 
-                {/* 2. Phase Breakdown Cards */}
-                <Row gap={12} align="start" justify="space-between">
-                    <Panel
-                        c={c}
-                        title="Phase 1: Evidence Prep (21 ms)"
-                        tone="cyan"
-                        padding={10}
-                        gap={6}
-                        titleFontSize={13}
-                        width={264}
-                    >
-                        <Column gap={4}>
-                            <Row gap={4} align="center" justify="space-between">
-                                <TextLabel c={c} text="Caller ACL Check:" fontSize={11} />
-                                <BadgePill
-                                    c={c}
-                                    text="2 ms"
-                                    tone="cyan"
-                                    filled={false}
-                                    fontSize={10}
-                                    height={20}
-                                />
-                            </Row>
-                            <Row gap={4} align="center" justify="space-between">
-                                <TextLabel c={c} text="Hybrid Search (BM25+MIPS):" fontSize={11} />
-                                <BadgePill
-                                    c={c}
-                                    text="18 ms"
-                                    tone="cyan"
-                                    filled={false}
-                                    fontSize={10}
-                                    height={20}
-                                />
-                            </Row>
-                            <Row gap={4} align="center" justify="space-between">
-                                <TextLabel c={c} text="Parent Expansion & Packing:" fontSize={11} />
-                                <BadgePill
-                                    c={c}
-                                    text="1 ms"
-                                    tone="cyan"
-                                    filled={false}
-                                    fontSize={10}
-                                    height={20}
-                                />
-                            </Row>
-                            <TextLabel
-                                c={c}
-                                text="Dominated by vector index latency."
-                                fontSize={10}
-                                color={c.textSecondary}
-                            />
-                        </Column>
-                    </Panel>
+    const ganttTop = 58
+    const ganttBot = 296
 
-                    <Panel
-                        c={c}
-                        title="Phase 2: Model Startup / Prefill (320 ms)"
-                        tone="warm"
-                        padding={10}
-                        gap={6}
-                        titleFontSize={13}
-                        width={264}
-                    >
-                        <Column gap={4}>
-                            <Row gap={4} align="center" justify="space-between">
-                                <TextLabel
-                                    c={c}
-                                    text="Time To First Token (TTFT):"
-                                    fontSize={11}
-                                    fontWeight={700}
-                                />
-                                <BadgePill
-                                    c={c}
-                                    text="341 ms"
-                                    tone="warm"
-                                    filled
-                                    fontSize={11}
-                                    height={22}
-                                />
-                            </Row>
-                            <TextLabel
-                                c={c}
-                                text="Prompt tokenization, KV cache allocation, and initial transformer prefill forward pass."
-                                fontSize={11}
-                                color={c.textSecondary}
-                            />
-                        </Column>
-                    </Panel>
+    // Vertical gridlines at round 200 ms ticks
+    for (const ms of [0, 200, 400, 600, 800]) {
+        const gx = tx(ms)
+        fig.line(gx, ganttTop, gx, ganttBot, {
+            color: ms === 0 ? c.textMuted : c.borderSubtle,
+            width: ms === 0 ? 1.25 : 1,
+            dash: ms === 0 ? undefined : '3 4',
+        })
+        fig.text(gx, ganttBot + 16, `${ms} ms`, {
+            size: 14,
+            mono: true,
+            color: c.textSecondary,
+            align: ms === 0 ? 'left' : ms === 800 ? 'right' : 'center',
+        })
+    }
 
-                    <Panel
-                        c={c}
-                        title="Phase 3: Generation & Trace (413 ms)"
-                        tone="green"
-                        padding={10}
-                        gap={6}
-                        titleFontSize={13}
-                        width={264}
-                    >
-                        <Column gap={4}>
-                            <Row gap={4} align="center" justify="space-between">
-                                <TextLabel c={c} text="Streaming Decode (410 ms):" fontSize={11} />
-                                <BadgePill
-                                    c={c}
-                                    text="40 tok/s"
-                                    tone="green"
-                                    filled={false}
-                                    fontSize={10}
-                                    height={20}
-                                />
-                            </Row>
-                            <Row gap={4} align="center" justify="space-between">
-                                <TextLabel c={c} text="Async Audit Trace Write:" fontSize={11} />
-                                <BadgePill
-                                    c={c}
-                                    text="3 ms (nonblocking)"
-                                    tone="neutral"
-                                    filled={false}
-                                    fontSize={10}
-                                    height={20}
-                                />
-                            </Row>
-                            <TextLabel
-                                c={c}
-                                text="Egress streaming hides decode tail."
-                                fontSize={10}
-                                color={c.textSecondary}
-                            />
-                        </Column>
-                    </Panel>
-                </Row>
-            </Column>
-        </Scene>
-    )
-})
+    // Bottom horizontal axis line
+    fig.line(axisX, ganttBot, axisX + axisW, ganttBot, { color: c.textMuted, width: 1.25 })
 
-export const create = illustration.create
-export default illustration.default
+    // Milestone vertical reference lines: TTFT (341 ms) & Stream Done (751 ms)
+    const ttftX = tx(341)
+    fig.line(ttftX, 34, ttftX, ganttBot, { color: warm, width: 1.8, dash: '5 4' })
+    fig.text(ttftX, 18, 'TTFT = 341 ms (first SSE token)', {
+        size: 14,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    const doneX = tx(751)
+    fig.line(doneX, 34, doneX, ganttBot, { color: green, width: 1.8, dash: '5 4' })
+    fig.text(doneX - 6, 40, 'Stream done = 751 ms', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+
+    // ── Gantt Rows ───────────────────────────────────────────────────────────
+    const barH = 34
+
+    // Row 1: Evidence Prep (0..21 ms)
+    const y1 = 76
+    fig.text(axisX - 14, y1 + 9, 'Evidence Prep', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+        align: 'right',
+    })
+    fig.text(axisX - 14, y1 + 27, 'ACL + search + pack', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'right',
+    })
+    const prepW = Math.max(15, tx(21) - tx(0))
+    fig.rect(tx(0), y1, prepW, barH, {
+        fill: withColorAlpha(cyan, 0.28),
+        stroke: cyan,
+        strokeWidth: 1.8,
+        radius: 5,
+    })
+    fig.text(tx(21) + 10, y1 + barH / 2, '21 ms (2 + 18 + 1 ms)', {
+        size: 14,
+        weight: 600,
+        color: cyan,
+    })
+
+    // Row 2: Model Startup / Prefill (21..341 ms = 320 ms)
+    const y2 = 132
+    fig.text(axisX - 14, y2 + 9, 'Model Prefill', {
+        size: 14,
+        weight: 700,
+        color: warm,
+        align: 'right',
+    })
+    fig.text(axisX - 14, y2 + 27, 'KV alloc + forward', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'right',
+    })
+    const prefillX = tx(21)
+    const prefillW = tx(341) - prefillX
+    fig.rect(prefillX, y2, prefillW, barH, {
+        fill: withColorAlpha(warm, 0.24),
+        stroke: warm,
+        strokeWidth: 1.8,
+        radius: 5,
+    })
+    fig.text(prefillX + prefillW / 2, y2 + barH / 2, '320 ms (94% of TTFT)', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    // Row 3: Streaming Decode (341..751 ms = 410 ms)
+    const y3 = 188
+    fig.text(axisX - 14, y3 + 9, 'Streaming Decode', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+    fig.text(axisX - 14, y3 + 27, 'SSE token stream', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'right',
+    })
+    const decX = tx(341)
+    const decW = tx(751) - decX
+    fig.rect(decX, y3, decW, barH, {
+        fill: withColorAlpha(green, 0.22),
+        stroke: green,
+        strokeWidth: 1.8,
+        radius: 5,
+    })
+    fig.text(decX + decW / 2, y3 + barH / 2, '410 ms (~40 tok/s)', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    // Subtle divider separating off-critical-path async work
+    fig.line(20, 236, axisX + axisW, 236, { color: c.borderSubtle, width: 1, dash: '4 4' })
+
+    // Row 4: Async Trace Write (751..754 ms = 3 ms, nonblocking)
+    const y4 = 250
+    fig.text(axisX - 14, y4 + 9, 'Async Trace', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'right',
+    })
+    fig.text(axisX - 14, y4 + 27, 'Off critical path', {
+        size: 14,
+        color: c.textSecondary,
+        align: 'right',
+    })
+    const trX = tx(751)
+    fig.rect(trX, y4 + 3, 8, 28, {
+        fill: withColorAlpha(purple, 0.3),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 3,
+    })
+    fig.text(trX - 10, y4 + 17, '3 ms nonblocking write (ends 754 ms)', {
+        size: 14,
+        weight: 600,
+        color: purple,
+        align: 'right',
+    })
+
+    // ── Bottom: Magnified Evidence-Prep Breakdown Strip (2 + 18 + 1 ms) ──────
+    const subY = 342
+    fig.text(20, subY + 12, 'Prep Zoom (21 ms):', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const stripX = 166
+    const stripW = 292
+    const authW = Math.round((2 / 21) * stripW)
+    const retW = Math.round((18 / 21) * stripW)
+    const packW = stripW - authW - retW
+
+    fig.rect(stripX, subY, authW, 26, {
+        fill: withColorAlpha(purple, 0.28),
+        stroke: purple,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+    fig.rect(stripX + authW + 2, subY, retW - 4, 26, {
+        fill: withColorAlpha(cyan, 0.24),
+        stroke: cyan,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+    fig.rect(stripX + authW + retW, subY, Math.max(14, packW), 26, {
+        fill: withColorAlpha(green, 0.28),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+
+    fig.text(stripX + authW + retW / 2, subY + 13, '18 ms hybrid search', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+    })
+
+    fig.text(stripX, subY + 40, '2 ms ACL', { size: 14, mono: true, weight: 600, color: purple })
+    fig.text(stripX + stripW + 6, subY + 40, '1 ms pack', {
+        size: 14,
+        mono: true,
+        weight: 600,
+        color: green,
+        align: 'right',
+    })
+
+    // Right compact summary readout
+    const sumX = 476
+    const sumW = 264
+    fig.rect(sumX, subY - 4, sumW, 56, {
+        fill: tint(c.border, c.bg, 0.25),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 7,
+    })
+    fig.text(sumX + sumW / 2, subY + 14, 'TTFT = 2+18+1+320 = 341 ms', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+    fig.text(sumX + sumW / 2, subY + 37, 'Total = 341 + 410 = 751 ms', {
+        size: 14,
+        mono: true,
+        weight: 600,
+        color: green,
+        align: 'center',
+    })
+
+    return fig.render()
+}
+
+export default create('dark')

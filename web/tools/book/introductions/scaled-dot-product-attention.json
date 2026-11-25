@@ -1,15 +1,5 @@
 {
-  "framing": "Follow the information each position receives",
-  "paragraphs": [
-    "Suppose a decoder is predicting the next word after a long prompt. The useful clue might be a name near the start, a rule in the middle, or several nearby words. The model needs a way to route information from those positions into the current one. Attention computes that routing separately for each query position.",
-    "The choice has both a quality and a cost. A mask can allow future information to leak into training, or hide valid context by mistake. At serving time, storing past keys and values avoids recomputing them, but that cache grows with sequence length. Understanding the operation makes these tradeoffs visible before they are buried in a library call.",
-    "Here you work through the scaled dot-product formula as query-key compatibility, a normalization across allowed positions, and a weighted mixture of value vectors. The chapter compares causal, bidirectional, and cross-attention masks, checks tensor shapes and valid rows, then connects the same math to multihead variants and memory-efficient tiled computation.",
-    "The complete decoder came first so this operation has a place in the model. Here it is examined on its own. Basic matrix operations, softmax, and tensor dimensions are assumed. This understanding supports the next part of the path, where decoding strategies choose tokens from model scores, and it also gives you language for reading later inference and cache tradeoffs."
-  ],
-  "outcomes": [
-    "Calculate attention scores, apply a valid mask, and combine value vectors.",
-    "Identify shape, padding, causality, and position errors in an attention setup.",
-    "Explain what caching saves and what memory-efficient attention must preserve."
-  ],
-  "question": "For one prediction, which earlier positions should be allowed to contribute, and how would you check that the mask enforces that choice?"
+  "framing": "Follow how each token gathers context across positions",
+  "paragraphs": [],
+  "question": "Why does dividing attention scores by the square root of d_k keep softmax gradients healthy as head dimension grows?"
 }

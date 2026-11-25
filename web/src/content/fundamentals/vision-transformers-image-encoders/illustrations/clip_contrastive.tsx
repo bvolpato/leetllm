@@ -1,25 +1,10 @@
-import React from 'react'
-import {
-    BarChart,
-    Matrix,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    dotProduct,
-    getReadableToneColor,
-    normalizeVector,
-    stableSoftmax,
-    withDensity,
-    type ThemeColors,
-    type ToneName,
-} from 'vizmatic'
+import { dotProduct, normalizeVector, stableSoftmax, type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 840
-export const height = 510
+export const width = 760
+export const height = 390
 export const alt =
-    'A 3 by 3 CLIP similarity logit matrix pairs street sign, alpine trail, and coastal beam images with captions. Row softmax turns image 1 logits [3.50, 1.93, 1.47] into probabilities [0.75, 0.16, 0.10] with cross-entropy 0.292, while column softmax turns caption 1 logits [3.50, 1.90, 1.57] into [0.74, 0.15, 0.11] with cross-entropy 0.298 and symmetric InfoNCE mean 0.303.'
+    'A 3 by 3 CLIP similarity logit matrix pairs street sign, alpine trail, and coastal beam images with captions (scale 3.5). Row 1 softmax turns image 1 logits [3.50, 1.93, 1.47] into probabilities [0.75, 0.16, 0.10] (row 1 CE 0.292), while column 1 softmax turns caption 1 logits [3.50, 1.90, 1.57] into [0.74, 0.15, 0.11] (col 1 CE 0.298), giving symmetric batch InfoNCE loss 0.303.'
 
 const rawImages = [
     [0.92, 0.28, 0.18],
@@ -41,163 +26,164 @@ const logits: number[][] = imageEmbs.map((img) =>
 )
 
 const rowProbs = logits.map((row) => stableSoftmax(row))
-const colProbs = [0, 1, 2].map((colIdx) => stableSoftmax(logits.map((row) => row[colIdx])))
+const colProbs = [0, 1, 2].map((colIdx) => stableSoftmax(logits.map((row) => row[colIdx]!)))
 
-const imageLoss = -rowProbs.reduce((acc, probs, i) => acc + Math.log(probs[i]), 0) / rowProbs.length
-const textLoss = -colProbs.reduce((acc, probs, i) => acc + Math.log(probs[i]), 0) / colProbs.length
+const imageLoss = -rowProbs.reduce((acc, probs, i) => acc + Math.log(probs[i]!), 0) / rowProbs.length
+const textLoss = -colProbs.reduce((acc, probs, i) => acc + Math.log(probs[i]!), 0) / colProbs.length
 const symmetricLoss = (imageLoss + textLoss) / 2
 
-const labels = ['Sign', 'Trail', 'Coast']
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-const pill = (text: string, tone: ToneName, c: ThemeColors) => (
-    <div
-        style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '7px 14px',
-            borderRadius: 999,
-            border: '2px solid ' + getReadableToneColor(tone, c, c.bgSubtle),
-            background: c.bgSubtle,
-            color: getReadableToneColor(tone, c, c.bgSubtle),
-            fontSize: 25,
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-        }}
-    >
-        {text}
-    </div>
-)
+    const green = fig.tone('green')
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
 
-const illustration = defineIllustration((c) => {
-    const chartC = withDensity(c, 2.75)
-    return (
-        <Scene c={c} background={c.bg} padding={18} contentWidth={804} gap={12}>
-            <TextLabel
-                text={`CLIP InfoNCE: align pairs on diagonal (symmetric loss ${symmetricLoss.toFixed(3)})`}
-                c={c}
-                fontSize={27}
-                fontWeight={700}
-                math={false}
-            />
-            <Row gap={12} align="stretch" justify="space-between" width="100%">
-                <Panel
-                    c={c}
-                    title="Similarity logits S (3x3)"
-                    tone="green"
-                    width={332}
-                    padding={12}
-                    gap={8}
-                    align="center"
-                    titleFontSize={25}
-                >
-                    <TextLabel
-                        text="Scale = 3.5 | Positive pairs"
-                        c={c}
-                        fontSize={25}
-                        color={c.textSecondary}
-                        math={false}
-                    />
-                    <Matrix
-                        data={logits}
-                        c={c}
-                        rowLabels={labels.map((l, i) => `I${i + 1}:${l}`)}
-                        colLabels={['T1', 'T2', 'T3']}
-                        cellWidth={72}
-                        cellHeight={48}
-                        rowLabelWidth={102}
-                        fontSize={25}
-                        format="decimal"
-                        colorScale="strength"
-                        highlightCell={{ row: 0, col: 0 }}
-                        ariaLabel="3 by 3 CLIP similarity logit matrix with positive diagonal"
-                    />
-                    {pill(`L_i=${imageLoss.toFixed(2)}  L_t=${textLoss.toFixed(2)}`, 'green', c)}
-                </Panel>
+    // Left: 3x3 similarity logit matrix S
+    const matX = 96
+    const matY = 80
+    const matW = 218
+    const matH = 190
 
-                <Panel
-                    c={c}
-                    title="Row 1: P(T | I1)"
-                    tone="blue"
-                    width={224}
-                    padding={12}
-                    gap={6}
-                    align="center"
-                    titleFontSize={25}
-                >
-                    <BarChart
-                        c={chartC}
-                        width={214}
-                        height={224}
-                        max={1.0}
-                        showValues={false}
-                        showGrid
-                        format="decimal"
-                        ariaLabel="Softmax probabilities for Image 1 across three captions"
-                        data={rowProbs[0].map((val, idx) => ({
-                            label: `${idx + 1}`,
-                            value: Number(val.toFixed(2)),
-                            color: idx === 0 ? 'positive' : 'warning',
-                        }))}
-                    />
-                    <TextLabel
-                        text={rowProbs[0].map((v) => v.toFixed(2)).join('  ')}
-                        c={c}
-                        fontSize={25}
-                        fontWeight={700}
-                        math={false}
-                    />
-                    <TextLabel
-                        text={`CE: ${(-Math.log(rowProbs[0][0])).toFixed(3)}`}
-                        c={c}
-                        fontSize={25}
-                        math={false}
-                    />
-                </Panel>
+    fig.text(matX + matW / 2, 22, 'Similarity logits S (3×3)', {
+        size: 15,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(matX + matW / 2, 43, 'Scale 3.5 · matched pairs on diagonal', {
+        size: 12.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-                <Panel
-                    c={c}
-                    title="Col 1: P(I | T1)"
-                    tone="purple"
-                    width={224}
-                    padding={12}
-                    gap={6}
-                    align="center"
-                    titleFontSize={25}
-                >
-                    <BarChart
-                        c={chartC}
-                        width={214}
-                        height={224}
-                        max={1.0}
-                        showValues={false}
-                        showGrid
-                        format="decimal"
-                        ariaLabel="Softmax probabilities for Caption 1 across three images"
-                        data={colProbs[0].map((val, idx) => ({
-                            label: `${idx + 1}`,
-                            value: Number(val.toFixed(2)),
-                            color: idx === 0 ? 'positive' : 'warning',
-                        }))}
-                    />
-                    <TextLabel
-                        text={colProbs[0].map((v) => v.toFixed(2)).join('  ')}
-                        c={c}
-                        fontSize={25}
-                        fontWeight={700}
-                        math={false}
-                    />
-                    <TextLabel
-                        text={`CE: ${(-Math.log(colProbs[0][0])).toFixed(3)}`}
-                        c={c}
-                        fontSize={25}
-                        math={false}
-                    />
-                </Panel>
-            </Row>
-        </Scene>
+    fig.heatGrid(
+        logits,
+        { x: matX, y: matY, width: matW, height: matH },
+        {
+            scale: 'sequential',
+            domain: [1.0, 3.6],
+            rowLabels: ['I1: Sign', 'I2: Trail', 'I3: Coast'],
+            colLabels: ['T1', 'T2', 'T3'],
+            labelSize: 13,
+            valueSize: 13.5,
+            showValues: true,
+            gap: 5,
+            radius: 6,
+            highlightCell: { row: 0, col: 0 },
+            highlightColor: green,
+            rowLabelGap: 10,
+            colLabelGap: 14,
+        },
     )
-})
 
-export const create = illustration.create
-export default illustration.default
+    // Batch symmetric loss TeX readout below matrix
+    fig.math(
+        matX + matW / 2,
+        304,
+        `L_i = ${imageLoss.toFixed(2)},\\quad L_t = ${textLoss.toFixed(2)}`,
+        { size: 14.5, color: green, align: 'center' },
+    )
+    fig.text(matX + matW / 2, 336, `Mean symmetric loss = ${symmetricLoss.toFixed(3)}`, {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+    })
+
+    // Subtle divider
+    fig.line(340, 26, 340, height - 24, { color: c.borderSubtle, width: 1 })
+
+    // Helper for Row 1 and Col 1 softmax bar plots
+    const drawSoftmaxBars = (
+        x: number,
+        title: string,
+        titleColor: string,
+        probs: readonly number[],
+        xLabels: readonly string[],
+        ceLabel: string,
+    ) => {
+        const w = 158
+        const h = 190
+        fig.text(x + w / 2, 22, title, {
+            size: 14.5,
+            weight: 700,
+            color: titleColor,
+            align: 'center',
+        })
+        fig.text(x + w / 2, 43, 'Positive vs negatives', {
+            size: 12.5,
+            color: c.textSecondary,
+            align: 'center',
+        })
+
+        const p = fig.plot({ x, y: matY, width: w, height: h }, { x: [0, 3], y: [0, 1.0] })
+        p.axes({
+            xTicks: [],
+            yTicks: [0, 0.5, 1.0],
+            yFormat: (v) => v.toFixed(1),
+            grid: true,
+            labelSize: 12,
+        })
+
+        const bw = 34
+        probs.forEach((val, idx) => {
+            const cx = p.px(idx + 0.5)
+            const topY = p.py(val)
+            const col = idx === 0 ? green : warm
+            fig.rect(cx - bw / 2, topY, bw, p.bottom - topY, {
+                fill: tint(col, c.bg, isLight ? 0.24 : 0.38),
+                stroke: col,
+                strokeWidth: 1.5,
+                radius: 4,
+            })
+            fig.text(cx, topY - 10, val.toFixed(2), {
+                size: 12.5,
+                weight: 700,
+                color: col,
+                align: 'center',
+                mono: true,
+            })
+            fig.text(cx, p.bottom + 15, xLabels[idx]!, {
+                size: 12.5,
+                weight: 600,
+                color: c.textSecondary,
+                align: 'center',
+                mono: true,
+            })
+        })
+
+        fig.text(x + w / 2, 314, ceLabel, {
+            size: 13.5,
+            weight: 700,
+            color: titleColor,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    drawSoftmaxBars(
+        392,
+        'Row 1: P(T | I₁)',
+        blue,
+        rowProbs[0]!,
+        ['T1', 'T2', 'T3'],
+        `Row 1 CE = ${(-Math.log(rowProbs[0]![0]!)).toFixed(3)}`,
+    )
+    drawSoftmaxBars(
+        584,
+        'Col 1: P(I | T₁)',
+        purple,
+        colProbs[0]!,
+        ['I1', 'I2', 'I3'],
+        `Col 1 CE = ${(-Math.log(colProbs[0]![0]!)).toFixed(3)}`,
+    )
+
+    return fig.render()
+}
+
+export default create('dark')

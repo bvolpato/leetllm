@@ -1,260 +1,197 @@
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Grid,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    getReadableTextColor,
-    type ThemeColors,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 860
+export const height = 400
 export const alt =
-    'The ROC staircase marks validation thresholds 0.80, 0.50, and 0.20. A four-by-four grid compares each positive score with each negative score: 13 of 16 pairwise comparisons rank the positive higher, for AUC 0.8125.'
-const boardWidth = 600
-const boardHeight = 530
-export const width = 632
-export const height = 562
-const labelScale = width / boardWidth
+    'Side-by-side ROC staircase and pairwise positive-versus-negative ranking matrix. Left: ROC curve with shaded area (AUC = 0.8125) and color-linked callouts at thresholds t = 0.80, 0.50, and 0.20. Right: 4x4 score-pair grid where positives outrank negatives in 13 of 16 pairs (13/16 = 0.8125).'
 
-const roc = [
-    { x: 0, y: 0 },
-    { x: 0, y: 0.25 },
-    { x: 0, y: 0.5 },
-    { x: 0.25, y: 0.5 },
-    { x: 0.25, y: 0.75 },
-    { x: 0.5, y: 0.75 },
-    { x: 0.5, y: 1 },
-    { x: 0.75, y: 1 },
-    { x: 1, y: 1 },
+const ROC: readonly (readonly [number, number])[] = [
+    [0, 0],
+    [0, 0.25],
+    [0, 0.5],
+    [0.25, 0.5],
+    [0.25, 0.75],
+    [0.5, 0.75],
+    [0.5, 1],
+    [0.75, 1],
+    [1, 1],
 ]
-const checkpoints = [
-    { t: 0.8, fpr: 0, tpr: 0.5, color: 'infoLight' as const },
-    { t: 0.5, fpr: 0.25, tpr: 0.75, color: 'warningLight' as const },
-    { t: 0.2, fpr: 0.5, tpr: 1, color: 'positiveLight' as const },
-]
-const positives = [0.244, 0.595, 0.971, 0.99]
-const negatives = [0.061, 0.169, 0.325, 0.624]
 
-const text = (
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    value: string,
-    size = 18,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'center',
-    mono = false,
-) =>
-    CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size + 8,
-        children: TextLabel({
-            c,
-            text: value,
-            width: w,
-            fontSize: size * labelScale,
-            color,
-            mono,
-            align,
-        }),
-    })
+const POSITIVES = [0.244, 0.595, 0.971, 0.99]
+const NEGATIVES = [0.061, 0.169, 0.325, 0.624]
 
-const illustration = defineIllustration((c) => {
-    const plot = { x: 58, y: 111, width: 232, height: 246 }
-    const plotPadding = 9
-    const px = (value: number) => plot.x + plotPadding + value * (plot.width - 2 * plotPadding)
-    const py = (value: number) =>
-        plot.y + plotPadding + (1 - value) * (plot.height - 2 * plotPadding)
-    const comparisonLabels = positives.map((positive) =>
-        negatives.map((negative) => {
-            const win = positive > negative
-            const background = win ? c.positiveDark : c.infoDark
-            return TextLabel({
-                c,
-                text: win ? '✓' : '×',
-                fontSize: 23 * labelScale,
-                color: getReadableTextColor(background, c),
-                align: 'center',
-            })
-        }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const isLight = theme === 'light'
+
+    // Left: ROC staircase with shaded AUC and color-linked t = 0.80 / 0.50 / 0.20 callouts
+    fig.text(64, 22, 'ROC staircase (AUC = 0.8125)', { size: 15, weight: 700 })
+
+    const plot = fig.plot(
+        { x: 64, y: 56, width: 320, height: 274 },
+        { x: [-0.04, 1.05], y: [-0.04, 1.06] },
     )
 
-    return Scene({
-        c,
-        padding: 16,
-        gap: 0,
-        contentWidth: boardWidth,
-        children: Board({
-            c,
-            width: boardWidth,
-            height: boardHeight,
-            children: [
-                text(
-                    c,
-                    18,
-                    12,
-                    564,
-                    'Ranking quality comes from every pair',
-                    24,
-                    c.textPrimary,
-                    'left',
-                ),
-                text(
-                    c,
-                    24,
-                    57,
-                    284,
-                    'ROC: lower the score cut',
-                    21,
-                    c.textSecondary,
-                    'left',
-                    false,
-                ),
-                CanvasItem({
-                    x: plot.x,
-                    y: plot.y,
-                    width: plot.width,
-                    height: plot.height,
-                    children: AxisPlot({
-                        c,
-                        width: plot.width,
-                        height: plot.height,
-                        xMin: 0,
-                        xMax: 1,
-                        yMin: 0,
-                        yMax: 1,
-                        padding: plotPadding,
-                        showFrame: true,
-                        showAxes: false,
-                        showGrid: true,
-                        gridCount: 4,
-                        paths: [
-                            {
-                                points: [
-                                    { x: 0, y: 0 },
-                                    { x: 1, y: 1 },
-                                ],
-                                color: c.textMuted,
-                                strokeWidth: 2,
-                                dashed: true,
-                            },
-                            { points: roc, color: c.infoLight, strokeWidth: 5 },
-                        ],
-                        points: checkpoints.map((point) => ({
-                            x: point.fpr,
-                            y: point.tpr,
-                            r: 8,
-                            fill: c[point.color],
-                            stroke: c.bgSubtle,
-                            strokeWidth: 2,
-                        })),
-                    }),
-                }),
-                ...[0, 0.5, 1].map((tick) =>
-                    text(
-                        c,
-                        tick === 0 ? px(tick) - 2 : tick === 1 ? px(tick) - 48 : px(tick) - 24,
-                        361,
-                        48,
-                        tick.toFixed(1),
-                        21,
-                        c.textSecondary,
-                        tick === 0 ? 'left' : tick === 1 ? 'right' : 'center',
-                    ),
-                ),
-                ...[0, 0.5, 1].map((tick) =>
-                    text(c, 0, py(tick) - 11, 50, tick.toFixed(1), 21, c.textSecondary, 'right'),
-                ),
-                text(c, 126, 384, 100, 'FPR', 21, c.textSecondary),
-                text(c, 50, 85, 90, 'TPR ↑', 21, c.textSecondary, 'left'),
-                text(c, 357, 57, 226, 'Compare score pairs', 21, c.textSecondary, 'left', false),
-                text(
-                    c,
-                    335,
-                    84,
-                    250,
-                    'positive score  ↓',
-                    21,
-                    getReadableToneColor('green', c),
-                    'left',
-                ),
-                CanvasItem({
-                    x: 300,
-                    y: 130,
-                    width: 296,
-                    height: 216,
-                    children: Grid({
-                        c,
-                        rows: [
-                            [
-                                {
-                                    label: '',
-                                    backgroundColor: c.bgSubtle,
-                                    borderColor: 'transparent',
-                                },
-                                ...negatives.map((value) => ({
-                                    label: value.toFixed(2),
-                                    color: getReadableToneColor('cyan', c),
-                                    backgroundColor: c.bgSubtle,
-                                    borderColor: 'transparent',
-                                })),
-                            ],
-                            ...positives.map((positive, row) => [
-                                {
-                                    label: positive.toFixed(2),
-                                    color: getReadableToneColor('green', c),
-                                    backgroundColor: c.bgSubtle,
-                                    borderColor: 'transparent',
-                                },
-                                ...negatives.map((negative, col) => ({
-                                    label: comparisonLabels[row][col],
-                                    backgroundColor:
-                                        positive > negative ? c.positiveDark : c.infoDark,
-                                    borderColor: 'transparent',
-                                })),
-                            ]),
-                        ],
-                        cellWidth: 56,
-                        cellHeight: 40,
-                        gap: 4,
-                        fontSize: 21 * labelScale,
-                        headerRows: 1,
-                        headerCols: 1,
-                    }),
-                }),
-                text(
-                    c,
-                    335,
-                    352,
-                    250,
-                    'negative score  →',
-                    21,
-                    getReadableToneColor('cyan', c),
-                    'left',
-                ),
-                text(c, 18, 418, 564, 'Green = positive wins;', 21, c.textSecondary, 'left'),
-                text(c, 18, 448, 564, 'blue = negative wins.', 21, c.textSecondary, 'left'),
-                text(
-                    c,
-                    18,
-                    482,
-                    564,
-                    '13 / 16 wins  →  AUC = 0.8125',
-                    23,
-                    getReadableToneColor('green', c),
-                    'left',
-                ),
-                text(c, 335, 385, 250, 't: .80 / .50 / .20', 21, c.textMuted, 'left'),
-            ],
-        }),
+    // Subtle shaded area under ROC curve
+    plot.fillArea(ROC, {
+        baseline: 0,
+        fill: blue,
+        fillOpacity: isLight ? 0.1 : 0.14,
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    plot.axes({
+        xTicks: [0, 0.25, 0.5, 0.75, 1.0],
+        yTicks: [0, 0.25, 0.5, 0.75, 1.0],
+        xFormat: (v) => v.toFixed(2),
+        yFormat: (v) => v.toFixed(2),
+        xLabel: 'False Positive Rate (FPR)',
+        yLabel: 'True Positive Rate (TPR)',
+        grid: true,
+        labelSize: 12,
+    })
+
+    // Random baseline diagonal
+    fig.line(plot.px(0), plot.py(0), plot.px(1), plot.py(1), {
+        color: c.textMuted,
+        width: 1.5,
+        dash: '5 4',
+    })
+
+    // ROC staircase line
+    plot.curve(ROC, { color: blue, width: 2.8 })
+
+    // Color-linked threshold checkpoints + crisp callouts cleanly clear of diagonal
+    const checkpoints = [
+        {
+            t: 't = 0.80',
+            fpr: 0,
+            tpr: 0.5,
+            tone: blue,
+            to: [0.16, 0.43] as const,
+            align: 'left' as const,
+        },
+        {
+            t: 't = 0.50',
+            fpr: 0.25,
+            tpr: 0.75,
+            tone: warm,
+            to: [0.4, 0.67] as const,
+            align: 'left' as const,
+        },
+        {
+            t: 't = 0.20',
+            fpr: 0.5,
+            tpr: 1.0,
+            tone: green,
+            to: [0.64, 0.91] as const,
+            align: 'left' as const,
+        },
+    ]
+    for (const cp of checkpoints) {
+        plot.point(cp.fpr, cp.tpr, { color: cp.tone, r: 6.5 })
+        fig.callout(
+            [plot.px(cp.fpr) + 6, plot.py(cp.tpr) + 4],
+            [plot.px(cp.to[0]), plot.py(cp.to[1])],
+            cp.t,
+            {
+                color: cp.tone,
+                labelColor: cp.tone,
+                align: cp.align,
+                size: 13,
+                weight: 700,
+                mono: true,
+                bend: 0.14,
+            },
+        )
+    }
+
+    // Divider
+    fig.line(418, 28, 418, 368, { color: c.borderSubtle, width: 1 })
+
+    // Right: 4x4 Pairwise Ranking Matrix (positives vs negatives)
+    fig.text(460, 22, 'Pairwise ranking grid (13 / 16 wins)', { size: 15, weight: 700 })
+
+    const matX = 524
+    const matY = 92
+    const cellW = 68
+    const cellH = 50
+    const gap = 6
+
+    // Axis titles for matrix
+    fig.text(matX + (4 * cellW + 3 * gap) / 2, 54, 'Negative response score (y = 0) ->', {
+        size: 12,
+        weight: 600,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(matX - 10, 74, 'Pos (y=1)', {
+        size: 11,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+
+    // Column headers (negatives)
+    NEGATIVES.forEach((neg, j) => {
+        fig.text(matX + j * (cellW + gap) + cellW / 2, 74, neg.toFixed(2), {
+            size: 13,
+            weight: 700,
+            color: blue,
+            align: 'center',
+            mono: true,
+        })
+    })
+
+    // Row headers + cells
+    POSITIVES.forEach((pos, i) => {
+        const y = matY + i * (cellH + gap)
+        fig.text(matX - 10, y + cellH / 2, pos.toFixed(2), {
+            size: 13,
+            weight: 700,
+            color: green,
+            align: 'right',
+            mono: true,
+        })
+        NEGATIVES.forEach((neg, j) => {
+            const x = matX + j * (cellW + gap)
+            const win = pos > neg
+            const tone = win ? green : red
+            fig.rect(x, y, cellW, cellH, {
+                fill: tint(tone, c.bg, win ? (isLight ? 0.2 : 0.3) : isLight ? 0.16 : 0.24),
+                stroke: tone,
+                strokeWidth: win ? 1.4 : 1.5,
+                radius: 6,
+            })
+            fig.text(x + cellW / 2, y + cellH / 2, win ? '✓' : '×', {
+                size: 19,
+                weight: 700,
+                color: tone,
+                align: 'center',
+            })
+        })
+    })
+
+    // Footer legend + exact equivalence equation
+    const footY = matY + 4 * (cellH + gap) + 20
+    fig.text(matX, footY, '✓ pos > neg (13)   ·   × neg > pos (3)', {
+        size: 12,
+        color: c.textSecondary,
+    })
+    fig.text(matX + 4 * cellW + 3 * gap, footY + 26, 'AUC = 13 / 16 = 0.8125', {
+        size: 15,
+        weight: 700,
+        color: green,
+        align: 'right',
+        mono: true,
+    })
+
+    return fig.render()
+}
+
+export default create

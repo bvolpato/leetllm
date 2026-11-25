@@ -1,344 +1,247 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import { getReadableTextColor, type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 820
+export const height = 430
 export const alt =
-    'Multi-tenant LLM serving architecture sharing a single 70-billion parameter base model (140 GB) across tenants while enforcing strict state isolation. Per-tenant execution lanes maintain separate KV cache page tables, dynamic LoRA adapters, and metered token quotas, preventing cross-tenant memory leakage.'
-
-export const numericAnchors = {
-    baseParameters: 70000000000,
-    bytesPerParam: 2,
-    baseModelSizeGB: 140,
-    naiveTenantCopies: 100,
-    naiveVramTB: 14.0,
-    tenants: ['Tenant Alpha', 'Tenant Beta'],
-}
+    'Multi-tenant LLM serving platform architecture separating the control plane (policy grants, adapter registry, worker membership) from the data plane. Incoming requests from Tenant A and Tenant B pass through an authenticating gateway that enforces workspace grants and reserves quotas before dispatching signed envelopes to GPU workers. Workers enforce a second access check and share one frozen 72B BF16 base model (144 GB vs 14.4 TB for 100 dedicated copies, saving 99 percent VRAM) while isolating per-tenant KV pages, dynamic LoRA adapters, and metering.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const soft = (hex: string, lightA = 0.09, darkA = 0.14) =>
+        tint(hex, c.bg, theme === 'light' ? lightA : darkA)
+    const rim = (hex: string) => tint(hex, c.bg, theme === 'light' ? 0.45 : 0.52)
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Top band: Control Plane
+    fig.rect(24, 20, 772, 68, {
+        fill: soft(warm, 0.07, 0.11),
+        stroke: rim(warm),
+        strokeWidth: 1.25,
+        radius: 8,
+    })
+    fig.text(40, 38, 'CONTROL PLANE', { size: 12, color: warm, weight: 700, width: 160 })
+    const ctrlItems = [
+        { x: 185, w: 175, label: 'Policy & Grants' },
+        { x: 382, w: 185, label: 'Adapter Registry' },
+        { x: 589, w: 190, label: 'Worker Membership' },
+    ]
+    for (const item of ctrlItems) {
+        fig.rect(item.x, 34, item.w, 38, {
+            fill: c.bg,
+            stroke: rim(warm),
+            strokeWidth: 1,
+            radius: 6,
+        })
+        fig.text(item.x + item.w / 2, 53, item.label, {
+            size: 13,
+            color: c.textPrimary,
+            align: 'center',
+            weight: 600,
+            width: item.w - 12,
+        })
+    }
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Visual Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Top Shared Base Card */}
-                    <rect
-                        x={40}
-                        y={74}
-                        width={780}
-                        height={60}
-                        rx={8}
-                        fill={theme === 'dark' ? '#141d2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1.5}
-                    />
+    // Dashed control-plane sync arrows downward
+    fig.arrow(265, 88, 265, 130, { color: warm, width: 1.4, dash: '4 3', head: 6 })
+    fig.arrow(595, 88, 595, 130, { color: warm, width: 1.4, dash: '4 3', head: 6 })
+    fig.text(275, 108, 'Grants & limits', { size: 12, color: c.textSecondary, width: 120 })
+    fig.text(605, 108, 'Approved revisions', { size: 12, color: c.textSecondary, width: 140 })
 
-                    {/* Left Tenant Alpha Card */}
-                    <rect
-                        x={40}
-                        y={150}
-                        width={370}
-                        height={230}
-                        rx={8}
-                        fill={theme === 'dark' ? '#121824' : '#f0f9ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
+    // Data plane section label
+    fig.text(24, 114, 'DATA PLANE', { size: 12, color: c.textSecondary, weight: 700, width: 120 })
 
-                    {/* Right Tenant Beta Card */}
-                    <rect
-                        x={450}
-                        y={150}
-                        width={370}
-                        height={230}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1a1324' : '#faf5ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                    />
+    // Left: Tenant callers
+    const callers = [
+        { y: 174, label: 'Tenant A', sub: '12k tok review', color: blue },
+        { y: 294, label: 'Tenant B', sub: '40 tok summary', color: purple },
+    ]
+    for (const caller of callers) {
+        fig.rect(24, caller.y, 118, 66, {
+            fill: soft(caller.color),
+            stroke: rim(caller.color),
+            strokeWidth: 1.4,
+            radius: 7,
+        })
+        fig.text(83, caller.y + 23, caller.label, {
+            size: 14,
+            color: caller.color,
+            align: 'center',
+            weight: 700,
+            width: 110,
+        })
+        fig.text(83, caller.y + 45, caller.sub, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            width: 110,
+        })
+        fig.arrow(142, caller.y + 33, 180, caller.y + 33, {
+            color: caller.color,
+            width: 1.8,
+            head: 6,
+        })
+    }
 
-                    {/* Connector lines from shared base down to tenants */}
-                    <line x1={225} y1={134} x2={225} y2={150} stroke={blueTone} strokeWidth={1.5} />
-                    <line
-                        x1={635}
-                        y1={134}
-                        x2={635}
-                        y2={150}
-                        stroke={purpleTone}
-                        strokeWidth={1.5}
-                    />
+    // Middle: Gateway perimeter
+    fig.rect(182, 132, 168, 268, {
+        fill: soft(green, 0.06, 0.1),
+        stroke: rim(green),
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(266, 152, 'API GATEWAY', {
+        size: 13,
+        color: green,
+        align: 'center',
+        weight: 700,
+        width: 150,
+    })
+    const gwSteps = [
+        { y: 176, title: '1. Auth & Grants', sub: 'Verify workspace' },
+        { y: 242, title: '2. Quota & Pages', sub: 'Atomic reserve' },
+        { y: 308, title: '3. Signed Context', sub: 'Pinned revisions' },
+    ]
+    for (const s of gwSteps) {
+        fig.rect(194, s.y, 144, 52, {
+            fill: c.bg,
+            stroke: c.borderSubtle,
+            strokeWidth: 1,
+            radius: 6,
+        })
+        fig.text(266, s.y + 18, s.title, {
+            size: 13,
+            color: c.textPrimary,
+            align: 'center',
+            weight: 600,
+            width: 136,
+        })
+        fig.text(266, s.y + 37, s.sub, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            width: 136,
+        })
+    }
 
-                    {/* Bottom Guardrail Box */}
-                    <rect
-                        x={40}
-                        y={394}
-                        width={780}
-                        height={66}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    // Signed envelope arrow from Gateway to Worker
+    fig.arrow(350, 266, 404, 266, { color: green, width: 2, head: 6 })
+    fig.text(377, 244, 'Signed', {
+        size: 12,
+        color: green,
+        align: 'center',
+        weight: 600,
+        width: 58,
+    })
+    fig.text(377, 286, 'envelope', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+        width: 60,
+    })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Multi-Tenant LLM Serving: Shared Foundation vs Isolated State',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Sharing base model weights saves 99% VRAM; runtime boundaries enforce strict per-tenant isolation',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Right: GPU Worker Pool
+    fig.rect(406, 132, 390, 268, {
+        fill: soft(blue, 0.04, 0.07),
+        stroke: c.border,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(422, 152, 'GPU WORKER (CONTINUOUS BATCHING)', {
+        size: 12,
+        color: c.textPrimary,
+        weight: 700,
+        width: 245,
+    })
+    fig.rect(666, 140, 118, 24, {
+        fill: soft(green, 0.14, 0.2),
+        stroke: rim(green),
+        strokeWidth: 1,
+        radius: 12,
+    })
+    fig.text(725, 152, 'Worker Auth', {
+        size: 12,
+        color: green,
+        align: 'center',
+        weight: 600,
+        width: 108,
+    })
 
-            {/* Top Banner: Shared Base Foundation Model */}
-            {label(
-                52,
-                82,
-                756,
-                'SHARED FOUNDATION MODEL (FROZEN BASE WEIGHTS · 70B FP16 = 140 GB VRAM)',
-                11,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                102,
-                520,
-                '1 Shared Instance: 140 GB | Naive Dedicated Copies (100 tenants): 14,000 GB (14 TB)',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(580, 102, 230, 'VRAM Savings: 99.0%', 12, greenTone, 'right', 700)}
+    // Shared frozen base weights slab
+    fig.rect(420, 174, 362, 54, {
+        fill: blue,
+        radius: 6,
+    })
+    const onBlue = getReadableTextColor(blue, c, c.bg)
+    fig.text(601, 192, 'Shared Frozen Base Weights (72B BF16 · 144 GB)', {
+        size: 13,
+        color: onBlue,
+        align: 'center',
+        weight: 700,
+        width: 350,
+    })
+    fig.text(601, 212, '1 shared copy vs 100 dedicated (14.4 TB) · 99% VRAM saved', {
+        size: 12,
+        color: onBlue,
+        align: 'center',
+        weight: 500,
+        width: 350,
+    })
 
-            {/* Two Isolated Tenant Lanes */}
-            {/* Lane 1: Tenant Alpha */}
-            {label(52, 160, 350, 'TENANT ALPHA ISOLATED STATE', 11, blueTone, 'left', 700)}
-            {label(
-                52,
-                184,
-                350,
-                '1. Authenticated Identity & Workspace Context',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                202,
-                350,
-                'Bearer token claims tenant_id = "tenant-alpha"',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Isolated per-tenant state lanes beneath shared base
+    const lanes = [
+        {
+            x: 420,
+            title: 'Tenant A Isolated State',
+            color: blue,
+            rows: ['KV Pages: P0, P2, P4', 'LoRA: docs-v2 (r=1)', 'Quota & Usage Meter'],
+        },
+        {
+            x: 608,
+            title: 'Tenant B Isolated State',
+            color: purple,
+            rows: ['KV Pages: P1, P3', 'LoRA: inc-v1 (r=1)', 'Quota & Usage Meter'],
+        },
+    ]
+    for (const lane of lanes) {
+        fig.arrow(lane.x + 87, 228, lane.x + 87, 250, { color: lane.color, width: 1.5, head: 5 })
+        fig.rect(lane.x, 252, 174, 134, {
+            fill: soft(lane.color, 0.08, 0.14),
+            stroke: rim(lane.color),
+            strokeWidth: 1.25,
+            radius: 6,
+        })
+        fig.text(lane.x + 87, 270, lane.title, {
+            size: 13,
+            color: lane.color,
+            align: 'center',
+            weight: 700,
+            width: 164,
+        })
+        lane.rows.forEach((row, idx) => {
+            const ry = 290 + idx * 30
+            fig.rect(lane.x + 10, ry, 154, 24, {
+                fill: c.bg,
+                stroke: c.borderSubtle,
+                strokeWidth: 0.9,
+                radius: 4,
+            })
+            fig.text(lane.x + 87, ry + 12, row, {
+                size: 12,
+                color: c.textPrimary,
+                align: 'center',
+                mono: idx < 2,
+                width: 148,
+            })
+        })
+    }
 
-            {label(52, 232, 350, '2. Private Paged KV Cache Blocks', 12, blueTone, 'left', 600)}
-            {label(
-                52,
-                250,
-                350,
-                'Virtual block table mapped to private physical pages',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Isolation barrier dashed line between A and B
+    fig.line(601, 254, 601, 386, { color: c.textMuted, width: 1.25, dash: '3 3' })
 
-            {label(
-                52,
-                280,
-                350,
-                '3. Dynamic LoRA Adapter (Support Desk v2)',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                298,
-                350,
-                'Rank-16 weights loaded on-demand; ref_count = 1',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {label(52, 328, 350, '4. Token Quota & Metering Ledger', 12, greenTone, 'left', 600)}
-            {label(
-                52,
-                346,
-                350,
-                'Tier 1 SLA: 10,000 TPM limit · 842 tokens consumed',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Lane 2: Tenant Beta */}
-            {label(462, 160, 350, 'TENANT BETA ISOLATED STATE', 11, purpleTone, 'left', 700)}
-            {label(
-                462,
-                184,
-                350,
-                '1. Authenticated Identity & Workspace Context',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                462,
-                202,
-                350,
-                'Bearer token claims tenant_id = "tenant-beta"',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {label(462, 232, 350, '2. Private Paged KV Cache Blocks', 12, purpleTone, 'left', 600)}
-            {label(
-                462,
-                250,
-                350,
-                'Strict logical isolation; zero cross-tenant page reads',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {label(
-                462,
-                280,
-                350,
-                '3. Dynamic LoRA Adapter (Legal Summarizer)',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                462,
-                298,
-                350,
-                'Rank-32 weights loaded on-demand; ref_count = 1',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {label(462, 328, 350, '4. Token Quota & Metering Ledger', 12, greenTone, 'left', 600)}
-            {label(
-                462,
-                346,
-                350,
-                'Tier 2 SLA: 50,000 TPM limit · 3,120 tokens consumed',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Bottom Guardrail Box */}
-            {label(
-                52,
-                406,
-                756,
-                'Runtime Security Invariant: Zero Cross-Tenant Contamination',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                426,
-                756,
-                'Authenticated gateway routing and per-sequence paged attention masks isolate each tenant strictly to its own KV blocks.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
-
-export default create()

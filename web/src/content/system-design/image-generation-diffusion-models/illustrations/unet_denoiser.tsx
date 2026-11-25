@@ -1,148 +1,115 @@
 import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 760
+export const height = 430
 export const alt =
-    'U-Net denoiser architecture with multi-scale hierarchical skip connections. The encoder downsamples noisy latents from 64x64 to 16x16, passing feature maps across horizontal skip connections to the matching decoder resolutions. ResNet blocks integrate timestep embeddings and cross-attention blocks attend to text tokens at every stage.'
+    'U-shaped multi-scale U-Net denoiser architecture: the encoder downsamples noisy latents from 64x64 (320 channels) through 32x32 (640 channels) to a 16x16 (1280 channels) global self-attention bottleneck, while horizontal skip connections pass matching spatial scales to the upsampling decoder. Timestep FiLM/AdaGN and text cross-attention condition every level.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
 
-    // Header
-    a.text(40, 32, 'U-Net Denoising Backbone: Multi-Scale Skips & Conditioning', {
-        size: 22,
-        weight: 700,
+    // Top conditioning inputs
+    fig.rect(86, 14, 274, 48, {
+        fill: tint(warm, c.bg, theme === 'light' ? 0.1 : 0.16),
+        stroke: tint(warm, c.bg, 0.55),
+        strokeWidth: 1.4,
+        radius: 8,
     })
-    a.text(
-        40,
-        58,
-        'Hierarchical feature extraction with horizontal identity skips and cross-attention conditioning',
-        { size: 15, color: k.mid },
-    )
+    fig.text(223, 38, 'Timestep t → FiLM / AdaGN', { size: 15.5, weight: 700, color: warm, align: 'center' })
 
-    // Conditioning Banner at top
-    a.rect(40, 85, 780, 50, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 6 })
-    a.cell(56, 98, 85, 24, 'CONDITIONS', {
-        fill: tint(k.state, 0.15),
-        stroke: tint(k.state, 0.4),
-        color: k.state,
-        weight: 700,
+    fig.rect(400, 14, 274, 48, {
+        fill: tint(purple, c.bg, theme === 'light' ? 0.1 : 0.16),
+        stroke: tint(purple, c.bg, 0.55),
+        strokeWidth: 1.4,
+        radius: 8,
     })
-    a.text(
-        155,
-        110,
-        'Timestep Embedding t: Sinusoidal + MLP -> FiLM / AdaLN scale & shift to all ResNet blocks',
-        { size: 15, mono: true, color: k.ink },
-    )
-    a.text(
-        155,
-        126,
-        'Text Tokens c: CLIP / T5 Embeddings -> Keys & Values (K, V) in all Cross-Attention layers',
-        { size: 15, mono: true, color: k.prefill },
-    )
+    fig.text(537, 38, 'Text c → Cross-Attn K, V', { size: 15.5, weight: 700, color: purple, align: 'center' })
 
-    // Left Column: Encoder (Downsampling)
-    a.rect(40, 150, 240, 320, { fill: tint(k.decode, 0.03), stroke: tint(k.decode, 0.35), r: 8 })
-    a.cell(56, 165, 80, 24, 'ENCODER', {
-        fill: tint(k.decode, 0.15),
-        stroke: tint(k.decode, 0.4),
-        color: k.decode,
-        weight: 700,
-    })
-    a.text(146, 177, 'Downsampling Path', { size: 15, weight: 700 })
+    fig.arrow(223, 62, 223, 88, { color: warm, width: 1.4, dash: '3 3', head: 5.5 })
+    fig.arrow(537, 62, 537, 88, { color: purple, width: 1.4, dash: '3 3', head: 5.5 })
 
-    const encoderBlocks = [
-        { name: 'Down Block 1', res: '64 × 64 · 320-d', y: 205 },
-        { name: 'Down Block 2', res: '32 × 32 · 640-d', y: 285 },
-        { name: 'Down Block 3', res: '16 × 16 · 1280-d', y: 365 },
+    fig.math(118, 92, 'z_t \\to \\textbf{Encoder}', { size: 15.5, color: blue, align: 'center' })
+    fig.math(642, 92, '\\textbf{Decoder} \\to \\hat{\\epsilon}', { size: 15.5, color: green, align: 'center' })
+
+    const levels = [
+        { y: 112, h: 62, encX: 16, decX: 556, w: 188, res: '64×64 · 320d', enc: 'Down 1', dec: 'Up 1', skip: 'Skip 64×64' },
+        { y: 202, h: 62, encX: 54, decX: 534, w: 172, res: '32×32 · 640d', enc: 'Down 2', dec: 'Up 2', skip: 'Skip 32×32' },
+        { y: 292, h: 58, encX: 92, decX: 512, w: 156, res: '16×16 · 1280d', enc: 'Down 3', dec: 'Up 3', skip: '' },
     ]
 
-    encoderBlocks.forEach((b, i) => {
-        a.rect(56, b.y, 208, 65, { fill: tint(k.decode, 0.08), stroke: tint(k.decode, 0.25), r: 6 })
-        a.text(68, b.y + 24, b.name, { size: 15, weight: 700, color: k.decode })
-        a.text(68, b.y + 48, b.res, { size: 15, mono: true, color: k.ink })
+    levels.forEach((lv, i) => {
+        fig.rect(lv.encX, lv.y, lv.w, lv.h, {
+            fill: tint(blue, c.bg, theme === 'light' ? 0.09 + i * 0.03 : 0.14 + i * 0.04),
+            stroke: blue,
+            strokeWidth: 1.6,
+            radius: 8,
+        })
+        fig.text(lv.encX + lv.w / 2, lv.y + 20, lv.enc, { size: 15.5, weight: 700, color: blue, align: 'center' })
+        fig.text(lv.encX + lv.w / 2, lv.y + 44, lv.res, { size: 15, mono: true, color: c.textPrimary, align: 'center' })
+
+        fig.rect(lv.decX, lv.y, lv.w, lv.h, {
+            fill: tint(green, c.bg, theme === 'light' ? 0.09 + i * 0.03 : 0.14 + i * 0.04),
+            stroke: green,
+            strokeWidth: 1.6,
+            radius: 8,
+        })
+        fig.text(lv.decX + lv.w / 2, lv.y + 20, lv.dec, { size: 15.5, weight: 700, color: green, align: 'center' })
+        fig.text(lv.decX + lv.w / 2, lv.y + 44, lv.res, { size: 15, mono: true, color: c.textPrimary, align: 'center' })
+
+        if (lv.skip) {
+            const skipY = lv.y + lv.h / 2
+            const x1 = lv.encX + lv.w + 4
+            const x2 = lv.decX - 4
+            fig.arrow(x1, skipY, x2, skipY, { color: purple, width: 1.8, dash: '5 4', head: 7 })
+            fig.rect((x1 + x2) / 2 - 64, skipY - 14, 128, 28, {
+                fill: c.bg,
+                stroke: tint(purple, c.bg, 0.5),
+                strokeWidth: 1,
+                radius: 12,
+            })
+            fig.text((x1 + x2) / 2, skipY, lv.skip, { size: 15, weight: 700, color: purple, align: 'center' })
+        }
+
         if (i < 2) {
-            a.arrow(160, b.y + 65, 160, b.y + 80, k.decode, { width: 1.5 })
+            const next = levels[i + 1]!
+            fig.arrow(lv.encX + lv.w / 2, lv.y + lv.h + 2, next.encX + next.w / 2, next.y - 2, {
+                color: blue,
+                width: 1.8,
+                head: 6,
+            })
+            fig.arrow(next.decX + next.w / 2, next.y - 2, lv.decX + lv.w / 2, lv.y + lv.h + 2, {
+                color: green,
+                width: 1.8,
+                head: 6,
+            })
         }
     })
 
-    // Center Column: Bottleneck
-    a.rect(310, 290, 240, 180, { fill: tint(k.wait, 0.04), stroke: tint(k.wait, 0.35), r: 8 })
-    a.cell(326, 305, 100, 24, 'BOTTLENECK', {
-        fill: tint(k.wait, 0.15),
-        stroke: tint(k.wait, 0.4),
-        color: k.wait,
-        weight: 700,
+    // Bottom Bottleneck
+    const bnX = 256
+    const bnY = 356
+    const bnW = 248
+    const bnH = 62
+    fig.rect(bnX, bnY, bnW, bnH, {
+        fill: tint(warm, c.bg, theme === 'light' ? 0.13 : 0.2),
+        stroke: warm,
+        strokeWidth: 2,
+        radius: 10,
     })
-    a.text(436, 317, 'Middle Block', { size: 15, weight: 700 })
+    fig.text(bnX + bnW / 2, bnY + 21, 'Bottleneck (16×16)', { size: 15.5, weight: 700, color: warm, align: 'center' })
+    fig.text(bnX + bnW / 2, bnY + 45, 'Global Self + Cross-Attn', { size: 15, color: c.textPrimary, align: 'center' })
 
-    a.rect(326, 345, 208, 105, { fill: tint(k.wait, 0.08), stroke: tint(k.wait, 0.3), r: 6 })
-    a.text(338, 370, 'Lowest Resolution 16 × 16', { size: 15, weight: 700, color: k.wait })
-    a.text(338, 394, 'ResNet + Self-Attn (Global)', { size: 15, color: k.ink })
-    a.text(338, 416, 'Cross-Attn (Text Conditioning)', { size: 15, color: k.prefill })
-    a.text(338, 436, 'Full receptive field context', { size: 15, color: k.mid })
+    fig.arrow(170, 350, bnX - 2, bnY + 31, { color: blue, width: 1.8, head: 6 })
+    fig.arrow(bnX + bnW + 2, bnY + 31, 590, 350, { color: warm, width: 1.8, head: 6 })
 
-    // Encoder down to Bottleneck arrow
-    a.arrow(264, 400, 326, 400, k.decode, { width: 1.5 })
-    // Bottleneck to Decoder arrow
-    a.arrow(534, 400, 580, 400, k.wait, { width: 1.5 })
-
-    // Right Column: Decoder (Upsampling)
-    a.rect(580, 150, 240, 320, { fill: tint(k.pass, 0.03), stroke: tint(k.pass, 0.35), r: 8 })
-    a.cell(596, 165, 80, 24, 'DECODER', {
-        fill: tint(k.pass, 0.15),
-        stroke: tint(k.pass, 0.4),
-        color: k.pass,
-        weight: 700,
-    })
-    a.text(686, 177, 'Upsampling Path', { size: 15, weight: 700 })
-
-    const decoderBlocks = [
-        { name: 'Up Block 3', res: '16 × 16 · Concat Skip', y: 365 },
-        { name: 'Up Block 2', res: '32 × 32 · Concat Skip', y: 285 },
-        { name: 'Up Block 1', res: '64 × 64 · Final Conv', y: 205 },
-    ]
-
-    decoderBlocks.forEach((b, i) => {
-        a.rect(596, b.y, 208, 65, { fill: tint(k.pass, 0.08), stroke: tint(k.pass, 0.25), r: 6 })
-        a.text(608, b.y + 24, b.name, { size: 15, weight: 700, color: k.pass })
-        a.text(608, b.y + 48, b.res, { size: 15, mono: true, color: k.ink })
-        if (i < 2) {
-            a.arrow(700, b.y, 700, b.y - 15, k.pass, { width: 1.5 })
-        }
-    })
-
-    // Horizontal Skip Connections across Encoder and Decoder
-    // Skip 1 (64x64)
-    a.line(264, 237, 596, 237, k.state, { width: 1.5, dash: '4,4' })
-    a.cell(395, 225, 110, 24, 'SKIP 64×64', {
-        fill: tint(k.state, 0.15),
-        stroke: tint(k.state, 0.4),
-        color: k.state,
-        weight: 700,
-        mono: true,
-    })
-
-    // Skip 2 (32x32)
-    a.line(264, 270, 310, 270, k.state, { width: 1.5, dash: '4,4' })
-    a.line(550, 270, 596, 270, k.state, { width: 1.5, dash: '4,4' })
-    a.path('M 310 270 H 550', k.state, { width: 1.5, dash: '4,4' })
-    a.cell(395, 258, 110, 24, 'SKIP 32×32', {
-        fill: tint(k.state, 0.15),
-        stroke: tint(k.state, 0.4),
-        color: k.state,
-        weight: 700,
-        mono: true,
-    })
-
-    return a.render()
+    return fig.render()
 }
 
 export default create('dark')

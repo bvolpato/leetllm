@@ -297,7 +297,6 @@ Always check the real sharding domain before substituting $d$: in our 64-GPU den
 
 Each step runs a four-stage ownership cycle on contiguous buckets so communication overlaps with compute: (1) backward fills local gradient buffers, (2) `reduce-scatter` combines gradients and hands each rank its $1/d$ slice, (3) each rank updates its local FP32 master weights and Adam moments, and (4) `all-gather` broadcasts updated BF16 weights before the next forward pass.
 
-<!-- leetllm: edition:reference:start -->
 | Sharding domain `d` | Persistent bytes / param (BF16 weight, FP32 grad) | Memory profile |
 | ---: | ---: | --- |
 | 1 | `18.0` | Full optimizer state on every replica |
@@ -306,7 +305,6 @@ Each step runs a four-stage ownership cycle on contiguous buckets so communicati
 | 8 | `7.5` | Diminishing state savings; activations dominate |
 
 Budget additional HBM beyond this formula for activations, temporary all-gather buffers, communication buckets, <span data-glossary="embedding">embeddings</span>, and MoE routing buffers.
-<!-- leetllm: edition:reference:end -->
 
 > **Common mistake:** Equal averaging of local replica means silently corrupts gradients when replicas hold different valid token counts. If replica A has 1 valid token (mean gradient `10.0`) and replica B has 3 valid tokens (mean `0.0`), the equal mean is `5.0` while the true global token-weighted mean is `(1 × 10 + 3 × 0) / 4 = 2.5`. At `lr=0.1`, a weight of `1.0` moves to `0.5` instead of `0.75`, and shape checks pass without error.
 
@@ -373,7 +371,6 @@ Megatron Core integrates <span data-glossary="transformer-engine">Transformer En
 
 Track efficiency with **Model FLOPs Utilization (MFU)**: useful model FLOPs/s divided by peak GPU FLOPs (excluding activation recomputation counted by hardware utilization).[^korthikanti2022] In Megatron-LM's H100 strong-scaling study (1,152 sequences of 4,096 tokens, overlap enabled), growing from 96 to 4,608 GPUs lowered MFU from 47% to 42% as communication grew.[^megatron2026repo] Validate learning quality separately on held-out loss and start from Megatron Bridge performance recipes.[^nvidia2026megatronperformance]
 
-<!-- leetllm: edition:reference:start -->
 ## Project identity
 
 Megatron-LM and Megatron Core are developed and stewarded by NVIDIA.
@@ -464,7 +461,6 @@ What changes if DP doubles while global batch and microbatch size stay fixed?
 ---
 Microbatches per replica halve, widening the pipeline bubble even as replicated optimizer memory drops. Keep global tokens and token-weighted loss normalization identical before comparing step times.
 ```
-<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [

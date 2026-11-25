@@ -1,262 +1,177 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    defineIllustration,
-    getReadableTextColor,
-    getReadableToneColor,
-    getToneFill,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 820
-export const height = 532
+export const width = 780
+export const height = 425
 export const alt =
     'A CPU batch crosses to CUDA device global memory. GPU kernels access model tensors through the device memory system; L2 is shared across SMs, L1 is per SM, shared memory is per block, and registers belong to threads. Below, four equal 4-byte quantities make a simplified 16-byte FP32 Adam budget per parameter: weight, gradient, first moment, and second moment. One billion parameters therefore account for 14.90 GiB before activations, workspaces, and allocator overhead.'
 
-const lbl = (
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize = 24,
-    color = c.textSecondary,
-    align: 'left' | 'center' | 'right' = 'left',
-    fontWeight = 550,
-) =>
-    CanvasItem({
-        x,
-        y,
-        width: w,
-        height: fontSize + 10,
-        children: TextLabel({ c, text, width: w, fontSize, color, align, fontWeight }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const cyan = fig.tone('cyan')
+    const fillAmt = theme === 'dark' ? 0.14 : 0.08
+
+    // ─── TOP HALF: HOST -> VRAM -> L2 / SM STORAGE HIERARCHY ───
+    fig.text(20, 18, 'Host-to-device transfer and GPU memory hierarchy', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
     })
 
-const illustration = defineIllustration((c: ThemeColors) => {
-    const blue = getReadableToneColor('blue', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
-    const purple = getReadableToneColor('purple', c)
-    const tones = ['blue', 'warm', 'purple', 'cyan'] as const
-    const budget = ['weight', 'gradient', 'moment m', 'moment v']
-    const vramItems = ['weights', 'activations', 'gradients', 'Adam state']
+    // CPU RAM column
+    fig.rect(20, 44, 152, 206, {
+        fill: tint(c.textMuted, c.bg, theme === 'dark' ? 0.1 : 0.06),
+        stroke: c.border,
+        strokeWidth: 1.4,
+        radius: 10,
+    })
+    fig.text(96, 68, 'CPU RAM', { size: 14.5, weight: 700, color: c.textPrimary, align: 'center' })
+    fig.text(96, 118, 'dataset batch', { size: 13, color: c.textSecondary, align: 'center' })
+    fig.text(96, 146, '(4, 8, 16)', {
+        size: 15,
+        weight: 700,
+        color: blue,
+        mono: true,
+        align: 'center',
+    })
+    fig.text(96, 182, 'pinned host', { size: 12, color: c.textMuted, align: 'center' })
+    fig.text(96, 200, 'staging', { size: 12, color: c.textMuted, align: 'center' })
 
-    const shapes: React.ReactNode[] = [
-        SvgFrame({
-            x: 16,
-            y: 98,
-            width: 174,
-            height: 238,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            x: 244,
-            y: 98,
-            width: 222,
-            height: 238,
-            c,
-            rx: 14,
-            fill: c.bgSubtle,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            x: 520,
-            y: 98,
-            width: 284,
-            height: 238,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            x: 534,
-            y: 112,
-            width: 256,
-            height: 50,
-            c,
-            rx: 10,
-            fill: getToneFill('blue', c),
-            stroke: blue,
-            strokeWidth: 1.4,
-        }),
-        ...[0, 1].map((i) =>
-            SvgFrame({
-                key: `sm-${i}`,
-                x: 534 + i * 132,
-                y: 176,
-                width: 124,
-                height: 146,
-                c,
-                rx: 10,
-                fill: c.bgSubtle,
-                stroke: green,
-                strokeWidth: 1.4,
-            }),
-        ),
-        SvgFrame({
-            x: 16,
-            y: 398,
-            width: 788,
-            height: 76,
-            c,
-            rx: 10,
-            fill: c.bgCard,
-            stroke: 'none',
-        }),
-        ...tones.map((t, i) =>
-            SvgFrame({
-                key: `b-${t}`,
-                x: 16 + i * 197,
-                y: 398,
-                width: 197,
-                height: 76,
-                c,
-                rx: i === 0 || i === 3 ? 10 : 0,
-                fill: getToneFill(t, c),
-                stroke: getReadableToneColor(t, c),
-                strokeWidth: 1.5,
-            }),
-        ),
-        VectorArrow({
-            x1: 192,
-            y1: 218,
-            x2: 240,
-            y2: 218,
-            color: blue,
-            strokeWidth: 3.5,
-            arrowSize: 4,
-        }),
-        VectorArrow({
-            x1: 468,
-            y1: 218,
-            x2: 516,
-            y2: 218,
-            color: green,
-            strokeWidth: 3.5,
-            arrowSize: 4,
-        }),
+    // H2D arrow
+    fig.arrow(176, 147, 224, 147, { color: blue, width: 2.5, head: 7 })
+    fig.text(200, 130, 'H2D', { size: 12.5, weight: 700, color: blue, mono: true, align: 'center' })
+
+    // GPU VRAM (HBM) column
+    fig.rect(230, 44, 206, 206, {
+        fill: tint(blue, c.bg, theme === 'dark' ? 0.11 : 0.06),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 10,
+    })
+    fig.text(333, 68, 'GPU VRAM (HBM)', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    const vramItems = [
+        { label: 'weights', color: blue },
+        { label: 'activations', color: green },
+        { label: 'gradients', color: warm },
+        { label: 'Adam state (m, v)', color: purple },
     ]
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({
-            background: 'transparent',
-            c,
-            width,
-            height,
-            children: [
-                CanvasItem({
-                    x: 0,
-                    y: 0,
-                    width,
-                    height,
-                    children: React.createElement(
-                        'svg',
-                        { width, height, viewBox: `0 0 ${width} ${height}` },
-                        ...shapes,
-                    ),
-                }),
-                lbl(
-                    c,
-                    'Where CUDA training bytes live',
-                    16,
-                    12,
-                    788,
-                    29,
-                    c.textPrimary,
-                    'left',
-                    760,
-                ),
-                lbl(c, 'H2D path, SM storage scopes, and FP32 Adam budget.', 16, 50, 788, 24),
-                lbl(c, 'CPU RAM', 28, 114, 150, 24, c.textPrimary, 'center', 720),
-                lbl(c, 'dataset', 28, 168, 150, 24, c.textSecondary, 'center'),
-                lbl(c, '(4, 8, 16)', 28, 204, 150, 24, blue, 'center', 700),
-                lbl(c, 'batch', 28, 238, 150, 24, c.textSecondary, 'center'),
-                lbl(c, 'H2D', 190, 174, 54, 24, blue, 'center', 720),
-                lbl(c, 'GPU VRAM', 256, 114, 198, 24, c.textPrimary, 'center', 720),
-                ...vramItems.map((item, idx) =>
-                    lbl(
-                        c,
-                        item,
-                        256,
-                        162 + idx * 42,
-                        198,
-                        24,
-                        [blue, green, warm, purple][idx],
-                        'center',
-                        650,
-                    ),
-                ),
-                lbl(
-                    c,
-                    'L2 cache · all SMs',
-                    540,
-                    120,
-                    244,
-                    24,
-                    getReadableTextColor(getToneFill('blue', c), c),
-                    'center',
-                    700,
-                ),
-                ...[0, 1].flatMap((i) => {
-                    const sx = 538 + i * 132
-                    return [
-                        lbl(c, `SM ${i}`, sx, 184, 116, 24, green, 'center', 720),
-                        lbl(c, 'L1 cache', sx, 220, 116, 24, c.textPrimary, 'center'),
-                        lbl(c, 'Shared', sx, 252, 116, 24, c.textPrimary, 'center'),
-                        lbl(c, 'Registers', sx, 284, 116, 24, c.textPrimary, 'center'),
-                    ]
-                }),
-                lbl(
-                    c,
-                    'FP32 Adam · 16 bytes per parameter',
-                    16,
-                    354,
-                    788,
-                    25,
-                    c.textPrimary,
-                    'left',
-                    740,
-                ),
-                ...budget.flatMap((name, i) => {
-                    const x = 16 + i * 197
-                    const color = getReadableTextColor(getToneFill(tones[i]!, c), c)
-                    return [
-                        lbl(c, '4 B', x + 4, 404, 189, 25, color, 'center', 750),
-                        lbl(c, name, x + 4, 438, 189, 24, color, 'center', 650),
-                    ]
-                }),
-                lbl(
-                    c,
-                    '1B params × 16 B = 16 GB = 14.90 GiB (+ activations & workspaces)',
-                    16,
-                    486,
-                    788,
-                    24,
-                    warm,
-                    'center',
-                    720,
-                ),
-            ],
-        }),
+    vramItems.forEach((item, idx) => {
+        const iy = 96 + idx * 36
+        fig.rect(248, iy, 170, 28, {
+            fill: tint(item.color, c.bg, fillAmt),
+            stroke: item.color,
+            strokeWidth: 1.1,
+            radius: 6,
+        })
+        fig.text(333, iy + 14, item.label, {
+            size: 13,
+            weight: 600,
+            color: item.color,
+            align: 'center',
+        })
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    // VRAM -> On-chip arrow
+    fig.arrow(440, 147, 488, 147, { color: green, width: 2.5, head: 7 })
+    fig.text(464, 130, 'tiles', { size: 12, weight: 600, color: green, align: 'center' })
+
+    // On-chip SM + L2 hierarchy (right)
+    fig.rect(494, 44, 266, 206, {
+        fill: tint(green, c.bg, theme === 'dark' ? 0.08 : 0.04),
+        stroke: c.border,
+        strokeWidth: 1.4,
+        radius: 10,
+    })
+    // L2 cache bar
+    fig.rect(508, 56, 238, 40, {
+        fill: tint(blue, c.bg, theme === 'dark' ? 0.22 : 0.14),
+        stroke: blue,
+        strokeWidth: 1.4,
+        radius: 7,
+    })
+    fig.text(627, 76, 'L2 cache · shared across SMs', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+
+    // SM 0 & SM 1
+    for (let i = 0; i < 2; i++) {
+        const sx = 508 + i * 124
+        fig.rect(sx, 108, 114, 128, {
+            fill: tint(green, c.bg, fillAmt),
+            stroke: green,
+            strokeWidth: 1.4,
+            radius: 8,
+        })
+        fig.text(sx + 57, 126, `SM ${i}`, {
+            size: 13.5,
+            weight: 700,
+            color: green,
+            align: 'center',
+        })
+        fig.text(sx + 57, 156, 'L1 cache', { size: 12.5, color: c.textPrimary, align: 'center' })
+        fig.text(sx + 57, 182, 'Shared mem', { size: 12.5, color: c.textPrimary, align: 'center' })
+        fig.text(sx + 57, 208, 'Registers', { size: 12.5, color: c.textPrimary, align: 'center' })
+    }
+
+    // ─── BOTTOM HALF: 16-BYTE FP32 ADAM BUDGET BAR ───
+    fig.line(20, 274, width - 20, 274, { color: c.borderSubtle, width: 1, dash: '4 4' })
+    fig.text(20, 296, 'FP32 Adam baseline · 16 bytes per parameter', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const segs = [
+        { label: 'weight', bytes: '4 B', color: blue },
+        { label: 'gradient', bytes: '4 B', color: warm },
+        { label: 'moment m', bytes: '4 B', color: purple },
+        { label: 'moment v', bytes: '4 B', color: cyan },
+    ]
+    const segW = 182
+    segs.forEach((s, i) => {
+        const sx = 20 + i * (segW + 4)
+        fig.rect(sx, 316, segW, 56, {
+            fill: tint(s.color, c.bg, theme === 'dark' ? 0.22 : 0.14),
+            stroke: s.color,
+            strokeWidth: 1.6,
+            radius: 7,
+        })
+        fig.text(sx + segW / 2, 334, s.bytes, {
+            size: 15,
+            weight: 700,
+            color: s.color,
+            mono: true,
+            align: 'center',
+        })
+        fig.text(sx + segW / 2, 355, s.label, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+            align: 'center',
+        })
+    })
+
+    fig.text(
+        width / 2,
+        398,
+        '1B params × 16 B = 16 GB = 14.90 GiB (before activations & workspaces)',
+        { size: 13.5, weight: 700, color: warm, align: 'center' },
+    )
+
+    return fig.render()
+}
+
+export default create()

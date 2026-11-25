@@ -1,139 +1,131 @@
 import React from 'react'
-import {
-    BadgePill,
-    Column,
-    FlowArrow,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    withDensity,
-} from 'vizmatic'
-import type { ToneName } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 680
-export const height = 760
+export const width = 900
+export const height = 405
 export const alt =
-    'Comparison across four sandbox runtimes showing container namespaces sharing the host kernel, gVisor intercepting syscalls via Sentry, Firecracker isolating a guest kernel over KVM, and WebAssembly enforcing checked linear memory with an import-free 1000-fuel lab returning run(41) = 42.'
+    'Side-by-side isolation stack across four sandbox runtimes: Docker/runc shares the host kernel behind seccomp-bpf, gVisor mediates syscalls through user-space Sentry and Gofer, Firecracker isolates a dedicated guest kernel over KVM, and WebAssembly runs import-free guest code inside checked 64 KiB linear memory with a 1,000-fuel cap.'
 
-const illustration = defineIllustration((baseTheme) => {
-    const c = withDensity(baseTheme, 1.85)
-    const tier = (
-        title: string,
-        tone: ToneName,
-        guest: string,
-        boundary: string,
-        hostLink: string,
-        surfaceBadge: string,
-    ) =>
-        Panel({
-            c,
-            title,
-            tone,
-            width: 648,
-            padding: 10,
-            titleFontSize: 20,
-            children: Row({
-                gap: 8,
-                justify: 'space-between',
-                align: 'center',
-                children: [
-                    Row({
-                        gap: 8,
-                        align: 'center',
-                        children: [
-                            TextLabel({ c, text: guest, fontSize: 20 }),
-                            FlowArrow({ c, direction: 'right', length: 16, tone }),
-                            TextLabel({ c, text: boundary, fontSize: 20, mono: true }),
-                            FlowArrow({ c, direction: 'right', length: 16, tone }),
-                            TextLabel({ c, text: hostLink, fontSize: 20 }),
-                        ],
-                    }),
-                    BadgePill({ c, text: surfaceBadge, tone, fontSize: 20 }),
-                ],
-            }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const red = fig.tone('red')
+    const warm = fig.tone('warm')
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+
+    const cols = [
+        {
+            title: '1. Docker / runc',
+            badge: 'Shared OS',
+            tone: red,
+            layers: [
+                { label: 'Agent Process', sub: 'namespaces', isBoundary: false },
+                { label: 'seccomp-bpf', sub: 'syscall filter', isBoundary: true },
+                { label: 'Shared Host Kernel', sub: 'direct kernel ABI', isBoundary: false },
+                { label: 'Host Hardware', sub: 'bare metal / VM', isBoundary: false },
+            ],
+        },
+        {
+            title: '2. gVisor',
+            badge: 'Narrowed ABI',
+            tone: warm,
+            layers: [
+                { label: 'Agent Process', sub: 'intercepted syscalls', isBoundary: false },
+                { label: 'Sentry + Gofer', sub: 'user-space kernel', isBoundary: true },
+                { label: 'Host Kernel', sub: 'small host subset', isBoundary: false },
+                { label: 'Host Hardware', sub: 'bare metal / VM', isBoundary: false },
+            ],
+        },
+        {
+            title: '3. Firecracker',
+            badge: 'Own Kernel',
+            tone: blue,
+            layers: [
+                { label: 'Guest VM Process', sub: 'microVM workload', isBoundary: false },
+                { label: 'Guest Linux Kernel', sub: 'isolated kernel', isBoundary: false },
+                { label: 'KVM + VMM', sub: 'hardware virt wall', isBoundary: true },
+                { label: 'Host Hardware', sub: 'VT-x / SEV', isBoundary: false },
+            ],
+        },
+        {
+            title: '4. WebAssembly',
+            badge: 'Zero Imports',
+            tone: green,
+            layers: [
+                { label: 'WAT <= 4 KiB', sub: 'run(41) = 42', isBoundary: false },
+                { label: 'Wasmtime Sandbox', sub: '1k fuel · 64 KiB mem', isBoundary: true },
+                { label: 'No Host Syscalls', sub: 'imports: 0', isBoundary: false },
+                { label: 'Host Process', sub: 'in-proc linear mem', isBoundary: false },
+            ],
+        },
+    ]
+
+    // Left stratum labels
+    const strata = ['Workload', 'Mediation', 'Kernel / Mem', 'Substrate']
+    const startY = 82
+    const boxH = 60
+    const rowGap = 14
+    strata.forEach((st, r) => {
+        fig.text(14, startY + r * (boxH + rowGap) + boxH / 2, st, {
+            size: 12.5,
+            weight: 700,
+            color: c.textSecondary,
         })
-
-    return Scene({
-        c,
-        title: 'Execution Isolation Tiers: Syscall Mediation Depth',
-        padding: 16,
-        gap: 10,
-        contentWidth: 648,
-        children: [
-            tier(
-                '1. Docker / runc (Namespaces + seccomp)',
-                'red',
-                'Process',
-                'seccomp-bpf',
-                'Host Kernel',
-                'Shared OS',
-            ),
-            tier(
-                '2. gVisor (User-Space Kernel)',
-                'warm',
-                'Process',
-                'Sentry + Gofer',
-                'Host Kernel',
-                'Narrowed ABI',
-            ),
-            tier(
-                '3. Firecracker (Hardware Virtualization)',
-                'blue',
-                'Guest VM',
-                'Guest Kernel',
-                'KVM + VMM',
-                'Own Kernel',
-            ),
-            Panel({
-                c,
-                title: '4. WebAssembly (Wasmtime Guest Sandbox)',
-                tone: 'green',
-                width: 648,
-                padding: 10,
-                titleFontSize: 20,
-                children: Column({
-                    gap: 8,
-                    children: [
-                        Row({
-                            gap: 8,
-                            justify: 'space-between',
-                            align: 'center',
-                            children: [
-                                Row({
-                                    gap: 8,
-                                    align: 'center',
-                                    children: [
-                                        TextLabel({ c, text: 'WAT <= 4 KiB', fontSize: 20 }),
-                                        FlowArrow({
-                                            c,
-                                            direction: 'right',
-                                            length: 16,
-                                            tone: 'green',
-                                        }),
-                                        TextLabel({
-                                            c,
-                                            text: 'Fuel: 1k · 64 KiB',
-                                            fontSize: 20,
-                                            mono: true,
-                                        }),
-                                    ],
-                                }),
-                                BadgePill({
-                                    c,
-                                    text: 'Imports: 0 -> run(41)=42',
-                                    tone: 'green',
-                                    fontSize: 20,
-                                }),
-                            ],
-                        }),
-                    ],
-                }),
-            }),
-        ],
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    const colW = 184
+    const colGap = 14
+    const startX = 104
+
+    cols.forEach((col, i) => {
+        const x = startX + i * (colW + colGap)
+        const cx = x + colW / 2
+
+        // Column header + surface badge
+        fig.text(cx, 22, col.title, { size: 14.5, weight: 700, color: col.tone, align: 'center' })
+        fig.rect(cx - 56, 38, 112, 24, {
+            fill: tint(col.tone, c.bg, theme === 'light' ? 0.14 : 0.22),
+            stroke: col.tone,
+            strokeWidth: 1.2,
+            radius: 12,
+        })
+        fig.text(cx, 50, col.badge, { size: 12, weight: 700, color: col.tone, align: 'center' })
+
+        col.layers.forEach((lv, r) => {
+            const y = startY + r * (boxH + rowGap)
+            const fill = lv.isBoundary
+                ? tint(col.tone, c.bg, theme === 'light' ? 0.18 : 0.28)
+                : tint(c.borderSubtle, c.bg, theme === 'light' ? 0.22 : 0.2)
+            const stroke = lv.isBoundary ? col.tone : c.borderSubtle
+            fig.rect(x, y, colW, boxH, {
+                fill,
+                stroke,
+                strokeWidth: lv.isBoundary ? 2.2 : 1.1,
+                radius: 8,
+            })
+            fig.text(cx, y + 21, lv.label, {
+                size: 13,
+                weight: 700,
+                color: lv.isBoundary ? col.tone : c.textPrimary,
+                align: 'center',
+            })
+            fig.text(cx, y + 42, lv.sub, {
+                size: 12,
+                mono: true,
+                color: c.textSecondary,
+                align: 'center',
+            })
+        })
+    })
+
+    // Bottom spectrum arrow
+    fig.arrow(104, 384, 876, 384, { color: c.textMuted, width: 1.5, head: 6 })
+    fig.text(104, 372, 'Broader kernel surface', { size: 12, color: red })
+    fig.text(876, 372, 'Stronger / narrower isolation boundary', { size: 12, color: green, align: 'right' })
+
+    return fig.render()
+}
+
+export default create('dark')

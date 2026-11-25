@@ -1,169 +1,93 @@
 import React from 'react'
-import {
-    BadgePill,
-    GraphDiagram,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 920
-export const height = 470
+export const height = 415
 export const alt =
-    'Three multi-agent network topologies compared side by side. Left: Deterministic DAG fans out from Intake to parallel Diff, Test, and Scan nodes before joining at Merge. Center: Hub-and-Spoke Supervisor retains turn control and calls Diff, Test, and Scan specialists bidirectionally as tools. Right: Peer Handoff Swarm transfers turn ownership across Triage, Code, and DB Specialist nodes before finishing, with the host rebuilding tool permissions at each handoff.'
+    'Three multi-agent topologies side by side: Deterministic DAG (Intake fans out to Diff, Test, Scan and joins at Merge), Hub-and-Spoke Supervisor (central LLM invokes Diff, Test, Scan bidirectionally), and Peer Handoff Swarm (Triage transfers turn and ACL scope across Code and DB Spec to Done). Footer distinguishes MCP (host to tool servers) from A2A (cross-runtime remote agent tasks).'
 
-const illustration = defineIllustration((c) => (
-    <Scene
-        c={c}
-        title="Multi-Agent Coordination Topologies"
-        padding={16}
-        gap={12}
-        contentWidth={888}
-    >
-        <Row gap={12} align="stretch">
-            <Panel
-                c={c}
-                title="1. Deterministic DAG"
-                subtitle="Fixed fan-out / fan-in"
-                tone="blue"
-                width={288}
-                padding={10}
-                gap={8}
-                titleFontSize={15}
-            >
-                <GraphDiagram
-                    c={c}
-                    layout="manual"
-                    width={264}
-                    height={272}
-                    nodeWidth={66}
-                    nodeHeight={34}
-                    labelFontSize={12}
-                    arrowSize={5}
-                    padding={8}
-                    nodes={[
-                        { id: 'intake', label: 'Intake', x: 0.5, y: 0.12, tone: 'blue', width: 78 },
-                        { id: 'diff', label: 'Diff', x: 0.14, y: 0.5, tone: 'cyan' },
-                        { id: 'test', label: 'Test', x: 0.5, y: 0.5, tone: 'cyan' },
-                        { id: 'scan', label: 'Scan', x: 0.86, y: 0.5, tone: 'cyan' },
-                        { id: 'merge', label: 'Merge', x: 0.5, y: 0.88, tone: 'green', width: 78 },
-                    ]}
-                    edges={[
-                        { from: 'intake', to: 'diff', tone: 'blue' },
-                        { from: 'intake', to: 'test', tone: 'blue' },
-                        { from: 'intake', to: 'scan', tone: 'blue' },
-                        { from: 'diff', to: 'merge', tone: 'green' },
-                        { from: 'test', to: 'merge', tone: 'green' },
-                        { from: 'scan', to: 'merge', tone: 'green' },
-                    ]}
-                />
-                <Row justify="center">
-                    <BadgePill c={c} text="Control: Graph edges" tone="blue" fontSize={11} />
-                </Row>
-            </Panel>
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
 
-            <Panel
-                c={c}
-                title="2. Hub-and-Spoke Supervisor"
-                subtitle="Manager invokes tools"
-                tone="purple"
-                width={288}
-                padding={10}
-                gap={8}
-                titleFontSize={15}
-            >
-                <GraphDiagram
-                    c={c}
-                    layout="manual"
-                    width={264}
-                    height={272}
-                    nodeWidth={74}
-                    nodeHeight={34}
-                    labelFontSize={12}
-                    arrowSize={5}
-                    padding={8}
-                    nodes={[
-                        { id: 'sup', label: 'Supervisor', x: 0.5, y: 0.2, tone: 'purple', width: 96 },
-                        { id: 't1', label: 'Diff', x: 0.16, y: 0.78, tone: 'blue' },
-                        { id: 't2', label: 'Test', x: 0.5, y: 0.86, tone: 'blue' },
-                        { id: 't3', label: 'Scan', x: 0.84, y: 0.78, tone: 'blue' },
-                    ]}
-                    edges={[
-                        { from: 'sup', to: 't1', tone: 'purple', arrow: 'both' },
-                        { from: 'sup', to: 't2', tone: 'purple', arrow: 'both' },
-                        { from: 'sup', to: 't3', tone: 'purple', arrow: 'both' },
-                    ]}
-                />
-                <Row justify="center">
-                    <BadgePill c={c} text="Control: Central LLM loop" tone="purple" fontSize={11} />
-                </Row>
-            </Panel>
+    // Frameless 3-column layout separated by subtle vertical hairlines
+    fig.line(306, 18, 306, 354, { color: c.borderSubtle, width: 1, dash: '4 4' })
+    fig.line(614, 18, 614, 354, { color: c.borderSubtle, width: 1, dash: '4 4' })
 
-            <Panel
-                c={c}
-                title="3. Peer Handoff Swarm"
-                subtitle="Transfers turn + ACL scope"
-                tone="cyan"
-                width={288}
-                padding={10}
-                gap={8}
-                titleFontSize={15}
-            >
-                <GraphDiagram
-                    c={c}
-                    layout="manual"
-                    width={264}
-                    height={272}
-                    nodeWidth={76}
-                    nodeHeight={34}
-                    labelFontSize={12}
-                    arrowSize={5}
-                    padding={8}
-                    nodes={[
-                        { id: 'triage', label: 'Triage', x: 0.5, y: 0.13, tone: 'cyan' },
-                        { id: 'code', label: 'Code', x: 0.2, y: 0.54, tone: 'blue' },
-                        { id: 'db', label: 'DB Spec', x: 0.8, y: 0.54, tone: 'warm' },
-                        { id: 'done', label: 'Done', x: 0.5, y: 0.89, tone: 'green' },
-                    ]}
-                    edges={[
-                        { from: 'triage', to: 'code', tone: 'cyan' },
-                        { from: 'code', to: 'db', tone: 'warm', label: 'handoff' },
-                        { from: 'triage', to: 'db', dashed: true, muted: true },
-                        { from: 'db', to: 'done', tone: 'green' },
-                        { from: 'code', to: 'done', dashed: true, muted: true },
-                    ]}
-                />
-                <Row justify="center">
-                    <BadgePill c={c} text="Control: Active peer" tone="cyan" fontSize={11} />
-                </Row>
-            </Panel>
-        </Row>
+    const node = (cx: number, cy: number, w: number, h: number, label: string, tone: string) => {
+        fig.rect(cx - w / 2, cy - h / 2, w, h, {
+            fill: tint(tone, c.bg, theme === 'light' ? 0.13 : 0.2),
+            stroke: tone,
+            strokeWidth: 1.6,
+            radius: 7,
+        })
+        fig.text(cx, cy, label, { size: 13.5, weight: 700, color: tone, align: 'center' })
+    }
 
-        <Row gap={18} justify="center" align="center" width={888}>
-            <Row gap={6} align="center">
-                <BadgePill c={c} text="MCP" tone="blue" fontSize={11} />
-                <TextLabel
-                    c={c}
-                    text="Host to tool servers"
-                    fontSize={12}
-                    color={getReadableToneColor('blue', c)}
-                />
-            </Row>
-            <Row gap={6} align="center">
-                <BadgePill c={c} text="A2A" tone="green" fontSize={11} />
-                <TextLabel
-                    c={c}
-                    text="Cross-runtime remote agent tasks"
-                    fontSize={12}
-                    color={getReadableToneColor('green', c)}
-                />
-            </Row>
-        </Row>
-    </Scene>
-))
+    // Column 1: Deterministic DAG (cx = 154)
+    fig.text(154, 22, '1. Deterministic DAG', { size: 15, weight: 700, color: blue, align: 'center' })
+    fig.text(154, 42, 'Fixed fan-out / fan-in', { size: 12.5, color: c.textSecondary, align: 'center' })
+    node(154, 92, 92, 36, 'Intake', blue)
+    node(62, 188, 74, 36, 'Diff', cyan)
+    node(154, 188, 74, 36, 'Test', cyan)
+    node(246, 188, 74, 36, 'Scan', cyan)
+    node(154, 282, 92, 36, 'Merge', green)
+    for (const tx of [62, 154, 246]) {
+        fig.arrow(154, 112, tx, 168, { color: blue, width: 1.6, head: 5.5 })
+        fig.arrow(tx, 208, 154, 262, { color: green, width: 1.6, head: 5.5 })
+    }
+    fig.text(154, 332, 'Control: graph edges', { size: 13, weight: 600, color: blue, align: 'center' })
 
-export const create = illustration.create
-export default illustration.default
+    // Column 2: Hub-and-Spoke Supervisor (cx = 460)
+    fig.text(460, 22, '2. Hub-and-Spoke Supervisor', { size: 15, weight: 700, color: purple, align: 'center' })
+    fig.text(460, 42, 'Manager invokes specialists', { size: 12.5, color: c.textSecondary, align: 'center' })
+    node(460, 110, 126, 40, 'Supervisor', purple)
+    node(364, 258, 78, 36, 'Diff', blue)
+    node(460, 276, 78, 36, 'Test', blue)
+    node(556, 258, 78, 36, 'Scan', blue)
+    for (const [tx, ty] of [
+        [364, 238],
+        [460, 256],
+        [556, 238],
+    ] as const) {
+        fig.arrow(460, 132, tx, ty, { color: purple, width: 1.6, head: 5.5 })
+        fig.arrow(tx, ty, 460, 132, { color: purple, width: 1.6, head: 5.5 })
+    }
+    fig.text(460, 332, 'Control: central LLM loop', { size: 13, weight: 600, color: purple, align: 'center' })
+
+    // Column 3: Peer Handoff Swarm (cx = 768)
+    fig.text(768, 22, '3. Peer Handoff Swarm', { size: 15, weight: 700, color: cyan, align: 'center' })
+    fig.text(768, 42, 'Transfers turn + ACL scope', { size: 12.5, color: c.textSecondary, align: 'center' })
+    node(768, 92, 92, 36, 'Triage', cyan)
+    node(678, 192, 86, 36, 'Code', blue)
+    node(856, 192, 96, 36, 'DB Spec', warm)
+    node(768, 284, 92, 36, 'Done', green)
+    fig.arrow(750, 112, 686, 172, { color: cyan, width: 1.8, head: 6 })
+    fig.arrow(786, 112, 846, 172, { color: c.textMuted, width: 1.3, dash: '4 4', head: 5 })
+    fig.arrow(722, 192, 806, 192, { color: warm, width: 2, head: 6.5 })
+    // Clean non-colliding "handoff" label ABOVE the horizontal arrow!
+    fig.text(764, 174, 'handoff', { size: 12.5, weight: 700, color: warm, align: 'center' })
+    fig.arrow(848, 212, 786, 264, { color: green, width: 1.8, head: 6 })
+    fig.arrow(686, 212, 750, 264, { color: c.textMuted, width: 1.3, dash: '4 4', head: 5 })
+    fig.text(768, 332, 'Control: active peer', { size: 13, weight: 600, color: cyan, align: 'center' })
+
+    // Bottom Protocol Legend (MCP vs A2A)
+    fig.line(24, 368, 896, 368, { color: c.borderSubtle, width: 1 })
+    fig.text(290, 392, 'MCP · Host to tool servers', { size: 13.5, weight: 700, color: blue, align: 'center' })
+    fig.text(640, 392, 'A2A · Cross-runtime remote agent tasks', {
+        size: 13.5,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    return fig.render()
+}
+
+export default create('dark')

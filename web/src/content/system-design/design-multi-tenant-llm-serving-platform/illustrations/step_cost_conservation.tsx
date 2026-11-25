@@ -1,304 +1,262 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import { getReadableTextColor, type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 820
+export const height = 435
 export const alt =
-    'Continuous batch step cost conservation across a 4-GPU node over a 0.2-second forward step. Total compute equals 0.8 GPU-seconds or 0.2 node-seconds. Tenant allocation divides total compute according to batch token occupancy: Tenant A at 25 percent and Tenant B at 75 percent, summing exactly to 100 percent of step cost before rounding.'
-
-export const numericAnchors = {
-    stepSeconds: 0.2,
-    gpus: 4,
-    gpuSeconds: 0.8,
-    nodeSeconds: 0.2,
-    tenantAFraction: 0.25,
-    tenantBFraction: 0.75,
-}
+    'Step-level compute conservation and unit-consistency comparison for a 4-GPU node running a 0.2-second forward pass. Top left: four parallel GPU lanes each execute for 0.2 s, totaling 0.8 GPU-seconds or 0.2 node-seconds, split 25 percent to Tenant A and 75 percent to Tenant B. Top right: conserved allocation divides the $0.000444 step cost into $0.000111 for Tenant A and $0.000333 for Tenant B. Bottom: aligned cost bars show GPU-second and node-second bases matching at $0.000444, while multiplying GPU-seconds by the node-hour rate creates a 4x overcharge ($0.001778).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const onBlue = getReadableTextColor(blue, c, c.bg)
+    const onPurple = getReadableTextColor(purple, c, c.bg)
+    const onGreen = getReadableTextColor(green, c, c.bg)
+    const onRed = getReadableTextColor(red, c, c.bg)
+    const soft = (hex: string, la = 0.1, da = 0.16) => tint(hex, c.bg, theme === 'light' ? la : da)
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Panel 1 (4 parallel GPU lanes for 0.2 s step, split 25% A / 75% B)
+    fig.text(24, 24, '1. 4-GPU FORWARD STEP (0.20 s)', {
+        size: 12,
+        color: c.textSecondary,
+        weight: 700,
+        width: 280,
+    })
+    const laneX = 88
+    const laneW = 240
+    const aW = Math.round(laneW * 0.25)
+    const bW = laneW - aW - 2
+    for (let g = 0; g < 4; g++) {
+        const y = 52 + g * 34
+        fig.text(78, y + 12, `GPU ${g}`, {
+            size: 13,
+            color: c.textPrimary,
+            align: 'right',
+            weight: 600,
+            mono: true,
+            width: 56,
+        })
+        fig.rect(laneX, y, aW, 24, { fill: blue, radius: 4 })
+        fig.rect(laneX + aW + 2, y, bW, 24, { fill: purple, radius: 4 })
+        if (g === 0) {
+            fig.text(laneX + aW / 2, y + 12, 'A 25%', {
+                size: 11,
+                color: onBlue,
+                align: 'center',
+                weight: 700,
+                width: aW - 2,
+            })
+            fig.text(laneX + aW + 2 + bW / 2, y + 12, 'Tenant B · 75% of batch', {
+                size: 12,
+                color: onPurple,
+                align: 'center',
+                weight: 700,
+                width: bW - 8,
+            })
+        }
+    }
+    // Curly brace summarizing 4 x 0.2s = 0.8 GPU-s
+    fig.brace(laneX + laneW + 8, 52, laneX + laneW + 8, 178, undefined, {
+        depth: 10,
+        side: -1,
+        color: c.textMuted,
+    })
+    fig.text(354, 104, '0.8 GPU-s', {
+        size: 14,
+        color: c.textPrimary,
+        weight: 700,
+        mono: true,
+        width: 90,
+    })
+    fig.text(354, 126, '0.2 node-s', {
+        size: 13,
+        color: c.textSecondary,
+        mono: true,
+        width: 90,
+    })
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Visual Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Left Execution Panel */}
-                    <rect
-                        x={40}
-                        y={72}
-                        width={380}
-                        height={235}
-                        rx={8}
-                        fill={theme === 'dark' ? '#121824' : '#f0f9ff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    // Panel 2 (Conserved Tenant Split $0.000444 = $0.000111 + $0.000333)
+    fig.line(454, 24, 454, 194, { color: c.borderSubtle, width: 1 })
+    fig.text(476, 24, '2. CONSERVED COST SPLIT (100%)', {
+        size: 12,
+        color: c.textSecondary,
+        weight: 700,
+        width: 300,
+    })
 
-                    {/* 4 GPU lane tracks */}
-                    {[0, 1, 2, 3].map((gpuIdx) => {
-                        const y = 106 + gpuIdx * 34
-                        return (
-                            <rect
-                                key={gpuIdx}
-                                x={112}
-                                y={y}
-                                width={295}
-                                height={26}
-                                rx={4}
-                                fill={theme === 'dark' ? '#1a2638' : '#e0f2fe'}
-                                stroke={blueTone}
-                                strokeWidth={1}
-                            />
-                        )
-                    })}
+    const splitX = 476
+    const splitW = 320
+    const splitA = Math.round(splitW * 0.25)
+    const splitB = splitW - splitA - 3
+    fig.rect(splitX, 54, splitA, 38, { fill: blue, radius: 6 })
+    fig.text(splitX + splitA / 2, 73, 'A · 25%', {
+        size: 13,
+        color: onBlue,
+        align: 'center',
+        weight: 700,
+        width: splitA - 4,
+    })
+    fig.rect(splitX + splitA + 3, 54, splitB, 38, { fill: purple, radius: 6 })
+    fig.text(splitX + splitA + 3 + splitB / 2, 73, 'Tenant B · 75%', {
+        size: 13,
+        color: onPurple,
+        align: 'center',
+        weight: 700,
+        width: splitB - 8,
+    })
 
-                    {/* Right Attribution Panel */}
-                    <rect
-                        x={440}
-                        y={72}
-                        width={380}
-                        height={235}
-                        rx={8}
-                        fill={theme === 'dark' ? '#181224' : '#faf5ff'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    // Clean breakdown values below bar
+    fig.text(splitX, 114, 'Tenant A: 0.20 GPU-s', {
+        size: 13,
+        color: blue,
+        weight: 600,
+        width: 155,
+    })
+    fig.text(splitX, 134, '$0.000111', {
+        size: 14,
+        color: blue,
+        weight: 700,
+        mono: true,
+        width: 140,
+    })
+    fig.text(splitX + 168, 114, 'Tenant B: 0.60 GPU-s', {
+        size: 13,
+        color: purple,
+        weight: 600,
+        width: 155,
+    })
+    fig.text(splitX + 168, 134, '$0.000333', {
+        size: 14,
+        color: purple,
+        weight: 700,
+        mono: true,
+        width: 140,
+    })
+    fig.line(splitX, 156, splitX + splitW, 156, { color: c.borderSubtle, width: 1 })
+    fig.text(splitX, 174, 'Sum = $0.000444 (100% conserved)', {
+        size: 13,
+        color: green,
+        weight: 700,
+        mono: true,
+        width: 320,
+    })
 
-                    {/* Tenant A & B mini-cards */}
-                    <rect
-                        x={448}
-                        y={126}
-                        width={178}
-                        height={76}
-                        rx={6}
-                        fill={theme === 'dark' ? '#121c2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={634}
-                        y={126}
-                        width={178}
-                        height={76}
-                        rx={6}
-                        fill={theme === 'dark' ? '#221532' : '#f5f3ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                    />
+    // Horizontal divider before unit-consistency bar chart
+    fig.line(24, 212, 796, 212, { color: c.borderSubtle, width: 1, dash: '5 4' })
 
-                    {/* Conserved Proportion Bar */}
-                    <rect x={448} y={270} width={91} height={24} rx={3} fill={blueTone} />
-                    <rect x={541} y={270} width={271} height={24} rx={3} fill={purpleTone} />
+    // Bottom: Aligned cost basis comparison (0..$0.0020 scale)
+    fig.text(24, 234, '3. UNIT CONSISTENCY VS. 4x OVERCHARGE BUG', {
+        size: 12,
+        color: c.textSecondary,
+        weight: 700,
+        width: 360,
+    })
 
-                    {/* Bottom Invariant Panel */}
-                    <rect
-                        x={40}
-                        y={320}
-                        width={780}
-                        height={148}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1c1712' : '#fffbeb'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    const costPlot = fig.plot({ x: 244, y: 256, width: 520, height: 126 }, { x: [0, 0.002], y: [0, 3] })
+    for (const tick of [0, 0.0005, 0.001, 0.0015, 0.002]) {
+        const x = costPlot.px(tick)
+        fig.line(x, 256, x, 382, { color: c.borderSubtle, width: 1, opacity: 0.7 })
+        fig.line(x, 382, x, 388, { color: c.textMuted, width: 1.2 })
+        fig.text(x, 404, tick === 0 ? '$0' : `$${tick.toFixed(4)}`, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+            width: 68,
+        })
+    }
+    fig.line(costPlot.px(0), 382, costPlot.px(0.002), 382, { color: c.textMuted, width: 1.3 })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Continuous Batch Step: Compute Conservation & Cost Attribution',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Physical GPU execution time conserved across heterogeneous tenant token shares within each forward pass',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    const rows = [
+        {
+            y: 262,
+            title: 'GPU-s x $2/GPU-hr',
+            val: 0.000444444,
+            tag: '$0.000444 (1x)',
+            color: green,
+            ink: onGreen,
+        },
+        {
+            y: 302,
+            title: 'Node-s x $8/node-hr',
+            val: 0.000444444,
+            tag: '$0.000444 (1x)',
+            color: green,
+            ink: onGreen,
+        },
+        {
+            y: 342,
+            title: 'GPU-s x $8/node-hr (Bug)',
+            val: 0.001777778,
+            tag: '$0.001778 (4x overcharge!)',
+            color: red,
+            ink: onRed,
+        },
+    ]
 
-            {/* Left Box: 4 GPUs Parallel Execution (Width: 380) */}
-            {label(
-                52,
-                84,
-                350,
-                'PARALLEL STEP EXECUTION (0.20 SECONDS)',
-                11,
-                blueTone,
-                'left',
-                700,
-            )}
+    for (const r of rows) {
+        fig.text(232, r.y + 15, r.title, {
+            size: 13,
+            color: r.color === red ? red : c.textPrimary,
+            align: 'right',
+            weight: r.color === red ? 700 : 600,
+            width: 210,
+        })
+        const bw = costPlot.px(r.val) - costPlot.px(0)
+        fig.rect(costPlot.px(0), r.y, bw, 30, { fill: r.color, radius: 5 })
+        if (bw > 180) {
+            fig.text(costPlot.px(0) + bw - 10, r.y + 15, r.tag, {
+                size: 13,
+                color: r.ink,
+                align: 'right',
+                weight: 700,
+                mono: true,
+                width: bw - 16,
+            })
+        } else {
+            fig.text(costPlot.px(0) + bw + 10, r.y + 15, r.tag, {
+                size: 13,
+                color: r.color,
+                weight: 700,
+                mono: true,
+                width: 150,
+            })
+        }
+    }
 
-            {/* GPU 0..3 Bars */}
-            {[0, 1, 2, 3].map((gpuIdx) => {
-                const y = 110 + gpuIdx * 34
-                return (
-                    <React.Fragment key={gpuIdx}>
-                        {label(52, y + 4, 60, `GPU ${gpuIdx}`, 11, c.textSecondary, 'left', 600)}
-                        {label(
-                            120,
-                            y + 4,
-                            280,
-                            '0.20s forward execution · tensor-parallel shard',
-                            11,
-                            c.textPrimary,
-                            'left',
-                            400,
-                        )}
-                    </React.Fragment>
-                )
-            })}
+    // Highlight subtle vertical reference at true step cost ($0.000444)
+    fig.line(costPlot.px(0.000444444), 254, costPlot.px(0.000444444), 382, {
+        color: green,
+        width: 1.25,
+        dash: '4 3',
+        opacity: 0.85,
+    })
 
-            {/* GPU Summary Metrics */}
-            {label(52, 256, 350, 'Step Aggregation:', 11, c.textMuted, 'left', 600)}
-            {label(
-                52,
-                274,
-                350,
-                '4 GPUs × 0.20 s = 0.80 GPU-seconds (0.20 Node-seconds)',
-                12,
-                blueTone,
-                'left',
-                600,
-            )}
+    // Unused variable guard removed cleanly via soft highlight pill on right
+    fig.rect(584, 266, 180, 56, {
+        fill: soft(green, 0.09, 0.14),
+        stroke: tint(green, c.bg, 0.45),
+        strokeWidth: 1.1,
+        radius: 6,
+    })
+    fig.text(674, 285, 'Exact match', {
+        size: 13,
+        color: green,
+        align: 'center',
+        weight: 700,
+        width: 164,
+    })
+    fig.text(674, 305, '0.8 x $2 = 0.2 x $8', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+        mono: true,
+        width: 164,
+    })
 
-            {/* Right Box: Cost Attribution & Tenant Split (Width: 380) */}
-            {label(
-                452,
-                84,
-                350,
-                'TENANT TOKEN ATTRIBUTION & LEDGER SPLIT',
-                11,
-                purpleTone,
-                'left',
-                700,
-            )}
-            {label(
-                452,
-                108,
-                350,
-                'Step Batch Size: 64 active sequence tokens',
-                12,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Tenant A Allocation Card */}
-            {label(452, 134, 170, 'Tenant A (16 tokens / 25%)', 12, blueTone, 'left', 700)}
-            {label(452, 154, 170, 'Compute: 0.20 GPU-s', 11, c.textPrimary, 'left', 500)}
-            {label(452, 172, 170, 'Cost: $0.000111', 13, blueTone, 'left', 700)}
-
-            {/* Tenant B Allocation Card */}
-            {label(638, 134, 170, 'Tenant B (48 tokens / 75%)', 12, purpleTone, 'left', 700)}
-            {label(638, 154, 170, 'Compute: 0.60 GPU-s', 11, c.textPrimary, 'left', 500)}
-            {label(638, 172, 170, 'Cost: $0.000333', 13, purpleTone, 'left', 700)}
-
-            {/* Combined Allocation Bar Labels */}
-            {label(
-                452,
-                218,
-                350,
-                'Conserved Total Cost: $0.000444 (Exact Rational Balance)',
-                12,
-                greenTone,
-                'left',
-                600,
-            )}
-            {label(
-                452,
-                240,
-                350,
-                '0.80 GPU-s × ($2.00 / 3600s) = 0.20 Node-s × ($8.00 / 3600s)',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Bottom Alert: Unit Mismatch Trap & Invariants */}
-            {label(
-                52,
-                332,
-                756,
-                'Multi-Tenant Accounting Guardrails & Unit Mismatch Pitfall',
-                12,
-                warmTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                356,
-                756,
-                '1. Match GPU-hour vs node-hour units. · 2. Bill active forward-step time, excluding queue wait. · 3. Round only at invoice display.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
-
-export default create()

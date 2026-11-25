@@ -1,248 +1,160 @@
-import { createElement } from 'react'
-import {
-    BadgePill,
-    Board,
-    CanvasItem,
-    Column,
-    Panel,
-    Row,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    VectorSegment,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 540
+export const width = 760
+export const height = 380
 export const alt =
-    'A completed-update-321 checkpoint contains the model weights, AdamW moments and step, train and validation generator states, token map, tokenizer, corpus identity, split, and configuration. The uninterrupted and restored paths draw paired batches of shape 12 by 48, run forward, cross-entropy, and AdamW step 322. The example checks identity metadata and restored token-map and RNG state, then compares probe logits, the next batch, loss, and updated weights in the same CPU process and environment.'
+    'A step-321 checkpoint saves four pieces of state: 4.2M model weights theta, AdamW moments (m_t, v_t, step=321), train/val RNG generator states, and vocab/corpus metadata. Both Path A (uninterrupted) and Path B (resumed from disk) draw the identical 12x48 batch at step 322, compute identical cross-entropy loss 5.5492 nats, and land on bitwise-identical weights (max delta = 0.0).'
 
-function checkpointHeader(c: ThemeColors) {
-    const purple = getReadableToneColor('purple', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const warm = getReadableToneColor('warm', c)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const purple = fig.tone('purple')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const muted = c.textSecondary
 
-    return Panel({
-        c,
-        width: 824,
-        padding: 10,
-        gap: 6,
-        tone: 'purple',
-        title: 'Step 321 Checkpoint State',
-        titleFontSize: 16,
-        children: Row({
-            width: 804,
-            gap: 12,
-            justify: 'space-between',
+    // Top: Step 321 Checkpoint Bundle (4 crisp non-overlapping blocks)
+    fig.text(24, 22, 'Step 321 checkpoint bundle', {
+        size: 15,
+        weight: 700,
+        color: purple,
+    })
+    fig.text(width - 24, 22, 'All four states required for exact continuation', {
+        size: 13,
+        color: muted,
+        align: 'right',
+    })
+
+    const stateBlocks = [
+        { title: 'Weights θ', sub: '4.2M params', color: cyan },
+        { title: 'AdamW state', sub: 'mₜ, vₜ, step = 321', color: warm },
+        { title: 'RNG state', sub: 'train / val seeds', color: purple },
+        { title: 'Metadata', sub: 'vocab 17,485 · split', color: muted },
+    ]
+    const bW = 168
+    const bGap = 13
+    const bY = 42
+    const bH = 54
+    stateBlocks.forEach((b, i) => {
+        const bx = 24 + i * (bW + bGap)
+        fig.rect(bx, bY, bW, bH, {
+            fill: tint(b.color, c.bg, 0.14),
+            stroke: b.color,
+            strokeWidth: 1.4,
+            radius: 7,
+        })
+        fig.text(bx + bW / 2, bY + 19, b.title, {
+            size: 14,
+            weight: 700,
+            color: b.color === muted ? c.textPrimary : b.color,
             align: 'center',
-            children: [
-                BadgePill({
-                    c,
-                    text: 'Model Weights θ (4.2M params)',
-                    tone: 'cyan',
-                    fontSize: 14,
-                    height: 26,
-                }),
-                BadgePill({
-                    c,
-                    text: 'AdamW State (m_t, v_t, step=321)',
-                    tone: 'warm',
-                    fontSize: 14,
-                    height: 26,
-                }),
-                BadgePill({
-                    c,
-                    text: 'RNG Generator (train/val seed)',
-                    tone: 'purple',
-                    fontSize: 14,
-                    height: 26,
-                }),
-                BadgePill({
-                    c,
-                    text: 'Metadata (vocab=17485, config)',
-                    tone: 'neutral',
-                    fontSize: 14,
-                    height: 26,
-                }),
-            ],
-        }),
+        })
+        fig.text(bx + bW / 2, bY + 39, b.sub, {
+            size: 12,
+            mono: true,
+            color: muted,
+            align: 'center',
+        })
     })
+
+    // Fork arrows from checkpoint into Path A (left) and Path B (right)
+    const forkY = 104
+    const laneY = 136
+    const laneW = 342
+    const laneH = 148
+    const leftX = 24
+    const rightX = 394
+
+    fig.line(width / 2, bY + bH + 2, width / 2, forkY + 8, { color: purple, width: 1.8 })
+    fig.line(leftX + laneW / 2, forkY + 8, rightX + laneW / 2, forkY + 8, {
+        color: purple,
+        width: 1.8,
+    })
+    fig.arrow(leftX + laneW / 2, forkY + 8, leftX + laneW / 2, laneY - 3, {
+        color: cyan,
+        width: 1.8,
+        head: 7,
+    })
+    fig.arrow(rightX + laneW / 2, forkY + 8, rightX + laneW / 2, laneY - 3, {
+        color: green,
+        width: 1.8,
+        head: 7,
+    })
+
+    const paths = [
+        { x: leftX, title: 'Path A · Uninterrupted in memory', color: cyan },
+        { x: rightX, title: 'Path B · Restored from checkpoint', color: green },
+    ]
+    paths.forEach((p) => {
+        fig.rect(p.x, laneY, laneW, laneH, {
+            fill: tint(p.color, c.bg, 0.06),
+            stroke: tint(p.color, c.bg, 0.45),
+            strokeWidth: 1.4,
+            radius: 8,
+        })
+        fig.text(p.x + 14, laneY + 22, p.title, {
+            size: 14,
+            weight: 700,
+            color: p.color,
+        })
+        const rows = [
+            ['Next batch', '12 × 48 from RNG@321'],
+            ['Forward loss', 'L_CE = 5.5492 nats'],
+            ['Optimizer', 'AdamW step 322 applied'],
+        ]
+        rows.forEach(([k, v], rIdx) => {
+            const ry = laneY + 56 + rIdx * 34
+            fig.text(p.x + 14, ry, k!, { size: 13, color: muted })
+            fig.text(p.x + laneW - 14, ry, v!, {
+                size: 13,
+                mono: true,
+                weight: 600,
+                color: rIdx === 1 ? p.color : c.textPrimary,
+                align: 'right',
+            })
+        })
+    })
+
+    // Converging arrows to parity check bar
+    const botY = 316
+    fig.arrow(leftX + laneW / 2, laneY + laneH + 2, leftX + laneW / 2, botY - 4, {
+        color: cyan,
+        width: 1.6,
+        head: 6,
+    })
+    fig.arrow(rightX + laneW / 2, laneY + laneH + 2, rightX + laneW / 2, botY - 4, {
+        color: green,
+        width: 1.6,
+        head: 6,
+    })
+
+    fig.rect(24, botY, width - 48, 48, {
+        fill: tint(green, c.bg, 0.14),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(44, botY + 24, 'Bitwise parity verified', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+    fig.text(248, botY + 24, 'max |logit_A − logit_B| = 0.0', {
+        size: 13,
+        mono: true,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(514, botY + 24, 'max |θ_A − θ_B| = 0.0', {
+        size: 13,
+        mono: true,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    return fig.render()
 }
 
-function executionBranch(
-    c: ThemeColors,
-    title: string,
-    stepDetail: string,
-    lossText: string,
-    tone: 'cyan' | 'green',
-) {
-    return Panel({
-        c,
-        width: 394,
-        padding: 12,
-        gap: 8,
-        tone,
-        title,
-        titleFontSize: 16,
-        children: Column({
-            gap: 6,
-            align: 'stretch',
-            children: [
-                Row({
-                    gap: 8,
-                    justify: 'space-between',
-                    align: 'center',
-                    children: [
-                        TextLabel({
-                            c,
-                            text: 'Batch (12 × 48):',
-                            width: 130,
-                            fontSize: 13,
-                            color: c.textSecondary,
-                        }),
-                        BadgePill({
-                            c,
-                            text: 'Tokens from RNG step 321',
-                            tone: 'neutral',
-                            fontSize: 12,
-                            height: 22,
-                        }),
-                    ],
-                }),
-                Row({
-                    gap: 8,
-                    justify: 'space-between',
-                    align: 'center',
-                    children: [
-                        TextLabel({
-                            c,
-                            text: 'Forward & Loss:',
-                            width: 130,
-                            fontSize: 13,
-                            color: c.textSecondary,
-                        }),
-                        TextLabel({
-                            c,
-                            text: lossText,
-                            width: 180,
-                            fontSize: 13,
-                            color: c.textPrimary,
-                            mono: true,
-                        }),
-                    ],
-                }),
-                Row({
-                    gap: 8,
-                    justify: 'space-between',
-                    align: 'center',
-                    children: [
-                        TextLabel({
-                            c,
-                            text: 'Optimizer Update:',
-                            width: 130,
-                            fontSize: 13,
-                            color: c.textSecondary,
-                        }),
-                        BadgePill({
-                            c,
-                            text: stepDetail,
-                            tone,
-                            fontSize: 12,
-                            height: 22,
-                        }),
-                    ],
-                }),
-            ],
-        }),
-    })
-}
-
-const illustration = defineIllustration((c: ThemeColors) =>
-    Scene({
-        c,
-        padding: 18,
-        gap: 12,
-        align: 'center',
-        contentWidth: 824,
-        title: 'Deterministic Checkpoint Resume Equivalence',
-        subtitle:
-            'Restoring model weights, optimizer moments, and RNG state yields bit-identical training trajectories.',
-        children: Column({
-            width: 824,
-            gap: 12,
-            align: 'stretch',
-            children: [
-                checkpointHeader(c),
-                Row({
-                    width: 824,
-                    gap: 16,
-                    align: 'stretch',
-                    justify: 'space-between',
-                    children: [
-                        executionBranch(
-                            c,
-                            'Path A: Uninterrupted Training',
-                            'AdamW Step 322 applied',
-                            'L_CE = 5.5492 nats',
-                            'cyan',
-                        ),
-                        executionBranch(
-                            c,
-                            'Path B: Resumed From Checkpoint',
-                            'AdamW Step 322 applied',
-                            'L_CE = 5.5492 nats',
-                            'green',
-                        ),
-                    ],
-                }),
-                Panel({
-                    c,
-                    width: 824,
-                    padding: 10,
-                    gap: 4,
-                    tone: 'green',
-                    title: 'Bitwise Parity Verified',
-                    titleFontSize: 15,
-                    children: Row({
-                        width: 804,
-                        gap: 12,
-                        justify: 'space-around',
-                        align: 'center',
-                        children: [
-                            TextLabel({
-                                c,
-                                text: 'max |logit_A − logit_B| = 0.0',
-                                width: 240,
-                                fontSize: 13,
-                                color: c.textPrimary,
-                                mono: true,
-                            }),
-                            TextLabel({
-                                c,
-                                text: 'max |weight_A − weight_B| = 0.0',
-                                width: 240,
-                                fontSize: 13,
-                                color: c.textPrimary,
-                                mono: true,
-                            }),
-                            TextLabel({
-                                c,
-                                text: 'Identical random token batches',
-                                width: 240,
-                                fontSize: 13,
-                                color: c.textPrimary,
-                            }),
-                        ],
-                    }),
-                }),
-            ],
-        }),
-    }),
-)
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

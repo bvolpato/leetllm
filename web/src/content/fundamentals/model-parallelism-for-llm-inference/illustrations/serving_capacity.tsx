@@ -1,243 +1,200 @@
-import React from 'react'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-} from 'vizmatic'
-import type { ThemeMode } from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 900
-export const height = 600
+export const width = 760
+export const height = 390
 export const alt =
-    'Three-gate screening rejects TP=1 for exceeding 80 GB per rank and admits TP=2 (310 ms TTFT, 45 ms TPOT, 620 TPS) while excluding TP=4 (430 ms TTFT, 62 ms TPOT) despite higher raw 700 TPS. Below, comparing a 620 TPS two-GPU group ($6/hr, $2.69 per million tokens) against a 900 TPS four-GPU group ($12/hr, $3.70 per million tokens) shows why faster throughput can cost more per token.'
-
-const label = (
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    size: number,
-    color: string,
-    align: 'left' | 'center' | 'right' = 'left',
-    weight = 700,
-) => (
-    <CanvasItem x={x} y={y} width={w} height={h}>
-        <TextLabel
-            c={c}
-            text={text}
-            width="100%"
-            fontSize={size}
-            fontWeight={weight}
-            color={color}
-            align={align}
-        />
-    </CanvasItem>
-)
-
-function frame(theme: ThemeMode) {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const red = c.critical
-    const green = c.positive
-    const blue = c.info
-    const warm = c.warning
-
-    const geometry = AxisPlot({
-        c,
-        width,
-        height,
-        xMin: 0,
-        xMax: width,
-        yMin: 0,
-        yMax: height,
-        padding: 0,
-        showFrame: false,
-        showAxes: false,
-        showGrid: false,
-        children: [
-            // Top: Gate screening table (TP=1, TP=2, TP=4)
-            SvgFrame({
-                c,
-                x: 24,
-                y: 108,
-                width: 852,
-                height: 274,
-                rx: 12,
-                fill: c.bgCard,
-                stroke: c.border,
-                strokeWidth: 2,
-            }),
-            SvgFrame({
-                c,
-                x: 42,
-                y: 170,
-                width: 816,
-                height: 56,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: red,
-                strokeWidth: 1.5,
-            }),
-            SvgFrame({
-                c,
-                x: 42,
-                y: 240,
-                width: 816,
-                height: 56,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: green,
-                strokeWidth: 2.5,
-            }),
-            SvgFrame({
-                c,
-                x: 42,
-                y: 310,
-                width: 816,
-                height: 56,
-                rx: 8,
-                fill: c.bgCardAlt,
-                stroke: warm,
-                strokeWidth: 1.5,
-            }),
-
-            // Arrow down to cost Pareto
-            VectorArrow({
-                x1: 450,
-                y1: 382,
-                x2: 450,
-                y2: 414,
-                color: green,
-                strokeWidth: 3.5,
-                arrowSize: 4,
-            }),
-
-            // Bottom: Eligible cost per million tokens ($2.69 vs $3.70)
-            SvgFrame({
-                c,
-                x: 24,
-                y: 416,
-                width: 852,
-                height: 158,
-                rx: 12,
-                fill: c.bgCard,
-                stroke: c.border,
-                strokeWidth: 2,
-            }),
-            SvgFrame({
-                c,
-                x: 284,
-                y: 472,
-                width: 240,
-                height: 34,
-                rx: 6,
-                fill: green,
-                stroke: green,
-                strokeWidth: 1,
-            }),
-            SvgFrame({
-                c,
-                x: 284,
-                y: 522,
-                width: 330,
-                height: 34,
-                rx: 6,
-                fill: blue,
-                stroke: blue,
-                strokeWidth: 1,
-            }),
-        ],
-    })
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: (
-            <Board c={c} width={width} height={height} background="transparent">
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    {geometry}
-                </CanvasItem>
-
-                {label(
-                    c,
-                    'Filter fit & SLO gates before $/token',
-                    20,
-                    14,
-                    860,
-                    42,
-                    31,
-                    c.textPrimary,
-                    'center',
-                    800,
-                )}
-                {label(
-                    c,
-                    'VRAM <= 80 GB | TTFT <= 400 | TPOT <= 55 ms',
-                    20,
-                    56,
-                    860,
-                    36,
-                    28,
-                    c.textSecondary,
-                    'center',
-                    650,
-                )}
-
-                {label(c, 'Layout', 54, 122, 130, 34, 28, c.textSecondary, 'left', 750)}
-                {label(c, 'Fit', 194, 122, 120, 34, 28, c.textSecondary, 'center', 750)}
-                {label(c, 'TTFT / TPOT', 326, 122, 230, 34, 28, c.textSecondary, 'center', 750)}
-                {label(c, 'TPS', 572, 122, 120, 34, 28, c.textSecondary, 'center', 750)}
-                {label(c, 'Decision', 704, 122, 140, 34, 28, c.textSecondary, 'center', 750)}
-
-                {label(c, 'TP=1', 54, 180, 130, 34, 28, red, 'left', 800)}
-                {label(c, '86 GB', 194, 180, 120, 34, 28, red, 'center', 750)}
-                {label(c, 'OOM', 326, 180, 230, 34, 28, red, 'center', 700)}
-                {label(c, '-', 572, 180, 120, 34, 28, c.textSecondary, 'center', 700)}
-                {label(c, 'Fail fit', 704, 180, 140, 34, 28, red, 'center', 800)}
-
-                {label(c, 'TP=2', 54, 250, 130, 34, 28, green, 'left', 800)}
-                {label(c, 'Fits', 194, 250, 120, 34, 28, green, 'center', 750)}
-                {label(c, '310 / 45 ms', 326, 250, 230, 34, 28, green, 'center', 750)}
-                {label(c, '620', 572, 250, 120, 34, 28, c.textPrimary, 'center', 750)}
-                {label(c, 'Eligible', 704, 250, 140, 34, 28, green, 'center', 800)}
-
-                {label(c, 'TP=4', 54, 320, 130, 34, 28, warm, 'left', 800)}
-                {label(c, 'Fits', 194, 320, 120, 34, 28, green, 'center', 750)}
-                {label(c, '430 / 62 ms', 326, 320, 230, 34, 28, red, 'center', 750)}
-                {label(c, '700', 572, 320, 120, 34, 28, c.textPrimary, 'center', 750)}
-                {label(c, 'Fail SLO', 704, 320, 140, 34, 28, red, 'center', 800)}
-
-                {label(
-                    c,
-                    'Cost per 1M tokens (when both clear SLO)',
-                    42,
-                    428,
-                    816,
-                    34,
-                    28,
-                    c.textPrimary,
-                    'left',
-                    800,
-                )}
-                {label(c, '2 GPU (620 t/s)', 42, 472, 230, 34, 28, green, 'left', 750)}
-                {label(c, '$2.69/M ($6/hr)', 538, 472, 320, 34, 28, green, 'left', 800)}
-                {label(c, '4 GPU (900 t/s)', 42, 522, 230, 34, 28, blue, 'left', 750)}
-                {label(c, '$3.70/M ($12/hr)', 628, 522, 244, 34, 28, blue, 'left', 800)}
-            </Board>
-        ),
-    })
-}
+    'Left: fit and SLO threshold check comparing TP=1, TP=2, and TP=4 against 80 GB VRAM, 400 ms TTFT, and 55 ms TPOT limits. TP=1 fails VRAM (86 GB OOM); TP=2 passes all limits (51 GB, 310 ms TTFT, 45 ms TPOT, 620 TPS); TP=4 fails both latency limits (430 ms TTFT, 62 ms TPOT) despite 700 raw TPS. Right: cost per million tokens across two SLO-eligible clusters shows a 2-GPU group at 620 TPS ($6/hr) costs $2.69/M vs $3.70/M for a faster 4-GPU group at 900 TPS ($12/hr).'
 
 export function create(theme: ThemeMode = 'dark') {
-    return frame(theme)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
+
+    const green = fig.tone('green')
+    const red = fig.tone('red')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+
+    const fill = (col: string) => tint(col, c.bg, isLight ? 0.24 : 0.38)
+    const trackBg = isLight ? '#f0ede5' : '#171b24'
+
+    // =========================================================================
+    // Left panel: Visual SLO / VRAM threshold bars (normalized to 100% cap)
+    // =========================================================================
+    const leftX = 24
+    const barX = 114
+    const barW = 246
+    const maxPct = 1.25
+    const px = (ratio: number) => barX + Math.min(ratio, maxPct) / maxPct * barW
+    const capX = px(1.0)
+
+    fig.text(leftX, 20, '1. Screen VRAM & SLO caps first', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(leftX, 41, 'Limits: VRAM ≤ 80 GB · TTFT ≤ 400 ms · TPOT ≤ 55 ms', {
+        size: 12,
+        color: c.textSecondary,
+    })
+
+    // Vertical 100% limit line
+    fig.line(capX, 66, capX, 344, { color: red, width: 1.6, dash: '5 4' })
+    fig.text(capX, 58, '100% cap', {
+        size: 11.5,
+        weight: 700,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
+
+    interface MetricBar {
+        label: string
+        ratio: number
+        text: string
+        fail: boolean
+    }
+    const configs: { name: string; status: string; statusCol: string; y: number; bars: MetricBar[] }[] = [
+        {
+            name: 'TP = 1',
+            status: 'FAIL fit (OOM)',
+            statusCol: red,
+            y: 80,
+            bars: [{ label: 'VRAM', ratio: 86 / 80, text: '86 GB', fail: true }],
+        },
+        {
+            name: 'TP = 2',
+            status: 'ELIGIBLE · 620 TPS',
+            statusCol: green,
+            y: 138,
+            bars: [
+                { label: 'VRAM', ratio: 51 / 80, text: '51 GB', fail: false },
+                { label: 'TTFT', ratio: 310 / 400, text: '310 ms', fail: false },
+                { label: 'TPOT', ratio: 45 / 55, text: '45 ms', fail: false },
+            ],
+        },
+        {
+            name: 'TP = 4',
+            status: 'FAIL SLO (700 TPS)',
+            statusCol: warm,
+            y: 250,
+            bars: [
+                { label: 'VRAM', ratio: 33.5 / 80, text: '33.5 GB', fail: false },
+                { label: 'TTFT', ratio: 430 / 400, text: '430 ms', fail: true },
+                { label: 'TPOT', ratio: 62 / 55, text: '62 ms', fail: true },
+            ],
+        },
+    ]
+
+    for (const cfg of configs) {
+        fig.text(leftX, cfg.y, cfg.name, { size: 13.5, weight: 700, color: cfg.statusCol, mono: true })
+        fig.text(barX, cfg.y, cfg.status, {
+            size: 12.5,
+            weight: 700,
+            color: cfg.statusCol,
+            align: 'left',
+        })
+        cfg.bars.forEach((b, i) => {
+            const by = cfg.y + 14 + i * 24
+            const col = b.fail ? red : green
+            fig.text(barX - 8, by + 8, b.label, {
+                size: 12,
+                color: c.textSecondary,
+                align: 'right',
+                mono: true,
+            })
+            fig.rect(barX, by, barW, 16, { fill: trackBg, stroke: c.borderSubtle, strokeWidth: 0.8, radius: 3 })
+            fig.rect(barX, by, px(b.ratio) - barX, 16, {
+                fill: fill(col),
+                stroke: col,
+                strokeWidth: 1.3,
+                radius: 3,
+            })
+            const inside = !b.fail && b.ratio > 0.68
+            fig.text(inside ? px(b.ratio) - 6 : px(b.ratio) + 8, by + 8, b.text, {
+                size: 12,
+                weight: 700,
+                color: inside ? c.textPrimary : col,
+                align: inside ? 'right' : 'left',
+                mono: true,
+            })
+        })
+    }
+
+    // Vertical divider separating the two independent analyses (no misleading arrow!)
+    fig.line(456, 20, 456, height - 20, { color: c.borderSubtle, width: 1 })
+
+    // =========================================================================
+    // Right panel: $/1M tokens across two SLO-eligible deployments
+    // =========================================================================
+    const rx = 516
+    const rw = 216
+    fig.text(rx + rw / 2, 20, '2. Cost per 1M tokens', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(rx + rw / 2, 41, 'Two SLO-eligible clusters', {
+        size: 12.5,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    const plot = fig.plot({ x: rx, y: 74, width: rw, height: 222 }, { x: [0, 2], y: [0, 4.5] })
+    plot.axes({
+        xTicks: [],
+        yTicks: [0, 1, 2, 3, 4],
+        yFormat: (v) => `$${v}`,
+        grid: true,
+        labelSize: 12,
+    })
+
+    const costBars = [
+        { name: '2 GPU', sub: '620 t/s ($6/h)', val: 2.69, text: '$2.69', col: green },
+        { name: '4 GPU', sub: '900 t/s ($12/h)', val: 3.7, text: '$3.70', col: blue },
+    ] as const
+
+    const bw = 56
+    costBars.forEach((b, i) => {
+        const cx = plot.px(i + 0.5)
+        const top = plot.py(b.val)
+        fig.rect(cx - bw / 2, top, bw, plot.bottom - top, {
+            fill: fill(b.col),
+            stroke: b.col,
+            strokeWidth: 1.5,
+            radius: 5,
+        })
+        fig.text(cx, top - 12, b.text, {
+            size: 14,
+            weight: 700,
+            color: b.col,
+            align: 'center',
+            mono: true,
+        })
+        fig.text(cx, plot.bottom + 15, b.name, {
+            size: 13,
+            weight: 700,
+            color: b.col,
+            align: 'center',
+        })
+        fig.text(cx, plot.bottom + 32, b.sub, {
+            size: 11.5,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    })
+
+    fig.text(rx + rw / 2, 360, '+45% faster, yet +38% pricier / token', {
+        size: 12.5,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

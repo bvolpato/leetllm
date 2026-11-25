@@ -1,137 +1,249 @@
-import React from 'react'
 import type { ThemeMode } from 'vizmatic'
-import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 425
 export const alt =
-    'Tree of Thoughts dependency search tree. From the root canary flag, pinning nightly scores 0.12 and fails the runtime floor. Parser v2 scores 0.74 and branches into an API shim (0.70, valid) and a removed-API call pruned at 0.18. Parser v1 scores 0.81 and branches into a sanitizer patch scoring 0.96 (selected winner) and a deferred fix rejected by security constraints at 0.39.'
+    'Parser-pin search tree: nightly is pruned at depth 1 on the runtime floor, parser-v2 expands and drops its removed-API child, leaving parser-v2 plus a shim and parser-v1 plus a sanitizer patch as valid finalists.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const critical = fig.tone('critical')
+    const muted = c.textSecondary
 
-    // Header
-    a.text(40, 36, 'Tree of Thoughts Exploration for Dependency Resolution', {
-        size: 22,
-        weight: 700,
-    })
-    a.text(40, 62, 'Two-level tree expansion with invariant checking and proxy score pruning', {
-        size: 16,
-        color: k.mid,
-    })
-
-    // Level 0: Root Node (x=40, y=210)
-    a.rect(40, 200, 150, 80, { fill: tint(k.prefill, 0.2), stroke: k.prefill, width: 2, r: 6 })
-    a.text(115, 230, 'Canary Flag', { size: 16, weight: 700, align: 'center', color: k.ink })
-    a.text(115, 254, 'Parser-v2 active', { size: 13, align: 'center', color: k.mid })
-
-    // Level 1 Nodes (x=250)
-    // Edges from Root to Level 1
-    a.path('M190 240 H220 V135 H250', k.state)
-    a.arrow(240, 135, 250, 135, k.state)
-
-    a.path('M190 240 H250', k.fail)
-    a.arrow(240, 240, 250, 240, k.fail)
-
-    a.path('M190 240 H220 V345 H250', k.pass)
-    a.arrow(240, 345, 250, 345, k.pass)
-
-    // Level 1: Node 1 (Parser v2)
-    a.rect(250, 95, 175, 80, { fill: tint(k.state, 0.15), stroke: k.state, r: 6 })
-    a.text(337, 122, 'Parser v2 Branch', { size: 15, weight: 700, align: 'center', color: k.state })
-    a.text(337, 144, 'Score: 0.74 (Viable)', {
-        size: 13,
-        weight: 600,
-        align: 'center',
-        color: k.ink,
-    })
-    a.text(337, 162, 'Expand to Depth 2', { size: 12, align: 'center', color: k.mid })
-
-    // Level 1: Node 2 (Nightly - Pruned)
-    a.rect(250, 205, 175, 70, { fill: tint(k.fail, 0.12), stroke: k.fail, dash: '4,4', r: 6 })
-    a.text(337, 230, 'Nightly Build', { size: 15, weight: 700, align: 'center', color: k.fail })
-    a.text(337, 252, 'Score: 0.12 (PRUNED)', {
+    // Depth column labels
+    fig.text(94, 20, 'Depth 0 · Root', {
         size: 13,
         weight: 700,
+        color: muted,
         align: 'center',
-        color: k.fail,
+        width: 140,
     })
-    a.text(337, 266, 'Fails runtime floor', { size: 11, align: 'center', color: k.fail })
-
-    // Level 1: Node 3 (Parser v1)
-    a.rect(250, 305, 175, 80, { fill: tint(k.pass, 0.15), stroke: k.pass, r: 6 })
-    a.text(337, 332, 'Parser v1 Branch', { size: 15, weight: 700, align: 'center', color: k.pass })
-    a.text(337, 354, 'Score: 0.81 (Viable)', {
+    fig.text(318, 20, 'Depth 1 · Pin Strategy', {
         size: 13,
-        weight: 600,
+        weight: 700,
+        color: muted,
         align: 'center',
-        color: k.ink,
+        width: 190,
     })
-    a.text(337, 372, 'Expand to Depth 2', { size: 12, align: 'center', color: k.mid })
-
-    // Edges from Level 1 to Level 2
-    // From Parser v2 to 2 children
-    a.path('M425 135 H465 V95 H500', k.pass)
-    a.arrow(490, 95, 500, 95, k.pass)
-
-    a.path('M425 135 H465 V175 H500', k.fail)
-    a.arrow(490, 175, 500, 175, k.fail)
-
-    // From Parser v1 to 2 children
-    a.path('M425 345 H465 V305 H500', k.pass)
-    a.arrow(490, 305, 500, 305, k.pass)
-
-    a.path('M425 345 H465 V385 H500', k.fail)
-    a.arrow(490, 385, 500, 385, k.fail)
-
-    // Level 2 Nodes (x=500)
-    // Child 1A: API Shim
-    a.rect(500, 65, 320, 60, { fill: tint(k.pass, 0.12), stroke: k.pass, r: 6 })
-    a.text(515, 90, 'API Shim', { size: 15, weight: 700, color: k.ink })
-    a.text(515, 110, 'Score: 0.70 · Valid Candidate', { size: 13, color: k.pass })
-
-    // Child 1B: Removed API (Pruned)
-    a.rect(500, 145, 320, 60, { fill: tint(k.fail, 0.12), stroke: k.fail, dash: '4,4', r: 6 })
-    a.text(515, 170, 'Removed API Call', { size: 15, weight: 700, color: k.fail })
-    a.text(515, 190, 'Score: 0.18 · PRUNED: Invariant Failure', {
+    fig.text(650, 20, 'Depth 2 · Candidate Plans', {
         size: 13,
-        weight: 600,
-        color: k.fail,
+        weight: 700,
+        color: muted,
+        align: 'center',
+        width: 240,
     })
 
-    // Child 3A: Sanitizer Patch (SELECTED WINNER)
-    a.rect(500, 275, 320, 65, { fill: tint(k.pass, 0.25), stroke: k.pass, width: 2, r: 6 })
-    a.text(515, 300, 'Sanitizer Patch (SELECTED WINNER)', { size: 15, weight: 700, color: k.pass })
-    a.text(515, 322, 'Score: 0.96 · Tests Pass & Security Verified', {
+    const connect = (
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+        color: string,
+        dashed = false,
+    ) => {
+        const mx = (x1 + x2) / 2
+        fig.path(`M${x1} ${y1}C${mx} ${y1},${mx} ${y2},${x2 - 6} ${y2}`, {
+            color,
+            width: dashed ? 1.5 : 2,
+            dash: dashed ? '5 4' : undefined,
+        })
+        fig.arrow(x2 - 12, y2, x2 - 2, y2, { color, width: dashed ? 1.5 : 2, head: 5 })
+    }
+
+    // --- Depth 0: Root ---
+    const rootX = 24
+    const rootY = 186
+    const rootW = 140
+    const rootH = 74
+    fig.rect(rootX, rootY, rootW, rootH, {
+        fill: tint(cyan, c.bg, 0.14),
+        stroke: cyan,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(rootX + rootW / 2, rootY + 26, 'Canary Flag', {
+        size: 15,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+        width: rootW - 12,
+    })
+    fig.text(rootX + rootW / 2, rootY + 52, 'parser-v2 active', {
+        size: 12,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: rootW - 12,
+    })
+
+    // --- Depth 1 Nodes ---
+    const d1X = 224
+    const d1W = 188
+    const d1H = 74
+
+    // D1-A: parser-v2
+    const d1AY = 76
+    connect(rootX + rootW, rootY + rootH / 2, d1X, d1AY + d1H / 2, blue)
+    fig.rect(d1X, d1AY, d1W, d1H, {
+        fill: tint(blue, c.bg, 0.12),
+        stroke: blue,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(d1X + 14, d1AY + 22, 'Pin parser-v2', { size: 14, weight: 700, color: blue })
+    fig.text(d1X + 14, d1AY + 46, 'Score: 0.74 · Expand', {
         size: 13,
-        weight: 600,
-        color: k.ink,
+        color: c.textPrimary,
+        mono: true,
     })
 
-    // Child 3B: Defer Fix (Pruned)
-    a.rect(500, 355, 320, 60, { fill: tint(k.fail, 0.12), stroke: k.fail, dash: '4,4', r: 6 })
-    a.text(515, 380, 'Defer Fix', { size: 15, weight: 700, color: k.fail })
-    a.text(515, 400, 'Score: 0.39 · REJECTED: Security Floor', {
+    // D1-B: nightly (pruned)
+    const d1BY = 186
+    connect(rootX + rootW, rootY + rootH / 2, d1X, d1BY + d1H / 2, critical, true)
+    fig.rect(d1X, d1BY, d1W, d1H, {
+        fill: tint(critical, c.bg, 0.08),
+        stroke: critical,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(d1X + 14, d1BY + 20, 'Pin nightly', { size: 14, weight: 700, color: critical })
+    fig.text(d1X + 14, d1BY + 42, '0.12 · PRUNED', {
+        size: 12,
+        weight: 700,
+        color: critical,
+        mono: true,
+    })
+    fig.text(d1X + 14, d1BY + 60, 'Fails runtime floor', { size: 12, color: muted })
+
+    // D1-C: parser-v1
+    const d1CY = 298
+    connect(rootX + rootW, rootY + rootH / 2, d1X, d1CY + d1H / 2, green)
+    fig.rect(d1X, d1CY, d1W, d1H, {
+        fill: tint(green, c.bg, 0.12),
+        stroke: green,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(d1X + 14, d1CY + 22, 'Pin parser-v1', { size: 14, weight: 700, color: green })
+    fig.text(d1X + 14, d1CY + 46, 'Score: 0.81 · Expand', {
         size: 13,
-        weight: 600,
-        color: k.fail,
+        color: c.textPrimary,
+        mono: true,
     })
 
-    // Bottom Summary Banner
-    a.rect(40, 440, 780, 38, { fill: tint(k.pass, 0.1), stroke: k.line, r: 6 })
-    a.text(
-        430,
-        460,
-        'Result: Depth-2 Tree Search surfaces optimal Sanitizer Patch (0.96) while pruning 3 flawed paths',
-        { size: 14, weight: 600, align: 'center', color: k.pass },
-    )
+    // --- Depth 2 Nodes ---
+    const d2X = 480
+    const d2W = 336
+    const d2H = 68
 
-    return a.render()
+    // Child 1A: parser-v2 + API shim (valid finalist)
+    const c1AY = 44
+    connect(d1X + d1W, d1AY + d1H / 2, d2X, c1AY + d2H / 2, blue)
+    fig.rect(d2X, c1AY, d2W, d2H, {
+        fill: tint(blue, c.bg, 0.1),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(d2X + 14, c1AY + 22, 'parser-v2 + API shim', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(d2X + d2W - 14, c1AY + 22, '0.70', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'right',
+        mono: true,
+    })
+    fig.text(d2X + 14, c1AY + 46, 'Valid finalist · passes checks', { size: 12, color: blue })
+
+    // Child 1B: removed-API call (pruned)
+    const c1BY = 128
+    connect(d1X + d1W, d1AY + d1H / 2, d2X, c1BY + d2H / 2, critical, true)
+    fig.rect(d2X, c1BY, d2W, d2H, {
+        fill: tint(critical, c.bg, 0.08),
+        stroke: critical,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(d2X + 14, c1BY + 22, 'Removed-API call', {
+        size: 14,
+        weight: 700,
+        color: critical,
+    })
+    fig.text(d2X + d2W - 14, c1BY + 22, '0.18', {
+        size: 14,
+        weight: 700,
+        color: critical,
+        align: 'right',
+        mono: true,
+    })
+    fig.text(d2X + 14, c1BY + 46, 'PRUNED · fails API invariant', { size: 12, color: critical })
+
+    // Child 3A: parser-v1 + sanitizer patch (WINNER)
+    const c3AY = 252
+    connect(d1X + d1W, d1CY + d1H / 2, d2X, c3AY + 38, green)
+    fig.rect(d2X, c3AY, d2W, 76, {
+        fill: tint(green, c.bg, 0.2),
+        stroke: green,
+        strokeWidth: 2.25,
+        radius: 8,
+    })
+    fig.text(d2X + 14, c3AY + 24, 'parser-v1 + sanitizer patch', {
+        size: 15,
+        weight: 700,
+        color: green,
+    })
+    fig.rect(d2X + d2W - 116, c3AY + 11, 102, 24, {
+        fill: tint(green, c.bg, 0.3),
+        stroke: green,
+        strokeWidth: 1,
+        radius: 12,
+    })
+    fig.text(d2X + d2W - 65, c3AY + 23, '0.96 WINNER', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'center',
+        mono: true,
+        width: 96,
+    })
+    fig.text(d2X + 14, c3AY + 52, 'Highest-scoring valid plan · tests & security pass', {
+        size: 12,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    // Child 3B: defer fix (rejected)
+    const c3BY = 342
+    connect(d1X + d1W, d1CY + d1H / 2, d2X, c3BY + d2H / 2, critical, true)
+    fig.rect(d2X, c3BY, d2W, d2H, {
+        fill: tint(critical, c.bg, 0.08),
+        stroke: critical,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(d2X + 14, c3BY + 22, 'Defer fix', { size: 14, weight: 700, color: critical })
+    fig.text(d2X + d2W - 14, c3BY + 22, '0.39', {
+        size: 14,
+        weight: 700,
+        color: critical,
+        align: 'right',
+        mono: true,
+    })
+    fig.text(d2X + 14, c3BY + 46, 'REJECTED · fails security floor', {
+        size: 12,
+        color: critical,
+    })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create()

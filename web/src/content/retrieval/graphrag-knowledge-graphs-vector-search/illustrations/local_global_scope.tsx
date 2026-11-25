@@ -1,324 +1,336 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 520
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const width = 760
+export const height = 436
 export const alt =
-    'Local search ranks mixed graph and text candidates for one entity question, then packs the relationship scored 0.98 and 30 tokens with the text unit scored 0.91 and 55 tokens within a 90-token budget. Global search groups community reports into batches, maps each batch to report-level points, and reduces into top thematic findings.'
+    'Left: Local search ranks mixed graph and text candidates for one entity question and packs a 30-token relationship (score 0.98) and a 55-token text unit (score 0.91) into an 85-of-90-token budget bar while skipping an 80-token community report that overflows the 90-token cap. Right: Global search fans out community reports into parallel batches A (cache, queue) and B (eval, config), maps each batch to rated points, and reduces them into corpus-wide findings.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const local = getReadableToneColor('blue', c, c.bg)
-    const selected = getReadableToneColor('green', c, c.bg)
-    const limited = getReadableToneColor('warm', c, c.bg)
-    const structural = getReadableToneColor('neutral', c, c.bg)
-    const global = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 20,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // ── Left: Local Search · Entity Neighborhood + Token-Budget Bar ──────────
+    const lx = 20
+    const lw = 342
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Panel backgrounds */}
-                    <SvgFrame
-                        c={c}
-                        x={20}
-                        y={70}
-                        width={395}
-                        height={400}
-                        rx={10}
-                        fill={c.bgCard}
-                        stroke={c.border}
-                        strokeWidth={1.2}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={445}
-                        y={70}
-                        width={395}
-                        height={400}
-                        rx={10}
-                        fill={c.bgCard}
-                        stroke={c.border}
-                        strokeWidth={1.2}
-                    />
+    fig.text(lx, 20, 'Local Search', { size: 18, weight: 700, color: blue })
+    fig.text(lx + lw, 21, 'Entity neighborhood', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'right',
+    })
+    fig.text(lx, 44, 'Query: inference-api latency · 90-token cap', {
+        size: 13,
+        color: c.textSecondary,
+    })
 
-                    {/* Local search cards */}
-                    <SvgFrame
-                        c={c}
-                        x={36}
-                        y={150}
-                        width={363}
-                        height={50}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={selected}
-                        strokeWidth={1.4}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={36}
-                        y={212}
-                        width={363}
-                        height={50}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={selected}
-                        strokeWidth={1.4}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={36}
-                        y={274}
-                        width={363}
-                        height={50}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={limited}
-                        strokeWidth={1.4}
-                    />
+    // Column header row
+    const hdrY = 74
+    fig.text(lx + 8, hdrY, 'Candidate', { size: 12, weight: 600, color: c.textMuted })
+    fig.text(lx + 178, hdrY, 'Score', { size: 12, weight: 600, color: c.textMuted, align: 'center' })
+    fig.text(lx + 234, hdrY, 'Size', { size: 12, weight: 600, color: c.textMuted, align: 'center' })
+    fig.text(lx + lw - 8, hdrY, 'Status', {
+        size: 12,
+        weight: 600,
+        color: c.textMuted,
+        align: 'right',
+    })
+    fig.line(lx, hdrY + 13, lx + lw, hdrY + 13, { color: c.borderSubtle, width: 1 })
 
-                    {/* Global search batch containers */}
-                    <rect
-                        x={460}
-                        y={150}
-                        width={175}
-                        height={60}
-                        rx={6}
-                        fill="none"
-                        stroke={structural}
-                        strokeWidth={1.2}
-                        strokeDasharray="4 4"
-                    />
-                    <rect
-                        x={650}
-                        y={150}
-                        width={175}
-                        height={60}
-                        rx={6}
-                        fill="none"
-                        stroke={structural}
-                        strokeWidth={1.2}
-                        strokeDasharray="4 4"
-                    />
+    const candidates = [
+        { name: 'depends_on · 1842', score: '0.98', tokens: '30 tok', status: 'packed', packed: true },
+        { name: 'maxmemory · 2031', score: '0.91', tokens: '55 tok', status: 'packed', packed: true },
+        { name: 'report · comm-7', score: '0.62', tokens: '80 tok', status: 'overflow', packed: false },
+    ] as const
 
-                    {/* Map step box */}
-                    <SvgFrame
-                        c={c}
-                        x={530}
-                        y={250}
-                        width={225}
-                        height={58}
-                        rx={8}
-                        fill={c.bgCardAlt}
-                        stroke={global}
-                        strokeWidth={1.6}
-                    />
+    candidates.forEach((item, idx) => {
+        const ry = 98 + idx * 52
+        const color = item.packed ? green : warm
+        fig.rect(lx, ry, lw, 42, {
+            fill: withColorAlpha(color, item.packed ? 0.11 : 0.06),
+            stroke: withColorAlpha(color, item.packed ? 0.65 : 0.55),
+            strokeWidth: item.packed ? 1.4 : 1.25,
+            radius: 7,
+        })
+        fig.text(lx + 10, ry + 21, item.name, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+        })
+        fig.text(lx + 178, ry + 21, item.score, {
+            size: 13,
+            mono: true,
+            weight: 700,
+            color,
+            align: 'center',
+        })
+        fig.text(lx + 234, ry + 21, item.tokens, {
+            size: 13,
+            mono: true,
+            color: c.textSecondary,
+            align: 'center',
+        })
+        fig.text(lx + lw - 8, ry + 21, item.status, {
+            size: 13,
+            weight: 700,
+            color,
+            align: 'right',
+        })
+    })
 
-                    {/* Reduce step box */}
-                    <SvgFrame
-                        c={c}
-                        x={500}
-                        y={350}
-                        width={285}
-                        height={66}
-                        rx={8}
-                        fill={c.bgCardAlt}
-                        stroke={selected}
-                        strokeWidth={1.6}
-                    />
+    // Proportional Token-Budget Bar (0..100 visual scale, cap at 90)
+    const budgetTitleY = 278
+    fig.text(lx, budgetTitleY, 'Context Budget Allocation', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(lx + lw, budgetTitleY, '85 / 90 tokens', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
 
-                    {/* Arrows for Global search */}
-                    <VectorArrow
-                        x1={547}
-                        y1={212}
-                        x2={600}
-                        y2={248}
-                        color={global}
-                        strokeWidth={2}
-                        arrowSize={4}
-                    />
-                    <VectorArrow
-                        x1={737}
-                        y1={212}
-                        x2={684}
-                        y2={248}
-                        color={global}
-                        strokeWidth={2}
-                        arrowSize={4}
-                    />
-                    <VectorArrow
-                        x1={642}
-                        y1={310}
-                        x2={642}
-                        y2={348}
-                        color={selected}
-                        strokeWidth={2}
-                        arrowSize={4}
-                    />
-                </svg>
-            </CanvasItem>
+    const barY = 304
+    const barH = 38
+    const capW = 292 // 90 tokens -> 292px
+    const tokPx = (t: number) => (t / 90) * capW
 
-            {/* Title header */}
-            {label(20, 14, 820, 'Two scopes, two context builders', 24, c.textPrimary, 'left', 700)}
-            {label(
-                20,
-                42,
-                820,
-                'Local ranks a neighborhood · Global reduces community reports',
-                17,
-                c.textSecondary,
-            )}
+    // Track (90 tokens)
+    fig.rect(lx, barY, capW, barH, {
+        fill: tint(c.border, c.bg, 0.3),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 6,
+    })
 
-            {/* Left Panel: Local Search */}
-            {label(36, 84, 363, 'LOCAL SEARCH · Entity-focused', 19, local, 'left', 700)}
-            {label(
-                36,
-                114,
-                363,
-                'Query: inference-api latency · Budget 90 tokens',
-                15,
-                c.textSecondary,
-                'left',
-                500,
-            )}
+    // Segment 1: 30 tok (1842)
+    const w1 = tokPx(30)
+    fig.rect(lx, barY, w1 - 2, barH, {
+        fill: withColorAlpha(blue, 0.25),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(lx + (w1 - 2) / 2, barY + barH / 2, '30 tok', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
 
-            {label(48, 164, 150, 'depends_on · 1842', 16, c.textPrimary, 'left', 600)}
-            {label(200, 164, 55, '0.98', 16, selected, 'center', 700)}
-            {label(260, 164, 55, '30 tok', 15, c.textSecondary, 'center', 500)}
-            {label(320, 164, 65, 'packed', 15, selected, 'right', 700)}
+    // Segment 2: 55 tok (2031)
+    const w2 = tokPx(55)
+    fig.rect(lx + w1 + 1, barY, w2 - 2, barH, {
+        fill: withColorAlpha(green, 0.24),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(lx + w1 + 1 + (w2 - 2) / 2, barY + barH / 2, '55 tok (2031)', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
 
-            {label(48, 226, 150, 'maxmemory · 2031', 16, c.textPrimary, 'left', 600)}
-            {label(200, 226, 55, '0.91', 16, selected, 'center', 700)}
-            {label(260, 226, 55, '55 tok', 15, c.textSecondary, 'center', 500)}
-            {label(320, 226, 65, 'packed', 15, selected, 'right', 700)}
+    // Overflow ghost indicator past 90-token cap
+    const capX = lx + capW
+    fig.rect(capX + 4, barY + 4, 46, barH - 8, {
+        fill: withColorAlpha(warm, 0.1),
+        stroke: warm,
+        strokeWidth: 1.25,
+        radius: 4,
+    })
+    fig.text(capX + 27, barY + barH / 2, '+80', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
 
-            {label(48, 288, 150, 'report · comm-7', 16, c.textPrimary, 'left', 600)}
-            {label(200, 288, 55, '0.62', 16, limited, 'center', 700)}
-            {label(260, 288, 55, '80 tok', 15, c.textSecondary, 'center', 500)}
-            {label(320, 288, 65, 'no room', 15, limited, 'right', 700)}
+    // Crisp 90-token ceiling rule
+    fig.line(capX, barY - 10, capX, barY + barH + 14, {
+        color: warm,
+        width: 2,
+        dash: '4 3',
+    })
 
-            {label(
-                36,
-                344,
-                363,
-                'Context: 30 + 55 = 85 / 90 tokens used',
-                16,
-                selected,
-                'left',
-                700,
-            )}
-            {label(
-                36,
-                376,
-                363,
-                'Entity extraction seeds 2-hop neighborhood expansion',
-                14,
-                c.textMuted,
-                'left',
-                500,
-            )}
+    // Axis ticks under budget bar
+    fig.text(lx, barY + barH + 22, '0', { size: 12, mono: true, color: c.textMuted })
+    fig.text(lx + w1, barY + barH + 22, '30', {
+        size: 12,
+        mono: true,
+        color: c.textMuted,
+        align: 'center',
+    })
+    fig.text(lx + w1 + w2 - 6, barY + barH + 22, '85', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+    fig.text(capX + 2, barY + barH + 22, '90 cap', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: warm,
+    })
 
-            {/* Right Panel: Global Search */}
-            {label(460, 84, 365, 'GLOBAL SEARCH · Corpus-wide themes', 19, global, 'left', 700)}
-            {label(
-                460,
-                114,
-                365,
-                'Query: recurring latency themes across services',
-                15,
-                c.textSecondary,
-                'left',
-                500,
-            )}
+    fig.text(lx, 396, '5 tokens spare · comm-7 (80 tok) skipped', {
+        size: 13,
+        color: c.textSecondary,
+    })
 
-            {label(465, 158, 165, 'BATCH A', 14, global, 'center', 700)}
-            {label(465, 180, 165, 'cache · queue reports', 14, c.textPrimary, 'center', 500)}
+    // ── Center Vertical Divider ──────────────────────────────────────────────
+    fig.line(382, 16, 382, 418, { color: c.borderSubtle, width: 1 })
 
-            {label(655, 158, 165, 'BATCH B', 14, global, 'center', 700)}
-            {label(655, 180, 165, 'eval · config reports', 14, c.textPrimary, 'center', 500)}
+    // ── Right: Global Search · Map-Reduce Fan-Out / Fan-In ───────────────────
+    const rx = 402
+    const rw = 338
+    const rCx = rx + rw / 2
 
-            {label(540, 260, 205, 'MAP × 2 BATCHES', 16, global, 'center', 700)}
-            {label(
-                540,
-                282,
-                205,
-                'intermediate point summaries',
-                14,
-                c.textSecondary,
-                'center',
-                500,
-            )}
+    fig.text(rx, 20, 'Global Search', { size: 18, weight: 700, color: purple })
+    fig.text(rx + rw, 21, 'Corpus-wide synthesis', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'right',
+    })
+    fig.text(rx, 44, 'Query: recurring latency themes across services', {
+        size: 13,
+        color: c.textSecondary,
+    })
 
-            {label(510, 360, 265, 'REDUCE · TOP THEMATIC FINDINGS', 15, selected, 'center', 700)}
-            {label(
-                510,
-                384,
-                265,
-                'Cache eviction · Queue wait · Pool config',
-                14,
-                c.textPrimary,
-                'center',
-                600,
-            )}
+    // Top: Community Report Batches (Fan-out)
+    const batchW = 158
+    const batchH = 68
+    const batchY = 88
+    const bAx = rx
+    const bBx = rx + rw - batchW
 
-            {label(
-                460,
-                436,
-                365,
-                'Map-reduce aggregation over hierarchical communities',
-                14,
-                c.textMuted,
-                'center',
-                500,
-            )}
+    const drawBatch = (x: number, tag: string, line1: string, line2: string) => {
+        fig.rect(x, batchY, batchW, batchH, {
+            fill: withColorAlpha(purple, 0.07),
+            stroke: withColorAlpha(purple, 0.6),
+            strokeWidth: 1.4,
+            radius: 8,
+        })
+        fig.text(x + batchW / 2, batchY + 18, tag, {
+            size: 13,
+            mono: true,
+            weight: 700,
+            color: purple,
+            align: 'center',
+        })
+        fig.text(x + batchW / 2, batchY + 38, line1, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+            align: 'center',
+        })
+        fig.text(x + batchW / 2, batchY + 55, line2, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+        })
+    }
 
-            {/* Footer */}
-            {label(
-                20,
-                484,
-                820,
-                'Local search optimizes precision on entity queries · Global search enables corpus-wide synthesis',
-                14,
-                c.textMuted,
-                'center',
-                500,
-            )}
-        </Board>
-    )
+    drawBatch(bAx, 'BATCH A', 'Cache · Queue', 'community reports')
+    drawBatch(bBx, 'BATCH B', 'Eval · Config', 'community reports')
+
+    // Parallel Map boxes
+    const mapY = 202
+    const mapH = 62
+    const drawMap = (x: number, title: string, sub: string) => {
+        fig.rect(x, mapY, batchW, mapH, {
+            fill: withColorAlpha(purple, 0.14),
+            stroke: purple,
+            strokeWidth: 1.6,
+            radius: 8,
+        })
+        fig.text(x + batchW / 2, mapY + 21, title, {
+            size: 14,
+            weight: 700,
+            color: purple,
+            align: 'center',
+        })
+        fig.text(x + batchW / 2, mapY + 43, sub, {
+            size: 13,
+            color: c.textSecondary,
+            align: 'center',
+        })
+    }
+
+    drawMap(bAx, 'Map A', 'rated points + scores')
+    drawMap(bBx, 'Map B', 'rated points + scores')
+
+    // Arrows: Batch -> Map
+    fig.arrow(bAx + batchW / 2, batchY + batchH + 4, bAx + batchW / 2, mapY - 4, {
+        color: purple,
+        width: 1.8,
+        head: 7,
+    })
+    fig.arrow(bBx + batchW / 2, batchY + batchH + 4, bBx + batchW / 2, mapY - 4, {
+        color: purple,
+        width: 1.8,
+        head: 7,
+    })
+
+    // Reduce synthesis box (Fan-in)
+    const redY = 312
+    const redH = 74
+    fig.rect(rx + 8, redY, rw - 16, redH, {
+        fill: withColorAlpha(green, 0.13),
+        stroke: green,
+        strokeWidth: 1.8,
+        radius: 9,
+    })
+    fig.text(rCx, redY + 22, 'REDUCE · Rank & Synthesize', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(rCx, redY + 46, 'Cache eviction · Queue wait · Pool config', {
+        size: 14,
+        weight: 600,
+        color: c.textPrimary,
+        align: 'center',
+    })
+
+    // Converging arrows: Map A & Map B -> Reduce
+    fig.arrow(bAx + batchW / 2, mapY + mapH + 4, rCx - 32, redY - 4, {
+        color: green,
+        width: 1.8,
+        head: 7,
+    })
+    fig.arrow(bBx + batchW / 2, mapY + mapH + 4, rCx + 32, redY - 4, {
+        color: green,
+        width: 1.8,
+        head: 7,
+    })
+
+    fig.text(rCx, 404, 'Parallel map over batches · single reduce pass', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

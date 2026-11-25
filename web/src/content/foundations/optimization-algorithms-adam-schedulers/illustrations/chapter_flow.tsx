@@ -1,183 +1,238 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    VectorSegment,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 800
-export const height = 472
-export const preset = 'engineering'
+export const width = 780
+export const height = 395
 export const alt =
     'A buffer rack after coordinate a receives gradients 100 and minus 80. SGD retains no moment; EMA momentum retains m2 = 1; RMSProp with rho 0.9 retains s2 = 1540; Adam and AdamW retain m2 = 1 and v2 = 16.39 with beta2 0.999. Float32 moment costs are zero, four, four, eight, and eight bytes per parameter. A separate zero-state AdamW example sends weight 10 directly to 9.99 by subtracting decay 0.01, while both moments stay zero.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? preset : 'default')
-    const blue = getReadableToneColor('blue', c)
-    const purple = getReadableToneColor('purple', c)
-    const red = getReadableToneColor('critical', c)
-    const green = getReadableToneColor('green', c)
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        size = 24,
-        color = c.textPrimary,
-        math = false,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={size + 12}>
-            <TextLabel c={c} text={text} fontSize={size} color={color} math={math} />
-        </CanvasItem>
-    )
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const critical = fig.tone('critical')
+    const green = fig.tone('green')
+    const fillAmt = theme === 'dark' ? 0.16 : 0.1
+
+    // ─── LEFT: OPTIMIZER MOMENT BUFFER RACK + BYTE COST BARS ───
+    fig.text(20, 20, 'Per-parameter moment buffers · coordinate a', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    // Input gradient sequence pills
+    fig.text(20, 56, 'Zero start:', { size: 13, color: c.textSecondary })
+    fig.rect(104, 42, 92, 28, {
+        fill: tint(blue, c.bg, fillAmt),
+        stroke: blue,
+        strokeWidth: 1.4,
+        radius: 6,
+    })
+    fig.text(150, 56, 'g₁ = +100', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        mono: true,
+        align: 'center',
+    })
+    fig.arrow(200, 56, 228, 56, { color: c.textMuted, width: 2, head: 6 })
+    fig.rect(232, 42, 86, 28, {
+        fill: tint(critical, c.bg, fillAmt),
+        stroke: critical,
+        strokeWidth: 1.4,
+        radius: 6,
+    })
+    fig.text(275, 56, 'g₂ = −80', {
+        size: 13,
+        weight: 700,
+        color: critical,
+        mono: true,
+        align: 'center',
+    })
+
+    // Column headers
+    fig.text(162, 98, 'signed (4 B)', { size: 12.5, weight: 700, color: blue, align: 'center' })
+    fig.text(286, 98, 'squared (4 B)', { size: 12.5, weight: 700, color: purple, align: 'center' })
+    fig.text(406, 98, 'state / param', {
+        size: 12.5,
+        weight: 700,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
     const rows = [
-        { name: 'SGD', y: 158, signed: '', squared: '', bytes: '0 B' },
-        { name: 'Momentum', y: 214, signed: 'm_2 = 1', squared: '', bytes: '4 B' },
-        { name: 'RMSProp', y: 270, signed: '', squared: 's_2 = 1540', bytes: '4 B' },
-        { name: 'Adam', y: 326, signed: 'm_2 = 1', squared: 'v_2 = 16.39', bytes: '8 B' },
-        { name: 'AdamW', y: 382, signed: 'm_2 = 1', squared: 'v_2 = 16.39', bytes: '8 B' },
-    ]
-    return (
-        <Scene c={c} padding={16} gap={0} contentWidth={768} background={c.bgSubtle}>
-            <Board c={c} width={768} height={440} background={c.bgSubtle}>
-                <CanvasItem x={0} y={0} width={768} height={440}>
-                    <svg width={768} height={440} viewBox="0 0 768 440">
-                        <SvgFrame
-                            c={c}
-                            x={150}
-                            y={48}
-                            width={132}
-                            height={42}
-                            fill={c.bg}
-                            stroke={blue}
-                            strokeWidth={2}
-                        />
-                        <SvgFrame
-                            c={c}
-                            x={318}
-                            y={48}
-                            width={132}
-                            height={42}
-                            fill={c.bg}
-                            stroke={red}
-                            strokeWidth={2}
-                        />
-                        <VectorArrow
-                            x1={286}
-                            y1={69}
-                            x2={314}
-                            y2={69}
-                            color={c.textSecondary}
-                            strokeWidth={2}
-                            arrowSize={5}
-                        />
-                        {rows.flatMap((row) => [
-                            row.signed && (
-                                <React.Fragment key={row.name + 'm'}>
-                                    <SvgFrame
-                                        c={c}
-                                        x={144}
-                                        y={row.y}
-                                        width={120}
-                                        height={44}
-                                        fill={c.bg}
-                                        stroke={blue}
-                                        strokeWidth={2}
-                                    />
-                                </React.Fragment>
-                            ),
-                            row.squared && (
-                                <React.Fragment key={row.name + 'v'}>
-                                    <SvgFrame
-                                        c={c}
-                                        x={274}
-                                        y={row.y}
-                                        width={144}
-                                        height={44}
-                                        fill={c.bg}
-                                        stroke={purple}
-                                        strokeWidth={2}
-                                    />
-                                </React.Fragment>
-                            ),
-                        ])}
-                        <VectorSegment
-                            x1={484}
-                            y1={14}
-                            x2={484}
-                            y2={426}
-                            color={c.borderLight}
-                            strokeWidth={2}
-                            showStartDot={false}
-                            showEndDot={false}
-                        />
-                        <SvgFrame
-                            c={c}
-                            x={502}
-                            y={248}
-                            width={104}
-                            height={54}
-                            fill={c.bg}
-                            stroke={green}
-                            strokeWidth={2}
-                        />
-                        <SvgFrame
-                            c={c}
-                            x={652}
-                            y={248}
-                            width={104}
-                            height={54}
-                            fill={c.bg}
-                            stroke={green}
-                            strokeWidth={2}
-                        />
-                        <VectorArrow
-                            x1={610}
-                            y1={275}
-                            x2={648}
-                            y2={275}
-                            color={green}
-                            strokeWidth={2.5}
-                            arrowSize={5}
-                        />
-                    </svg>
-                </CanvasItem>
-                {label(12, 8, 456, 'Buffer state · coordinate a', 26)}
-                {label(12, 54, 132, 'zero start:', 24, c.textSecondary)}
-                {label(162, 53, 114, 'g₁ = +100', 24, blue)}
-                {label(330, 53, 114, 'g₂ = −80', 24, red)}
-                {label(144, 118, 120, 'signed', 24, blue)}
-                {label(274, 118, 144, 'squared', 24, purple)}
-                {label(426, 118, 52, 'B', 24, c.textSecondary)}
-                {rows.map((row) => (
-                    <React.Fragment key={row.name}>
-                        {label(12, row.y + 8, 128, row.name, 24)}
-                        {row.signed && label(150, row.y + 7, 108, row.signed, 24, blue, true)}
-                        {row.squared && label(280, row.y + 7, 132, row.squared, 24, purple, true)}
-                        {label(424, row.y + 8, 56, row.bytes, 24, c.textSecondary)}
-                    </React.Fragment>
-                ))}
-                {label(150, 165, 250, 'no moment buffers', 24, c.textSecondary)}
-                {label(502, 12, 258, 'AdamW decay', 26, green)}
-                {label(502, 50, 258, 'bypasses moments', 24, green)}
-                {label(502, 108, 258, 'Separate check:', 24)}
-                {label(502, 144, 258, 'g = 0, m = v = 0', 24, c.textSecondary)}
-                {label(502, 180, 258, 'lr = 0.1 · λ = 0.01', 24, c.textSecondary)}
-                {label(514, 260, 82, 'w = 10', 24, green)}
-                {label(660, 260, 90, '9.99', 24, green)}
-                {label(602, 214, 96, '−0.01', 24, green)}
-                {label(502, 344, 258, 'Filled float32 cell', 24, c.textSecondary)}
-                {label(502, 380, 258, '= 4 bytes per param', 24, c.textSecondary)}
-            </Board>
-        </Scene>
-    )
+        { name: 'SGD', signed: '', squared: '', bytes: 0 },
+        { name: 'Momentum', signed: 'm₂ = 1', squared: '', bytes: 4 },
+        { name: 'RMSProp', signed: '', squared: 's₂ = 1540', bytes: 4 },
+        { name: 'Adam', signed: 'm₂ = 1', squared: 'v₂ = 16.39', bytes: 8 },
+        { name: 'AdamW', signed: 'm₂ = 1', squared: 'v₂ = 16.39', bytes: 8 },
+    ] as const
+
+    rows.forEach((row, idx) => {
+        const y = 118 + idx * 50
+        fig.text(20, y + 18, row.name, {
+            size: 14,
+            weight: 700,
+            color: c.textPrimary,
+        })
+
+        if (!row.signed && !row.squared) {
+            fig.text(224, y + 18, 'no moment buffers', {
+                size: 13,
+                color: c.textMuted,
+                align: 'center',
+            })
+        } else {
+            if (row.signed) {
+                fig.rect(112, y + 2, 100, 32, {
+                    fill: tint(blue, c.bg, fillAmt),
+                    stroke: blue,
+                    strokeWidth: 1.4,
+                    radius: 7,
+                })
+                fig.text(162, y + 18, row.signed, {
+                    size: 13,
+                    weight: 700,
+                    color: blue,
+                    mono: true,
+                    align: 'center',
+                })
+            }
+            if (row.squared) {
+                fig.rect(226, y + 2, 120, 32, {
+                    fill: tint(purple, c.bg, fillAmt),
+                    stroke: purple,
+                    strokeWidth: 1.4,
+                    radius: 7,
+                })
+                fig.text(286, y + 18, row.squared, {
+                    size: 13,
+                    weight: 700,
+                    color: purple,
+                    mono: true,
+                    align: 'center',
+                })
+            }
+        }
+
+        // Visual byte-footprint micro-bar + label
+        const bx = 364
+        const bw = 60
+        fig.rect(bx, y + 11, bw, 14, {
+            fill: tint(c.textMuted, c.bg, 0.1),
+            radius: 4,
+        })
+        if (row.bytes > 0) {
+            fig.rect(bx, y + 11, (row.bytes / 8) * bw, 14, {
+                fill: row.bytes === 8 ? purple : blue,
+                radius: 4,
+            })
+        }
+        fig.text(bx + bw + 8, y + 18, `${row.bytes} B`, {
+            size: 13,
+            weight: 700,
+            color: c.textSecondary,
+            mono: true,
+        })
+    })
+
+    fig.text(20, 376, 'Each filled float32 buffer adds 4 bytes per parameter', {
+        size: 12,
+        color: c.textMuted,
+    })
+
+    // Subtle vertical divider
+    fig.line(486, 20, 486, 382, { color: c.borderSubtle, width: 1 })
+
+    // ─── RIGHT: ADAMW DECOUPLED DECAY ───
+    const rx = 510
+    fig.text(rx, 20, 'AdamW decoupled decay', {
+        size: 15,
+        weight: 700,
+        color: green,
+    })
+    fig.text(rx, 42, 'Acts directly on weights, bypassing m & v', {
+        size: 12.5,
+        color: c.textSecondary,
+    })
+
+    // Separate check conditions
+    fig.rect(rx, 74, 246, 74, {
+        fill: tint(green, c.bg, theme === 'dark' ? 0.1 : 0.06),
+        stroke: c.borderSubtle,
+        strokeWidth: 1,
+        radius: 8,
+    })
+    fig.text(rx + 14, 94, 'Zero-gradient check', { size: 13, weight: 700, color: c.textPrimary })
+    fig.text(rx + 14, 118, 'g = 0,  m = 0,  v = 0', {
+        size: 13,
+        color: c.textSecondary,
+        mono: true,
+    })
+    fig.text(rx + 14, 138, 'lr = 0.1 · λ = 0.01', {
+        size: 13,
+        color: green,
+        mono: true,
+    })
+
+    // Weight update arrow: w = 10 -> -0.01 -> w = 9.99
+    fig.rect(rx, 188, 92, 46, {
+        fill: tint(green, c.bg, fillAmt),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(rx + 46, 211, 'w = 10', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+        mono: true,
+        align: 'center',
+    })
+
+    fig.arrow(rx + 96, 211, rx + 150, 211, { color: green, width: 2.5, head: 7 })
+    fig.text(rx + 123, 194, '−0.01', {
+        size: 13,
+        weight: 700,
+        color: green,
+        mono: true,
+        align: 'center',
+    })
+
+    fig.rect(rx + 154, 188, 92, 46, {
+        fill: tint(green, c.bg, theme === 'dark' ? 0.22 : 0.14),
+        stroke: green,
+        strokeWidth: 1.8,
+        radius: 8,
+    })
+    fig.text(rx + 200, 211, '9.99', {
+        size: 15,
+        weight: 700,
+        color: green,
+        mono: true,
+        align: 'center',
+    })
+
+    fig.math(rx + 123, 268, String.raw`w \leftarrow (1 - \eta\lambda)\,w`, {
+        size: 16,
+        color: green,
+        align: 'center',
+    })
+
+    fig.rect(rx, 304, 4, 60, { fill: green, radius: 2 })
+    fig.text(rx + 14, 318, 'Moments stay untouched', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(rx + 14, 342, 'Weight shrinkage never inflates v_t', {
+        size: 12.5,
+        color: c.textSecondary,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

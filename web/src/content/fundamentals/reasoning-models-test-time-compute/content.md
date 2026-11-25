@@ -41,12 +41,7 @@
 
 Ask a language model for all integer solutions to $(x^2 - 7x + 11)^{x^2 - 13x + 42} = 1$. Under single-pass greedy decoding, the model gets one forward pass per <span data-glossary="token">token</span> to jump straight to the answer. Because $a^b = 1$ splits into three regimes ($a = 1$, $a = -1$ with even $b$, and $b = 0$ with $a \ne 0$), a single pass often returns $\{2, 5, 6, 7\}$ and misses the negative-base roots $\{3, 4\}$. Allowing intermediate derivations, parallel rollouts, verification, or tree search turns fixed-depth recall into an explicit search computation.
 
-This is <span data-glossary="test-time-compute">test-time compute</span> scaling: trading inference tokens and verifier calls under frozen weights for higher accuracy. Strategies span flat Best-of-$N$ to step-level <span data-glossary="beam-search">beam search</span> guided by a <span data-glossary="process-reward-model">process reward model (PRM)</span>, while expanding KV caches, delaying visible text behind hidden thought, and multiplying output bills.
-
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/candidate_selection_audit_dark.png" alt="Three inference regimes: greedy single-pass decoding, parallel Best-of-N with shared prompt prefix, and PRM beam search pruning intermediate steps." />
-  <figcaption>Three inference regimes: single-pass decoding commits immediately, Best-of-N scores N full candidates, and PRM tree search prunes weak paths mid-derivation.</figcaption>
-</figure>
+This is <span data-glossary="test-time-compute">test-time compute</span> scaling: trading inference tokens and verifier calls under frozen weights for higher accuracy. Strategies span single-pass decoding to flat Best-of-$N$ (scoring $N$ full candidates over a shared prompt prefix) to step-level <span data-glossary="beam-search">beam search</span> guided by a <span data-glossary="process-reward-model">process reward model (PRM)</span>, while expanding KV caches, delaying visible text behind hidden thought, and multiplying output bills.
 
 ## Two axes of compute scaling
 
@@ -59,7 +54,7 @@ $$
 Snell et al. [^snell2024] showed on `MATH` [^hendrycks2021] that a 14x smaller model with adaptive test-time search matches or beats a much larger single-pass model at equal FLOPs. OpenAI o1 [^openai_learning_reasoning_2024] confirmed smooth `AIME` gains from both RL training compute and inference search compute.
 
 <figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/test_time_compute_dark.png" alt="Test-time compute scaling from 1x to 64x FLOPs showing PRM tree search on a 14x smaller model overtaking a large single-pass baseline." />
+  <img src="./illustrations/_generated/test_time_compute_dark.png" alt="Test-time compute scaling from 1x to 64x FLOPs showing PRM tree search on a 14x smaller model overtaking a large single-pass baseline." />
   <figcaption>Small models with test-time search overtake larger single-pass baselines as search compute grows, with PRM search beating flat Best-of-N on hard problems.</figcaption>
 </figure>
 
@@ -74,17 +69,7 @@ Snell et al. [^snell2024] showed on `MATH` [^hendrycks2021] that a 14x smaller m
 | **Sequential Revision** | Critique and edit drafts in rounds | Test-guided code repair | Unverified self-edits drifting off truth |
 | **PRM Tree Search** | Score partial prefixes and prune | Deep symbolic proofs | False pruning from noisy step scorers |
 
-Across OpenAI (`reasoning.effort` + `max_output_tokens`) [^openai2026reasoning], Gemini (`thinking_budget`) [^gemini2025thinking], and Claude extended thinking (`budget_tokens`) [^anthropic2025extendedthinking], hidden reasoning tokens bill as output and share `max_output_tokens` (so tight caps can finish with zero visible text), yet are dropped from Turn 2 prompt history so context grows only with prompts and visible replies.
-
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/reasoning_usage_cutoff_dark.png" alt="Output token usage under a 2,000-token cap: completed turn uses 920 hidden plus 360 visible tokens; truncated turn spends all 2,000 on hidden reasoning with 0 visible." />
-  <figcaption>A tight max_output_tokens cap can exhaust inside hidden reasoning, returning an incomplete response with zero visible text.</figcaption>
-</figure>
-
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/hidden_reasoning_budget_dark.png" alt="Turn 1 bills 2,480 output tokens (1,920 hidden plus 560 visible) while Turn 2 input carries only 940 tokens (380 prompt plus 560 visible)." />
-  <figcaption>Hidden reasoning tokens bill as output on Turn 1, then drop out of Turn 2 prompt history.</figcaption>
-</figure>
+Across OpenAI (`reasoning.effort` + `max_output_tokens`) [^openai2026reasoning], Gemini (`thinking_budget`) [^gemini2025thinking], and Claude extended thinking (`budget_tokens`) [^anthropic2025extendedthinking], hidden reasoning tokens bill as output and share `max_output_tokens` (so a tight 2,000-token cap can finish inside hidden reasoning with zero visible text), yet are dropped from Turn 2 prompt history so multi-turn context grows only with prompts and visible replies.
 
 ## Best-of-N sampling: coverage vs. selection
 
@@ -97,7 +82,7 @@ $$
 Easy prompts saturate fast ($p = 0.60$ hits $97.4\%$ at $N = 4$), whereas hard prompts ($p = 0.05$) need $N = 64$ to reach $96.2\%$, showing why uniform $N$ wastes compute.
 
 <figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/best_of_n_returns_dark.png" alt="Coverage pass@N from N=1 to 64 for p=0.60, 0.25, and 0.05 showing rapid saturation on easy prompts and steady climb on hard ones." />
+  <img src="./illustrations/_generated/best_of_n_returns_dark.png" alt="Coverage pass@N from N=1 to 64 for p=0.60, 0.25, and 0.05 showing rapid saturation on easy prompts and steady climb on hard ones." />
   <figcaption>Marginal coverage gains shrink near saturation, shifting optimal N sharply with prompt difficulty.</figcaption>
 </figure>
 
@@ -135,7 +120,7 @@ Without an exact unit test or symbolic checker, pipelines pick winners via major
 - **Noisy proxy `argmax` (Goodhart decay):** under $\hat{R}(x, y) = R_{\text{true}}(x, y) + \epsilon$, extreme noise $\max_i \epsilon_i \propto \sqrt{\log N}$ eventually lets confident wrong traces win. Below, oracle coverage reaches `1.000` and max proxy score climbs to `1.090`, yet true accuracy peaks at `N = 8` (`0.570`) before collapsing to `0.335` at `N = 64`.
 
 <figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/selector_overoptimization_dark.png" alt="Goodhart over-optimization from N=1 to 64: noisy proxy score rises monotonically while true solve rate peaks near N=8 and drops." />
+  <img src="./illustrations/_generated/selector_overoptimization_dark.png" alt="Goodhart over-optimization from N=1 to 64: noisy proxy score rises monotonically while true solve rate peaks near N=8 and drops." />
   <figcaption>Under a noisy proxy verifier, selected score climbs with N while true accuracy peaks and turns downward once outlier errors win.</figcaption>
 </figure>
 
@@ -168,21 +153,11 @@ N=64 | oracle_cov=1.000 | max_proxy=1.090 | true_acc=0.335
 
 Do not equate `pass@1` gains with `pass@k` exploration [^setlur2025verification]. Because $1 - (1 - p_i)^k$ is concave in $p_i$, sharpening easy prompts ($0.70 \to 0.90$) while collapsing hard tails ($0.20 \to 0.05$) lifts mean `pass@1` (`0.450 -> 0.475`) while slashing true `pass@4` (`0.791 -> 0.593`). Always compute `1 - (1 - p_i)^k` per prompt before averaging.
 
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/per_prompt_coverage_dark.png" alt="Bar chart comparing pass@1 and pass@4 before and after mode sharpening: mean pass@1 rises while mean pass@4 drops sharply." />
-  <figcaption>Mode sharpening can lift average pass@1 while shrinking multi-sample pass@4 coverage when hard-prompt tail probabilities collapse.</figcaption>
-</figure>
-
 ## Sequential revision and tree search
 
 ### Sequential revision
 
 Sequential revision conditions round $t$ on draft $t - 1$ plus verifier feedback or compiler tracebacks. With external tests, accuracy jumps across rounds `t1` to `t3` before plateauing; unverified self-edits drift downward past `t2`. Stop once marginal gain drops below $\tau$ and retain the highest-verified draft.
-
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/revision_paid_rounds_dark.png" alt="Sequential revision accuracy across rounds t0 to t5: verifier-guided edits plateau near 83% by t3 while unverified edits drift down after t2." />
-  <figcaption>Verifier-guided edits improve sharply in rounds t1 to t3 before plateauing, while unverified self-revision drifts past round t2.</figcaption>
-</figure>
 
 ### Tree search: beam search, MCTS, and lookahead
 
@@ -193,7 +168,7 @@ Step-level tree search branches after intermediate steps ($s_1, \dots, s_t$) ins
 - **<span data-glossary="monte-carlo-tree-search">Monte Carlo tree search (MCTS)</span>** balances exploration and exploitation via UCB/PUCT selection and value backpropagation, thriving on deep trees with exact terminal checks at the cost of sequential latency.
 
 <figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/deliberation_search_dark.png" alt="PRM beam search tree (B=2) keeping a=1 and a=-1 branches alive (0.91, 0.89) while pruning the omitted-branch path (0.24) at step 2." />
+  <img src="./illustrations/_generated/deliberation_search_dark.png" alt="PRM beam search tree (B=2) keeping a=1 and a=-1 branches alive (0.91, 0.89) while pruning the omitted-branch path (0.24) at step 2." />
   <figcaption>Step-level beam search prunes the omitted-branch trace at step 2 before wasting decode compute on an incomplete root set.</figcaption>
 </figure>
 
@@ -257,13 +232,10 @@ $$
 V(s_{1:t}) = P(\text{final answer correct} \mid x, s_{1:t}) \approx \frac{1}{K} \sum_{j=1}^{K} \mathbb{I}\!\left[\text{verify}\!\left(x, s_{1:t}, y^{(j)}_{>t}\right)\right]
 $$
 
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/prm_target_meaning_dark.png" alt="PRM supervision tree: valid factoring yields 3/4 verified completions (V=0.75) while an unrecoverable sign error yields 0/4 (V=0.00)." />
-  <figcaption>PRM targets measure future recoverability across completion rollouts, separating benign uncertainty from unrecoverable errors.</figcaption>
-</figure>
+Notice that a Monte Carlo PRM measures *completion recoverability* rather than strictly local step truth: if a generator self-corrects an earlier slip on 2 of 5 continuations, $V = 0.40$, whereas an unrecoverable error yields $V = 0.00$.
 
 <figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/reward_model_comparison_dark.png" alt="ORM vs PRM heatmap across steps S1 to S8: ORM scores only S8 (0.12) while PRM drops immediately from 0.90 to 0.15 at error step S4." />
+  <img src="./illustrations/_generated/reward_model_comparison_dark.png" alt="ORM vs PRM heatmap across steps S1 to S8: ORM scores only S8 (0.12) while PRM drops immediately from 0.90 to 0.15 at error step S4." />
   <figcaption>Sparse terminal ORM scoring assigns credit only at step S8, whereas a PRM flags the exact step S4 where recoverability collapses.</figcaption>
 </figure>
 
@@ -272,11 +244,6 @@ Early PRM pruning cuts wasted decode work (~30% or more on failed branches), at 
 ## Training models to reason with RLVR
 
 Rather than relying purely on external search, models can internalize reflection, checking, and backtracking directly via **Reinforcement Learning with Verifiable Rewards (RLVR)**, as in DeepSeek-R1-Zero and the four-stage DeepSeek-R1 pipeline (cold-start SFT, verifiable GRPO, rejection-sampled SFT on fresh `V3-Base` weights, and broad RL).[^deepseekai2025] See [RLVR & Verifiable Rewards Training](/learn/rlvr-verifiable-rewards-training) for the full GRPO derivation, group-relative advantage math, and training mechanics.
-
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/r1_weights_and_training_data_dark.png" alt="DeepSeek-R1 four-stage lineage: V3-Base feeds Stage 1-2 GRPO to curate 600k traces, while Stage 3 re-initializes fresh V3-Base weights before broad RL and distillation." />
-  <figcaption>DeepSeek-R1 training lineage detailed in the RLVR lesson: Stage 2 RL curates verified traces while Stage 3 restarts from fresh V3-Base weights.</figcaption>
-</figure>
 
 ## Compute-optimal test-time scaling and routing
 
@@ -289,7 +256,7 @@ Snell et al. [^snell2024] frame **compute-optimal scaling** as allocating both s
 In serving, a difficulty router applies accuracy and p95 latency cutoffs first, then picks the lowest-cost feasible tier on the Pareto frontier (for example, routing easy prompts to single-pass at `0.2 s`, medium to revision at `3.8 s`, and only hard prompts to deep PRM search at `11.5 s`):
 
 <figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/routing_feasible_set_dark.png" alt="Quadrant chart of p95 latency vs solve accuracy showing single-pass and low Bo4 below quality, deep PRM above latency, and medium revision inside the feasible Pareto region." />
+  <img src="./illustrations/_generated/routing_feasible_set_dark.png" alt="Quadrant chart of p95 latency vs solve accuracy showing single-pass and low Bo4 below quality, deep PRM above latency, and medium revision inside the feasible Pareto region." />
   <figcaption>A difficulty router applies latency and accuracy cutoffs first, isolating the Pareto-optimal tier inside the feasible upper-left region.</figcaption>
 </figure>
 
@@ -300,7 +267,7 @@ In serving, a difficulty router applies accuracy and p95 latency cutoffs first, 
 Each cached token position in a transformer with $L$ layers, $H_{\text{kv}}$ KV heads, head dimension $d_{\text{head}}$, and $b$ bytes per scalar occupies $2 L H_{\text{kv}} d_{\text{head}} b$ bytes (`128 KiB/token` for 32 layers, 8 KV heads, $d_{\text{head}} = 128$, FP16). Across $N = 8$ parallel branches on a $4,096$-token prompt with $1,024$-token tails, unshared caches use `5.00 GiB`, whereas copy-on-write prefix sharing via <span data-glossary="pagedattention">PagedAttention</span> [^kwon2023pagedattention] or `RadixAttention` [^sglang2024v04] keeps one prompt block plus eight tails (`1.50 GiB`, saving `70%`).
 
 <figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/branch_cache_geometry_dark.png" alt="Unshared N=8 branches duplicate 4,096-token prompts (5.0 GiB), while prefix sharing stores one read-only prompt plus 8 private tails (1.5 GiB, 70% savings)." />
+  <img src="./illustrations/_generated/branch_cache_geometry_dark.png" alt="Unshared N=8 branches duplicate 4,096-token prompts (5.0 GiB), while prefix sharing stores one read-only prompt plus 8 private tails (1.5 GiB, 70% savings)." />
   <figcaption>Sharing read-only prompt KV pages across parallel branches cuts cache footprint by 70% while isolating private tails.</figcaption>
 </figure>
 
@@ -311,11 +278,6 @@ $$
 $$
 
 At `80 tokens/s`, $H = 1,024$ hidden tokens delay visible output to `12.8 s` despite a `200 ms` prefill, capping hidden thought at `224` tokens under a `3,000 ms` TTFT budget. Because hidden tokens bill at output rates, 2,700 hidden plus 300 visible tokens cost 10x a direct answer.
-
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/hidden_decode_ttft_dark.png" alt="Standard decoding hits visible output at 0.25s, whereas 1,024 hidden reasoning tokens push visible TTFT to 12.8s." />
-  <figcaption>Autoregressive hidden reasoning creates multi-second stalls before the first visible token streams.</figcaption>
-</figure>
 
 <!-- leetllm: test, output=show, deps=numpy, id=kv-prefix-and-ttft -->
 ```python title="kv-prefix-and-ttft.py"
@@ -342,11 +304,6 @@ Max hidden CoT under 3000 ms visible TTFT at 80 tok/s: 224 tokens
 ### Distillation into compact models
 
 Supervised <span data-glossary="teacher-student-distillation">distillation</span> on verified traces from a large reasoning teacher transfers structured backtracking into compact dense students without online RL.[^deepseekai2025] On `AIME 2024`, distilled Qwen models reach `28.9%` (`1.5B`), `55.5%` (`7B`), and `72.6%` (`32B`) versus `79.8%` for `671B` `DeepSeek-R1`. Because trace-only distillation imitates accepted paths without conferring an external verifier, distilled students still benefit from domain verifiers at runtime.
-
-<figure>
-  <img src="/content/fundamentals/reasoning-models-test-time-compute/illustrations/_generated/distillation_information_boundary_dark.png" alt="AIME 2024 accuracy for DeepSeek-R1 distilled Qwen students: 1.5B (28.9%), 7B (55.5%), 32B (72.6%), and 671B teacher (79.8%)." />
-  <figcaption>AIME 2024 accuracy scales strongly across distilled dense student sizes toward the 671B DeepSeek-R1 teacher.</figcaption>
-</figure>
 
 ## Mastery Quiz
 

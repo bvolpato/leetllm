@@ -14,7 +14,7 @@ const kMatrix = [0, 1, 2, 3].map((row) =>
 const yOut = kMatrix.map((row) => row.reduce((sum, w, col) => sum + w * x[col], 0))
 
 const illustration = defineIllustration((c) => (
-    <Scene c={c} density={2.2} padding={10} gap={10} background="transparent">
+    <Scene c={c} density={2.0} padding={10} gap={10} background="transparent">
         <Column gap={10} align="stretch">
             <Panel
                 c={c}
@@ -48,15 +48,15 @@ const illustration = defineIllustration((c) => (
             <Panel c={c} title="Parallel matrix product y = K x" padding={10} gap={4}>
                 <BarChart
                     c={c}
-                    width={650}
-                    height={165}
+                    width={680}
+                    height={255}
                     min={0}
-                    max={2}
+                    max={1.8}
                     format="decimal"
                     data={yOut.map((v, idx) => ({
                         label: `y${idx + 1}`,
                         value: v,
-                        valueLabel: v.toFixed(4),
+                        valueLabel: v.toFixed(3),
                         color: c.positive,
                     }))}
                 />

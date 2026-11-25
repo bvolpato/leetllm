@@ -1,326 +1,193 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorSegment,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 620
-export const height = 644
+export const width = 800
+export const height = 444
 export const alt =
-    'For each class, the diagram compares predicted probability p with one-hot target y on a zero-to-one line. The gradients p minus y are plus 0.844 for bug, minus 0.886 for docs, and plus 0.042 for security. Gradient descent subtracts these values, lowering the two competing logits and raising the docs logit. The three gradients sum to zero.'
+    'For each class, a number line compares predicted probability p with one-hot target y on zero to one, with directional arrows from p toward y showing the SGD push minus (p minus y). The gradients p minus y are +0.844 for bug, -0.886 for docs, and +0.042 for security, summing to zero.'
 
 const rows = [
     {
         label: 'bug',
-        probability: 0.844,
-        target: 0,
-        gradient: '+0.844',
-        action: 'lower bug score',
-        color: 'critical' as const,
+        p: 0.844,
+        y: 0,
+        grad: '+0.844',
+        action: 'push z down',
+        tone: 'critical' as const,
+        correct: false,
     },
     {
         label: 'docs',
-        probability: 0.114,
-        target: 1,
-        gradient: '−0.886',
-        action: 'raise docs',
-        color: 'green' as const,
+        p: 0.114,
+        y: 1,
+        grad: '−0.886',
+        action: 'push z up (target)',
+        tone: 'green' as const,
         correct: true,
     },
     {
         label: 'security',
-        probability: 0.042,
-        target: 0,
-        gradient: '+0.042',
-        action: 'lower slightly',
-        color: 'cyan' as const,
+        p: 0.042,
+        y: 0,
+        grad: '+0.042',
+        action: 'nudge z down',
+        tone: 'cyan' as const,
+        correct: false,
     },
 ] as const
 
-const illustration = defineIllustration((c: ThemeColors) => {
-    const prediction = getReadableToneColor('purple', c)
-    const target = getReadableToneColor('warm', c)
-    const lineStart = 172
-    const lineEnd = 406
-    const text = (
-        x: number,
-        y: number,
-        boxWidth: number,
-        boxHeight: number,
-        value: string,
-        size = 22,
-        color = c.textPrimary,
-        weight = 500,
-        align: 'left' | 'center' | 'right' = 'left',
-        mono = false,
-        math = false,
-    ) => (
-        <CanvasItem x={x} y={y} width={boxWidth} height={boxHeight}>
-            <TextLabel
-                c={c}
-                text={value}
-                width={boxWidth}
-                fontSize={size}
-                fontWeight={weight}
-                color={color}
-                align={align}
-                mono={mono}
-                math={math}
-            />
-        </CanvasItem>
-    )
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-    return (
-        <Scene c={c} padding={0} gap={0} contentWidth={620} background={c.bgSubtle}>
-            <Board c={c} width={620} height={644} background={c.bgSubtle}>
-                {text(
-                    8,
-                    8,
-                    604,
-                    42,
-                    'Each class gets a gradient signal',
-                    30,
-                    c.textPrimary,
-                    850,
-                    'center',
-                )}
-                {text(
-                    12,
-                    48,
-                    596,
-                    32,
-                    '∂L/∂zᵢ = pᵢ − yᵢ',
-                    24,
-                    c.textSecondary,
-                    600,
-                    'center',
-                    true,
-                    true,
-                )}
-                {text(
-                    25,
-                    95,
-                    570,
-                    36,
-                    'SGD step:  zᵢ ← zᵢ − η(pᵢ − yᵢ)',
-                    26,
-                    c.textPrimary,
-                    750,
-                    'center',
-                    true,
-                    true,
-                )}
+    const predCol = fig.tone('purple')
+    const targetCol = isLight ? '#d07a12' : '#f2b84b'
 
-                <CanvasItem x={0} y={0} width={620} height={644}>
-                    <svg width="620" height="644" viewBox="0 0 620 644" aria-hidden="true">
-                        <circle cx="24" cy="164" r="7" fill={prediction} />
-                        <rect
-                            x="147"
-                            y="157"
-                            width="14"
-                            height="14"
-                            rx="2"
-                            fill={target}
-                            transform="rotate(45 154 164)"
-                        />
-                        <line
-                            x1="318"
-                            y1="164"
-                            x2="342"
-                            y2="164"
-                            stroke={c.textSecondary}
-                            strokeWidth="4"
-                            strokeLinecap="round"
-                        />
-                    </svg>
-                </CanvasItem>
-                {text(38, 148, 105, 32, 'model p', 24, c.textSecondary, 650)}
-                {text(174, 148, 112, 32, 'target y', 24, c.textSecondary, 650)}
-                {text(355, 148, 225, 32, 'difference p − y', 24, c.textSecondary, 650)}
-                {text(150, 182, 44, 32, '0', 24, c.textSecondary, 550, 'center', true)}
-                {text(267, 182, 50, 32, '0.5', 24, c.textSecondary, 550, 'center', true)}
-                {text(384, 182, 44, 32, '1', 24, c.textSecondary, 550, 'center', true)}
+    // Header
+    fig.text(24, 24, 'Cross-entropy gradient:  ∂L/∂zᵢ = pᵢ − yᵢ', {
+        size: 21,
+        weight: 750,
+        color: c.textPrimary,
+    })
+    fig.text(468, 24, 'SGD:  zᵢ ← zᵢ − η(pᵢ − yᵢ)', {
+        size: 18,
+        mono: true,
+        color: c.textSecondary,
+        weight: 600,
+    })
 
-                <CanvasItem x={0} y={0} width={620} height={644}>
-                    <svg width="620" height="644" viewBox="0 0 620 644" aria-hidden="true">
-                        {rows.map((row, index) => {
-                            const y = 254 + index * 102
-                            const pX = lineStart + row.probability * (lineEnd - lineStart)
-                            const yX = lineStart + row.target * (lineEnd - lineStart)
-                            const color = getReadableToneColor(row.color, c)
-                            return (
-                                <g key={row.label}>
-                                    {row.label === 'docs' && (
-                                        <SvgFrame
-                                            c={c}
-                                            x={12}
-                                            y={y - 46}
-                                            width={596}
-                                            height={92}
-                                            rx={14}
-                                            fill={c.bgHover}
-                                            stroke={color}
-                                            strokeWidth={1.5}
-                                        />
-                                    )}
-                                    <line
-                                        x1={lineStart}
-                                        y1={y}
-                                        x2={lineEnd}
-                                        y2={y}
-                                        stroke={c.borderLight}
-                                        strokeWidth={3}
-                                        strokeLinecap="round"
-                                    />
-                                    <line
-                                        x1={lineStart}
-                                        y1={y - 8}
-                                        x2={lineStart}
-                                        y2={y + 8}
-                                        stroke={c.borderLight}
-                                        strokeWidth={2}
-                                    />
-                                    <line
-                                        x1={(lineStart + lineEnd) / 2}
-                                        y1={y - 8}
-                                        x2={(lineStart + lineEnd) / 2}
-                                        y2={y + 8}
-                                        stroke={c.borderLight}
-                                        strokeWidth={2}
-                                    />
-                                    <line
-                                        x1={lineEnd}
-                                        y1={y - 8}
-                                        x2={lineEnd}
-                                        y2={y + 8}
-                                        stroke={c.borderLight}
-                                        strokeWidth={2}
-                                    />
-                                    <VectorSegment
-                                        x1={yX}
-                                        y1={y}
-                                        x2={pX}
-                                        y2={y}
-                                        color={color}
-                                        strokeWidth={row.label === 'docs' ? 6 : 5}
-                                        showStartDot={false}
-                                        showEndDot={false}
-                                    />
-                                    <rect
-                                        x={yX - 7}
-                                        y={y - 7}
-                                        width={14}
-                                        height={14}
-                                        rx={2}
-                                        fill={target}
-                                        stroke={c.bgCard}
-                                        strokeWidth={2}
-                                        transform={`rotate(45 ${yX} ${y})`}
-                                    />
-                                    <circle
-                                        cx={pX}
-                                        cy={y}
-                                        r={9}
-                                        fill={prediction}
-                                        stroke={c.bgCard}
-                                        strokeWidth={2.5}
-                                    />
-                                </g>
-                            )
-                        })}
-                    </svg>
-                </CanvasItem>
-                {rows.map((row, index) => {
-                    const y = 254 + index * 102
-                    const color = getReadableToneColor(row.color, c)
-                    return (
-                        <React.Fragment key={row.label}>
-                            {text(18, y - 34, 132, 35, row.label, 26, color, 800)}
-                            {text(
-                                18,
-                                y + 4,
-                                96,
-                                32,
-                                `p=${row.probability.toFixed(3).replace(/^0/, '')}`,
-                                24,
-                                c.textSecondary,
-                                550,
-                                'left',
-                                true,
-                            )}
-                            {text(
-                                122,
-                                y + 4,
-                                40,
-                                32,
-                                `y=${row.target}`,
-                                24,
-                                c.textSecondary,
-                                550,
-                                'left',
-                                true,
-                            )}
-                            {text(
-                                432,
-                                y - 28,
-                                172,
-                                35,
-                                row.gradient,
-                                26,
-                                color,
-                                850,
-                                'center',
-                                true,
-                            )}
-                            {text(
-                                420,
-                                y + 8,
-                                190,
-                                32,
-                                row.action,
-                                24,
-                                c.textSecondary,
-                                650,
-                                'center',
-                            )}
-                        </React.Fragment>
-                    )
-                })}
+    // Compact legend row
+    const legY = 64
+    fig.circle(32, legY, 6.5, { fill: predCol })
+    fig.text(46, legY, 'model p', { size: 17, color: c.textSecondary, weight: 600 })
 
-                {text(
-                    24,
-                    542,
-                    572,
-                    35,
-                    '+0.844  − 0.886  + 0.042  =  0',
-                    26,
-                    c.textPrimary,
-                    750,
-                    'center',
-                    true,
-                )}
-                {text(
-                    18,
-                    590,
-                    584,
-                    32,
-                    'Raising docs offsets both competitor decreases.',
-                    24,
-                    c.textSecondary,
-                    550,
-                    'center',
-                )}
-            </Board>
-        </Scene>
-    )
-})
+    // Diamond for target y
+    const dyX = 166
+    fig.path(`M${dyX} ${legY - 7} L${dyX + 7} ${legY} L${dyX} ${legY + 7} L${dyX - 7} ${legY} Z`, {
+        fill: targetCol,
+    })
+    fig.text(180, legY, 'target y', { size: 17, color: c.textSecondary, weight: 600 })
 
-export const create = illustration.create
-export default illustration.default
+    fig.arrow(292, legY, 330, legY, { color: fig.tone('green'), width: 3, head: 7 })
+    fig.text(340, legY, 'SGD push −(p − y) from p toward y', {
+        size: 17,
+        color: c.textSecondary,
+        weight: 600,
+    })
+
+    // Number-line column geometry
+    const lineLeft = 228
+    const lineRight = 548
+    const lineSpan = lineRight - lineLeft
+    const px = (v: number) => lineLeft + v * lineSpan
+
+    // Axis ticks at top & vertical subtle guides
+    const yTop = 112
+    const yBot = 362
+    for (const tick of [0, 0.5, 1]) {
+        const tx = px(tick)
+        fig.line(tx, yTop, tx, yBot, {
+            color: c.borderSubtle,
+            width: 1.2,
+            dash: tick === 0.5 ? '4 4' : undefined,
+        })
+        fig.text(tx, yTop - 16, tick === 0.5 ? '0.5' : String(tick), {
+            size: 16,
+            mono: true,
+            color: c.textSecondary,
+            align: 'center',
+            weight: 600,
+        })
+    }
+
+    fig.text(578, yTop - 16, 'Gradient p − y', {
+        size: 16,
+        color: c.textSecondary,
+        weight: 650,
+    })
+
+    // Rows
+    rows.forEach((row, idx) => {
+        const cy = 152 + idx * 86
+        const col = fig.tone(row.tone)
+        const xP = px(row.p)
+        const xY = px(row.y)
+
+        if (row.correct) {
+            fig.rect(18, cy - 36, width - 36, 72, {
+                fill: tint(col, c.bg, isLight ? 0.08 : 0.13),
+                stroke: col,
+                strokeWidth: 1.3,
+                radius: 10,
+            })
+        }
+
+        // Left label & values
+        fig.text(30, cy - 12, row.label, { size: 20, weight: 750, color: col })
+        fig.text(30, cy + 14, `p=${row.p.toFixed(3)} · y=${row.y}`, {
+            size: 16,
+            mono: true,
+            color: c.textSecondary,
+        })
+
+        // Track rail
+        fig.line(lineLeft, cy, lineRight, cy, { color: c.border, width: 3 })
+
+        // Directional push arrow from p toward y
+        const dir = xY > xP ? 1 : -1
+        const dist = Math.abs(xY - xP)
+        if (dist >= 16) {
+            fig.arrow(xP + dir * 10, cy, xY - dir * 9, cy, {
+                color: col,
+                width: row.correct ? 4.5 : 3.5,
+                head: 8,
+            })
+        } else {
+            // Short nudge for security (p=0.042 -> y=0)
+            fig.arrow(xP + 16, cy - 18, xY + 5, cy - 10, {
+                color: col,
+                width: 2.4,
+                head: 6,
+            })
+        }
+
+        // Target y diamond
+        fig.path(`M${xY} ${cy - 8} L${xY + 8} ${cy} L${xY} ${cy + 8} L${xY - 8} ${cy} Z`, {
+            fill: targetCol,
+            color: c.bg,
+            width: 1.8,
+        })
+
+        // Predicted p circle
+        fig.circle(xP, cy, 8, { fill: predCol, stroke: c.bg, width: 2.2 })
+
+        // Right column: gradient & action
+        fig.text(578, cy - 12, row.grad, {
+            size: 20,
+            mono: true,
+            weight: 750,
+            color: col,
+        })
+        fig.text(578, cy + 14, row.action, {
+            size: 17,
+            color: c.textSecondary,
+            weight: 600,
+        })
+    })
+
+    // Bottom zero-sum balance equation
+    fig.line(24, 386, width - 24, 386, { color: c.borderSubtle, width: 1.1 })
+    fig.text(400, 416, 'Zero-sum balance:   +0.844  −  0.886  +  0.042  =  0.000', {
+        size: 19,
+        mono: true,
+        weight: 750,
+        color: c.textPrimary,
+        align: 'center',
+        width: 740,
+    })
+
+    return fig.render()
+}
+
+export default create('dark')

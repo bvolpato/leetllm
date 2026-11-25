@@ -1,371 +1,181 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 840
+export const height = 390
 export const alt =
-    'Query routing and evidence aggregation architecture across static index and live API backends under authenticated workspace scope. Policy queries dispatch to authorized hybrid search, real-time operational status queries dispatch to live APIs, and composite queries fan out to both before unified access and temporal applicability validation.'
-
-export const numericAnchors = {
-    workspace: 'workspace-a',
-    routes: ['authorized_hybrid_search', 'authorized_live_api'],
-    policyQuery: 'Latest parser-v2 migration policy',
-    liveQuery: 'Is build-1042 running right now?',
-    compositeQuery: 'Build-1042 status and current migration policy',
-}
+    'Non-crossing query routing graph under authenticated workspace-a scope. On the left, a latest parser-v2 policy question routes to authorized_hybrid_search with requires_current_revision True. In the center, a combined build-1042 status and current migration policy question fans out cleanly to both authorized_hybrid_search and authorized_live_api. On the right, a live build-1042 status question routes only to authorized_live_api. Both backends converge into versioned evidence merge and live access recheck.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const fill = (color: string, amt = 0.11) => tint(color, c.bg, amt)
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <defs>
-                        <marker
-                            id="route-arr"
-                            viewBox="0 0 10 10"
-                            refX="6"
-                            refY="5"
-                            markerWidth="6"
-                            markerHeight="6"
-                            orient="auto-start-reverse"
-                        >
-                            <path d="M 0 1 L 8 5 L 0 9 z" fill={c.textMuted} />
-                        </marker>
-                    </defs>
+    // Top scope hairline bracket
+    fig.brace(28, 34, 812, 34, 'Server-derived tenant scope: workspace-a', {
+        side: -1,
+        depth: 8,
+        color: c.border,
+        labelColor: c.textSecondary,
+        labelSize: 13,
+        labelGap: 12,
+        weight: 600,
+    })
 
-                    {/* Query Cards */}
-                    <rect
-                        x={40}
-                        y={104}
-                        width={248}
-                        height={74}
-                        rx={8}
-                        fill={theme === 'dark' ? '#141d2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={300}
-                        y={104}
-                        width={248}
-                        height={74}
-                        rx={8}
-                        fill={theme === 'dark' ? '#271f14' : '#fffbeb'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={560}
-                        y={104}
-                        width={260}
-                        height={74}
-                        rx={8}
-                        fill={theme === 'dark' ? '#24152e' : '#faf5ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                    />
+    // Row 1: Three query nodes ordered so mixed fan-out sits in the center (ZERO edge crossings)
+    const queries = [
+        {
+            x: 28,
+            w: 244,
+            tone: blue,
+            kind: 'Policy Document',
+            prompt: '"Latest parser-v2 policy"',
+            flag: 'requires_current_revision = True',
+        },
+        {
+            x: 298,
+            w: 244,
+            tone: purple,
+            kind: 'Combined Query (Fan-out)',
+            prompt: '"build-1042 + current policy"',
+            flag: 'requires_current_revision = True',
+        },
+        {
+            x: 568,
+            w: 244,
+            tone: warm,
+            kind: 'Live Mutable State',
+            prompt: '"Is build-1042 running?"',
+            flag: 'requires_current_revision = True',
+        },
+    ]
 
-                    {/* Backend Boxes */}
-                    <rect
-                        x={40}
-                        y={218}
-                        width={370}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111827' : '#ffffff'}
-                        stroke={blueTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={450}
-                        y={218}
-                        width={370}
-                        height={76}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111827' : '#ffffff'}
-                        stroke={warmTone}
-                        strokeWidth={1.5}
-                    />
+    for (const q of queries) {
+        fig.rect(q.x, 48, q.w, 84, {
+            fill: fill(q.tone, 0.1),
+            stroke: q.tone,
+            strokeWidth: 1.35,
+            radius: 8,
+        })
+        fig.text(q.x + q.w / 2, 68, q.kind, {
+            size: 13,
+            color: q.tone,
+            align: 'center',
+            weight: 700,
+        })
+        fig.text(q.x + q.w / 2, 92, q.prompt, {
+            size: 13,
+            color: c.textPrimary,
+            align: 'center',
+            weight: 600,
+        })
+        fig.text(q.x + q.w / 2, 114, q.flag, {
+            size: 11.5,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
 
-                    {/* Connecting arrows from queries to backends */}
-                    <line
-                        x1={164}
-                        y1={178}
-                        x2={164}
-                        y2={218}
-                        stroke={blueTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#route-arr)"
-                    />
-                    <line
-                        x1={424}
-                        y1={178}
-                        x2={520}
-                        y2={218}
-                        stroke={warmTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#route-arr)"
-                    />
-                    <line
-                        x1={690}
-                        y1={178}
-                        x2={350}
-                        y2={218}
-                        stroke={purpleTone}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 2"
-                        markerEnd="url(#route-arr)"
-                    />
-                    <line
-                        x1={690}
-                        y1={178}
-                        x2={690}
-                        y2={218}
-                        stroke={purpleTone}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 2"
-                        markerEnd="url(#route-arr)"
-                    />
+    // Row 2: Two execution backends
+    fig.rect(48, 198, 344, 72, {
+        fill: fill(blue, 0.12),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(220, 221, 'authorized_hybrid_search', {
+        size: 14,
+        color: blue,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
+    fig.text(220, 247, 'Pre-filtered BM25 + HNSW · current revision', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-                    {/* Fusion Container */}
-                    <rect
-                        x={40}
-                        y={332}
-                        width={780}
-                        height={68}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102419' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
+    fig.rect(448, 198, 344, 72, {
+        fill: fill(warm, 0.12),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(620, 221, 'authorized_live_api', {
+        size: 14,
+        color: warm,
+        align: 'center',
+        weight: 700,
+        mono: true,
+    })
+    fig.text(620, 247, 'Direct build status · source-time fresh', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-                    {/* Arrows to Fusion Container */}
-                    <line
-                        x1={225}
-                        y1={294}
-                        x2={225}
-                        y2={332}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#route-arr)"
-                    />
-                    <line
-                        x1={635}
-                        y1={294}
-                        x2={635}
-                        y2={332}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                        markerEnd="url(#route-arr)"
-                    />
+    // Non-crossing connectors from Row 1 to Row 2
+    // Left query -> Left backend
+    fig.arrow(150, 132, 150, 196, { color: blue, width: 1.75, head: 6 })
 
-                    {/* Footer Guardrail Box */}
-                    <rect
-                        x={40}
-                        y={418}
-                        width={780}
-                        height={52}
-                        rx={8}
-                        fill={theme === 'dark' ? '#161424' : '#faf5ff'}
-                        stroke={purpleTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    // Center mixed query -> Left backend (smooth curve, never crosses)
+    fig.path('M378 132 C378 166, 302 162, 302 190', {
+        color: purple,
+        width: 1.75,
+        dash: '5 4',
+    })
+    fig.arrow(302, 184, 302, 196, { color: purple, width: 1.75, head: 6 })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Query Intent Routing & Multi-Source Evidence Fusion',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Queries route dynamically to index search or live APIs while preserving tenant isolation and revision freshness',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Center mixed query -> Right backend (smooth curve, never crosses)
+    fig.path('M462 132 C462 166, 538 162, 538 190', {
+        color: purple,
+        width: 1.75,
+        dash: '5 4',
+    })
+    fig.arrow(538, 184, 538, 196, { color: purple, width: 1.75, head: 6 })
 
-            {/* Query Classification Layer */}
-            {label(
-                40,
-                84,
-                780,
-                'QUERY CLASSIFICATION & INTENT ROUTING (WORKSPACE-A SCOPE)',
-                11,
-                blueTone,
-                'left',
-                700,
-            )}
+    // Right query -> Right backend
+    fig.arrow(690, 132, 690, 196, { color: warm, width: 1.75, head: 6 })
 
-            {/* Query 1: Policy */}
-            {label(52, 114, 230, 'Policy / Historical Query', 12, blueTone, 'left', 600)}
-            {label(52, 132, 230, '"Latest parser-v2 policy"', 11, c.textPrimary, 'left', 500)}
-            {label(52, 150, 230, 'Route: authorized_hybrid_search', 10, c.textMuted, 'left', 400)}
+    // Clean edge labels in open corridor
+    fig.text(420, 166, 'concurrent fan-out', {
+        size: 12,
+        color: purple,
+        align: 'center',
+        weight: 600,
+    })
 
-            {/* Query 2: Real-time Live */}
-            {label(312, 114, 230, 'Live Operational Status', 12, warmTone, 'left', 600)}
-            {label(312, 132, 230, '"Is build-1042 running?"', 11, c.textPrimary, 'left', 500)}
-            {label(312, 150, 230, 'Route: authorized_live_api', 10, c.textMuted, 'left', 400)}
+    // Row 3: Unified Evidence Merge & Live Access Recheck
+    fig.rect(120, 314, 600, 56, {
+        fill: fill(green, 0.12),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(420, 333, 'Versioned Evidence Merge & Live Access Recheck', {
+        size: 14,
+        color: green,
+        align: 'center',
+        weight: 700,
+    })
+    fig.text(420, 354, 'Join policy@2 [0-80] + build-1042 state · re-verify workspace-a grants', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {/* Query 3: Composite */}
-            {label(572, 114, 230, 'Compound Composite Query', 12, purpleTone, 'left', 600)}
-            {label(572, 132, 230, '"Status + migration policy"', 11, c.textPrimary, 'left', 500)}
-            {label(572, 150, 230, 'Fanout: hybrid_search + live_api', 10, c.textMuted, 'left', 400)}
+    // Connectors from Row 2 to Row 3
+    fig.arrow(220, 270, 270, 312, { color: green, width: 1.75, head: 6 })
+    fig.arrow(620, 270, 570, 312, { color: green, width: 1.75, head: 6 })
 
-            {/* Execution Backends */}
-            {label(40, 200, 370, 'ROUTE 1: AUTHORIZED HYBRID SEARCH', 11, blueTone, 'left', 700)}
-            {label(
-                52,
-                226,
-                350,
-                'Lexical BM25 & Dense HNSW Retrieval',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                246,
-                350,
-                'Extracts versioned policy documents; requires current_revision=True',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {label(450, 200, 370, 'ROUTE 2: AUTHORIZED LIVE APIS', 11, warmTone, 'left', 700)}
-            {label(
-                462,
-                226,
-                350,
-                'Real-time Build & Orchestration Engine',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                462,
-                246,
-                350,
-                'Polls build-1042 state with source-time freshness validation',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Fusion & Access Gate */}
-            {label(
-                40,
-                316,
-                780,
-                'UNIFIED EVIDENCE FUSION & APPLICABILITY VALIDATION',
-                11,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                342,
-                756,
-                'Normalized Evidence Bundle (Revision + Source Timestamp)',
-                13,
-                greenTone,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                362,
-                756,
-                'Joins indexed policy spans (policy@2:0-80) with live build state after verifying RBAC permissions and freshness.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Bottom Guardrail Box */}
-            {label(52, 428, 756, 'Tenant Scope Invariance', 12, purpleTone, 'left', 700)}
-            {label(
-                52,
-                448,
-                756,
-                'Client input cannot specify arbitrary tenant scopes or bypass document access policies. Both branches execute under cryptographically verified server-derived tokens.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create()

@@ -1,396 +1,177 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const height = 410
 export const alt =
-    'Timeline budget comparing search synthesis latency paths on a 0 to 1000 millisecond scale. In the parallel path, query planning overlaps raw retrieval (0-260 ms), achieving first token at 800 ms and first verified claim at 980 ms. In the serial rewrite-dependent path, retrieval waits for rewrite completion, pushing first token to 840 ms.'
-
-export const numericAnchors = {
-    parallel: {
-        planning: [0, 40],
-        retrieval: [0, 260],
-        rerank: [260, 350],
-        pack: [350, 370],
-        modelPrefill: [370, 800],
-        claimGen: [800, 900],
-        claimCheck: [900, 980],
-        ttft: 800,
-        firstVerifiedClaim: 980,
-    },
-    serial: {
-        rewrite: [0, 40],
-        retrieval: [40, 300],
-        rerank: [300, 390],
-        pack: [390, 410],
-        modelPrefill: [410, 840],
-        ttft: 840,
-    },
-}
+    'Calibrated 0 to 1,000 ms latency Gantt chart comparing parallel raw-branch retrieval against serial rewrite-dependent retrieval. Top: planning (40 ms) overlaps raw retrieval (260 ms), followed by rerank (90 ms), pack (20 ms), and model TTFT (430 ms) to hit draft TTFT at 800 ms, then claim completion (100 ms) and verification (80 ms) for first checked claim at 980 ms. Bottom: waiting for rewrite (40 ms) before retrieval shifts draft TTFT to 840 ms (+40 ms).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const teal = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
+    const fill = (color: string, amt = 0.2) => tint(color, c.bg, amt)
+
+    const plot = fig.plot(
+        { x: 136, y: 66, width: 696, height: 274 },
+        { x: [0, 1000], y: [0, 5] },
     )
 
-    // Scale 0-1000 ms to width 680px (X: 120 -> 800)
-    const sx = (ms: number) => 120 + Math.round((ms / 1000) * 680)
-    const sw = (start: number, end: number) => Math.max(4, Math.round(((end - start) / 1000) * 680))
+    plot.axes({
+        xTicks: [0, 200, 400, 600, 800, 1000],
+        xFormat: (v) => `${v} ms`,
+        xLabel: 'Elapsed time from request arrival (ms)',
+        grid: true,
+        labelSize: 12.5,
+    })
 
-    const ticks = [0, 200, 400, 600, 800, 1000]
+    const bar = (
+        yCenter: number,
+        start: number,
+        end: number,
+        color: string,
+        label?: string,
+        h = 30,
+    ) => {
+        const x1 = plot.px(start)
+        const x2 = plot.px(end)
+        const y = plot.py(yCenter) - h / 2
+        fig.rect(x1, y, Math.max(4, x2 - x1), h, {
+            fill: fill(color, 0.24),
+            stroke: color,
+            strokeWidth: 1.35,
+            radius: 4,
+        })
+        if (label) {
+            fig.text((x1 + x2) / 2, plot.py(yCenter), label, {
+                size: 12,
+                color: c.textPrimary,
+                align: 'center',
+                weight: 700,
+            })
+        }
+    }
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Visual Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Path A Bars */}
-                    {/* Planning bar: 0 - 40 */}
-                    <rect x={sx(0)} y={112} width={sw(0, 40)} height={20} rx={4} fill={blueTone} />
-                    {/* Retrieval bar: 0 - 260 */}
-                    <rect
-                        x={sx(0)}
-                        y={140}
-                        width={sw(0, 260)}
-                        height={20}
-                        rx={4}
-                        fill={greenTone}
-                    />
+    // Section A header: Parallel raw-branch path
+    fig.text(136, 40, 'Parallel raw-branch path (planning overlaps raw retrieval)', {
+        size: 13.5,
+        color: green,
+        weight: 700,
+    })
 
-                    {/* Pipeline composite row A (y=168) */}
-                    <rect
-                        x={sx(0)}
-                        y={168}
-                        width={sw(0, 260)}
-                        height={26}
-                        rx={4}
-                        fill={theme === 'dark' ? '#16221c' : '#f0fdf4'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={sx(260)}
-                        y={168}
-                        width={sw(260, 350)}
-                        height={26}
-                        rx={4}
-                        fill={blueTone}
-                    />
-                    <rect
-                        x={sx(350)}
-                        y={168}
-                        width={sw(350, 370)}
-                        height={26}
-                        rx={2}
-                        fill={warmTone}
-                    />
-                    <rect
-                        x={sx(370)}
-                        y={168}
-                        width={sw(370, 800)}
-                        height={26}
-                        rx={4}
-                        fill={purpleTone}
-                    />
-                    <rect
-                        x={sx(800)}
-                        y={168}
-                        width={sw(800, 900)}
-                        height={26}
-                        rx={4}
-                        fill={warmTone}
-                    />
-                    <rect
-                        x={sx(900)}
-                        y={168}
-                        width={sw(900, 980)}
-                        height={26}
-                        rx={4}
-                        fill={greenTone}
-                    />
+    // Row 1 (y = 4.35): Query Planning (0-40ms) overlapping Retrieval
+    fig.text(124, plot.py(4.35), 'Planning', {
+        size: 12.5,
+        color: c.textSecondary,
+        align: 'right',
+        weight: 600,
+    })
+    bar(4.35, 0, 40, blue, undefined, 22)
+    fig.text(plot.px(40) + 8, plot.py(4.35), '40 ms (overlapped)', {
+        size: 12,
+        color: blue,
+        weight: 600,
+    })
 
-                    {/* Milestone lines Path A */}
-                    <line
-                        x1={sx(800)}
-                        y1={168}
-                        x2={sx(800)}
-                        y2={206}
-                        stroke={purpleTone}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 2"
-                    />
-                    <line
-                        x1={sx(980)}
-                        y1={168}
-                        x2={sx(980)}
-                        y2={206}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 2"
-                    />
+    // Row 2 (y = 3.35): Raw critical path
+    fig.text(124, plot.py(3.35), 'Raw path', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'right',
+        weight: 700,
+    })
+    bar(3.35, 0, 260, teal, 'Retrieval 260', 32)
+    bar(3.35, 260, 350, blue, 'Rerank', 32)
+    bar(3.35, 350, 370, warm, undefined, 32)
+    bar(3.35, 370, 800, purple, 'Model prefill & TTFT (430 ms)', 32)
+    bar(3.35, 800, 900, warm, 'Claim', 32)
+    bar(3.35, 900, 980, green, 'Check', 32)
 
-                    {/* Path B Bars */}
-                    {/* Rewrite bar: 0 - 40 */}
-                    <rect x={sx(0)} y={278} width={sw(0, 40)} height={20} rx={4} fill={warmTone} />
+    // Callout for narrow Pack 20ms bar + Rerank 90ms
+    fig.callout([plot.px(360), plot.py(3.35) - 18], [plot.px(395), plot.py(4.35)], 'Pack 20 ms', {
+        color: warm,
+        labelColor: warm,
+        size: 12,
+        weight: 600,
+        bend: -0.15,
+    })
 
-                    {/* Pipeline composite row B (y=304) */}
-                    <rect
-                        x={sx(0)}
-                        y={304}
-                        width={sw(0, 40)}
-                        height={26}
-                        rx={4}
-                        fill={theme === 'dark' ? '#251b14' : '#fffbeb'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={sx(40)}
-                        y={304}
-                        width={sw(40, 300)}
-                        height={26}
-                        rx={4}
-                        fill={blueTone}
-                    />
-                    <rect
-                        x={sx(300)}
-                        y={304}
-                        width={sw(300, 390)}
-                        height={26}
-                        rx={4}
-                        fill={blueTone}
-                    />
-                    <rect
-                        x={sx(390)}
-                        y={304}
-                        width={sw(390, 410)}
-                        height={26}
-                        rx={2}
-                        fill={warmTone}
-                    />
-                    <rect
-                        x={sx(410)}
-                        y={304}
-                        width={sw(410, 840)}
-                        height={26}
-                        rx={4}
-                        fill={purpleTone}
-                    />
+    // Subtle divider between Parallel and Serial paths
+    fig.line(plot.area.x, plot.py(2.25), plot.right, plot.py(2.25), {
+        color: c.borderSubtle,
+        width: 1,
+    })
 
-                    {/* Milestone line Path B */}
-                    <line
-                        x1={sx(840)}
-                        y1={304}
-                        x2={sx(840)}
-                        y2={342}
-                        stroke={warmTone}
-                        strokeWidth={1.5}
-                        strokeDasharray="3 2"
-                    />
+    // Section B header: Serial rewrite-dependent path
+    fig.text(136, plot.py(1.92), 'Serial rewrite-dependent path (retrieval waits for 40 ms rewrite)', {
+        size: 13.5,
+        color: warm,
+        weight: 700,
+    })
 
-                    {/* Time Axis Line */}
-                    <line
-                        x1={sx(0)}
-                        y1={385}
-                        x2={sx(1000)}
-                        y2={385}
-                        stroke={c.textMuted}
-                        strokeWidth={1.5}
-                    />
-                    {ticks.map((t) => (
-                        <line
-                            key={`tick-line-${t}`}
-                            x1={sx(t)}
-                            y1={380}
-                            x2={sx(t)}
-                            y2={390}
-                            stroke={c.textMuted}
-                            strokeWidth={1.5}
-                        />
-                    ))}
+    // Row 3 (y = 1.05): Serial path
+    fig.text(124, plot.py(1.05), 'Rewrite path', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'right',
+        weight: 700,
+    })
+    bar(1.05, 0, 40, blue, undefined, 32)
+    bar(1.05, 40, 300, teal, 'Retrieval 260', 32)
+    bar(1.05, 300, 390, blue, 'Rerank', 32)
+    bar(1.05, 390, 410, warm, undefined, 32)
+    bar(1.05, 410, 840, purple, 'Model prefill & TTFT (430 ms)', 32)
 
-                    {/* Footer Insight Box */}
-                    <rect
-                        x={40}
-                        y={432}
-                        width={780}
-                        height={50}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    // Vertical milestone lines
+    plot.vline(800, 'Draft TTFT: 800 ms', {
+        color: purple,
+        width: 1.5,
+        dash: '4 4',
+        labelPosition: 'top',
+        labelOffset: 8,
+        labelSize: 12.5,
+        align: 'right',
+        weight: 700,
+    })
+    plot.vline(840, 'Draft TTFT: 840 ms (+40 ms)', {
+        color: warm,
+        width: 1.5,
+        dash: '4 4',
+        labelPosition: 'bottom',
+        labelOffset: 16,
+        labelSize: 12.5,
+        align: 'right',
+        weight: 700,
+    })
+    plot.vline(980, 'Checked: 980 ms', {
+        color: green,
+        width: 1.6,
+        dash: '4 4',
+        labelPosition: 'top',
+        labelOffset: 8,
+        labelSize: 12.5,
+        align: 'right',
+        weight: 700,
+    })
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'End-to-End Latency Budget: Parallel vs Serial Search Paths',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Streaming search measures two clocks: time-to-first-token (TTFT) and time-to-first-verified-claim',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Bracket showing exact 40 ms shift between 800 ms and 840 ms
+    fig.brace(plot.px(800), plot.py(2.5), plot.px(840), plot.py(2.5), undefined, {
+        side: 1,
+        depth: 6,
+        color: warm,
+    })
+    fig.text(plot.px(840) + 8, plot.py(2.5) + 12, '+40 ms shift', {
+        size: 12,
+        color: warm,
+        weight: 700,
+    })
 
-            {/* Path 1: Overlapped Parallel Execution */}
-            {label(
-                40,
-                86,
-                780,
-                'PATH A: PARALLEL RETRIEVAL (Raw query dispatches concurrently with query planning)',
-                12,
-                greenTone,
-                'left',
-                700,
-            )}
-
-            {/* Row 1: Planning & Retrieval */}
-            {label(40, 114, 75, 'Planning', 11, c.textMuted, 'left', 500)}
-            {label(40, 142, 75, 'Raw Retrieval', 11, c.textMuted, 'left', 500)}
-            {label(40, 172, 75, 'Pipeline', 11, c.textMuted, 'left', 500)}
-
-            {/* Stage labels inside or above Gantt bars */}
-            {label(sx(0), 174, sw(0, 260), '260ms wait', 10, c.textMuted, 'center', 400)}
-            {label(sx(260), 174, sw(260, 350), 'Rerank 90ms', 10, blueTone, 'center', 600)}
-            {label(
-                sx(370),
-                174,
-                sw(370, 800),
-                'Model Prefill & TTFT (430ms)',
-                11,
-                purpleTone,
-                'center',
-                600,
-            )}
-            {label(sx(800), 174, sw(800, 900), 'Claim', 10, warmTone, 'center', 600)}
-            {label(sx(900), 174, sw(900, 980), 'Verify', 10, greenTone, 'center', 600)}
-
-            {/* Path 1 Milestone badges */}
-            {label(sx(800) - 50, 208, 100, 'TTFT 800ms', 11, purpleTone, 'center', 700)}
-            {label(sx(980) - 70, 208, 140, 'First Verified: 980ms', 11, greenTone, 'center', 700)}
-
-            {/* Path 2: Serial Query Rewrite Execution */}
-            {label(
-                40,
-                252,
-                780,
-                'PATH B: SERIAL DEPENDENT RETRIEVAL (Retrieval waits for LLM query rewrite completion)',
-                12,
-                warmTone,
-                'left',
-                700,
-            )}
-
-            {label(40, 280, 75, 'Rewrite', 11, c.textMuted, 'left', 500)}
-            {label(40, 308, 75, 'Pipeline', 11, c.textMuted, 'left', 500)}
-
-            {label(sx(40), 310, sw(40, 300), 'Retrieval (260ms)', 10, blueTone, 'center', 600)}
-            {label(sx(300), 310, sw(300, 390), 'Rerank 90ms', 10, blueTone, 'center', 600)}
-            {label(
-                sx(410),
-                310,
-                sw(410, 840),
-                'Model Prefill & TTFT (430ms)',
-                11,
-                purpleTone,
-                'center',
-                600,
-            )}
-
-            {/* Path 2 Milestone badge */}
-            {label(sx(840) - 50, 344, 100, 'TTFT 840ms (+40ms)', 11, warmTone, 'center', 700)}
-
-            {/* Timeline X-Axis ticks */}
-            {ticks.map((t) => (
-                <React.Fragment key={`tick-${t}`}>
-                    {label(sx(t) - 30, 400, 60, `${t} ms`, 11, c.textMuted, 'center', 400)}
-                </React.Fragment>
-            ))}
-
-            {/* Bottom Insight Box */}
-            {label(
-                52,
-                442,
-                756,
-                'System Trade-off: Parallel Speculation vs Rewritten Recall',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                460,
-                756,
-                'Dispatching lexical search alongside query planning cuts TTFT by 40 ms; expanded sub-queries merge before reranking.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create()

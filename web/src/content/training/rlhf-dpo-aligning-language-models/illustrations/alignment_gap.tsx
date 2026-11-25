@@ -1,296 +1,141 @@
-import { Buffer } from 'node:buffer'
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    renderMathSvg,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 560
-export const height = 642
+export const width = 760
+export const height = 350
 export const alt =
-    'The softmax overflow prompt branches into two short replies: subtract max(z) before exp(z), or cast logits to float64 after exp(z). A scalar reward scorer assigns 1.80 and 0.70, a 1.10 gap that maps through Bradley-Terry to about 75 percent for subtracting max(z) first.'
-
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-    weight = 600,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: '100%', fontSize, color, align, fontWeight: weight }),
-    })
-}
+    'A single softmax overflow prompt branches into two answers: A (chosen) subtracts max(z) before exp(z) with score 1.80, and B (rejected) casts after exp(z) with score 0.70. On the right, a shared score axis marks the 1.10 reward margin mapping through Bradley-Terry to P(A preferred over B) = sigma(1.10) approximately 0.750.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme)
-    const green = getReadableToneColor('green', c)
-    const red = getReadableToneColor('critical', c)
-    const blue = getReadableToneColor('blue', c)
-    const purple = getReadableToneColor('purple', c)
-    const equation = renderMathSvg(
-        String.raw`P(A\succ B)=\sigma(1.80-0.70)=\sigma(1.10)\approx0.750`,
-        { fontSize: 23, color: c.textPrimary },
-    )
-    const equationImage = createElement('img', {
-        src: `data:image/svg+xml;base64,${Buffer.from(equation.svg).toString('base64')}`,
-        width: equation.width,
-        height: equation.height,
-        alt: 'The example reward gap maps to a Bradley–Terry preference probability of approximately 0.750',
-        style: { display: 'block' },
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const purple = fig.tone('purple')
+    const muted = c.textSecondary
+
+    // Left: Prompt box
+    const px = 20
+    const py = 114
+    const pw = 178
+    const ph = 92
+    fig.rect(px, py, pw, ph, {
+        fill: tint(blue, c.bg, 0.12),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
     })
-    const geometry = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        SvgFrame({
-            c,
-            x: 24,
-            y: 90,
-            width: 512,
-            height: 94,
-            rx: 15,
-            fill: c.bgCard,
-            stroke: blue,
-            strokeWidth: 2.5,
-        }),
-        VectorArrow({
-            x1: 252,
-            y1: 185,
-            x2: 153,
-            y2: 220,
-            color: green,
-            strokeWidth: 3.5,
-            arrowSize: 8,
-        }),
-        VectorArrow({
-            x1: 308,
-            y1: 185,
-            x2: 407,
-            y2: 220,
-            color: red,
-            strokeWidth: 3.5,
-            arrowSize: 8,
-        }),
-        SvgFrame({
-            c,
-            x: 24,
-            y: 225,
-            width: 248,
-            height: 126,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: green,
-            strokeWidth: 2.5,
-        }),
-        SvgFrame({
-            c,
-            x: 288,
-            y: 225,
-            width: 248,
-            height: 126,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: red,
-            strokeWidth: 2.5,
-        }),
-        SvgFrame({
-            c,
-            x: 36,
-            y: 370,
-            width: 226,
-            height: 60,
-            rx: 12,
-            fill: c.bgSubtle,
-            stroke: green,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            c,
-            x: 298,
-            y: 370,
-            width: 226,
-            height: 60,
-            rx: 12,
-            fill: c.bgSubtle,
-            stroke: red,
-            strokeWidth: 1.5,
-        }),
-        VectorArrow({
-            x1: 152,
-            y1: 432,
-            x2: 233,
-            y2: 450,
-            color: green,
-            strokeWidth: 3,
-            arrowSize: 8,
-        }),
-        VectorArrow({
-            x1: 408,
-            y1: 432,
-            x2: 327,
-            y2: 450,
-            color: red,
-            strokeWidth: 3,
-            arrowSize: 8,
-        }),
-        SvgFrame({
-            c,
-            x: 185,
-            y: 450,
-            width: 190,
-            height: 50,
-            rx: 11,
-            fill: c.bgSubtle,
-            stroke: purple,
-            strokeWidth: 2,
-        }),
-        VectorArrow({
-            x1: 280,
-            y1: 502,
-            x2: 280,
-            y2: 534,
-            color: purple,
-            strokeWidth: 3,
-            arrowSize: 4,
-        }),
-    )
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        background: 'transparent',
-        children: Board({
-            c,
-            width,
-            height,
-            background: 'transparent',
-            children: [
-                CanvasItem({ x: 0, y: 0, width, height, children: geometry }),
-                label(
-                    c,
-                    'Same prompt. Opposite fixes.',
-                    18,
-                    16,
-                    524,
-                    34,
-                    25,
-                    c.textPrimary,
-                    'center',
-                    800,
-                ),
-                label(
-                    c,
-                    'Numerical stability in softmax(z)',
-                    34,
-                    105,
-                    492,
-                    30,
-                    21,
-                    blue,
-                    'center',
-                    750,
-                ),
-                label(
-                    c,
-                    '“Prevent exponential overflow in Python?”',
-                    34,
-                    143,
-                    492,
-                    28,
-                    19,
-                    c.textSecondary,
-                    'center',
-                    600,
-                ),
-                label(c, 'A · CHOSEN', 38, 237, 220, 28, 20, green, 'left', 800),
-                label(c, 'Subtract max(z)', 38, 274, 220, 30, 21, c.textPrimary, 'left', 750),
-                label(
-                    c,
-                    'Before calling exp(z)',
-                    38,
-                    311,
-                    220,
-                    26,
-                    19,
-                    c.textSecondary,
-                    'left',
-                    600,
-                ),
-                label(c, 'B · REJECTED', 302, 237, 220, 28, 20, red, 'left', 800),
-                label(c, 'Cast after exp(z)', 302, 274, 220, 30, 19, c.textPrimary, 'left', 750),
-                label(
-                    c,
-                    'Still overflows float32',
-                    302,
-                    311,
-                    220,
-                    26,
-                    18,
-                    c.textSecondary,
-                    'left',
-                    600,
-                ),
-                label(c, 'Score · 1.80', 42, 386, 214, 28, 19, green, 'center', 750),
-                label(c, 'Score · 0.70', 304, 386, 214, 28, 19, red, 'center', 750),
-                label(c, 'Δr = 1.10', 197, 461, 166, 26, 21, purple, 'center', 800),
-                CanvasItem({
-                    x: (width - equation.width) / 2,
-                    y: 540,
-                    width: equation.width,
-                    height: equation.height,
-                    children: equationImage,
-                }),
-                label(
-                    c,
-                    'Margin Δr = 1.10 implies P(A ≻ B) ≈ 75%.',
-                    20,
-                    579,
-                    520,
-                    24,
-                    18,
-                    purple,
-                    'center',
-                    700,
-                ),
-                label(
-                    c,
-                    'Calibrate implied odds against held-out labels.',
-                    18,
-                    607,
-                    524,
-                    23,
-                    18,
-                    c.textSecondary,
-                    'center',
-                    600,
-                ),
-            ],
-        }),
+    fig.text(px + 12, py + 22, 'Shared prompt', { size: 13, weight: 700, color: blue })
+    fig.text(px + 12, py + 48, '“Prevent overflow in', { size: 13, weight: 600 })
+    fig.text(px + 12, py + 68, 'Python softmax(z)?”', { size: 13, weight: 600 })
+
+    // Middle: Two candidate responses
+    const cx = 248
+    const cw = 218
+    const ch = 82
+    const topY = 44
+    const botY = 194
+
+    // Arrows from prompt to A and B
+    fig.arrow(px + pw + 2, py + 30, cx - 4, topY + ch / 2, {
+        color: green,
+        width: 2,
+        head: 7,
     })
+    fig.arrow(px + pw + 2, py + 62, cx - 4, botY + ch / 2, {
+        color: red,
+        width: 2,
+        head: 7,
+    })
+
+    // Candidate A (Chosen)
+    fig.rect(cx, topY, cw, ch, {
+        fill: tint(green, c.bg, 0.14),
+        stroke: green,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(cx + 12, topY + 20, 'A · Chosen', { size: 13, weight: 700, color: green })
+    fig.text(cx + 12, topY + 43, 'Subtract max(z)', { size: 15, weight: 700 })
+    fig.text(cx + 12, topY + 64, 'before calling exp(z)', { size: 13, color: muted })
+
+    // Candidate B (Rejected)
+    fig.rect(cx, botY, cw, ch, {
+        fill: tint(red, c.bg, 0.12),
+        stroke: red,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(cx + 12, botY + 20, 'B · Rejected', { size: 13, weight: 700, color: red })
+    fig.text(cx + 12, botY + 43, 'Cast after exp(z)', { size: 15, weight: 700 })
+    fig.text(cx + 12, botY + 64, 'still overflows float32', { size: 13, color: muted })
+
+    // Right: Vertical reward scale (0.0 to 2.2) showing margin Δr = 1.10
+    const scaleX = 548
+    const sTop = 44
+    const sBot = 266
+    const sy = (r: number) => sBot - ((r - 0) / 2.2) * (sBot - sTop)
+
+    fig.text(scaleX, 22, 'Reward score r', { size: 13, weight: 700, color: muted, align: 'center' })
+    fig.line(scaleX, sTop, scaleX, sBot, { color: c.textMuted, width: 1.5 })
+    ;[0, 0.5, 1.0, 1.5, 2.0].forEach((tick) => {
+        const ty = sy(tick)
+        fig.line(scaleX - 5, ty, scaleX, ty, { color: c.textMuted, width: 1.2 })
+        fig.text(scaleX - 10, ty, tick.toFixed(1), {
+            size: 12,
+            mono: true,
+            color: muted,
+            align: 'right',
+        })
+    })
+
+    const yA = sy(1.8)
+    const yB = sy(0.7)
+
+    // Connectors from cards to score dots
+    fig.arrow(cx + cw + 2, topY + ch / 2, scaleX - 36, yA, {
+        color: green,
+        width: 1.6,
+        head: 6,
+        dash: '4 3',
+    })
+    fig.arrow(cx + cw + 2, botY + ch / 2, scaleX - 36, yB, {
+        color: red,
+        width: 1.6,
+        head: 6,
+        dash: '4 3',
+    })
+
+    // Margin segment & dots
+    fig.line(scaleX, yA, scaleX, yB, { color: purple, width: 4.5 })
+    fig.circle(scaleX, yA, 6.5, { fill: green, stroke: c.bg, width: 1.5 })
+    fig.circle(scaleX, yB, 6.5, { fill: red, stroke: c.bg, width: 1.5 })
+
+    fig.text(scaleX + 14, yA, 'r(A) = 1.80', { size: 14, mono: true, weight: 700, color: green })
+    fig.text(scaleX + 14, yB, 'r(B) = 0.70', { size: 14, mono: true, weight: 700, color: red })
+
+    // Curly brace on margin
+    fig.brace(scaleX + 12, yA + 8, scaleX + 12, yB - 8, String.raw`\Delta r = 1.10`, {
+        color: purple,
+        labelColor: purple,
+        depth: 10,
+        side: -1,
+        tex: true,
+        labelSize: 15,
+        labelGap: 14,
+    })
+
+    // Bottom Bradley-Terry equation
+    fig.line(20, 294, width - 20, 294, { color: c.borderSubtle, width: 1 })
+    fig.math(
+        width / 2,
+        324,
+        String.raw`P(A \succ B) = \sigma(1.80 - 0.70) = \sigma(1.10) \approx 0.750`,
+        { size: 17, color: c.textPrimary, align: 'center' },
+    )
+
+    return fig.render()
 }
 
 export default create('dark')

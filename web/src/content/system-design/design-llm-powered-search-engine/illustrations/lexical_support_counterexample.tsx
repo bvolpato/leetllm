@@ -1,285 +1,204 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 840
+export const height = 390
 export const alt =
-    'Counterexample illustrating why lexical keyword containment fails verification. The claim "Security approval is required" matches 80 percent of tokens in "Security approval is not required" yet is contradicted. Conversely, the valid paraphrase "Authorization from the security team is mandatory" fails token overlap despite semantic entailment.'
+    'Token-level comparison showing why lexical containment fails claim verification. The claim "Security approval is required" contains 4 terms. Left: the negated source "Security approval is not required" matches all 4 claim tokens (4/4 lexical pass, false positive) while the highlighted token "not" flips meaning to NLI contradiction. Right: the valid paraphrase "Authorization from the security team is mandatory" matches only 2 of 4 tokens (lexical fail, false negative) yet achieves NLI entailment.'
 
-export const numericAnchors = {
-    claim: 'Security approval is required',
-    negatedSource: 'Security approval is not required',
-    paraphraseSource: 'Authorization from the security team is mandatory',
-    negatedTokenOverlap: 0.8,
-    paraphraseTokenOverlap: 0.2,
+interface Chip {
+    text: string
+    kind: 'match' | 'flip' | 'other'
+    w: number
 }
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const redTone = getReadableToneColor('critical', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    const fill = (color: string, amt = 0.14) => tint(color, c.bg, amt)
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Visual Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Top Claim Card */}
-                    <rect
-                        x={40}
-                        y={74}
-                        width={780}
-                        height={60}
-                        rx={8}
-                        fill={theme === 'dark' ? '#141d2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1.5}
-                    />
+    // Top: Claim token chips
+    fig.text(420, 24, 'Claim to Verify (4 terms)', {
+        size: 13.5,
+        color: blue,
+        align: 'center',
+        weight: 700,
+    })
+    const claimTokens = [
+        { t: 'Security', w: 86 },
+        { t: 'approval', w: 88 },
+        { t: 'is', w: 42 },
+        { t: 'required', w: 86 },
+    ]
+    const totalClaimW = claimTokens.reduce((s, x) => s + x.w, 0) + (claimTokens.length - 1) * 10
+    let cx = 420 - totalClaimW / 2
+    for (const tok of claimTokens) {
+        fig.rect(cx, 44, tok.w, 34, {
+            fill: fill(blue, 0.18),
+            stroke: blue,
+            strokeWidth: 1.4,
+            radius: 7,
+        })
+        fig.text(cx + tok.w / 2, 61, tok.t, {
+            size: 13.5,
+            color: c.textPrimary,
+            align: 'center',
+            weight: 700,
+        })
+        cx += tok.w + 10
+    }
 
-                    {/* Left Card (Negation) */}
-                    <rect
-                        x={40}
-                        y={148}
-                        width={370}
-                        height={206}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1c1214' : '#fff5f5'}
-                        stroke={redTone}
-                        strokeWidth={1}
-                    />
-                    {/* Highlight box for "not" */}
-                    <rect
-                        x={186}
-                        y={194}
-                        width={32}
-                        height={20}
-                        rx={3}
-                        fill={redTone}
-                        opacity={0.3}
-                    />
+    // Branch arrows from Claim to Left and Right counterexamples
+    fig.arrow(340, 82, 220, 120, { color: red, width: 1.5, head: 6 })
+    fig.arrow(500, 82, 620, 120, { color: warm, width: 1.5, head: 6 })
 
-                    {/* Right Card (Paraphrase) */}
-                    <rect
-                        x={450}
-                        y={148}
-                        width={370}
-                        height={206}
-                        rx={8}
-                        fill={theme === 'dark' ? '#1e1c12' : '#fefce8'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
+    // Center divider
+    fig.line(420, 118, 420, 368, { color: c.borderSubtle, width: 1 })
 
-                    {/* Bottom NLI Card */}
-                    <rect
-                        x={40}
-                        y={372}
-                        width={780}
-                        height={88}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1.5}
-                    />
-                </svg>
-            </CanvasItem>
+    const drawChips = (startX: number, y: number, chips: Chip[]) => {
+        let x = startX
+        for (const ch of chips) {
+            const stroke = ch.kind === 'match' ? blue : ch.kind === 'flip' ? red : c.border
+            const bg =
+                ch.kind === 'match'
+                    ? fill(blue, 0.16)
+                    : ch.kind === 'flip'
+                      ? fill(red, 0.24)
+                      : tint(c.textMuted, c.bg, 0.08)
+            fig.rect(x, y, ch.w, 32, {
+                fill: bg,
+                stroke,
+                strokeWidth: ch.kind === 'flip' ? 2 : 1.2,
+                radius: 6,
+            })
+            fig.text(x + ch.w / 2, y + 16, ch.text, {
+                size: 13,
+                color: ch.kind === 'flip' ? red : ch.kind === 'match' ? c.textPrimary : c.textSecondary,
+                align: 'center',
+                weight: ch.kind === 'other' ? 500 : 700,
+            })
+            x += ch.w + 7
+        }
+    }
 
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Why Lexical Overlap Fails Verification: Entailment vs Surface Words',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Surface token containment produces catastrophic false positives on negation and false negatives on paraphrases',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // ==================== LEFT: NEGATION (FALSE POSITIVE) ====================
+    fig.text(210, 134, 'Negated Source (False Positive)', {
+        size: 14,
+        color: red,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Top Anchor: Generated Model Claim */}
-            {label(52, 82, 756, 'GENERATED MODEL CLAIM TO VERIFY', 11, blueTone, 'left', 700)}
-            {label(52, 102, 756, '"Security approval is required"', 15, c.textPrimary, 'left', 700)}
+    const negChips: Chip[] = [
+        { text: 'Security', kind: 'match', w: 78 },
+        { text: 'approval', kind: 'match', w: 80 },
+        { text: 'is', kind: 'match', w: 36 },
+        { text: 'not', kind: 'flip', w: 48 },
+        { text: 'required', kind: 'match', w: 78 },
+    ]
+    const negW = negChips.reduce((s, x) => s + x.w, 0) + (negChips.length - 1) * 7
+    const negStartX = 210 - negW / 2
+    drawChips(negStartX, 158, negChips)
 
-            {/* Left Card: Negation Failure */}
-            {label(52, 158, 350, 'HAZARD A: NEGATION (FALSE POSITIVE)', 11, redTone, 'left', 700)}
-            {label(52, 180, 350, 'Source Text in Index:', 11, c.textMuted, 'left', 500)}
-            {label(
-                52,
-                198,
-                350,
-                '"Security approval is not required"',
-                13,
-                c.textPrimary,
-                'left',
-                600,
-            )}
+    // Callout pointing to "not"
+    const notCenterX = negStartX + 78 + 7 + 80 + 7 + 36 + 7 + 24
+    fig.callout([notCenterX, 192], [notCenterX + 18, 224], 'polarity flip', {
+        color: red,
+        labelColor: red,
+        size: 12.5,
+        weight: 700,
+        bend: -0.15,
+    })
 
-            {label(
-                52,
-                230,
-                350,
-                'Lexical Word Match: 80% (4 / 5 tokens overlap)',
-                11,
-                warmTone,
-                'left',
-                500,
-            )}
-            {label(
-                52,
-                250,
-                350,
-                'Lexical Decision: PASS (Disaster: False Positive)',
-                12,
-                redTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                274,
-                350,
-                'Semantic Reality: Direct Contradiction! Word "not" completely flips the assertion.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // Verdict comparison rows (Left)
+    fig.rect(36, 250, 348, 44, {
+        fill: fill(red, 0.12),
+        stroke: red,
+        strokeWidth: 1.3,
+        radius: 7,
+    })
+    fig.text(50, 272, 'Lexical subset (4/4)', { size: 13, color: c.textPrimary, weight: 600 })
+    fig.text(370, 272, 'PASS (wrong)', {
+        size: 13,
+        color: red,
+        align: 'right',
+        weight: 700,
+    })
 
-            {/* Right Card: Paraphrase Failure */}
-            {label(
-                462,
-                158,
-                350,
-                'HAZARD B: PARAPHRASE (FALSE NEGATIVE)',
-                11,
-                warmTone,
-                'left',
-                700,
-            )}
-            {label(462, 180, 350, 'Source Text in Index:', 11, c.textMuted, 'left', 500)}
-            {label(
-                462,
-                198,
-                350,
-                '"Authorization from security is mandatory"',
-                13,
-                c.textPrimary,
-                'left',
-                600,
-            )}
+    fig.rect(36, 306, 348, 44, {
+        fill: fill(green, 0.08),
+        stroke: c.border,
+        strokeWidth: 1.1,
+        radius: 7,
+    })
+    fig.text(50, 328, 'Semantic NLI check', { size: 13, color: c.textPrimary, weight: 600 })
+    fig.text(370, 328, 'CONTRADICTION', {
+        size: 13,
+        color: red,
+        align: 'right',
+        weight: 700,
+    })
 
-            {label(
-                462,
-                230,
-                350,
-                'Lexical Word Match: 20% (1 / 5 tokens overlap)',
-                11,
-                warmTone,
-                'left',
-                500,
-            )}
-            {label(
-                462,
-                250,
-                350,
-                'Lexical Decision: FAIL (False Negative Rejection)',
-                12,
-                warmTone,
-                'left',
-                700,
-            )}
-            {label(
-                462,
-                274,
-                350,
-                'Semantic Reality: Complete Entailment! Exact same meaning expressed in distinct words.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
+    // ==================== RIGHT: PARAPHRASE (FALSE NEGATIVE) ====================
+    fig.text(630, 134, 'Paraphrased Source (False Negative)', {
+        size: 14,
+        color: warm,
+        align: 'center',
+        weight: 700,
+    })
 
-            {/* Bottom Guardrail Box */}
-            {label(
-                52,
-                386,
-                756,
-                'Architecture Principle: Learned Natural Language Inference (NLI)',
-                12,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                406,
-                756,
-                'Search citation verifiers cannot rely on regex, BM25, or Jaccard token overlap. Grounded verification requires a dedicated cross-encoder NLI classifier (Premise + Hypothesis → Entailment / Contradiction / Neutral) or specialized verifier LLM.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    const paraRow1: Chip[] = [
+        { text: 'Authorization', kind: 'other', w: 112 },
+        { text: 'from', kind: 'other', w: 54 },
+        { text: 'the', kind: 'other', w: 46 },
+        { text: 'security', kind: 'match', w: 78 },
+    ]
+    const p1W = paraRow1.reduce((s, x) => s + x.w, 0) + (paraRow1.length - 1) * 7
+    drawChips(630 - p1W / 2, 158, paraRow1)
+
+    const paraRow2: Chip[] = [
+        { text: 'team', kind: 'other', w: 58 },
+        { text: 'is', kind: 'match', w: 36 },
+        { text: 'mandatory', kind: 'other', w: 96 },
+    ]
+    const p2W = paraRow2.reduce((s, x) => s + x.w, 0) + (paraRow2.length - 1) * 7
+    drawChips(630 - p2W / 2, 198, paraRow2)
+
+    // Verdict comparison rows (Right)
+    fig.rect(456, 250, 348, 44, {
+        fill: fill(warm, 0.12),
+        stroke: warm,
+        strokeWidth: 1.3,
+        radius: 7,
+    })
+    fig.text(470, 272, 'Lexical subset (2/4)', { size: 13, color: c.textPrimary, weight: 600 })
+    fig.text(790, 272, 'FAIL (wrong)', {
+        size: 13,
+        color: warm,
+        align: 'right',
+        weight: 700,
+    })
+
+    fig.rect(456, 306, 348, 44, {
+        fill: fill(green, 0.14),
+        stroke: green,
+        strokeWidth: 1.4,
+        radius: 7,
+    })
+    fig.text(470, 328, 'Semantic NLI check', { size: 13, color: c.textPrimary, weight: 600 })
+    fig.text(790, 328, 'ENTAILMENT', {
+        size: 13,
+        color: green,
+        align: 'right',
+        weight: 700,
+    })
+
+    return fig.render()
 }
 
 export default create()

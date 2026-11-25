@@ -1,369 +1,249 @@
-import { createElement, type ReactElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const opaqueBackground = true
+export const width = 840
+export const height = 430
 export const alt =
     'Radix tree prefix matching and chunked-prefill scheduling: two requests share cached token prefix A B C D at KV slots 12 to 15. A six-token step budget admits one R0 decode token and five R1 prompt tokens, deferring four remaining prompt tokens to the next step.'
 
-type Colors = ReturnType<typeof getThemeColors>
+const SHARED = [
+    { tok: 'A', slot: 'KV12' },
+    { tok: 'B', slot: 'KV13' },
+    { tok: 'C', slot: 'KV14' },
+    { tok: 'D', slot: 'KV15' },
+] as const
 
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
+const ADMITTED = [
+    { tok: 'D0', req: 'R0 dec', isDecode: true },
+    { tok: 'P1', req: 'R1 pre', isDecode: false },
+    { tok: 'P2', req: 'R1 pre', isDecode: false },
+    { tok: 'P3', req: 'R1 pre', isDecode: false },
+    { tok: 'P4', req: 'R1 pre', isDecode: false },
+    { tok: 'P5', req: 'R1 pre', isDecode: false },
+] as const
 
-function renderBoard(c: Colors, items: (ReactElement | ReactElement[])[]) {
-    const flat = items.flat() as ReactElement[]
-    const svg = flat.filter((el) => el?.type !== 'div')
-    const html = flat.filter((el) => el?.type === 'div')
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bg,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: createElement(
-                    'svg',
-                    { width, height, viewBox: `0 0 ${width} ${height}` },
-                    ...svg,
-                ),
-            }),
-            ...html,
-        ],
-    })
-}
+const DEFERRED = ['P6', 'P7', 'P8', 'P9'] as const
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const purple = getReadableToneColor('purple', c)
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const cyan = fig.tone('cyan')
     const muted = c.textSecondary
 
-    const leftX = 35
-    const panelW = 370
-    const rightX = 455
+    // --- Left Zone: Radix Prefix Tree ---
+    fig.text(24, 24, 'Radix Prefix Tree', { size: 16, weight: 700, color: purple })
+    fig.text(24, 46, 'Shared prefix node: 4 cached tokens (ref = 2)', {
+        size: 13,
+        color: muted,
+    })
 
-    const sharedTokens = [
-        { tok: 'A', slot: 'KV12' },
-        { tok: 'B', slot: 'KV13' },
-        { tok: 'C', slot: 'KV14' },
-        { tok: 'D', slot: 'KV15' },
-    ]
-
-    const admittedBatch = [
-        { tok: 'D0', type: 'Decode (R0)', tone: blue },
-        { tok: 'P1', type: 'Prefill (R1)', tone: warm },
-        { tok: 'P2', type: 'Prefill (R1)', tone: warm },
-        { tok: 'P3', type: 'Prefill (R1)', tone: warm },
-        { tok: 'P4', type: 'Prefill (R1)', tone: warm },
-        { tok: 'P5', type: 'Prefill (R1)', tone: warm },
-    ]
-
-    const waitingTokens = ['P6', 'P7', 'P8', 'P9']
-
-    return renderBoard(c, [
-        // Title & Subtitle
-        label(
-            c,
-            'Radix Tree Prefix Matching & Token Budget Scheduling',
-            35,
-            18,
-            790,
-            26,
-            22,
-            c.textPrimary,
-            700,
-        ),
-        label(
-            c,
-            'Reusing cached KV tokens across requests while admitting mixed prefill and decode batches',
-            35,
-            46,
-            790,
-            20,
-            15,
-            muted,
-            400,
-        ),
-
-        // Left panel: Radix Tree KV Cache State
-        SvgFrame({
-            c,
-            x: leftX,
-            y: 75,
-            width: panelW,
-            height: 345,
-            rx: 8,
-            stroke: purple,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(163, 113, 247, 0.05)' : 'rgba(130, 80, 223, 0.03)',
-        }),
-        label(c, 'Radix Tree KV Cache State', leftX + 16, 88, panelW - 32, 22, 16, purple, 700),
-        label(
-            c,
-            'Shared prefix node: 4 tokens (Ref count = 2)',
-            leftX + 16,
-            112,
-            panelW - 32,
-            18,
-            13,
-            muted,
-        ),
-
-        // Shared prefix container
-        SvgFrame({
-            c,
-            x: leftX + 16,
-            y: 135,
-            width: panelW - 32,
-            height: 75,
-            rx: 6,
-            stroke: purple,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(163, 113, 247, 0.12)' : 'rgba(130, 80, 223, 0.08)',
-        }),
-
-        // 4 shared token boxes
-        ...sharedTokens.flatMap((st, i) => [
-            SvgFrame({
-                c,
-                x: leftX + 26 + i * 80,
-                y: 145,
-                width: 70,
-                height: 55,
-                rx: 5,
-                stroke: purple,
-                strokeWidth: 1,
-                fill: c.bgCard,
-            }),
-            label(c, st.tok, leftX + 26 + i * 80, 150, 70, 24, 20, purple, 700, 'center'),
-            label(c, st.slot, leftX + 26 + i * 80, 178, 70, 16, 12, muted, 500, 'center'),
-        ]),
-
-        // Branch arrows to child requests
-        VectorArrow({
-            x1: leftX + 95,
-            y1: 210,
-            x2: leftX + 95,
-            y2: 245,
-            color: blue,
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
-        VectorArrow({
-            x1: leftX + 275,
-            y1: 210,
-            x2: leftX + 275,
-            y2: 245,
-            color: warm,
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
-
-        // Child box R0
-        SvgFrame({
-            c,
-            x: leftX + 16,
-            y: 245,
-            width: 160,
-            height: 155,
-            rx: 6,
-            stroke: blue,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(56, 139, 253, 0.08)' : 'rgba(9, 105, 218, 0.05)',
-        }),
-        label(c, 'Request R0 Branch', leftX + 26, 255, 140, 20, 14, blue, 700),
-        label(c, 'Active decode phase', leftX + 26, 280, 140, 18, 13, c.textPrimary, 600),
-        label(c, 'Needs: 1 decode token', leftX + 26, 305, 140, 18, 12, muted),
-        label(c, 'Reuses: A, B, C, D', leftX + 26, 330, 140, 18, 12, cyan, 600),
-        label(c, 'Assigned: KV16', leftX + 26, 355, 140, 18, 12, muted),
-
-        // Child box R1
-        SvgFrame({
-            c,
-            x: leftX + 194,
-            y: 245,
-            width: 160,
-            height: 155,
-            rx: 6,
-            stroke: warm,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(210, 153, 34, 0.08)' : 'rgba(154, 103, 0, 0.05)',
-        }),
-        label(c, 'Request R1 Branch', leftX + 204, 255, 140, 20, 14, warm, 700),
-        label(c, 'New prompt arrival', leftX + 204, 280, 140, 18, 13, c.textPrimary, 600),
-        label(c, 'Needs: 9 prompt tokens', leftX + 204, 305, 140, 18, 12, muted),
-        label(c, 'Reuses: A, B, C, D', leftX + 204, 330, 140, 18, 12, cyan, 600),
-        label(c, 'Prefill chunking active', leftX + 204, 355, 140, 18, 12, muted),
-
-        // Arrow connecting left panel to right panel
-        VectorArrow({
-            x1: leftX + panelW,
-            y1: 247,
-            x2: rightX,
-            y2: 247,
+    // Shared prefix root block (A, B, C, D)
+    const rootX = 24
+    const rootY = 74
+    const rootW = 356
+    const rootH = 82
+    fig.rect(rootX, rootY, rootW, rootH, {
+        fill: tint(purple, c.bg, 0.1),
+        stroke: purple,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    SHARED.forEach((st, i) => {
+        const cx = rootX + 12 + i * 84
+        fig.rect(cx, rootY + 12, 76, 58, {
+            fill: tint(purple, c.bg, 0.2),
+            stroke: tint(purple, c.bg, 0.65),
+            strokeWidth: 1.25,
+            radius: 6,
+        })
+        fig.text(cx + 38, rootY + 31, st.tok, {
+            size: 18,
+            weight: 700,
             color: purple,
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
+            align: 'center',
+            width: 72,
+        })
+        fig.text(cx + 38, rootY + 55, st.slot, {
+            size: 12,
+            weight: 600,
+            color: muted,
+            align: 'center',
+            mono: true,
+            width: 72,
+        })
+    })
 
-        // Right panel: Step Batch Admission
-        SvgFrame({
-            c,
-            x: rightX,
-            y: 75,
-            width: panelW,
-            height: 345,
-            rx: 8,
-            stroke: green,
+    // Branch arrows from shared prefix to R0 and R1
+    const childY = 212
+    fig.arrow(rootX + 94, rootY + rootH, rootX + 84, childY - 3, {
+        color: blue,
+        width: 2,
+        head: 6,
+    })
+    fig.arrow(rootX + 262, rootY + rootH, rootX + 272, childY - 3, {
+        color: warm,
+        width: 2,
+        head: 6,
+    })
+    fig.text(rootX + 178, 184, '0 recomputation', {
+        size: 12,
+        weight: 600,
+        color: cyan,
+        align: 'center',
+        width: 140,
+    })
+
+    // Child R0
+    fig.rect(rootX, childY, 168, 140, {
+        fill: tint(blue, c.bg, 0.09),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(rootX + 12, childY + 22, 'Request R0', { size: 15, weight: 700, color: blue })
+    fig.text(rootX + 12, childY + 48, 'Active decode', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(rootX + 12, childY + 74, 'Needs: 1 token', { size: 13, color: muted })
+    fig.text(rootX + 12, childY + 98, 'Reuses: KV12..15', {
+        size: 12,
+        weight: 600,
+        color: cyan,
+        mono: true,
+    })
+    fig.text(rootX + 12, childY + 120, 'Writes: KV16', {
+        size: 12,
+        color: muted,
+        mono: true,
+    })
+
+    // Child R1
+    const r1X = rootX + 188
+    fig.rect(r1X, childY, 168, 140, {
+        fill: tint(warm, c.bg, 0.09),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(r1X + 12, childY + 22, 'Request R1', { size: 15, weight: 700, color: warm })
+    fig.text(r1X + 12, childY + 48, 'New prompt', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(r1X + 12, childY + 74, 'Needs: 9 tokens', { size: 13, color: muted })
+    fig.text(r1X + 12, childY + 98, 'Reuses: KV12..15', {
+        size: 12,
+        weight: 600,
+        color: cyan,
+        mono: true,
+    })
+    fig.text(r1X + 12, childY + 120, 'Chunked prefill', { size: 12, color: muted })
+
+    // Divider & bridge arrow
+    fig.line(404, 20, 404, 376, { color: c.borderSubtle, width: 1 })
+    fig.arrow(386, 184, 426, 184, { color: green, width: 2.25, head: 6 })
+
+    // --- Right Zone: 6-Token Step Budget ---
+    const rx = 434
+    fig.text(rx, 24, 'Step Budget Admission (6 / 6)', {
+        size: 16,
+        weight: 700,
+        color: green,
+    })
+    fig.text(rx, 46, 'Admits 1 decode token + 5 prefill tokens', { size: 13, color: muted })
+
+    // 6-slot horizontal token budget strip (proportional)
+    const slotW = 58
+    const slotH = 74
+    const slotGap = 7
+    const stripY = 82
+    ADMITTED.forEach((item, i) => {
+        const sx = rx + i * (slotW + slotGap)
+        const tone = item.isDecode ? blue : warm
+        fig.rect(sx, stripY, slotW, slotH, {
+            fill: tint(tone, c.bg, 0.18),
+            stroke: tone,
             strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(63, 185, 80, 0.05)' : 'rgba(26, 127, 55, 0.03)',
-        }),
-        label(
-            c,
-            'Step Batch Admission (Budget = 6)',
-            rightX + 16,
-            88,
-            panelW - 32,
-            22,
-            16,
-            green,
-            700,
-        ),
-        label(
-            c,
-            'Admitted batch: 1 decode + 5 prompt tokens',
-            rightX + 16,
-            112,
-            panelW - 32,
-            18,
-            13,
-            muted,
-        ),
+            radius: 6,
+        })
+        fig.text(sx + slotW / 2, stripY + 28, item.tok, {
+            size: 16,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            mono: true,
+            width: slotW,
+        })
+        fig.text(sx + slotW / 2, stripY + 54, item.req, {
+            size: 11,
+            weight: 600,
+            color: c.textSecondary,
+            align: 'center',
+            width: slotW,
+        })
+    })
 
-        // Admitted tokens grid: 6 items in 2 rows of 3
-        ...admittedBatch.flatMap((ab, i) => {
-            const col = i % 3
-            const row = Math.floor(i / 3)
-            const bx = rightX + 16 + col * 115
-            const by = 140 + row * 82
-            return [
-                SvgFrame({
-                    c,
-                    x: bx,
-                    y: by,
-                    width: 105,
-                    height: 72,
-                    rx: 6,
-                    stroke: ab.tone,
-                    strokeWidth: 1.5,
-                    fill: theme === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-                }),
-                label(c, ab.tok, bx, by + 12, 105, 24, 20, ab.tone, 700, 'center'),
-                label(c, ab.type, bx, by + 42, 105, 18, 12, muted, 500, 'center'),
-            ]
-        }),
+    // Curly brace under the 6 admitted tokens
+    const stripEnd = rx + 6 * slotW + 5 * slotGap
+    fig.brace(rx, stripY + slotH + 8, stripEnd, stripY + slotH + 8, 'Budget filled: 1 R0 + 5 R1 = 6 tokens', {
+        side: 1,
+        depth: 10,
+        color: green,
+        labelColor: green,
+        labelSize: 13,
+        weight: 600,
+        labelGap: 16,
+    })
 
-        // Waiting prompt tokens container
-        SvgFrame({
-            c,
-            x: rightX + 16,
-            y: 315,
-            width: panelW - 32,
-            height: 85,
-            rx: 6,
-            stroke: cyan,
-            strokeWidth: 1,
-            fill: theme === 'dark' ? 'rgba(57, 197, 207, 0.05)' : 'rgba(26, 127, 139, 0.03)',
-        }),
-        label(
-            c,
-            'Waiting prompt tokens (deferred to next step):',
-            rightX + 26,
-            325,
-            panelW - 52,
-            18,
-            12,
-            cyan,
-            600,
-        ),
-
-        ...waitingTokens.flatMap((wt, i) => [
-            SvgFrame({
-                c,
-                x: rightX + 26 + i * 80,
-                y: 348,
-                width: 70,
-                height: 42,
-                rx: 5,
-                stroke: c.border,
-                strokeWidth: 1,
-                fill: c.bgCard,
-            }),
-            label(c, wt, rightX + 26 + i * 80, 358, 70, 20, 15, muted, 600, 'center'),
-        ]),
-
-        // Bottom summary frame
-        SvgFrame({
-            c,
-            x: leftX,
-            y: 435,
-            width: 790,
-            height: 42,
-            rx: 6,
+    // Deferred queue section
+    const defY = 238
+    fig.text(rx, defY, 'Deferred to Next Step (4 prompt tokens)', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+    })
+    fig.rect(rx, defY + 20, stripEnd - rx, 86, {
+        fill: tint(cyan, c.bg, 0.06),
+        stroke: tint(cyan, c.bg, 0.45),
+        strokeWidth: 1.25,
+        radius: 8,
+    })
+    DEFERRED.forEach((tok, i) => {
+        const dx = rx + 14 + i * 92
+        fig.rect(dx, defY + 38, 78, 50, {
+            fill: tint(c.textMuted, c.bg, 0.08),
             stroke: c.border,
-            strokeWidth: 1,
-            fill: c.bgCard,
-        }),
-        label(
-            c,
-            'Step Load: 1 Decode + 5 Prefill = 6 Tokens | 4 Cached Tokens (A, B, C, D) Reused with 0 Recomputation',
-            leftX + 20,
-            447,
-            750,
-            20,
-            13,
-            green,
-            600,
-            'center',
-        ),
-    ])
+            strokeWidth: 1.25,
+            radius: 6,
+        })
+        fig.text(dx + 39, defY + 63, tok, {
+            size: 15,
+            weight: 600,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+            width: 74,
+        })
+    })
+
+    // Bottom clean summary line
+    fig.line(24, 386, 816, 386, { color: c.borderSubtle, width: 1 })
+    fig.text(420, 408, '4 shared KV slots reused (A, B, C, D)  ·  6 tokens scheduled now  ·  4 deferred', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+        width: 760,
+    })
+
+    return fig.render()
 }
 
 export default create()

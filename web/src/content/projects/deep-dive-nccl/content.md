@@ -464,7 +464,6 @@ bandwidth metrics: algbw=44.74, busbw=67.11 GB/s
 ```
 <!-- leetllm: output:end -->
 
-<!-- leetllm: edition:reference:start -->
 
 ## Strengths and limits
 
@@ -473,7 +472,7 @@ NCCL provides a tight collective API across NVLink, NVSwitch, PCIe, and InfiniBa
 - NVIDIA CUDA-specific (not for CPU-only or non-NVIDIA accelerators).
 - Cannot repair divergent rank control flow, bad cabling, or oversubscribed switches above or below it.
 - Communication kernels share GPU resources with compute, so aggressive overlap can contend on SMs or memory bandwidth.
-- Recent additions like multi-MIG communicators (CUDA 13.0+ driver, no NVLink P2P/NVLS, MNNVL disabled) and optional OpenSSL 3 socket TLS (`ncclSetEncryption`) carry distinct topology and transport constraints.[^nccl2323Release2026][^nccl2026Communicators]
+- Specialized paths like multi-MIG communicators (CUDA 13.0+ driver, no NVLink P2P/NVLS, MNNVL disabled) and optional OpenSSL 3 socket TLS (`ncclSetEncryption`) carry distinct topology and transport constraints.[^nccl2323Release2026][^nccl2026Communicators]
 
 ## NVIDIA project, public source
 
@@ -483,7 +482,6 @@ NVIDIA develops and publishes NCCL at `NVIDIA/nccl` (with benchmarks in `NVIDIA/
 
 NCCL builds on decades of collective-communication research rather than a single canonical paper: Patarasuk and Yuan formalized bandwidth-optimal ring all-reduce for point-to-point networks,[^patarasuk2009] and NVIDIA's NCCL 2.4 engineering write-up introduced complementary double binary trees for logarithmic latency growth at full bandwidth.[^jeaugey2019] Newer hardware paths add NVSwitch in-network reductions, multi-rail fabrics, and device-initiated Gin while preserving the same core questions: ownership, rounds, bytes, and stream readiness.
 
-<!-- leetllm: edition:reference:end -->
 
 ## Takeaways
 

@@ -279,7 +279,7 @@ When a single ultra-long prompt outgrows one GPU's HBM, **Ring Attention** shard
 
 ### Lost in the middle and per-slice NIAH/RULER verification
 
-Accepting 128K tokens never proves the model can retrieve a fact buried at 50% depth. Liu et al. demonstrated a **U-shaped accuracy curve** ("Lost in the Middle"), where recall stays sharp near the start and end of a prompt while dipping sharply in the center, and distractor tokens progressively induce context rot.[^liu2023lost] Three habits guard retrieval quality:
+Recall accuracy drops sharply for facts buried near the middle of a 128K prompt. Liu et al. demonstrated this **U-shaped accuracy curve** ("Lost in the Middle"), where recall stays sharp near the start and end of a prompt while dipping sharply in the center, and distractor tokens progressively induce context rot.[^liu2023lost] Three habits guard retrieval quality:
 
 1. **Edge-priority packing:** Place the two highest-relevance excerpts at the head (after instructions) and tail (right before the question), pushing lower-priority background into the middle.
 2. **Match strategy to query structure:** Use full context for self-contained packets, RAG for targeted lookups over large corpora, and exact code/SQL filters for counting or aggregation questions (top-$k$ similarity retrieval clusters in high-scoring files and reverses true counts).

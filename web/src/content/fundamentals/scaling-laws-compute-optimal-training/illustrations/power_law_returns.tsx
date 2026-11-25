@@ -1,236 +1,160 @@
-import { createElement } from 'react'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Column,
-    ProgressList,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    renderMathSvg,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 740
+export const height = 405
 export const alt =
-    'Log-compute plot for the power law L(C)=2+C to the negative 0.05 shows losses 3.000, 2.944, 2.891, 2.841, and 2.794 across equal 3.16-fold compute steps. Four bars below use a shared 0.060 scale and show the successive loss drops shrinking from 0.056 to 0.047.'
+    'Left: log-compute plot of L(C) = 2 + C^(-0.05) across five equal 3.16x compute steps from 1x to 100x, with losses 3.000, 2.944, 2.891, 2.841, and 2.794 and step-drop markers between them. Right: horizontal bars on a shared 0.060 scale showing each successive loss drop shrinking from 0.056 to 0.053, 0.050, and 0.047.'
 
-export const width = 600
-export const height = 760
-
-const board = { width: 600, height: 372 }
-const plot = { x: 38, y: 4, width: 524, height: 306, padding: 48 }
-const xDomain = { min: 0, max: 2 }
-const yDomain = { min: 2.76, max: 3.04 }
-const innerWidth = plot.width - plot.padding * 2
-const innerHeight = plot.height - plot.padding * 2
 const compute = [1, 10 ** 0.5, 10, 10 ** 1.5, 100]
-const losses = compute.map((value) => 2 + value ** -0.05)
-const drops = losses.slice(0, -1).map((loss, index) => loss - losses[index + 1])
+const lossFn = (cVal: number) => 2 + cVal ** -0.05
+const losses = compute.map(lossFn)
+const drops = losses.slice(0, -1).map((l, i) => l - losses[i + 1]!)
+const stepLabels = ['1× → 3.16×', '3.16× → 10×', '10× → 31.6×', '31.6× → 100×']
 
-const project = (logCompute: number, loss: number) => ({
-    x:
-        plot.x +
-        plot.padding +
-        ((logCompute - xDomain.min) / (xDomain.max - xDomain.min)) * innerWidth,
-    y:
-        plot.y +
-        plot.padding +
-        innerHeight -
-        ((loss - yDomain.min) / (yDomain.max - yDomain.min)) * innerHeight,
-})
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
 
-function label(
-    text: string,
-    x: number,
-    y: number,
-    width: number,
-    c: ThemeColors,
-    options: {
-        fontSize?: number
-        color?: string
-        align?: 'left' | 'center' | 'right'
-        fontWeight?: number
-        mono?: boolean
-    } = {},
-) {
-    const fontSize = options.fontSize ?? 21
-    return CanvasItem({
-        x,
-        y,
-        width,
-        height: fontSize * 1.45,
-        children: createElement(TextLabel, {
-            c,
-            text,
-            width,
-            fontSize,
-            fontWeight: options.fontWeight ?? 650,
-            color: options.color ?? c.textPrimary,
-            align: options.align ?? 'left',
-            mono: options.mono,
-        }),
+    // Left: log-compute power-law curve with staircase loss drops
+    const left = fig.plot(
+        { x: 64, y: 42, width: 392, height: 294 },
+        { x: [0.8, 130], y: [2.75, 3.05], xScale: 'log', yScale: 'linear' },
+    )
+
+    left.logAxes({
+        xTicks: compute,
+        yTicks: [2.8, 2.9, 3.0],
+        xFormat: (v) =>
+            v === 1
+                ? '1×'
+                : v < 5
+                  ? '3.16×'
+                  : v === 10
+                    ? '10×'
+                    : v < 50
+                      ? '31.6×'
+                      : '100×',
+        yFormat: (v) => v.toFixed(1),
+        xLabel: 'Compute multiplier C (log scale)',
+        yLabel: 'Cross-entropy loss L(C)',
+        labelSize: 14,
+        grid: true,
     })
-}
 
-const illustration = defineIllustration((colors) => {
-    const c = { ...colors, preset: 'engineering' as const, shadow: 'transparent' }
-    const law = renderMathSvg(String.raw`L(C)=2+C^{-0.05}`, {
-        fontSize: 21,
+    // Subtle shaded fill under the curve
+    left.fillArea(lossFn, {
+        range: [1, 100],
+        baseline: 2.75,
+        fill: blue,
+        fillOpacity: 0.1,
+        samples: 140,
+    })
+
+    // Equation in open upper-right corner
+    fig.math(left.right - 8, left.area.y + 22, String.raw`L(C) = 2 + C^{-0.05}`, {
+        size: 16,
+        color: c.textPrimary,
+        align: 'right',
+    })
+
+    // Staircase step drops between consecutive 3.16x compute steps
+    for (let i = 0; i < drops.length; i++) {
+        const x1 = left.px(compute[i]!)
+        const x2 = left.px(compute[i + 1]!)
+        const y1 = left.py(losses[i]!)
+        const y2 = left.py(losses[i + 1]!)
+        fig.line(x1, y1, x2, y1, { color: warm, width: 1.25, dash: '3 3', opacity: 0.75 })
+        fig.line(x2, y1, x2, y2, { color: warm, width: 2.5 })
+    }
+
+    // Main smooth curve
+    left.fn(lossFn, { color: blue, width: 2.75 }, 180, [1, 100])
+
+    // Anchored points and loss values (placed cleanly below-left of curve, clear of staircase drops)
+    compute.forEach((cv, i) => {
+        const px = left.px(cv)
+        const py = left.py(losses[i]!)
+        fig.circle(px, py, 5.5, { fill: blue, stroke: c.bg, width: 2 })
+        if (i === 0) {
+            fig.text(px + 6, py - 15, losses[i]!.toFixed(3), {
+                size: 13.5,
+                color: blue,
+                align: 'left',
+                mono: true,
+                weight: 700,
+            })
+        } else {
+            fig.text(px - 4, py + 17, losses[i]!.toFixed(3), {
+                size: 13.5,
+                color: blue,
+                align: 'center',
+                mono: true,
+                weight: 700,
+            })
+        }
+    })
+
+    // Right: horizontal bars for successive Delta L drops on shared 0..0.065 scale
+    const rx = 492
+    const rw = 228
+    const right = fig.plot({ x: rx, y: 74, width: rw, height: 262 }, { x: [0, 0.065], y: [0, 4] })
+
+    fig.text(rx, 32, 'Loss drop ΔL per ×3.16 step', {
+        size: 15,
+        color: c.textPrimary,
+        weight: 700,
+    })
+    fig.text(rx, 52, 'Shrinking absolute gain on same scale', {
+        size: 13,
         color: c.textSecondary,
     })
-    const points = compute.map((value, index) => ({ x: Math.log10(value), y: losses[index] }))
-    const curve = Array.from({ length: 81 }, (_, index) => {
-        const logCompute = index / 40
-        return { x: logCompute, y: 2 + 10 ** (-0.05 * logCompute) }
-    })
-    const intervals = drops.map((drop, index) => ({
-        x1: Math.log10(compute[index]) + 0.25,
-        y1: losses[index],
-        x2: Math.log10(compute[index]) + 0.25,
-        y2: losses[index + 1],
-        tone: 'warm' as const,
-        strokeWidth: 4,
-    }))
 
-    return Scene({
-        c,
-        title: 'Equal log steps, smaller loss drops',
-        subtitle: 'Power law L(C) = 2 + C⁻⁰·⁰⁵ · C is a normalized compute multiplier',
-        padding: 0,
-        gap: 10,
-        contentWidth: board.width,
-        children: [
-            Board({
-                c,
-                width: board.width,
-                height: board.height,
-                background: c.bg,
-                children: [
-                    label('Power law', 8, 0, 138, c, {
-                        fontSize: 21,
-                        color: c.textSecondary,
-                        fontWeight: 700,
-                    }),
-                    CanvasItem({
-                        x: 148,
-                        y: 0,
-                        width: law.width,
-                        height: law.height,
-                        children: createElement('img', {
-                            src: `data:image/svg+xml;utf8,${encodeURIComponent(law.svg)}`,
-                            width: law.width,
-                            height: law.height,
-                            alt: 'L of C equals 2 plus C to the negative 0.05',
-                        }),
-                    }),
-                    CanvasItem({
-                        x: plot.x,
-                        y: plot.y,
-                        width: plot.width,
-                        height: plot.height,
-                        children: AxisPlot({
-                            c,
-                            width: plot.width,
-                            height: plot.height,
-                            padding: plot.padding,
-                            xMin: xDomain.min,
-                            xMax: xDomain.max,
-                            yMin: yDomain.min,
-                            yMax: yDomain.max,
-                            showFrame: false,
-                            showGrid: true,
-                            gridCount: 3,
-                            paths: [{ points: curve, tone: 'blue', strokeWidth: 4 }],
-                            vectors: intervals,
-                            points: points.map((point) => ({
-                                ...point,
-                                tone: 'blue',
-                                r: 7,
-                                stroke: c.bgCard,
-                                strokeWidth: 2,
-                            })),
-                        }),
-                    }),
-                    ...points.map((point, index) => {
-                        const pos = project(point.x, point.y)
-                        return label(losses[index].toFixed(3), pos.x - 34, pos.y - 31, 68, c, {
-                            fontSize: 21,
-                            color: getReadableToneColor('blue', c),
-                            align: 'center',
-                            mono: true,
-                            fontWeight: 750,
-                        })
-                    }),
-                    ...[0, 0.5, 1, 1.5, 2].map((tick, index) => {
-                        const position = project(tick, yDomain.min)
-                        const labels = ['1×', '3.16×', '10×', '31.6×', '100×']
-                        return label(
-                            labels[index],
-                            position.x - 35,
-                            plot.y + plot.padding + innerHeight + 4,
-                            70,
-                            c,
-                            { fontSize: 21, color: c.textMuted, align: 'center', mono: true },
-                        )
-                    }),
-                    ...[2.8, 2.9, 3.0].map((value) => {
-                        const position = project(xDomain.min, value)
-                        return label(value.toFixed(1), 0, position.y - 12, 44, c, {
-                            fontSize: 21,
-                            color: c.textMuted,
-                            align: 'right',
-                            mono: true,
-                        })
-                    }),
-                    label('Compute multiplier C →', 153, 332, 270, c, {
-                        fontSize: 21,
-                        color: c.textSecondary,
-                        align: 'center',
-                        fontWeight: 700,
-                    }),
-                ],
-            }),
-            Column({
-                width: 584,
-                style: { marginLeft: 8 },
-                gap: 5,
-                align: 'stretch',
-                children: [
-                    TextLabel({
-                        c,
-                        text: 'Absolute loss drop per ×3.16 compute step',
-                        fontSize: 21,
-                        fontWeight: 800,
-                        align: 'center',
-                    }),
-                    TextLabel({
-                        c,
-                        text: 'Bar lengths share a 0.060 reference scale.',
-                        fontSize: 21,
-                        color: c.textMuted,
-                        align: 'center',
-                    }),
-                    ProgressList({
-                        c,
-                        gap: 7,
-                        labelWidth: 130,
-                        valueWidth: 120,
-                        barHeight: 14,
-                        fontSize: 21,
-                        rows: drops.map((drop, index) => ({
-                            label: ['1 → 3.16×', '3.16 → 10×', '10 → 31.6×', '31.6 → 100×'][index],
-                            value: drop / 0.06,
-                            valueLabel: `ΔL ${drop.toFixed(3)}`,
-                            tone: 'warm' as const,
-                        })),
-                    }),
-                ],
-            }),
-        ],
+    for (const tick of [0, 0.02, 0.04, 0.06]) {
+        const tx = right.px(tick)
+        fig.line(tx, right.area.y, tx, right.bottom, { color: c.borderSubtle, width: 1 })
+        fig.text(tx, right.bottom + 15, tick === 0 ? '0' : tick.toFixed(2), {
+            size: 13.5,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+    fig.line(rx, right.bottom, rx + rw, right.bottom, { color: c.textMuted, width: 1 })
+    fig.text(rx + rw / 2, right.bottom + 36, 'Absolute reduction ΔL (nats)', {
+        size: 13.5,
+        color: c.textSecondary,
+        align: 'center',
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    const barH = 22
+    drops.forEach((drop, idx) => {
+        const rowY = right.py(3.4 - idx * 0.92)
+        const barW = right.px(drop) - rx
+        fig.text(rx, rowY - 20, stepLabels[idx]!, {
+            size: 13.5,
+            color: c.textPrimary,
+            mono: true,
+            weight: 600,
+        })
+        fig.rect(rx, rowY - barH / 2, barW, barH, {
+            fill: tint(warm, c.bg, theme === 'dark' ? 0.38 : 0.26),
+            stroke: warm,
+            strokeWidth: 1.6,
+            radius: 4,
+        })
+        fig.text(rx + barW - 7, rowY, `−${drop.toFixed(3)}`, {
+            size: 13.5,
+            color: c.textPrimary,
+            align: 'right',
+            mono: true,
+            weight: 700,
+        })
+    })
+
+    return fig.render()
+}
+
+export default create('dark')

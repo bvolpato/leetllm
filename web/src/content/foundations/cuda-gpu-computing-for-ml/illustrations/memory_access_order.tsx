@@ -1,321 +1,185 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    getToneFill,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 820
-export const height = 636
+export const width = 780
+export const height = 475
 export const alt =
     'Eight adjacent 4-byte words fit in one aligned 32-byte global-memory segment; column reads at stride 32 words scatter across eight separate segments. In shared memory, column-zero addresses 0, 32, through 224 all map to bank zero and serialize as an eight-way conflict. Padding the tile stride from 32 to 33 maps those lanes to banks zero through seven.'
 
-const lbl = (
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize = 24,
-    color = c.textSecondary,
-    align: 'left' | 'center' | 'right' = 'left',
-    fontWeight = 550,
-    mono = false,
-) =>
-    CanvasItem({
-        x,
-        y,
-        width: w,
-        height: fontSize + 10,
-        children: TextLabel({ c, text, width: w, fontSize, color, align, fontWeight, mono }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const critical = fig.tone('critical')
+    const fillAmt = theme === 'dark' ? 0.16 : 0.1
+
+    // ─── BAND 1: GLOBAL COALESCED (1 ALIGNED 32-B SEGMENT) ───
+    fig.text(24, 18, 'Global memory · adjacent words coalesce into 1 aligned 32-B segment', {
+        size: 14.5,
+        weight: 700,
+        color: green,
     })
 
-const illustration = defineIllustration((c: ThemeColors) => {
-    const green = getReadableToneColor('green', c)
-    const warm = getReadableToneColor('warm', c)
-    const red = getReadableToneColor('critical', c)
-    const greenBoxText = getReadableToneColor('green', c, getToneFill('green', c))
-    const warmBoxText = getReadableToneColor('warm', c, getToneFill('warm', c))
-    const redBoxText = getReadableToneColor('critical', c, getToneFill('critical', c))
-
-    const shapes: React.ReactNode[] = [
-        SvgFrame({
-            x: 16,
-            y: 92,
-            width: 788,
-            height: 130,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            x: 16,
-            y: 234,
-            width: 788,
-            height: 130,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            x: 16,
-            y: 380,
-            width: 386,
-            height: 240,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        SvgFrame({
-            x: 418,
-            y: 380,
-            width: 386,
-            height: 240,
-            c,
-            rx: 14,
-            fill: c.bgCard,
-            stroke: c.borderLight,
-            strokeWidth: 1.5,
-        }),
-        ...Array.from({ length: 8 }, (_, lane) =>
-            SvgFrame({
-                key: `ga-${lane}`,
-                x: 32 + lane * 94,
-                y: 144,
-                width: 94,
-                height: 64,
-                c,
-                rx: lane === 0 || lane === 7 ? 8 : 0,
-                fill: getToneFill('green', c),
-                stroke: green,
-                strokeWidth: 1.2,
-            }),
-        ),
-        ...Array.from({ length: 8 }, (_, lane) =>
-            SvgFrame({
-                key: `gs-${lane}`,
-                x: 32 + lane * 95,
-                y: 286,
-                width: 89,
-                height: 64,
-                c,
-                rx: 8,
-                fill: getToneFill('warm', c),
-                stroke: warm,
-                strokeWidth: 1.4,
-            }),
-        ),
-        ...Array.from({ length: 8 }, (_, lane) => {
-            const row = Math.floor(lane / 4)
-            const col = lane % 4
-            return [
-                SvgFrame({
-                    key: `sc-${lane}`,
-                    x: 28 + col * 91,
-                    y: 472 + row * 68,
-                    width: 85,
-                    height: 60,
-                    c,
-                    rx: 8,
-                    fill: getToneFill('critical', c),
-                    stroke: red,
-                    strokeWidth: 1.3,
-                }),
-                SvgFrame({
-                    key: `sp-${lane}`,
-                    x: 430 + col * 91,
-                    y: 472 + row * 68,
-                    width: 85,
-                    height: 60,
-                    c,
-                    rx: 8,
-                    fill: getToneFill('green', c),
-                    stroke: green,
-                    strokeWidth: 1.3,
-                }),
-            ]
-        }).flat(),
-    ]
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({
-            background: 'transparent',
-            c,
-            width,
-            height,
-            children: [
-                CanvasItem({
-                    x: 0,
-                    y: 0,
-                    width,
-                    height,
-                    children: React.createElement(
-                        'svg',
-                        { width, height, viewBox: `0 0 ${width} ${height}` },
-                        ...shapes,
-                    ),
-                }),
-                lbl(c, 'Access patterns shape memory', 18, 12, 780, 29, c.textPrimary, 'left', 760),
-                lbl(
-                    c,
-                    'Eight lanes load 4-byte words in global and shared memory.',
-                    18,
-                    50,
-                    780,
-                    24,
-                ),
-                lbl(
-                    c,
-                    'Global · adjacent words → 1 aligned 32-B segment',
-                    32,
-                    102,
-                    756,
-                    25,
-                    green,
-                    'left',
-                    720,
-                ),
-                ...Array.from({ length: 8 }, (_, lane) => [
-                    lbl(
-                        c,
-                        `L${lane}`,
-                        32 + lane * 94,
-                        148,
-                        94,
-                        24,
-                        greenBoxText,
-                        'center',
-                        700,
-                        true,
-                    ),
-                    lbl(
-                        c,
-                        `w${lane}`,
-                        32 + lane * 94,
-                        176,
-                        94,
-                        24,
-                        greenBoxText,
-                        'center',
-                        650,
-                        true,
-                    ),
-                ]).flat(),
-                lbl(
-                    c,
-                    'Global · column stride 32 → 8 separate 32-B segments',
-                    32,
-                    244,
-                    756,
-                    25,
-                    warm,
-                    'left',
-                    720,
-                ),
-                ...Array.from({ length: 8 }, (_, lane) => [
-                    lbl(
-                        c,
-                        `L${lane}`,
-                        32 + lane * 95,
-                        290,
-                        89,
-                        24,
-                        warmBoxText,
-                        'center',
-                        700,
-                        true,
-                    ),
-                    lbl(
-                        c,
-                        `w${lane * 32}`,
-                        32 + lane * 95,
-                        318,
-                        89,
-                        24,
-                        warmBoxText,
-                        'center',
-                        650,
-                        true,
-                    ),
-                ]).flat(),
-                lbl(c, 'Shared · stride 32 → Bank 0', 28, 392, 362, 25, red, 'left', 720),
-                lbl(c, 'Lanes L0–L7 · 8-way conflict', 28, 426, 362, 24, c.textSecondary),
-                ...Array.from({ length: 8 }, (_, lane) => {
-                    const r = Math.floor(lane / 4)
-                    const col = lane % 4
-                    const bx = 28 + col * 91
-                    const by = 474 + r * 68
-                    return [
-                        lbl(
-                            c,
-                            `w${lane * 32}`,
-                            bx,
-                            by + 2,
-                            85,
-                            24,
-                            redBoxText,
-                            'center',
-                            650,
-                            true,
-                        ),
-                        lbl(c, '→ B0', bx, by + 29, 85, 24, redBoxText, 'center', 720, true),
-                    ]
-                }).flat(),
-                lbl(c, 'Shared · pad stride 33', 430, 392, 362, 25, green, 'left', 720),
-                lbl(c, 'Lanes L0–L7 · conflict removed', 430, 426, 362, 24, c.textSecondary),
-                ...Array.from({ length: 8 }, (_, lane) => {
-                    const r = Math.floor(lane / 4)
-                    const col = lane % 4
-                    const bx = 430 + col * 91
-                    const by = 474 + r * 68
-                    return [
-                        lbl(
-                            c,
-                            `w${lane * 33}`,
-                            bx,
-                            by + 2,
-                            85,
-                            24,
-                            greenBoxText,
-                            'center',
-                            650,
-                            true,
-                        ),
-                        lbl(
-                            c,
-                            `→ B${lane}`,
-                            bx,
-                            by + 29,
-                            85,
-                            24,
-                            greenBoxText,
-                            'center',
-                            720,
-                            true,
-                        ),
-                    ]
-                }).flat(),
-            ],
-        }),
+    const g1W = 91
+    for (let lane = 0; lane < 8; lane++) {
+        const x = 24 + lane * g1W
+        fig.rect(x, 38, g1W, 50, {
+            fill: tint(green, c.bg, fillAmt),
+            stroke: green,
+            strokeWidth: 1.2,
+            radius: lane === 0 || lane === 7 ? 6 : 0,
+        })
+        fig.text(x + g1W / 2, 53, `L${lane}`, {
+            size: 12,
+            weight: 700,
+            color: c.textSecondary,
+            mono: true,
+            align: 'center',
+        })
+        fig.text(x + g1W / 2, 73, `w${lane}`, {
+            size: 13.5,
+            weight: 700,
+            color: green,
+            mono: true,
+            align: 'center',
+        })
+    }
+    fig.brace(24, 92, 24 + 8 * g1W, 92, '1 transaction (32 bytes)', {
+        side: 1,
+        depth: 7,
+        color: green,
+        labelColor: green,
+        labelSize: 12,
+        weight: 600,
+        labelGap: 13,
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    // ─── BAND 2: GLOBAL STRIDED (8 SEPARATE 32-B SEGMENTS) ───
+    fig.text(24, 144, 'Global memory · column stride 32 scatters across 8 separate 32-B segments', {
+        size: 14.5,
+        weight: 700,
+        color: warm,
+    })
+
+    const g2W = 84
+    const g2Gap = 8
+    for (let lane = 0; lane < 8; lane++) {
+        const x = 24 + lane * (g2W + g2Gap)
+        fig.rect(x, 164, g2W, 50, {
+            fill: tint(warm, c.bg, fillAmt),
+            stroke: warm,
+            strokeWidth: 1.4,
+            radius: 6,
+        })
+        fig.text(x + g2W / 2, 179, `L${lane}`, {
+            size: 12,
+            weight: 700,
+            color: c.textSecondary,
+            mono: true,
+            align: 'center',
+        })
+        fig.text(x + g2W / 2, 199, `w${lane * 32}`, {
+            size: 13.5,
+            weight: 700,
+            color: warm,
+            mono: true,
+            align: 'center',
+        })
+    }
+    fig.text(390, 232, '8 separate memory transactions (8× bandwidth waste)', {
+        size: 12,
+        weight: 600,
+        color: warm,
+        align: 'center',
+    })
+
+    fig.line(24, 256, width - 24, 256, { color: c.borderSubtle, width: 1, dash: '4 4' })
+
+    // ─── BAND 3: SHARED MEMORY BANK CONFLICT VS PAD STRIDE 33 ───
+    // Left column: stride 32 -> 8-way conflict on Bank 0
+    fig.text(24, 280, 'Shared memory · stride 32 → Bank 0', {
+        size: 14.5,
+        weight: 700,
+        color: critical,
+    })
+    fig.text(24, 302, 'All 8 lanes collide on B0 (8-way serialized)', {
+        size: 12.5,
+        color: c.textSecondary,
+    })
+
+    const cellW = 80
+    const cellGap = 8
+    for (let lane = 0; lane < 8; lane++) {
+        const r = Math.floor(lane / 4)
+        const col = lane % 4
+        const x = 24 + col * (cellW + cellGap)
+        const y = 326 + r * 64
+        fig.rect(x, y, cellW, 54, {
+            fill: tint(critical, c.bg, fillAmt),
+            stroke: critical,
+            strokeWidth: 1.4,
+            radius: 7,
+        })
+        fig.text(x + cellW / 2, y + 18, `w${lane * 32}`, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+            mono: true,
+            align: 'center',
+        })
+        fig.text(x + cellW / 2, y + 38, '→ B0', {
+            size: 13,
+            weight: 700,
+            color: critical,
+            mono: true,
+            align: 'center',
+        })
+    }
+
+    // Center vertical divider
+    fig.line(390, 274, 390, 456, { color: c.borderSubtle, width: 1 })
+
+    // Right column: pad stride 33 -> Banks B0..B7 parallel
+    const rx = 414
+    fig.text(rx, 280, 'Shared memory · padded stride 33', {
+        size: 14.5,
+        weight: 700,
+        color: green,
+    })
+    fig.text(rx, 302, 'Lanes hit B0–B7 in parallel (conflict-free)', {
+        size: 12.5,
+        color: c.textSecondary,
+    })
+
+    for (let lane = 0; lane < 8; lane++) {
+        const r = Math.floor(lane / 4)
+        const col = lane % 4
+        const x = rx + col * (cellW + cellGap)
+        const y = 326 + r * 64
+        fig.rect(x, y, cellW, 54, {
+            fill: tint(green, c.bg, fillAmt),
+            stroke: green,
+            strokeWidth: 1.4,
+            radius: 7,
+        })
+        fig.text(x + cellW / 2, y + 18, `w${lane * 33}`, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+            mono: true,
+            align: 'center',
+        })
+        fig.text(x + cellW / 2, y + 38, `→ B${lane}`, {
+            size: 13,
+            weight: 700,
+            color: green,
+            mono: true,
+            align: 'center',
+        })
+    }
+
+    return fig.render()
+}
+
+export default create()

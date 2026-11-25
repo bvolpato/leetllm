@@ -1,51 +1,86 @@
 import React from 'react'
-import { LineChart, Scene, defineIllustration, withDensity } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 660
-export const height = 500
+export const width = 760
+export const height = 385
 export const alt =
-    'Line chart comparing pass at k (probability of at least one passing run across k trials) against pass power k (probability that all k runs succeed) for a single-trial success rate of 70 percent. Across k from 1 to 6, pass at k rises from 70 percent toward 100 percent while pass power k drops from 70 percent down to 12 percent.'
+    'Line chart comparing pass@k (at least one passing run across k trials) against pass^k (all k runs succeeding) at single-trial success rate p = 0.70. From k = 1 to 6, pass@k rises from 70% to 100% while pass^k falls from 70% down to 12%.'
 
-const illustration = defineIllustration((baseTheme) => {
-    const c = withDensity(baseTheme, 2.0)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const green = fig.tone('green')
+    const red = fig.tone('red')
 
-    return (
-        <Scene
-            c={c}
-            density={2.0}
-            padding={14}
-            gap={8}
-            title="Discovery (pass@k) vs. Reliability (pass^k) at p = 0.70"
-        >
-            <LineChart
-                c={c}
-                width={630}
-                height={460}
-                labels={['k=1', 'k=2', 'k=3', 'k=4', 'k=5', 'k=6']}
-                min={0}
-                max={1.0}
-                format="percent"
-                showGrid
-                showPoints
-                directLabels
-                yAxisLabel="Probability (%)"
-                series={[
-                    {
-                        name: 'pass@k (any)',
-                        points: [0.7, 0.91, 0.97, 0.99, 1.0, 1.0],
-                        color: 'green',
-                    },
-                    {
-                        name: 'pass^k (all)',
-                        points: [0.7, 0.49, 0.34, 0.24, 0.17, 0.12],
-                        color: 'critical',
-                    },
-                ]}
-                ariaLabel="Line chart comparing pass at k discovery against pass power k multi-run reliability from k=1 to k=6"
-            />
-        </Scene>
-    )
-})
+    const area = { x: 84, y: 38, width: 514, height: 286 }
+    const plot = fig.plot(area, { x: [1, 6], y: [0, 105] })
 
-export const create = illustration.create
-export default illustration.default
+    plot.axes({
+        xTicks: [1, 2, 3, 4, 5, 6],
+        yTicks: [0, 25, 50, 75, 100],
+        xFormat: (v) => `k = ${v}`,
+        yFormat: (v) => `${v}%`,
+        xLabel: 'Trials per task (p = 0.70 single-run success)',
+        yLabel: 'Probability (%)',
+        grid: true,
+        labelSize: 13,
+    })
+
+    const passAtK: [number, number][] = [
+        [1, 70],
+        [2, 91],
+        [3, 97],
+        [4, 99],
+        [5, 100],
+        [6, 100],
+    ]
+    const passPowK: [number, number][] = [
+        [1, 70],
+        [2, 49],
+        [3, 34],
+        [4, 24],
+        [5, 17],
+        [6, 12],
+    ]
+
+    plot.band(passPowK, passAtK, { fill: c.textMuted, fillOpacity: theme === 'light' ? 0.08 : 0.09, smooth: true })
+    plot.smoothCurve(passAtK, { color: green, width: 2.8 })
+    plot.smoothCurve(passPowK, { color: red, width: 2.8 })
+
+    for (const [k, v] of passAtK) plot.point(k, v, { color: green, r: 4.5 })
+    for (const [k, v] of passPowK) plot.point(k, v, { color: red, r: 4.5 })
+
+    // Direct end labels cleanly to the right of k=6
+    fig.text(plot.px(6) + 12, plot.py(100) - 8, 'pass@k (any)', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+    fig.math(plot.px(6) + 12, plot.py(100) + 14, '1 - (1-p)^k \\to 100\\%', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    fig.text(plot.px(6) + 12, plot.py(12) - 8, 'pass^k (all)', {
+        size: 14,
+        weight: 700,
+        color: red,
+    })
+    fig.math(plot.px(6) + 12, plot.py(12) + 14, 'p^k \\to 12\\%', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    // Gap callout
+    fig.text(plot.px(4.2), plot.py(60), 'reliability gap', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    return fig.render()
+}
+
+export default create('dark')

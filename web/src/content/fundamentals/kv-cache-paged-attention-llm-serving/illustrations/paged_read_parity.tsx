@@ -1,293 +1,264 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 900
-export const height = 760
+export const width = 736
+export const height = 435
 export const alt =
-    'With block size two, A table [3, 1] reads logical positions zero and one from physical block 3 and position two from block 1. Block 1 slot 1 holds an invalid K=(1000,1000), V=(999,999) sentinel and is excluded at valid length three; B owns block 2. For q=(1,0.5), the paged read matches contiguous attention at (2.461842, 1.904740). Mapping A to B or including the sentinel changes the result.'
+    'Spatial block-table mapping for paged KV read parity (block size 2). Left block tables show A table [3, 1] with valid_length = 3 and B table [2]. Arrows connect A logical block 0 to physical block #3 (valid positions p0 and p1) and A logical block 1 to physical block #1 (valid position p2 in slot 0; invalid sentinel K=(1000,1000), V=(999,999) in slot 1 excluded by valid_length). B maps to physical block #2. Bottom readout confirms q=(1, 0.5) gives identical paged and contiguous attention output (2.461842, 1.904740).'
 
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    value: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize: number,
-    color: string,
-    align: 'left' | 'center' | 'right' = 'left',
-    fontWeight: number = 600,
-): React.ReactElement {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: Math.max(36, fontSize + 10),
-        children: TextLabel({ c, text: value, fontSize, fontWeight, color, align, width: w }),
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+
+    fig.text(28, 20, 'Block-table indirection & valid-length masking (block size = 2)', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
     })
-}
 
-export function create(theme: ThemeMode = 'dark'): React.ReactElement {
-    const c = getThemeColors(theme, theme === 'dark' ? 'default' : 'engineering')
-    const purple = getReadableToneColor('purple', c, c.bg, c.bg)
-    const blue = getReadableToneColor('blue', c, c.bg, c.bg)
-    const warm = getReadableToneColor('warm', c, c.bg, c.bg)
-    const critical = getReadableToneColor('critical', c, c.bg, c.bg)
+    // --- Left: Logical Block Tables ---
+    fig.text(28, 54, 'Logical block tables', { size: 13, weight: 600, color: c.textSecondary })
 
-    const mapRows = [
+    // A table [3, 1]
+    const tblX = 28
+    const tblW = 200
+    fig.rect(tblX, 74, tblW, 134, {
+        fill: tint(purple, c.bg, theme === 'light' ? 0.08 : 0.14),
+        stroke: purple,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(tblX + 12, 92, 'Request A · valid_len = 3', {
+        size: 13,
+        weight: 700,
+        color: purple,
+    })
+
+    const aRow0Y = 114
+    const aRow1Y = 160
+    fig.rect(tblX + 12, aRow0Y, tblW - 24, 34, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.16 : 0.26),
+        stroke: blue,
+        strokeWidth: 1.4,
+        radius: 5,
+    })
+    fig.text(tblX + tblW / 2, aRow0Y + 17, 'table[0] = 3 (p0, p1)', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+    })
+
+    fig.rect(tblX + 12, aRow1Y, tblW - 24, 34, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.16 : 0.26),
+        stroke: blue,
+        strokeWidth: 1.4,
+        radius: 5,
+    })
+    fig.text(tblX + tblW / 2, aRow1Y + 17, 'table[1] = 1 (p2)', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+    })
+
+    // B table [2]
+    const bTblY = 236
+    fig.rect(tblX, bTblY, tblW, 88, {
+        fill: tint(warm, c.bg, theme === 'light' ? 0.08 : 0.14),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(tblX + 12, bTblY + 20, 'Request B (isolated)', {
+        size: 13,
+        weight: 700,
+        color: warm,
+    })
+    fig.rect(tblX + 12, bTblY + 40, tblW - 24, 34, {
+        fill: tint(warm, c.bg, theme === 'light' ? 0.16 : 0.26),
+        stroke: warm,
+        strokeWidth: 1.4,
+        radius: 5,
+    })
+    fig.text(tblX + tblW / 2, bTblY + 57, 'B table[0] = 2', {
+        size: 13,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+        mono: true,
+    })
+
+    // --- Right: 4 Physical KV Blocks (#0..#3) stacked cleanly ---
+    const phyX = 324
+    const phyW = 388
+    const blkH = 60
+    const blkGap = 14
+    const phyTop = 66
+    fig.text(phyX, 50, 'Physical KV pool (slot 0 | slot 1)', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+    })
+
+    const blocks = [
         {
-            y: 116,
-            left: 'A log #0 (0-1)',
-            mid: 'table[0] = 3',
-            right: 'block #3 (pos 0-1)',
-            stroke: c.primary,
+            id: '#0',
+            owner: 'free',
+            stroke: c.borderLight,
+            ownerTone: c.textMuted,
+            s0: { head: 'empty', sub: 'free', kind: 'free' },
+            s1: { head: 'empty', sub: 'free', kind: 'free' },
         },
         {
-            y: 182,
-            left: 'A log #1 (2-3)',
-            mid: 'table[1] = 1',
-            right: 'block #1 (pos 2)',
-            stroke: c.primary,
+            id: '#1',
+            owner: 'A log 1',
+            stroke: purple,
+            ownerTone: purple,
+            s0: { head: 'p2 · K(1,1)', sub: 'V(4,2) ✓', kind: 'valid' },
+            s1: { head: 'K1000, V999', sub: 'tail masked ✗', kind: 'tail' },
         },
         {
-            y: 248,
-            left: 'B log #0',
-            mid: 'B table[0] = 2',
-            right: 'block #2 (seq B)',
-            stroke: c.warning,
+            id: '#2',
+            owner: 'B-owned',
+            stroke: warm,
+            ownerTone: warm,
+            s0: { head: 'B · K(-1,0)', sub: 'V(-5,-5)', kind: 'other' },
+            s1: { head: 'empty', sub: 'free', kind: 'free' },
+        },
+        {
+            id: '#3',
+            owner: 'A log 0',
+            stroke: purple,
+            ownerTone: purple,
+            s0: { head: 'p0 · K(1,0)', sub: 'V(2,1) ✓', kind: 'valid' },
+            s1: { head: 'p1 · K(0,1)', sub: 'V(0,3) ✓', kind: 'valid' },
         },
     ]
 
-    const cards = [
-        {
-            x: 20,
-            y: 334,
-            title: 'Physical #0 · free',
-            stroke: c.border,
-            titleColor: c.textMuted,
-            s0: ['slot 0', 'empty', 'free'],
-            s1: ['slot 1', 'empty', 'free'],
-        },
-        {
-            x: 456,
-            y: 334,
-            title: 'Physical #1 · A log 1',
-            stroke: c.primary,
-            titleColor: purple,
-            s0: ['p2 · K(1,1)', 'V(4,2)', 'valid'],
-            s1: ['p3 · K1000', 'V999 · tail', 'tail'],
-        },
-        {
-            x: 20,
-            y: 472,
-            title: 'Physical #2 · B-owned',
-            stroke: c.warning,
-            titleColor: warm,
-            s0: ['B · K(-1,0)', 'V(-5,-5)', 'other'],
-            s1: ['slot 1', 'empty', 'free'],
-        },
-        {
-            x: 456,
-            y: 472,
-            title: 'Physical #3 · A log 0',
-            stroke: c.primary,
-            titleColor: purple,
-            s0: ['p0 · K(1,0)', 'V(2,1)', 'valid'],
-            s1: ['p1 · K(0,1)', 'V(0,3)', 'valid'],
-        },
-    ]
+    blocks.forEach((b, idx) => {
+        const y = phyTop + idx * (blkH + blkGap)
+        fig.rect(phyX, y, phyW, blkH, {
+            fill: tint(b.stroke, c.bg, theme === 'light' ? 0.05 : 0.1),
+            stroke: b.stroke,
+            strokeWidth: 1.5,
+            radius: 7,
+        })
 
-    const slotBorder = (kind: string) =>
-        kind === 'tail'
-            ? c.critical
-            : kind === 'other'
-              ? c.warning
-              : kind === 'free'
-                ? c.borderLight
-                : c.info
+        // Block id tag on left inside block
+        fig.text(phyX + 10, y + 19, b.id, {
+            size: 14,
+            weight: 700,
+            color: b.ownerTone,
+            mono: true,
+        })
+        fig.text(phyX + 10, y + 40, b.owner, {
+            size: 13,
+            weight: 600,
+            color: b.ownerTone,
+        })
 
-    const art = (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-            <line x1={20} y1={102} x2={880} y2={102} stroke={c.borderLight} strokeWidth={2} />
-            {mapRows.map((r) => (
-                <g key={r.left}>
-                    {SvgFrame({
-                        c,
-                        x: 20,
-                        y: r.y,
-                        width: 256,
-                        height: 50,
-                        rx: 6,
-                        fill: c.bgCardAlt,
-                        stroke: r.stroke,
-                        strokeWidth: 2,
-                    })}
-                    {VectorArrow({
-                        x1: 282,
-                        y1: r.y + 25,
-                        x2: 320,
-                        y2: r.y + 25,
-                        color: r.stroke,
-                        strokeWidth: 2.5,
-                    })}
-                    {SvgFrame({
-                        c,
-                        x: 326,
-                        y: r.y,
-                        width: 236,
-                        height: 50,
-                        rx: 6,
-                        fill: c.bgCardAlt,
-                        stroke: c.border,
-                        strokeWidth: 2,
-                    })}
-                    {VectorArrow({
-                        x1: 568,
-                        y1: r.y + 25,
-                        x2: 606,
-                        y2: r.y + 25,
-                        color: r.stroke,
-                        strokeWidth: 2.5,
-                    })}
-                    {SvgFrame({
-                        c,
-                        x: 612,
-                        y: r.y,
-                        width: 268,
-                        height: 50,
-                        rx: 6,
-                        fill: c.bgCardAlt,
-                        stroke: r.stroke,
-                        strokeWidth: 2,
-                    })}
-                </g>
-            ))}
-            <line x1={20} y1={318} x2={880} y2={318} stroke={c.borderLight} strokeWidth={2} />
-            {cards.map((card) => (
-                <g key={card.title}>
-                    {SvgFrame({
-                        c,
-                        x: card.x,
-                        y: card.y,
-                        width: 424,
-                        height: 126,
-                        rx: 8,
-                        fill: c.bgCardAlt,
-                        stroke: card.stroke,
-                        strokeWidth: 2,
-                    })}
-                    {[card.s0, card.s1].map((sl, idx) => (
-                        <rect
-                            key={idx}
-                            x={card.x + 10 + idx * 204}
-                            y={card.y + 42}
-                            width={198}
-                            height={74}
-                            rx={4}
-                            fill={sl[2] === 'free' ? 'none' : c.bg}
-                            stroke={slotBorder(sl[2])}
-                            strokeWidth={2}
-                            strokeDasharray={
-                                sl[2] === 'tail' || sl[2] === 'free' ? '6 4' : undefined
-                            }
-                        />
-                    ))}
-                </g>
-            ))}
-            <line x1={20} y1={614} x2={880} y2={614} stroke={c.borderLight} strokeWidth={2} />
-        </svg>
-    )
-
-    const mapLabels = mapRows.flatMap((r) => [
-        label(c, r.left, 20, r.y + 8, 256, 29, c.textPrimary, 'center', 700),
-        label(c, r.mid, 326, r.y + 8, 236, 29, c.textPrimary, 'center', 700),
-        label(c, r.right, 612, r.y + 8, 268, 29, c.textPrimary, 'center', 700),
-    ])
-
-    const cardLabels = cards.flatMap((card) => [
-        label(c, card.title, card.x + 12, card.y + 4, 400, 29, card.titleColor, 'left', 700),
-        ...[card.s0, card.s1].flatMap((sl, idx) => {
-            const sx = card.x + 10 + idx * 204
-            const tone =
-                sl[2] === 'tail'
-                    ? critical
-                    : sl[2] === 'free'
-                      ? c.textMuted
-                      : sl[2] === 'other'
+        // Two slots side by side
+        const slots = [b.s0, b.s1]
+        slots.forEach((sl, sIdx) => {
+            const sx = phyX + 86 + sIdx * 151
+            const sw = 145
+            const sh = 46
+            const sy = y + 7
+            const stTone =
+                sl.kind === 'valid'
+                    ? blue
+                    : sl.kind === 'tail'
+                      ? red
+                      : sl.kind === 'other'
                         ? warm
-                        : blue
-            return [
-                label(c, sl[0], sx, card.y + 44, 198, 29, tone, 'center', 700),
-                label(c, sl[1], sx, card.y + 78, 198, 29, c.textSecondary, 'center', 600),
-            ]
-        }),
-    ])
-
-    const children = [
-        CanvasItem({ x: 0, y: 0, width, height, children: art }),
-        label(c, "Follow A's valid K/V reads", 20, 14, 860, 34, c.textPrimary, 'left', 700),
-        label(
-            c,
-            '4-block example · block size 2 · A table [3, 1]',
-            20,
-            56,
-            860,
-            30,
-            c.textSecondary,
-        ),
-        ...mapLabels,
-        ...cardLabels,
-        label(
-            c,
-            "Wrong map A table[1] -> block 2 reads B's value.",
-            20,
-            626,
-            860,
-            29,
-            critical,
-            'left',
-            700,
-        ),
-        label(
-            c,
-            'Valid length 3 stops at pos 2; skip slot 1 sentinel & B.',
-            20,
-            666,
-            860,
-            29,
-            c.textSecondary,
-            'left',
-            650,
-        ),
-        label(
-            c,
-            'q = (1, 0.5) · paged = contiguous = (2.461842, 1.904740)',
-            20,
-            706,
-            860,
-            29,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-    ]
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({ c, width, height, background: 'transparent', children }),
+                        : c.borderLight
+            fig.rect(sx, sy, sw, sh, {
+                fill:
+                    sl.kind === 'free'
+                        ? 'none'
+                        : tint(stTone, c.bg, theme === 'light' ? 0.15 : 0.25),
+                stroke: stTone,
+                strokeWidth: sl.kind === 'tail' ? 1.75 : 1.25,
+                radius: 5,
+            })
+            fig.text(sx + sw / 2, sy + 14, sl.head, {
+                size: 13,
+                weight: 700,
+                color: sl.kind === 'free' ? c.textMuted : stTone,
+                align: 'center',
+                mono: true,
+            })
+            fig.text(sx + sw / 2, sy + 33, sl.sub, {
+                size: 13,
+                weight: 600,
+                color: sl.kind === 'tail' ? red : c.textSecondary,
+                align: 'center',
+                mono: true,
+            })
+        })
     })
+
+    // --- Curved spatial mapping arrows (table -> physical block) ---
+    const blkCenterY = (i: number) => phyTop + i * (blkH + blkGap) + blkH / 2
+    const srcX = tblX + tblW - 12
+
+    // A table[0] -> Physical #3
+    const a0y = aRow0Y + 17
+    const b3y = blkCenterY(3)
+    fig.path(`M${srcX} ${a0y} C${srcX + 68} ${a0y}, ${phyX - 68} ${b3y}, ${phyX - 6} ${b3y}`, {
+        color: purple,
+        width: 2,
+    })
+    fig.arrow(phyX - 16, b3y, phyX - 2, b3y, { color: purple, width: 2, head: 6 })
+
+    // A table[1] -> Physical #1
+    const a1y = aRow1Y + 17
+    const b1y = blkCenterY(1)
+    fig.path(`M${srcX} ${a1y} C${srcX + 54} ${a1y}, ${phyX - 54} ${b1y}, ${phyX - 6} ${b1y}`, {
+        color: blue,
+        width: 2,
+    })
+    fig.arrow(phyX - 16, b1y, phyX - 2, b1y, { color: blue, width: 2, head: 6 })
+
+    // B table[0] -> Physical #2
+    const b0y = bTblY + 57
+    const b2y = blkCenterY(2)
+    fig.path(`M${srcX} ${b0y} C${srcX + 54} ${b0y}, ${phyX - 54} ${b2y}, ${phyX - 6} ${b2y}`, {
+        color: warm,
+        width: 2,
+        dash: '5 3',
+    })
+    fig.arrow(phyX - 16, b2y, phyX - 2, b2y, { color: warm, width: 2, head: 6 })
+
+    // --- Bottom exact parity verification bar ---
+    fig.rect(28, 372, 684, 46, {
+        fill: tint(green, c.bg, theme === 'light' ? 0.12 : 0.18),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 7,
+    })
+    fig.text(42, 395, 'q = (1, 0.5) → Paged = Contiguous = (2.461842, 1.904740)', {
+        size: 13,
+        weight: 700,
+        color: green,
+        mono: true,
+    })
+    fig.text(698, 395, 'Sentinel & B excluded ✓', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+        align: 'right',
+    })
+
+    return fig.render()
 }
 
-export default create('dark')
+export default create

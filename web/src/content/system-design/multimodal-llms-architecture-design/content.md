@@ -53,11 +53,6 @@ Pixels, audio spectrograms, and text tokens live in different coordinate systems
 
 **CLIP (Contrastive Language-Image Pre-training)** aligned whole images and captions inside one shared hypersphere from 400 million web `(image, text)` pairs.[^radford2021] It runs an image tower (ResNet or ViT) and a <span data-glossary="transformer">Transformer</span> text tower independently, joining them only at the output via linear projections and L2 normalization. That **late-fusion** design lets you embed millions of images offline and rank them against any text prompt with a single dot product.
 
-<figure>
-  <img src="illustrations/_generated/late_fusion_retrieval_dark.png" alt="Image and text towers pool each modality into one compact embedding for similarity scoring without exposing spatial tokens to a decoder." />
-  <figcaption>Late fusion pools each modality into one vector for fast CLIP retrieval; grounded reading and generation require exposing spatial tokens to a decoder.</figcaption>
-</figure>
-
 ### CLIP symmetric InfoNCE loss
 
 For $N$ paired L2-normalized image and text embeddings $(I_i, T_j)$, CLIP builds the $N \times N$ scaled cosine <span data-glossary="logits">logit</span> matrix $z_{ij} = \exp(t) \cdot I_i^\top T_j = I_i^\top T_j / \tau$, where $t$ is a learned log-scale (initialized near $1/0.07$, clamped at $\exp(t) \le 100$).[^radford2021] The $N$ diagonal pairs are positives and the $N^2 - N$ off-diagonal pairs serve as in-batch negatives under symmetric InfoNCE <span data-glossary="cross-entropy">cross-entropy</span>:
@@ -237,11 +232,6 @@ linear: (576, 2048) | q-former: (32, 2048) (18x compression)
 
 ## Fusion architectures: early, late, and cross-attention
 
-<figure>
-  <img src="illustrations/_generated/fusion_strategies_dark.png" alt="Comparison of early fusion, cross-attention, and late fusion showing where modalities interact." />
-  <figcaption>Three fusion families: unified decoder prefix (early fusion), side visual memory read by selected layers (cross-attention), or pooled similarity after separate towers (late fusion).</figcaption>
-</figure>
-
 | Strategy | Interaction point | Best fit | Attention & KV cost |
 |---|---|---|---|
 | **Early fusion** | Interleaved prefix before layer 0 | Fine OCR, chart QA, native VLMs | Shared $O((T_{\text{text}}+T_{\text{vis}})^2)$ self-attention and shared KV cache |
@@ -311,17 +301,7 @@ scores: early=5,569,600 | cross-attn=352,000 (+ text self-attn)
 
 Different modalities emit features at vastly different rates: five 336px crops emit 2,880 patches, 40 seconds of audio at 100 Hz emit 4,000 spectrogram frames, and a transcript adds 2,000 text <span data-glossary="token">tokens</span>.
 
-<figure>
-  <img src="illustrations/_generated/modality_encoders_dark.png" alt="Multimodal frontends with different rates: five views emit 2,880 patches, 40s audio compresses from 4,000 frames to 400, and text enters via standard token embeddings." />
-  <figcaption>Vision and audio frontends operate at native rates before connectors compress them alongside standard text tokens.</figcaption>
-</figure>
-
 Match pretrained frontends to signal types: **CLIP**[^radford2021] or **SigLIP**[^zhai2023] for images, **Whisper**[^radford2022] for speech spectrograms, and **CLAP**[^elizalde2023] for non-speech audio retrieval; for video, combine spatial compression with temporal sampling or spatiotemporal pooling (TimeSformer,[^bertasius2021] VideoMAE[^tong2022]). For speech, timestamped transcripts beat raw audio on cost unless tone, overlap, or alarms matter; when feeding raw audio, stride-10 temporal pooling compresses `4,000 -> 400` tokens (trading 10 ms precision for 100 ms steps). Always separate **utterance time** (when someone spoke) from **event time** (when a metric changed on a chart).
-
-<figure>
-  <img src="illustrations/_generated/audio_pipeline_dark.png" alt="40-second clip enters an audio encoder at 4,000 time steps, compresses to 400 tokens after stride 10, then reaches the language path." />
-  <figcaption>Stride-10 temporal pooling compresses 4,000 audio frames (40 s at 100 Hz) into 400 tokens before fusion.</figcaption>
-</figure>
 
 ## Training recipes and modern VLM tradeoffs
 

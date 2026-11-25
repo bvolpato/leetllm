@@ -1,276 +1,235 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-    getReadableToneColor,
-    getToneFill,
-    type ThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 385
 export const alt =
-    'The voice hot path runs microphone, media edge, turn detection and STT, LLM and tools, then TTS and playout across a streaming pipeline. A separate local-VAD lane mutes and cancels speech with a p95 target under 100 ms. A confirmed-playout ledger records client acknowledgments so only heard audio enters the conversation history.'
+    'Hot path running microphone, media edge, turn detection and STT, LLM and tools, then TTS and playout. Side lanes handle local VAD mute under 100 ms p95 and client-confirmed playout tracking for conversation history.'
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    size = 20,
-    color = c.textPrimary,
-    weight = 500,
-    align: 'left' | 'center' | 'right' = 'center',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * 1.5,
-        children: (
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                fontWeight={weight}
-                color={color}
-                align={align}
-            />
-        ),
+const STAGES = [
+    { title: 'Microphone', sub: 'AEC + 20 ms', tone: 'warm' as const },
+    { title: 'Media Edge', sub: 'WebRTC / RTP', tone: 'cyan' as const },
+    { title: 'Turn + STT', sub: 'Live words', tone: 'purple' as const },
+    { title: 'LLM + Tools', sub: 'First clause', tone: 'blue' as const },
+    { title: 'TTS + Playout', sub: 'Audio stream', tone: 'green' as const },
+] as const
+
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const critical = fig.tone('critical')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const muted = c.textSecondary
+
+    // --- Top Lane: Streaming Audio Hot Path ---
+    fig.text(24, 22, 'Streaming Audio Hot Path', { size: 15, weight: 700, color: blue })
+    fig.text(816, 22, 'Zero extra hops on media packets', {
+        size: 13,
+        color: muted,
+        align: 'right',
     })
-}
 
-export function create(mode: ThemeMode = 'dark') {
-    const c = getThemeColors(mode)
-    const tone = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getReadableToneColor(name, c)
-    const fill = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getToneFill(name, c)
+    const boxW = 136
+    const boxH = 74
+    const gap = 28
+    const hotY = 48
 
-    const stages = [
-        { title: 'Microphone', detail: 'AEC + frames', tone: 'warm' as const },
-        { title: 'Media edge', detail: 'live packets', tone: 'cyan' as const },
-        { title: 'Turn + STT', detail: 'stable words', tone: 'purple' as const },
-        { title: 'LLM + tools', detail: 'first clause', tone: 'blue' as const },
-        { title: 'Speak', detail: 'TTS + playout', tone: 'green' as const },
-    ]
-
-    return Board({
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: (
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {/* Background panel for hot path */}
-                        <rect
-                            x="24"
-                            y="52"
-                            width="812"
-                            height="156"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={c.border}
-                            strokeWidth="1.5"
-                        />
-
-                        {/* 5 Streaming stages */}
-                        {stages.map((s, i) => {
-                            const x = 36 + i * 160
-                            return (
-                                <g key={s.title}>
-                                    <rect
-                                        x={x}
-                                        y={86}
-                                        width="134"
-                                        height="86"
-                                        rx="8"
-                                        fill={fill(s.tone)}
-                                        stroke={tone(s.tone)}
-                                        strokeWidth="2"
-                                    />
-                                    {i < 4 && (
-                                        <VectorArrow
-                                            x1={x + 134}
-                                            y1={129}
-                                            x2={x + 160}
-                                            y2={129}
-                                            color={c.textMuted}
-                                            strokeWidth={2}
-                                            arrowSize={4}
-                                        />
-                                    )}
-                                </g>
-                            )
-                        })}
-
-                        {/* Barge-in box */}
-                        <rect
-                            x="24"
-                            y="230"
-                            width="396"
-                            height="240"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={tone('critical')}
-                            strokeWidth="1.5"
-                            strokeOpacity={0.5}
-                        />
-                        <rect
-                            x="42"
-                            y="310"
-                            width="160"
-                            height="96"
-                            rx="8"
-                            fill={fill('warm')}
-                            stroke={tone('warm')}
-                            strokeWidth="2"
-                        />
-                        <VectorArrow
-                            x1={202}
-                            y1={358}
-                            x2={238}
-                            y2={358}
-                            color={tone('critical')}
-                            strokeWidth={2}
-                            arrowSize={5}
-                        />
-                        <rect
-                            x="238"
-                            y="310"
-                            width="164"
-                            height="96"
-                            rx="8"
-                            fill={fill('critical')}
-                            stroke={tone('critical')}
-                            strokeWidth="2"
-                        />
-
-                        {/* Confirmed playout ledger box */}
-                        <rect
-                            x="440"
-                            y="230"
-                            width="396"
-                            height="240"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={tone('purple')}
-                            strokeWidth="1.5"
-                            strokeOpacity={0.5}
-                        />
-                        {[
-                            { x: 456, w: 106, title: 'Playout ACK', sub: 'cursor' },
-                            { x: 580, w: 114, title: 'Heard ledger', sub: 'spans' },
-                            { x: 712, w: 108, title: 'Next turn', sub: 'safe context' },
-                        ].map((b, i) => (
-                            <g key={b.title}>
-                                <rect
-                                    x={b.x}
-                                    y={310}
-                                    width={b.w}
-                                    height="96"
-                                    rx="8"
-                                    fill={fill('purple')}
-                                    stroke={tone('purple')}
-                                    strokeWidth="2"
-                                />
-                                {i < 2 && (
-                                    <VectorArrow
-                                        x1={b.x + b.w}
-                                        y1={358}
-                                        x2={b.x + b.w + 18}
-                                        y2={358}
-                                        color={tone('purple')}
-                                        strokeWidth={2}
-                                        arrowSize={4}
-                                    />
-                                )}
-                            </g>
-                        ))}
-                    </svg>
-                ),
-            }),
-            label(
-                c,
-                'Speech and control run beside each other',
-                24,
-                14,
-                812,
-                24,
-                c.textPrimary,
-                700,
-                'left',
-            ),
-
-            // Hot path labels
-            label(
-                c,
-                'Hot path: streaming speech pipeline',
-                40,
-                58,
-                400,
-                18,
-                tone('blue'),
-                650,
-                'left',
-            ),
-            ...stages.flatMap((s, i) => [
-                label(c, s.title, 40 + i * 160, 98, 126, 20, tone(s.tone), 650),
-                label(c, s.detail, 40 + i * 160, 134, 126, 17, c.textSecondary),
-            ]),
-
-            // Barge-in labels
-            label(c, 'Barge-in cancellation', 40, 242, 220, 20, tone('critical'), 700, 'left'),
-            label(c, 'p95 mute target <100 ms', 220, 244, 184, 17, c.textSecondary, 500, 'right'),
-            label(c, 'Speech onset', 46, 326, 152, 20, tone('warm'), 650),
-            label(c, 'local VAD', 46, 360, 152, 17, c.textSecondary),
-            label(c, 'Mute + cancel', 242, 326, 156, 20, tone('critical'), 650),
-            label(c, 'stop queued TTS', 242, 360, 156, 17, c.textSecondary),
-            label(
-                c,
-                'Immediate local cutoff stops acoustic echo and user overlap',
-                42,
-                426,
-                360,
-                16,
-                c.textMuted,
-                500,
-                'left',
-            ),
-
-            // Confirmed playout labels
-            label(c, 'Confirmed playout ledger', 456, 242, 220, 20, tone('purple'), 700, 'left'),
-            label(c, 'client synchronization', 676, 244, 144, 17, c.textSecondary, 500, 'right'),
-            label(c, 'Playout ACK', 458, 326, 102, 18, tone('purple'), 650),
-            label(c, 'client cursor', 458, 360, 102, 16, c.textSecondary),
-            label(c, 'Heard ledger', 582, 326, 110, 18, tone('purple'), 650),
-            label(c, 'confirmed spans', 582, 360, 110, 16, c.textSecondary),
-            label(c, 'Next turn', 714, 326, 104, 18, tone('purple'), 650),
-            label(c, 'safe context', 714, 360, 104, 16, c.textSecondary),
-            label(
-                c,
-                'Only client-acknowledged words commit to conversation memory',
-                456,
-                426,
-                364,
-                16,
-                c.textMuted,
-                500,
-                'left',
-            ),
-        ],
+    STAGES.forEach((st, i) => {
+        const sx = 24 + i * (boxW + gap)
+        const tone = fig.tone(st.tone)
+        fig.rect(sx, hotY, boxW, boxH, {
+            fill: tint(tone, c.bg, 0.13),
+            stroke: tone,
+            strokeWidth: 1.75,
+            radius: 8,
+        })
+        fig.text(sx + boxW / 2, hotY + 26, st.title, {
+            size: 14,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            width: boxW - 10,
+        })
+        fig.text(sx + boxW / 2, hotY + 52, st.sub, {
+            size: 12,
+            color: muted,
+            align: 'center',
+            width: boxW - 10,
+        })
+        if (i < STAGES.length - 1) {
+            fig.arrow(sx + boxW, hotY + boxH / 2, sx + boxW + gap - 3, hotY + boxH / 2, {
+                color: c.textMuted,
+                width: 2,
+                head: 5,
+            })
+        }
     })
+
+    // Parallel control tap arrows dropping from Microphone and TTS+Playout
+    const laneY = 176
+    const laneH = 190
+
+    fig.arrow(92, hotY + boxH, 92, laneY - 4, {
+        color: critical,
+        width: 2,
+        head: 6,
+        dash: '5 4',
+    })
+    fig.text(104, 148, 'parallel local tap', { size: 12, weight: 600, color: critical })
+
+    fig.arrow(748, hotY + boxH, 748, laneY - 4, {
+        color: purple,
+        width: 2,
+        head: 6,
+        dash: '5 4',
+    })
+    fig.text(736, 148, 'client playout ACK', {
+        size: 12,
+        weight: 600,
+        color: purple,
+        align: 'right',
+    })
+
+    // --- Bottom-Left Parallel Control Lane: Barge-in Cancellation ---
+    const leftX = 24
+    const laneW = 382
+    fig.rect(leftX, laneY, laneW, laneH, {
+        fill: tint(critical, c.bg, 0.05),
+        stroke: tint(critical, c.bg, 0.45),
+        strokeWidth: 1.25,
+        radius: 10,
+    })
+    fig.rect(leftX, laneY, 4, laneH, { fill: critical, radius: 2 })
+    fig.text(leftX + 16, laneY + 24, 'Barge-in Control Lane', {
+        size: 15,
+        weight: 700,
+        color: critical,
+    })
+    fig.text(leftX + laneW - 14, laneY + 24, 'p95 < 100 ms', {
+        size: 13,
+        weight: 700,
+        color: critical,
+        align: 'right',
+        mono: true,
+    })
+
+    // 2 blocks inside barge-in lane
+    const bY = laneY + 56
+    fig.rect(leftX + 18, bY, 152, 74, {
+        fill: tint(warm, c.bg, 0.14),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 7,
+    })
+    fig.text(leftX + 94, bY + 26, 'Local VAD', {
+        size: 14,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        width: 140,
+    })
+    fig.text(leftX + 94, bY + 50, 'Speech onset', {
+        size: 12,
+        color: muted,
+        align: 'center',
+        width: 140,
+    })
+
+    fig.arrow(leftX + 170, bY + 37, leftX + 206, bY + 37, {
+        color: critical,
+        width: 2,
+        head: 6,
+    })
+
+    fig.rect(leftX + 210, bY, 154, 74, {
+        fill: tint(critical, c.bg, 0.14),
+        stroke: critical,
+        strokeWidth: 1.5,
+        radius: 7,
+    })
+    fig.text(leftX + 287, bY + 26, 'Mute + Cancel', {
+        size: 14,
+        weight: 700,
+        color: critical,
+        align: 'center',
+        width: 144,
+    })
+    fig.text(leftX + 287, bY + 50, 'Stop queued TTS', {
+        size: 12,
+        color: muted,
+        align: 'center',
+        width: 144,
+    })
+
+    fig.text(leftX + 18, laneY + 158, 'Immediate local mute avoids network RTT', {
+        size: 13,
+        color: muted,
+    })
+
+    // --- Bottom-Right Parallel Control Lane: Confirmed Playout Ledger ---
+    const rightX = 434
+    fig.rect(rightX, laneY, laneW, laneH, {
+        fill: tint(purple, c.bg, 0.05),
+        stroke: tint(purple, c.bg, 0.45),
+        strokeWidth: 1.25,
+        radius: 10,
+    })
+    fig.rect(rightX, laneY, 4, laneH, { fill: purple, radius: 2 })
+    fig.text(rightX + 16, laneY + 24, 'Confirmed Playout Ledger', {
+        size: 15,
+        weight: 700,
+        color: purple,
+    })
+    fig.text(rightX + laneW - 14, laneY + 24, 'client cursor', {
+        size: 13,
+        weight: 600,
+        color: muted,
+        align: 'right',
+    })
+
+    const ledgerNodes = [
+        { x: rightX + 18, w: 104, title: 'Playout ACK', sub: 'cursor ms' },
+        { x: rightX + 142, w: 106, title: 'Heard Span', sub: 'commit log' },
+        { x: rightX + 268, w: 98, title: 'Next Turn', sub: 'safe LLM' },
+    ] as const
+    ledgerNodes.forEach((n, i) => {
+        fig.rect(n.x, bY, n.w, 74, {
+            fill: tint(i === 2 ? green : purple, c.bg, 0.14),
+            stroke: i === 2 ? green : purple,
+            strokeWidth: 1.5,
+            radius: 7,
+        })
+        fig.text(n.x + n.w / 2, bY + 26, n.title, {
+            size: 13,
+            weight: 700,
+            color: i === 2 ? green : purple,
+            align: 'center',
+            width: n.w - 6,
+        })
+        fig.text(n.x + n.w / 2, bY + 50, n.sub, {
+            size: 12,
+            color: muted,
+            align: 'center',
+            width: n.w - 6,
+        })
+        if (i < ledgerNodes.length - 1) {
+            fig.arrow(n.x + n.w, bY + 37, n.x + n.w + 17, bY + 37, {
+                color: purple,
+                width: 1.75,
+                head: 5,
+            })
+        }
+    })
+
+    fig.text(rightX + 18, laneY + 158, 'Only heard spans enter conversation history', {
+        size: 13,
+        color: muted,
+    })
+
+    return fig.render()
 }
 
 export default create()

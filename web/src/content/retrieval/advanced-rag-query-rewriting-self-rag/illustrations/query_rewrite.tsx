@@ -1,227 +1,245 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    VectorSegment,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 600
-export const height = 742
+export const width = 760
+export const height = 432
 export const alt =
-    'Known endpoint names let three independent embedding API searches start together and merge into a comparison that marks missing evidence. Finding the endpoint with the most errors first creates a dependency: the circuit-breaker search waits for that endpoint result.'
-export const caption =
-    'Independent sub-queries execute in parallel; unresolved hops wait for upstream results and surface missing evidence explicitly.'
-
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align }),
-    })
-}
-
-function frame(
-    c: Colors,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fill: string,
-    stroke = c.borderSubtle,
-    rx = 10,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: React.createElement(
-            'svg',
-            {
-                width: w,
-                height: h,
-                viewBox: `0 0 ${w} ${h}`,
-                role: 'presentation',
-                'aria-hidden': true,
-            },
-            SvgFrame({ c, x: 0, y: 0, width: w, height: h, rx, fill, stroke, strokeWidth: 1.2 }),
-        ),
-    })
-}
-
-function arrow(c: Colors, x: number, y: number, w: number, h: number) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: React.createElement(
-            'svg',
-            {
-                width: w,
-                height: h,
-                viewBox: `0 0 ${w} ${h}`,
-                role: 'presentation',
-                'aria-hidden': true,
-            },
-            VectorSegment({
-                x1: 2,
-                y1: h / 2,
-                x2: w - 12,
-                y2: h / 2,
-                color: getReadableToneColor('blue', c, c.bgCard),
-                strokeWidth: 2.5,
-                showStartDot: false,
-                showEndDot: false,
-            }),
-            VectorArrow({
-                x1: w - 12,
-                y1: h / 2,
-                x2: w - 2,
-                y2: h / 2,
-                color: getReadableToneColor('blue', c, c.bgCard),
-                strokeWidth: 2.5,
-                arrowSize: 4,
-            }),
-        ),
-    })
-}
+    'Top lane: when endpoint names are known, three independent sub-queries (Latency, Limits, Retries) fan out in parallel from the embedding API comparison request and merge while flagging any missing evidence. Bottom lane: when the target endpoint is unknown, Hop 1 finds the highest-error endpoint (embeddings/sync) before Hop 2 searches its circuit-breaker settings, or halts to surface the missing endpoint if Hop 1 returns nothing.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c, c.bgCard)
-    const purple = getReadableToneColor('purple', c, c.bgCard)
-    const green = getReadableToneColor('green', c, c.bgCard)
-    const children: React.ReactNode[] = [
-        label(c, 'Two query shapes, two paths', 24, 14, 552, 34, 25, c.textPrimary, 800),
-        label(
-            c,
-            'Known lookups run together; dependencies wait.',
-            24,
-            51,
-            552,
-            30,
-            20,
-            c.textSecondary,
-            550,
-        ),
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
+    const red = fig.tone('critical')
 
-        frame(c, 22, 98, 556, 286, c.bgCard, c.border, 12),
-        label(c, 'PARALLEL · endpoint names are known', 38, 110, 524, 25, 20, blue, 800),
-        label(
-            c,
-            'Compare sync + batch latency, limits, and retries.',
-            38,
-            139,
-            524,
-            28,
-            20,
-            c.textSecondary,
-            600,
-        ),
+    // ── Top Lane: PARALLEL · Known Entities ──────────────────────────────────
+    fig.text(20, 20, 'PARALLEL · All Entities Known', {
+        size: 15,
+        weight: 700,
+        color: blue,
+    })
+    fig.text(width - 20, 20, '1× retrieval round-trip', {
+        size: 13,
+        mono: true,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'right',
+    })
 
-        frame(c, 38, 176, 150, 164, c.bgCardAlt, c.borderSubtle, 10),
-        label(c, 'Start now', 50, 188, 126, 27, 20, blue, 800, 'center'),
-        label(c, 'Both names are known.', 50, 220, 126, 82, 20, c.textPrimary, 600, 'center'),
+    // Start box
+    const pStartX = 20
+    const pStartY = 66
+    const pStartW = 196
+    const pStartH = 114
+    fig.rect(pStartX, pStartY, pStartW, pStartH, {
+        fill: withColorAlpha(blue, 0.1),
+        stroke: blue,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(pStartX + pStartW / 2, pStartY + 28, 'Decompose Query', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(pStartX + pStartW / 2, pStartY + 58, 'Compare sync + batch', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(pStartX + pStartW / 2, pStartY + 82, 'embedding endpoints', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-        frame(c, 211, 176, 157, 46, c.bgCardAlt, c.borderSubtle, 9),
-        label(c, '01  Latency', 221, 186, 140, 26, 20, c.textPrimary, 650),
-        frame(c, 211, 235, 157, 46, c.bgCardAlt, c.borderSubtle, 9),
-        label(c, '02  Limits', 221, 245, 140, 26, 20, c.textPrimary, 650),
-        frame(c, 211, 294, 157, 46, c.bgCardAlt, c.borderSubtle, 9),
-        label(c, '03  Retries', 221, 304, 140, 26, 20, c.textPrimary, 650),
-        arrow(c, 188, 188, 20, 22),
-        arrow(c, 188, 247, 20, 22),
-        arrow(c, 188, 306, 20, 22),
-        arrow(c, 370, 188, 20, 22),
-        arrow(c, 370, 247, 20, 22),
-        arrow(c, 370, 306, 20, 22),
-        frame(c, 392, 176, 168, 164, c.bgCardAlt, c.borderSubtle, 10),
-        label(c, 'Gather results', 404, 188, 144, 27, 20, green, 800, 'center'),
-        label(
-            c,
-            'Compare measures; show missing as gaps.',
-            404,
-            220,
-            144,
-            112,
-            20,
-            c.textPrimary,
-            600,
-            'center',
-        ),
+    // 3 Parallel Sub-Query Tracks
+    const midX = 278
+    const midW = 192
+    const subH = 32
+    const subs = [
+        { y: 66, tag: '01', name: 'Latency specs' },
+        { y: 107, tag: '02', name: 'Rate limits' },
+        { y: 148, tag: '03', name: 'Retry behavior' },
+    ] as const
 
-        frame(c, 22, 398, 556, 312, c.bgCard, c.border, 12),
-        label(c, 'SEQUENTIAL · the endpoint is unknown', 38, 410, 524, 25, 20, purple, 800),
-        label(
-            c,
-            'Hop 2 needs the endpoint returned by hop 1.',
-            38,
-            439,
-            524,
-            28,
-            20,
-            c.textSecondary,
-            600,
-        ),
+    const gatherX = 532
+    const gatherW = 208
 
-        frame(c, 38, 480, 205, 156, c.bgCardAlt, c.borderSubtle, 10),
-        label(c, '1 · Find endpoint', 50, 490, 181, 27, 20, purple, 800),
-        label(c, 'Which endpoint had most errors?', 50, 519, 181, 58, 20, c.textPrimary, 600),
-        frame(c, 50, 580, 181, 54, c.bgCard, c.borderSubtle, 7),
-        label(c, 'embeddings/sync', 56, 580, 169, 54, 20, blue, 650, 'center'),
+    for (const sub of subs) {
+        const cy = sub.y + subH / 2
+        fig.rect(midX, sub.y, midW, subH, {
+            fill: tint(c.border, c.bg, 0.28),
+            stroke: withColorAlpha(blue, 0.65),
+            strokeWidth: 1.35,
+            radius: 7,
+        })
+        fig.text(midX + 14, cy, sub.tag, {
+            size: 13,
+            mono: true,
+            weight: 700,
+            color: blue,
+        })
+        fig.text(midX + 44, cy, sub.name, {
+            size: 14,
+            weight: 600,
+            color: c.textPrimary,
+        })
 
-        arrow(c, 249, 535, 28, 28),
-        frame(c, 283, 480, 277, 156, c.bgCardAlt, c.borderSubtle, 10),
-        label(c, '2 · Search that endpoint', 295, 490, 253, 27, 20, green, 800),
-        label(c, 'Read its circuit-breaker settings.', 295, 522, 253, 60, 20, c.textPrimary, 600),
-        label(
-            c,
-            'If hop 1 has no result, show the missing endpoint.',
-            38,
-            646,
-            524,
-            28,
-            20,
-            c.textSecondary,
-            600,
-        ),
-        label(
-            c,
-            'Dependent queries wait for their required result.',
-            38,
-            678,
-            524,
-            28,
-            20,
-            c.textMuted,
-            550,
-        ),
-    ]
+        // Fan-out and fan-in arrows
+        fig.arrow(pStartX + pStartW + 4, cy, midX - 4, cy, { color: blue, width: 1.8, head: 7 })
+        fig.arrow(midX + midW + 4, cy, gatherX - 4, cy, { color: green, width: 1.8, head: 7 })
+    }
 
-    return Board({ c, width, height, children })
+    // Gather & Merge box
+    fig.rect(gatherX, pStartY, gatherW, pStartH, {
+        fill: withColorAlpha(green, 0.11),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(gatherX + gatherW / 2, pStartY + 28, 'Merge & Compare', {
+        size: 14,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(gatherX + gatherW / 2, pStartY + 58, 'Combine matched spans;', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(gatherX + gatherW / 2, pStartY + 82, 'flag missing fields', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // ── Horizontal Lane Divider ──────────────────────────────────────────────
+    fig.line(20, 206, width - 20, 206, { color: c.border, width: 1 })
+
+    // ── Bottom Lane: SEQUENTIAL · Dependent Multi-Hop ────────────────────────
+    fig.text(20, 230, 'SEQUENTIAL · Unresolved Entity Dependency', {
+        size: 15,
+        weight: 700,
+        color: purple,
+    })
+    fig.text(width - 20, 230, '2× dependent hops', {
+        size: 13,
+        mono: true,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    const hopY = 264
+    const hopH = 88
+
+    // Hop 1: Find endpoint
+    const h1X = 20
+    const h1W = 248
+    fig.rect(h1X, hopY, h1W, hopH, {
+        fill: withColorAlpha(purple, 0.11),
+        stroke: purple,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(h1X + 14, hopY + 24, 'Hop 1 · Find Endpoint', {
+        size: 14,
+        weight: 700,
+        color: purple,
+    })
+    fig.text(h1X + 14, hopY + 50, 'Which endpoint had the most', {
+        size: 13,
+        color: c.textPrimary,
+    })
+    fig.text(h1X + 14, hopY + 70, 'errors in the last window?', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    // Edge carrying resolved entity pill "embeddings/sync"
+    const h2X = 436
+    const h2W = 304
+    const edgeMidX = (h1X + h1W + h2X) / 2
+    const edgeY = hopY + hopH / 2
+    fig.arrow(h1X + h1W + 4, edgeY, h2X - 4, edgeY, {
+        color: blue,
+        width: 2.2,
+        head: 8,
+    })
+    fig.rect(edgeMidX - 68, edgeY - 36, 136, 26, {
+        fill: withColorAlpha(blue, 0.18),
+        stroke: blue,
+        strokeWidth: 1.3,
+        radius: 13,
+    })
+    fig.text(edgeMidX, edgeY - 23, 'embeddings/sync', {
+        size: 12,
+        mono: true,
+        weight: 700,
+        color: blue,
+        align: 'center',
+    })
+    fig.text(edgeMidX, edgeY + 18, 'resolved entity', {
+        size: 12,
+        color: c.textMuted,
+        align: 'center',
+    })
+
+    // Hop 2: Search resolved endpoint
+    fig.rect(h2X, hopY, h2W, hopH, {
+        fill: withColorAlpha(green, 0.11),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(h2X + 14, hopY + 24, 'Hop 2 · Search That Endpoint', {
+        size: 14,
+        weight: 700,
+        color: green,
+    })
+    fig.text(h2X + 14, hopY + 50, 'Retrieve circuit-breaker settings for', {
+        size: 13,
+        color: c.textPrimary,
+    })
+    fig.text(h2X + 14, hopY + 70, 'embeddings/sync', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: blue,
+    })
+
+    // Missing-evidence stop branch underneath Hop 1
+    const missY = 382
+    fig.path(`M${h1X + 124} ${hopY + hopH + 2}L${h1X + 124} ${missY}L${256} ${missY}`, {
+        color: red,
+        width: 1.75,
+        dash: '4 3',
+    })
+    fig.arrow(248, missY, 264, missY, { color: red, width: 1.75, head: 7 })
+
+    fig.rect(272, missY - 17, 468, 34, {
+        fill: withColorAlpha(red, 0.08),
+        stroke: withColorAlpha(red, 0.55),
+        strokeWidth: 1.3,
+        radius: 7,
+    })
+    fig.text(286, missY, 'No hit in Hop 1:', {
+        size: 13,
+        weight: 700,
+        color: red,
+    })
+    fig.text(398, missY, 'Stop and report missing endpoint (never guess)', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

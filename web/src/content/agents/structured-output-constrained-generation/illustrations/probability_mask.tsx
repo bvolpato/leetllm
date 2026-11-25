@@ -1,113 +1,118 @@
 import React from 'react'
-import {
-    BadgePill,
-    BarChart,
-    FlowArrow,
-    Panel,
-    Row,
-    Scene,
-    defineIllustration,
-    getReadableToneColor,
-    withDensity,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 620
-export const height = 805
+export const width = 760
+export const height = 385
 export const alt =
-    'Comparison of next-token probabilities before and after grammar masking. Before masking, softmax over raw logits assigns Sure 49.6%, opening brace 27.2%, The 14.9%, and opening bracket 8.2%. Setting illegal tokens to negative infinity collapses all probability mass onto the only grammar-valid token, opening brace at 100%.'
+    'Side-by-side comparison of next-token probabilities before and after grammar masking. Before masking, raw logits [1.4, 0.8, 0.2, -0.4] give Sure 49.6%, opening brace 27.2%, The 14.9%, and opening bracket 8.2%. Adding the grammar mask (0 for opening brace, negative infinity for invalid tokens) collapses 100% of renormalized probability mass onto opening brace.'
 
-const illustration = defineIllustration((base) => {
-    const c = withDensity(base, 1.85)
-    const warm = getReadableToneColor('warm', c, c.bg)
-    const green = getReadableToneColor('green', c, c.bg)
-    const red = getReadableToneColor('critical', c, c.bg)
-    const rawProbs = [
-        { label: 'Sure', value: 49.6, color: warm, valueLabel: '49.6%' },
-        { label: '{', value: 27.2, color: green, valueLabel: '27.2%' },
-        { label: 'The', value: 14.9, color: c.textMuted, valueLabel: '14.9%' },
-        { label: '[', value: 8.2, color: c.textMuted, valueLabel: '8.2%' },
-    ]
-    const maskedProbs = [
-        { label: 'Sure', value: 0, color: red, valueLabel: '0%' },
-        { label: '{', value: 100, color: green, valueLabel: '100%' },
-        { label: 'The', value: 0, color: red, valueLabel: '0%' },
-        { label: '[', value: 0, color: red, valueLabel: '0%' },
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('red')
+    const blue = fig.tone('blue')
+
+    fig.math(
+        width / 2,
+        22,
+        "p'(v) = \\operatorname{softmax}(z + m)_v, \\qquad m(\\{) = 0,\\; m(v \\neq \\{) = -\\infty",
+        { size: 16, color: c.textPrimary, align: 'center' },
+    )
+
+    const tokens = [
+        { tok: 'Sure', logit: '1.4', raw: 49.6, masked: 0, valid: false },
+        { tok: '{', logit: '0.8', raw: 27.2, masked: 100, valid: true },
+        { tok: 'The', logit: '0.2', raw: 14.9, masked: 0, valid: false },
+        { tok: '[', logit: '-0.4', raw: 8.2, masked: 0, valid: false },
     ]
 
-    return Scene({
-        c,
-        padding: 12,
-        gap: 12,
-        contentWidth: 596,
-        children: [
-            Panel({
-                c,
-                title: 'Mask rule before softmax',
-                tone: 'blue',
-                width: 592,
-                padding: 10,
-                children: Row({
-                    gap: 6,
+    const drawChart = (areaX: number, title: string, titleColor: string, isMasked: boolean) => {
+        const area = { x: areaX, y: 108, width: 266, height: 204 }
+        fig.text(area.x + area.width / 2, 62, title, {
+            size: 16,
+            weight: 700,
+            color: titleColor,
+            align: 'center',
+        })
+
+        const plot = fig.plot(area, { x: [0, 4], y: [0, 105] })
+        for (const tk of [0, 50, 100]) {
+            const py = plot.py(tk)
+            fig.line(area.x, py, area.x + area.width, py, {
+                color: tk === 0 ? c.textMuted : c.borderSubtle,
+                width: tk === 0 ? 1.25 : 1,
+                dash: tk === 0 ? undefined : '3 4',
+            })
+            fig.text(area.x - 8, py, `${tk}%`, {
+                size: 15,
+                mono: true,
+                color: c.textSecondary,
+                align: 'right',
+            })
+        }
+
+        const slotW = area.width / tokens.length
+        const barW = 40
+        tokens.forEach((item, idx) => {
+            const cx = area.x + idx * slotW + slotW / 2
+            const val = isMasked ? item.masked : item.raw
+            const barH = Math.max(val > 0 ? 6 : 3, (val / 105) * area.height)
+            const topY = plot.bottom - barH
+            const fill = isMasked
+                ? item.valid
+                    ? green
+                    : tint(red, c.bg, 0.35)
+                : item.valid
+                  ? green
+                  : idx === 0
+                    ? warm
+                    : c.textMuted
+
+            fig.rect(cx - barW / 2, topY, barW, barH, { fill, radius: 5 })
+            fig.text(cx, topY - 14, isMasked ? (item.valid ? '100%' : '0%') : `${val.toFixed(1)}%`, {
+                size: 15,
+                mono: true,
+                weight: 700,
+                color: isMasked ? (item.valid ? green : red) : item.valid ? green : c.textPrimary,
+                align: 'center',
+            })
+            if (isMasked && !item.valid) {
+                fig.text(cx, topY - 34, '-∞', {
+                    size: 15,
+                    mono: true,
+                    weight: 700,
+                    color: red,
                     align: 'center',
-                    justify: 'center',
-                    children: [
-                        BadgePill({
-                            c,
-                            text: 'z=[1.4,0.8,0.2,-0.4]',
-                            tone: 'neutral',
-                            fontSize: 19,
-                        }),
-                        FlowArrow({ c, direction: 'right', length: 12, tone: 'blue' }),
-                        BadgePill({
-                            c,
-                            text: 'm({)=0, else -inf',
-                            tone: 'blue',
-                            fontSize: 19,
-                        }),
-                        FlowArrow({ c, direction: 'right', length: 12, tone: 'green' }),
-                        BadgePill({ c, text: 'softmax(z+m)', tone: 'green', fontSize: 19 }),
-                    ],
-                }),
-            }),
-            Panel({
-                c,
-                title: 'Before Mask: Unmasked Softmax P(v) (%)',
-                subtitle: 'Chat token Sure leads at 49.6%',
-                tone: 'warm',
-                width: 592,
-                padding: 10,
-                children: BarChart({
-                    c,
-                    width: 564,
-                    height: 195,
-                    min: 0,
-                    max: 100,
-                    showGrid: true,
-                    showValues: true,
-                    data: rawProbs,
-                }),
-            }),
-            Panel({
-                c,
-                title: "After Mask: Grammar-Masked P'(v) (%)",
-                subtitle: 'Renormalized probability puts 100% on {',
-                tone: 'green',
-                width: 592,
-                padding: 10,
-                children: BarChart({
-                    c,
-                    width: 564,
-                    height: 195,
-                    min: 0,
-                    max: 100,
-                    showGrid: true,
-                    showValues: true,
-                    data: maskedProbs,
-                }),
-            }),
-        ],
-    })
-})
+                })
+            }
+            fig.text(cx, plot.bottom + 18, item.tok, {
+                size: 15.5,
+                mono: true,
+                weight: 700,
+                color: item.valid ? green : c.textPrimary,
+                align: 'center',
+            })
+            fig.text(cx, plot.bottom + 40, isMasked ? (item.valid ? '+0' : 'cut') : item.logit, {
+                size: 15,
+                mono: true,
+                color: isMasked ? (item.valid ? green : red) : c.textSecondary,
+                align: 'center',
+            })
+        })
+    }
 
-export const create = illustration.create
-export default illustration.default
+    drawChart(58, 'Before Mask: P(v)', warm, false)
+
+    fig.arrow(342, 210, 412, 210, { color: blue, width: 2.4, head: 7 })
+    fig.text(377, 186, 'mask', { size: 15.5, weight: 700, color: blue, align: 'center' })
+    fig.text(377, 234, 'renorm', { size: 15, color: c.textSecondary, align: 'center' })
+
+    drawChart(476, "After Mask: P'(v)", green, true)
+
+    return fig.render()
+}
+
+export default create('dark')

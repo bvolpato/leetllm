@@ -1,220 +1,207 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    Scene,
-    SvgFrame,
-    SvgPoint,
-    TextLabel,
-    VectorSegment,
-    getReadableColor,
-    getReadableTextColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 760
+export const height = 435
 export const alt =
-    'On one assumed 0 to 145 millisecond timeline, prefill queueing takes 20 ms, prefill 60 ms, state handoff 40 ms, decode queueing 15 ms, and the next decode step 10 ms. Early delivery sends token one at 80 ms and token two at 145 ms: TTFT 80 ms passes a 90 ms target, while the 65 ms first gap misses a 30 ms target. Buffered delivery sends token one at 135 ms and token two at 145 ms: TTFT misses, while the 10 ms gap passes. Both policies miss the combined target. Attention KV alone is 0.25 GiB for 4,096 positions; recurrent state and transfer overhead are additional.'
-
-export const width = 900
-export const height = 780
-
-const axisStart = 180
-const axisWidth = 680
-const timeX = (ms: number) => axisStart + (axisWidth * ms) / 145
-
-function label(
-    c: ReturnType<typeof getThemeColors>,
-    value: string,
-    x: number,
-    y: number,
-    w: number,
-    fontSize: number,
-    color = c.textPrimary,
-    align: 'left' | 'center' | 'right' = 'left',
-    fontWeight = 500,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: Math.max(38, fontSize + 8),
-        children: TextLabel({ c, text: value, fontSize, fontWeight, color, align, width: w }),
-    })
-}
-
-function tokenTrack(c: ReturnType<typeof getThemeColors>, y: number, t1: number, t2: number) {
-    const x1 = timeX(t1)
-    const x2 = timeX(t2)
-    return [
-        VectorSegment({
-            x1: axisStart,
-            y1: y,
-            x2: axisStart + axisWidth,
-            y2: y,
-            color: c.borderLight,
-            strokeWidth: 3,
-            showEndDot: false,
-        }),
-        VectorSegment({
-            x1,
-            y1: y - 18,
-            x2: x1,
-            y2: y + 18,
-            color: c.primaryLight,
-            strokeWidth: 4,
-            showStartDot: false,
-            showEndDot: false,
-        }),
-        VectorSegment({
-            x1: x2,
-            y1: y - 18,
-            x2: x2,
-            y2: y + 18,
-            color: c.positiveLight,
-            strokeWidth: 4,
-            showStartDot: false,
-            showEndDot: false,
-        }),
-        SvgPoint({ cx: x1, cy: y, r: 10, fill: c.primaryLight, stroke: c.bg, strokeWidth: 3 }),
-        SvgPoint({ cx: x2, cy: y, r: 10, fill: c.positiveLight, stroke: c.bg, strokeWidth: 3 }),
-    ]
-}
+    'Calibrated 0 to 150 millisecond timeline for disaggregated prefill and decode. Top stacked bar spans prompt queue (20 ms), prefill (60 ms), KV handoff (40 ms), decode queue (15 ms), and next decode step (10 ms), totaling 145 ms. Early delivery emits token 1 at 80 ms (passing the 90 ms TTFT limit) and token 2 at 145 ms (65 ms gap, missing the 30 ms gap target). Buffered delivery emits token 1 at 135 ms (missing TTFT) and token 2 at 145 ms (10 ms gap, passing). Attention KV payload is 0.25 GiB at 4,096 tokens.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme)
-    const stageFills = [c.bgCardAlt, c.primary, c.info, c.warning, c.positive]
-    const stageStops = [0, 20, 80, 120, 135, 145]
-    const stageValues = ['20', '60', '40', '15', '10']
-    const legend = [
-        { x: 20, y: 228, fill: stageFills[0], text: 'Prompt queue' },
-        { x: 310, y: 228, fill: stageFills[1], text: 'Prefill' },
-        { x: 520, y: 228, fill: stageFills[2], text: 'KV handoff' },
-        { x: 20, y: 274, fill: stageFills[3], text: 'Decode queue' },
-        { x: 310, y: 274, fill: stageFills[4], text: 'Next decode' },
-    ]
-    const positiveText = getReadableColor('positive', c)
-    const criticalText = getReadableColor('critical', c)
-    const primaryText = getReadableColor('primary', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
 
-    const art = (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-            {stageStops.map((ms) =>
-                VectorSegment({
-                    x1: timeX(ms),
-                    y1: 140,
-                    x2: timeX(ms),
-                    y2: 212,
-                    color: ms === 0 || ms === 145 ? c.borderLight : c.borderSubtle,
-                    strokeWidth: ms === 0 || ms === 145 ? 2 : 1,
-                    showEndDot: false,
-                }),
-            )}
-            {stageStops.slice(0, -1).map((from, i) =>
-                SvgFrame({
-                    c,
-                    x: timeX(from),
-                    y: 150,
-                    width: timeX(stageStops[i + 1]) - timeX(from),
-                    height: 62,
-                    rx: 0,
-                    fill: stageFills[i],
-                    stroke: c.bg,
-                    strokeWidth: 2,
-                }),
-            )}
-            {legend.map((item) =>
-                SvgFrame({
-                    c,
-                    x: item.x,
-                    y: item.y + 8,
-                    width: 20,
-                    height: 20,
-                    rx: 4,
-                    fill: item.fill,
-                    stroke: item.fill,
-                    strokeWidth: 1,
-                }),
-            )}
-            {tokenTrack(c, 358, 80, 145)}
-            {tokenTrack(c, 464, 135, 145)}
-        </svg>
+    const xLeft = 114
+    const xRight = 720
+    const xOf = (ms: number) => xLeft + (ms / 150) * (xRight - xLeft)
+
+    // --- Header ---
+    fig.text(28, 20, 'Disaggregated prefill → decode timeline (0–150 ms)', {
+        size: 15,
+        weight: 600,
+        color: c.textPrimary,
+    })
+
+    // Shaded TTFT <= 90 ms zone spanning the delivery tracks
+    fig.rect(xOf(0), 178, xOf(90) - xOf(0), 184, {
+        fill: tint(green, c.bg, theme === 'light' ? 0.08 : 0.11),
+        radius: 4,
+    })
+
+    // Vertical grid & calibrated ms ticks (keep 90 ms limit line strictly in delivery section below y=154)
+    for (const ms of [0, 30, 60, 90, 120, 150]) {
+        const tx = xOf(ms)
+        const isLimit = ms === 90
+        fig.line(tx, isLimit ? 154 : 154, tx, 366, {
+            color: isLimit ? green : c.borderSubtle,
+            width: isLimit ? 1.75 : 1,
+            dash: isLimit ? '5 4' : '3 3',
+            opacity: isLimit ? 0.9 : 0.7,
+        })
+        fig.text(tx, 384, `${ms}`, {
+            size: 13,
+            weight: isLimit ? 700 : 400,
+            color: isLimit ? green : c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+    fig.text(xOf(150) + 14, 384, 'ms', { size: 13, color: c.textSecondary, mono: true })
+    fig.text(xOf(90) - 6, 190, 'TTFT ≤ 90 ms zone', {
+        size: 13,
+        weight: 600,
+        color: green,
+        align: 'right',
+    })
+
+    // --- Track 1: Shared stage path (0..145 ms) ---
+    fig.text(xLeft - 12, 78, 'Stages', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'right',
+    })
+
+    const stages = [
+        { from: 0, to: 20, label: '20', name: 'Prompt Q', color: c.textMuted },
+        { from: 20, to: 80, label: '60 ms', name: 'Prefill', color: blue },
+        { from: 80, to: 120, label: '40 ms', name: 'KV handoff', color: cyan },
+        { from: 120, to: 135, label: '15', name: 'Dec Q', color: warm },
+        { from: 135, to: 145, label: '10', name: 'Decode', color: green },
+    ]
+    const barY = 58
+    const barH = 38
+    stages.forEach((s) => {
+        const sx = xOf(s.from)
+        const sw = xOf(s.to) - sx
+        fig.rect(sx, barY, sw, barH, {
+            fill: tint(s.color, c.bg, theme === 'light' ? 0.75 : 0.84),
+            stroke: c.bg,
+            strokeWidth: 1.5,
+            radius: 3,
+        })
+        fig.text(sx + sw / 2, barY + barH / 2, s.label, {
+            size: 13,
+            weight: 700,
+            color: theme === 'light' ? '#ffffff' : '#0b0c10',
+            align: 'center',
+            mono: true,
+        })
+    })
+
+    // Swatch legend cleanly underneath stage bar
+    const legXs = [114, 224, 320, 444, 540]
+    stages.forEach((s, i) => {
+        const lx = legXs[i]!
+        fig.rect(lx, 114, 11, 11, {
+            fill: tint(s.color, c.bg, theme === 'light' ? 0.75 : 0.84),
+            radius: 2,
+        })
+        fig.text(lx + 16, 120, s.name, { size: 13, color: c.textSecondary })
+    })
+
+    // Hairline separator
+    fig.line(28, 152, 732, 152, { color: c.borderSubtle, width: 1 })
+
+    // --- Delivery Track 1: Early Token-1 Delivery ---
+    const t1Y = 232
+    fig.text(xLeft - 12, t1Y - 9, 'Early', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'right',
+    })
+    fig.text(xLeft - 12, t1Y + 11, 'delivery', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    fig.line(xOf(0), t1Y, xOf(145), t1Y, { color: c.borderLight, width: 2.5 })
+    // Gap highlight band (80 -> 145 ms = 65 ms miss!)
+    fig.rect(xOf(80), t1Y - 8, xOf(145) - xOf(80), 16, {
+        fill: tint(red, c.bg, theme === 'light' ? 0.24 : 0.36),
+        stroke: red,
+        strokeWidth: 1.25,
+        radius: 3,
+    })
+    fig.circle(xOf(80), t1Y, 6, { fill: blue, stroke: c.bg, width: 2 })
+    fig.circle(xOf(145), t1Y, 6, { fill: green, stroke: c.bg, width: 2 })
+
+    fig.text(xOf(80) - 8, t1Y - 19, 'Tok 1 · 80 ms (TTFT ✓)', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+    fig.text(xOf(93), t1Y + 23, 'Gap 65 ms (misses ≤ 30 ms ✗)', {
+        size: 13,
+        weight: 700,
+        color: red,
+        align: 'left',
+    })
+    fig.text(xOf(145), t1Y - 19, 'Tok 2 · 145 ms', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    // --- Delivery Track 2: Buffered Token-1 Delivery ---
+    const t2Y = 324
+    fig.text(xLeft - 12, t2Y - 9, 'Buffered', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'right',
+    })
+    fig.text(xLeft - 12, t2Y + 11, 'delivery', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'right',
+    })
+
+    fig.line(xOf(0), t2Y, xOf(145), t2Y, { color: c.borderLight, width: 2.5 })
+    // Gap highlight band (135 -> 145 ms = 10 ms pass!)
+    fig.rect(xOf(135), t2Y - 8, xOf(145) - xOf(135), 16, {
+        fill: tint(green, c.bg, theme === 'light' ? 0.26 : 0.4),
+        stroke: green,
+        strokeWidth: 1.25,
+        radius: 3,
+    })
+    fig.circle(xOf(135), t2Y, 6, { fill: red, stroke: c.bg, width: 2 })
+    fig.circle(xOf(145), t2Y, 6, { fill: green, stroke: c.bg, width: 2 })
+
+    fig.text(xOf(135) - 10, t2Y - 19, 'Tok 1 · 135 ms (TTFT ✗)', {
+        size: 13,
+        weight: 700,
+        color: red,
+        align: 'right',
+    })
+    fig.text(xOf(145), t2Y + 23, 'Gap 10 ms (≤ 30 ms ✓)', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'right',
+    })
+
+    // Footer metric summary
+    fig.text(
+        380,
+        416,
+        'Targets: TTFT ≤ 90 ms & first gap ≤ 30 ms  ·  KV transfer: 0.25 GiB / 4,096 tokens',
+        {
+            size: 13,
+            color: c.textSecondary,
+            align: 'center',
+        },
     )
 
-    const children = [
-        CanvasItem({ x: 0, y: 0, width, height, children: art }),
-        label(
-            c,
-            'Token timing depends on delivery policy',
-            20,
-            12,
-            860,
-            34,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        label(c, 'Assumed 0 to 145 ms split-pool path.', 20, 56, 860, 31, c.textSecondary),
-        label(c, 'Shared stage path (ms)', 20, 102, 860, 31, c.textPrimary, 'left', 650),
-        ...stageStops.slice(0, -1).map((from, i) => {
-            const x1 = timeX(from)
-            const x2 = timeX(stageStops[i + 1])
-            return label(
-                c,
-                stageValues[i],
-                x1,
-                164,
-                x2 - x1,
-                31,
-                getReadableTextColor(stageFills[i], c, c.bg),
-                'center',
-                700,
-            )
-        }),
-        ...legend.map((item) =>
-            label(c, item.text, item.x + 30, item.y, 260, 31, c.textPrimary, 'left', 600),
-        ),
-        label(c, 'Early', 20, 336, 140, 31, c.textPrimary, 'left', 700),
-        label(c, 'Token 1 · 80 ms', 180, 382, 300, 31, primaryText, 'left', 650),
-        label(c, 'Token 2 · 145 ms', 510, 382, 350, 31, positiveText, 'left', 650),
-        label(c, 'Buffered', 20, 442, 140, 31, c.textPrimary, 'left', 700),
-        label(c, 'Token 1 · 135 ms', 180, 488, 300, 31, primaryText, 'left', 650),
-        label(c, 'Token 2 · 145 ms', 510, 488, 350, 31, positiveText, 'left', 650),
-        label(
-            c,
-            'Targets: TTFT <= 90 ms  |  first gap <= 30 ms',
-            20,
-            548,
-            860,
-            31,
-            c.textPrimary,
-            'left',
-            700,
-        ),
-        label(c, 'Early delivery', 20, 598, 400, 31, c.textPrimary, 'left', 700),
-        label(c, 'TTFT 80 ms · pass', 20, 640, 400, 31, positiveText, 'left', 600),
-        label(c, 'Gap 65 ms · miss', 20, 682, 400, 31, criticalText, 'left', 600),
-        label(c, 'Buffered delivery', 460, 598, 420, 31, c.textPrimary, 'left', 700),
-        label(c, 'TTFT 135 ms · miss', 460, 640, 420, 31, criticalText, 'left', 600),
-        label(c, 'Gap 10 ms · pass', 460, 682, 420, 31, positiveText, 'left', 600),
-        label(
-            c,
-            'Each misses one target · KV: 0.25 GiB / 4,096 tokens',
-            20,
-            732,
-            860,
-            31,
-            c.textSecondary,
-        ),
-    ]
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: Board({ c, width, height, background: 'transparent', children }),
-    })
+    return fig.render()
 }
 
-export default create('dark')
+export default create

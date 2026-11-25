@@ -1,368 +1,219 @@
-import React from 'react'
-import {
-    BadgePill,
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    withColorAlpha,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { withColorAlpha } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 920
-export const height = 470
+export const width = 760
+export const height = 438
 export const alt =
     'A scaled 0 to 512 token document span compares four 128-token child chunks against their full 512-token parent section batch-api-sec4-v2. Query similarity matches Child 2 (tokens 128 to 256, 20,000 req/file ceiling, cos=0.89), while the dependent 100 MB payload cap sits in Child 3 (tokens 256 to 384). Following parent_id after rechecking revision and ACL expands the hit to the complete 512-token parent section packed as source E1.'
 
-const illustration = defineIllustration((c) => {
-    const blue = getReadableToneColor('blue', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const warm = getReadableToneColor('warm', c)
-    const green = getReadableToneColor('green', c)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
 
-    const trackX = 40
-    const trackW = 840 // 512 tokens => 210px per 128-token child
-    const childW = 210
+    const trackX = 20
+    const trackW = 720 // 512 tokens => 180px per 128-token child
+    const childW = 180
     const gap = 8
 
-    const childY = 128
-    const childH = 74
-    const parentY = 290
-    const parentH = 92
+    // ── Header & Token Scale Ruler (0..512 tokens) ───────────────────────────
+    fig.text(trackX, 18, 'Child Index (4 × 128 tok)', {
+        size: 16,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(trackX + trackW, 18, '0..512 tokens', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: blue,
+        align: 'right',
+    })
 
-    // Child 2 spans index 1 -> x = 40 + 210 = 250 .. 460
+    const rulerY = 58
+    fig.line(trackX, rulerY, trackX + trackW, rulerY, { color: c.border, width: 1.75 })
+
+    const ticks = [0, 128, 256, 384, 512] as const
+    ticks.forEach((tok, i) => {
+        const tx = trackX + i * childW
+        fig.line(tx, rulerY - 6, tx, rulerY + 6, { color: c.border, width: 1.75 })
+        fig.line(tx, rulerY + 8, tx, 198, {
+            color: c.borderSubtle,
+            width: 1,
+            dash: '3 4',
+        })
+        fig.text(tx, rulerY - 16, String(tok), {
+            size: 13,
+            mono: true,
+            color: c.textSecondary,
+            align: i === 0 ? 'left' : i === ticks.length - 1 ? 'right' : 'center',
+        })
+    })
+
+    // ── Query Match Arrow into Child 2 ───────────────────────────────────────
+    const childY = 114
+    const childH = 74
     const c2Left = trackX + childW + gap / 2
     const c2Right = trackX + 2 * childW - gap / 2
+    const c2Center = trackX + 1.5 * childW
 
-    const ticks = [0, 128, 256, 384, 512]
+    fig.arrow(c2Center, rulerY + 8, c2Center, childY - 4, {
+        color: cyan,
+        width: 2.5,
+        head: 8,
+    })
+    fig.text(c2Center + 12, rulerY + 26, 'Query HIT · cos = 0.89', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+    })
 
-    return (
-        <Scene c={c} padding={0} gap={0} contentWidth={width}>
-            <Board c={c} width={width} height={height}>
-                <CanvasItem x={0} y={0} width={width} height={height}>
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {/* Outer subtle frame */}
-                        <rect
-                            x={16}
-                            y={14}
-                            width={888}
-                            height={442}
-                            rx={14}
-                            fill={c.bgCard}
-                            stroke={c.borderLight}
-                            strokeWidth={1.5}
-                        />
+    // ── 4 Child Chunks (128 tok each) ────────────────────────────────────────
+    const children = [
+        { tag: 'C1 · 128 tok', sub: 'Overview & auth', color: c.textMuted, active: false, split: false },
+        { tag: 'C2 · MATCH', sub: '20,000 req/file', color: cyan, active: true, split: false },
+        { tag: 'C3 · SPLIT', sub: '< 100 MB cap', color: warm, active: false, split: true },
+        { tag: 'C4 · 128 tok', sub: 'Errors & retry', color: c.textMuted, active: false, split: false },
+    ] as const
 
-                        {/* Token scale ruler at top */}
-                        <line
-                            x1={trackX}
-                            y1={76}
-                            x2={trackX + trackW}
-                            y2={76}
-                            stroke={c.borderLight}
-                            strokeWidth={2}
-                        />
-                        {ticks.map((tok, i) => {
-                            const tx = trackX + i * childW
-                            return (
-                                <g key={`ruler-${tok}`}>
-                                    <line
-                                        x1={tx}
-                                        y1={68}
-                                        x2={tx}
-                                        y2={84}
-                                        stroke={c.borderLight}
-                                        strokeWidth={2}
-                                    />
-                                    <line
-                                        x1={tx}
-                                        y1={86}
-                                        x2={tx}
-                                        y2={208}
-                                        stroke={c.border}
-                                        strokeWidth={1}
-                                        strokeDasharray="3 4"
-                                    />
-                                </g>
-                            )
-                        })}
+    children.forEach((ch, idx) => {
+        const x = trackX + idx * childW + gap / 2
+        const w = childW - gap
+        fig.rect(x, childY, w, childH, {
+            fill: ch.active
+                ? withColorAlpha(cyan, 0.2)
+                : ch.split
+                  ? withColorAlpha(warm, 0.13)
+                  : tint(c.border, c.bg, 0.22),
+            stroke: ch.active ? cyan : ch.split ? warm : c.borderSubtle,
+            strokeWidth: ch.active ? 2.2 : 1.5,
+            radius: 8,
+        })
+        fig.text(x + w / 2, childY + 24, ch.tag, {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: ch.active ? cyan : ch.split ? warm : c.textMuted,
+            align: 'center',
+        })
+        fig.text(x + w / 2, childY + 50, ch.sub, {
+            size: 14,
+            weight: ch.active || ch.split ? 700 : 500,
+            color: ch.active ? c.textPrimary : ch.split ? warm : c.textSecondary,
+            align: 'center',
+        })
+    })
 
-                        {/* Query arrow hitting Child 2 */}
-                        <path
-                            d={`M 355 86 L 355 120`}
-                            fill="none"
-                            stroke={cyan}
-                            strokeWidth={3}
-                        />
-                        <polygon points="355,127 349,117 361,117" fill={cyan} />
+    // ── Expansion Trapezoid from Child 2 -> Full 512-Token Parent ────────────
+    const parentY = 266
+    const parentH = 98
 
-                        {/* 4 Child chunks (128 tokens each) */}
-                        {[
-                            {
-                                idx: 0,
-                                fill: c.bgSubtle,
-                                stroke: c.borderLight,
-                                dash: undefined,
-                            },
-                            {
-                                idx: 1,
-                                fill: withColorAlpha(cyan, 0.22),
-                                stroke: cyan,
-                                dash: undefined,
-                            },
-                            {
-                                idx: 2,
-                                fill: withColorAlpha(warm, 0.14),
-                                stroke: warm,
-                                dash: '6 4',
-                            },
-                            {
-                                idx: 3,
-                                fill: c.bgSubtle,
-                                stroke: c.borderLight,
-                                dash: undefined,
-                            },
-                        ].map((ch) => (
-                            <rect
-                                key={`child-${ch.idx}`}
-                                x={trackX + ch.idx * childW + gap / 2}
-                                y={childY}
-                                width={childW - gap}
-                                height={childH}
-                                rx={9}
-                                fill={ch.fill}
-                                stroke={ch.stroke}
-                                strokeWidth={ch.idx === 1 ? 2.5 : 1.75}
-                                strokeDasharray={ch.dash}
-                            />
-                        ))}
-
-                        {/* Expansion trapezoid from Child 2 (128 tok) -> Full Parent (512 tok) */}
-                        <polygon
-                            points={`${c2Left},${childY + childH + 4} ${c2Right},${childY + childH + 4} ${trackX + trackW},${parentY - 4} ${trackX},${parentY - 4}`}
-                            fill={withColorAlpha(green, 0.12)}
-                        />
-                        <line
-                            x1={c2Left}
-                            y1={childY + childH + 4}
-                            x2={trackX}
-                            y2={parentY - 4}
-                            stroke={green}
-                            strokeWidth={2}
-                            strokeDasharray="5 4"
-                        />
-                        <line
-                            x1={c2Right}
-                            y1={childY + childH + 4}
-                            x2={trackX + trackW}
-                            y2={parentY - 4}
-                            stroke={green}
-                            strokeWidth={2}
-                            strokeDasharray="5 4"
-                        />
-                        {/* Center downward expansion arrow */}
-                        <line
-                            x1={355}
-                            y1={childY + childH + 6}
-                            x2={355}
-                            y2={parentY - 12}
-                            stroke={green}
-                            strokeWidth={2.5}
-                        />
-                        <polygon points={`355,${parentY - 4} 349,${parentY - 14} 361,${parentY - 14}`} fill={green} />
-
-                        {/* Full 512-token Parent Context Span */}
-                        <rect
-                            x={trackX}
-                            y={parentY}
-                            width={trackW}
-                            height={parentH}
-                            rx={10}
-                            fill={withColorAlpha(green, 0.12)}
-                            stroke={green}
-                            strokeWidth={2.5}
-                        />
-                        {/* Highlighted inner spans inside parent (C2 matched + C3 restored qualifier) */}
-                        <rect
-                            x={trackX + childW + 4}
-                            y={parentY + 34}
-                            width={childW - 8}
-                            height={48}
-                            rx={6}
-                            fill={withColorAlpha(cyan, 0.22)}
-                            stroke={cyan}
-                            strokeWidth={1.5}
-                        />
-                        <rect
-                            x={trackX + 2 * childW + 4}
-                            y={parentY + 34}
-                            width={childW - 8}
-                            height={48}
-                            rx={6}
-                            fill={withColorAlpha(warm, 0.22)}
-                            stroke={warm}
-                            strokeWidth={1.5}
-                        />
-                        {/* Faint context bands for C1 and C4 inside parent */}
-                        <rect
-                            x={trackX + 8}
-                            y={parentY + 34}
-                            width={childW - 12}
-                            height={48}
-                            rx={6}
-                            fill={withColorAlpha(c.border, 0.28)}
-                        />
-                        <rect
-                            x={trackX + 3 * childW + 4}
-                            y={parentY + 34}
-                            width={childW - 12}
-                            height={48}
-                            rx={6}
-                            fill={withColorAlpha(c.border, 0.28)}
-                        />
-                    </svg>
-                </CanvasItem>
-
-                {/* Header */}
-                <CanvasItem x={40} y={24} width={540} height={24}>
-                    <TextLabel
-                        c={c}
-                        text="Retrieve Small (128 tok), Expand to Full Parent (512 tok)"
-                        fontSize={18}
-                        fontWeight={800}
-                        color={c.textPrimary}
-                    />
-                </CanvasItem>
-                <CanvasItem x={610} y={26} width={270} height={22}>
-                    <TextLabel
-                        c={c}
-                        text="Scale: 0 to 512 tokens"
-                        fontSize={13}
-                        fontWeight={700}
-                        mono
-                        color={blue}
-                        align="right"
-                    />
-                </CanvasItem>
-
-                {/* Token ruler labels */}
-                {ticks.map((tok, i) => {
-                    const tx = trackX + i * childW
-                    return (
-                        <CanvasItem key={`tok-${tok}`} x={tx - 24} y={48} width={48} height={18}>
-                            <TextLabel
-                                c={c}
-                                text={`${tok}`}
-                                fontSize={12}
-                                mono
-                                color={c.textMuted}
-                                align="center"
-                            />
-                        </CanvasItem>
-                    )
-                })}
-
-                {/* Query match tag */}
-                <CanvasItem x={372} y={88} width={260} height={22}>
-                    <TextLabel
-                        c={c}
-                        text="Query vector HIT · cos = 0.89"
-                        fontSize={13}
-                        fontWeight={800}
-                        color={cyan}
-                    />
-                </CanvasItem>
-                <CanvasItem x={40} y={102} width={220} height={20}>
-                    <TextLabel
-                        c={c}
-                        text="Child Index (4 × 128 tok)"
-                        fontSize={13}
-                        fontWeight={700}
-                        color={c.textSecondary}
-                    />
-                </CanvasItem>
-
-                {/* Child labels */}
-                <CanvasItem x={48} y={140} width={194} height={20}>
-                    <TextLabel c={c} text="C1 · 128 tok" fontSize={13} fontWeight={700} mono color={c.textMuted} align="center" />
-                </CanvasItem>
-                <CanvasItem x={48} y={162} width={194} height={20}>
-                    <TextLabel c={c} text="Overview & auth" fontSize={13} color={c.textSecondary} align="center" />
-                </CanvasItem>
-
-                <CanvasItem x={258} y={138} width={194} height={20}>
-                    <TextLabel c={c} text="C2 · 128 tok (MATCH)" fontSize={13} fontWeight={800} mono color={cyan} align="center" />
-                </CanvasItem>
-                <CanvasItem x={258} y={160} width={194} height={22}>
-                    <TextLabel c={c} text="20,000 req/file limit" fontSize={14} fontWeight={700} color={c.textPrimary} align="center" />
-                </CanvasItem>
-
-                <CanvasItem x={468} y={138} width={194} height={20}>
-                    <TextLabel c={c} text="C3 · 128 tok (SPLIT)" fontSize={13} fontWeight={800} mono color={warm} align="center" />
-                </CanvasItem>
-                <CanvasItem x={468} y={160} width={194} height={22}>
-                    <TextLabel c={c} text="Under 100 MB cap" fontSize={14} fontWeight={700} color={warm} align="center" />
-                </CanvasItem>
-
-                <CanvasItem x={678} y={140} width={194} height={20}>
-                    <TextLabel c={c} text="C4 · 128 tok" fontSize={13} fontWeight={700} mono color={c.textMuted} align="center" />
-                </CanvasItem>
-                <CanvasItem x={678} y={162} width={194} height={20}>
-                    <TextLabel c={c} text="Error codes & retry" fontSize={13} color={c.textSecondary} align="center" />
-                </CanvasItem>
-
-                {/* Expansion callout */}
-                <CanvasItem x={372} y={254} width={460} height={24}>
-                    <TextLabel
-                        c={c}
-                        text="parent_id + rev & ACL check -> expand to 512 tok"
-                        fontSize={14}
-                        fontWeight={700}
-                        color={green}
-                    />
-                </CanvasItem>
-
-                {/* Parent track labels */}
-                <CanvasItem x={52} y={297} width={816} height={22}>
-                    <TextLabel
-                        c={c}
-                        text="Parent Section [E1] · batch-api-sec4-v2 · 512 tokens sent to LLM"
-                        fontSize={15}
-                        fontWeight={800}
-                        color={green}
-                    />
-                </CanvasItem>
-                <CanvasItem x={52} y={338} width={192} height={22}>
-                    <TextLabel c={c} text="Intro context" fontSize={13} color={c.textSecondary} align="center" />
-                </CanvasItem>
-                <CanvasItem x={256} y={338} width={198} height={22}>
-                    <TextLabel c={c} text="20,000 req/file" fontSize={14} fontWeight={800} color={cyan} align="center" />
-                </CanvasItem>
-                <CanvasItem x={466} y={338} width={198} height={22}>
-                    <TextLabel c={c} text="+ < 100 MB cap restored" fontSize={14} fontWeight={800} color={warm} align="center" />
-                </CanvasItem>
-                <CanvasItem x={676} y={338} width={192} height={22}>
-                    <TextLabel c={c} text="Exceptions & retry" fontSize={13} color={c.textSecondary} align="center" />
-                </CanvasItem>
-
-                {/* Bottom provenance badges */}
-                <CanvasItem x={40} y={402} width={116} height={32}>
-                    <BadgePill c={c} text="Source E1" tone="green" filled fontSize={13} width={116} height={30} />
-                </CanvasItem>
-                <CanvasItem x={168} y={402} width={224} height={32}>
-                    <BadgePill c={c} text="rev: batch-api/2026-05-01" tone="blue" fontSize={13} width={224} height={30} />
-                </CanvasItem>
-                <CanvasItem x={404} y={402} width={236} height={32}>
-                    <BadgePill c={c} text="Batch API v2 > Sec 4.1" tone="neutral" fontSize={13} width={236} height={30} />
-                </CanvasItem>
-                <CanvasItem x={652} y={402} width={228} height={32}>
-                    <BadgePill c={c} text="ACL: ml-platform / eng" tone="purple" fontSize={13} width={228} height={30} />
-                </CanvasItem>
-            </Board>
-        </Scene>
+    fig.path(
+        `M${c2Left} ${childY + childH + 4}L${c2Right} ${childY + childH + 4}L${trackX + trackW} ${parentY - 4}L${trackX} ${parentY - 4}Z`,
+        { fill: green, fillOpacity: 0.1 },
     )
-})
+    fig.line(c2Left, childY + childH + 4, trackX, parentY - 4, {
+        color: green,
+        width: 1.75,
+        dash: '5 4',
+    })
+    fig.line(c2Right, childY + childH + 4, trackX + trackW, parentY - 4, {
+        color: green,
+        width: 1.75,
+        dash: '5 4',
+    })
+    fig.arrow(c2Center, childY + childH + 6, c2Center, parentY - 4, {
+        color: green,
+        width: 2.4,
+        head: 8,
+    })
+    const expMidY = (childY + childH + parentY) / 2
+    fig.rect(c2Center + 14, expMidY - 14, 266, 28, {
+        fill: tint(green, c.bg, 0.12),
+        stroke: withColorAlpha(green, 0.5),
+        strokeWidth: 1.2,
+        radius: 14,
+    })
+    fig.text(c2Center + 147, expMidY, 'Resolve parent_id + rev & ACL', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
 
-export const create = illustration.create
-export default illustration.default
+    // ── Full 512-Token Parent Section [E1] ───────────────────────────────────
+    fig.rect(trackX, parentY, trackW, parentH, {
+        fill: withColorAlpha(green, 0.1),
+        stroke: green,
+        strokeWidth: 2,
+        radius: 9,
+    })
+    fig.text(trackX + 14, parentY + 20, 'Parent [E1] · batch-api-sec4-v2 · 512 tokens packed for LLM', {
+        size: 15,
+        weight: 700,
+        color: green,
+    })
+
+    const innerY = parentY + 40
+    const innerH = 46
+    const parentParts = [
+        { text: 'Intro context', fill: tint(c.border, c.bg, 0.35), stroke: 'none', color: c.textSecondary, bold: false },
+        { text: '20,000 req/file', fill: withColorAlpha(cyan, 0.2), stroke: cyan, color: cyan, bold: true },
+        { text: '+ < 100 MB cap', fill: withColorAlpha(warm, 0.2), stroke: warm, color: warm, bold: true },
+        { text: 'Errors & retry', fill: tint(c.border, c.bg, 0.35), stroke: 'none', color: c.textSecondary, bold: false },
+    ] as const
+
+    parentParts.forEach((p, idx) => {
+        const px = trackX + idx * childW + 6
+        const pw = childW - 12
+        fig.rect(px, innerY, pw, innerH, {
+            fill: p.fill,
+            stroke: p.stroke,
+            strokeWidth: p.stroke === 'none' ? 0 : 1.4,
+            radius: 6,
+        })
+        fig.text(px + pw / 2, innerY + innerH / 2, p.text, {
+            size: 14,
+            weight: p.bold ? 700 : 500,
+            color: p.color,
+            align: 'center',
+        })
+    })
+
+    // ── Compact Provenance Pills (tightened, frameless bottom row) ───────────
+    const pillY = 384
+    const pillH = 32
+    const pills = [
+        { x: 20, w: 118, text: 'Source [E1]', color: green, fill: true },
+        { x: 148, w: 174, text: 'rev: 2026-05-01', color: blue, fill: false },
+        { x: 332, w: 208, text: 'Batch API v2 · Sec 4.1', color: c.textSecondary, fill: false },
+        { x: 550, w: 190, text: 'ACL: ml-platform', color: purple, fill: false },
+    ] as const
+
+    for (const pill of pills) {
+        fig.rect(pill.x, pillY, pill.w, pillH, {
+            fill: pill.fill
+                ? withColorAlpha(pill.color, 0.22)
+                : withColorAlpha(pill.color, 0.08),
+            stroke: withColorAlpha(pill.color, 0.65),
+            strokeWidth: 1.3,
+            radius: 16,
+        })
+        fig.text(pill.x + pill.w / 2, pillY + pillH / 2, pill.text, {
+            size: 13,
+            mono: pill.text.includes(':'),
+            weight: 700,
+            color: pill.color,
+            align: 'center',
+        })
+    }
+
+    return fig.render()
+}
+
+export default create('dark')

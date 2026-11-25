@@ -1,238 +1,175 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-    getReadableToneColor,
-    getToneFill,
-    type ThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 395
 export const alt =
-    'A synthetic voice schedule starts at acoustic speech end. Turn commit spans 0–60 ms, STT finalization 0–100 ms, the LLM clause 60–240 ms, the TTS chunk 210–345 ms, and playout 345–380 ms. First audio plays 380 ms from speech end and 320 ms from turn commit because STT streams concurrently during user speech.'
+    'Voice pipeline timeline starting at acoustic speech end (0 ms): turn commit 0 to 60 ms, STT finalization 0 to 100 ms, LLM first clause 60 to 240 ms, TTS first chunk 210 to 345 ms, and playout buffer 345 to 380 ms. First audio lands at 380 ms from speech end and 320 ms from turn commit.'
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    size = 20,
-    color = c.textPrimary,
-    weight = 500,
-    align: 'left' | 'center' | 'right' = 'center',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * 1.5,
-        children: (
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                fontWeight={weight}
-                color={color}
-                align={align}
-            />
-        ),
+const STAGES = [
+    { name: 'Turn commit', start: 0, end: 60, tone: 'warm' as const },
+    { name: 'STT tail', start: 0, end: 100, tone: 'blue' as const },
+    { name: 'LLM clause', start: 60, end: 240, tone: 'purple' as const },
+    { name: 'TTS chunk', start: 210, end: 345, tone: 'green' as const },
+    { name: 'Playout', start: 345, end: 380, tone: 'cyan' as const },
+] as const
+
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const muted = c.textSecondary
+
+    const leftX = 148
+    const rightX = 790
+    const maxMs = 540
+    const x = (ms: number) => leftX + (ms / maxMs) * (rightX - leftX)
+
+    const topY = 96
+    const rowStep = 44
+    const barH = 28
+    const axisY = topY + STAGES.length * rowStep + 6
+
+    // --- Top Dual-Clock Span Indicators ---
+    // User clock: 0 -> 380 ms
+    fig.line(x(0), 26, x(380), 26, { color: green, width: 2 })
+    fig.line(x(0), 21, x(0), 31, { color: green, width: 2 })
+    fig.line(x(380), 21, x(380), 31, { color: green, width: 2 })
+    fig.text((x(0) + x(380)) / 2, 14, 'User clock: 380 ms TTFA (from speech end)', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+        width: 340,
     })
-}
 
-export function create(mode: ThemeMode = 'dark') {
-    const c = getThemeColors(mode)
-    const tone = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getReadableToneColor(name, c)
-    const fill = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getToneFill(name, c)
-
-    const x = (t: number) => 210 + (t / 500) * 580
-    const stages = ['Turn commit', 'STT tail', 'LLM clause', 'TTS chunk', 'Playout']
-    const colors = ['warm', 'blue', 'purple', 'green', 'cyan'] as const
-    const spans = [
-        [0, 60],
-        [0, 100],
-        [60, 240],
-        [210, 345],
-        [345, 380],
-    ]
-
-    return Board({
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: (
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {/* Background panel for Gantt chart */}
-                        <rect
-                            x="24"
-                            y="60"
-                            width="812"
-                            height="330"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={c.border}
-                            strokeWidth="1.5"
-                        />
-
-                        {/* Grid lines */}
-                        {[0, 100, 200, 300, 400, 500].map((t) => (
-                            <line
-                                key={t}
-                                x1={x(t)}
-                                x2={x(t)}
-                                y1="80"
-                                y2="340"
-                                stroke={c.border}
-                                strokeWidth="1"
-                                strokeDasharray={t === 0 ? undefined : '4 4'}
-                            />
-                        ))}
-
-                        {/* Horizontal span bars */}
-                        {spans.map(([a, b], i) => (
-                            <g key={i}>
-                                <rect
-                                    x={x(a)}
-                                    y={100 + i * 46}
-                                    width={Math.max(4, x(b) - x(a))}
-                                    height="28"
-                                    rx="5"
-                                    fill={fill(colors[i])}
-                                    stroke={tone(colors[i])}
-                                    strokeWidth="1.5"
-                                />
-                            </g>
-                        ))}
-
-                        {/* 380 ms dashed marker */}
-                        <line
-                            x1={x(380)}
-                            x2={x(380)}
-                            y1="80"
-                            y2="345"
-                            stroke={tone('green')}
-                            strokeWidth="2"
-                            strokeDasharray="5 4"
-                        />
-
-                        {/* Axis base line */}
-                        <line
-                            x1={x(0)}
-                            x2={x(500)}
-                            y1="340"
-                            y2="340"
-                            stroke={c.textMuted}
-                            strokeWidth="1.5"
-                        />
-
-                        {/* Bottom summary cards */}
-                        <rect
-                            x="24"
-                            y="410"
-                            width="256"
-                            height="66"
-                            rx="8"
-                            fill={c.bgCard}
-                            stroke={tone('green')}
-                            strokeWidth="1.5"
-                        />
-                        <rect
-                            x="302"
-                            y="410"
-                            width="256"
-                            height="66"
-                            rx="8"
-                            fill={c.bgCard}
-                            stroke={tone('blue')}
-                            strokeWidth="1.5"
-                        />
-                        <rect
-                            x="580"
-                            y="410"
-                            width="256"
-                            height="66"
-                            rx="8"
-                            fill={c.bgCard}
-                            stroke={tone('purple')}
-                            strokeWidth="1.5"
-                        />
-                    </svg>
-                ),
-            }),
-            label(
-                c,
-                'Overlap sets first audio at 380 ms',
-                24,
-                14,
-                812,
-                24,
-                c.textPrimary,
-                700,
-                'left',
-            ),
-            label(
-                c,
-                'Synthetic schedule · STT streams during user speech',
-                24,
-                40,
-                600,
-                16,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-
-            // Stage labels on the left
-            ...stages.map((s, i) =>
-                label(c, s, 36, 104 + i * 46, 160, 18, c.textPrimary, 600, 'left'),
-            ),
-
-            // Span duration badges
-            ...spans.map(([a, b], i) =>
-                label(
-                    c,
-                    `${a}–${b} ms (${b - a} ms)`,
-                    x(b) + 10,
-                    106 + i * 46,
-                    160,
-                    15,
-                    tone(colors[i]),
-                    600,
-                    'left',
-                ),
-            ),
-
-            // Time axis ticks
-            ...[0, 100, 200, 300, 400, 500].map((t) =>
-                label(c, `${t} ms`, x(t) - 30, 350, 60, 15, c.textSecondary),
-            ),
-            label(c, 'Time after acoustic speech end', 210, 372, 580, 14, c.textMuted),
-
-            // Bottom metric cards
-            label(c, 'Speech end → First audio', 36, 420, 232, 15, c.textSecondary),
-            label(c, '380 ms total latency', 36, 444, 232, 19, tone('green'), 700),
-
-            label(c, 'Turn commit → First audio', 314, 420, 232, 15, c.textSecondary),
-            label(c, '320 ms response delay', 314, 444, 232, 19, tone('blue'), 700),
-
-            label(c, 'Streaming savings', 592, 420, 232, 15, c.textSecondary),
-            label(c, '130 ms faster than serial', 592, 444, 232, 19, tone('purple'), 700),
-        ],
+    // Internal clock: 60 -> 380 ms
+    fig.line(x(60), 60, x(380), 60, { color: blue, width: 2 })
+    fig.line(x(60), 55, x(60), 65, { color: blue, width: 2 })
+    fig.line(x(380), 55, x(380), 65, { color: blue, width: 2 })
+    fig.text((x(60) + x(380)) / 2, 48, 'Internal clock: 320 ms (from turn commit)', {
+        size: 13,
+        weight: 600,
+        color: blue,
+        align: 'center',
+        width: 320,
     })
+
+    // --- Vertical Gridlines ---
+    for (const t of [0, 100, 200, 300, 400, 500]) {
+        fig.line(x(t), topY - 12, x(t), axisY, {
+            color: c.borderSubtle,
+            width: 1,
+            dash: t === 0 ? undefined : '4 4',
+        })
+    }
+
+    // Key reference lines: 60 ms (turn commit), 380 ms (first audio), 510 ms (serial total)
+    fig.line(x(60), 65, x(60), axisY, { color: blue, width: 1.25, dash: '3 4', opacity: 0.7 })
+    fig.line(x(380), 31, x(380), axisY, { color: green, width: 2, dash: '5 4' })
+    fig.line(x(510), topY - 12, x(510), axisY, { color: warm, width: 1.5, dash: '4 4' })
+
+    // Shaded 130 ms overlap savings zone (380 -> 510 ms)
+    fig.rect(x(380), topY - 8, x(510) - x(380), axisY - (topY - 8), {
+        fill: tint(purple, c.bg, 0.08),
+        stroke: 'none',
+        radius: 4,
+    })
+    fig.text((x(380) + x(510)) / 2, topY + 20, '-130 ms', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        mono: true,
+        width: 120,
+    })
+    fig.text((x(380) + x(510)) / 2, topY + 40, 'saved vs serial', {
+        size: 12,
+        weight: 600,
+        color: muted,
+        align: 'center',
+        width: 120,
+    })
+    fig.text(x(510), topY - 22, 'Serial: 510 ms', {
+        size: 12,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+        width: 110,
+    })
+
+    // --- Stage Bars ---
+    STAGES.forEach((st, i) => {
+        const y = topY + i * rowStep
+        const color = fig.tone(st.tone)
+        const bx = x(st.start)
+        const bw = Math.max(8, x(st.end) - bx)
+
+        fig.text(24, y + barH / 2, st.name, {
+            size: 14,
+            weight: 600,
+            color: c.textPrimary,
+        })
+
+        fig.rect(bx, y, bw, barH, {
+            fill: tint(color, c.bg, 0.22),
+            stroke: color,
+            strokeWidth: 1.75,
+            radius: 6,
+        })
+
+        const dur = st.end - st.start
+        const badge = `${st.start}-${st.end} ms (${dur} ms)`
+        // Keep badges clear of the 380-510 ms savings callout
+        if (st.end <= 240) {
+            fig.text(bx + bw + 10, y + barH / 2, badge, {
+                size: 13,
+                weight: 600,
+                color,
+                mono: true,
+            })
+        } else {
+            fig.text(bx - 10, y + barH / 2, badge, {
+                size: 13,
+                weight: 600,
+                color,
+                align: 'right',
+                mono: true,
+            })
+        }
+    })
+
+    // --- Bottom Axis ---
+    fig.line(leftX, axisY, rightX, axisY, { color: c.textMuted, width: 1.25 })
+    for (const t of [0, 100, 200, 300, 400, 500]) {
+        fig.line(x(t), axisY, x(t), axisY + 5, { color: c.textMuted, width: 1.25 })
+        fig.text(x(t), axisY + 20, `${t} ms`, {
+            size: 13,
+            color: muted,
+            align: 'center',
+            mono: true,
+            width: 60,
+        })
+    }
+    fig.text(x(380) + 6, axisY - 12, '380 ms', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'left',
+        mono: true,
+    })
+    fig.text((leftX + rightX) / 2, axisY + 46, 'Time after acoustic speech end (ms)', {
+        size: 13,
+        color: muted,
+        align: 'center',
+        width: 340,
+    })
+
+    return fig.render()
 }
 
 export default create()

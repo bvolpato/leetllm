@@ -1,445 +1,220 @@
-import React from 'react'
-import { Board, Scene, VectorArrow, defineIllustration, getReadableToneColor } from 'vizmatic'
-import { PaddedLabel, labelHeight } from '../visual-helpers'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 1200
-export const height = 800
+export const width = 760
+export const height = 445
 export const alt =
-    'Two schematic device sequences compare current and delayed scaling. Current scaling reads tensor values for amax, computes the scale, reads values again to cast and write codes, then GEMM reads those codes. Delayed scaling selects the current scale as max of the previous three amax values divided by 448, then casts and writes codes in one tensor pass while recording the current amax for the next history window. The selected history scale feeds the current cast. Spacing is schematic, with no duration claim.'
+    'Two schematic device timelines comparing current and delayed FP8 scaling. Current scaling performs two tensor passes: Read X, compute amax_t and S_t, Read X again, cast and write Q, then GEMM. Delayed scaling reads X in one pass, splitting into an upper branch (compute amax_t, record a_t into future history H_{t+1}) and a lower branch (cast with historical S_t = max(H_t)/448 from the 3-step history ring [a_{t-3}, a_{t-2}, a_{t-1}], write Q, then GEMM) with zero crossing paths.'
 
-const illustration = defineIllustration((c) => {
-    const line = '#64748b'
-    const blue = getReadableToneColor('blue', c, c.bg)
-    const warm = getReadableToneColor('warm', c, c.bg)
-    const green = getReadableToneColor('green', c, c.bg)
-    const purple = getReadableToneColor('purple', c, c.bg)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
+    const red = fig.tone('critical')
 
-    const svg = (
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-            {[40, 270, 500, 730, 960].map((x, i) => (
-                <rect
-                    key={`current-${i}`}
-                    x={x}
-                    y="180"
-                    width="198"
-                    height="90"
-                    rx="16"
-                    fill="none"
-                    stroke={[blue, warm, blue, green, purple][i]}
-                    strokeWidth="4"
-                />
-            ))}
-            {[238, 468, 698, 928].map((x, i) => (
-                <g key={`current-edge-${i}`}>
-                    <VectorArrow
-                        x1={x}
-                        y1={225}
-                        x2={x + 32}
-                        y2={225}
-                        color={line}
-                        strokeWidth={4}
-                        arrowSize={6}
-                    />
-                </g>
-            ))}
+    const box = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        label: string,
+        tone: string,
+        sub?: string,
+    ) => {
+        fig.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, theme === 'light' ? 0.14 : 0.24),
+            stroke: tone,
+            strokeWidth: 1.6,
+            radius: 7,
+        })
+        if (sub) {
+            fig.text(x + w / 2, y + h / 2 - 9, label, {
+                size: 13,
+                weight: 700,
+                color: c.textPrimary,
+                align: 'center',
+            })
+            fig.text(x + w / 2, y + h / 2 + 10, sub, {
+                size: 12,
+                color: tone,
+                align: 'center',
+                mono: true,
+            })
+        } else {
+            fig.text(x + w / 2, y + h / 2, label, {
+                size: 13,
+                weight: 600,
+                color: c.textPrimary,
+                align: 'center',
+            })
+        }
+    }
 
-            <rect
-                x="40"
-                y="674"
-                width="455"
-                height="92"
-                rx="16"
-                fill="none"
-                stroke={blue}
-                strokeWidth="3"
-            />
-            {[68, 207, 346].map((x, i) => (
-                <rect
-                    key={`history-${i}`}
-                    x={x}
-                    y="694"
-                    width="120"
-                    height="54"
-                    rx="10"
-                    fill="none"
-                    stroke={blue}
-                    strokeWidth="2.5"
-                />
-            ))}
-            <rect
-                x="520"
-                y="674"
-                width="350"
-                height="92"
-                rx="16"
-                fill="none"
-                stroke={purple}
-                strokeWidth="4"
-            />
-            <rect
-                x="900"
-                y="674"
-                width="250"
-                height="92"
-                rx="16"
-                fill="none"
-                stroke={warm}
-                strokeWidth="3"
-            />
-            <VectorArrow
-                x1={495}
-                y1={720}
-                x2={520}
-                y2={720}
-                color={line}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <path d="M 1025 766 V 784 H 478 V 720" fill="none" stroke={warm} strokeWidth="4" />
-            <VectorArrow
-                x1={478}
-                y1={720}
-                x2={458}
-                y2={720}
-                color={warm}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-
-            {/* One delayed-scaling input pass branches to today's codes and tomorrow's history. */}
-            <rect
-                x="80"
-                y="364"
-                width="250"
-                height="126"
-                rx="18"
-                fill="none"
-                stroke={blue}
-                strokeWidth="4"
-            />
-            <rect
-                x="461"
-                y="340"
-                width="286"
-                height="100"
-                rx="18"
-                fill="none"
-                stroke={green}
-                strokeWidth="4"
-            />
-            <rect
-                x="461"
-                y="500"
-                width="286"
-                height="100"
-                rx="18"
-                fill="none"
-                stroke={warm}
-                strokeWidth="4"
-            />
-            <rect
-                x="857"
-                y="340"
-                width="256"
-                height="100"
-                rx="18"
-                fill="none"
-                stroke={purple}
-                strokeWidth="4"
-            />
-            <rect
-                x="857"
-                y="500"
-                width="256"
-                height="100"
-                rx="18"
-                fill="none"
-                stroke={warm}
-                strokeWidth="4"
-            />
-            <VectorArrow
-                x1={330}
-                y1={410}
-                x2={461}
-                y2={392}
-                color={green}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <VectorArrow
-                x1={330}
-                y1={450}
-                x2={461}
-                y2={550}
-                color={warm}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <VectorArrow
-                x1={747}
-                y1={390}
-                x2={857}
-                y2={390}
-                color={purple}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <VectorArrow
-                x1={747}
-                y1={550}
-                x2={857}
-                y2={550}
-                color={warm}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <VectorArrow
-                x1={1025}
-                y1={600}
-                x2={1025}
-                y2={674}
-                color={warm}
-                strokeWidth={4}
-                arrowSize={6}
-            />
-            <VectorArrow
-                x1={870}
-                y1={694}
-                x2={747}
-                y2={436}
-                color={purple}
-                strokeWidth={4}
-                arrowSize={7}
-            />
-        </svg>
-    )
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        children: (
-            <Board c={c} width={width} height={height}>
-                {svg}
-                <PaddedLabel
-                    c={c}
-                    x={38}
-                    y={24}
-                    width={1124}
-                    height={labelHeight(48)}
-                    text="Where scaling reads the tensor"
-                    size={48}
-                    weight={730}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={40}
-                    y={108}
-                    width={1120}
-                    height={labelHeight(42)}
-                    text="CURRENT · derive scale from this tensor"
-                    size={42}
-                    color={blue}
-                    weight={720}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={44}
-                    y={194}
-                    width={190}
-                    height={labelHeight(42)}
-                    text="Read X"
-                    size={42}
-                    align="center"
-                    color={blue}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={274}
-                    y={194}
-                    width={190}
-                    height={labelHeight(42)}
-                    text="amax"
-                    size={42}
-                    align="center"
-                    color={warm}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={504}
-                    y={194}
-                    width={190}
-                    height={labelHeight(42)}
-                    text="Read X"
-                    size={42}
-                    align="center"
-                    color={blue}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={734}
-                    y={194}
-                    width={190}
-                    height={labelHeight(42)}
-                    text="write Q"
-                    size={42}
-                    align="center"
-                    color={green}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={964}
-                    y={194}
-                    width={190}
-                    height={labelHeight(42)}
-                    text="GEMM"
-                    size={42}
-                    align="center"
-                    color={purple}
-                />
-
-                <PaddedLabel
-                    c={c}
-                    x={40}
-                    y={278}
-                    width={1120}
-                    height={labelHeight(42)}
-                    text="DELAYED · history H_t chooses the current scale"
-                    size={42}
-                    color={blue}
-                    weight={720}
-                    math
-                />
-                <PaddedLabel
-                    c={c}
-                    x={85}
-                    y={394}
-                    width={240}
-                    height={labelHeight(42)}
-                    text="read X"
-                    size={42}
-                    color={blue}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={466}
-                    y={358}
-                    width={276}
-                    height={labelHeight(42)}
-                    text="cast with S_t"
-                    size={42}
-                    color={green}
-                    align="center"
-                    math
-                />
-                <PaddedLabel
-                    c={c}
-                    x={466}
-                    y={518}
-                    width={276}
-                    height={labelHeight(42)}
-                    text="amax_t"
-                    size={42}
-                    color={warm}
-                    align="center"
-                    math
-                />
-                <PaddedLabel
-                    c={c}
-                    x={862}
-                    y={358}
-                    width={246}
-                    height={labelHeight(42)}
-                    text="write Q"
-                    size={42}
-                    color={purple}
-                    align="center"
-                />
-                <PaddedLabel
-                    c={c}
-                    x={862}
-                    y={518}
-                    width={246}
-                    height={labelHeight(42)}
-                    text="record a_t"
-                    size={42}
-                    color={warm}
-                    align="center"
-                    math
-                />
-
-                <PaddedLabel
-                    c={c}
-                    x={68}
-                    y={685}
-                    width={120}
-                    height={labelHeight(40)}
-                    text="a_{t−3}"
-                    size={40}
-                    color={blue}
-                    align="center"
-                    math
-                    paddingX={4}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={207}
-                    y={685}
-                    width={120}
-                    height={labelHeight(40)}
-                    text="a_{t−2}"
-                    size={40}
-                    color={blue}
-                    align="center"
-                    math
-                    paddingX={4}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={346}
-                    y={685}
-                    width={120}
-                    height={labelHeight(40)}
-                    text="a_{t−1}"
-                    size={40}
-                    color={blue}
-                    align="center"
-                    math
-                    paddingX={4}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={520}
-                    y={684}
-                    width={350}
-                    height={labelHeight(40)}
-                    text="S_t=max(H_t)/448"
-                    size={40}
-                    color={purple}
-                    weight={710}
-                    align="center"
-                    math
-                    paddingX={0}
-                />
-                <PaddedLabel
-                    c={c}
-                    x={905}
-                    y={688}
-                    width={240}
-                    height={labelHeight(40)}
-                    text="a_t → H_{t+1}"
-                    size={40}
-                    color={warm}
-                    align="center"
-                    math
-                    paddingX={4}
-                />
-            </Board>
-        ),
+    // --- Track 1: Current Scaling (2 tensor passes) ---
+    fig.text(28, 22, 'Current scaling · 2 passes over X', {
+        size: 15,
+        weight: 600,
+        color: blue,
     })
-})
 
-export const create = illustration.create
-export default illustration.default
+    const t1Y = 46
+    const t1H = 48
+    const t1Steps = [
+        { x: 28, w: 112, label: 'Read X', sub: 'pass 1', tone: blue },
+        { x: 168, w: 120, label: 'amax → S_t', sub: 'reduce', tone: warm },
+        { x: 316, w: 118, label: 'Read X', sub: 'pass 2', tone: red },
+        { x: 462, w: 124, label: 'Cast & write Q', sub: 'FP8 out', tone: green },
+        { x: 614, w: 108, label: 'GEMM', sub: 'consume Q', tone: purple },
+    ]
+    t1Steps.forEach((s, i) => {
+        box(s.x, t1Y, s.w, t1H, s.label, s.tone, s.sub)
+        if (i < t1Steps.length - 1) {
+            const next = t1Steps[i + 1]!
+            fig.arrow(s.x + s.w + 2, t1Y + t1H / 2, next.x - 2, t1Y + t1H / 2, {
+                color: c.textMuted,
+                width: 1.6,
+                head: 6,
+            })
+        }
+    })
+
+    // Hairline divider
+    fig.line(28, 120, 732, 120, { color: c.borderSubtle, width: 1 })
+
+    // --- Track 2: Delayed Scaling (1 pass + history ring, ZERO crossings) ---
+    fig.text(28, 144, 'Delayed scaling · 1 pass over X using history ring', {
+        size: 15,
+        weight: 600,
+        color: green,
+    })
+    fig.math(396, 144, 'H_t', { size: 15, color: blue })
+
+    // Shared Read X node on left
+    const rxX = 28
+    const rxY = 210
+    const rxW = 114
+    const rxH = 66
+    box(rxX, rxY, rxW, rxH, 'Read X', blue, '1 pass only')
+
+    // Upper branch: amax_t -> record a_t (for next step's history)
+    const upY = 176
+    const bH = 46
+    box(196, upY, 174, bH, 'Compute amax', warm, 'current a_t')
+    box(426, upY, 160, bH, 'Record a_t', warm, 'for step t+1')
+
+    // Lower branch: cast with S_t -> write Q -> GEMM
+    const dnY = 258
+    box(196, dnY, 174, bH, 'Cast with S_t', green, 'fused in pass')
+    box(426, dnY, 120, bH, 'Write Q', purple, 'FP8 out')
+    box(588, dnY, 114, bH, 'GEMM', purple, 'consume Q')
+
+    // Clean forks from Read X (no overlap)
+    fig.path(`M${rxX + rxW} ${rxY + 20} H168 V${upY + bH / 2} H192`, {
+        color: warm,
+        width: 1.75,
+    })
+    fig.arrow(182, upY + bH / 2, 195, upY + bH / 2, { color: warm, width: 1.75, head: 6 })
+
+    fig.path(`M${rxX + rxW} ${rxY + 46} H168 V${dnY + bH / 2} H192`, {
+        color: green,
+        width: 1.75,
+    })
+    fig.arrow(182, dnY + bH / 2, 195, dnY + bH / 2, { color: green, width: 1.75, head: 6 })
+
+    // Horizontal arrows on upper & lower lanes
+    fig.arrow(372, upY + bH / 2, 424, upY + bH / 2, { color: warm, width: 1.75, head: 6 })
+    fig.arrow(372, dnY + bH / 2, 424, dnY + bH / 2, { color: green, width: 1.75, head: 6 })
+    fig.arrow(548, dnY + bH / 2, 586, dnY + bH / 2, { color: purple, width: 1.75, head: 6 })
+
+    // Bottom row: History Ring H_t -> S_t = max(H_t)/448 (directly below Cast with S_t!)
+    const ringY = 346
+    const ringH = 54
+    fig.rect(28, ringY, 214, ringH, {
+        fill: tint(blue, c.bg, theme === 'light' ? 0.08 : 0.14),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(36, ringY - 12, 'History ring H_t', {
+        size: 12,
+        weight: 600,
+        color: blue,
+    })
+    const slots = ['a_{t-3}', 'a_{t-2}', 'a_{t-1}']
+    slots.forEach((tex, i) => {
+        const sx = 38 + i * 66
+        fig.rect(sx, ringY + 11, 58, 32, {
+            fill: tint(blue, c.bg, theme === 'light' ? 0.16 : 0.26),
+            stroke: tint(blue, c.bg, 0.55),
+            strokeWidth: 1.25,
+            radius: 5,
+        })
+        fig.math(sx + 29, ringY + 27, tex, { size: 13, color: c.textPrimary, align: 'center' })
+    })
+
+    // S_t box directly aligned below Cast with S_t (x = 280..480)
+    const stX = 280
+    const stW = 198
+    fig.rect(stX, ringY, stW, ringH, {
+        fill: tint(purple, c.bg, theme === 'light' ? 0.14 : 0.24),
+        stroke: purple,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.math(stX + stW / 2, ringY + ringH / 2, 'S_t = \\max(H_t) / 448', {
+        size: 14,
+        color: purple,
+        align: 'center',
+    })
+
+    // Arrow H_t -> S_t
+    fig.arrow(244, ringY + ringH / 2, stX - 2, ringY + ringH / 2, {
+        color: blue,
+        width: 1.75,
+        head: 6,
+    })
+
+    // Straight vertical arrow S_t -> Cast with S_t (ZERO crossing!)
+    const feedX = 326
+    fig.arrow(feedX, ringY - 2, feedX, dnY + bH + 2, {
+        color: purple,
+        width: 2,
+        head: 6.5,
+    })
+    fig.text(feedX + 10, (ringY + dnY + bH) / 2, 'feeds current cast', {
+        size: 12,
+        color: purple,
+        weight: 600,
+    })
+
+    // Clean perimeter feedback route from Record a_t around right edge & bottom into H_t (ZERO crossing!)
+    const rightRail = 728
+    const botRail = 424
+    const ringFeedX = 135
+    fig.path(
+        `M588 ${upY + bH / 2} H${rightRail} V${botRail} H${ringFeedX} V${ringY + ringH + 4}`,
+        {
+            color: warm,
+            width: 1.75,
+            dash: '6 4',
+        },
+    )
+    fig.arrow(ringFeedX, ringY + ringH + 12, ringFeedX, ringY + ringH + 2, {
+        color: warm,
+        width: 1.75,
+        head: 6,
+    })
+    fig.text(600, botRail - 13, 'append a_t → H_{t+1} (next step)', {
+        size: 12,
+        weight: 600,
+        color: warm,
+        align: 'center',
+    })
+
+    return fig.render()
+}
+
+export default create

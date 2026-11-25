@@ -1,15 +1,5 @@
 {
   "framing": "Shared capacity requires a plan for moving state",
-  "paragraphs": [
-    "Suppose sixteen 80 GB GPUs are available for a hypothetical 70B training job. One BF16 copy of the parameters needs 140 GB, so the model cannot start on any single GPU. Replication puts another copy of that problem on every device. Sharding can change who owns the parameters, but a stored shard is only one moment in the step. A later phase may still need a larger temporary copy to cross the network.",
-    "That movement creates a tradeoff. Lower persistent memory can introduce more frequent communication, transient peaks, and additional coordination failures. A job that fits may run inefficiently, and a successful restart may still produce a different update. Hardware counts alone cannot answer these questions. You need to follow state through the training step and distinguish arithmetic estimates from measured behavior.",
-    "Follow one replicated step, then a ZeRO stage and the life of an FSDP unit. Small examples show a collective result, how tokens are weighted, and what a checkpoint must save. When state sharding leaves a memory or compute limit, tensor, pipeline, and context parallelism divide different work. Short PyTorch and DeepSpeed fragments use the same accounting. Reproduce the declared recipes on hardware to obtain measurements from a training run.",
-    "The SFT and precision chapters provided the data objective, optimizer state, and dtype distinctions this reasoning needs. Keep those details explicit as workers are added. Basic matrix multiplication and backpropagation will help you follow why a gathered weight can be needed again during backward. The next chapter explores a complementary choice: leave most weights frozen and train compact adapters. Both approaches still require an honest budget for base weights, activations, temporary buffers, and the evaluation that judges the resulting model."
-  ],
-  "outcomes": [
-    "Track parameters, gradients, and optimizer state through a sharded step.",
-    "Separate ideal per-rank state size from peak memory and communication cost.",
-    "Explain which parallel axis addresses a specific memory or compute limit."
-  ],
+  "paragraphs": [],
   "question": "When the stored shards fit but the job fails or stalls, which part of their lifecycle would you measure first?"
 }

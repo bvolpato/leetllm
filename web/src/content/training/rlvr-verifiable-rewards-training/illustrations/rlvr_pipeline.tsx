@@ -1,295 +1,161 @@
-import React from 'react'
-import {
-    Arrow,
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    getReadableTextColor,
-    getToneColor,
-    getToneFill,
-    type ThemeColors,
-    type ToneName,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 672
-export const height = 720
-export const autoSize = false
+export const width = 720
+export const height = 355
 export const alt =
-    'The task is 14 workers × 12 slots = 168. Two authored policy completions end with literal output text \\boxed{168}, so the final-answer verifier returns reward 1 for each. A separate trace review calls the calculation sound and the shortcut invalid.'
+    'A math prompt (14 workers × 12 slots = 168) produces two completions: Trace A uses sound multiplication (14 × 12 = 168) and Trace B guesses a shortcut ("ends in 8"), yet both end with \\boxed{168}. Because the deterministic verifier only extracts and checks the final answer (168 = 168), both receive reward r = 1, illustrating why outcome rewards alone do not verify intermediate reasoning.'
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    options: {
-        color?: string
-        align?: 'left' | 'center' | 'right'
-        mono?: boolean
-        weight?: number
-        background?: string
-    } = {},
-) {
-    return (
-        <CanvasItem key={`label-${x}-${y}-${text}`} x={x} y={y} width={w} height={h}>
-            {options.background ? (
-                <div style={{ width: '100%', height: '100%', backgroundColor: options.background }}>
-                    <TextLabel
-                        c={c}
-                        text={text}
-                        width={w}
-                        fontSize={fontSize}
-                        fontWeight={options.weight ?? 700}
-                        color={options.color ?? c.textPrimary}
-                        align={options.align ?? 'left'}
-                        mono={options.mono ?? false}
-                    />
-                </div>
-            ) : (
-                <TextLabel
-                    c={c}
-                    text={text}
-                    width={w}
-                    fontSize={fontSize}
-                    fontWeight={options.weight ?? 700}
-                    color={options.color ?? c.textPrimary}
-                    align={options.align ?? 'left'}
-                    mono={options.mono ?? false}
-                />
-            )}
-        </CanvasItem>
-    )
-}
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const muted = c.textSecondary
 
-function surface(
-    c: ThemeColors,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    tone: ToneName,
-    strong = false,
-) {
-    const color = getToneColor(tone, c)
-    return (
-        <CanvasItem key={`surface-${x}-${y}`} x={x} y={y} width={w} height={h}>
-            <div
-                style={{
-                    boxSizing: 'border-box',
-                    width: '100%',
-                    height: '100%',
-                    backgroundColor: strong ? color : getToneFill(tone, c),
-                    border: `1px solid ${color}`,
-                    borderRadius: 12,
-                }}
-            />
-        </CanvasItem>
-    )
-}
-
-function arrow(
-    c: ThemeColors,
-    x: number,
-    y: number,
-    length: number,
-    direction: 'down' | 'right',
-    tone: ToneName,
-    backgroundTone?: ToneName,
-) {
-    const background = backgroundTone ? getToneFill(backgroundTone, c) : undefined
-    const color = background
-        ? getReadableToneColor(tone, c, background, background)
-        : getToneColor(tone, c)
-    return (
-        <CanvasItem
-            key={`arrow-${x}-${y}-${direction}`}
-            x={x}
-            y={y}
-            width={direction === 'right' ? length : 18}
-            height={direction === 'down' ? length : 18}
-        >
-            <Arrow c={c} direction={direction} length={length} color={color} />
-        </CanvasItem>
-    )
-}
-
-function createFigure(theme: ThemeColors) {
-    const c = { ...theme, preset: 'engineering' as const, shadow: 'transparent' }
-    const fillInk = (tone: ToneName) => {
-        const fill = getToneFill(tone, c)
-        return getReadableTextColor(fill, c, fill)
-    }
-    const toneInk = (tone: ToneName) => {
-        const fill = getToneFill(tone, c)
-        return getReadableToneColor(tone, c, fill, fill)
-    }
-    const cyan = toneInk('cyan')
-    const green = toneInk('green')
-    const warm = toneInk('warm')
-    const greenOnCyan = getReadableToneColor(
-        'green',
-        c,
-        getToneFill('cyan', c),
-        getToneFill('cyan', c),
-    )
-    const taskInk = fillInk('cyan')
-    const greenRowInk = fillInk('green')
-    const warmRowInk = fillInk('warm')
-    const purple = getReadableToneColor('purple', c)
-
-    const children = [
-        label(c, 'One score can reward two traces', 28, 24, 616, 42, 32, { weight: 850 }),
-        label(c, 'Verifier scores output; review judges reasoning.', 28, 72, 616, 38, 24, {
-            color: c.textSecondary,
-            weight: 600,
-        }),
-
-        surface(c, 28, 132, 616, 72, 'cyan'),
-        label(c, 'TASK · 14 workers × 12 slots = 168', 48, 150, 576, 36, 24, {
-            color: taskInk,
-            mono: true,
-            align: 'center',
-            weight: 750,
-            background: getToneFill('cyan', c),
-        }),
-
-        arrow(c, 327, 208, 26, 'down', 'cyan'),
-        label(c, 'Two authored policy completions', 28, 238, 616, 34, 24, {
-            color: c.textSecondary,
-            align: 'center',
-            weight: 700,
-        }),
-
-        label(c, 'REASONING', 104, 275, 182, 34, 24, {
-            color: c.textMuted,
-            align: 'center',
-            weight: 750,
-        }),
-        label(c, 'OUTPUT TEXT', 298, 275, 200, 34, 24, {
-            color: c.textMuted,
-            align: 'center',
-            weight: 750,
-        }),
-        label(c, 'REVIEW', 506, 275, 138, 34, 24, {
-            color: c.textMuted,
-            align: 'center',
-            weight: 750,
-        }),
-
-        surface(c, 28, 312, 616, 78, 'green'),
-        label(c, 'A', 46, 330, 50, 38, 30, {
-            color: green,
-            align: 'center',
-            weight: 850,
-            background: getToneFill('green', c),
-        }),
-        label(c, '14×12=168', 104, 332, 182, 34, 24, {
-            color: greenRowInk,
-            align: 'center',
-            weight: 700,
-            background: getToneFill('green', c),
-        }),
-        arrow(c, 288, 339, 28, 'right', 'green', 'green'),
-        label(c, '\\boxed{168}', 320, 332, 170, 34, 24, {
-            color: green,
-            mono: true,
-            align: 'center',
-            weight: 800,
-            background: getToneFill('green', c),
-        }),
-        label(c, '✓ sound', 506, 332, 128, 34, 24, {
-            color: green,
-            align: 'center',
-            weight: 800,
-            background: getToneFill('green', c),
-        }),
-
-        surface(c, 28, 404, 616, 78, 'warm'),
-        label(c, 'B', 46, 422, 50, 38, 30, {
-            color: warm,
-            align: 'center',
-            weight: 850,
-            background: getToneFill('warm', c),
-        }),
-        label(c, '“ends in 8”', 104, 424, 182, 34, 24, {
-            color: warmRowInk,
-            align: 'center',
-            weight: 700,
-            background: getToneFill('warm', c),
-        }),
-        arrow(c, 288, 431, 28, 'right', 'warm', 'warm'),
-        label(c, '\\boxed{168}', 320, 424, 170, 34, 24, {
-            color: warm,
-            mono: true,
-            align: 'center',
-            weight: 800,
-            background: getToneFill('warm', c),
-        }),
-        label(c, '✕ invalid', 506, 424, 128, 34, 24, {
-            color: warm,
-            align: 'center',
-            weight: 800,
-            background: getToneFill('warm', c),
-        }),
-
-        label(c, 'Both literal output fields match the gold value', 28, 500, 616, 34, 24, {
-            color: c.textSecondary,
-            align: 'center',
-            weight: 700,
-        }),
-        surface(c, 72, 544, 528, 60, 'cyan'),
-        label(c, 'extract 168', 92, 557, 146, 34, 24, {
-            color: cyan,
-            align: 'center',
-            weight: 750,
-            background: getToneFill('cyan', c),
-        }),
-        arrow(c, 240, 565, 32, 'right', 'cyan', 'cyan'),
-        label(c, '168 = 168', 275, 557, 190, 34, 24, {
-            color: fillInk('cyan'),
-            mono: true,
-            align: 'center',
-            weight: 750,
-            background: getToneFill('cyan', c),
-        }),
-        arrow(c, 468, 565, 28, 'right', 'green', 'cyan'),
-        label(c, 'r = 1', 500, 557, 84, 34, 26, {
-            color: greenOnCyan,
-            mono: true,
-            align: 'center',
-            weight: 850,
-            background: getToneFill('cyan', c),
-        }),
-
-        arrow(c, 327, 609, 26, 'down', 'purple'),
-        label(c, 'An optimizer can use the reward signal', 28, 642, 616, 34, 24, {
-            color: purple,
-            align: 'center',
-            weight: 750,
-        }),
-        label(c, 'GRPO is one choice for using the reward signal.', 28, 680, 616, 34, 24, {
-            color: c.textMuted,
-            align: 'center',
-            weight: 600,
-        }),
-    ]
-
-    return Scene({
-        c,
-        padding: 0,
-        gap: 0,
-        contentWidth: width,
-        background: 'transparent',
-        children: Board({ c, width, height, background: 'transparent', children }),
+    const pX = 16
+    const pY = 104
+    const pW = 138
+    const pH = 100
+    fig.rect(pX, pY, pW, pH, {
+        fill: tint(cyan, c.bg, 0.14),
+        stroke: cyan,
+        strokeWidth: 1.6,
+        radius: 8,
     })
+    fig.text(pX + pW / 2, pY + 24, 'Task prompt', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+    })
+    fig.text(pX + pW / 2, pY + 52, '14 × 12 = ?', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        align: 'center',
+    })
+    fig.text(pX + pW / 2, pY + 78, 'gold = 168', {
+        size: 14,
+        mono: true,
+        color: muted,
+        align: 'center',
+    })
+
+    const tX = 192
+    const tW = 296
+    const tH = 92
+    const topY = 36
+    const botY = 180
+
+    fig.arrow(pX + pW + 2, pY + 28, tX - 4, topY + tH / 2, { color: green, width: 1.9, head: 7 })
+    fig.arrow(pX + pW + 2, pY + 72, tX - 4, botY + tH / 2, { color: warm, width: 1.9, head: 7 })
+
+    fig.rect(tX, topY, tW, tH, {
+        fill: tint(green, c.bg, 0.12),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(tX + 12, topY + 24, 'Trace A · Sound ✓', { size: 15, weight: 700, color: green })
+    fig.text(tX + 12, topY + 58, '14×10 + 14×2 = 168', {
+        size: 14,
+        mono: true,
+        color: c.textPrimary,
+    })
+    fig.rect(tX + 186, topY + 42, 100, 32, {
+        fill: tint(green, c.bg, 0.24),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text(tX + 236, topY + 58, '\\boxed{168}', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    fig.rect(tX, botY, tW, tH, {
+        fill: tint(warm, c.bg, 0.12),
+        stroke: warm,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(tX + 12, botY + 24, 'Trace B · Shortcut ✕', { size: 15, weight: 700, color: warm })
+    fig.text(tX + 12, botY + 58, '“4×2 ends in 8…”', { size: 14, color: c.textPrimary })
+    fig.rect(tX + 186, botY + 42, 100, 32, {
+        fill: tint(warm, c.bg, 0.24),
+        stroke: warm,
+        strokeWidth: 1.3,
+        radius: 5,
+    })
+    fig.text(tX + 236, botY + 58, '\\boxed{168}', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: warm,
+        align: 'center',
+    })
+
+    const vX = 526
+    const vY = 86
+    const vW = 178
+    const vH = 136
+    fig.arrow(tX + tW + 2, topY + tH / 2, vX - 4, vY + 40, { color: green, width: 1.9, head: 7 })
+    fig.arrow(tX + tW + 2, botY + tH / 2, vX - 4, vY + 96, { color: warm, width: 1.9, head: 7 })
+
+    fig.rect(vX, vY, vW, vH, {
+        fill: tint(purple, c.bg, 0.14),
+        stroke: purple,
+        strokeWidth: 1.75,
+        radius: 9,
+    })
+    fig.text(vX + vW / 2, vY + 24, 'Outcome verifier', {
+        size: 15,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+    fig.text(vX + vW / 2, vY + 52, 'extract(\\boxed{…})', {
+        size: 14,
+        mono: true,
+        color: muted,
+        align: 'center',
+    })
+    fig.text(vX + vW / 2, vY + 80, '168 == 168', {
+        size: 16,
+        mono: true,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.rect(vX + 29, vY + 98, 120, 28, {
+        fill: tint(green, c.bg, 0.25),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 14,
+    })
+    fig.text(vX + vW / 2, vY + 112, 'r = 1 (both)', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+
+    fig.line(16, 298, width - 16, 298, { color: c.borderSubtle, width: 1 })
+    fig.text(
+        width / 2,
+        326,
+        'Outcome rewards check final answers only; separate review checks reasoning.',
+        { size: 14, color: muted, align: 'center' },
+    )
+
+    return fig.render()
 }
 
-const illustration = defineIllustration(createFigure)
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

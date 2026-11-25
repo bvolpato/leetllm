@@ -1,20 +1,10 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const height = 400
 export const alt =
-    'Comparison of three completion workloads sharing an identical 50 percent cache hit rate and 2,048-token overall mean. Because cache misses require full prefill while hits skip 75 percent, workload demand ranges from 716,800 tokens per second (36 GPUs) when hits are long to 1,331,200 tokens per second (67 GPUs) when misses are long, proving that token volume, not request count, dictates fleet capacity.'
+    'Top funnel shows 5,000 typing editors sending 2,000 raw req/s, 60% canceled pre-GPU leaving 800 surviving req/s (400 hits skipping 75% prefill + 400 full misses) with 2,048-token overall mean. Below, calibrated stacked bars compare uncached prefill demand at 20,000 tok/s per GPU: Long Hits need 716.8k tok/s (36 GPUs), Uniform 2,048 needs 1,024k tok/s (52 GPUs), and Long Misses need 1,331.2k tok/s (67 GPUs, +86%).'
 
 export const numericAnchors = {
     typingEditors: 5000,
@@ -31,313 +21,164 @@ export const numericAnchors = {
 }
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const orangeTone = getReadableToneColor('warm', c, c.bg)
-    const redTone = getReadableToneColor('critical', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const green = fig.tone('green')
+    const blue = fig.tone('blue')
+    const warm = fig.tone('warm')
+    const red = fig.tone('critical')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 13,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Top compact ingress funnel (3 clean tinted pills + arrows, zero heavy card stacks)
+    const stages = [
+        { x: 24, w: 236, label: '5,000 typing editors', sub: '0.4 req/s -> 2,000 raw req/s', tone: blue },
+        { x: 300, w: 234, label: 'Debounce & cancel', sub: '-1,200 canceled (60%)', tone: warm },
+        { x: 574, w: 262, label: '800 surviving req/s', sub: '400 hits (75% skip) + 400 misses', tone: green },
+    ]
+    stages.forEach((s, i) => {
+        fig.rect(s.x, 20, s.w, 54, {
+            fill: tint(s.tone, c.bg, 0.1),
+            stroke: s.tone,
+            strokeWidth: 1.3,
+            radius: 8,
+        })
+        fig.text(s.x + 14, 38, s.label, { size: 14, weight: 700, color: s.tone })
+        fig.text(s.x + 14, 58, s.sub, { size: 12, color: c.textSecondary, mono: true })
+        if (i < stages.length - 1) {
+            const next = stages[i + 1]!
+            fig.arrow(s.x + s.w + 4, 47, next.x - 4, 47, { color: c.textMuted, width: 1.6, head: 6 })
+        }
+    })
 
-    // Bar scaling: max tokens is 1,400,000; available bar width is 380px
-    const maxTokens = 1400000
-    const barW = (tok: number) => Math.round((tok / maxTokens) * 380)
+    // Main horizontal stacked bar plot (0..1.4M uncached prefill tokens/s)
+    fig.text(24, 102, 'Same 800 req/s, 50% hit rate & 2,048 mean tokens', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(836, 102, '20,000 tok/s per GPU', {
+        size: 13,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'right',
+        mono: true,
+    })
+
+    const plot = fig.plot({ x: 244, y: 124, width: 454, height: 186 }, { x: [0, 1400], y: [0, 3] })
+
+    // Vertical grid & x-axis ticks (in k tok/s)
+    for (const k of [0, 400, 800, 1200, 1400]) {
+        const tx = plot.px(k)
+        fig.line(tx, 124, tx, 310, { color: c.borderSubtle, width: 1 })
+        fig.line(tx, 310, tx, 315, { color: c.textMuted, width: 1 })
+        const label = k === 0 ? '0' : k >= 1000 ? `${(k / 1000).toFixed(k % 1000 === 0 ? 0 : 1)}M` : `${k}k`
+        fig.text(tx, 329, label, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+    fig.line(plot.px(0), 310, plot.px(1400), 310, { color: c.textMuted, width: 1 })
+    fig.text(plot.px(700), 350, 'Uncached prefill demand (tokens / s)', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
     const rows = [
         {
-            title: 'Cohort A: Long Hits (Hit 3,072 / Miss 1,024)',
-            hitTok: 307200,
-            missTok: 409600,
-            totalTok: 716800,
-            gpus: 36,
-            badge: '36 GPUs',
-            tone: greenTone,
+            title: 'Long hits',
+            sub: 'Hit 3,072 · Miss 1,024',
+            hitK: 307.2,
+            missK: 409.6,
+            totLabel: '716.8k',
+            gpus: '36 GPUs',
+            tone: green,
         },
         {
-            title: 'Cohort B: Balanced (Hit 2,048 / Miss 2,048)',
-            hitTok: 204800,
-            missTok: 819200,
-            totalTok: 1024000,
-            gpus: 52,
-            badge: '52 GPUs',
-            tone: blueTone,
+            title: 'Uniform 2,048',
+            sub: 'Hit 2,048 · Miss 2,048',
+            hitK: 204.8,
+            missK: 819.2,
+            totLabel: '1,024k',
+            gpus: '52 GPUs',
+            tone: blue,
         },
         {
-            title: 'Cohort C: Short Hits (Hit 1,024 / Miss 3,072)',
-            hitTok: 102400,
-            missTok: 1228800,
-            totalTok: 1331200,
-            gpus: 67,
-            badge: '67 GPUs (+86%)',
-            tone: redTone,
+            title: 'Long misses',
+            sub: 'Hit 1,024 · Miss 3,072',
+            hitK: 102.4,
+            missK: 1228.8,
+            totLabel: '1,331.2k',
+            gpus: '67 GPUs (+86%)',
+            tone: red,
         },
     ]
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Visual Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Top 3 Cards */}
-                    <rect
-                        x={40}
-                        y={80}
-                        width={248}
-                        height={72}
-                        rx={8}
-                        fill={theme === 'dark' ? '#14171f' : '#f8fafc'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={304}
-                        y={80}
-                        width={248}
-                        height={72}
-                        rx={8}
-                        fill={theme === 'dark' ? '#14171f' : '#f8fafc'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={568}
-                        y={80}
-                        width={252}
-                        height={72}
-                        rx={8}
-                        fill={theme === 'dark' ? '#14171f' : '#f8fafc'}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    rows.forEach((r, i) => {
+        const y = 138 + i * 58
+        const h = 34
+        fig.text(234, y + 10, r.title, {
+            size: 14,
+            weight: 700,
+            color: c.textPrimary,
+            align: 'right',
+        })
+        fig.text(234, y + 28, r.sub, {
+            size: 12,
+            color: c.textSecondary,
+            align: 'right',
+            mono: true,
+        })
 
-                    {/* Connecting arrows between top cards */}
-                    <path d="M 288 116 L 302 116" stroke={c.textMuted} strokeWidth={1.5} />
-                    <path d="M 552 116 L 566 116" stroke={c.textMuted} strokeWidth={1.5} />
+        const hitW = plot.px(r.hitK) - plot.px(0)
+        const missW = plot.px(r.hitK + r.missK) - plot.px(r.hitK)
 
-                    {/* Middle Rows Background & Bars */}
-                    {rows.map((r, i) => {
-                        const y = 196 + i * 68
-                        const barStartX = 350
-                        const hitW = barW(r.hitTok)
-                        const missW = barW(r.missTok)
+        fig.rect(plot.px(0), y, hitW - 1, h, { fill: green, opacity: 0.88, radius: 4 })
+        if (hitW >= 54) {
+            fig.text(plot.px(0) + hitW / 2, y + h / 2, `${Math.round(r.hitK)}k`, {
+                size: 12,
+                weight: 700,
+                color: c.bg,
+                align: 'center',
+                mono: true,
+            })
+        }
+        fig.rect(plot.px(r.hitK), y, missW, h, { fill: red, opacity: 0.86, radius: 4 })
+        fig.text(plot.px(r.hitK) + missW / 2, y + h / 2, `${Math.round(r.missK)}k`, {
+            size: 12,
+            weight: 700,
+            color: c.bg,
+            align: 'center',
+            mono: true,
+        })
 
-                        return (
-                            <g key={`bar-row-${i}`}>
-                                {/* Row background container */}
-                                <rect
-                                    x={40}
-                                    y={y}
-                                    width={780}
-                                    height={58}
-                                    rx={8}
-                                    fill={theme === 'dark' ? '#12151c' : '#ffffff'}
-                                    stroke={stroke}
-                                    strokeWidth={1}
-                                />
+        // Right-side GPU count + total tok/s
+        fig.text(712, y + 10, r.gpus, {
+            size: 14,
+            weight: 700,
+            color: r.tone,
+            mono: true,
+        })
+        fig.text(712, y + 28, `${r.totLabel} tok/s`, {
+            size: 12,
+            color: c.textSecondary,
+            mono: true,
+        })
+    })
 
-                                {/* Total bar track */}
-                                <rect
-                                    x={barStartX}
-                                    y={y + 18}
-                                    width={380}
-                                    height={22}
-                                    rx={4}
-                                    fill={theme === 'dark' ? '#1a1f2c' : '#f1f5f9'}
-                                />
+    // Legend & formula at bottom
+    fig.rect(24, 372, 12, 12, { fill: green, radius: 3 })
+    fig.text(42, 378, 'Hit uncached tail (25%)', { size: 12, color: c.textSecondary })
+    fig.rect(214, 372, 12, 12, { fill: red, radius: 3 })
+    fig.text(232, 378, 'Miss full prefill (100%)', { size: 12, color: c.textSecondary })
+    fig.math(836, 378, '\\text{Demand} = \\sum_i \\lambda_i L_i (1 - s_i)', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'right',
+    })
 
-                                {/* Hit bar segment */}
-                                <rect
-                                    x={barStartX}
-                                    y={y + 18}
-                                    width={hitW}
-                                    height={22}
-                                    rx={4}
-                                    fill={greenTone}
-                                    opacity={0.85}
-                                />
-
-                                {/* Miss bar segment */}
-                                <rect
-                                    x={barStartX + hitW}
-                                    y={y + 18}
-                                    width={missW}
-                                    height={22}
-                                    rx={4}
-                                    fill={redTone}
-                                    opacity={0.85}
-                                />
-                            </g>
-                        )
-                    })}
-
-                    {/* Legend circles */}
-                    <circle cx={340} cy={410} r={5} fill={greenTone} />
-                    <circle cx={530} cy={410} r={5} fill={redTone} />
-
-                    {/* Footer Insight Box */}
-                    <rect
-                        x={40}
-                        y={432}
-                        width={780}
-                        height={50}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
-
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Token-Weighted Fleet Sizing vs Request Counts',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                '50% cache hit rate and 2,048 avg tokens yield an 86% fleet variance depending on hit vs miss length',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Top Stage Pipeline Cards */}
-            {/* Box 1 */}
-            {label(48, 88, 230, 'CLIENT INGRESS', 11, c.textMuted, 'left', 700)}
-            {label(48, 108, 230, '5,000 Typing Editors', 14, c.textPrimary, 'left', 700)}
-            {label(
-                48,
-                128,
-                230,
-                '0.4 keystroke req/s → 2,000 req/s',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Box 2 */}
-            {label(312, 88, 230, 'CLIENT DEBOUNCE FILTER', 11, orangeTone, 'left', 700)}
-            {label(312, 108, 230, '1,200 Cancelled (60%)', 14, orangeTone, 'left', 700)}
-            {label(
-                312,
-                128,
-                230,
-                'Fast typing drops stale requests early',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Box 3 */}
-            {label(576, 88, 230, 'GPU INGRESS QUEUE', 11, greenTone, 'left', 700)}
-            {label(576, 108, 230, '800 Surviving Req/s', 14, greenTone, 'left', 700)}
-            {label(
-                576,
-                128,
-                230,
-                '400 Hits (skip 75%) + 400 Misses',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Middle Section Header */}
-            {label(
-                40,
-                172,
-                780,
-                'WORKLOAD COMPARISON · IDENTICAL 50% CACHE HIT RATE, VARYING WORK',
-                12,
-                c.textMuted,
-                'left',
-                700,
-            )}
-
-            {/* Rows */}
-            {rows.map((r, i) => {
-                const y = 200 + i * 68
-                return (
-                    <React.Fragment key={`row-labels-${i}`}>
-                        {label(40, y + 4, 300, r.title, 12, c.textPrimary, 'left', 600)}
-                        {label(
-                            40,
-                            y + 24,
-                            300,
-                            `${r.totalTok.toLocaleString()} prefill tokens/s`,
-                            11,
-                            c.textSecondary,
-                            'left',
-                            400,
-                        )}
-                        {label(740, y + 12, 80, r.badge, 13, r.tone, 'right', 700)}
-                    </React.Fragment>
-                )
-            })}
-
-            {/* Legend */}
-            {label(350, 404, 160, 'KV-Cache Hit Prefill (25%)', 11, greenTone, 'left', 500)}
-            {label(540, 404, 160, 'Full Cache Miss Prefill (100%)', 11, redTone, 'left', 500)}
-
-            {/* Architecture Takeaway Box */}
-            {label(52, 442, 756, 'Key Architectural Insight', 12, blueTone, 'left', 700)}
-            {label(
-                52,
-                460,
-                756,
-                'Autoscaling on request rate alone fails: fleet capacity must scale with token volume (prefill + decode), not HTTP requests.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
-export default create()
+export default create('dark')

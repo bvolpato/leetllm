@@ -1,140 +1,88 @@
-import {
-    BadgePill,
-    Column,
-    FlowArrow,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    getThemeColors,
-    withDensity,
-} from 'vizmatic'
+import React from 'react'
 import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 640
-export const height = 650
+export const width = 900
+export const height = 370
 export const alt =
-    'A recalled memory note provides context only. Recovery reads the durable workflow checkpoint, inspects live CI and merge state with the idempotency key, and either advances or retries safely.'
+    'Crash recovery flow contrasting a recalled memory note (context only, stale risk) with a durable workflow checkpoint (node open_pr pending, key merge-run-42). Recovery reconciles against live CI and upstream state, either skipping duplicates if the key exists or retrying once if checks pass.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = withDensity(
-        getThemeColors(theme, theme === 'light' ? 'engineering' : 'default'),
-        1.85,
-    )
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const warm = fig.tone('warm')
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
 
-    return Scene({
-        c,
-        title: 'Crash Recovery: Memory Note vs. Workflow Checkpoint',
-        padding: 16,
-        gap: 12,
-        contentWidth: 608,
-        children: [
-            Row({
-                gap: 12,
-                align: 'stretch',
-                children: [
-                    Panel({
-                        c,
-                        title: 'Recalled Note',
-                        tone: 'warm',
-                        width: 298,
-                        padding: 12,
-                        titleFontSize: 20,
-                        children: Column({
-                            gap: 6,
-                            children: [
-                                TextLabel({
-                                    c,
-                                    text: '"Merge approved earlier"',
-                                    fontSize: 19,
-                                }),
-                                TextLabel({
-                                    c,
-                                    text: 'Context only, stale risk',
-                                    fontSize: 19,
-                                    color: c.textMuted,
-                                }),
-                            ],
-                        }),
-                    }),
-                    Panel({
-                        c,
-                        title: 'Workflow Checkpoint',
-                        tone: 'blue',
-                        width: 298,
-                        padding: 12,
-                        titleFontSize: 20,
-                        children: Column({
-                            gap: 6,
-                            children: [
-                                TextLabel({
-                                    c,
-                                    text: 'node: open_pr (pending)',
-                                    fontSize: 19,
-                                    mono: true,
-                                }),
-                                TextLabel({
-                                    c,
-                                    text: 'key: merge-run-42',
-                                    fontSize: 19,
-                                    mono: true,
-                                }),
-                            ],
-                        }),
-                    }),
-                ],
-            }),
-            FlowArrow({ c, direction: 'down', length: 24, tone: 'purple' }),
-            Panel({
-                c,
-                title: 'Reconcile Against Live Systems',
-                tone: 'purple',
-                width: 608,
-                padding: 12,
-                titleFontSize: 20,
-                children: TextLabel({
-                    c,
-                    text: 'Check current CI status, branch rule, and key merge-run-42',
-                    fontSize: 19,
-                }),
-            }),
-            FlowArrow({ c, direction: 'down', length: 24, tone: 'purple' }),
-            Row({
-                gap: 12,
-                align: 'stretch',
-                children: [
-                    Panel({
-                        c,
-                        title: 'Key Found Upstream',
-                        tone: 'green',
-                        width: 298,
-                        padding: 12,
-                        titleFontSize: 20,
-                        children: BadgePill({
-                            c,
-                            text: 'Skip dup, mark committed',
-                            tone: 'green',
-                            fontSize: 19,
-                        }),
-                    }),
-                    Panel({
-                        c,
-                        title: 'No Upstream Effect',
-                        tone: 'cyan',
-                        width: 298,
-                        padding: 12,
-                        titleFontSize: 20,
-                        children: BadgePill({
-                            c,
-                            text: 'Retry once if checks pass',
-                            tone: 'cyan',
-                            fontSize: 19,
-                        }),
-                    }),
-                ],
-            }),
-        ],
+    const box = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        title: string,
+        line1: string,
+        line2: string,
+        tone: string,
+        dashed = false,
+    ) => {
+        fig.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, theme === 'light' ? 0.09 : 0.15),
+            stroke: tone,
+            strokeWidth: dashed ? 1.4 : 1.8,
+            radius: 9,
+        })
+        fig.text(x + w / 2, y + 22, title, { size: 14, weight: 700, color: tone, align: 'center' })
+        fig.text(x + w / 2, y + 46, line1, {
+            size: 13,
+            mono: line1.includes(':') || line1.includes('merge-run'),
+            color: c.textPrimary,
+            align: 'center',
+        })
+        fig.text(x + w / 2, y + 68, line2, {
+            size: 12.5,
+            mono: line2.includes('key:'),
+            color: c.textSecondary,
+            align: 'center',
+        })
+    }
+
+    // Left: Two inputs (Advisory Note vs Authoritative Checkpoint)
+    box(24, 42, 248, 92, 'Recalled Memory Note', '"Merge approved earlier"', 'advisory context · stale risk', warm, true)
+    box(24, 212, 248, 96, 'Workflow Checkpoint', 'node: open_pr (pending)', 'key: merge-run-42', blue)
+
+    // Dotted advisory arrow (not trusted for execution) + solid authoritative arrow
+    fig.path('M 272 88 H 338 V 172 H 362', { color: warm, width: 1.5, dash: '4 4' })
+    fig.text(320, 68, 'context only', { size: 12, color: warm, align: 'center' })
+
+    fig.path('M 272 260 H 338 V 202 H 362', { color: blue, width: 2.2 })
+    fig.arrow(348, 202, 364, 202, { color: blue, width: 2.2, head: 7 })
+    fig.text(300, 322, 'authoritative state', { size: 12.5, weight: 700, color: blue, align: 'center' })
+
+    // Center: Reconcile against live systems
+    fig.rect(366, 136, 208, 108, {
+        fill: tint(purple, c.bg, theme === 'light' ? 0.12 : 0.19),
+        stroke: purple,
+        strokeWidth: 2,
+        radius: 10,
     })
+    fig.text(470, 162, 'Reconcile Live State', { size: 14.5, weight: 700, color: purple, align: 'center' })
+    fig.text(470, 188, 'Query CI + branch HEAD', { size: 13, color: c.textPrimary, align: 'center' })
+    fig.text(470, 212, 'Lookup key: merge-run-42', { size: 12.5, mono: true, color: c.textSecondary, align: 'center' })
+
+    // Right: Two safe outcomes
+    fig.path('M 574 172 H 614 V 104 H 646', { color: green, width: 2 })
+    fig.arrow(632, 104, 648, 104, { color: green, width: 2, head: 6.5 })
+    fig.text(612, 84, 'key found', { size: 12.5, weight: 700, color: green, align: 'center' })
+
+    fig.path('M 574 208 H 614 V 268 H 646', { color: blue, width: 2 })
+    fig.arrow(632, 268, 648, 268, { color: blue, width: 2, head: 6.5 })
+    fig.text(612, 290, 'no effect', { size: 12.5, weight: 700, color: blue, align: 'center' })
+
+    box(650, 56, 226, 94, 'Upstream Key Found', 'Skip duplicate call', 'mark checkpoint committed', green)
+    box(650, 222, 226, 94, 'No Upstream Effect', 'Retry once safely', 'only if live CI checks pass', blue)
+
+    return fig.render()
 }
 
 export default create('dark')

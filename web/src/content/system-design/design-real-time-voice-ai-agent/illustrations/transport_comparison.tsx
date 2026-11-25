@@ -1,371 +1,203 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-    getReadableToneColor,
-    getToneFill,
-    type ThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 395
 export const alt =
-    'Four 20 ms audio packets illustrate one missing frame. WebRTC conceals the 60 ms gap with packet loss concealment (PLC) and plays the 80 ms packet on time. A TCP WebSocket incurs head-of-line blocking, withholding later segments D and E until missing segment C is retransmitted.'
+    'Four 20 ms packets with one lost frame at 60 ms: WebRTC conceals the 60 ms gap and plays the 80 ms packet on schedule, while TCP WebSocket stalls later bytes behind retransmission.'
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    size = 20,
-    color = c.textPrimary,
-    weight = 500,
-    align: 'left' | 'center' | 'right' = 'center',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * 1.5,
-        children: (
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                fontWeight={weight}
-                color={color}
-                align={align}
-            />
-        ),
+const SLOTS = ['20 ms', '40 ms', '60 ms (LOST)', '80 ms', '100 ms'] as const
+
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const critical = fig.tone('critical')
+    const warm = fig.tone('warm')
+    const muted = c.textSecondary
+
+    const startX = 200
+    const slotW = 114
+    const slotGap = 10
+
+    // Top time cadence headers
+    fig.text(24, 24, '20 ms Packet Cadence', { size: 14, weight: 700, color: c.textPrimary })
+    SLOTS.forEach((s, i) => {
+        const cx = startX + i * (slotW + slotGap) + slotW / 2
+        const isLost = i === 2
+        fig.text(cx, 24, s, {
+            size: 13,
+            weight: isLost ? 700 : 600,
+            color: isLost ? critical : muted,
+            align: 'center',
+            mono: true,
+            width: slotW,
+        })
+        fig.line(cx, 38, cx, 356, {
+            color: isLost ? tint(critical, c.bg, 0.35) : c.borderSubtle,
+            width: 1,
+            dash: '3 4',
+        })
     })
-}
 
-export function create(mode: ThemeMode = 'dark') {
-    const c = getThemeColors(mode)
-    const tone = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getReadableToneColor(name, c)
-    const fill = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getToneFill(name, c)
+    // --- Lane 1: WebRTC (UDP / RTP + PLC) ---
+    const y1 = 68
+    fig.text(24, y1 + 16, 'WebRTC (UDP / RTP)', { size: 15, weight: 700, color: blue })
+    fig.text(24, y1 + 40, 'Prioritizes deadline', { size: 13, color: muted })
+    fig.text(24, y1 + 66, '80 ms plays on time', { size: 13, weight: 700, color: green })
 
-    const webrtcPackets = [
-        { time: '20 ms', status: 'play', tone: 'green' as const },
-        { time: '40 ms', status: 'play', tone: 'green' as const },
-        { time: '60 ms', status: 'lost', tone: 'critical' as const },
-        { time: '80 ms', status: 'play', tone: 'green' as const },
+    const udpFrames = [
+        { top: 'Frame 1', bot: 'Play', kind: 'ok' as const },
+        { top: 'Frame 2', bot: 'Play', kind: 'ok' as const },
+        { top: 'Lost -> PLC', bot: 'Conceal 20 ms', kind: 'plc' as const },
+        { top: 'Frame 4', bot: 'Play on time', kind: 'ok' as const },
+        { top: 'Frame 5', bot: 'Play on time', kind: 'ok' as const },
     ]
-
-    const tcpSegments = [
-        { name: 'Seg A', status: 'delivered', tone: 'green' as const },
-        { name: 'Seg B', status: 'delivered', tone: 'green' as const },
-        { name: 'Seg C', status: 'missing', tone: 'critical' as const },
-        { name: 'Seg D, E', status: 'blocked', tone: 'warm' as const },
-    ]
-
-    return Board({
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: (
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {/* WebRTC Panel */}
-                        <rect
-                            x="24"
-                            y="54"
-                            width="396"
-                            height="348"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={tone('blue')}
-                            strokeWidth="1.5"
-                            strokeOpacity={0.6}
-                        />
-
-                        {/* WebSocket TCP Panel */}
-                        <rect
-                            x="440"
-                            y="54"
-                            width="396"
-                            height="348"
-                            rx="12"
-                            fill={c.bgCard}
-                            stroke={tone('warm')}
-                            strokeWidth="1.5"
-                            strokeOpacity={0.6}
-                        />
-
-                        {/* WebRTC Packets */}
-                        {webrtcPackets.map((p, i) => {
-                            const x = 44 + i * 88
-                            return (
-                                <rect
-                                    key={p.time}
-                                    x={x}
-                                    y={116}
-                                    width="76"
-                                    height="62"
-                                    rx="8"
-                                    fill={fill(p.tone)}
-                                    stroke={tone(p.tone)}
-                                    strokeWidth="1.5"
-                                />
-                            )
-                        })}
-
-                        {/* WebRTC PLC Bridge */}
-                        <path
-                            d="M 220 188 V 204 H 308 V 188"
-                            fill="none"
-                            stroke={tone('green')}
-                            strokeWidth="2"
-                        />
-
-                        {/* TCP Segments */}
-                        {tcpSegments.map((s, i) => {
-                            const x = 460 + i * 88
-                            return (
-                                <rect
-                                    key={s.name}
-                                    x={x}
-                                    y={116}
-                                    width="76"
-                                    height="62"
-                                    rx="8"
-                                    fill={fill(s.tone)}
-                                    stroke={tone(s.tone)}
-                                    strokeWidth="1.5"
-                                />
-                            )
-                        })}
-
-                        {/* TCP HoL Blocking bracket */}
-                        <path
-                            d="M 636 188 V 204 H 812 V 188"
-                            fill="none"
-                            stroke={tone('critical')}
-                            strokeWidth="2"
-                        />
-
-                        {/* Bottom takeaway banner */}
-                        <rect
-                            x="24"
-                            y="418"
-                            width="812"
-                            height="64"
-                            rx="10"
-                            fill={c.bgCard}
-                            stroke={c.border}
-                            strokeWidth="1.5"
-                        />
-                    </svg>
-                ),
-            }),
-            label(
-                c,
-                'One packet loss, two playout rules',
-                24,
-                14,
-                812,
-                24,
-                c.textPrimary,
-                700,
-                'left',
-            ),
-
-            // WebRTC Column Labels
-            label(
-                c,
-                'WebRTC (UDP / RTP) · Meet the deadline',
-                44,
-                68,
-                356,
-                18,
-                tone('blue'),
-                700,
-                'left',
-            ),
-            label(
-                c,
-                'Timeliness prioritized over complete reliability',
-                44,
-                92,
-                356,
-                14,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-
-            ...webrtcPackets.flatMap((p, i) => [
-                label(c, p.time, 44 + i * 88, 126, 76, 16, tone(p.tone), 700),
-                label(c, p.status, 44 + i * 88, 150, 76, 14, c.textSecondary),
-            ]),
-
-            label(
-                c,
-                'PLC concealment: synthesizes 60 ms audio waveform',
-                44,
-                212,
-                356,
-                15,
-                tone('green'),
-                600,
-            ),
-            label(
-                c,
-                '• Never blocks later packets for missing frames',
-                44,
-                244,
-                356,
-                15,
-                c.textPrimary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Jitter buffer bounds delay: 80 ms packet plays on time',
-                44,
-                272,
-                356,
-                15,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Total mouth-to-ear latency preserved without spikes',
-                44,
-                300,
-                356,
-                15,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Imperceptible 20 ms pitch extrapolation artifact',
-                44,
-                328,
-                356,
-                15,
-                c.textMuted,
-                500,
-                'left',
-            ),
-
-            // TCP Column Labels
-            label(
-                c,
-                'WebSocket (TCP) · In-order byte delivery',
-                460,
-                68,
-                356,
-                18,
-                tone('warm'),
-                700,
-                'left',
-            ),
-            label(
-                c,
-                'Lossless byte stream prioritized over latency',
-                460,
-                92,
-                356,
-                14,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-
-            ...tcpSegments.flatMap((s, i) => [
-                label(c, s.name, 460 + i * 88, 126, 76, 16, tone(s.tone), 700),
-                label(c, s.status, 460 + i * 88, 150, 76, 14, c.textSecondary),
-            ]),
-
-            label(
-                c,
-                'Head-of-Line blocking: socket holds D and E',
-                460,
-                212,
-                356,
-                15,
-                tone('critical'),
-                600,
-            ),
-            label(
-                c,
-                '• Kernel socket buffer holds D & E until C retransmits',
-                460,
-                244,
-                356,
-                15,
-                c.textPrimary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Application receives 0 frames during retransmission',
-                460,
-                272,
-                356,
-                15,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Glitch duration equals full RTT + timeout (200–800 ms)',
-                460,
-                300,
-                356,
-                15,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-            label(
-                c,
-                '• Causes speaker underrun followed by burst catch-up',
-                460,
-                328,
-                356,
-                15,
-                c.textMuted,
-                500,
-                'left',
-            ),
-
-            // Bottom bar
-            label(c, 'Architectural verdict:', 40, 432, 180, 16, tone('purple'), 700, 'left'),
-            label(
-                c,
-                'Human conversation cannot tolerate TCP retransmission stalls. Real-time voice agents must use WebRTC / UDP with packet loss concealment (PLC) to enforce strict mouth-to-ear latency budgets.',
-                220,
-                428,
-                596,
-                15,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-        ],
+    udpFrames.forEach((f, i) => {
+        const fx = startX + i * (slotW + slotGap)
+        const isPlc = f.kind === 'plc'
+        fig.rect(fx, y1, slotW, 66, {
+            fill: isPlc ? tint(critical, c.bg, 0.12) : tint(green, c.bg, 0.18),
+            stroke: isPlc ? critical : green,
+            strokeWidth: isPlc ? 1.75 : 1.5,
+            radius: 7,
+        })
+        fig.text(fx + slotW / 2, y1 + 22, f.top, {
+            size: 13,
+            weight: 700,
+            color: isPlc ? critical : green,
+            align: 'center',
+            width: slotW - 8,
+        })
+        fig.text(fx + slotW / 2, y1 + 46, f.bot, {
+            size: 12,
+            weight: 600,
+            color: isPlc ? green : c.textSecondary,
+            align: 'center',
+            width: slotW - 8,
+        })
     })
+
+    // Subtle bridge note under WebRTC
+    fig.brace(
+        startX + 2 * (slotW + slotGap),
+        y1 + 72,
+        startX + 3 * (slotW + slotGap) + slotW,
+        y1 + 72,
+        'PLC bridges 60 ms gap; never blocks 80 ms frame',
+        {
+            side: 1,
+            depth: 8,
+            color: green,
+            labelColor: green,
+            labelSize: 12,
+            weight: 600,
+            labelGap: 14,
+        },
+    )
+
+    // Divider
+    fig.line(24, 198, 816, 198, { color: c.borderSubtle, width: 1 })
+
+    // --- Lane 2: WebSocket (TCP In-Order Stream) ---
+    const y2 = 226
+    fig.text(24, y2 + 16, 'WebSocket (TCP)', { size: 15, weight: 700, color: warm })
+    fig.text(24, y2 + 40, 'In-order byte stream', { size: 13, color: muted })
+    fig.text(24, y2 + 66, 'HoL stalls later audio', { size: 13, weight: 700, color: critical })
+
+    // Seg A, Seg B delivered
+    ;[
+        { top: 'Seg A', bot: 'Delivered' },
+        { top: 'Seg B', bot: 'Delivered' },
+    ].forEach((s, i) => {
+        const fx = startX + i * (slotW + slotGap)
+        fig.rect(fx, y2, slotW, 66, {
+            fill: tint(green, c.bg, 0.16),
+            stroke: green,
+            strokeWidth: 1.5,
+            radius: 7,
+        })
+        fig.text(fx + slotW / 2, y2 + 22, s.top, {
+            size: 13,
+            weight: 700,
+            color: green,
+            align: 'center',
+            width: slotW - 8,
+        })
+        fig.text(fx + slotW / 2, y2 + 46, s.bot, {
+            size: 12,
+            color: muted,
+            align: 'center',
+            width: slotW - 8,
+        })
+    })
+
+    // Seg C lost
+    const cX = startX + 2 * (slotW + slotGap)
+    fig.rect(cX, y2, slotW, 66, {
+        fill: tint(critical, c.bg, 0.2),
+        stroke: critical,
+        strokeWidth: 2,
+        radius: 7,
+    })
+    fig.text(cX + slotW / 2, y2 + 22, 'Seg C Lost', {
+        size: 13,
+        weight: 700,
+        color: critical,
+        align: 'center',
+        width: slotW - 8,
+    })
+    fig.text(cX + slotW / 2, y2 + 46, 'Retransmit...', {
+        size: 12,
+        weight: 600,
+        color: critical,
+        align: 'center',
+        width: slotW - 8,
+    })
+
+    // Seg D & E blocked in kernel buffer across slots 80ms + 100ms
+    const dX = startX + 3 * (slotW + slotGap)
+    const stallW = slotW * 2 + slotGap
+    fig.rect(dX, y2, stallW, 66, {
+        fill: tint(warm, c.bg, 0.14),
+        stroke: warm,
+        strokeWidth: 1.75,
+        radius: 7,
+    })
+    fig.text(dX + stallW / 2, y2 + 22, 'Seg D, E Blocked (Head-of-Line)', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        width: stallW - 12,
+    })
+    fig.text(dX + stallW / 2, y2 + 46, 'Held until Seg C recovers (audio stall)', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+        width: stallW - 8,
+    })
+
+    // HoL brace below TCP
+    fig.brace(
+        cX,
+        y2 + 72,
+        dX + stallW,
+        y2 + 72,
+        'Speaker stalls for full RTT + retransmission, then bursts',
+        {
+            side: 1,
+            depth: 8,
+            color: critical,
+            labelColor: critical,
+            labelSize: 12,
+            weight: 600,
+            labelGap: 14,
+        },
+    )
+
+    return fig.render()
 }
 
 export default create()

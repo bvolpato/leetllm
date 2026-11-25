@@ -1,322 +1,254 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import { getReadableTextColor, type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
-
+export const width = 820
+export const height = 395
 export const alt =
-    'Streaming timeline and Time Per Output Token (TPOT) calculation on a 0 to 240 millisecond scale. Request arrival is at 0 ms, first token at 100 ms (TTFT), a bundled four-token event at 220 ms, and terminal stream closure at 240 ms. Completion-based TPOT is (240 - 100) / (5 - 1) = 35 ms per token, showing how network buffering creates an observed 120 ms event gap.'
-
-export const numericAnchors = {
-    arrivalMs: 0,
-    ttftMs: 100,
-    bundleMs: 220,
-    bundleTokens: 4,
-    terminalMs: 240,
-    totalTokens: 5,
-    eventGapMs: 120,
-    completionOverheadMs: 20,
-    tpotMs: 35,
-}
+    'Aligned timeline comparing GPU engine decode steps against client-observed streamed events on a 0 to 240 ms axis. Arrival occurs at 0 ms, token 1 emits at 100 ms (TTFT), tokens 2 through 5 decode smoothly at 30 ms intervals on the engine but arrive bundled in a single frame at 220 ms, and the stream closes at 240 ms. Observed event gap is 120 ms while completion-based TPOT equals (240 - 100) / (5 - 1) = 35 ms per token.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const blueTone = getReadableToneColor('blue', c, c.bg)
-    const greenTone = getReadableToneColor('green', c, c.bg)
-    const warmTone = getReadableToneColor('warm', c, c.bg)
-    const purpleTone = getReadableToneColor('purple', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const soft = (hex: string, a = 0.14) => tint(hex, c.bg, a)
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 12,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem
-            x={x}
-            y={y}
-            width={w}
-            height={Math.min(
-                height - y,
-                Math.ceil(
-                    fontSize *
-                        1.4 *
-                        Math.max(1, Math.ceil((text.length * fontSize * 0.55) / Math.max(w, 1))),
-                ),
-            )}
-        >
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
+    // Shared horizontal time coordinate system: 0..240 ms mapped cleanly to x = 144..704
+    const plot = fig.plot({ x: 144, y: 54, width: 560, height: 222 }, { x: [0, 240], y: [0, 10] })
+
+    const ticks = [0, 40, 80, 120, 160, 200, 240]
+    for (const t of ticks) {
+        const x = plot.px(t)
+        fig.line(x, 54, x, 276, { color: c.borderSubtle, width: 1, opacity: 0.7 })
+        fig.line(x, 276, x, 282, { color: c.textMuted, width: 1.2 })
+        fig.text(x, 298, `${t}`, {
+            size: 13,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+            width: 44,
+        })
+    }
+    fig.line(plot.px(0), 276, plot.px(240), 276, { color: c.textMuted, width: 1.4 })
+    fig.text(plot.px(120), 322, 'Elapsed time from gateway arrival (ms)', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'center',
+        width: 300,
+    })
+
+    // Milestone vertical reference hairlines at 100, 220, 240 ms
+    for (const [ms, col] of [
+        [100, blue],
+        [220, purple],
+        [240, green],
+    ] as const) {
+        fig.line(plot.px(ms), 44, plot.px(ms), 276, {
+            color: col,
+            width: 1.25,
+            dash: '4 3',
+            opacity: 0.75,
+        })
+    }
+
+    // Top milestone headers (spaced cleanly with zero collisions)
+    fig.text(plot.px(0), 28, 'Arrival (0)', {
+        size: 13,
+        color: c.textSecondary,
+        align: 'left',
+        weight: 600,
+        width: 90,
+    })
+    fig.text(plot.px(100), 28, 'TTFT (100 ms)', {
+        size: 13,
+        color: blue,
+        align: 'center',
+        weight: 700,
+        width: 120,
+    })
+    fig.text(plot.px(220) - 6, 28, 'Bundle (220)', {
+        size: 13,
+        color: purple,
+        align: 'right',
+        weight: 700,
+        width: 110,
+    })
+    fig.text(plot.px(240) + 8, 28, 'EOF (240)', {
+        size: 13,
+        color: green,
+        align: 'left',
+        weight: 700,
+        width: 82,
+    })
+
+    // Lane 1: GPU Engine (smooth autoregressive decode)
+    const yEngine = 106
+    fig.text(130, yEngine - 8, 'GPU Engine', {
+        size: 14,
+        color: c.textPrimary,
+        align: 'right',
+        weight: 700,
+        width: 115,
+    })
+    fig.text(130, yEngine + 12, 'decode steps', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'right',
+        width: 115,
+    })
+
+    // Prefill bar (0..100 ms)
+    const onBlue = getReadableTextColor(blue, c, c.bg)
+    fig.rect(plot.px(0), yEngine - 14, plot.px(100) - plot.px(0), 28, {
+        fill: blue,
+        radius: 5,
+    })
+    fig.text((plot.px(0) + plot.px(100)) / 2, yEngine, 'Queue + Prefill (100 ms)', {
+        size: 13,
+        color: onBlue,
+        align: 'center',
+        weight: 600,
+        width: 210,
+    })
+
+    // Decode track (100..220 ms) + 5 individual tokens
+    fig.rect(plot.px(100), yEngine - 14, plot.px(220) - plot.px(100), 28, {
+        fill: soft(green, theme === 'light' ? 0.12 : 0.18),
+        stroke: tint(green, c.bg, 0.55),
+        strokeWidth: 1.2,
+        radius: 5,
+    })
+    const tokenTimes = [100, 130, 160, 190, 220]
+    tokenTimes.forEach((ms, idx) => {
+        const cx = plot.px(ms)
+        fig.circle(cx, yEngine, 6.5, { fill: green, stroke: c.bg, width: 1.5 })
+        fig.text(cx, yEngine - 26, `T${idx + 1}`, {
+            size: 12,
+            color: green,
+            align: 'center',
+            weight: 700,
+            mono: true,
+            width: 30,
+        })
+    })
+    // Close segment (220..240 ms)
+    fig.rect(plot.px(220), yEngine - 14, plot.px(240) - plot.px(220), 28, {
+        fill: soft(green, 0.25),
+        stroke: green,
+        strokeWidth: 1,
+        radius: 4,
+    })
+    fig.circle(plot.px(240), yEngine, 5, { fill: green })
+
+    // Lane 2: Client Stream (buffered events)
+    const yClient = 220
+    fig.text(130, yClient - 8, 'Client Stream', {
+        size: 14,
+        color: c.textPrimary,
+        align: 'right',
+        weight: 700,
+        width: 115,
+    })
+    fig.text(130, yClient + 12, 'SSE frames', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'right',
+        width: 115,
+    })
+
+    // Client wait (0..100 ms)
+    fig.rect(plot.px(0), yClient - 14, plot.px(100) - plot.px(0), 28, {
+        fill: soft(blue, theme === 'light' ? 0.1 : 0.16),
+        stroke: tint(blue, c.bg, 0.45),
+        strokeWidth: 1,
+        radius: 5,
+    })
+    fig.text((plot.px(0) + plot.px(100)) / 2, yClient, 'Waiting for token 1', {
+        size: 13,
+        color: blue,
+        align: 'center',
+        weight: 500,
+        width: 180,
+    })
+
+    // Observed 120 ms event gap (100..220 ms)
+    fig.rect(plot.px(100), yClient - 14, plot.px(220) - plot.px(100), 28, {
+        fill: soft(warm, theme === 'light' ? 0.14 : 0.22),
+        stroke: warm,
+        strokeWidth: 1.4,
+        radius: 5,
+    })
+    fig.text((plot.px(100) + plot.px(220)) / 2, yClient, 'Observed event gap: 120 ms', {
+        size: 13,
+        color: warm,
+        align: 'center',
+        weight: 700,
+        width: 240,
+    })
+
+    // Close tail (220..240 ms)
+    fig.rect(plot.px(220), yClient - 14, plot.px(240) - plot.px(220), 28, {
+        fill: soft(green, 0.22),
+        stroke: green,
+        strokeWidth: 1,
+        radius: 4,
+    })
+    fig.text(plot.px(240) + 8, yClient, 'Close: 20 ms', {
+        size: 12,
+        color: green,
+        align: 'left',
+        weight: 600,
+        mono: true,
+        width: 102,
+    })
+
+    // Funnel arrows from Engine T2..T5 down into Client 220ms bundle frame
+    for (const ms of [130, 160, 190, 220]) {
+        const sx = plot.px(ms)
+        const tx = plot.px(220)
+        fig.path(`M${sx} ${yEngine + 16}Q${(sx + tx) / 2 + 12} 162,${tx} ${yClient - 18}`, {
+            color: purple,
+            width: 1.4,
+            dash: ms === 220 ? undefined : '4 3',
+            opacity: 0.85,
+        })
+    }
+    // Label placed cleanly in open space to the left of the funnel curves
+    fig.text(plot.px(104), 162, '4 tokens bundled ->', {
+        size: 12,
+        color: purple,
+        align: 'left',
+        weight: 700,
+        width: 155,
+    })
+
+    // Client frame markers
+    fig.circle(plot.px(100), yClient, 7, { fill: blue, stroke: c.bg, width: 1.5 })
+    fig.text(plot.px(100), yClient + 26, 'Frame 1: [T1]', {
+        size: 12,
+        color: blue,
+        align: 'center',
+        weight: 600,
+        width: 100,
+    })
+    fig.circle(plot.px(220), yClient, 8.5, { fill: purple, stroke: c.bg, width: 1.5 })
+    fig.text(plot.px(220) - 4, yClient + 26, 'Frame 2: [T2..T5]', {
+        size: 12,
+        color: purple,
+        align: 'right',
+        weight: 700,
+        width: 130,
+    })
+
+    // Bottom TPOT formula strip (frameless MathJax)
+    fig.math(
+        410,
+        362,
+        String.raw`\text{TPOT} = \frac{240 - 100}{5 - 1} = 35\text{ ms/tok} \qquad\text{vs.}\qquad \text{Event gap} = 120\text{ ms}`,
+        { size: 15, color: c.textPrimary, align: 'center' },
     )
 
-    // Scale 0 to 240 ms mapped to 680px (X: 110 -> 790)
-    const sx = (ms: number) => 110 + Math.round((ms / 240) * 680)
-
-    const ticks = [0, 50, 100, 150, 200, 240]
-
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            {/* SVG Elements */}
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Timeline Axis Line */}
-                    <line
-                        x1={sx(0)}
-                        y1={112}
-                        x2={sx(240)}
-                        y2={112}
-                        stroke={c.textMuted}
-                        strokeWidth={2}
-                    />
-
-                    {/* Stage Blocks */}
-                    {/* Prefill Block (0 - 100) */}
-                    <rect
-                        x={sx(0)}
-                        y={104}
-                        width={sx(100) - sx(0)}
-                        height={16}
-                        rx={3}
-                        fill={blueTone}
-                        opacity={0.8}
-                    />
-                    {/* Buffer Block (100 - 220) */}
-                    <rect
-                        x={sx(100)}
-                        y={104}
-                        width={sx(220) - sx(100)}
-                        height={16}
-                        rx={3}
-                        fill={warmTone}
-                        opacity={0.6}
-                    />
-                    {/* Close Block (220 - 240) */}
-                    <rect
-                        x={sx(220)}
-                        y={104}
-                        width={sx(240) - sx(220)}
-                        height={16}
-                        rx={3}
-                        fill={greenTone}
-                        opacity={0.8}
-                    />
-
-                    {/* Milestone Dots */}
-                    <circle cx={sx(0)} cy={112} r={6} fill={blueTone} />
-                    <circle cx={sx(100)} cy={112} r={6} fill={blueTone} />
-                    <circle cx={sx(220)} cy={112} r={6} fill={purpleTone} />
-                    <circle cx={sx(240)} cy={112} r={6} fill={greenTone} />
-
-                    {/* Tick Marks */}
-                    {ticks.map((t) => (
-                        <line
-                            key={`tick-line-${t}`}
-                            x1={sx(t)}
-                            y1={120}
-                            x2={sx(t)}
-                            y2={128}
-                            stroke={c.textMuted}
-                            strokeWidth={1.5}
-                        />
-                    ))}
-
-                    {/* Left Card */}
-                    <rect
-                        x={40}
-                        y={214}
-                        width={370}
-                        height={146}
-                        rx={8}
-                        fill={theme === 'dark' ? '#102218' : '#f0fdf4'}
-                        stroke={greenTone}
-                        strokeWidth={1}
-                    />
-
-                    {/* Right Card */}
-                    <rect
-                        x={450}
-                        y={214}
-                        width={370}
-                        height={146}
-                        rx={8}
-                        fill={theme === 'dark' ? '#221c12' : '#fffbeb'}
-                        stroke={warmTone}
-                        strokeWidth={1}
-                    />
-
-                    {/* Bottom Guardrail Box */}
-                    <rect
-                        x={40}
-                        y={372}
-                        width={780}
-                        height={90}
-                        rx={8}
-                        fill={theme === 'dark' ? '#111e2e' : '#eff6ff'}
-                        stroke={blueTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
-
-            {/* Header */}
-            {label(
-                40,
-                20,
-                780,
-                'Streaming Telemetry: TTFT, TPOT, and Network Event Bundling',
-                20,
-                c.textPrimary,
-                'left',
-                700,
-            )}
-            {label(
-                40,
-                48,
-                780,
-                'Measuring time-to-first-token (TTFT) and time-per-output-token (TPOT) across buffered SSE transport',
-                13,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Timeline Segment Labels */}
-            {label(sx(0) - 20, 84, 80, 'Arrival', 11, c.textMuted, 'left', 500)}
-            {label(sx(100) - 50, 84, 100, 'TTFT (100 ms)', 11, blueTone, 'center', 700)}
-            {label(sx(220) - 60, 84, 120, '4-Token Bundle', 11, purpleTone, 'center', 700)}
-            {label(sx(240) - 40, 84, 80, 'EOF (240 ms)', 11, greenTone, 'right', 600)}
-
-            {/* Stage spans under timeline */}
-            {label(sx(0), 146, sx(100) - sx(0), 'Prefill: 100 ms', 11, blueTone, 'center', 600)}
-            {label(
-                sx(100),
-                146,
-                sx(220) - sx(100),
-                'Buffering Gap: 120 ms (4 tokens generated)',
-                11,
-                warmTone,
-                'center',
-                600,
-            )}
-            {label(sx(220), 146, sx(240) - sx(220), 'Close: 20ms', 10, c.textMuted, 'center', 400)}
-
-            {/* Axis Ticks */}
-            {ticks.map((t) => (
-                <React.Fragment key={`tick-${t}`}>
-                    {label(sx(t) - 25, 172, 50, `${t} ms`, 10, c.textMuted, 'center', 400)}
-                </React.Fragment>
-            ))}
-
-            {/* Comparison Cards: Server Engine vs Client Browser Experience */}
-            {/* Left Card: Engine Perspective */}
-            {label(
-                52,
-                226,
-                350,
-                'SERVER ENGINE PERSPECTIVE (SMOOTH DECODE)',
-                11,
-                greenTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                250,
-                350,
-                'Continuous Batch Autoregressive Steps',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                52,
-                270,
-                350,
-                '• Step 1: Token #1 emitted at t = 100 ms (TTFT) · • Step 2-5: Tokens #2, #3, #4, #5 generated at ~30 ms intervals · • Internal Engine TPOT = 30-35 ms per token (steady throughput)',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Right Card: Browser Perspective */}
-            {label(
-                462,
-                226,
-                350,
-                'CLIENT BROWSER PERSPECTIVE (BUFFERED BUNDLE)',
-                11,
-                warmTone,
-                'left',
-                700,
-            )}
-            {label(
-                462,
-                250,
-                350,
-                'Reverse Proxy / HTTP/2 Transport Coalescing',
-                12,
-                c.textPrimary,
-                'left',
-                600,
-            )}
-            {label(
-                462,
-                270,
-                350,
-                '• Token #1 arrives at 100 ms · • Apparent 120 ms stall while intermediate frames buffer · • Instantaneous 4-token burst at 220 ms · • Observed client burstiness masks smooth GPU generation',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-
-            {/* Bottom Guardrail Box */}
-            {label(
-                52,
-                386,
-                756,
-                'TPOT Formula and Telemetry Disambiguation',
-                12,
-                blueTone,
-                'left',
-                700,
-            )}
-            {label(
-                52,
-                406,
-                756,
-                'True Completion TPOT = (T_terminal - T_first) / (N_tokens - 1) = (240 - 100) / 4 = 35 ms per token. · Observability platforms must report engine-level decode step timing alongside client-observed chunk delivery gaps to distinguish GPU scheduler starvation from TCP/proxy buffer delays.',
-                11,
-                c.textSecondary,
-                'left',
-                400,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
-
-export default create()

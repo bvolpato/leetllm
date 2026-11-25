@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { BookOpen, Clock, Layers, LoaderCircle, RefreshCw, RotateCcw, Sparkles, Trash2, WandSparkles } from "lucide-react"
+import { Clock, LoaderCircle, RefreshCw, RotateCcw, Sparkles, Trash2, WandSparkles } from "lucide-react"
 import {
     createContext,
     useCallback,
@@ -14,7 +14,6 @@ import {
 } from "react"
 import { Button } from "@/components/ui/button"
 import { useIsLoggedIn } from "@/lib/use-is-logged-in"
-import type { ContentEdition } from "@/lib/content-audience"
 
 function formatReadingMinutes(minutes: number): string {
     if (minutes < 60) return `${minutes} min`
@@ -59,9 +58,6 @@ function presetLabel(preset?: PersonalizedPayload["preset"]) {
 
 interface ArticleReaderContextValue {
     slug: string
-    edition: ContentEdition
-    setEdition: (next: ContentEdition) => void
-    hasAlternateEdition: boolean
     activeTimeEstimate: number
     visibleAuthStatus: "loading" | "authenticated" | "anonymous" | "unavailable"
     personalized: string | null
@@ -88,15 +84,11 @@ function useArticleReaderContext() {
 
 export function ArticleReaderProvider({
     slug,
-    hasAlternateEdition = false,
     readerTimeEstimate,
-    referenceTimeEstimate,
     children,
 }: {
     slug: string
-    hasAlternateEdition?: boolean
     readerTimeEstimate: number
-    referenceTimeEstimate?: number
     children: ReactNode
 }) {
     const { user, isLoggedIn, authLoaded } = useIsLoggedIn()
@@ -107,9 +99,7 @@ export function ArticleReaderProvider({
         <ArticleReaderProviderState
             key={`${identityKey}:${slug}`}
             slug={slug}
-            hasAlternateEdition={hasAlternateEdition}
             readerTimeEstimate={readerTimeEstimate}
-            referenceTimeEstimate={referenceTimeEstimate}
             userId={userId}
             authLoaded={authLoaded}
         >
@@ -120,22 +110,17 @@ export function ArticleReaderProvider({
 
 function ArticleReaderProviderState({
     slug,
-    hasAlternateEdition,
     readerTimeEstimate,
-    referenceTimeEstimate,
     userId,
     authLoaded,
     children,
 }: {
     slug: string
-    hasAlternateEdition: boolean
     readerTimeEstimate: number
-    referenceTimeEstimate?: number
     userId: string | null
     authLoaded: boolean
     children: ReactNode
 }) {
-    const [edition, setEditionState] = useState<ContentEdition>("reader")
     const [authStatus, setAuthStatus] = useState<"loading" | "authenticated" | "anonymous" | "unavailable">("loading")
     const [personalized, setPersonalized] = useState<string | null>(null)
     const [profileConfigured, setProfileConfigured] = useState<boolean | null>(null)
@@ -143,31 +128,6 @@ function ArticleReaderProviderState({
     const [mode, setMode] = useState<"original" | "personalized">("original")
     const [loading, setLoading] = useState(Boolean(authLoaded && userId))
     const [error, setError] = useState("")
-
-    useEffect(() => {
-        if (!hasAlternateEdition || typeof window === "undefined") return
-        const params = new URLSearchParams(window.location.search)
-        if (params.get("edition") === "reference") {
-            queueMicrotask(() => setEditionState("reference"))
-        }
-    }, [hasAlternateEdition, slug])
-
-    const setEdition = useCallback((next: ContentEdition) => {
-        setEditionState(next)
-        setMode("original")
-        if (typeof window === "undefined") return
-        try {
-            const url = new URL(window.location.href)
-            if (next === "reference") {
-                url.searchParams.set("edition", "reference")
-            } else {
-                url.searchParams.delete("edition")
-            }
-            window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`)
-        } catch {
-            // Updating the query parameter is optional; edition state still switches cleanly.
-        }
-    }, [])
 
     useEffect(() => {
         if (!authLoaded || !userId) return
@@ -257,18 +217,12 @@ function ArticleReaderProviderState({
 
     const visibleAuthStatus = !authLoaded ? "loading" : !userId ? "anonymous" : authStatus
     const showPersonalized = visibleAuthStatus === "authenticated" && mode === "personalized" && Boolean(personalized)
-    const activeTimeEstimate = edition === "reference" && referenceTimeEstimate !== undefined
-        ? referenceTimeEstimate
-        : readerTimeEstimate
 
     return (
         <ArticleReaderContext.Provider
             value={{
                 slug,
-                edition,
-                setEdition,
-                hasAlternateEdition,
-                activeTimeEstimate,
+                activeTimeEstimate: readerTimeEstimate,
                 visibleAuthStatus,
                 personalized,
                 profileConfigured,
@@ -294,49 +248,6 @@ export function ArticleReadingTime() {
             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
             {formatReadingMinutes(activeTimeEstimate)} read
         </span>
-    )
-}
-
-export function ArticleEditionToggle() {
-    const { hasAlternateEdition, edition, setEdition, showPersonalized } = useArticleReaderContext()
-    if (!hasAlternateEdition || showPersonalized) return null
-
-    return (
-        <div
-            data-print-hidden
-            role="group"
-            aria-label="Reading edition"
-            className="inline-flex items-center rounded-full border [border-color:var(--reading-border)] [background:var(--reading-panel-solid)] p-0.5 text-xs shadow-xs"
-        >
-            <button
-                type="button"
-                aria-pressed={edition === "reader"}
-                onClick={() => setEdition("reader")}
-                className={[
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                    edition === "reader"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)]",
-                ].join(" ")}
-            >
-                <BookOpen className="h-3 w-3" aria-hidden="true" />
-                Reader
-            </button>
-            <button
-                type="button"
-                aria-pressed={edition === "reference"}
-                onClick={() => setEdition("reference")}
-                className={[
-                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                    edition === "reference"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "[color:var(--reading-muted)] hover:[color:var(--reading-heading)]",
-                ].join(" ")}
-            >
-                <Layers className="h-3 w-3" aria-hidden="true" />
-                Full Reference
-            </button>
-        </div>
     )
 }
 
@@ -533,16 +444,14 @@ export function PersonalizeToolbarPopover({ align = "right" }: { align?: "left" 
 
 export function ArticleReaderBody({
     readerContent,
-    referenceContent,
     fallbackMarkdown,
     hideInlineTocOnDesktop = true,
 }: {
     readerContent?: ReactNode
-    referenceContent?: ReactNode
     fallbackMarkdown?: string
     hideInlineTocOnDesktop?: boolean
 }) {
-    const { slug, edition, showPersonalized, personalized, error } = useArticleReaderContext()
+    const { slug, showPersonalized, personalized, error } = useArticleReaderContext()
 
     return (
         <>
@@ -558,8 +467,6 @@ export function ArticleReaderBody({
                     hideInlineTocOnDesktop={hideInlineTocOnDesktop}
                     personalizationSlug={slug}
                 />
-            ) : edition === "reference" && referenceContent !== undefined ? (
-                referenceContent
             ) : readerContent !== undefined ? (
                 readerContent
             ) : fallbackMarkdown !== undefined ? (

@@ -1,370 +1,267 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
 export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const height = 400
 export const alt =
-    'A 1,280-token prompt strip contains exactly 1,200 matching prefix tokens and 80 delta tokens. Two model-service timelines share a 0 to 96 ms scale. A miss uses 72 ms prefill and 24 decode, totaling 96. A permitted hit uses 11 prefill and the same-width 24 decode, totaling 35. Prompt identity and scope govern reuse. Order strips show an early PSM prefix edit invalidating later suffix KV, while a supported suffix-first SPM keeps earlier suffix KV. Queue, network and paint are excluded.'
+    'Left: a 1,280-token prompt splits into 1,200 cached prefix tokens (93.8%) and 80 delta tokens. On a shared 0 to 100 ms axis, a cold miss spends 72 ms prefill plus 24 ms decode (96 ms total) while a warm hit spends 11 ms prefill plus the same 24 ms decode (35 ms total), saving 61 ms. Right: editing the prefix in PSM invalidates downstream suffix KV blocks, whereas suffix-first SPM keeps suffix KV warm.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const hitTone = getReadableToneColor('green', c, c.bg)
-    const missTone = getReadableToneColor('blue', c, c.bg)
-    const decodeTone = getReadableToneColor('purple', c, c.bg)
-    const alertTone = getReadableToneColor('critical', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 18,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // --- LEFT: Prompt Split + Aligned Cold vs Warm Bars ---
+    fig.text(28, 22, '1. Service Time (1,280-token prompt)', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
 
-    // Left chart scale: 0 to 100 ms -> 360 px
-    const scale = (ms: number) => 58 + (ms * 360) / 100
+    // Proportional prompt token strip: 1,200 cached (93.75%) + 80 delta (6.25%)
+    const stripX = 28
+    const stripW = 416
+    const cachedW = Math.round((1200 / 1280) * stripW)
+    const deltaW = stripW - cachedW
+    fig.rect(stripX, 46, cachedW - 2, 26, {
+        fill: tint(green, c.bg, 0.2),
+        stroke: green,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+    fig.text(stripX + cachedW / 2, 59, '1,200 cached prefix tokens (93.8%)', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.rect(stripX + cachedW, 46, deltaW, 26, {
+        fill: tint(warm, c.bg, 0.26),
+        stroke: warm,
+        strokeWidth: 1.3,
+        radius: 4,
+    })
+    fig.text(stripX + cachedW + deltaW / 2, 59, '80', {
+        size: 11,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(stripX + stripW, 84, '80 delta', {
+        size: 11,
+        weight: 600,
+        color: warm,
+        align: 'right',
+        mono: true,
+    })
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Left: Latency Breakdown Bar Chart */}
-                    <rect
-                        x={24}
-                        y={60}
-                        width={430}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    // Calibrated 0..100 ms bar axis
+    const barPlot = fig.plot({ x: 28, y: 112, width: 416, height: 192 }, { x: [0, 100], y: [0, 10] })
 
-                    {/* Miss bar (72ms prefill + 24ms decode = 96ms) */}
-                    <rect
-                        x={scale(0)}
-                        y={145}
-                        width={scale(72) - scale(0)}
-                        height={36}
-                        rx={4}
-                        fill={missTone}
-                        opacity={0.85}
-                    />
-                    <rect
-                        x={scale(72)}
-                        y={145}
-                        width={scale(96) - scale(72)}
-                        height={36}
-                        rx={4}
-                        fill={decodeTone}
-                        opacity={0.85}
-                    />
+    // Subtle vertical grid lines
+    for (const t of [0, 25, 50, 75, 100]) {
+        const tx = barPlot.px(t)
+        fig.line(tx, 112, tx, 304, { color: c.borderSubtle, width: 1 })
+        fig.line(tx, 304, tx, 309, { color: c.textMuted, width: 1 })
+        fig.text(tx, 323, `${t} ms`, {
+            size: 13,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+    fig.line(barPlot.px(0), 304, barPlot.px(100), 304, { color: c.textMuted, width: 1 })
 
-                    {/* Hit bar (11ms prefill + 24ms decode = 35ms) */}
-                    <rect
-                        x={scale(0)}
-                        y={240}
-                        width={scale(11) - scale(0)}
-                        height={36}
-                        rx={4}
-                        fill={hitTone}
-                        opacity={0.85}
-                    />
-                    <rect
-                        x={scale(11)}
-                        y={240}
-                        width={scale(35) - scale(11)}
-                        height={36}
-                        rx={4}
-                        fill={decodeTone}
-                        opacity={0.85}
-                    />
+    // Bar 1: Cold miss (72 prefill + 24 decode = 96 ms)
+    fig.text(28, 126, 'Cold miss (all 1,280 prefilled)', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(barPlot.px(96), 126, '96 ms', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'right',
+        mono: true,
+    })
+    fig.rect(barPlot.px(0), 140, barPlot.px(72) - barPlot.px(0) - 1, 36, {
+        fill: blue,
+        opacity: 0.88,
+        radius: 4,
+    })
+    fig.text((barPlot.px(0) + barPlot.px(72)) / 2, 158, '72 ms prefill', {
+        size: 13,
+        weight: 700,
+        color: c.bg,
+        align: 'center',
+        mono: true,
+    })
+    fig.rect(barPlot.px(72), 140, barPlot.px(96) - barPlot.px(72), 36, {
+        fill: purple,
+        opacity: 0.9,
+        radius: 4,
+    })
+    fig.text((barPlot.px(72) + barPlot.px(96)) / 2, 158, '24 ms', {
+        size: 12,
+        weight: 700,
+        color: c.bg,
+        align: 'center',
+        mono: true,
+    })
 
-                    {/* Time Axis */}
-                    <line
-                        x1={scale(0)}
-                        y1={305}
-                        x2={scale(100)}
-                        y2={305}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
-                    {[0, 25, 50, 75, 100].map((t) => (
-                        <g key={t}>
-                            <line
-                                x1={scale(t)}
-                                y1={305}
-                                x2={scale(t)}
-                                y2={312}
-                                stroke={stroke}
-                                strokeWidth={1.5}
-                            />
-                        </g>
-                    ))}
+    // Bar 2: Warm hit (11 prefill + 24 decode = 35 ms)
+    fig.text(28, 212, 'Warm hit (80 delta prefilled)', {
+        size: 13,
+        weight: 600,
+        color: c.textPrimary,
+    })
+    fig.text(barPlot.px(96), 212, '35 ms', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'right',
+        mono: true,
+    })
+    fig.rect(barPlot.px(0), 226, barPlot.px(11) - barPlot.px(0) - 1, 36, {
+        fill: green,
+        opacity: 0.9,
+        radius: 4,
+    })
+    fig.text((barPlot.px(0) + barPlot.px(11)) / 2, 244, '11', {
+        size: 12,
+        weight: 700,
+        color: c.bg,
+        align: 'center',
+        mono: true,
+    })
+    fig.rect(barPlot.px(11), 226, barPlot.px(35) - barPlot.px(11), 36, {
+        fill: purple,
+        opacity: 0.9,
+        radius: 4,
+    })
+    fig.text((barPlot.px(11) + barPlot.px(35)) / 2, 244, '24 ms', {
+        size: 12,
+        weight: 700,
+        color: c.bg,
+        align: 'center',
+        mono: true,
+    })
 
-                    {/* Token ratio badge */}
-                    <rect
-                        x={36}
-                        y={350}
-                        width={406}
-                        height={110}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    // Brace highlighting the 61 ms saved (35 -> 96 ms)
+    fig.brace(barPlot.px(35), 266, barPlot.px(96), 266, '61 ms saved (2.7x faster)', {
+        side: 1,
+        depth: 9,
+        color: green,
+        labelColor: green,
+        labelSize: 13,
+        labelGap: 14,
+        weight: 700,
+    })
 
-                    {/* Right: PSM vs SPM Token Order */}
-                    <rect
-                        x={474}
-                        y={60}
-                        width={362}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    // Legend row bottom left
+    fig.rect(28, 354, 12, 12, { fill: blue, radius: 3 })
+    fig.text(46, 360, 'Cold prefill', { size: 12, color: c.textSecondary })
+    fig.rect(144, 354, 12, 12, { fill: green, radius: 3 })
+    fig.text(162, 360, 'Warm prefill', { size: 12, color: c.textSecondary })
+    fig.rect(268, 354, 12, 12, { fill: purple, radius: 3 })
+    fig.text(286, 360, 'Decode (24 ms fixed)', { size: 12, color: c.textSecondary })
 
-                    {/* PSM Container */}
-                    <rect
-                        x={486}
-                        y={110}
-                        width={338}
-                        height={155}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={alertTone}
-                        strokeWidth={1.2}
-                    />
-                    <rect
-                        x={498}
-                        y={150}
-                        width={150}
-                        height={45}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={alertTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={662}
-                        y={150}
-                        width={150}
-                        height={45}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    // Divider
+    fig.line(478, 18, 478, 382, { color: c.borderSubtle, width: 1.25 })
 
-                    {/* SPM Container */}
-                    <rect
-                        x={486}
-                        y={285}
-                        width={338}
-                        height={175}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={hitTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={498}
-                        y={325}
-                        width={150}
-                        height={45}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={hitTone}
-                        strokeWidth={1}
-                    />
-                    <rect
-                        x={662}
-                        y={325}
-                        width={150}
-                        height={45}
-                        rx={4}
-                        fill={c.bgCard}
-                        stroke={alertTone}
-                        strokeWidth={1}
-                    />
-                </svg>
-            </CanvasItem>
+    // --- RIGHT: Causal KV Invalidation (PSM vs SPM) ---
+    fig.text(504, 22, '2. Causal KV Reuse: PSM vs SPM', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(504, 46, 'Editing prefix invalidates everything after it', {
+        size: 13,
+        color: c.textSecondary,
+    })
 
-            {/* Title */}
-            {label(
-                24,
-                20,
-                812,
-                'KV Prefix Cache Acceleration & Token Ordering Dynamics',
-                22,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    // PSM strip
+    fig.text(504, 92, 'PSM: <PRE> Prefix <SUF> Suffix <MID>', {
+        size: 13,
+        weight: 700,
+        color: red,
+        mono: true,
+    })
+    fig.rect(504, 110, 152, 46, {
+        fill: tint(warm, c.bg, 0.16),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(580, 127, 'Prefix (edited)', { size: 13, weight: 700, color: warm, align: 'center' })
+    fig.text(580, 145, 'recompute', { size: 11, color: c.textSecondary, align: 'center' })
 
-            {/* Left Header */}
-            {label(
-                36,
-                75,
-                406,
-                '1. Inference Latency (1,280 Tokens Prompt)',
-                16,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    fig.arrow(658, 133, 678, 133, { color: red, width: 1.6, head: 6 })
 
-            {/* Miss Labels */}
-            {label(
-                48,
-                120,
-                250,
-                'Full Cache MISS (All 1,280 tokens prefilled)',
-                13,
-                missTone,
-                'left',
-                650,
-            )}
-            {label(340, 120, 90, '96 ms total', 13, missTone, 'right', 650)}
-            {label(scale(36) - 30, 155, 60, '72ms', 11, c.textPrimary, 'center', 600)}
-            {label(scale(84) - 20, 155, 40, '24ms', 11, c.textPrimary, 'center', 600)}
+    fig.rect(680, 110, 156, 46, {
+        fill: tint(red, c.bg, 0.14),
+        stroke: red,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(758, 127, 'Suffix KV invalid', { size: 13, weight: 700, color: red, align: 'center' })
+    fig.text(758, 145, 'full recompute', { size: 11, color: red, align: 'center' })
+    fig.text(504, 174, 'Prefix sits first -> suffix KV misses every edit', {
+        size: 12,
+        color: c.textSecondary,
+    })
 
-            {/* Hit Labels */}
-            {label(
-                48,
-                215,
-                250,
-                'Prefix HIT (1,200 tokens cached · 80 delta)',
-                13,
-                hitTone,
-                'left',
-                650,
-            )}
-            {label(340, 215, 90, '35 ms total', 13, hitTone, 'right', 650)}
-            {label(scale(5) - 10, 250, 30, '11ms', 10, c.textPrimary, 'center', 600)}
-            {label(scale(23) - 20, 250, 40, '24ms', 11, c.textPrimary, 'center', 600)}
+    // Hairline separator
+    fig.line(504, 204, 836, 204, { color: c.borderSubtle, width: 1 })
 
-            {/* Axis ticks */}
-            {[0, 25, 50, 75, 100].map((t) => (
-                <React.Fragment key={t}>
-                    {label(scale(t) - 20, 316, 40, `${t}ms`, 11, c.textMuted, 'center')}
-                </React.Fragment>
-            ))}
+    // SPM strip
+    fig.text(504, 232, 'SPM: <SUF> Suffix <PRE> Prefix <MID>', {
+        size: 13,
+        weight: 700,
+        color: green,
+        mono: true,
+    })
+    fig.rect(504, 250, 156, 46, {
+        fill: tint(green, c.bg, 0.16),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 6,
+    })
+    fig.text(582, 267, 'Suffix KV KEPT', { size: 13, weight: 700, color: green, align: 'center' })
+    fig.text(582, 285, 'static across edits', { size: 11, color: green, align: 'center' })
 
-            {/* Token Badge */}
-            {label(48, 365, 382, 'Prefix Cache Efficiency:', 13, hitTone, 'left', 650)}
-            {label(
-                48,
-                390,
-                382,
-                '• 1,200 tokens (93.8%) reused without GPU prefill',
-                12,
-                c.textMuted,
-            )}
-            {label(
-                48,
-                412,
-                382,
-                '• 61 ms latency reduction (2.7× faster response)',
-                12,
-                hitTone,
-                'left',
-                600,
-            )}
-            {label(
-                48,
-                434,
-                382,
-                '• Prefill scales linearly with sequence length; reuse eliminates it',
-                11,
-                c.textMuted,
-            )}
+    fig.arrow(662, 273, 682, 273, { color: c.textMuted, width: 1.5, head: 5 })
 
-            {/* Right Header */}
-            {label(486, 75, 338, '2. KV Invalidation: PSM vs SPM', 16, c.textPrimary, 'left', 700)}
+    fig.rect(684, 250, 152, 46, {
+        fill: tint(warm, c.bg, 0.14),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(760, 267, 'Prefix (edited)', { size: 13, weight: 700, color: warm, align: 'center' })
+    fig.text(760, 285, 'recompute tail only', {
+        size: 11,
+        color: c.textSecondary,
+        align: 'center',
+    })
+    fig.text(504, 314, 'Suffix sits first -> KV stays warm while typing', {
+        size: 12,
+        color: green,
+        weight: 600,
+    })
 
-            {/* PSM Order */}
-            {label(
-                498,
-                122,
-                314,
-                'PSM Order: <PRE> Prefix <SUF> Suffix <MID>',
-                12,
-                alertTone,
-                'left',
-                650,
-            )}
-            {label(508, 162, 130, 'Prefix edited', 12, alertTone, 'center', 600)}
-            {label(672, 162, 130, 'Suffix KV invalid', 11, c.textMuted, 'center')}
-            {label(
-                498,
-                208,
-                314,
-                'Typing at cursor changes early token positions, which invalidates all subsequent suffix KV blocks in causal attention.',
-                11,
-                alertTone,
-            )}
+    fig.text(504, 360, 'Excludes queue, network RTT, and UI paint', {
+        size: 12,
+        color: c.textMuted,
+    })
 
-            {/* SPM Order */}
-            {label(
-                498,
-                298,
-                314,
-                'SPM Order: <SUF> Suffix <PRE> Prefix <MID>',
-                12,
-                hitTone,
-                'left',
-                700,
-            )}
-            {label(508, 338, 130, 'Suffix KV KEPT', 12, hitTone, 'center', 700)}
-            {label(672, 338, 130, 'Prefix edited', 11, c.textMuted, 'center')}
-            {label(
-                498,
-                385,
-                314,
-                'Suffix placed first remains static during typing.',
-                11,
-                c.textMuted,
-            )}
-            {label(
-                498,
-                405,
-                314,
-                'Only recent prefix tokens require re-computation, maximizing cache hit rate on consecutive keystrokes.',
-                11,
-                hitTone,
-                'left',
-                600,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create('dark')

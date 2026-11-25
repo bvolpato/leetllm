@@ -1,128 +1,112 @@
-import React from 'react'
-import {
-    Column,
-    GraphDiagram,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 960
-export const height = 640
+export const width = 760
+export const height = 380
 export const alt =
     'Graph of rank-0 warmup: Rank 0 compiles sm_90 and populates key K(sm_90) in the shared cache before an MPI barrier. Post-barrier, a rank querying K(sm_90) in the shared cache hits, Rank 1 requesting sm_100 builds key K(sm_100) and misses, and a worker using an empty private cache misses even for the identical sm_90 recipe.'
 
-const illustration = defineIllustration((c) => {
-    return (
-        <Scene c={c} padding={16} gap={14} contentWidth={width - 32} align="center">
-            <Column gap={14} width={width - 32} align="center">
-                <Panel
-                    c={c}
-                    title="Shared-cache warmup across ranks"
-                    titleFontSize={31}
-                    tone="blue"
-                    padding={10}
-                    gap={6}
-                    width={width - 32}
-                >
-                    <GraphDiagram
-                        c={c}
-                        width={width - 52}
-                        height={420}
-                        layout="auto"
-                        direction="LR"
-                        padding={8}
-                        nodeGap={16}
-                        rankGap={20}
-                        edgeGap={10}
-                        routingClearance={10}
-                        labelFontSize={31}
-                        detailFontSize={29}
-                        arrowSize={5}
-                        nodes={[
-                            { id: 'r0', label: 'Rank 0', detail: 'sm_90 K90', tone: 'blue' },
-                            {
-                                id: 'shared',
-                                label: 'Shared cache',
-                                detail: 'holds K90',
-                                tone: 'cyan',
-                            },
-                            {
-                                id: 'barrier',
-                                label: 'Barrier',
-                                detail: 'sync ranks',
-                                tone: 'neutral',
-                            },
-                            {
-                                id: 'hit90',
-                                label: 'Shared sm_90',
-                                detail: 'K90: HIT',
-                                tone: 'green',
-                            },
-                            {
-                                id: 'miss100',
-                                label: 'R1: sm_100',
-                                detail: 'K100: MISS',
-                                tone: 'warm',
-                            },
-                            {
-                                id: 'missLocal',
-                                label: 'Private dir',
-                                detail: 'empty: MISS',
-                                tone: 'red',
-                            },
-                        ]}
-                        edges={[
-                            { from: 'r0', to: 'shared', tone: 'blue' },
-                            { from: 'shared', to: 'barrier', tone: 'cyan' },
-                            { from: 'barrier', to: 'hit90', tone: 'green' },
-                            { from: 'barrier', to: 'miss100', tone: 'warm' },
-                            { from: 'barrier', to: 'missLocal', tone: 'red' },
-                        ]}
-                    />
-                </Panel>
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-                <Row gap={14} width={width - 32}>
-                    <Panel
-                        c={c}
-                        title="Hit: same key + shared dir"
-                        titleFontSize={30}
-                        tone="green"
-                        padding={10}
-                        gap={4}
-                        width={457}
-                    >
-                        <TextLabel
-                            text="Reuses Rank 0 sm_90 binary"
-                            c={c}
-                            fontSize={29}
-                            color={getReadableToneColor('green', c)}
-                        />
-                    </Panel>
-                    <Panel
-                        c={c}
-                        title="Miss: new arch or local dir"
-                        titleFontSize={30}
-                        tone="red"
-                        padding={10}
-                        gap={4}
-                        width={457}
-                    >
-                        <TextLabel
-                            text="Rebuilds K100 or empty cache"
-                            c={c}
-                            fontSize={29}
-                            color={getReadableToneColor('red', c)}
-                        />
-                    </Panel>
-                </Row>
-            </Column>
-        </Scene>
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
+    const warm = fig.tone('warm')
+    const red = fig.tone('red')
+
+    fig.text(24, 22, 'Shared-cache warmup across distributed ranks', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const box = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        title: string,
+        sub: string,
+        tone: string,
+    ) => {
+        fig.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, isLight ? 0.14 : 0.24),
+            stroke: tone,
+            strokeWidth: 1.5,
+            radius: 7,
+        })
+        fig.text(x + w / 2, y + h / 2 - 8, title, {
+            size: 13,
+            weight: 700,
+            color: tone,
+            align: 'center',
+        })
+        fig.text(x + w / 2, y + h / 2 + 9, sub, {
+            size: 11.5,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    // Left pre-barrier: Rank 0 -> Shared cache
+    const midY = 178
+    box(24, midY - 28, 138, 56, 'Rank 0', 'compile sm_90', blue)
+    fig.arrow(166, midY, 196, midY, { color: blue, width: 2, head: 6 })
+    box(200, midY - 28, 152, 56, 'Shared cache', 'stores K(sm_90)', cyan)
+
+    // Vertical MPI barrier wall
+    const barX = 406
+    fig.line(barX, 52, barX, 304, { color: c.textMuted, width: 2.2, dash: '6 4' })
+    fig.rect(barX - 42, 46, 84, 24, {
+        fill: tint(c.textMuted, c.bg, isLight ? 0.14 : 0.24),
+        stroke: c.border,
+        strokeWidth: 1.2,
+        radius: 12,
+    })
+    fig.text(barX, 58, 'Barrier', {
+        size: 12,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+
+    fig.arrow(356, midY, barX - 6, midY, { color: cyan, width: 2, head: 5 })
+
+    // Post-barrier outcomes (3 clear rows on right)
+    const outX = 486
+    const outW = 250
+    const ys = [92, 178, 264]
+
+    // Outcome 1: HIT
+    fig.arrow(barX + 6, midY, outX - 6, ys[0], { color: green, width: 2.2, head: 6 })
+    box(outX, ys[0] - 26, outW, 52, 'Shared dir · sm_90 -> HIT', 'reuses K(sm_90) binary', green)
+
+    // Outcome 2: Arch mismatch MISS
+    fig.arrow(barX + 6, midY, outX - 6, ys[1], { color: warm, width: 2, head: 6 })
+    box(outX, ys[1] - 26, outW, 52, 'Rank 1 · sm_100 -> MISS', 'different key K(sm_100)', warm)
+
+    // Outcome 3: Private dir MISS
+    fig.arrow(barX + 6, midY, outX - 6, ys[2], { color: red, width: 2, head: 6 })
+    box(outX, ys[2] - 26, outW, 52, 'Private dir · sm_90 -> MISS', 'empty local dir rebuilds', red)
+
+    // Bottom hairline summary
+    fig.line(24, 324, width - 24, 324, { color: c.borderSubtle, width: 1 })
+    fig.text(
+        24,
+        352,
+        'Warmup hits require both identical target key K and the same shared cache directory.',
+        {
+            size: 12.5,
+            weight: 600,
+            color: c.textSecondary,
+        },
     )
-})
 
-export const create = illustration.create
-export default illustration.default
+    return fig.render()
+}
+
+export default create('dark')

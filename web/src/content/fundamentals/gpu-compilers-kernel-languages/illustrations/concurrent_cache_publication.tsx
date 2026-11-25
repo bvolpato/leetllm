@@ -1,113 +1,133 @@
-import React from 'react'
-import {
-    Column,
-    FlowArrow,
-    GraphDiagram,
-    Panel,
-    Row,
-    Scene,
-    TextLabel,
-    defineIllustration,
-} from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 960
-export const height = 700
+export const width = 760
+export const height = 390
 export const alt =
     'Top graph shows Writer A and Writer B each writing and closing a complete temporary file before executing atomic replace on key K. A reader opening K before the swap sees the complete old file; opening after sees the complete new file. Bottom pipeline shows an optional lock protocol: acquire lock, recheck exact key K, compile on miss, and publish before unlocking.'
 
-const step = (
-    c: Parameters<Parameters<typeof defineIllustration>[0]>[0],
-    title: string,
-    sub: string,
-    tone: 'blue' | 'purple' | 'green' | 'warm' | 'cyan' | 'neutral',
-    w: number,
-) => (
-    <Panel c={c} title={title} titleFontSize={30} tone={tone} padding={8} gap={2} width={w}>
-        <TextLabel text={sub} c={c} fontSize={29} color={c.textMuted} />
-    </Panel>
-)
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
 
-const illustration = defineIllustration((c) => {
-    return (
-        <Scene c={c} padding={16} gap={14} contentWidth={width - 32} align="center">
-            <Column gap={14} width={width - 32}>
-                <Panel
-                    c={c}
-                    title="Atomic temp-file publication prevents partial reads"
-                    titleFontSize={31}
-                    tone="blue"
-                    padding={10}
-                    gap={6}
-                    width={width - 32}
-                >
-                    <GraphDiagram
-                        c={c}
-                        width={width - 52}
-                        height={320}
-                        layout="auto"
-                        direction="LR"
-                        padding={8}
-                        nodeGap={16}
-                        rankGap={36}
-                        edgeGap={10}
-                        routingClearance={10}
-                        labelFontSize={31}
-                        detailFontSize={29}
-                        arrowSize={5}
-                        nodes={[
-                            { id: 'wA', label: 'Writer A', detail: 'close temp A', tone: 'blue' },
-                            { id: 'wB', label: 'Writer B', detail: 'close temp B', tone: 'cyan' },
-                            {
-                                id: 'swap',
-                                label: 'replace(K)',
-                                detail: 'atomic swap',
-                                tone: 'warm',
-                            },
-                            {
-                                id: 'oldR',
-                                label: 'Before swap',
-                                detail: 'old full file',
-                                tone: 'neutral',
-                            },
-                            {
-                                id: 'newR',
-                                label: 'After swap',
-                                detail: 'new full file',
-                                tone: 'green',
-                            },
-                        ]}
-                        edges={[
-                            { from: 'wA', to: 'swap', tone: 'blue' },
-                            { from: 'wB', to: 'swap', tone: 'cyan' },
-                            { from: 'swap', to: 'oldR', dashed: true, tone: 'neutral' },
-                            { from: 'swap', to: 'newR', tone: 'green' },
-                        ]}
-                    />
-                </Panel>
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+    const purple = fig.tone('purple')
 
-                <Panel
-                    c={c}
-                    title="Cooperating lock reduces duplicate compiles"
-                    titleFontSize={31}
-                    tone="purple"
-                    padding={10}
-                    gap={8}
-                    width={width - 32}
-                >
-                    <Row gap={4} align="center">
-                        {step(c, '1. Lock K', 'mutex held', 'purple', 184)}
-                        <FlowArrow direction="right" length={10} c={c} tone="purple" />
-                        {step(c, '2. Recheck', 'hit skips build', 'cyan', 216)}
-                        <FlowArrow direction="right" length={10} c={c} tone="warm" />
-                        {step(c, '3. Compile', 'write temp', 'warm', 206)}
-                        <FlowArrow direction="right" length={10} c={c} tone="green" />
-                        {step(c, '4. Publish', 'swap + unlock', 'green', 216)}
-                    </Row>
-                </Panel>
-            </Column>
-        </Scene>
+    const box = (
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        title: string,
+        sub: string,
+        tone: string,
+    ) => {
+        fig.rect(x, y, w, h, {
+            fill: tint(tone, c.bg, isLight ? 0.14 : 0.24),
+            stroke: tone,
+            strokeWidth: 1.5,
+            radius: 7,
+        })
+        fig.text(x + w / 2, y + h / 2 - 8, title, {
+            size: 13,
+            weight: 700,
+            color: tone,
+            align: 'center',
+        })
+        fig.text(x + w / 2, y + h / 2 + 9, sub, {
+            size: 11.5,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+    }
+
+    // === Top band: Atomic temp-file publication ===
+    fig.text(24, 22, '1. Atomic temp-file publication prevents partial reads', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    // Left writers
+    box(24, 52, 184, 52, 'Writer A', 'write + close temp A', blue)
+    box(24, 134, 184, 52, 'Writer B', 'write + close temp B', cyan)
+
+    // Center atomic swap node
+    const swapX = 290
+    const swapY = 92
+    const swapW = 180
+    const swapH = 54
+    box(swapX, swapY, swapW, swapH, 'replace(K)', 'atomic inode swap', warm)
+
+    // Curved converging arrows from Writer A & B
+    fig.arrow(212, 78, swapX - 4, swapY + 18, { color: blue, width: 2, head: 6 })
+    fig.arrow(212, 160, swapX - 4, swapY + 36, { color: cyan, width: 2, head: 6 })
+
+    // Right readers (before vs after swap)
+    box(552, 52, 184, 52, 'Open before swap', 'sees full old file', c.textSecondary)
+    box(552, 134, 184, 52, 'Open after swap', 'sees full new file', green)
+
+    fig.arrow(swapX + swapW + 4, swapY + 18, 548, 78, {
+        color: c.textSecondary,
+        width: 1.8,
+        dash: '4 3',
+        head: 5,
+    })
+    fig.arrow(swapX + swapW + 4, swapY + 36, 548, 160, { color: green, width: 2.2, head: 6 })
+
+    fig.text(width / 2, 208, 'Readers never observe a half-written cache artifact for key K.', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
+
+    // === Bottom band: Optional cooperating lock protocol ===
+    const sepY = 234
+    fig.line(24, sepY, width - 24, sepY, { color: c.borderSubtle, width: 1 })
+    fig.text(24, sepY + 24, '2. Cooperating lock reduces duplicate compiles across workers', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+    })
+
+    const steps = [
+        { title: '1. Lock K', sub: 'acquire mutex', tone: purple },
+        { title: '2. Recheck K', sub: 'hit skips build', tone: cyan },
+        { title: '3. Compile', sub: 'write temp file', tone: warm },
+        { title: '4. Publish', sub: 'swap + unlock', tone: green },
+    ]
+    const sw = 158
+    const sGap = 26
+    const sY = sepY + 52
+    steps.forEach((s, i) => {
+        const sx = 24 + i * (sw + sGap)
+        box(sx, sY, sw, 54, s.title, s.sub, s.tone)
+        if (i < steps.length - 1) {
+            fig.arrow(sx + sw + 3, sY + 27, sx + sw + sGap - 3, sY + 27, {
+                color: s.tone,
+                width: 2,
+                head: 6,
+            })
+        }
+    })
+
+    fig.text(
+        width / 2,
+        366,
+        'Locking avoids wasted compile work; atomic replace guarantees safety even without locks.',
+        {
+            size: 12,
+            color: c.textSecondary,
+            align: 'center',
+        },
     )
-})
 
-export const create = illustration.create
-export default illustration.default
+    return fig.render()
+}
+
+export default create('dark')

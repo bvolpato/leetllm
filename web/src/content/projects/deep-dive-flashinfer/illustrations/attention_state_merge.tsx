@@ -1,285 +1,176 @@
-import { createElement, type ReactElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const opaqueBackground = true
+export const width = 840
+export const height = 440
 export const alt =
     'Split-KV attention state merge across two thread blocks (CTAs) for one query row and head. Worker A processes key chunk 1 with base-2 LSE 2 and output [1, 0] (mass 4). Worker B processes key chunk 2 with base-2 LSE 1 and output [0, 1] (mass 2). Cascaded merging calculates relative weights 4/6 and 2/6, producing merged output [2/3, 1/3] and updated base-2 LSE log2(6) approximately 2.585 without materializing full attention logits.'
 
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
-
-function renderBoard(c: Colors, items: (ReactElement | ReactElement[])[]) {
-    const flat = items.flat() as ReactElement[]
-    const svg = flat.filter((el) => el?.type !== 'div')
-    const html = flat.filter((el) => el?.type === 'div')
-    return Board({
-        c,
-        width,
-        height,
-        background: c.bg,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: createElement(
-                    'svg',
-                    { width, height, viewBox: `0 0 ${width} ${height}` },
-                    ...svg,
-                ),
-            }),
-            ...html,
-        ],
-    })
-}
-
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const blue = getReadableToneColor('blue', c)
-    const cyan = getReadableToneColor('cyan', c)
-    const purple = getReadableToneColor('purple', c)
-    const green = getReadableToneColor('green', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
     const muted = c.textSecondary
 
-    const workerW = 370
-    const leftX = 35
-    const rightX = 455
+    const workerW = 376
+    const workerH = 132
+    const leftX = 28
+    const rightX = 436
+    const topY = 18
 
-    return renderBoard(c, [
-        label(c, 'Split-KV Attention State Merge', 35, 18, 790, 28, 22, c.textPrimary, 700),
-        label(
-            c,
-            'Hierarchical accumulation of partial attention outputs and base-2 Log-Sum-Exp statistics',
-            35,
-            46,
-            790,
-            20,
-            15,
-            muted,
-            400,
-        ),
+    // --- Worker CTA A ---
+    fig.rect(leftX, topY, workerW, workerH, {
+        fill: tint(blue, c.bg, 0.09),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.rect(leftX, topY, 4, workerH, { fill: blue, radius: 2 })
+    fig.text(leftX + 18, topY + 24, 'Worker CTA A', { size: 15, weight: 700, color: blue })
+    fig.text(leftX + workerW - 14, topY + 24, 'Key chunk 1', {
+        size: 13,
+        color: muted,
+        align: 'right',
+    })
+    fig.math(leftX + 18, topY + 62, 'o_A = [1,\\, 0],\\qquad b_A = 2', {
+        size: 15,
+        color: c.textPrimary,
+    })
+    fig.math(leftX + 18, topY + 102, '\\text{mass}_A = 2^{b_A} = 2^2 = 4', {
+        size: 15,
+        color: blue,
+    })
 
-        // Worker A
-        SvgFrame({
-            c,
-            x: leftX,
-            y: 75,
-            width: workerW,
-            height: 190,
-            rx: 8,
-            stroke: blue,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(56, 139, 253, 0.06)' : 'rgba(9, 105, 218, 0.04)',
-        }),
-        label(c, 'Worker CTA A (Key Chunk A)', leftX + 16, 88, workerW - 32, 22, 16, blue, 700),
-        label(
-            c,
-            'Partial output: o_A = [1.0, 0.0]',
-            leftX + 16,
-            116,
-            workerW - 32,
-            20,
-            14,
-            c.textPrimary,
-            600,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'Base-2 LSE: b_A = 2.0',
-            leftX + 16,
-            142,
-            workerW - 32,
-            20,
-            14,
-            blue,
-            700,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'Normalization mass: 2^(b_A) = 2^2 = 4.0',
-            leftX + 16,
-            168,
-            workerW - 32,
-            20,
-            13,
-            muted,
-            500,
-            'left',
-            true,
-        ),
+    // --- Worker CTA B ---
+    fig.rect(rightX, topY, workerW, workerH, {
+        fill: tint(cyan, c.bg, 0.09),
+        stroke: cyan,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.rect(rightX, topY, 4, workerH, { fill: cyan, radius: 2 })
+    fig.text(rightX + 18, topY + 24, 'Worker CTA B', { size: 15, weight: 700, color: cyan })
+    fig.text(rightX + workerW - 14, topY + 24, 'Key chunk 2', {
+        size: 13,
+        color: muted,
+        align: 'right',
+    })
+    fig.math(rightX + 18, topY + 62, 'o_B = [0,\\, 1],\\qquad b_B = 1', {
+        size: 15,
+        color: c.textPrimary,
+    })
+    fig.math(rightX + 18, topY + 102, '\\text{mass}_B = 2^{b_B} = 2^1 = 2', {
+        size: 15,
+        color: cyan,
+    })
 
-        // Worker B
-        SvgFrame({
-            c,
-            x: rightX,
-            y: 75,
-            width: workerW,
-            height: 190,
-            rx: 8,
-            stroke: cyan,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(57, 197, 207, 0.06)' : 'rgba(27, 143, 153, 0.04)',
-        }),
-        label(c, 'Worker CTA B (Key Chunk B)', rightX + 16, 88, workerW - 32, 22, 16, cyan, 700),
-        label(
-            c,
-            'Partial output: o_B = [0.0, 1.0]',
-            rightX + 16,
-            116,
-            workerW - 32,
-            20,
-            14,
-            c.textPrimary,
-            600,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'Base-2 LSE: b_B = 1.0',
-            rightX + 16,
-            142,
-            workerW - 32,
-            20,
-            14,
-            cyan,
-            700,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'Normalization mass: 2^(b_B) = 2^1 = 2.0',
-            rightX + 16,
-            168,
-            workerW - 32,
-            20,
-            13,
-            muted,
-            500,
-            'left',
-            true,
-        ),
+    // --- Proportional Normalization Mass Bar ---
+    const barX = 140
+    const barY = 208
+    const barW = 560
+    const barH = 40
+    const wA = (barW * 4) / 6
+    const wB = barW - wA
 
-        // Arrows converging to merge
-        VectorArrow({
-            x1: leftX + workerW / 2,
-            y1: 268,
-            x2: 340,
-            y2: 300,
-            color: purple,
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
-        VectorArrow({
-            x1: rightX + workerW / 2,
-            y1: 268,
-            x2: 520,
-            y2: 300,
-            color: purple,
-            strokeWidth: 2,
-            arrowSize: 4,
-        }),
+    // Converging arrows from CTAs to their respective mass segments (clear of center label)
+    fig.arrow(leftX + 120, topY + workerH, barX + 68, barY - 4, {
+        color: blue,
+        width: 2,
+        head: 6,
+    })
+    fig.arrow(rightX + workerW - 120, topY + workerH, barX + barW - 68, barY - 4, {
+        color: cyan,
+        width: 2,
+        head: 6,
+    })
+    fig.text(420, 178, 'Max-shifted weights (m = max(2, 1) = 2)', {
+        size: 13,
+        weight: 600,
+        color: muted,
+        align: 'center',
+        width: 310,
+    })
 
-        // Merged Parent Box
-        SvgFrame({
-            c,
-            x: 160,
-            y: 295,
-            width: 540,
-            height: 180,
-            rx: 8,
-            stroke: purple,
-            strokeWidth: 1.5,
-            fill: theme === 'dark' ? 'rgba(163, 113, 247, 0.08)' : 'rgba(130, 80, 223, 0.05)',
-        }),
-        label(c, 'Cascaded Merge: Total Mass = 4 + 2 = 6', 180, 308, 500, 22, 16, purple, 700),
-        label(
-            c,
-            'Weights: w_A = 4/6 (66.7%)   |   w_B = 2/6 (33.3%)',
-            180,
-            336,
-            500,
-            20,
-            14,
-            c.textPrimary,
-            600,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'Merged Output: o = (4·o_A + 2·o_B) / 6 = [2/3, 1/3] ≈ [0.6667, 0.3333]',
-            180,
-            366,
-            500,
-            22,
-            14,
-            green,
-            700,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'Merged Base-2 LSE: b = log2(6) = 2 + log2(1.5) ≈ 2.5850',
-            180,
-            398,
-            500,
-            20,
-            14,
-            purple,
-            700,
-            'left',
-            true,
-        ),
-        label(
-            c,
-            'State tuple (o, b) can be merged recursively across arbitrary key splits',
-            180,
-            434,
-            500,
-            18,
-            13,
-            muted,
-            400,
-        ),
-    ])
+    // Segment A (4/6)
+    fig.rect(barX, barY, wA - 2, barH, {
+        fill: tint(blue, c.bg, 0.24),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(barX + (wA - 2) / 2, barY + barH / 2, 'mass 4   ->   w_A = 4/6 = 2/3', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        mono: true,
+        width: wA - 12,
+    })
+
+    // Segment B (2/6)
+    fig.rect(barX + wA + 2, barY, wB - 2, barH, {
+        fill: tint(cyan, c.bg, 0.24),
+        stroke: cyan,
+        strokeWidth: 1.5,
+        radius: 6,
+    })
+    fig.text(barX + wA + 2 + (wB - 2) / 2, barY + barH / 2, 'mass 2 -> 1/3', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+        mono: true,
+        width: wB - 10,
+    })
+
+    // Arrow down to Merged State
+    const mergeY = 286
+    fig.arrow(420, barY + barH + 4, 420, mergeY - 4, {
+        color: purple,
+        width: 2,
+        head: 6,
+    })
+    fig.text(436, 263, 'Total mass = 4 + 2 = 6', {
+        size: 13,
+        weight: 600,
+        color: purple,
+    })
+
+    // --- Merged State Region ---
+    fig.rect(86, mergeY, 668, 134, {
+        fill: tint(purple, c.bg, 0.09),
+        stroke: purple,
+        strokeWidth: 1.75,
+        radius: 8,
+    })
+    fig.text(108, mergeY + 24, 'Merged State (o, b)', {
+        size: 15,
+        weight: 700,
+        color: purple,
+    })
+    fig.text(734, mergeY + 24, 'Associative across arbitrary splits', {
+        size: 13,
+        color: muted,
+        align: 'right',
+    })
+
+    fig.math(
+        108,
+        mergeY + 66,
+        'o = \\frac{4}{6}\\,o_A + \\frac{2}{6}\\,o_B = \\left[\\frac{2}{3},\\; \\frac{1}{3}\\right] \\approx [0.667,\\; 0.333]',
+        { size: 15, color: green },
+    )
+    fig.math(
+        108,
+        mergeY + 108,
+        'b = 2 + \\log_2\\!\\bigl(2^{2-2} + 2^{1-2}\\bigr) = \\log_2(6) \\approx 2.585',
+        { size: 15, color: purple },
+    )
+
+    return fig.render()
 }
+
+export default create()

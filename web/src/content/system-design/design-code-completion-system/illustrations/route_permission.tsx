@@ -1,317 +1,226 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
-export const preset = 'engineering'
-export const opaqueBackground = true
+export const width = 880
+export const height = 400
 export const alt =
-    'Client routing first keeps dot or opening-parenthesis member completion local when semantic type information is available, with a scenario p95 objective of 60 ms. Other input or unavailable types reaches a literal remote_permitted is True gate. Unknown values string False, None and integer 1 route to local fallback 60 ms. Actual True allows remote routing: after a signature chooses multiline 500 ms, otherwise inline 200 ms. The gateway independently enforces authenticated access and upload policy; client classification is not authorization. Results still pass editor freshness before paint and Tab.'
+    'Planar client-to-gateway routing tree. First, dot or open-paren triggers with known semantic types route to LOCAL_SEMANTIC (60 ms p95). Otherwise, a strict literal remote_permitted is True gate sends False, string False, None, or 1 to LOCAL_FALLBACK (60 ms p95, on device). Literal True crosses an independent Gateway auth and upload policy boundary into REMOTE_MULTILINE (500 ms after signature) or REMOTE_INLINE (200 ms mid-line). All lanes pass the Editor Freshness Gate before paint and Tab.'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const stroke = c.border
-    const localTone = getReadableToneColor('blue', c, c.bg)
-    const remoteTone = getReadableToneColor('green', c, c.bg)
-    const gateTone = getReadableToneColor('purple', c, c.bg)
-    const failTone = getReadableToneColor('critical', c, c.bg)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const blue = fig.tone('blue')
+    const purple = fig.tone('purple')
+    const green = fig.tone('green')
+    const red = fig.tone('critical')
+    const warm = fig.tone('warm')
 
-    const label = (
-        x: number,
-        y: number,
-        w: number,
-        text: string,
-        fontSize = 18,
-        color = c.textPrimary,
-        align: 'left' | 'center' | 'right' = 'left',
-        weight = 500,
-    ) => (
-        <CanvasItem x={x} y={y} width={w} height={Math.ceil(fontSize * 1.35)}>
-            <TextLabel
-                c={c}
-                text={text}
-                fontSize={fontSize}
-                color={color}
-                width="100%"
-                align={align}
-                fontWeight={weight}
-            />
-        </CanvasItem>
-    )
+    // Subtle zone headers
+    fig.text(24, 22, 'Client Extension (IDE)', { size: 14, weight: 700, color: blue })
+    fig.text(520, 22, 'Gateway & Remote Pool', { size: 14, weight: 700, color: green })
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    {/* Left: Client Triage Tree */}
-                    <rect
-                        x={24}
-                        y={60}
-                        width={400}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    // Dashed vertical trust boundary between Client and Gateway
+    fig.line(494, 40, 494, 384, { color: purple, width: 1.8, dash: '6 4' })
+    fig.rect(424, 352, 140, 26, {
+        fill: tint(purple, c.bg, 0.14),
+        stroke: purple,
+        strokeWidth: 1.2,
+        radius: 6,
+    })
+    fig.text(494, 365, 'Gateway Auth Gate', {
+        size: 12,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
 
-                    {/* Branch 1: Local Semantic (LSP) */}
-                    <rect
-                        x={36}
-                        y={110}
-                        width={376}
-                        height={90}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={localTone}
-                        strokeWidth={1.5}
-                    />
+    // Node 1: Trigger check (left top-mid)
+    fig.rect(24, 80, 174, 64, {
+        fill: tint(blue, c.bg, 0.11),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(111, 102, "'.' or '(' trigger", {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(111, 124, '& types known?', {
+        size: 13,
+        color: c.textPrimary,
+        align: 'center',
+    })
 
-                    {/* Branch 2: Strict Boolean Gate */}
-                    <rect
-                        x={36}
-                        y={220}
-                        width={376}
-                        height={110}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={gateTone}
-                        strokeWidth={1.5}
-                    />
+    // YES branch -> LOCAL_SEMANTIC (top lane)
+    fig.arrow(198, 98, 270, 74, { color: blue, width: 1.7, head: 6 })
+    fig.text(226, 72, 'Yes', { size: 12, weight: 700, color: blue })
 
-                    {/* Local Fallback */}
-                    <rect
-                        x={36}
-                        y={350}
-                        width={376}
-                        height={105}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={failTone}
-                        strokeWidth={1.5}
-                    />
+    fig.rect(272, 48, 198, 54, {
+        fill: tint(blue, c.bg, 0.14),
+        stroke: blue,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(371, 67, 'LOCAL_SEMANTIC', {
+        size: 13,
+        weight: 700,
+        color: blue,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(371, 86, 'LSP · 60 ms p95 · offline', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-                    {/* Right: Remote Routing & Gateway Verification */}
-                    <rect
-                        x={444}
-                        y={60}
-                        width={392}
-                        height={416}
-                        rx={8}
-                        fill={c.bgCard}
-                        stroke={stroke}
-                        strokeWidth={1.5}
-                    />
+    // NO branch -> Strict literal boolean gate (lower-left)
+    fig.arrow(111, 144, 111, 200, { color: purple, width: 1.7, head: 6 })
+    fig.text(122, 172, 'No', { size: 12, weight: 700, color: purple })
 
-                    {/* Remote Branches */}
-                    <rect
-                        x={456}
-                        y={110}
-                        width={175}
-                        height={100}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={remoteTone}
-                        strokeWidth={1.5}
-                    />
-                    <rect
-                        x={645}
-                        y={110}
-                        width={175}
-                        height={100}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={remoteTone}
-                        strokeWidth={1.5}
-                    />
+    fig.rect(24, 202, 212, 74, {
+        fill: tint(purple, c.bg, 0.12),
+        stroke: purple,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(130, 224, 'remote_permitted is True', {
+        size: 13,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(130, 246, 'Literal Python bool only', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(130, 263, 'Rejects "False", None, 1', {
+        size: 11,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
 
-                    {/* Gateway Security Enforcement */}
-                    <rect
-                        x={456}
-                        y={230}
-                        width={368}
-                        height={110}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={gateTone}
-                        strokeWidth={1.5}
-                    />
+    // FALSE branch -> LOCAL_FALLBACK (bottom-left)
+    fig.arrow(130, 276, 130, 314, { color: red, width: 1.7, head: 6 })
+    fig.text(142, 294, 'Else', { size: 12, weight: 700, color: red })
 
-                    {/* Freshness Gate */}
-                    <rect
-                        x={456}
-                        y={360}
-                        width={368}
-                        height={95}
-                        rx={6}
-                        fill={c.bgCardAlt}
-                        stroke={stroke}
-                        strokeWidth={1}
-                    />
+    fig.rect(24, 316, 212, 54, {
+        fill: tint(red, c.bg, 0.11),
+        stroke: red,
+        strokeWidth: 1.4,
+        radius: 8,
+    })
+    fig.text(130, 335, 'LOCAL_FALLBACK', {
+        size: 13,
+        weight: 700,
+        color: red,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(130, 354, 'Local n-gram · 60 ms p95', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-                    {/* Route connector */}
-                    <line x1={412} y1={275} x2={456} y2={160} stroke={remoteTone} strokeWidth={2} />
-                </svg>
-            </CanvasItem>
+    // TRUE branch -> crosses Gateway Auth boundary into Remote lanes
+    fig.arrow(236, 232, 514, 232, { color: green, width: 1.9, head: 6 })
+    fig.text(358, 218, 'Literal True (client hint)', {
+        size: 12,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
 
-            {/* Title */}
-            {label(
-                24,
-                20,
-                812,
-                'Client Completion Triage · Semantic LSP, Policy Gates & Remote FIM',
-                22,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    // Gateway verifier node
+    fig.rect(516, 198, 128, 68, {
+        fill: tint(purple, c.bg, 0.14),
+        stroke: purple,
+        strokeWidth: 1.6,
+        radius: 8,
+    })
+    fig.text(580, 219, 'Gateway', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+    })
+    fig.text(580, 238, 'Verify auth', {
+        size: 12,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(580, 254, '& upload ACL', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {/* Left Header */}
-            {label(
-                36,
-                75,
-                376,
-                '1. Client-Side Triage Decision Tree',
-                16,
-                c.textPrimary,
-                'left',
-                700,
-            )}
+    // Gateway splits into REMOTE_MULTILINE (upper) and REMOTE_INLINE (lower)
+    fig.path('M644 218 L664 218 L664 152 L680 152', { color: warm, width: 1.7 })
+    fig.arrow(668, 152, 682, 152, { color: warm, width: 1.7, head: 6 })
 
-            {/* Branch 1 */}
-            {label(48, 120, 352, 'Trigger: "." or "(" + Types Known', 13, localTone, 'left', 700)}
-            {label(48, 142, 352, '• Route: LOCAL_SEMANTIC (LSP / AST)', 12, c.textPrimary)}
-            {label(
-                48,
-                162,
-                352,
-                '• 60 ms objective · Zero network traffic',
-                11,
-                localTone,
-                'left',
-                600,
-            )}
+    fig.rect(684, 122, 174, 60, {
+        fill: tint(warm, c.bg, 0.12),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(771, 141, 'REMOTE_MULTILINE', {
+        size: 13,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(771, 162, 'After def/class · 500 ms', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {/* Branch 2 */}
-            {label(
-                48,
-                230,
-                352,
-                'Strict Boolean Gate: remote_permitted is True',
-                13,
-                gateTone,
-                'left',
-                700,
-            )}
-            {label(48, 255, 352, '• Requires literal Python boolean True', 12, c.textMuted)}
-            {label(
-                48,
-                275,
-                352,
-                '• Values like "False", None, 1 FAIL gate immediately',
-                11,
-                failTone,
-            )}
-            {label(
-                48,
-                295,
-                352,
-                '• Prevents type-coercion bypass on security flags',
-                11,
-                c.textMuted,
-            )}
+    fig.path('M644 246 L664 246 L664 276 L680 276', { color: green, width: 1.7 })
+    fig.arrow(668, 276, 682, 276, { color: green, width: 1.7, head: 6 })
 
-            {/* Fallback */}
-            {label(48, 360, 352, 'Policy Fail → LOCAL_FALLBACK', 13, failTone, 'left', 700)}
-            {label(
-                48,
-                385,
-                352,
-                '• Falls back to local text buffer ngram matching',
-                11,
-                c.textMuted,
-            )}
-            {label(48, 405, 352, '• 60 ms objective · Code never leaves machine', 11, c.textMuted)}
-            {label(
-                48,
-                425,
-                352,
-                '• Protects confidential repositories without permission',
-                11,
-                failTone,
-                'left',
-                600,
-            )}
+    fig.rect(684, 246, 174, 60, {
+        fill: tint(green, c.bg, 0.14),
+        stroke: green,
+        strokeWidth: 1.5,
+        radius: 8,
+    })
+    fig.text(771, 265, 'REMOTE_INLINE', {
+        size: 13,
+        weight: 700,
+        color: green,
+        align: 'center',
+        mono: true,
+    })
+    fig.text(771, 286, 'Mid-line · 200 ms p95', {
+        size: 12,
+        color: c.textSecondary,
+        align: 'center',
+    })
 
-            {/* Right Header */}
-            {label(
-                456,
-                75,
-                368,
-                '2. Remote Dispatch & Security Enforcement',
-                16,
-                remoteTone,
-                'left',
-                700,
-            )}
+    // Bottom right freshness note (no crossing wires)
+    fig.text(712, 356, 'All lanes rejoin Editor Freshness Gate', {
+        size: 12,
+        weight: 600,
+        color: c.textSecondary,
+        align: 'center',
+    })
+    fig.text(712, 374, 'before ghost paint and Tab insertion', {
+        size: 12,
+        color: c.textMuted,
+        align: 'center',
+    })
 
-            {/* Multiline vs Inline */}
-            {label(468, 120, 155, 'REMOTE_MULTILINE', 12, remoteTone, 'left', 700)}
-            {label(468, 142, 155, 'After def / class :', 11, c.textPrimary)}
-            {label(468, 162, 155, '500 ms budget', 11, c.textMuted)}
-            {label(468, 180, 155, 'Generates full block', 10, c.textMuted)}
-
-            {label(657, 120, 155, 'REMOTE_INLINE', 12, remoteTone, 'left', 700)}
-            {label(657, 142, 155, 'Mid-line expression', 11, c.textPrimary)}
-            {label(657, 162, 155, '200 ms budget', 11, c.textMuted)}
-            {label(657, 180, 155, 'Single line snippet', 10, c.textMuted)}
-
-            {/* Gateway */}
-            {label(468, 240, 344, 'Independent Gateway Enforcement', 13, gateTone, 'left', 700)}
-            {label(
-                468,
-                265,
-                344,
-                '• Gateway independently validates tenant auth & telemetry policy',
-                11,
-                c.textMuted,
-            )}
-            {label(
-                468,
-                285,
-                344,
-                '• Client classifier output is not trusted authorization',
-                11,
-                failTone,
-            )}
-            {label(
-                468,
-                305,
-                344,
-                '• Drops unauthenticated requests before GPU prefill',
-                11,
-                c.textMuted,
-            )}
-
-            {/* Freshness */}
-            {label(468, 370, 344, 'Unified Freshness Check', 13, c.textPrimary, 'left', 700)}
-            {label(
-                468,
-                395,
-                344,
-                'All results (local, remote inline, remote multiline) pass through editor snapshot gate before ghost text rendering.',
-                11,
-                c.textMuted,
-            )}
-        </Board>
-    )
+    return fig.render()
 }
 
 export default create('dark')

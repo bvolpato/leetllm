@@ -1,265 +1,224 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    TextLabel,
-    VectorArrow,
-    getThemeColors,
-    getReadableToneColor,
-    getToneFill,
-    type ThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 860
-export const height = 500
+export const width = 840
+export const height = 385
 export const alt =
-    'Voice session packets hash to one sticky media worker that owns DTLS and media state. Its audio, turn, and text requests fan out to independently scalable STT, LLM, and TTS pools.'
+    'Voice packets hash to one sticky media worker holding DTLS and media state, fanning out audio and text work to independently scaled STT, LLM, and TTS pools.'
 
-function label(
-    c: ThemeColors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    size = 20,
-    color = c.textPrimary,
-    weight = 500,
-    align: 'left' | 'center' | 'right' = 'center',
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: size * 1.5,
-        children: (
-            <TextLabel
-                c={c}
-                text={text}
-                width={w}
-                fontSize={size}
-                fontWeight={weight}
-                color={color}
-                align={align}
-            />
-        ),
+const STATE_ITEMS = [
+    'DTLS / SRTP termination',
+    'Jitter buffer + PLC',
+    'Playout ACK cursor',
+    'Barge-in cancel bus',
+] as const
+
+const POOLS = [
+    {
+        y: 36,
+        title: 'STT Pool',
+        badge: 'scale on audio',
+        sub: 'Audio frames -> live text',
+        tone: 'cyan' as const,
+    },
+    {
+        y: 144,
+        title: 'LLM Pool',
+        badge: 'scale on tokens',
+        sub: 'Continuous batching / KV',
+        tone: 'blue' as const,
+    },
+    {
+        y: 252,
+        title: 'TTS Pool',
+        badge: 'scale on clauses',
+        sub: 'Streaming speech chunks',
+        tone: 'green' as const,
+    },
+] as const
+
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const warm = fig.tone('warm')
+    const purple = fig.tone('purple')
+    const muted = c.textSecondary
+
+    // --- Tier 1: Caller Sessions ---
+    const cX = 24
+    const cW = 154
+    fig.text(cX + cW / 2, 22, 'Caller Packets', {
+        size: 14,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        width: cW,
     })
-}
-
-export function create(mode: ThemeMode = 'dark') {
-    const c = getThemeColors(mode)
-    const tone = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getReadableToneColor(name, c)
-    const fill = (name: 'blue' | 'purple' | 'green' | 'cyan' | 'warm' | 'critical') =>
-        getToneFill(name, c)
-
-    const pools = [
-        {
-            y: 64,
-            name: 'STT worker pool',
-            detail: 'Audio chunks → text tokens',
-            metric: 'Scales on speech audio load',
-            color: 'cyan' as const,
-        },
-        {
-            y: 180,
-            name: 'LLM inference pool',
-            detail: 'Continuous batching / vLLM',
-            metric: 'Scales on active token generation',
-            color: 'blue' as const,
-        },
-        {
-            y: 296,
-            name: 'TTS synthesis pool',
-            detail: 'Streaming speech waveform',
-            metric: 'Scales on playout clause queue',
-            color: 'green' as const,
-        },
-    ]
-
-    return Board({
-        c,
-        width,
-        height,
-        children: [
-            CanvasItem({
-                x: 0,
-                y: 0,
-                width,
-                height,
-                children: (
-                    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                        {/* Step 1: Caller packets */}
-                        <rect
-                            x="24"
-                            y="120"
-                            width="156"
-                            height="210"
-                            rx="10"
-                            fill={fill('warm')}
-                            stroke={tone('warm')}
-                            strokeWidth="2"
-                        />
-                        <VectorArrow
-                            x1={180}
-                            y1={225}
-                            x2={218}
-                            y2={225}
-                            color={tone('warm')}
-                            strokeWidth={2}
-                            arrowSize={5}
-                        />
-
-                        {/* Step 2: Sticky Media Gateway */}
-                        <rect
-                            x="218"
-                            y="90"
-                            width="234"
-                            height="270"
-                            rx="12"
-                            fill={fill('purple')}
-                            stroke={tone('purple')}
-                            strokeWidth="2"
-                        />
-
-                        {/* Fan out branch lines */}
-                        <path
-                            d="M 452 165 H 480 V 110 H 500"
-                            fill="none"
-                            stroke={tone('cyan')}
-                            strokeWidth="2"
-                        />
-                        <VectorArrow
-                            x1={494}
-                            y1={110}
-                            x2={508}
-                            y2={110}
-                            color={tone('cyan')}
-                            strokeWidth={2}
-                            arrowSize={4}
-                        />
-
-                        <path
-                            d="M 452 225 H 508"
-                            fill="none"
-                            stroke={tone('blue')}
-                            strokeWidth="2"
-                        />
-                        <VectorArrow
-                            x1={494}
-                            y1={225}
-                            x2={508}
-                            y2={225}
-                            color={tone('blue')}
-                            strokeWidth={2}
-                            arrowSize={4}
-                        />
-
-                        <path
-                            d="M 452 285 H 480 V 342 H 500"
-                            fill="none"
-                            stroke={tone('green')}
-                            strokeWidth="2"
-                        />
-                        <VectorArrow
-                            x1={494}
-                            y1={342}
-                            x2={508}
-                            y2={342}
-                            color={tone('green')}
-                            strokeWidth={2}
-                            arrowSize={4}
-                        />
-
-                        {/* Step 3: Independent pools */}
-                        {pools.map((p) => (
-                            <rect
-                                key={p.name}
-                                x="508"
-                                y={p.y}
-                                width="328"
-                                height="98"
-                                rx="10"
-                                fill={fill(p.color)}
-                                stroke={tone(p.color)}
-                                strokeWidth="2"
-                            />
-                        ))}
-
-                        {/* Bottom summary bar */}
-                        <rect
-                            x="24"
-                            y="414"
-                            width="812"
-                            height="64"
-                            rx="10"
-                            fill={c.bgCard}
-                            stroke={c.border}
-                            strokeWidth="1.5"
-                        />
-                    </svg>
-                ),
-            }),
-            label(
-                c,
-                'Pin media state, scale inference pools',
-                24,
-                14,
-                812,
-                24,
-                c.textPrimary,
-                700,
-                'left',
-            ),
-
-            // Caller Packets
-            label(c, 'Caller session', 32, 140, 140, 18, tone('warm'), 700),
-            label(c, 'Consistent session hash', 32, 172, 140, 14, c.textPrimary),
-            label(c, 'DTLS / SRTP packets', 32, 198, 140, 14, c.textSecondary),
-            label(c, '20 ms audio frames', 32, 224, 140, 14, c.textMuted),
-            label(c, 'Routed by 5-tuple', 32, 250, 140, 14, c.textMuted),
-
-            // Sticky Media Gateway
-            label(c, 'media-worker-04', 230, 108, 210, 19, tone('purple'), 700),
-            label(c, 'Sticky stateful media worker', 230, 136, 210, 15, c.textSecondary),
-            label(c, '• Terminates DTLS encryption', 230, 170, 210, 14, c.textPrimary, 500, 'left'),
-            label(
-                c,
-                '• Adaptive jitter buffer & PLC',
-                230,
-                198,
-                210,
-                14,
-                c.textPrimary,
-                500,
-                'left',
-            ),
-            label(c, '• Playout ACK cursor ledger', 230, 226, 210, 14, c.textPrimary, 500, 'left'),
-            label(c, '• Session cancellation bus', 230, 254, 210, 14, c.textPrimary, 500, 'left'),
-            label(c, '• WebRTC ICE keep-alive', 230, 282, 210, 14, c.textSecondary, 500, 'left'),
-
-            // Pools
-            ...pools.flatMap((p) => [
-                label(c, p.name, 524, p.y + 12, 296, 18, tone(p.color), 700, 'left'),
-                label(c, p.detail, 524, p.y + 40, 296, 15, c.textPrimary, 500, 'left'),
-                label(c, p.metric, 524, p.y + 66, 296, 14, c.textSecondary, 500, 'left'),
-            ]),
-
-            // Bottom bar
-            label(c, 'Scaling principle:', 40, 428, 150, 16, tone('blue'), 700, 'left'),
-            label(
-                c,
-                'Media gateways pin stateful WebRTC sessions, while STT, LLM, and TTS workers autoscale stateless micro-batches.',
-                196,
-                424,
-                620,
-                15,
-                c.textSecondary,
-                500,
-                'left',
-            ),
-        ],
+    fig.rect(cX, 92, cW, 194, {
+        fill: tint(warm, c.bg, 0.08),
+        stroke: warm,
+        strokeWidth: 1.5,
+        radius: 10,
     })
+    ;['Call #104', 'Call #219', 'Call #387'].forEach((call, i) => {
+        const sy = 110 + i * 44
+        fig.rect(cX + 14, sy, cW - 28, 32, {
+            fill: tint(warm, c.bg, 0.18),
+            stroke: tint(warm, c.bg, 0.55),
+            strokeWidth: 1,
+            radius: 6,
+        })
+        fig.text(cX + cW / 2, sy + 16, call, {
+            size: 13,
+            weight: 700,
+            color: warm,
+            align: 'center',
+            mono: true,
+            width: cW - 32,
+        })
+    })
+    fig.text(cX + cW / 2, 260, '5-tuple hash', {
+        size: 12,
+        weight: 600,
+        color: muted,
+        align: 'center',
+        mono: true,
+        width: cW - 16,
+    })
+
+    // Arrow Tier 1 -> Tier 2
+    fig.arrow(cX + cW, 189, 232, 189, { color: warm, width: 2.25, head: 6 })
+    fig.text(206, 168, 'sticky', {
+        size: 12,
+        weight: 700,
+        color: warm,
+        align: 'center',
+        width: 56,
+    })
+
+    // --- Tier 2: Sticky Media Worker ---
+    const mX = 236
+    const mW = 228
+    fig.text(mX + mW / 2, 22, 'Sticky Stateful Tier', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        width: mW,
+    })
+    fig.rect(mX, 62, mW, 254, {
+        fill: tint(purple, c.bg, 0.08),
+        stroke: purple,
+        strokeWidth: 1.75,
+        radius: 10,
+    })
+    fig.text(mX + mW / 2, 86, 'media-worker-04', {
+        size: 15,
+        weight: 700,
+        color: purple,
+        align: 'center',
+        mono: true,
+        width: mW - 16,
+    })
+    fig.text(mX + mW / 2, 108, 'Owns session state in RAM', {
+        size: 12,
+        color: muted,
+        align: 'center',
+        width: mW - 16,
+    })
+
+    STATE_ITEMS.forEach((item, i) => {
+        const sy = 128 + i * 44
+        fig.rect(mX + 14, sy, mW - 28, 34, {
+            fill: tint(purple, c.bg, 0.15),
+            stroke: tint(purple, c.bg, 0.45),
+            strokeWidth: 1,
+            radius: 6,
+        })
+        fig.text(mX + mW / 2, sy + 17, item, {
+            size: 13,
+            weight: 600,
+            color: c.textPrimary,
+            align: 'center',
+            width: mW - 36,
+        })
+    })
+
+    // --- Tier 3: Independently Autoscaled Inference Pools ---
+    const pX = 540
+    const pW = 276
+    fig.text(pX + pW / 2, 20, 'Stateless Inference Pools', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+        width: pW,
+    })
+
+    const fanStarts = [132, 189, 246] as const
+    const edgeLabels = [
+        { text: 'audio', xOff: -4, yAbs: 64 },
+        { text: 'turns', xOff: 0, yAbs: 173 },
+        { text: 'clauses', xOff: -4, yAbs: 312 },
+    ] as const
+
+    POOLS.forEach((p, i) => {
+        const tone = fig.tone(p.tone)
+        const midY = p.y + 42
+
+        // Smooth Bezier fan-out connector from Sticky Media Worker to Pool
+        const x1 = mX + mW
+        const x2 = pX - 8
+        const y1 = fanStarts[i]!
+        const mx = (x1 + x2) / 2
+        fig.path(`M${x1} ${y1}C${mx} ${y1},${mx} ${midY},${x2} ${midY}`, {
+            color: tone,
+            width: 2,
+        })
+        fig.arrow(x2 - 8, midY, pX - 3, midY, { color: tone, width: 2, head: 6 })
+        fig.text(mx + edgeLabels[i]!.xOff, edgeLabels[i]!.yAbs, edgeLabels[i]!.text, {
+            size: 12,
+            weight: 600,
+            color: tone,
+            align: 'center',
+            width: 66,
+        })
+
+        // Pool block
+        fig.rect(pX, p.y, pW, 84, {
+            fill: tint(tone, c.bg, 0.11),
+            stroke: tone,
+            strokeWidth: 1.75,
+            radius: 9,
+        })
+        fig.text(pX + 16, p.y + 26, p.title, { size: 15, weight: 700, color: tone })
+        fig.rect(pX + pW - 134, p.y + 12, 120, 24, {
+            fill: tint(tone, c.bg, 0.22),
+            stroke: tint(tone, c.bg, 0.55),
+            strokeWidth: 1,
+            radius: 12,
+        })
+        fig.text(pX + pW - 74, p.y + 24, p.badge, {
+            size: 11,
+            weight: 700,
+            color: tone,
+            align: 'center',
+            width: 114,
+        })
+        fig.text(pX + 16, p.y + 58, p.sub, { size: 13, color: c.textSecondary })
+    })
+
+    // Bottom frameless note
+    fig.line(24, 350, 816, 350, { color: c.borderSubtle, width: 1 })
+    fig.text(420, 370, 'Pin stateful DTLS + jitter-buffer sessions per media worker  ·  Autoscale GPU/CPU pools independently', {
+        size: 12,
+        weight: 600,
+        color: muted,
+        align: 'center',
+        width: 780,
+    })
+
+    return fig.render()
 }
 
 export default create()

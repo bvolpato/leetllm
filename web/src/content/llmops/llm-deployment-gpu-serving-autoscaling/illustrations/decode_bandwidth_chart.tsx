@@ -19,7 +19,7 @@ export const alt =
 
 export function create(theme: ThemeMode = 'dark') {
     const base = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const c = withDensity({ ...base, shadow: 'transparent' }, 2.15)
+    const c = withDensity({ ...base, shadow: 'transparent' }, 1.85)
     const blue = getReadableToneColor('blue', c)
     const green = getReadableToneColor('green', c)
     const warm = getReadableToneColor('warm', c)
@@ -52,7 +52,8 @@ export function create(theme: ThemeMode = 'dark') {
                     height: 290,
                     format: (v: number) => `${Math.round(v)}`,
                     yAxisLabel: 'Tokens / s',
-                    max: 240,
+                    min: 0,
+                    max: 270,
                     data: [
                         {
                             label: '8B BF16 (16 GB)',

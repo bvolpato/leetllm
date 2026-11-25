@@ -1,7 +1,7 @@
-import { GraphDiagram, Scene, TextLabel, getThemeColors, type ThemeMode } from 'vizmatic'
+import { GraphDiagram, Scene, getThemeColors, type ThemeMode } from 'vizmatic'
 
 export const width = 980
-export const height = 440
+export const height = 370
 export const alt =
     'Changing candidate source from version 1 to version 2 invalidates its check results and the dependent report. Expected probabilities remain reusable because their test-case inputs did not change.'
 
@@ -25,7 +25,7 @@ export function create(theme: ThemeMode) {
                 nodeHeight: 100,
                 labelFontSize: 24,
                 detailFontSize: 21,
-                arrowSize: 8,
+                arrowSize: 6,
                 nodes: [
                     {
                         id: 'source',
@@ -65,12 +65,6 @@ export function create(theme: ThemeMode) {
                     { from: 'expected', to: 'checks', tone: 'green' },
                     { from: 'checks', to: 'report', tone: 'warm' },
                 ],
-            }),
-            TextLabel({
-                c,
-                text: 'A result belongs to the inputs that produced it.',
-                fontSize: 25,
-                align: 'center',
             }),
         ],
     })

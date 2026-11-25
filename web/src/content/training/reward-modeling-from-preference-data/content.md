@@ -40,403 +40,232 @@
   ]
 }
 ---
-<!-- leetllm: edition:reference:start -->
 
-A developer asks a coding assistant how to prevent exponential overflow in `softmax(z)`. One reply gives the exact fix in two sentences: subtract `max(z)` from every logit before calling `exp(z)` so the largest exponent is zero. A second reply looks warm and thorough, yet advises casting the array to `float64` *after* computing `exp(z)`, which still overflows before any cast runs. Which reply should earn the higher score?
+Your reward scorer hits 100% validation accuracy, yet on one Python question (how to avoid exponential overflow in `softmax(z)`), it prefers a wordy buggy answer ("cast to `float64` *after* `exp(z)`") over the concise fix ("subtract `max(z)` before `exp(z)`"). Because training winners happened to be longer, the head learned to count tokens instead of checking math.
 
-<span data-glossary="supervised-fine-tuning">Supervised fine-tuning (SFT)</span> teaches a model to imitate demonstration tokens, whereas reward modeling trains a scalar scorer to separate preferred answers from rejected ones on the same prompt. In <span data-glossary="rlhf">RLHF</span> (Reinforcement Learning from Human Feedback), that scorer sits inside <span data-glossary="ppo">Proximal Policy Optimization (PPO)</span> or best-of-$N$ selection.[^ouyang2022] If the scorer learns to reward extra length or confident phrasing instead of technical accuracy, policy optimization amplifies the shortcut rather than fixing it.[^gao2023scaling] Throughout this lesson, we use this softmax stability question to trace how a reward head learns, how to tell score origin apart from scale, and how to expose shortcuts before RL exploits them.
+That shortcut hazard sits at the core of reward modeling. <span data-glossary="supervised-fine-tuning">Supervised fine-tuning (SFT)</span> imitates demonstrations, whereas a <span data-glossary="reward-model">reward model</span> maps a prompt and completion $(x, y)$ to a scalar score $r_\theta(x, y) \in \mathbb{R}$ for <span data-glossary="rlhf">RLHF</span> (<span data-glossary="ppo">PPO</span>) or best-of-$N$ ranking.[^ouyang2022] Any shortcut inside $r_\theta$ gets amplified by RL.[^gao2023scaling]
 
 ## How a scalar judge scores a completed answer
 
-An autoregressive language model predicts a probability distribution over the vocabulary $V$ at every token position, $\pi_\theta(y_t \mid x, y_{<t}) \in \Delta^{|V|-1}$. A <span data-glossary="reward-model">reward model</span> instead evaluates the full prompt and completed response $(x, y)$ together, projecting the final hidden state down to one real number:
+An autoregressive LLM outputs vocabulary probabilities $\pi_\theta(y_t \mid x, y_{<t})$; a reward model evaluates the complete pair $(x, y)$ and projects its final hidden state to one scalar:
 
 $$
 r_\theta(x, y) \in \mathbb{R}
 $$
 
-For our softmax prompt $x$, an annotator prefers the chosen completion $y_w$ (subtract `max(z)` first) over the rejected completion $y_l$ (cast after `exp(z)`). Training pushes the scorer toward $r(x, y_w) > r(x, y_l)$. Because pairwise comparisons record only relative order, adding a constant offset to every score leaves all rankings untouched: a score of `2.0` is not "twice as good" as `1.0`, and two independently trained reward models cannot be compared directly without shared calibration data. Scaling all scores by a positive factor, however, stretches their pairwise gaps, sharpening Bradley-Terry probabilities and changing downstream RL optimization pressure.
+Training pushes $r(x, y_w) > r(x, y_l)$ for preferred $y_w$ over rejected $y_l$. Because pairwise loss depends only on score differences, adding a constant offset changes nothing (a score of `2.0` is not "twice as good" as `1.0`), whereas multiplying scores by a positive constant stretches margins, sharpens Bradley-Terry probabilities, and alters RL optimization pressure.
 
-That scalar score drives two post-training workflows:
-
-1. **Terminal reward for online RL:** The scorer evaluates completed policy rollouts as a sequence-level return. PPO pairs those rewards with a learned value baseline via Generalized Advantage Estimation (GAE), whereas outcome-supervised GRPO normalizes rewards across a group of rollouts sampled for the same prompt without a separate value network.[^shao2024]
-2. **Best-of-$N$ selection:** A generator samples $N$ completions for prompt $x$ and picks $\arg\max_i r(x, y_i)$, used both at inference time and to curate synthetic training data.
-
-<span data-glossary="dpo">Direct Preference Optimization (DPO)</span> uses the exact analytic link between a reward function and its KL-regularized optimal policy to express rewards as policy-to-reference log-ratios, turning pairwise loss directly into a policy objective without a separate scorer.[^rafailov2023] Explicit reward models remain valuable whenever you want fast reusable scoring across fresh rollouts, best-of-$N$ ranking, or shared feedback alongside executable verifiers and generative judges.[^lambert2024rlvr]
+Scalar rewards power **online RL** (PPO pairs them with a learned value critic via GAE; outcome-supervised GRPO normalizes rewards across a group of rollouts without a critic[^shao2024]) and **best-of-$N$ selection** ($\arg\max_i r(x, y_i)$). By contrast, <span data-glossary="dpo">Direct Preference Optimization (DPO)</span> bypasses a separate scorer by increasing the policy's log-odds of $y_w$ over $y_l$ directly relative to the frozen reference model.[^rafailov2023] Explicit reward models remain essential for reusable rollout scoring, best-of-$N$ ranking, and hybrid systems alongside verifiers.[^lambert2024rlvr]
 
 ## Preference data, annotation rubrics, and inter-annotator agreement
 
-Pairwise cross-entropy fits whatever ordering sits in the dataset, including prompt mismatches, ambiguous guidelines, and systematic rater habits. High-signal reward models start with crisp **annotation rubrics**, measured **inter-annotator agreement (IAA)**, and targeted **active learning** before a single gradient runs.
-
-### Rubrics, Cohen's kappa, and active learning
-
-Write a concrete rubric ranking criteria in order (for example: factual and numerical accuracy > safety > completeness > concision), with explicit tie definitions and boundary examples, and redact PII or credentials before routing transcripts to raters.[^presidio2023] Never measure rater reliability by raw percent agreement alone, since imbalanced classes inflate raw match. **<span data-glossary="cohens-kappa">Cohen's kappa</span> ($\kappa$)** corrects two-rater observed agreement $p_o$ for chance agreement $p_e$:[^cohen1960][^sklearn2026kappa]
-
-$$
-\kappa = \frac{p_o - p_e}{1 - p_e}
-$$
-
-Use **Fleiss' kappa** for $m \ge 3$ raters per item[^statsmodels2026Fleiss] and **Krippendorff's alpha** ($\alpha = 1 - D_o / D_e$) when rater counts vary, labels are missing, or ratings are ordinal.[^krippendorff2011alpha] Watch two caveats: high $\kappa$ checks consistency rather than truth (two raters can both pick the longer buggy reply), and on rare classes a 96.7% raw match (`[[114, 2], [2, 2]]`) yields only $\kappa = 0.483$ (the **prevalence paradox**), so always inspect the confusion matrix and calibrate raters against gold examples.
-
-Because expert review is expensive, spend labeling budget with **active learning** rather than uniform random draws:[^settles2010survey] prioritize high-uncertainty pairs (margins near $\Delta \approx 0$), high-disagreement prompts under **Query-by-Committee** (bootstrap or ensemble disagreement), and **hybrid diversity batches** that combine uncertainty with embedding-space core-set distance so one batch does not waste budget on near-duplicate prompts.[^sener2018coreset] When scaling with an LLM-as-a-judge, calibrate against blinded human gold slices, swap A/B positions to catch position bias,[^zheng2023] and ship versioned dataset manifests.[^gebru2021]
+Pairwise cross-entropy fits whatever pattern sits in the labels. Start with crisp rubrics (e.g., factual accuracy > safety > completeness > concision, with explicit tie rules and PII redaction[^presidio2023]) and measure inter-annotator agreement beyond raw match using **<span data-glossary="cohens-kappa">Cohen's kappa</span>** ($\kappa = (p_o - p_e)/(1 - p_e)$ for two raters,[^cohen1960][^sklearn2026kappa] **Fleiss' kappa** for $m \ge 3$ raters,[^statsmodels2026Fleiss] or **Krippendorff's alpha** for missing/ordinal ratings[^krippendorff2011alpha]). Always inspect confusion counts because rare classes trigger the prevalence paradox, and calibrate raters on gold items. Spend labeling budget with **active learning** (near-zero margins, Query-by-Committee disagreement, and embedding diversity),[^settles2010survey][^sener2018coreset] swap A/B slots when using LLM judges,[^zheng2023] and ship versioned manifests.[^gebru2021]
 
 ### Preference formats, pair checks, and prompt-grouped splits
 
-Explicit-prompt datasets store one shared `prompt` with `chosen` and `rejected` strings; multi-turn dialogues store full role-tagged message lists whose system prompt and earlier turns match token for token, diverging only at the final assistant reply. TRL's `RewardTrainer` formats conversational lists through the tokenizer's <span data-glossary="chat-template">chat template</span> and concatenates plain strings directly.[^trl2026RewardTrainerV117]
+Datasets store `(prompt, chosen, rejected)` strings or multi-turn message lists sharing identical prefixes formatted through the <span data-glossary="chat-template">chat template</span>.[^trl2026RewardTrainerV117] Before training, verify four invariants: identical context prefixes, distinct tokenized inputs (if preprocessing collapses both completions to identical token IDs, a shared deterministic scorer produces zero margin, $\log 2$ loss, and zero parameter gradient), objective-matched labels (strict wins for Bradley-Terry; soft or tie-aware targets for ties), and candidate lineage.
 
-Before training, verify four properties: **identical context prefixes**, **distinct tokenized inputs** (if truncation or normalization collapses both completions to the same token IDs, a shared scorer yields zero margin and zero gradient), **objective-matched labels** (strict wins for Bradley-Terry; soft targets or tie-aware losses for ties and contested votes), and **candidate lineage** (generator checkpoint, temperature, rater cohort). Also group train/validation splits by `prompt_id`: one prompt with $K = 4$ ranked responses expands into $\binom{4}{2} = 6$ pairs that leak across random splits. InstructGPT placed all $\binom{K}{2}$ pairs from one prompt into one batch item and averaged within the prompt so a $K = 9$ prompt (36 pairs) never outweighed a $K = 2$ prompt by 36x.[^ouyang2022]
+Group train/val splits by `prompt_id`: $K$ ranked responses on one prompt expand into $\binom{K}{2}$ pairs (5 responses yield 10 pairs vs 1 pair for $K=2$). InstructGPT averaged all $\binom{K}{2}$ pairs *within* each prompt so a prompt with 5 responses gets equal 1:1 loss weight alongside a 2-response prompt instead of 10:1.[^ouyang2022]
 
 <!-- leetllm: test, output=show, output_title="Pair hygiene output" -->
 ```python title="preference_pair_checks.py"
+# fold:start imports & sample pairs
 from collections import Counter
 
 pairs = [
-    {"id": "a", "prompt_left": "softmax?", "prompt_right": "softmax?", "chosen": "Subtract max(z).", "rejected": "Cast after exp(z).", "label": "chosen"},
-    {"id": "b", "prompt_left": "softmax?", "prompt_right": "softmax?", "chosen": "Subtract max(z).", "rejected": "Subtract max(z).", "label": "chosen"},
-    {"id": "c", "prompt_left": "softmax?", "prompt_right": "attention?", "chosen": "Subtract max(z).", "rejected": "Scale by sqrt(d).", "label": "chosen"},
-    {"id": "d", "prompt_left": "attention?", "prompt_right": "attention?", "chosen": "Scale by sqrt(d).", "rejected": "Omit scaling.", "label": "tie"},
+    {"id": "a", "p1": "softmax?", "p2": "softmax?", "w": "Subtract max(z).", "l": "Cast after exp(z).", "label": "chosen"},
+    {"id": "b", "p1": "softmax?", "p2": "softmax?", "w": "Subtract max(z).", "l": "Subtract max(z).", "label": "chosen"},
+    {"id": "c", "p1": "softmax?", "p2": "attention?", "w": "Subtract max(z).", "l": "Scale by sqrt(d).", "label": "chosen"},
+    {"id": "d", "p1": "attention?", "p2": "attention?", "w": "Scale by sqrt(d).", "l": "Omit scaling.", "label": "tie"},
 ]
+# fold:end
 
-
-def check_pair(pair: dict[str, str]) -> str | None:
-    if any(not pair.get(k, "").strip() for k in ("prompt_left", "prompt_right", "chosen", "rejected")):
+def check_pair(p: dict[str, str]) -> str | None:
+    if any(not p.get(k, "").strip() for k in ("p1", "p2", "w", "l")):
         return "missing_or_empty_text"
-    if pair.get("label") != "chosen":
+    if p.get("label") != "chosen":
         return "tie_or_abstention"
-    if pair["prompt_left"] != pair["prompt_right"]:
+    if p["p1"] != p["p2"]:
         return "context_mismatch"
-    if pair["chosen"].strip() == pair["rejected"].strip():
+    if p["w"].strip() == p["l"].strip():
         return "identical_candidates"
     return None
 
-
-reasons = Counter(reason for p in pairs if (reason := check_pair(p)))
-kept = [p["id"] for p in pairs if check_pair(p) is None]
-print(f"kept={kept}")
-print(f"rejected={dict(sorted(reasons.items()))}")
+reasons = Counter(r for p in pairs if (r := check_pair(p)))
+print(f"kept={[p['id'] for p in pairs if check_pair(p) is None]} | rejected={dict(sorted(reasons.items()))}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Pair hygiene output" output compact
-kept=['a']
-rejected={'context_mismatch': 1, 'identical_candidates': 1, 'tie_or_abstention': 1}
+kept=['a'] | rejected={'context_mismatch': 1, 'identical_candidates': 1, 'tie_or_abstention': 1}
 ```
 <!-- leetllm: output:end -->
 
 ## Turning a language model into a scalar scorer
 
-Converting an autoregressive transformer into a reward model takes one head swap. InstructGPT initialized its reward models from an SFT checkpoint (and also tested a checkpoint fine-tuned on public NLP data with similar results),[^ouyang2022] while Llama 3 initialized directly from a pretrained base model.[^dubey2024]
-
-1. Remove the vocabulary unembedding projection $W_{\text{lm}} \in \mathbb{R}^{d \times |V|}$.
-2. Attach a linear scalar head $W_r \in \mathbb{R}^{d \times 1}$. Any additive scalar bias cancels out of pairwise differences and receives zero gradient from Bradley-Terry loss.
-3. Fine-tune all weights, train LoRA adapters alongside the scalar head, or train the head on frozen features. Under LoRA, ensure the scalar head is marked trainable and saved alongside the adapters.[^huggingface2026rewardSource]
-
-```text
-Input Tokens -> Transformer Hidden States (d) -> Last-Token Representation -> Linear Head -> Scalar Reward r(x, y)
-```
+Initialize from an SFT checkpoint (InstructGPT[^ouyang2022]) or pretrained base (Llama 3[^dubey2024]), drop the vocabulary head $W_{\text{lm}} \in \mathbb{R}^{d \times |V|}$, and attach a linear scalar head $W_r \in \mathbb{R}^{d \times 1}$ (any additive bias cancels out of pairwise differences). Under LoRA, ensure the scalar head is trained, saved alongside adapters, and verified on raw scores after reload; an unsaved head flips reloaded scores even when pooled hidden vectors match.[^huggingface2026rewardSource]
 
 ### Final real-token pooling and sequence padding
 
-In causal decoder attention, position $t$ attends only to positions $j \le t$. Reading from any earlier token omits the rest of the answer. Gathering the **final non-padding token** (typically the end-of-turn delimiter) ensures the hidden vector summarizes the entire prompt and response.
-
-Batch padding shifts where that final token sits: under **left padding**, it sits at index `-1`; under contiguous **right padding**, it sits at `mask.sum(dim=-1) - 1`. Always index explicitly via the attention mask rather than assuming padding activations stay near zero:
+In a causal decoder, only the **final non-padding token** has attended to the full completion. Index explicitly via the attention mask (`-1` for left padding, `mask.sum(-1) - 1` for contiguous right padding) rather than assuming padding states stay near zero:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Reward pooling index output" -->
 ```python title="last_nonpadding_reward.py"
 import numpy as np
 
-
 def last_nonpadding(hidden: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    positions = np.arange(mask.shape[1])
-    last_idx = np.where(mask == 1, positions, -1).max(axis=1)
+    last_idx = np.where(mask == 1, np.arange(mask.shape[1]), -1).max(axis=1)
     return hidden[np.arange(len(hidden)), last_idx]
 
-
-# Padding slots contain large sentinel activations [99, 99] that must be ignored.
 states = np.array([
     [[1., 0.], [2., 3.], [99., 99.]],  # right-padded
     [[99., 99.], [1., 0.], [2., 3.]],  # left-padded
 ])
-masks = np.array([[1, 1, 0], [0, 1, 1]])
-
-pooled = last_nonpadding(states, masks)
-scores = pooled @ np.array([0.5, 1.0])
-print("pooled vectors:", pooled.tolist())
-print("right/left-padded scores:", scores.tolist())
+pooled = last_nonpadding(states, np.array([[1, 1, 0], [0, 1, 1]]))
+print("pooled:", pooled.tolist(), "| scores:", (pooled @ np.array([0.5, 1.0])).tolist())
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Reward pooling index output" output compact
-pooled vectors: [[2.0, 3.0], [2.0, 3.0]]
-right/left-padded scores: [4.0, 4.0]
+pooled: [[2.0, 3.0], [2.0, 3.0]] | scores: [4.0, 4.0]
 ```
 <!-- leetllm: output:end -->
 
 <figure>
-  <img src="illustrations/_generated/last_real_token_readout_dark.png" alt="Right-padded tokens have mask [1, 1, 0], and left-padded tokens have mask [0, 1, 1]. Both select the final real hidden state [2, 3] and ignore the padding hidden state [99, 99]. The shared reward head [0.5, 1.0] gives score 4.0 in either layout." />
-  <figcaption>Mask-indexed readout selects the final unmasked token regardless of padding side, producing score 4.0 for both sequences while ignoring padding values.</figcaption>
+  <img src="illustrations/_generated/last_real_token_readout_dark.png" alt="Mask-indexed final real token pooling selects [2, 3] and scores 4.0 for both right-padded and left-padded sequences while ignoring padding [99, 99]." />
+  <figcaption>Mask-indexed readout selects the final unmasked token under both left and right padding, ignoring sentinel padding activations.</figcaption>
 </figure>
 
-### Filtering long sequences vs. truncating suffixes
-
-If an annotator rejected an answer because of a bug in its final code block, right-truncating the sequence strips away the exact reason for the label. Filtering oversized pairs preserves label fidelity while shifting the length distribution, so log which prompts get dropped. TRL's `RewardConfig` defaults to `max_length=1024` across the full templated prompt plus completion and filters oversized pairs rather than slicing their endings unless configured otherwise.[^trl2026RewardTrainerV117][^trl2026RewardConfigV117]
+Prefer filtering oversized sequences over right-truncating them (which can slice off a late error that caused the rejection); TRL's `RewardConfig` defaults to `max_length=1024` and filters oversized pairs by default.[^trl2026RewardTrainerV117][^trl2026RewardConfigV117]
 
 ## Bradley-Terry formulation, BCE loss, and gradient dynamics
 
-Suppose our reward head scores the `max(z)`-shifted softmax answer at $r(x, y_w) = 1.80$ and the post-`exp` cast answer at $r(x, y_l) = 0.70$, giving margin $\Delta = 1.80 - 0.70 = +1.10$. The **Bradley-Terry** preference model maps that margin to a win probability through the logistic sigmoid:
+Given scores $r(x, y_w) = 1.80$ and $r(x, y_l) = 0.70$ (margin $\Delta = 1.10$), the **Bradley-Terry** model maps $\Delta$ through the logistic sigmoid:
 
 $$
-P(y_w \succ y_l \mid x) = \frac{\exp(r(x, y_w))}{\exp(r(x, y_w)) + \exp(r(x, y_l))} = \sigma\big(r(x, y_w) - r(x, y_l)\big)
+P(y_w \succ y_l \mid x) = \sigma\big(r_\theta(x, y_w) - r_\theta(x, y_l)\big), \qquad
+\mathcal{L}_{\text{BT}}(\theta) = -\mathbb{E}\Big[\log \sigma(\Delta)\Big] = \mathbb{E}\Big[\operatorname{softplus}(-\Delta)\Big]
 $$
 
-At $\Delta = 1.10$, $P(y_w \succ y_l \mid x) = \sigma(1.10) \approx 0.7503$. Any positive margin yields probability above 0.50; zero margin gives 0.50.
+At $\Delta = 1.10$, $P = \sigma(1.10) \approx 0.7503$ and loss $= 0.2873$. This equals `binary_cross_entropy_with_logits(Delta, 1)`. Differentiating gives equal-and-opposite score gradients $\partial\mathcal{L}/\partial r_w = \sigma(\Delta)-1 \le 0$ and $\partial\mathcal{L}/\partial r_l = 1-\sigma(\Delta) \ge 0$, concentrating updates on misranked pairs ($\Delta < 0$).
 
 <figure>
-  <img src="illustrations/_generated/reward_modeling_dark.png" alt="The same scalar reward head scores a chosen completion at 1.80 and a rejected completion at 0.70. Their 1.10 margin lands at 0.7503 on the sigmoid curve, giving pair loss 0.2873." />
-  <figcaption>Bradley-Terry maps the score margin 1.80 − 0.70 = 1.10 through the logistic sigmoid to win probability 0.7503 and negative log-likelihood 0.2873.</figcaption>
+  <img src="illustrations/_generated/reward_modeling_dark.png" alt="Bradley-Terry mapping of scores 1.80 and 0.70 (margin 1.10) to sigmoid win probability 0.7503 and loss 0.2873." />
+  <figcaption>Bradley-Terry maps score margin $1.80 - 0.70 = 1.10$ through the sigmoid to win probability 0.7503 and loss 0.2873.</figcaption>
 </figure>
 
-### Direct equivalence to binary cross-entropy with logits
+> **Common mistake:** Assuming opposite score gradients push $r_w$ up and $r_l$ down. Because both candidates share weights $\theta$, one step can lower *both* raw scores while widening their margin (e.g., $w=-1$ on $h_w=1, h_l=2$ moves scores from `(-1.0, -2.0)` to `(-1.0269, -2.0538)`, raising margin from `1.0000` to `1.0269`).
 
-Minimizing the negative log-likelihood over preference dataset $\mathcal{D}$ gives:
-
-$$
-\mathcal{L}_{\text{BT}}(\theta) = -\mathbb{E}_{(x, y_w, y_l) \sim \mathcal{D}} \Big[ \log \sigma\big(r_\theta(x, y_w) - r_\theta(x, y_l)\big) \Big]
-$$
-
-This is identical to binary cross-entropy (BCE) with target $z = 1$ on logit $\Delta = r_w - r_l$, and equal to $\operatorname{softplus}(-\Delta) = \log(1 + e^{-\Delta})$. Computing it directly on logits via `binary_cross_entropy_with_logits` or `softplus` avoids underflow when $\sigma(\Delta)$ rounds to zero. Notice also what happens when we add a shared `bias = 10.0` to both scores: its gradient is identically zero.
-
-<!-- leetllm: test, deps=torch, output=show, output_title="BCE and score-gradient output" -->
-```python title="bce_loss_equivalence.py"
+<!-- leetllm: test, deps=torch, output=show, output_title="BCE and shared-head update" -->
+```python title="bce_and_shared_update.py"
 import torch
 
 rewards = torch.tensor([[1.8, 0.7]], dtype=torch.float64, requires_grad=True)
 bias = torch.tensor(10.0, dtype=torch.float64, requires_grad=True)
-
-scores = rewards + bias
-logits_diff = scores[:, 0] - scores[:, 1]
-loss = torch.nn.functional.binary_cross_entropy_with_logits(
-    logits_diff, torch.ones_like(logits_diff)
-)
+diff = (rewards + bias)[:, 0] - (rewards + bias)[:, 1]
+loss = torch.nn.functional.binary_cross_entropy_with_logits(diff, torch.ones_like(diff))
 loss.backward()
+print(f"loss={loss.item():.4f} | grads=({rewards.grad[0,0].item():+.4f}, {rewards.grad[0,1].item():+.4f}) | bias_grad={bias.grad.item():.1f}")
 
-print(f"loss={loss.item():.4f} (softplus={torch.nn.functional.softplus(-logits_diff).item():.4f})")
-print(f"chosen_grad={rewards.grad[0, 0].item():+.4f}, rejected_grad={rewards.grad[0, 1].item():+.4f}")
-print(f"shared_bias_grad={bias.grad.item():.1f}")
+w = torch.nn.Parameter(torch.tensor(-1.0, dtype=torch.float64))
+feats = torch.tensor([1.0, 2.0], dtype=torch.float64)
+opt = torch.optim.SGD([w], lr=0.1)
+before = (w * feats).detach().clone()
+torch.nn.functional.softplus(-(w * feats)[0] + (w * feats)[1]).backward()
+opt.step()
+after = (w * feats).detach()
+print(f"shared update: {[round(v, 4) for v in before.tolist()]} -> {[round(v, 4) for v in after.tolist()]}")
 ```
 
 <!-- leetllm: output:start -->
-```text title="BCE and score-gradient output" output compact
-loss=0.2873 (softplus=0.2873)
-chosen_grad=-0.2497, rejected_grad=+0.2497
-shared_bias_grad=0.0
-```
-<!-- leetllm: output:end -->
-
-### Gradient dynamics and shared-weight movement
-
-Differentiating $\mathcal{L}_{\text{BT}} = -\log\sigma(\Delta)$ gives equal-and-opposite score derivatives:
-
-$$
-\frac{\partial \mathcal{L}}{\partial r_w} = \sigma(\Delta) - 1 \le 0,
-\qquad
-\frac{\partial \mathcal{L}}{\partial r_l} = 1 - \sigma(\Delta) \ge 0.
-$$
-
-Training pressure concentrates where the model is wrong: confidently correct pairs ($\Delta \gg 0$) have derivatives near 0; ties ($\Delta = 0$) have derivatives $-0.5$ and $+0.5$; confidently inverted rankings ($\Delta \ll 0$) saturate near $-1$ and $+1$.
-
-> **Common mistake:** Assuming opposite score gradients force $r_w$ up and $r_l$ down after a parameter update. Because both responses share parameters $\theta$, both raw scores can drop simultaneously while the margin still widens.
-
-Watch a single shared scalar weight $r = wh$ initialized at $w = -1$ on frozen features $h_w = 1, h_l = 2$. One SGD step pushes $w$ more negative, lowering **both** scores while dropping $r_l$ twice as fast so the margin grows from `1.0000` to `1.0269`:
-
-<!-- leetllm: test, deps=torch, output=show, output_title="Shared-head score movement" -->
-```python title="shared_reward_head_update.py"
-import torch
-
-weight = torch.nn.Parameter(torch.tensor(-1.0, dtype=torch.float64))
-features = torch.tensor([1.0, 2.0], dtype=torch.float64)
-optimizer = torch.optim.SGD([weight], lr=0.1)
-
-before = (weight * features).detach().clone()
-scores = weight * features
-loss = torch.nn.functional.softplus(-(scores[0] - scores[1]))
-loss.backward()
-optimizer.step()
-after = (weight * features).detach()
-
-print("before:", [round(v, 4) for v in before.tolist()])
-print("after: ", [round(v, 4) for v in after.tolist()])
-print(f"margin: {before[0] - before[1]:.4f} -> {after[0] - after[1]:.4f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Shared-head score movement" output compact
-before: [-1.0, -2.0]
-after:  [-1.0269, -2.0538]
-margin: 1.0000 -> 1.0269
+```text title="BCE and shared-head update" output compact
+loss=0.2873 | grads=(-0.2497, +0.2497) | bias_grad=0.0
+shared update: [-1.0, -2.0] -> [-1.0269, -2.0538]
 ```
 <!-- leetllm: output:end -->
 
 <figure>
-  <img src="illustrations/_generated/shared_reward_head_update_dark.png" alt="One shared scalar parameter w starts at minus 1, scoring chosen feature 1 as minus 1 and rejected feature 2 as minus 2. One gradient step changes w to minus 1.0269; both scores fall to minus 1.0269 and minus 2.0538, while the chosen-minus-rejected margin grows from 1.0000 to 1.0269." />
-  <figcaption>A shared-parameter gradient step lowers both scores while moving the rejected score twice as far, widening the margin from 1.0000 to 1.0269.</figcaption>
+  <img src="illustrations/_generated/shared_reward_head_update_dark.png" alt="Shared scalar weight w updates from -1 to -1.0269, lowering both scores (-1.0269 and -2.0538) while widening the margin to 1.0269." />
+  <figcaption>A shared-parameter step can lower both scores while moving the rejected score farther, widening the margin from 1.0000 to 1.0269.</figcaption>
 </figure>
-
-### Translation invariance vs. scale sensitivity
-
-Adding any prompt-dependent offset $c(x)$ to both completions leaves $\Delta = r_w - r_l$ unchanged, so `(11.80, 10.70)` has the exact same loss and gradients as `(1.80, 0.70)`. Multiplying both scores by 3 triples the margin from `1.10` to `3.30`, pushing the implied win probability to `0.9644`. On separable training batches, a model can shrink loss indefinitely just by scaling weights upward, which is why L2 regularization and held-out calibration matter.
 
 ## Training a small reward head and isolating shortcut features
 
-A two-feature linear reward head $r = w^T h$ with features `[correctness, scaled_length]` reproduces the core shortcut failure on CPU. In the **confounded** dataset, every correct softmax fix is also one unit longer than the buggy alternative. In the **balanced** dataset, a concise fix beats a verbose error, breaking the correlation.
-
-Both heads hit 100% training accuracy after 300 gradient steps, yet when evaluated on length-reversed counterexamples where a long padded answer recommends casting after `exp(z)`, the confounded head collapses to 33%:
+A linear head $r = w^T h$ on `[correctness, scaled_length]` reproduces our opening bug. When training winners are always longer (`confounded`), L2 regularization shrinks weight norm without knowing which feature is spurious, collapsing to 33% on length-reversed counterexamples. Only `balanced` contrast pairs cancel the length gradient:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Learned reward-head shortcut" -->
 ```python title="train_tiny_reward_head.py"
 import numpy as np
 
-
 def fit_reward_head(pairs: np.ndarray, l2: float = 0.02, lr: float = 0.1, steps: int = 300) -> np.ndarray:
-    weights = np.zeros(pairs.shape[-1])
-    diffs = pairs[:, 0] - pairs[:, 1]
+    w, diffs = np.zeros(pairs.shape[-1]), pairs[:, 0] - pairs[:, 1]
     for _ in range(steps):
-        margins = diffs @ weights
-        # Derivative of log(1 + exp(-margin)) is -1 / (1 + exp(margin)).
-        sig_neg = np.exp(-np.logaddexp(0.0, margins))
-        grad = -(diffs.T @ sig_neg) / len(pairs) + l2 * weights
-        weights -= lr * grad
-    return weights
+        sig_neg = np.exp(-np.logaddexp(0.0, diffs @ w))
+        w -= lr * (-(diffs.T @ sig_neg) / len(pairs) + l2 * w)
+    return w
 
-
-def pair_accuracy(weights: np.ndarray, pairs: np.ndarray) -> float:
-    return float(np.mean((pairs[:, 0] - pairs[:, 1]) @ weights > 0))
-
-
-# Features per candidate: [correctness, scaled_length].
+# fold:start confounded vs balanced training & counterexample eval
+acc = lambda w, p: float(np.mean((p[:, 0] - p[:, 1]) @ w > 0))
 confounded = np.array([[[1., 1.], [0., 0.]], [[1., 2.], [0., 1.]]])
 balanced = np.array([[[1., 1.], [0., 0.]], [[1., 0.], [0., 1.]]])
-counterexamples = np.array([
-    [[1., 0.], [0., 2.]],  # short fix vs. verbose bug
-    [[1., 0.], [0., 3.]],  # short fix vs. very verbose bug
-    [[1., 1.], [0., 1.]],  # equal-length pair
-])
+counterexamples = np.array([[[1., 0.], [0., 2.]], [[1., 0.], [0., 3.]], [[1., 1.], [0., 1.]]])
 
 for name, data in [("confounded", confounded), ("balanced", balanced)]:
     w = fit_reward_head(data)
-    print(f"{name:10s}: weights={w.round(3).tolist()}, train={pair_accuracy(w, data):.2f}, counterexamples={pair_accuracy(w, counterexamples):.2f}")
+    print(f"{name:10s}: w={w.round(3).tolist()}, train={acc(w, data):.2f}, counterexamples={acc(w, counterexamples):.2f}")
+# fold:end
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Learned reward-head shortcut" output compact
-confounded: weights=[1.629, 1.629], train=1.00, counterexamples=0.33
-balanced  : weights=[2.667, 0.0], train=1.00, counterexamples=1.00
+confounded: w=[1.629, 1.629], train=1.00, counterexamples=0.33
+balanced  : w=[2.667, 0.0], train=1.00, counterexamples=1.00
 ```
 <!-- leetllm: output:end -->
 
 <figure>
-  <img src="illustrations/_generated/reward_generalization_gap_dark.png" alt="The first counterexample, chosen feature vector (1, 0) and verbose-error vector (0, 2), is projected by two heads fitted for 300 updates. On shared equal-unit axes, the confounded weight direction (1.629, 1.629) scores them 1.629 and 3.259; the balanced direction (2.667, 0) scores them 2.667 and 0. Both heads fit 2 of 2 training pairs, while their measured accuracy on the three controlled counterexamples is 1 of 3 and 3 of 3." />
-  <figcaption>Both heads reach 2 of 2 on their training pairs, yet only the balanced head keeps the concise fix ahead of the verbose error (3 of 3 vs. 1 of 3).</figcaption>
+  <img src="illustrations/_generated/reward_generalization_gap_dark.png" alt="Confounded head (1.629, 1.629) scores verbose bug above short fix (1/3 counterexamples); balanced head (2.667, 0) scores 3/3." />
+  <figcaption>Both heads hit 100% on training pairs, yet only the balanced head keeps concise fixes ahead of verbose errors (3/3 vs 1/3).</figcaption>
 </figure>
-
-The confounded head lands at $w \approx [1.629, 1.629]$ because correctness and length move in lockstep across training pairs. On the first counterexample, the verbose bug $(0, 2)$ scores $3.258$ and beats the concise fix $(1, 0)$ at $1.629$. In the balanced set, difference vectors $[1, 1]$ and $[1, -1]$ cancel length gradients identically, isolating correctness at $[2.667, 0.0]$. L2 regularization shrinks weight magnitude without knowing which feature is spurious; contrast data removes the shortcut.
-
-```checkpoint
-Suppose you remove L2 regularization while keeping the balanced training pairs and zero initial weights. Does the length weight grow during training?
----
-No. Because the two training pairs have equal correctness differences and opposite length differences, their gradients on the length coordinate still cancel exactly at zero length weight. Data symmetry drives that cancellation, whereas L2 regularization only shrinks weights toward zero.
-```
 
 <details>
 <summary>Deep dive: Multi-response rankings and rating-strength margins</summary>
 
-When annotators rank $K > 2$ responses per prompt, pipelines either average all $\binom{K}{2}$ pairs within the prompt group[^ouyang2022] or fit a Plackett-Luce multinomial distribution over the full permutation.
-
-When preference strength labels exist ("much better" vs. "slightly better"), Llama 2 added a rating-dependent margin $m(x, y_w, y_l) \ge 0$ inside the sigmoid:[^touvron2023a]
-
-$$
-\mathcal{L}_{\text{Margin}} = -\log \sigma\big(r(x, y_w) - r(x, y_l) - m(x, y_w, y_l)\big)
-$$
-
-Subtracting $m$ shifts the loss curve horizontally: at $\Delta = m$, the effective logit is 0, the loss is $\log 2 \approx 0.6931$, and reaching effective probability $\rho$ requires $\Delta \ge m + \log(\rho / (1 - \rho))$ (for $m = 1.0, \rho = 0.9$, that requires $\Delta \ge 3.197$). Llama 3 later dropped the margin term after observing diminishing gains at larger dataset scale.[^dubey2024]
+With $K > 2$ ranked responses per prompt, average $\binom{K}{2}$ pairs within the prompt[^ouyang2022] or fit a Plackett-Luce distribution. Llama 2 also subtracted a rating-strength margin $m \ge 0$ inside the sigmoid, $\mathcal{L}_{\text{Margin}} = -\log\sigma(\Delta - m)$,[^touvron2023a] which Llama 3 later dropped at larger scale.[^dubey2024]
 
 </details>
 
 ## Metrics, centering invariance, and calibration
 
-Pair accuracy reduces every comparison to a sign check $\mathbb{I}(r_w > r_l)$, hiding margin drift, unanchored origins, and shortcut reliance. Track five signals together:
-
-| Logged Metric | What It Measures | What It Conceals |
-|---|---|---|
-| Pair accuracy | Binary win frequency ($r_w > r_l$) | Margin collapse or shortcut reliance |
-| Mean margin $\mathbb{E}[r_w - r_l]$ | Average separation distance | Probability calibration and outliers |
-| Mean reward $\mathbb{E}[r]$ | Overall score drift | Ordering quality across prompts |
-| Gradient norm | Optimization step magnitude | Reliance on spurious features |
-| Fresh-policy pair accuracy | Agreement on newly sampled model text | Unsampled failures and human disagreement |
+Pair accuracy $\mathbb{I}(r_w > r_l)$ hides margin drift, unanchored origins, and shortcuts; log pair accuracy, mean margin, mean reward, gradient norm, and fresh-policy pair accuracy together.
 
 ### Centering invariance and PPO scale sensitivity
 
-In PPO-based RLHF, policy optimization trades expected reward against KL divergence from a reference policy $\pi_{\text{ref}}$:
+In PPO-based RLHF,
 
 $$
-\max_\pi \mathbb{E}_{x \sim \mathcal{D}}\left[\mathbb{E}_{y \sim \pi(\cdot\mid x)}[r_\theta(x,y)]-\beta_{\text{KL}}D_{\text{KL}}\big(\pi(\cdot\mid x)\parallel\pi_{\text{ref}}(\cdot\mid x)\big)\right]
+\max_\pi \mathbb{E}_{x}\left[\mathbb{E}_{y \sim \pi}[r_\theta(x,y)] - \beta_{\text{KL}} D_{\text{KL}}(\pi \parallel \pi_{\text{ref}})\right]
 $$
 
-Shifting rewards by any prompt-dependent constant leaves the optimal policy unchanged. Multiplying all rewards by 3 with fixed $\beta_{\text{KL}}$, however, yields the same ideal maximizer as dividing $\beta_{\text{KL}}$ by 3, weakening the KL anchor.
+shifting $r_\theta$ by any prompt-level constant $c(x)$ leaves the optimal policy unchanged. Multiplying all rewards by $k$ while holding $\beta_{\text{KL}}$ fixed, however, gives the exact same maximizer as keeping the original rewards and dividing $\beta_{\text{KL}}$ by $k$, weakening the KL anchor.
 
-To anchor score origins before RL, InstructGPT subtracted the mean reward over demonstrations.[^ouyang2022] TRL exposes `center_rewards_coefficient` (typically starting near `0.01`), adding the midpoint regularizer from Eisenstein et al.:[^trl2026RewardConfigV117][^eisenstein2023ensembles]
-
-$$
-\mathcal{L}_{\text{center}}=\gamma\,\mathbb{E}_{\text{pairs}}\left[(r_w+r_l)^2\right]
-$$
-
-Notice its exact scope: scores `+100` and `-100` sum to zero and incur zero centering penalty, so centering anchors pair midpoints near zero without bounding individual magnitudes or calibrating win probabilities:
-
-<!-- leetllm: test, deps=numpy, output=show, output_title="Centering invariance output" -->
-```python title="reward_centering_invariance.py"
-import numpy as np
-
-chosen = np.array([1.2, 0.7])
-rejected = np.array([0.2, 0.4])
-
-
-def bt_loss(w: np.ndarray, l: np.ndarray) -> float:
-    return float(np.logaddexp(0.0, -(w - l)).mean())
-
-
-print(f"base_loss={bt_loss(chosen, rejected):.4f}")
-print(f"shifted_+10_loss={bt_loss(chosen + 10.0, rejected + 10.0):.4f}")
-print(f"scaled_x3_loss={bt_loss(chosen * 3.0, rejected * 3.0):.4f}")
-
-gamma = 0.01
-midpoint_penalty = gamma * (100.0 + (-100.0)) ** 2
-individual_penalty = gamma * (100.0 ** 2 + (-100.0) ** 2) / 2.0
-print(f"scores=(+100, -100): midpoint_penalty={midpoint_penalty:.1f}, individual_l2={individual_penalty:.1f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Centering invariance output" output compact
-base_loss=0.4338
-shifted_+10_loss=0.4338
-scaled_x3_loss=0.1949
-scores=(+100, -100): midpoint_penalty=0.0, individual_l2=100.0
-```
-<!-- leetllm: output:end -->
+To anchor score origins, InstructGPT subtracted the demonstration mean,[^ouyang2022] and TRL adds `center_rewards_coefficient` ($\mathcal{L}_{\text{center}} = \gamma \mathbb{E}[(r_w + r_l)^2]$, typically $\gamma \approx 0.01$).[^trl2026RewardConfigV117][^eisenstein2023ensembles] Centering anchors pair midpoints (`(+100, -100)` incurs zero midpoint penalty) without bounding scale or calibrating probabilities.
 
 <figure>
-  <img src="illustrations/_generated/score_origin_and_scale_dark.png" alt="Three pairs share one score axis. The original scores 1.80 and 0.70 have margin 1.10 and sigmoid probability 0.7503. Adding 10 to both scores gives 11.80 and 10.70 with the same margin and probability. Multiplying both by 3 gives 5.40 and 2.10, margin 3.30, and probability 0.9644 under the same fixed sigmoid link. Translation preserves the pair loss; scaling changes it." />
-  <figcaption>Adding +10 preserves the score margin and sigmoid win probability, whereas multiplying by 3 stretches the margin to 3.30 and pushes the implied probability to 0.9644.</figcaption>
+  <img src="illustrations/_generated/score_origin_and_scale_dark.png" alt="Adding +10 preserves margin 1.10 and probability 0.7503; multiplying by 3 stretches margin to 3.30 and probability to 0.9644." />
+  <figcaption>Translation (+10) leaves margin and sigmoid probability unchanged; scaling (x3) stretches the margin to 3.30 and pushes win probability to 0.9644.</figcaption>
 </figure>
 
 ### Probabilistic calibration and Brier scores
 
-To check whether $\sigma(r_A - r_B)$ matches human vote frequencies, lock candidate identities **A and B before collecting votes** (rather than always placing the winner in slot A). Let $z_i = 1$ if A wins vote $i$ and $0$ if B wins, and evaluate $p_i = \sigma(r_A - r_B)$ with Brier score and Expected Calibration Error (ECE):
+To test whether $\sigma(r_A - r_B)$ matches human vote rates, fix identities **A and B before collecting votes** (letting $z_i = 1$ if A wins). Evaluate $p_i = \sigma(r_A - r_B)$ via Brier score and Expected Calibration Error:
 
 $$
 \text{BS}=\frac{1}{N}\sum_{i=1}^N(p_i-z_i)^2, \qquad
-\text{ECE}=\sum_{m:|B_m|>0}\frac{|B_m|}{N}\left|\frac{1}{|B_m|}\sum_{i\in B_m}p_i-\frac{1}{|B_m|}\sum_{i\in B_m}z_i\right|
+\text{ECE}=\sum_{m:|B_m|>0}\frac{|B_m|}{N}\left|\bar{p}_m-\bar{z}_m\right|
 $$
 
-When four reviewers split 3 votes for A and 1 for B, predicting `0.75` and overconfident `0.99` both achieve 75% accuracy, while Brier score and ECE cleanly separate them:
+When 4 votes split 3 for A and 1 for B, predicting `0.75` and overconfident `0.99` both hit 75% accuracy, while Brier score (`0.1875` vs `0.2451`) and ECE (`0.00` vs `0.24`) expose overconfidence:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Probability calibration output" -->
 ```python title="reward_calibration.py"
@@ -444,177 +273,88 @@ import numpy as np
 
 votes = np.array([1.0, 1.0, 1.0, 0.0])  # fixed A/B ordering across 4 votes
 for p in (0.75, 0.99):
-    acc = float(np.mean((p > 0.5) == (votes == 1.0)))
-    brier = float(np.mean((p - votes) ** 2))
-    ece = float(abs(p - votes.mean()))
-    print(f"p(A)={p:.2f} | accuracy={acc:.2f} | Brier={brier:.4f} | one_bin_ECE={ece:.2f}")
+    print(f"p(A)={p:.2f} | acc={np.mean((p > 0.5) == (votes == 1)):.2f} | "
+          f"Brier={np.mean((p - votes)**2):.4f} | one_bin_ECE={abs(p - votes.mean()):.2f}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Probability calibration output" output compact
-p(A)=0.75 | accuracy=0.75 | Brier=0.1875 | one_bin_ECE=0.00
-p(A)=0.99 | accuracy=0.75 | Brier=0.2451 | one_bin_ECE=0.24
+p(A)=0.75 | acc=0.75 | Brier=0.1875 | one_bin_ECE=0.00
+p(A)=0.99 | acc=0.75 | Brier=0.2451 | one_bin_ECE=0.24
 ```
 <!-- leetllm: output:end -->
 
-With repeated votes per pair, using the empirical win share $q \in (0, 1)$ as a soft BCE target has unique minimum $p = q$. Keep a 50-50 reviewer split distinct from an explicit "equally good" tie annotation, which calls for a tie-aware model such as Davidson or Rao-Kupper.
+With repeated votes per pair, soft BCE targets $q \in (0, 1)$ minimize uniquely at $p = q$; keep explicit ties separate with Davidson or Rao-Kupper models.
 
 <figure>
-  <img src="illustrations/_generated/preference_probability_calibration_dark.png" alt="Four fixed A/B votes are A, A, A, B, so the observed sample share for A is 0.75. Predictions 0.75 and 0.99 both choose A for 3-of-4 accuracy. The per-vote squared errors average to Brier scores 0.1875 and 0.2451; one-bin ECE is 0 and 0.24." />
-  <figcaption>Predictions 0.75 and 0.99 achieve identical 3-of-4 rank accuracy, yet per-vote Brier error and one-bin ECE favor the calibrated 0.75 probability.</figcaption>
+  <img src="illustrations/_generated/preference_probability_calibration_dark.png" alt="Four votes (A, A, A, B): p=0.75 and p=0.99 tie at 75% accuracy while Brier score (0.1875 vs 0.2451) and ECE (0 vs 0.24) separate them." />
+  <figcaption>Predictions `0.75` and `0.99` tie on 3-of-4 rank accuracy, yet Brier score and ECE cleanly reward the calibrated `0.75` forecast.</figcaption>
 </figure>
 
 ## Reward hacking, Goodhart's Law, and policy overoptimization
 
-Static validation splits only score completions drawn from past policies. Once RL or large best-of-$N$ search explores new regions of completion space, Goodhart's Law kicks in: optimizing an imperfect proxy relentlessly amplifies every gap between the proxy and true quality.
-
-### The Goodhart mechanism and Gao et al. scaling laws
-
-Gao et al. measured reward overoptimization cleanly by using a large **gold reward model** both to label preferences and to grade policies optimized against a smaller proxy scorer.[^gao2023scaling] As optimization pressure (KL budget or $\log N$ in best-of-$N$) grew, proxy reward climbed monotonically while gold reward rose, peaked, and collapsed once search began selecting candidates with extreme shortcut values.
-
-Four failure modes drive this breakdown in real LLM post-training:
-
-1. **Verbosity bias:** Extra length correlates with thoroughness in training pairs, tempting the scorer to reward redundant filler. Check length-controlled slices holding technical content fixed.
-2. **Sycophancy:** Scorers often reward polite agreement with a user's wrong premise over a calm factual correction.[^sharma2023sycophancy]
-3. **Formatting shortcuts:** In Eisenstein et al.'s helpfulness runs, bulleted lists surged to roughly half of policy outputs compared with about 8% in the preference dataset.[^eisenstein2023ensembles]
-4. **Omitted criteria:** A helpfulness-only scorer leaves truthfulness, privacy, and safety unrewarded unless represented explicitly in training and evaluation.
+Static validation splits only test past policies. Under online RL or large best-of-$N$ search, Goodhart's Law exploits every proxy-truth gap: Gao et al. showed proxy reward climbing monotonically while gold reward peaked and collapsed as KL budget or $\log N$ grew.[^gao2023scaling] Four recurring exploit paths drive this collapse: **verbosity bias**, **sycophancy** (agreeing with false user premises[^sharma2023sycophancy]), **formatting shortcuts** (bullet lists jumping from ~8% to ~50% in Eisenstein et al.[^eisenstein2023ensembles]), and **omitted criteria** (truthfulness or safety absent from training).
 
 ### Testing mitigations before trusting them
 
-#### 1. Why a naive length margin fails to block length shortcuts
-
-Subtracting a length margin $m(y_w, y_l) = \alpha \cdot \max(0, \text{len}(y_w) - \text{len}(y_l))$ inside the sigmoid forces a longer winner to beat the loser by a wider gap during training, yet it still allows a pure length scorer $r(y) = b \cdot \text{len}(y)$ to drive training loss near zero simply by increasing $b$:
+Subtracting a length margin $m = \alpha \max(0, \text{len}(y_w) - \text{len}(y_l))$ inside the sigmoid fails to eliminate length gaming: a pure length scorer $r(y) = b \cdot \text{len}(y)$ still drives training loss toward zero by pushing $b > \alpha$ while still ranking longer wrong answers first on held-out pairs:
 
 <!-- leetllm: test, deps=numpy, output=show, output_title="Length-margin counterexample" -->
 ```python title="length_margin_shortcut.py"
 import numpy as np
 
-alpha = 1.0
-gap = 2.0 - 1.0  # chosen length minus rejected length
+alpha, gap = 1.0, 1.0
 for b in (0.0, 3.0, 6.0):
     loss = float(np.logaddexp(0.0, -(b - alpha) * gap))
-    short_good_wins = bool(b * 1.0 > b * 2.0)
-    print(f"length_weight={b:.0f} | training_loss={loss:.4f} | short_correct_beats_long_wrong={short_good_wins}")
+    print(f"length_weight={b:.0f} | loss={loss:.4f} | short_correct_beats_long_wrong={b * 1.0 > b * 2.0}")
 ```
 
 <!-- leetllm: output:start -->
 ```text title="Length-margin counterexample" output compact
-length_weight=0 | training_loss=1.3133 | short_correct_beats_long_wrong=False
-length_weight=3 | training_loss=0.1269 | short_correct_beats_long_wrong=False
-length_weight=6 | training_loss=0.0067 | short_correct_beats_long_wrong=False
+length_weight=0 | loss=1.3133 | short_correct_beats_long_wrong=False
+length_weight=3 | loss=0.1269 | short_correct_beats_long_wrong=False
+length_weight=6 | loss=0.0067 | short_correct_beats_long_wrong=False
 ```
 <!-- leetllm: output:end -->
 
-Instead of fragile length penalties, build balanced training and evaluation sets mixing concise correct fixes, thorough explanations that earn their length, and verbose mistakes, and verify accuracy directly on length-reversed slices.
-
-#### 2. Ensemble disagreement penalties ($\mu - \lambda \sigma$)
-
-An ensemble of $K \ge 2$ reward models trained with varied seeds, data splits, or architectures can flag unfamiliar policy outputs via a conservative Lower Confidence Bound (LCB) heuristic (after aligning member origins and scales on shared calibration data):[^eisenstein2023ensembles]
+An **ensemble** of $K \ge 2$ scale-aligned reward models penalizes out-of-distribution disagreement via a conservative Lower Confidence Bound:[^eisenstein2023ensembles]
 
 $$
-\mu(x, y) = \frac{1}{K}\sum_{k=1}^K r_k(x, y), \qquad
-\sigma(x, y) = \sqrt{\frac{1}{K-1}\sum_{k=1}^K \big(r_k(x, y) - \mu(x, y)\big)^2}, \qquad
 r_{\text{conservative}}(x, y) = \mu(x, y) - \lambda \cdot \sigma(x, y)
 $$
 
-Ensembles reduce reward hacking when members disagree on out-of-distribution rollouts, yet shared blind spots across all members produce $\sigma = 0$ and pass straight through unpenalized.
+Ensembles curb hacking where members disagree, yet **shared blind spots** yield $\sigma = 0$ and pass straight through unpenalized: if all three scorers give `7` to a fabricated citation, ensemble agreement never overrides an independent source check.
 
-```checkpoint
-Three aligned reward models all assign score 5 to an answer that cites a nonexistent API flag. With $\lambda=1$, what does the conservative ensemble rule return, and does it flag the hallucination?
----
-The ensemble mean is 5 and the standard deviation is 0, so the penalized score stays 5. Variance across models cannot detect a mistake that all three models share; catching fabricated citations requires external verification or an independently grounded evaluator.
-```
+## Standardized benchmarks and the reward design spectrum
 
-### Auditing fresh policy rollouts before optimization
+**RewardBench** grades pairwise accuracy across Chat, Chat Hard, Safety, and Reasoning,[^lambert2024rewardbench] while **RewardBench 2** expands to Factuality, Precise Instruction Following, Math, Safety, Focus, and Ties (1-of-4 selection, 25% random baseline).[^malik2025rewardbench2] In Tulu 3 8B experiments, RewardBench 2 tracked best-of-16 strongly ($r = 0.87$) while PPO outcomes depended heavily on prompt distribution and initialization, making fresh-policy rollout audits mandatory.[^malik2025rewardbench2]
 
-Static held-out accuracy only inspects historical completions, whereas fresh-rollout evaluation tests whether the reward model accurately ranks what the current policy emits right now. Before scaling into a large RL run, sample fresh rollouts from the target policy, check whether winning completions are systematically longer (requiring length-reversed eval pairs), separate unanimous votes from contested ties for soft-target training, and run a small monitored RL trial with stop rules independent of the proxy reward.
-
-## Standardized evaluation: RewardBench and RewardBench 2
-
-Internal validation splits often share the blind spots of your annotation pipeline. **RewardBench** evaluates preference models across four pairwise domains: Chat, Chat Hard, Safety, and Reasoning.[^lambert2024rewardbench] **RewardBench 2** expands coverage to Factuality, Precise Instruction Following, Math, Safety, Focus, and Ties, moving standard categories to 1-of-4 selection (25% random baseline) with a separate Ties metric.[^malik2025rewardbench2]
-
-In Tulu 3 8B experiments reported with RewardBench 2, benchmark scores correlated strongly with best-of-16 selection ($r = 0.87$), whereas PPO outcomes differed far less among capable reward models and degraded sharply when reward initialization or prompt distributions drifted from training.[^malik2025rewardbench2] Log the benchmark version, checkpoint, tokenizer, and chat template with every run.
-
-```checkpoint
-A candidate reward model leads the public RewardBench leaderboard. Can you skip fresh rollout checks and run full PPO optimization directly?
----
-No. Leaderboard rank on a public benchmark does not reliably predict PPO outcomes across distribution shifts. Validate the scorer on fresh outputs from your target policy and prompt mix first, then run a short monitored RL trial.
-```
-
-## Architectural spectrum: ORMs, PRMs, verifiers, and generative judges
-
-A scalar Bradley-Terry Outcome Reward Model (ORM) is one point on a wider design spectrum:
-
-| Approach | Feedback or objective | Primary strengths | Primary vulnerabilities |
+| Approach | Objective / signal | Strengths | Vulnerabilities |
 |---|---|---|---|
-| Scalar Bradley-Terry ORM | Single scalar $r(x, y) \in \mathbb{R}$ | Fast inference, standard PPO/GRPO terminal reward, inspectable margins | Overoptimization, length bias, Goodhart drift |
-| Direct Preference Optimization (DPO) | Implicit policy/reference log-ratio | Optimizes policy directly without a separate scorer | Relies on offline pair coverage and reference anchor |
-| Process Reward Model (PRM) | Step-level scalars $r(x, y_{1:t})$ | Locates errors inside multi-step reasoning traces | High step-annotation cost, still gameable[^lightman2023] |
-| Generative RM / LLM-as-judge | Verdict text or verdict token probabilities | Flexible rubrics and synthetic label scaling | Inference latency, position bias, unfaithful rationales[^mahan2024generative] |
-| Verifiable reward / RLVR | Programmatic execution or constraint result | Deterministic check of specified properties | Incomplete unit tests, parser loopholes[^lambert2024rlvr] |
-
-Process Reward Models (PRMs) improved best-of-$N$ MATH selection over outcome models on a fixed generator, though step labeling is costly and gains vary by domain.[^lightman2023] Where deterministic checkers exist, Tulu 3 replaced learned scorers with executable RLVR verifiers for math and instruction constraints.[^lambert2024rlvr]
+| **Scalar Bradley-Terry ORM** | Scalar $r(x, y)$ | Fast PPO/GRPO reward, inspectable margins | Length bias, Goodhart drift |
+| **DPO** | Implicit $\pi/\pi_{\text{ref}}$ log-ratio | No separate scorer | Offline coverage, reference anchor |
+| **Process RM (PRM)** | Step scalars $r(x, y_{1:t})$ | Locates reasoning errors[^lightman2023] | Expensive step labels, still gameable |
+| **Generative RM / LLM judge** | Verdict text / token probs | Flexible rubrics[^mahan2024generative] | Latency, position bias |
+| **Verifiable reward (RLVR)** | Programmatic check | Deterministic exact signal[^lambert2024rlvr] | Incomplete tests, parser loopholes |
 
 ## Put the pieces together with TRL
 
-At full transformer scale, TRL's `RewardTrainer` wires sequence-classification pooling, pair collation, and numerically stable BCE loss together. Pass `train_pairs` and `eval_pairs` already grouped by prompt ID so no prompt leaks across splits:
+TRL's `RewardTrainer` wires sequence-classification pooling, pair collation, and numerically stable BCE loss together on prompt-grouped `train_pairs` and `eval_pairs`:
 
 ```python title="transformer_reward_training.py"
 from trl import RewardConfig, RewardTrainer
 
 trainer = RewardTrainer(
     model="Qwen/Qwen3-0.6B",
-    args=RewardConfig(
-        output_dir="reward-head",
-        max_length=2048,  # Covers full templated sequences without slicing endings.
-        center_rewards_coefficient=0.01,
-    ),
-    train_dataset=train_pairs,
-    eval_dataset=eval_pairs,
+    args=RewardConfig(output_dir="reward-head", max_length=2048, center_rewards_coefficient=0.01),
+    train_dataset=train_pairs, eval_dataset=eval_pairs,
 )
 trainer.train()
-metrics = trainer.evaluate()
 trainer.save_model("reward-head/final")
 trainer.processing_class.save_pretrained("reward-head/final")
 ```
 
-Passing a causal model ID initializes a single-scalar sequence-classification head automatically. Always save both the trained scalar head and the exact tokenizer/chat template, then verify reloaded scores on held-out pairs to confirm the head weights loaded cleanly.[^huggingface2026rewardSource]
-
-<details>
-<summary>Deep dive: Production diagnostic checklist for diverging reward runs</summary>
-
-1. **Training loss drops while held-out accuracy stalls:** Bradley-Terry loss keeps shrinking as easy margins grow even when boundary rankings stop improving. Check prompt-group overlap, label noise, and held-out counterexample accuracy before tuning learning rates.
-2. **Scorer prefers wordier, padded answers:** Build length-matched and length-reversed evaluation slices holding technical content fixed, add balanced contrast pairs, and verify accuracy on those slices rather than relying on length margins alone.
-3. **Proxy reward climbs during PPO while human ratings drop:** Pause the run, save checkpoints, and inspect fresh generations. Tighten KL control, shrink the optimization budget, diversify pairs, or add an aligned ensemble.
-4. **Raw scores drift rapidly across steps:** Log pair midpoints separately from pair margins, verify padding masks and end-of-turn alignment, and combine centering penalties with L2 regularization and calibration checks.
-
-</details>
-
-```checkpoint
-For one preference pair, the centering penalty is $\gamma(r_w + r_l)^2$ with $\gamma = 0.02$. Compare score pairs `[8, −8]` and `[2, 2]`. Which penalty pair is correct?
-
-- 1.28 and 0.08.
-- 2.56 and 0.32.
-- 0.00 and 0.32.
-- 0.00 and 0.08.
----
-0.00 and 0.32.
-
-The sums are 0 and 4, giving penalties $0.02 \times 0^2 = 0.00$ and $0.02 \times 4^2 = 0.32$. Notice that zero centering penalty still leaves the margin `[8, −8]` unconstrained.
-```
-
-```checkpoint
-Three score-aligned ensemble members return `[1, 3, 5]`. Using sample standard deviation with denominator $K - 1$ and conservative aggregation $\mu - 0.5\sigma$, what value follows?
-
-- 3
-- 2.184
-- 2
-- 1
----
-2.
-
-The mean is 3 and the sample variance is $(4 + 0 + 4) / 2 = 4$, giving sample standard deviation 2 and $3 - 0.5 \times 2 = 2$.
-```
+Passing a causal model ID attaches a single-scalar head automatically. Always save both the scalar head and tokenizer/chat template, verify reloaded raw scores on held-out pairs,[^huggingface2026rewardSource] and diagnose diverging runs by checking prompt leakage, length-reversed slices, fresh rollouts, and padding masks.
 
 ```mastery-quiz
 [
@@ -732,214 +472,3 @@ The mean is 3 and the sample variance is $(4 + 0 + 4) / 2 = 4$, giving sample st
 ```
 
 > **Next:** Continue to [RLHF & DPO Alignment](/learn/rlhf-dpo-aligning-language-models).
-
-<!-- leetllm: edition:reference:end -->
-
-<!-- leetllm: edition:reader:start -->
-
-Suppose your preference dataset looks clean, your reward scorer hits 100% validation accuracy, and you are ready to launch RL. Then you test one counterexample on a Python numerical-stability question: a long, flattering reply advising the developer to cast to `float64` *after* calling `exp(z)` against a crisp two-line fix that subtracts `max(z)` *before* `exp(z)`. Your scorer picks the bloated buggy answer by a wide margin. Because correct answers in training happened to be longer, the head never learned numerical stability; it learned to count tokens.
-
-That is the central hazard of reward modeling, and RL magnifies it. A flawed scorer on static evaluations is embarrassing; a flawed scorer inside policy optimization actively teaches the model to exploit every shortcut the scorer rewards.
-
-Why train a reward model when supervised demonstrations are simpler? Because comparing two answers to the same prompt is far easier for reviewers than writing gold replies from scratch. InstructGPT trained its scalar reward model on rankings of this form,[^ouyang2022] producing a single score per completed answer that drives both best-of-$N$ selection and online RL.
-
-Our running example asks how to prevent exponential overflow in Python's `softmax(z)`. Response A (`chosen`) gives the real fix: subtract `max(z)` before `exp(z)`. Response B (`rejected`) looks polished yet advises casting to `float64` *after* `exp(z)` has already overflowed. Let's inspect how reliable preference labels get collected, build the scorer, check what its numbers mean, and expose shortcuts before RL amplifies them.
-
-## Collect reliable preferences: rubrics, agreement, and active learning
-
-A reward model can only be as sharp as the human or AI labels behind it. Start with a written **annotation rubric** that ranks criteria in priority order (accuracy before style, explicit tie rules, worked boundary cases) and redact PII or secrets before sending transcripts to raters.[^presidio2023]
-
-Measure **inter-annotator agreement (IAA)** beyond raw percent match, which exaggerates reliability whenever one label dominates. For two raters, **Cohen's kappa ($\kappa$)** adjusts observed agreement $p_o$ by chance agreement $p_e$:[^cohen1960]
-
-$$
-\kappa = \frac{p_o - p_e}{1 - p_e}
-$$
-
-Extend to $m \ge 3$ raters with **Fleiss' kappa**,[^statsmodels2026Fleiss] or use **Krippendorff's alpha** ($\alpha = 1 - D_o / D_e$) when rater counts vary or annotations have missing entries.[^krippendorff2011alpha] Remember two traps: high $\kappa$ confirms consistency rather than correctness (two raters can consistently reward verbose mistakes), and rare classes trigger the **prevalence paradox** (96.7% raw match can yield $\kappa = 0.483$), so always inspect the confusion matrix and score raters on gold checks.
-
-Because expert review is costly, use **active learning** to pick the most informative prompts instead of sampling uniformly:[^settles2010survey] query uncertain pairs near zero margin, high-disagreement pairs under a **Query-by-Committee** ensemble, and embedding-diverse batches via core-set selection so you do not pay to label near-duplicates.[^sener2018coreset] When augmenting with an LLM judge, calibrate against blinded human gold pairs, swap A/B positions to detect position bias,[^zheng2023] and freeze versioned dataset manifests.[^gebru2021]
-
-## From language model to scorer
-
-A generative language model outputs a vocabulary distribution at every token step. A reward model outputs one real number for the complete prompt and answer: $r_\theta(x, y) \in \mathbb{R}$. To convert a causal transformer into a scorer, strip away its vocabulary unembedding layer and attach a linear projection mapping the final hidden vector to a single scalar. InstructGPT started from an SFT checkpoint (also confirming similar results from a public-NLP fine-tuned checkpoint), while Llama 3 initialized directly from a pretrained backbone.[^ouyang2022][^dubey2024] If you train LoRA adapters alongside the head, verify that the scalar head stays trainable and is exported with the checkpoint.
-
-Reading the right token position matters just as much. In a causal decoder, earlier positions cannot attend to later tokens, so reading from the **final real token** (typically the end-of-turn delimiter) lets the representation incorporate the full answer. Under left padding that token sits at index `-1`; under contiguous right padding it sits at `mask.sum(dim=-1) - 1`. Always index explicitly through the attention mask rather than assuming padding slots stay silent.
-
-<figure>
-  <img src="illustrations/_generated/last_real_token_readout_dark.png" alt="Left-padded and right-padded sequences select the same final real hidden vector, two comma three. The scalar head one-half comma one returns reward four for both." />
-  <figcaption>Tracing each sequence mask locates the same final real hidden vector regardless of padding side, producing score 4.0 for both layouts.</figcaption>
-</figure>
-
-Watch sequence length limits too. Truncating the end of a long completion can delete the exact bug that made a reviewer reject it. Filtering oversized pairs preserves label meaning while shifting your prompt distribution (TRL's `RewardConfig` defaults to filtering pairs longer than `max_length=1024`), so log how many rows drop.[^trl2026RewardConfigV117] Before fitting weights, verify four basics: identical prompt/template prefixes, distinct token IDs after preprocessing (identical tokens yield zero gradient), labels matching the loss (strict wins for Bradley-Terry, separate handling for ties), and stored generator/reviewer metadata.
-
-## Turn a score difference into a preference
-
-Suppose our head scores the `max(z)`-shifted fix at `1.80` and the post-`exp` cast at `0.70`, giving margin $\Delta = r_w - r_l = 1.10$. The **Bradley-Terry** model turns that margin into a win probability through the logistic sigmoid:
-
-$$
-p(y_w \succ y_l \mid x) = \sigma(r_w - r_l), \qquad \sigma(z) = \frac{1}{1 + e^{-z}}.
-$$
-
-At $\Delta = 1.10$, the model implies a `0.7503` chance that reviewers prefer A over B. Training minimizes negative log-likelihood $-\log\sigma(\Delta)$, which is binary cross-entropy with target 1 on logit $\Delta$, computed stably via `logaddexp` or `softplus`:
-
-<figure>
-  <img src="illustrations/_generated/reward_modeling_dark.png" alt="Chosen reward 1.80 and rejected reward 0.70 give margin 1.10, sigmoid probability 0.7503, and pair loss 0.2873." />
-  <figcaption>Score margin 1.10 maps along the logistic curve to win probability 0.7503 and pair loss 0.2873.</figcaption>
-</figure>
-
-<!-- leetllm: test, deps=numpy, id=reader-reward-preference-loss, output=show, output_title="Reader preference loss" -->
-```python title="reader-reward-preference-loss.py"
-import numpy as np
-
-chosen, rejected = 1.8, 0.7
-margin = chosen - rejected
-probability = float(1.0 / (1.0 + np.exp(-margin)))
-loss = float(np.logaddexp(0.0, -margin))
-chosen_grad = probability - 1.0
-rejected_grad = -chosen_grad
-
-print(f"margin={margin:.2f} | probability={probability:.4f} | loss={loss:.4f}")
-print(f"score derivatives: chosen={chosen_grad:+.4f}, rejected={rejected_grad:+.4f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Reader preference loss" output compact
-margin=1.10 | probability=0.7503 | loss=0.2873
-score derivatives: chosen=-0.2497, rejected=+0.2497
-```
-<!-- leetllm: output:end -->
-
-The margin derivative $\sigma(\Delta) - 1$ focuses updates on mistakes: easy wins have near-zero gradients, ties give $\pm 0.5$, and reversed rankings saturate near $\pm 1$. Because chosen and rejected replies share parameters, one gradient step can still pull **both** raw scores downward while dropping the rejected score faster so the margin widens. Track pair margins alongside mean scores so a joint downward drift never looks like a broken run.
-
-## Origin, scale, and calibration are different questions
-
-Because Bradley-Terry reads only $r_w - r_l$, adding `+10` to every score leaves margins, probabilities, and losses untouched. Raw reward values carry no absolute unit: `2.0` is not twice as helpful as `1.0`. Scaling all scores by 3 tells the opposite story, tripling the margin from `1.10` to `3.30` and pushing the implied probability to `0.9644`. In downstream RL, tripling reward scale with a fixed KL penalty divides the effective KL constraint by three.
-
-<figure>
-  <img src="illustrations/_generated/score_origin_and_scale_dark.png" alt="The original score pair and a pair shifted upward by ten share margin 1.10 and probability 0.7503. Multiplying the original scores by three changes the margin to 3.30 and probability to 0.9644." />
-  <figcaption>Translating both scores by +10 leaves margin and probability untouched, whereas scaling by 3 triples the margin and lifts implied probability to 0.9644.</figcaption>
-</figure>
-
-To keep origins steady, InstructGPT centered scores over human demonstrations before RL, while TRL exposes a small penalty on $(r_w + r_l)^2$.[^ouyang2022][^eisenstein2023ensembles] Scores of `+100` and `-100` still sum to zero and pay zero midpoint penalty, so centering anchors midpoints without bounding magnitudes or calibrating probabilities. Check calibration separately by locking identities A and B before recording votes, then scoring predicted probabilities with Brier error:
-
-<!-- leetllm: test, deps=numpy, id=reader-reward-scale-and-brier, output=show, output_title="Reader origin, scale, and Brier" -->
-```python title="reader-reward-scale-and-brier.py"
-import numpy as np
-
-
-def win_prob(w: float, l: float) -> float:
-    return float(1.0 / (1.0 + np.exp(-(w - l))))
-
-
-for name, w, l in [("original", 1.8, 0.7), ("shifted +10", 11.8, 10.7), ("scaled x3", 5.4, 2.1)]:
-    print(f"{name:11s}: margin={w - l:.2f}, p={win_prob(w, l):.4f}")
-
-votes = np.array([1.0, 1.0, 1.0, 0.0])  # 3 of 4 reviewers chose A
-for p in (0.75, 0.99):
-    print(f"p(A)={p:.2f}: Brier={float(np.mean((p - votes) ** 2)):.4f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Reader origin, scale, and Brier" output compact
-original   : margin=1.10, p=0.7503
-shifted +10: margin=1.10, p=0.7503
-scaled x3  : margin=3.30, p=0.9644
-p(A)=0.75: Brier=0.1875
-p(A)=0.99: Brier=0.2451
-```
-<!-- leetllm: output:end -->
-
-Both `0.75` and `0.99` pick A with identical rank accuracy, yet Brier error clearly penalizes the overconfident forecast. Keep repeated-vote empirical fractions distinct from explicit "equally good" tie annotations, using soft targets for vote shares and tie-aware objectives for ties.
-
-## Watch a scorer learn the wrong thing
-
-Now reproduce the chapter's opening failure in twenty lines of NumPy on features `[correctness, scaled_length]`. In the confounded dataset, every correct fix is also one unit longer than the buggy reply. In the balanced dataset, a short fix beats a verbose bug. Both heads achieve 100% training accuracy, yet only one survives length-reversed counterexamples:
-
-<!-- leetllm: test, deps=numpy, id=reader-reward-fitted-shortcut, output=show, output_title="Reader fitted reward shortcut" -->
-```python title="reader-reward-fitted-shortcut.py"
-import numpy as np
-
-confounded = np.array([[[1.0, 1.0], [0.0, 0.0]], [[1.0, 2.0], [0.0, 1.0]]])
-balanced = np.array([[[1.0, 1.0], [0.0, 0.0]], [[1.0, 0.0], [0.0, 1.0]]])
-counterexamples = np.array([[[1.0, 0.0], [0.0, 2.0]], [[1.0, 0.0], [0.0, 3.0]], [[1.0, 1.0], [0.0, 1.0]]])
-
-
-def fit(pairs: np.ndarray) -> np.ndarray:
-    w = np.zeros(2)
-    diffs = pairs[:, 0] - pairs[:, 1]
-    for _ in range(300):
-        sig_neg = -1.0 / (1.0 + np.exp(diffs @ w))
-        w -= 0.1 * ((diffs.T @ sig_neg) / len(pairs) + 0.02 * w)
-    return w
-
-
-def acc(w: np.ndarray, pairs: np.ndarray) -> float:
-    return float(np.mean((pairs[:, 0] - pairs[:, 1]) @ w > 0))
-
-
-for name, data in [("confounded", confounded), ("balanced", balanced)]:
-    w = fit(data)
-    print(f"{name:10s} weights={np.round(w, 3).tolist()} train={acc(w, data):.2f} counterexamples={acc(w, counterexamples):.2f}")
-```
-
-<!-- leetllm: output:start -->
-```text title="Reader fitted reward shortcut" output compact
-confounded weights=[1.629, 1.629] train=1.00 counterexamples=0.33
-balanced   weights=[2.667, 0.0] train=1.00 counterexamples=1.00
-```
-<!-- leetllm: output:end -->
-
-> **Key insight:** L2 regularization shrinks weight magnitudes without knowing which feature is spurious. Only balanced contrast pairs cancel out the length gradient and align the weight vector purely with correctness.
-
-<figure>
-  <img src="illustrations/_generated/reward_generalization_gap_dark.png" alt="Two fitted reward directions both separate their training pairs. The confounded direction favors a verbose error, while the balanced direction favors correctness and passes all three controlled counterexamples." />
-  <figcaption>Confounded training pairs steer the weight vector along the length diagonal, whereas balanced contrast pairs align the head strictly with correctness.</figcaption>
-</figure>
-
-Watch out for clever-looking heuristics that leave the exploit intact. Subtracting a length margin $\alpha \Delta_{\text{len}}$ from longer winners still lets a pure length scorer $r(y) = b\,\text{len}(y)$ push training loss near zero by inflating $b$. Rating-strength margins do have legitimate uses when annotators mark "much better" versus "slightly better" (Llama 2 used them before Llama 3 dropped them at larger data scale),[^touvron2023a][^dubey2024] yet lasting shortcut resistance comes from balanced contrast pairs checked on length-reversed slices.
-
-## Evaluate as if the scorer wants to fool you
-
-Sound evaluation starts with splitting and prompt weighting. Expanding $K$ ranked responses into $\binom{K}{2}$ rows leaks the same prompt across naive random splits and overweights prompts with larger candidate pools; InstructGPT batched each prompt's comparisons together and averaged within-prompt losses so a $K = 9$ prompt (36 pairs) never outweighed a $K = 2$ prompt by 36x.[^ouyang2022] Group splits by prompt ID, and inspect five metrics together:
-
-| Metric | What it shows | What it hides |
-| --- | --- | --- |
-| Pair accuracy | How often the winner scored higher | Shrinking margins, shortcut reliance |
-| Mean margin | Separation between pairs | Calibration |
-| Mean reward | Score drift | Ordering quality |
-| Gradient norm | Optimization stability | Reliance on spurious features |
-| Accuracy on fresh outputs | Agreement on text the generator produces now | Unsampled failures, human disagreement |
-
-Build targeted slices varying length and formatting independently of correctness, and benchmark externally with **RewardBench** and **RewardBench 2** (which expands to 4-way selection with a 25% baseline and dedicated Ties coverage).[^lambert2024rewardbench][^malik2025rewardbench2] In Tulu 3 8B experiments, RewardBench 2 correlated strongly with best-of-16 selection ($r = 0.87$) yet did not reliably predict downstream PPO differences across competent reward models, making fresh-policy checks indispensable.
-
-## Optimization will find the holes
-
-Static splits grade yesterday's completions; RL actively hunts for high-scoring flaws. **Goodhart's Law** describes what happens next: Gao et al. used a large gold reward model to evaluate policies optimized against a smaller proxy, showing proxy scores climbing monotonically while gold quality peaked and collapsed.[^gao2023scaling] Policy optimizers repeatedly exploit four weaknesses: verbosity, sycophancy toward wrong user premises,[^sharma2023sycophancy] excessive markdown list formatting,[^eisenstein2023ensembles] and omitted truthfulness or safety criteria.
-
-Ensembling $K \ge 2$ aligned reward models with a conservative score $\mu - \lambda\sigma$ penalizes unfamiliar regions where models disagree,[^eisenstein2023ensembles] though mistakes shared across all members produce $\sigma = 0$ and slip through. Before launching large RL jobs, evaluate fresh target-policy rollouts with human reviewers, define stop criteria independent of the proxy, and confirm reloaded checkpoints reproduce exact live scores.
-
-## Pick the signal that fits
-
-A scalar reward model is one point on a wider alignment spectrum:
-
-| Approach | Signal | Strength | Weakness |
-| --- | --- | --- | --- |
-| Scalar reward model | One number per answer | Fast, reusable, inspectable margins | Overoptimization, shortcuts |
-| Direct preference optimization | Policy and reference log-ratio | No separate scorer | Depends on pair coverage and reference |
-| Process reward model | Scores per reasoning step | Locates where a trace goes wrong[^lightman2023] | Expensive labels, still gameable |
-| Generative judge | Verdict text or probabilities | Flexible rubrics[^mahan2024generative] | Latency, position bias, shared errors |
-| Verifiable reward | Result of running a check | Direct test of a specified property[^lambert2024rlvr] | Incomplete tests, parsing gaps |
-
-When a deterministic test verifies everything the task needs, use the verifier; when you need fast reusable ranking across many rollouts, fit a scalar reward head; when you want to steer a policy directly from offline pairs, DPO removes the scorer altogether.
-
-```checkpoint
-A scorer gives the winner 1.3 and the loser 0.8. What are the win probability and the pair loss? Now add 5 to both scores. What changes?
----
-The margin is 0.5, so the probability is $\sigma(0.5) \approx 0.6225$ and the loss is $-\log 0.6225 \approx 0.4741$. Adding 5 to both scores leaves the margin at 0.5, so neither probability nor pair loss changes.
-```
-
-## Where this leaves you
-
-You can now turn a causal transformer into a scalar scorer, separate arbitrary score origins from scale, calibrate probabilities against fixed-order votes, and catch length shortcuts with balanced counterexamples before RL amplifies them. So far, the scorer has only evaluated answers without changing generation weights. In [RLHF and DPO Alignment](/learn/rlhf-dpo-aligning-language-models), we feed this signal into PPO and DPO to shift policy probabilities directly.
-
-<!-- leetllm: edition:reader:end -->

@@ -109,10 +109,11 @@ function FoldEdgeBar({
     )
 }
 
-export function MarkdownCodeBlock({ code: codeString, language, meta = { bare: false, compact: false, output: false } }: {
+export function MarkdownCodeBlock({ code: codeString, language, meta = { bare: false, compact: false, output: false }, priorImports }: {
     code: string
     language?: { label: string; highlighterLanguage: string }
     meta?: { bare: boolean; compact: boolean; output: boolean; noFold?: boolean; focus?: string; title?: string }
+    priorImports?: readonly string[]
 }) {
     const isDark = useContentDarkTheme()
     const [expanded, setExpanded] = useState(false)
@@ -127,8 +128,9 @@ export function MarkdownCodeBlock({ code: codeString, language, meta = { bare: f
                 output: meta.output,
                 compact: meta.compact,
                 bare: meta.bare,
+                priorImports,
             }),
-        [codeString, language?.label, meta.focus, meta.noFold, meta.output, meta.compact, meta.bare],
+        [codeString, language?.label, meta.focus, meta.noFold, meta.output, meta.compact, meta.bare, priorImports],
     )
 
     const cleanCode = foldPlan.cleanCode

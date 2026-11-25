@@ -1,159 +1,112 @@
 import React from 'react'
-import {
-    BadgePill,
-    BarChart,
-    Row,
-    ScatterPlot,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-    getToneColor,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 880
-export const height = 450
+export const width = 900
+export const height = 415
 export const alt =
-    'Memory hierarchy comparing four agent storage tiers across capacity, access latency, and durability. Procedural rules sit at small KB scale with near-instant 1 ms pinned access. Working context holds prompt tokens (~256 KB) at ~5 ms latency but is volatile per call. Episodic logs hold tens of MB of session traces at ~22 ms. Semantic vector stores hold GB-scale durable facts at ~50 ms and require ACL and TTL filtering before recall.'
+    'Dual quantitative comparison of four agent memory tiers across capacity, access latency, and durability: Procedural rules (KB, ~2 ms, pinned), Working context (tokens, ~9 ms, volatile per call), Episodic logs (MB, ~23 ms, session), and Semantic vector store (GB, ~50 ms, durable with ACL/TTL filtering).'
 
-const CAPACITY_TICKS: Record<number, string> = {
-    0: '1 KB',
-    3: '1 MB',
-    6: '1 GB',
-    9: '1 TB',
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const c = fig.c
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const green = fig.tone('green')
+
+    // Left: Capacity (log) vs Access Latency (ms)
+    const leftArea = { x: 76, y: 54, width: 438, height: 286 }
+    fig.text(leftArea.x + leftArea.width / 2, 22, 'Capacity vs. Read Latency', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    const leftPlot = fig.plot(leftArea, { x: [0, 9], y: [0, 60] })
+    const capMap: Record<number, string> = { 0: '1 KB', 3: '1 MB', 6: '1 GB', 9: '1 TB' }
+    leftPlot.axes({
+        xTicks: [0, 3, 6, 9],
+        yTicks: [0, 20, 40, 60],
+        xFormat: (v) => capMap[v] ?? '',
+        yFormat: (v) => `${v} ms`,
+        xLabel: 'Storage capacity (log scale)',
+        yLabel: 'Latency (ms)',
+        grid: true,
+        labelSize: 13,
+    })
+
+    const pts = [
+        { x: 0.9, y: 2, label: 'Procedural (KB)', color: purple, dx: 10, dy: -16, align: 'left' as const },
+        { x: 2.8, y: 9, label: 'Working (tokens)', color: blue, dx: 12, dy: -4, align: 'left' as const },
+        { x: 5.0, y: 23, label: 'Episodic (MB)', color: cyan, dx: 12, dy: -2, align: 'left' as const },
+        { x: 7.4, y: 50, label: 'Semantic (GB)', color: green, dx: -12, dy: -2, align: 'right' as const },
+    ]
+    leftPlot.smoothCurve(
+        pts.map((p) => [p.x, p.y] as const),
+        { color: c.textMuted, width: 1.5, dash: '4 4', opacity: 0.65 },
+    )
+    for (const p of pts) {
+        leftPlot.point(p.x, p.y, { color: p.color, r: 6.5 })
+        fig.text(leftPlot.px(p.x) + p.dx, leftPlot.py(p.y) + p.dy, p.label, {
+            size: 13.5,
+            weight: 700,
+            color: p.color,
+            align: p.align,
+        })
+    }
+
+    // Center hairline divider
+    fig.line(542, 22, 542, 368, { color: c.borderSubtle, width: 1, dash: '4 4' })
+
+    // Right: Durability Horizon bars (frameless)
+    const rightArea = { x: 616, y: 54, width: 256, height: 286 }
+    fig.text(rightArea.x + rightArea.width / 2, 22, 'Durability Horizon', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    const rightPlot = fig.plot(rightArea, { x: [0, 4], y: [0, 4.6] })
+    const durTicks = [
+        { y: 0.2, label: '1 call' },
+        { y: 1.5, label: '1 day' },
+        { y: 3.0, label: '1 mo' },
+        { y: 4.3, label: '1+ yr' },
+    ]
+    for (const tk of durTicks) {
+        const py = rightPlot.py(tk.y)
+        fig.line(rightArea.x, py, rightPlot.right, py, { color: c.borderSubtle, width: 1, dash: '3 4' })
+        fig.text(rightArea.x - 10, py, tk.label, {
+            size: 12.5,
+            mono: true,
+            color: c.textSecondary,
+            align: 'right',
+        })
+    }
+    fig.line(rightArea.x, rightPlot.bottom, rightPlot.right, rightPlot.bottom, { color: c.textMuted, width: 1.2 })
+
+    const durBars = [
+        { label: 'Work', tag: 'Volatile', val: 0.35, color: blue },
+        { label: 'Epis', tag: 'Session', val: 1.55, color: cyan },
+        { label: 'Sem', tag: 'Durable', val: 3.9, color: green },
+        { label: 'Proc', tag: 'Pinned', val: 4.3, color: purple },
+    ]
+    const slotW = rightArea.width / durBars.length
+    const barW = 42
+    durBars.forEach((b, i) => {
+        const cx = rightArea.x + i * slotW + slotW / 2
+        const topY = rightPlot.py(b.val)
+        fig.rect(cx - barW / 2, topY, barW, rightPlot.bottom - topY, { fill: b.color, radius: 5 })
+        fig.text(cx, topY - 12, b.tag, { size: 12.5, weight: 700, color: b.color, align: 'center' })
+        fig.text(cx, rightPlot.bottom + 18, b.label, { size: 13, weight: 600, color: c.textPrimary, align: 'center' })
+    })
+
+    // Bottom clean notes
+    fig.text(295, 396, 'Working + KV Cache: volatile prefix reuse', { size: 12.5, color: blue, align: 'center' })
+    fig.text(722, 396, 'External Recall: filtered by ACL, version & TTL', { size: 12.5, color: green, align: 'center' })
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((c) => {
-    const cProc = getToneColor('purple', c)
-    const cWork = getToneColor('blue', c)
-    const cEpis = getToneColor('cyan', c)
-    const cSem = getToneColor('green', c)
-
-    return (
-        <Scene
-            c={c}
-            title="Agent Memory Hierarchy: Capacity, Latency, and Durability"
-            padding={18}
-            gap={14}
-            contentWidth={844}
-        >
-            <Row gap={16} align="stretch">
-                <ScatterPlot
-                    c={c}
-                    width={508}
-                    height={340}
-                    title="Capacity vs. Access Latency"
-                    subtitle="Log capacity scale vs. typical read latency (ms)"
-                    xAxisLabel="Storage capacity (log scale)"
-                    yAxisLabel="Read latency (ms)"
-                    xMin={0}
-                    xMax={9}
-                    yMin={0}
-                    yMax={60}
-                    formatX={(v) => CAPACITY_TICKS[Math.round(v)] ?? ''}
-                    formatY={(v) => `${Math.round(v)}ms`}
-                    showGrid
-                    points={[
-                        {
-                            x: 0.9,
-                            y: 2,
-                            label: 'Procedural (KB)',
-                            color: cProc,
-                            size: 8,
-                        },
-                        {
-                            x: 2.8,
-                            y: 9,
-                            label: 'Working (tokens)',
-                            color: cWork,
-                            size: 8,
-                        },
-                        {
-                            x: 5.0,
-                            y: 23,
-                            label: 'Episodic (MB)',
-                            color: cEpis,
-                            size: 8,
-                        },
-                        {
-                            x: 7.4,
-                            y: 50,
-                            label: 'Semantic (GB)',
-                            color: cSem,
-                            size: 8,
-                        },
-                    ]}
-                />
-
-                <BarChart
-                    c={c}
-                    width={320}
-                    height={340}
-                    title="Durability Horizon"
-                    subtitle="Persistence tier across sessions"
-                    yAxisLabel="Retention scale"
-                    min={0}
-                    max={4.5}
-                    format={(v) => {
-                        if (v <= 0.1) return '1 call'
-                        if (v < 2) return '1 day'
-                        if (v < 3.5) return '1 mo'
-                        return '1+ yr'
-                    }}
-                    showGrid
-                    showValues
-                    data={[
-                        {
-                            label: 'Working',
-                            value: 0.18,
-                            valueLabel: 'Volatile',
-                            color: cWork,
-                        },
-                        {
-                            label: 'Episodic',
-                            value: 1.5,
-                            valueLabel: 'Session',
-                            color: cEpis,
-                        },
-                        {
-                            label: 'Semantic',
-                            value: 3.9,
-                            valueLabel: 'Durable',
-                            color: cSem,
-                        },
-                        {
-                            label: 'Procedural',
-                            value: 4.2,
-                            valueLabel: 'Pinned',
-                            color: cProc,
-                        },
-                    ]}
-                />
-            </Row>
-
-            <Row gap={12} justify="space-between" align="center" width={844}>
-                <Row gap={8} align="center">
-                    <BadgePill c={c} text="Working + KV Cache" tone="blue" fontSize={12} />
-                    <TextLabel
-                        c={c}
-                        text="Prefix tensor reuse only; volatile"
-                        fontSize={12}
-                        color={c.textSecondary}
-                    />
-                </Row>
-                <Row gap={8} align="center">
-                    <BadgePill c={c} text="External Recall" tone="green" fontSize={12} />
-                    <TextLabel
-                        c={c}
-                        text="Filtered by ACL, version, and TTL"
-                        fontSize={12}
-                        color={getReadableToneColor('green', c)}
-                    />
-                </Row>
-            </Row>
-        </Scene>
-    )
-})
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

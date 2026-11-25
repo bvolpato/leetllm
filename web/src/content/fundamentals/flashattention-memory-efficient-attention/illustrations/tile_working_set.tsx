@@ -1,380 +1,236 @@
-import React from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    getToneFill,
-    type ThemeMode,
-} from 'vizmatic'
+import { type ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const width = 960
-export const height = 780
+export const width = 760
+export const height = 510
 export const alt =
-    'A three-level memory map separates host CPU DRAM, H100 SXM GPU HBM, and SM-local shared memory and registers. Host transfers use a separate system link. HBM holds Q, K, V, output, weights, and activations; H100 SXM lists 80 GB HBM and 3.35 TB per second rated bandwidth. Arrows show input tiles entering SMs and output plus row statistics returning to HBM. Each SM has 228 KiB shared memory, at most 227 KiB per block, and a separate 256 KiB register file; shared memory shares physical capacity with L1, and launch settings and resident blocks affect budgets. A proportional band shows an illustrative logical set: Q, K, and V are 16 KiB each, output is 32 KiB, and one FP32 score tile is 64 KiB, for 144 KiB total. The kernels distribute and reuse these arrays across resource pools.'
+    'Three-tier GPU memory hierarchy showing host CPU DRAM, H100 SXM HBM (80 GB, 3.35 TB/s), and SM-local shared memory (228 KiB/SM, 227 KiB max per block, shared with L1) beside a separate 256 KiB/SM register file. Below, a proportional 144 KiB working-set bar partitions Q (16 KiB), K (16 KiB), V (16 KiB), output O (32 KiB), and FP32 score tile S (64 KiB).'
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const purple = getReadableToneColor('purple', c, c.bg)
-    const blue = getReadableToneColor('blue', c, c.bg)
-    const cyan = getReadableToneColor('cyan', c, c.bg)
-    const warm = getReadableToneColor('warm', c, c.bg)
-    const green = getReadableToneColor('green', c, c.bg)
-    const fills = {
-        purple: getToneFill('purple', c),
-        blue: getToneFill('blue', c),
-        cyan: getToneFill('cyan', c),
-        warm: getToneFill('warm', c),
-        green: getToneFill('green', c),
-    }
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const isLight = theme === 'light'
+    const fillAmt = isLight ? 0.09 : 0.17
 
-    const totalW = 864
-    const segs = [
-        { key: 'Q 16K', w: Math.round((16 / 144) * totalW), tone: blue, fill: fills.blue },
-        { key: 'K 16K', w: Math.round((16 / 144) * totalW), tone: blue, fill: fills.blue },
-        { key: 'V 16K', w: Math.round((16 / 144) * totalW), tone: blue, fill: fills.blue },
-        { key: 'O 32K', w: Math.round((32 / 144) * totalW), tone: green, fill: fills.green },
-        {
-            key: 'S FP32 · 64 KiB',
-            w: totalW - Math.round((80 / 144) * totalW),
-            tone: warm,
-            fill: fills.warm,
-        },
-    ]
-    let curX = 48
-    const placedSegs = segs.map((s) => {
-        const out = { ...s, x: curX }
-        curX += s.w
-        return out
+    const purple = fig.tone('purple')
+    const blue = fig.tone('blue')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
+
+    const left = 24
+    const fullW = width - 48
+
+    // Tier 1: Host CPU DRAM
+    const t1Y = 16
+    const t1H = 58
+    fig.rect(left, t1Y, fullW, t1H, {
+        fill: tint(purple, c.bg, fillAmt),
+        stroke: purple,
+        strokeWidth: 1.25,
+        radius: 10,
+    })
+    fig.text(left + 16, t1Y + 21, 'HOST · CPU DRAM', {
+        size: 14,
+        weight: 700,
+        color: purple,
+        mono: true,
+    })
+    fig.text(left + 16, t1Y + 42, 'Host inputs and offloaded model state', {
+        size: 13.5,
+        color: c.textSecondary,
     })
 
-    return (
-        <Board c={c} width={width} height={height} background="transparent">
-            <CanvasItem x={0} y={0} width={width} height={height}>
-                <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                    <SvgFrame
-                        c={c}
-                        x={28}
-                        y={66}
-                        width={904}
-                        height={92}
-                        rx={14}
-                        fill={c.bgSubtle}
-                        stroke="none"
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={28}
-                        y={66}
-                        width={904}
-                        height={92}
-                        rx={14}
-                        fill={fills.purple}
-                        stroke={purple}
-                    />
-                    <VectorArrow
-                        x1={280}
-                        y1={160}
-                        x2={280}
-                        y2={208}
-                        color={purple}
-                        strokeWidth={3}
-                        arrowSize={5}
-                    />
-                    <VectorArrow
-                        x1={320}
-                        y1={208}
-                        x2={320}
-                        y2={160}
-                        color={purple}
-                        strokeWidth={3}
-                        arrowSize={5}
-                    />
+    // Arrows Host <-> HBM
+    const a1Top = t1Y + t1H + 4
+    const a1Bot = a1Top + 34
+    fig.arrow(210, a1Top, 210, a1Bot, { color: purple, width: 1.8, head: 6 })
+    fig.arrow(236, a1Bot, 236, a1Top, { color: purple, width: 1.8, head: 6 })
+    fig.text(254, (a1Top + a1Bot) / 2, 'Separate host-to-GPU system link', {
+        size: 13.5,
+        color: purple,
+        weight: 500,
+    })
 
-                    <SvgFrame
-                        c={c}
-                        x={28}
-                        y={212}
-                        width={904}
-                        height={116}
-                        rx={14}
-                        fill={c.bgSubtle}
-                        stroke="none"
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={28}
-                        y={212}
-                        width={904}
-                        height={116}
-                        rx={14}
-                        fill={fills.blue}
-                        stroke={blue}
-                    />
-                    <VectorArrow
-                        x1={280}
-                        y1={330}
-                        x2={280}
-                        y2={378}
-                        color={blue}
-                        strokeWidth={3}
-                        arrowSize={5}
-                    />
-                    <VectorArrow
-                        x1={320}
-                        y1={378}
-                        x2={320}
-                        y2={330}
-                        color={green}
-                        strokeWidth={3}
-                        arrowSize={5}
-                    />
+    // Tier 2: HBM
+    const t2Y = a1Bot + 4
+    const t2H = 68
+    fig.rect(left, t2Y, fullW, t2H, {
+        fill: tint(blue, c.bg, fillAmt),
+        stroke: blue,
+        strokeWidth: 1.25,
+        radius: 10,
+    })
+    fig.text(left + 16, t2Y + 23, 'HBM · H100 SXM', {
+        size: 14,
+        weight: 700,
+        color: blue,
+        mono: true,
+    })
+    fig.text(left + fullW - 16, t2Y + 23, '80 GB · 3.35 TB/s', {
+        size: 14,
+        weight: 700,
+        color: c.textPrimary,
+        mono: true,
+        align: 'right',
+    })
+    fig.text(left + 16, t2Y + 47, 'Holds Q, K, V, O, weights, and activations', {
+        size: 13.5,
+        color: c.textSecondary,
+    })
 
-                    <SvgFrame
-                        c={c}
-                        x={28}
-                        y={382}
-                        width={442}
-                        height={166}
-                        rx={14}
-                        fill={c.bgSubtle}
-                        stroke="none"
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={28}
-                        y={382}
-                        width={442}
-                        height={166}
-                        rx={14}
-                        fill={fills.cyan}
-                        stroke={cyan}
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={490}
-                        y={382}
-                        width={442}
-                        height={166}
-                        rx={14}
-                        fill={c.bgSubtle}
-                        stroke="none"
-                    />
-                    <SvgFrame
-                        c={c}
-                        x={490}
-                        y={382}
-                        width={442}
-                        height={166}
-                        rx={14}
-                        fill={fills.warm}
-                        stroke={warm}
-                    />
+    // Arrows HBM <-> SM
+    const a2Top = t2Y + t2H + 4
+    const a2Bot = a2Top + 34
+    fig.arrow(210, a2Top, 210, a2Bot, { color: blue, width: 1.8, head: 6 })
+    fig.arrow(236, a2Bot, 236, a2Top, { color: green, width: 1.8, head: 6 })
+    fig.text(254, (a2Top + a2Bot) / 2, 'Q, K, V tiles in · O and row stats out', {
+        size: 13.5,
+        color: c.textPrimary,
+        weight: 500,
+    })
 
-                    <SvgFrame
-                        c={c}
-                        x={28}
-                        y={564}
-                        width={904}
-                        height={198}
-                        rx={14}
-                        fill={c.bgSubtle}
-                        stroke={c.borderSubtle}
-                    />
-                    {placedSegs.map((s) => (
-                        <g key={s.key}>
-                            <SvgFrame
-                                c={c}
-                                x={s.x}
-                                y={626}
-                                width={s.w}
-                                height={54}
-                                rx={6}
-                                fill={s.fill}
-                                stroke={s.tone}
-                            />
-                        </g>
-                    ))}
-                </svg>
-            </CanvasItem>
+    // Tier 3: Shared Memory + Registers
+    const t3Y = a2Bot + 4
+    const t3H = 92
+    const gap = 16
+    const halfW = (fullW - gap) / 2
 
-            <CanvasItem x={28} y={12} width={width - 56} height={46}>
-                <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-                    <span
-                        style={{
-                            fontFamily: c.fontSans,
-                            fontSize: 35,
-                            fontWeight: 800,
-                            color: c.textPrimary,
-                        }}
-                    >
-                        GPU memory hierarchy and a 144 KiB working set
-                    </span>
-                </div>
-            </CanvasItem>
+    fig.rect(left, t3Y, halfW, t3H, {
+        fill: tint(cyan, c.bg, fillAmt),
+        stroke: cyan,
+        strokeWidth: 1.25,
+        radius: 10,
+    })
+    fig.text(left + 16, t3Y + 23, 'SHARED MEMORY (SRAM)', {
+        size: 14,
+        weight: 700,
+        color: cyan,
+        mono: true,
+    })
+    fig.text(left + 16, t3Y + 48, '228 KiB / SM (227 max)', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+        mono: true,
+    })
+    fig.text(left + 16, t3Y + 72, 'Shares capacity with L1 cache', {
+        size: 13.5,
+        color: c.textSecondary,
+    })
 
-            <CanvasItem x={48} y={76} width={864} height={72}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span
-                        style={{
-                            fontFamily: c.fontMono,
-                            fontSize: 30,
-                            fontWeight: 800,
-                            color: purple,
-                        }}
-                    >
-                        HOST · CPU DRAM
-                    </span>
-                    <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textSecondary }}>
-                        Host inputs and offloaded model state
-                    </span>
-                </div>
-            </CanvasItem>
-            <CanvasItem x={346} y={168} width={580} height={34}>
-                <span style={{ fontFamily: c.fontSans, fontSize: 30, color: purple }}>
-                    Separate host-to-GPU system link
-                </span>
-            </CanvasItem>
+    const regX = left + halfW + gap
+    fig.rect(regX, t3Y, halfW, t3H, {
+        fill: tint(warm, c.bg, fillAmt),
+        stroke: warm,
+        strokeWidth: 1.25,
+        radius: 10,
+    })
+    fig.text(regX + 16, t3Y + 23, 'REGISTERS', {
+        size: 14,
+        weight: 700,
+        color: warm,
+        mono: true,
+    })
+    fig.text(regX + 16, t3Y + 48, '256 KiB / SM', {
+        size: 14.5,
+        weight: 700,
+        color: c.textPrimary,
+        mono: true,
+    })
+    fig.text(regX + 16, t3Y + 72, 'Separate per-SM pool', {
+        size: 13.5,
+        color: c.textSecondary,
+    })
 
-            <CanvasItem x={48} y={222} width={864} height={96}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-                    <div
-                        style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}
-                    >
-                        <span
-                            style={{
-                                fontFamily: c.fontMono,
-                                fontSize: 30,
-                                fontWeight: 800,
-                                color: blue,
-                            }}
-                        >
-                            HBM · H100 SXM
-                        </span>
-                        <span
-                            style={{
-                                fontFamily: c.fontMono,
-                                fontSize: 30,
-                                fontWeight: 800,
-                                color: c.textPrimary,
-                            }}
-                        >
-                            80 GB · 3.35 TB/s
-                        </span>
-                    </div>
-                    <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textSecondary }}>
-                        Holds Q, K, V, O, weights, and activations
-                    </span>
-                </div>
-            </CanvasItem>
-            <CanvasItem x={346} y={338} width={580} height={34}>
-                <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textPrimary }}>
-                    Q/K/V tiles in; O + row stats out
-                </span>
-            </CanvasItem>
+    // Hairline divider before proportional working-set breakdown
+    const sepY = t3Y + t3H + 22
+    fig.line(left, sepY, left + fullW, sepY, { color: c.borderSubtle, width: 1 })
 
-            <CanvasItem x={48} y={394} width={402} height={144}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span
-                        style={{
-                            fontFamily: c.fontMono,
-                            fontSize: 30,
-                            fontWeight: 800,
-                            color: cyan,
-                        }}
-                    >
-                        SHARED MEMORY
-                    </span>
-                    <span
-                        style={{
-                            fontFamily: c.fontMono,
-                            fontSize: 30,
-                            fontWeight: 800,
-                            color: c.textPrimary,
-                        }}
-                    >
-                        228 KiB/SM (227 max)
-                    </span>
-                    <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textSecondary }}>
-                        Shares capacity with L1
-                    </span>
-                </div>
-            </CanvasItem>
-            <CanvasItem x={510} y={394} width={402} height={144}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span
-                        style={{
-                            fontFamily: c.fontMono,
-                            fontSize: 30,
-                            fontWeight: 800,
-                            color: warm,
-                        }}
-                    >
-                        REGISTERS
-                    </span>
-                    <span
-                        style={{
-                            fontFamily: c.fontMono,
-                            fontSize: 30,
-                            fontWeight: 800,
-                            color: c.textPrimary,
-                        }}
-                    >
-                        256 KiB / SM
-                    </span>
-                    <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textSecondary }}>
-                        Separate per-SM pool
-                    </span>
-                </div>
-            </CanvasItem>
+    const wsHeaderY = sepY + 24
+    fig.text(left, wsHeaderY, 'On-chip tile working set', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(left + fullW, wsHeaderY, '48 + 32 + 64 = 144 KiB total', {
+        size: 14,
+        weight: 600,
+        color: c.textSecondary,
+        mono: true,
+        align: 'right',
+    })
 
-            <CanvasItem x={48} y={576} width={864} height={36}>
-                <span
-                    style={{
-                        fontFamily: c.fontMono,
-                        fontSize: 30,
-                        fontWeight: 750,
-                        color: c.textPrimary,
-                    }}
-                >
-                    WORKING SET: QKV 48 + O 32 + S 64 = 144 KiB
-                </span>
-            </CanvasItem>
-            {placedSegs.map((s) => (
-                <CanvasItem key={s.key} x={s.x} y={626} width={s.w} height={54}>
-                    <div
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            width: '100%',
-                            height: '100%',
-                        }}
-                    >
-                        <span
-                            style={{
-                                fontFamily: c.fontMono,
-                                fontSize: 30,
-                                fontWeight: 800,
-                                color: s.tone,
-                            }}
-                        >
-                            {s.key}
-                        </span>
-                    </div>
-                </CanvasItem>
-            ))}
-            <CanvasItem x={48} y={698} width={864} height={52}>
-                <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-                    <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textSecondary }}>
-                        Budgets depend on launch settings and resident blocks.
-                    </span>
-                </div>
-            </CanvasItem>
-        </Board>
+    // Proportional working-set bar with crisp gaps so labels never touch
+    const barY = wsHeaderY + 22
+    const barH = 48
+    const segGap = 6
+    const segSpecs = [
+        { label: 'Q', sub: '16 KiB', kb: 16, color: blue },
+        { label: 'K', sub: '16 KiB', kb: 16, color: blue },
+        { label: 'V', sub: '16 KiB', kb: 16, color: blue },
+        { label: 'O', sub: '32 KiB', kb: 32, color: green },
+        { label: 'S (FP32)', sub: '64 KiB', kb: 64, color: warm },
+    ] as const
+
+    const usableW = fullW - segGap * (segSpecs.length - 1)
+    let curX = left
+    const qkvStart = curX
+    let qkvEnd = curX
+
+    for (let i = 0; i < segSpecs.length; i++) {
+        const s = segSpecs[i]!
+        const w = (s.kb / 144) * usableW
+        fig.rect(curX, barY, w, barH, {
+            fill: tint(s.color, c.bg, isLight ? 0.14 : 0.24),
+            stroke: s.color,
+            strokeWidth: 1.4,
+            radius: 6,
+        })
+        fig.text(curX + w / 2, barY + 17, s.label, {
+            size: 14,
+            weight: 700,
+            color: s.color,
+            align: 'center',
+            mono: true,
+        })
+        fig.text(curX + w / 2, barY + 35, s.sub, {
+            size: 12.5,
+            weight: 600,
+            color: c.textSecondary,
+            align: 'center',
+            mono: true,
+        })
+        if (i === 2) qkvEnd = curX + w
+        curX += w + segGap
+    }
+
+    // Curly dimension braces below the bar
+    fig.brace(qkvStart, barY + barH + 8, qkvEnd, barY + barH + 8, 'QKV tiles: 48 KiB', {
+        side: 1,
+        depth: 10,
+        color: blue,
+        labelColor: blue,
+        labelSize: 13.5,
+        labelGap: 14,
+    })
+    fig.brace(
+        qkvEnd + segGap,
+        barY + barH + 8,
+        left + fullW,
+        barY + barH + 8,
+        'Accumulators + score tile: 96 KiB',
+        {
+            side: 1,
+            depth: 10,
+            color: c.textMuted,
+            labelColor: c.textSecondary,
+            labelSize: 13.5,
+            labelGap: 14,
+        },
     )
+
+    return fig.render()
 }
 
 export default create('dark')

@@ -172,21 +172,13 @@ In the two-level SRAM model (capacity $M$ scalar elements, $d \le M \le nd$):[^d
 | **FLOPs** | $O(n^2 d)$ | $O(n^2 d)$ (exact dense attention; extra backward recompute) |
 | **HBM reads/writes** | $\Theta(nd + n^2)$ | $\Theta(n^2 d^2 / M)$ |
 
-<figure>
-  <img src="illustrations/_generated/memory_scaling_dark.png" alt="Scaling plots from 4K to 16K tokens showing FP16 score storage growing 16x (8 to 128 GiB) while FP32 LSE grows 4x (4 to 16 MiB)." />
-  <figcaption>Auxiliary memory scales quadratically for materialized $S$ (8 to 128 GiB) versus linearly for LSE (4 to 16 MiB).</figcaption>
-</figure>
+Scaling sequence length from 4K to 16K grows materialized FP16 score storage 16x (from 8 GiB to 128 GiB), while FP32 LSE grows just 4x (from 4 MiB to 16 MiB).
 
-For causal attention, FlashAttention skips materialized masks by classifying tile pairs from **absolute token ranges**: skip strictly future tiles (`key_start > query_end`, cutting ~50% of work as grid size grows), run past tiles unmasked (`key_end <= query_start`), and mask boundary tiles locally in SRAM. Always compare position ranges rather than tile indices $j > i$ when query and key tile widths differ.
+For causal attention, FlashAttention skips materialized masks by classifying tile pairs from **absolute token ranges**: skip strictly future tiles (`key_start > query_end`, cutting ~50% of work as grid size grows), run past tiles unmasked (`key_end <= query_start`), and mask boundary tiles locally in SRAM. Always compare position ranges rather than tile indices $j > i$ when query and key tile widths differ (for example, 64-wide K tile 2 covering `128..191` still overlaps 128-wide Q tile 1 covering `128..255`).
 
 <figure>
   <img src="illustrations/_generated/causal_tile_scheduler_dark.png" alt="4x4 causal tile grid computing 6 past and 4 diagonal tiles while skipping 6 future tiles." />
   <figcaption>In an aligned 4x4 grid, 10 tile pairs run and 6 future pairs (37.5%) skip completely.</figcaption>
-</figure>
-
-<figure>
-  <img src="illustrations/_generated/causal_absolute_tile_ranges_dark.png" alt="Absolute position axis comparing Q 128..255 against 64-wide K tiles: K0 is past, K2 (128..191) is boundary, K4 (256..319) is future." />
-  <figcaption>With unequal tile widths, K tile 2 (`128..191`) overlaps Q tile 1 (`128..255`) despite having a larger tile index; position ranges classify it correctly.</figcaption>
 </figure>
 
 ## Evolution across GPU generations: FA1 to FA4
@@ -198,17 +190,7 @@ For causal attention, FlashAttention skips materialized masks by classifying til
 | **FA3** (2024)[^shah2024] | Hopper (H100) | TMA async copy, WGMMA, warp specialization, FP8 forward | 740 TFLOPs/s FP16; ~1.2 PFLOPs/s FP8 |
 | **FA4** (2026)[^zadouri2026] | Blackwell (B200) & Hopper | Software-emulated `exp`, conditional rescaling, TMEM, 2-CTA backward, CuTe-DSL | 1,613 TFLOPs/s BF16 on B200 (71% peak) |
 
-FA2 flipped FA1's outer loop to pin $Q$ tiles in registers and switched from split-K to split-Q warps to eliminate cross-warp output reductions.[^dao2023] FA3 split Hopper warps into TMA producers and WGMMA/softmax consumers over circular shared buffers.[^shah2024] FA4 tackles Blackwell's faster Tensor Cores vs. slower special-function units with emulated exponentials, conditional rescaling (reusing the old reference max when a tile's max barely grows), TMEM accumulators, and Python-embedded CuTe-DSL.[^zadouri2026]
-
-<figure>
-  <img src="illustrations/_generated/q_resident_schedule_dark.png" alt="FA1 outer K/V loop bouncing Q state through HBM versus FA2 outer Q loop keeping Q and unnormalized N on chip." />
-  <figcaption>FA2 pins $Q$ and unnormalized $N$ on chip while streaming K/V tiles, eliminating FA1's intermediate HBM state writes.</figcaption>
-</figure>
-
-<figure>
-  <img src="illustrations/_generated/warp_output_partitioning_dark.png" alt="Split-K warps reducing partial outputs via shared memory versus Split-Q warps owning disjoint query rows." />
-  <figcaption>Split-Q assigns disjoint query rows to each warp, removing split-K's shared-memory output reduction.</figcaption>
-</figure>
+FA2 flipped FA1's outer loop to pin $Q$ tiles and unnormalized $N$ on chip (eliminating FA1's intermediate HBM writes) and switched from split-K to split-Q warps so each warp owns disjoint query rows with no cross-warp output reduction.[^dao2023] FA3 split Hopper warps into TMA producers and WGMMA/softmax consumers over circular shared buffers.[^shah2024] FA4 tackles Blackwell's faster Tensor Cores vs. slower special-function units with emulated exponentials, conditional rescaling (reusing the old reference max when a tile's max barely grows), TMEM accumulators, and Python-embedded CuTe-DSL.[^zadouri2026]
 
 <figure>
   <img src="illustrations/_generated/async_tile_pipeline_dark.png" alt="Two-slot circular buffer overlapping TMA producer loads on slot B with WGMMA and softmax consumers on slot A." />
@@ -267,11 +249,6 @@ FA2.1+ bottom-right:    [[1, 1, 1, 1, 0], [1, 1, 1, 1, 1]]
 SDPA decode is_causal=True (wrong): 10.0 | all-valid cache: 37.5
 ```
 <!-- leetllm: output:end -->
-
-<figure>
-  <img src="illustrations/_generated/cached_query_mask_alignment_dark.png" alt="Single decode query at position 3 over 4 valid cached keys returning 37.5 correctly vs. 10.0 under an upper-left causal mask." />
-  <figcaption>Upper-left causal masking admits only key 0 (returning `10.0`) instead of averaging all four valid keys (`37.5`).</figcaption>
-</figure>
 
 > **Common mistake:** Passing `is_causal=True` to SDPA during cached decode, passing `nn.MultiheadAttention`'s inverted `key_padding_mask` (`True` = ignore) to SDPA's `attn_mask` (`True` = keep), or omitting `dropout_p=0.0` at eval time (functional SDPA ignores `model.eval()`).[^pytorchSdpaDocs2026]
 

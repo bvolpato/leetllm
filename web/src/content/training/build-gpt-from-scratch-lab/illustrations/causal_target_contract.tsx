@@ -1,292 +1,198 @@
-import { createElement } from 'react'
-import {
-    Board,
-    CanvasItem,
-    SvgFrame,
-    TextLabel,
-    VectorArrow,
-    getReadableToneColor,
-    getThemeColors,
-    type ThemeMode,
-} from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure, tint } from '../../../../../tools/illustrations/lib/plot-kit'
 
-export const preset = 'engineering'
-export const width = 720
-export const height = 895
+export const width = 760
+export const height = 400
 export const alt =
-    'The six actual GPT-2 BPE tokens for Good sir, newline, Speak are shown in sequence across two rows. A full-width causal mask highlights query q2 at the comma: it reads keys 0 through 2, while future keys 3 through 5 are blocked. Below, logits z2 are scored against the separate shifted target y2 = x3, the newline token with GPT-2 ID 198.'
+    'Side by side, a 6x6 causal attention mask for the six GPT-2 BPE tokens (Good, sir, comma, newline, Spe, ak) highlights query row q2 at the comma reading keys 0..2 while blocking future keys 3..5 with minus infinity. On the right, the aligned token and shifted-target strip shows logits z2 at comma scored against the next token y2 = x3 (newline, ID 198).'
 
-type Colors = ReturnType<typeof getThemeColors>
-
-function label(
-    c: Colors,
-    text: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    fontSize: number,
-    color = c.textPrimary,
-    fontWeight = 600,
-    align: 'left' | 'center' | 'right' = 'left',
-    mono = false,
-) {
-    return CanvasItem({
-        x,
-        y,
-        width: w,
-        height: h,
-        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
-    })
-}
+const pieces = ['Good', "' sir'", ',', '\\n', 'Spe', 'ak']
+const ids = ['10248', '15967', '11', '198', '5248', '461']
 
 export function create(theme: ThemeMode = 'dark') {
-    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
-    const cyan = getReadableToneColor('cyan', c)
-    const amber = getReadableToneColor('warm', c)
-    const green = getReadableToneColor('green', c)
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
+    const green = fig.tone('green')
     const muted = c.textSecondary
-    const cellWidth = 72
-    const cellHeight = 33
-    const cellGap = 5
-    const matrixX = 166
-    const matrixY = 426
-    const shapes = createElement(
-        'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
-        SvgFrame({
-            c,
-            x: 16,
-            y: 96,
-            width: 688,
-            height: 218,
-            rx: 12,
-            fill: c.bgCard,
-            stroke: c.border,
-            strokeWidth: 1.2,
-        }),
-        SvgFrame({
-            c,
-            x: 16,
-            y: 326,
-            width: 688,
-            height: 405,
-            rx: 12,
-            fill: c.bgCard,
-            stroke: c.border,
-            strokeWidth: 1.2,
-        }),
-        SvgFrame({
-            c,
-            x: 16,
-            y: 744,
-            width: 688,
-            height: 136,
-            rx: 12,
-            fill: c.bgCard,
-            stroke: c.border,
-            strokeWidth: 1.2,
-        }),
-        ...Array.from({ length: 6 }, (_, i) => {
-            const row = Math.floor(i / 3)
-            const col = i % 3
-            const x = 40 + col * 226
-            const y = 136 + row * 85
-            const selected = i === 2
-            const future = i > 2
-            return SvgFrame({
-                key: `token-${i}`,
-                c,
-                x,
-                y,
-                width: 210,
-                height: 79,
-                rx: 8,
-                fill: selected ? `${amber}18` : future ? c.bgSubtle : `${cyan}12`,
-                stroke: selected ? amber : future ? c.borderSubtle : cyan,
-                strokeWidth: selected ? 2.4 : 1.3,
-            })
-        }),
-        ...Array.from({ length: 6 }, (_, row) =>
-            Array.from({ length: 6 }, (_, col) => {
-                const visible = col <= row
-                const selected = row === 2
-                const x = matrixX + col * (cellWidth + cellGap)
-                const y = matrixY + row * (cellHeight + cellGap)
-                return SvgFrame({
-                    key: `mask-${row}-${col}`,
-                    c,
-                    x,
-                    y,
-                    width: cellWidth,
-                    height: cellHeight,
-                    rx: 4,
-                    fill: selected
-                        ? visible
-                            ? `${amber}42`
-                            : c.bgSubtle
-                        : visible
-                          ? `${cyan}22`
-                          : c.bgSubtle,
-                    stroke: selected && visible ? amber : visible ? c.border : c.borderSubtle,
-                    strokeWidth: selected && visible ? 2.2 : 1,
-                    opacity: visible ? 1 : 0.72,
-                })
-            }),
-        ).flat(),
-        SvgFrame({
-            c,
-            x: 28,
-            y: 790,
-            width: 664,
-            height: 74,
-            rx: 9,
-            fill: c.bgSubtle,
-            stroke: c.borderSubtle,
-            strokeWidth: 1,
-        }),
-        SvgFrame({
-            c,
-            x: 40,
-            y: 792,
-            width: 183,
-            height: 70,
-            rx: 8,
-            fill: `${amber}16`,
-            stroke: amber,
-            strokeWidth: 1.6,
-        }),
-        SvgFrame({
-            c,
-            x: 268,
-            y: 792,
-            width: 183,
-            height: 70,
-            rx: 8,
-            fill: `${cyan}14`,
-            stroke: cyan,
-            strokeWidth: 1.6,
-        }),
-        SvgFrame({
-            c,
-            x: 496,
-            y: 792,
-            width: 183,
-            height: 70,
-            rx: 8,
-            fill: `${green}16`,
-            stroke: green,
-            strokeWidth: 1.6,
-        }),
-        VectorArrow({
-            x1: 225,
-            y1: 827,
-            x2: 260,
-            y2: 827,
-            color: muted,
-            strokeWidth: 2.6,
-            arrowSize: 8,
-        }),
-        VectorArrow({
-            x1: 453,
-            y1: 827,
-            x2: 488,
-            y2: 827,
-            color: muted,
-            strokeWidth: 2.6,
-            arrowSize: 8,
-        }),
+
+    // Left panel: 6x6 causal attention mask using heatGrid with causal hatching
+    fig.text(24, 24, '1. Causal mask governs visibility', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(24, 42, 'q₂ (comma) reads keys 0..2; keys 3..5 masked', {
+        size: 12,
+        color: muted,
+    })
+
+    const gridData = Array.from({ length: 6 }, (_, r) =>
+        Array.from({ length: 6 }, (_, k) => (k <= r ? (r === 2 ? 0.92 : 0.42) : 0)),
     )
-    const itemLabels = [
-        CanvasItem({ x: 0, y: 0, width, height, children: shapes }),
-        label(c, 'Mask and shifted target', 20, 14, 680, 40, 38, c.textPrimary, 800),
-        label(
-            c,
-            'q₂ reads its prefix. Loss scores the successor.',
-            22,
-            57,
-            676,
-            29,
-            27,
-            muted,
-            550,
-        ),
-        label(c, 'INPUT TOKENS · GPT-2 BPE', 30, 101, 660, 35, 26, cyan, 800),
-        ...[
-            ['Good', 'x₀ · 10248'],
-            ["' sir'", 'x₁ · 15967'],
-            [',', 'x₂ · 11'],
-            ['\\n', 'x₃ · 198'],
-            ['Spe', 'x₄ · 5248'],
-            ['ak', 'x₅ · 461'],
-        ].flatMap(([piece, id], i) => {
-            const row = Math.floor(i / 3)
-            const col = i % 3
-            const x = 40 + col * 226
-            const y = 136 + row * 85
-            return [
-                label(
-                    c,
-                    piece,
-                    x + 10,
-                    y + 1,
-                    190,
-                    39,
-                    30,
-                    i === 2 ? amber : c.textPrimary,
-                    i === 2 ? 800 : 700,
-                    'center',
-                    true,
-                ),
-                label(c, id, x + 8, y + 43, 194, 32, 24, muted, 650, 'center', true),
-            ]
-        }),
-        label(c, 'CAUSAL MASK · q rows, k columns', 28, 338, 660, 40, 30, c.textPrimary, 800),
-        ...Array.from({ length: 6 }, (_, col) =>
-            label(
-                c,
-                `${col}`,
-                matrixX + col * (cellWidth + cellGap),
-                387,
-                cellWidth,
-                35,
-                26,
-                muted,
-                650,
-                'center',
-                true,
-            ),
-        ),
-        ...Array.from({ length: 6 }, (_, row) =>
-            label(
-                c,
-                `q${['₀', '₁', '₂', '₃', '₄', '₅'][row]}`,
-                84,
-                matrixY + row * (cellHeight + cellGap),
-                70,
-                37,
-                28,
-                row === 2 ? amber : muted,
-                row === 2 ? 800 : 600,
-                'center',
-                true,
-            ),
-        ),
-        label(c, 'q₂ = comma · visible keys 0–2', 42, 660, 636, 34, 25, amber, 800),
-        label(c, 'Keys 3–5 masked · −∞ gives weight 0', 42, 696, 636, 32, 24, muted, 600),
-        label(c, 'Next-token loss: score z₂ against y₂ = x₃', 34, 750, 650, 36, 27, green, 800),
-        label(c, 'x₂ = comma', 46, 811, 168, 36, 27, amber, 750, 'center', true),
-        label(c, 'z₂', 275, 811, 170, 36, 27, cyan, 750, 'center', true),
-        label(c, 'y₂ = x₃', 503, 797, 170, 32, 24, green, 750, 'center', true),
-        label(c, 'newline', 503, 831, 170, 31, 24, green, 700, 'center', true),
-    ]
-    return Board({ c, width, height, background: 'transparent', children: itemLabels })
+    const gridArea = { x: 66, y: 84, width: 256, height: 256 }
+    fig.heatGrid(gridData, gridArea, {
+        causal: true,
+        rowLabels: ['q₀', 'q₁', 'q₂', 'q₃', 'q₄', 'q₅'],
+        colLabels: ['k₀', 'k₁', 'k₂', 'k₃', 'k₄', 'k₅'],
+        highlightRow: 2,
+        highlightColor: warm,
+        showValues: false,
+        gap: 4,
+        radius: 5,
+        labelSize: 13,
+    })
+
+    // Legend under grid
+    fig.rect(66, 356, 14, 14, { fill: tint(warm, c.bg, 0.55), stroke: warm, strokeWidth: 1.5, radius: 3 })
+    fig.text(86, 363, 'q₂ visible (0..2)', { size: 12, weight: 600, color: warm })
+    fig.rect(206, 356, 14, 14, { fill: tint(c.textMuted, c.bg, 0.1), stroke: c.borderSubtle, strokeWidth: 1, radius: 3 })
+    fig.line(209, 367, 217, 359, { color: c.textMuted, width: 1.1 })
+    fig.text(226, 363, 'masked (−∞)', { size: 12, color: muted })
+
+    // Divider
+    fig.line(352, 22, 352, 376, { color: c.borderSubtle, width: 1 })
+
+    // Right panel: Token stream + shifted supervision on z2 -> y2 = x3
+    const rx = 376
+    fig.text(rx, 24, '2. One-step shift governs supervision', {
+        size: 15,
+        weight: 700,
+        color: c.textPrimary,
+    })
+    fig.text(rx, 44, 'Logits z₂ at comma are scored against next token y₂ = x₃', {
+        size: 12,
+        color: muted,
+    })
+
+    // Horizontal strip of 6 tokens
+    const tileW = 56
+    const tileGap = 5
+    const tokY = 98
+    const tokH = 54
+    fig.text(rx, 80, 'Input tokens xₜ (GPT-2 BPE)', { size: 13, weight: 600, color: muted })
+
+    pieces.forEach((p, i) => {
+        const tx = rx + i * (tileW + tileGap)
+        const isQ = i === 2
+        const isTarget = i === 3
+        const future = i > 3
+        const stroke = isQ ? warm : isTarget ? green : future ? c.borderSubtle : cyan
+        const fill = isQ
+            ? tint(warm, c.bg, 0.2)
+            : isTarget
+              ? tint(green, c.bg, 0.2)
+              : future
+                ? tint(c.textMuted, c.bg, 0.06)
+                : tint(cyan, c.bg, 0.1)
+
+        fig.rect(tx, tokY, tileW, tokH, {
+            fill,
+            stroke,
+            strokeWidth: isQ || isTarget ? 1.9 : 1.1,
+            radius: 6,
+        })
+        fig.text(tx + tileW / 2, tokY + 17, p, {
+            size: 14,
+            mono: true,
+            weight: 700,
+            color: isQ ? warm : isTarget ? green : c.textPrimary,
+            align: 'center',
+        })
+        fig.text(tx + tileW / 2, tokY + 39, ids[i]!, {
+            size: 11,
+            mono: true,
+            color: muted,
+            align: 'center',
+        })
+        fig.text(tx + tileW / 2, tokY + tokH + 14, `x${['₀', '₁', '₂', '₃', '₄', '₅'][i]}`, {
+            size: 12,
+            mono: true,
+            weight: isQ || isTarget ? 700 : 500,
+            color: isQ ? warm : isTarget ? green : muted,
+            align: 'center',
+        })
+    })
+
+    // Step-by-step scoring flow below token strip
+    const x2Center = rx + 2 * (tileW + tileGap) + tileW / 2
+    const x3Center = rx + 3 * (tileW + tileGap) + tileW / 2
+
+    // Logits z2 card directly under x2
+    const zY = 204
+    fig.arrow(x2Center, tokY + tokH + 24, x2Center, zY - 4, { color: warm, width: 1.8, head: 7 })
+    fig.rect(rx + 66, zY, 134, 48, {
+        fill: tint(cyan, c.bg, 0.14),
+        stroke: cyan,
+        strokeWidth: 1.6,
+        radius: 7,
+    })
+    fig.text(rx + 133, zY + 16, 'Logits z₂', {
+        size: 14,
+        mono: true,
+        weight: 700,
+        color: cyan,
+        align: 'center',
+    })
+    fig.text(rx + 133, zY + 35, 'from prefix x₀..x₂', {
+        size: 11,
+        color: muted,
+        align: 'center',
+    })
+
+    // Target y2 = x3 card to the right
+    const yBoxX = rx + 236
+    fig.rect(yBoxX, zY, 126, 48, {
+        fill: tint(green, c.bg, 0.16),
+        stroke: green,
+        strokeWidth: 1.6,
+        radius: 7,
+    })
+    fig.text(yBoxX + 63, zY + 16, 'Target y₂ = x₃', {
+        size: 13,
+        mono: true,
+        weight: 700,
+        color: green,
+        align: 'center',
+    })
+    fig.text(yBoxX + 63, zY + 35, 'newline (198)', {
+        size: 11,
+        mono: true,
+        color: green,
+        align: 'center',
+    })
+
+    // Arrow from x3 down into Target y2 = x3
+    fig.path(`M${x3Center} ${tokY + tokH + 24} L${x3Center} ${zY - 14} L${yBoxX + 63} ${zY - 14}`, {
+        color: green,
+        width: 1.6,
+    })
+    fig.arrow(yBoxX + 63, zY - 14, yBoxX + 63, zY - 3, { color: green, width: 1.6, head: 6 })
+
+    // Horizontal scoring arrow z2 -> y2
+    fig.arrow(rx + 202, zY + 24, yBoxX - 4, zY + 24, { color: c.textPrimary, width: 1.8, head: 7 })
+
+    // Cross-entropy formula box at bottom right
+    const eqY = 294
+    fig.rect(rx, eqY, 362, 62, {
+        fill: tint(green, c.bg, 0.08),
+        stroke: tint(green, c.bg, 0.35),
+        strokeWidth: 1.2,
+        radius: 8,
+    })
+    fig.math(rx + 181, eqY + 22, String.raw`\ell_2 = -\log \operatorname{softmax}(z_2)_{x_3}`, {
+        size: 15,
+        color: c.textPrimary,
+        align: 'center',
+    })
+    fig.text(rx + 181, eqY + 47, 'Mask blocks future keys; target shift supplies next token', {
+        size: 12,
+        color: muted,
+        align: 'center',
+    })
+
+    return fig.render()
 }
 
 export default create('dark')

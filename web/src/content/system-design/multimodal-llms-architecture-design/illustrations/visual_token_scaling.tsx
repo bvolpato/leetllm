@@ -1,114 +1,161 @@
-import React from 'react'
-import type { ThemeMode } from 'vizmatic'
+import { createElement } from 'react'
 import {
-    canvas,
-    pk,
-    tint,
-} from '../../../fundamentals/inference-mechanics-ttft-tps-kv-cache/serving-figure-kit'
+    Board,
+    CanvasItem,
+    SvgFrame,
+    TextLabel,
+    VectorSegment,
+    getReadableToneColor,
+    getThemeColors,
+    withColorAlpha,
+    type ThemeMode,
+} from 'vizmatic'
 
-export const width = 860
-export const height = 500
+type Colors = ReturnType<typeof getThemeColors>
+
+export const width = 760
+export const height = 370
 export const alt =
-    'Visual token scaling comparison. With 14-pixel patches, square still images at 224, 448, and 672 pixels generate 256, 1,024, and 2,304 patch tokens respectively. Sixty seconds of 224-pixel video at 2 frames per second generates 30,720 tokens, exceeding a standard 4,096-token context limit by 7.5 times.'
+    'Shared-scale horizontal bar chart of ViT-L/14 visual token counts against a 4,096-token context window: 224px still emits 256 patches, 448px still emits 1,024, 672px still emits 2,304, five 336px chart tiles emit 2,880, and 60 seconds of 224px video at 2 fps emits 30,720 patches (7.5x the 4,096-token limit).'
+
+function lbl(
+    c: Colors,
+    text: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    fontSize: number,
+    color = c.textPrimary,
+    fontWeight = 650,
+    align: 'left' | 'center' | 'right' = 'left',
+    mono = false,
+) {
+    return CanvasItem({
+        x,
+        y,
+        width: w,
+        height: h,
+        children: TextLabel({ c, text, width: w, fontSize, color, fontWeight, align, mono }),
+    })
+}
 
 export function create(theme: ThemeMode = 'dark') {
-    const k = pk(theme),
-        a = canvas(k, width, height)
+    const c = getThemeColors(theme, theme === 'light' ? 'engineering' : 'default')
+    const green = getReadableToneColor('green', c)
+    const blue = getReadableToneColor('blue', c)
+    const warm = getReadableToneColor('warm', c)
+    const red = getReadableToneColor('critical', c)
+    const muted = c.textSecondary
 
-    // Header
-    a.text(40, 32, 'Visual Token Scaling: Stills vs. Video Explosion', { size: 22, weight: 700 })
-    a.text(
-        40,
-        58,
-        'Patch token counts (14×14 patch size) compared against a 4,096-token transformer context limit',
-        { size: 15, color: k.mid },
-    )
-
-    // Chart container
-    a.rect(40, 85, 520, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-
-    // Reference limit line at 4,096 tokens
-    const limitX = 200 + (4096 / 32768) * 300 // 200 + 37.5 = 237.5
-    a.line(limitX, 105, limitX, 440, k.mid, { dash: '4 4', width: 1.5 })
-    a.text(limitX - 10, 100, '4,096 Context', {
-        size: 15,
-        weight: 700,
-        color: k.mid,
-        align: 'center',
-    })
+    const barX = 204
+    const barMaxW = 356
+    const maxTokens = 32000
+    const xFor = (n: number) => barX + (n / maxTokens) * barMaxW
+    const limitX = xFor(4096)
 
     const rows = [
-        { label: '224px Still', detail: '16×16 = 256 tokens', tokens: 256, tone: k.pass, y: 125 },
-        {
-            label: '448px Still',
-            detail: '32×32 = 1,024 tokens',
-            tokens: 1024,
-            tone: k.pass,
-            y: 190,
-        },
-        {
-            label: '672px High-Res',
-            detail: '48×48 = 2,304 tokens',
-            tokens: 2304,
-            tone: k.state,
-            y: 255,
-        },
-        { label: 'Context Limit', detail: 'Single turn: 4,096', tokens: 4096, tone: k.mid, y: 320 },
-        {
-            label: '60s Video (2 fps)',
-            detail: '120 frames = 30,720',
-            tokens: 30720,
-            tone: k.fail,
-            y: 385,
-        },
+        { label: '224px still', sub: '16×16', tokens: 256, note: '256', tone: green },
+        { label: '448px still', sub: '32×32', tokens: 1024, note: '1,024', tone: green },
+        { label: '672px still', sub: '48×48', tokens: 2304, note: '2,304', tone: blue },
+        { label: '5× 336px tiles', sub: '5 × 576', tokens: 2880, note: '2,880', tone: warm },
+        { label: '60s video (2 fps)', sub: '120 × 256', tokens: 30720, note: '30,720 (7.5×)', tone: red },
     ]
 
-    rows.forEach((row) => {
-        a.text(56, row.y + 12, row.label, { size: 15, weight: 700 })
-        a.text(56, row.y + 32, row.detail, { size: 15, color: k.mid })
+    const rowStart = 76
+    const rowStep = 50
 
-        // Bar track
-        a.rect(200, row.y + 8, 300, 24, { fill: tint(k.c.bg, 0.1), r: 4 })
+    const geometry = [
+        // Axis baseline
+        VectorSegment({ x1: barX, y1: 318, x2: barX + barMaxW, y2: 318, color: muted, strokeWidth: 1.5, showStartDot: false, showEndDot: false }),
+        ...[0, 4096, 16000, 32000].map((t) =>
+            VectorSegment({
+                key: `tk-${t}`,
+                x1: xFor(t),
+                y1: 313,
+                x2: xFor(t),
+                y2: 323,
+                color: t === 4096 ? red : muted,
+                strokeWidth: t === 4096 ? 2 : 1.4,
+                showStartDot: false,
+                showEndDot: false,
+            }),
+        ),
+        // 4,096 context reference line
+        createElement('line', {
+            key: 'ctx-line',
+            x1: limitX,
+            y1: 58,
+            x2: limitX,
+            y2: 318,
+            stroke: red,
+            strokeWidth: 2,
+            strokeDasharray: '5 4',
+        }),
+        // Bars
+        ...rows.flatMap((row, i) => {
+            const y = rowStart + i * rowStep
+            const w = Math.max(8, (row.tokens / maxTokens) * barMaxW)
+            return [
+                SvgFrame({
+                    c,
+                    key: `bg-${i}`,
+                    x: barX,
+                    y,
+                    width: barMaxW,
+                    height: 28,
+                    rx: 5,
+                    fill: c.bgSubtle,
+                    stroke: c.borderSubtle,
+                    strokeWidth: 1,
+                }),
+                SvgFrame({
+                    c,
+                    key: `fg-${i}`,
+                    x: barX,
+                    y,
+                    width: w,
+                    height: 28,
+                    rx: 5,
+                    fill: withColorAlpha(row.tone, 0.35),
+                    stroke: row.tone,
+                    strokeWidth: 1.8,
+                }),
+            ]
+        }),
+    ]
 
-        // Value bar
-        const barW = Math.max(8, Math.min(300, (row.tokens / 32768) * 300))
-        a.rect(200, row.y + 8, barW, 24, { fill: row.tone, r: 4 })
+    const labels = [
+        lbl(c, 'Raw ViT-L/14 Patch Tokens (P = 14)', 30, 24, 380, 24, 17, c.textPrimary, 800),
+        lbl(c, '4,096 context limit', limitX + 8, 52, 200, 22, 16, red, 700),
 
-        // Value text
-        a.text(200 + barW + 10, row.y + 20, row.tokens.toLocaleString(), {
-            size: 15,
-            weight: 700,
-            color: row.tone,
-        })
+        ...rows.flatMap((row, i) => {
+            const y = rowStart + i * rowStep
+            return [
+                lbl(c, row.label, 30, y + 2, 168, 22, 16, c.textPrimary, 700),
+                lbl(c, row.note, barX + barMaxW + 14, y + 2, 158, 22, 16, row.tone, 800, 'left', true),
+            ]
+        }),
+
+        // Axis ticks
+        lbl(c, '0', xFor(0) - 22, 326, 28, 22, 16, muted, 600, 'center', true),
+        lbl(c, '4K', xFor(4096) - 12, 326, 40, 22, 16, red, 700, 'center', true),
+        lbl(c, '16K', xFor(16000) - 24, 326, 48, 22, 16, muted, 600, 'center', true),
+        lbl(c, '32K', xFor(32000) - 24, 326, 48, 22, 16, muted, 600, 'center', true),
+    ]
+
+    const svg = createElement(
+        'svg',
+        { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
+        ...geometry,
+    )
+    return Board({
+        c,
+        width,
+        height,
+        background: 'transparent',
+        children: [CanvasItem({ x: 0, y: 0, width, height, children: svg }), ...labels],
     })
-
-    // Right Column: Architectural Analysis & Solutions
-    a.rect(580, 85, 240, 385, { fill: tint(k.c.bg, 0.05), stroke: k.line, r: 8 })
-    a.cell(596, 102, 115, 24, 'SYSTEM IMPACT', {
-        fill: tint(k.fail, 0.15),
-        stroke: tint(k.fail, 0.4),
-        color: k.fail,
-        weight: 700,
-    })
-    a.text(596, 145, 'Prefill & Memory Crisis', { size: 16, weight: 700, color: k.fail })
-
-    a.rect(596, 165, 208, 95, { fill: tint(k.fail, 0.06), stroke: tint(k.fail, 0.25), r: 6 })
-    a.text(606, 188, 'Video Explodes Context', { size: 15, weight: 700, color: k.fail })
-    a.text(606, 212, '30,720 tokens = 7.5× context.', { size: 15, color: k.mid })
-    a.text(606, 236, 'Quadratic self-attention cost.', { size: 15, color: k.mid })
-
-    a.rect(596, 275, 208, 175, { fill: tint(k.pass, 0.06), stroke: tint(k.pass, 0.25), r: 6 })
-    a.text(606, 300, 'Required Mitigations', { size: 15, weight: 700, color: k.pass })
-    a.text(606, 326, '1. Dynamic Tiling:', { size: 15, weight: 600 })
-    a.text(606, 348, '   Tile high-salience crops only', { size: 15, color: k.mid })
-    a.text(606, 372, '2. 3D Spatiotemporal Pooling:', { size: 15, weight: 600 })
-    a.text(606, 394, '   Merge 2×2 spatial & time tokens', { size: 15, color: k.mid })
-    a.text(606, 418, '3. Perceiver Latents (e.g. 64)', { size: 15, weight: 600, color: k.pass })
-
-    // Arrow connecting video row to impact card
-    a.arrow(505, 400, 596, 215, k.fail, { width: 1.5 })
-
-    return a.render()
 }
 
 export default create('dark')

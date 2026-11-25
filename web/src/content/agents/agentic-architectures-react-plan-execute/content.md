@@ -149,8 +149,6 @@ The choice function is the replaceable part. A person can choose from the termin
 
 The four tests define completion for this investigation. When designing another task, choose a completion check that matches its goal: a computed answer, a retrieved passage supporting a claim, or a successful run of the relevant test suite. Keep the reasoning in the explanation and the observable result in the tool history.
 
-<!-- leetllm: edition:reference:start -->
-
 ### Run the investigation yourself
 
 Download [investigation.py](assets/investigation.py) and [recorded-run.json](assets/recorded-run.json) into one directory. Interactive mode prints the current state and asks you for a tool request. Replay mode takes the recorded model choices but executes the tools again, comparing returned values and exception types with the recorded observations:
@@ -199,8 +197,6 @@ evaluate shift
 ```
 <!-- leetllm: output:end -->
 
-<!-- leetllm: edition:reference:end -->
-
 ## When ordinary code already knows the path
 
 Suppose we want to evaluate all three implementations on the same four inputs. Every operation is already known. A loop over the candidates is the clearest solution, and it is exactly what our first Python cell does.
@@ -239,8 +235,6 @@ T_{\text{parallel}} = 40 + \max(90,160,70) + 30 = 230\text{ ms}.
 $$
 
 The longest chain of dependent work is the **critical path**. Extra workers can overlap independent tasks, but they cannot make a report use a result that has not arrived. For this calculation we ignore scheduling overhead; a real implementation should measure its end-to-end duration.
-
-<!-- leetllm: edition:reference:start -->
 
 ### Execute a dependency graph
 
@@ -295,8 +289,6 @@ The first wave contains three checks. The second contains the report. If a tool 
 This small executor waits for a whole wave before advancing. A larger scheduler can call `done` as each future finishes, allowing a task to start as soon as its particular prerequisites are ready.
 
 These tiny checks demonstrate dependency scheduling. Overlap becomes useful when the tasks involve substantial work that can proceed independently, such as calls to separate services or separate worker processes.
-
-<!-- leetllm: edition:reference:end -->
 
 ReAct and planning also work together. Use a loop while discovering what the problem is, plan a batch once the independent checks become clear, and return to the loop if a surprising result changes the investigation. The control structure can follow the shape of the work.
 
@@ -491,8 +483,6 @@ Start with the information available and the uncertainty that remains. If every 
 
 The architecture follows the task's information flow. In our debugging example, an adaptive loop found a useful candidate, independent numerical checks verified it, and versioned results kept the report attached to the code that was tested.
 
-<!-- leetllm: edition:reference:start -->
-
 ```mastery-quiz
 [
   {
@@ -547,11 +537,3 @@ The architecture follows the task's information flow. In our debugging example, 
 ```
 
 > **Next:** Continue to [Context Engineering](/learn/long-context-engineering-beyond-management).
-
-<!-- leetllm: edition:reference:end -->
-
-<!-- leetllm: edition:reader:start -->
-
-> **Next:** Continue to [Context Engineering](/learn/long-context-engineering-beyond-management).
-
-<!-- leetllm: edition:reader:end -->

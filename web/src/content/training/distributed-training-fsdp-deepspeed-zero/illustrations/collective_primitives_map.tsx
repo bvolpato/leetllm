@@ -7,17 +7,18 @@ import {
     VectorArrow,
     getReadableToneColor,
     getThemeColors,
+    withColorAlpha,
     type ThemeMode,
 } from 'vizmatic'
 
-export const width = 860
-export const height = 540
+export const width = 760
+export const height = 460
 export const alt =
-    'Three two-rank tensor transformations: All-Reduce adds [1, 2] and [10, 20] by coordinate, then gives both ranks [11, 22]; Reduce-Scatter assigns 11 at index 0 to rank 0 and 22 at index 1 to rank 1; All-Gather joins those shards and gives both ranks [11, 22]. Arrows show tensor semantics rather than NCCL wire routing.'
+    'Three two-rank collective primitives: All-Reduce sums [1, 2] and [10, 20] and gives both ranks [11, 22] at 2(N-1)/N * S ring volume; Reduce-Scatter sums and partitions so rank 0 keeps [11] at index 0 and rank 1 keeps [22] at index 1 at (N-1)/N * S; All-Gather reconstructs [11, 22] on both ranks from those shards at (N-1)/N * S.'
 
 type Colors = ReturnType<typeof getThemeColors>
 
-function label(
+function lbl(
     c: Colors,
     text: string,
     x: number,
@@ -26,7 +27,7 @@ function label(
     h: number,
     fontSize: number,
     color = c.textPrimary,
-    fontWeight = 600,
+    fontWeight = 650,
     align: 'left' | 'center' | 'right' = 'left',
     mono = false,
 ) {
@@ -39,31 +40,26 @@ function label(
     })
 }
 
-function frame(
+function cell(
     c: Colors,
     x: number,
     y: number,
-    w: number,
-    h: number,
     color: string,
-    fill: string,
-    rx = 8,
-    strokeWidth = 1.5,
+    dashed = false,
+    w = 56,
+    h = 34,
 ) {
-    return SvgFrame({ c, x, y, width: w, height: h, rx, fill, stroke: color, strokeWidth })
-}
-
-function valueFrame(c: Colors, x: number, y: number, color: string, w = 44, h = 32) {
-    return SvgFrame({
-        c,
+    return createElement('rect', {
+        key: `cell-${x}-${y}-${dashed}`,
         x,
         y,
         width: w,
         height: h,
         rx: 6,
-        fill: c.bgCard,
-        stroke: color,
-        strokeWidth: 1.5,
+        fill: dashed ? 'none' : withColorAlpha(color, 0.14),
+        stroke: dashed ? c.borderSubtle : color,
+        strokeWidth: dashed ? 1.5 : 1.75,
+        strokeDasharray: dashed ? '4 3' : undefined,
     })
 }
 
@@ -74,228 +70,183 @@ export function create(theme: ThemeMode = 'dark') {
     const green = getReadableToneColor('green', c)
     const muted = c.textSecondary
 
-    const geometry = [
-        // Column 1: All-Reduce
-        frame(c, 24, 76, 258, 416, blue, `${blue}0a`, 10, 1.5),
-        frame(c, 36, 126, 234, 100, c.borderSubtle, c.bgCard, 8, 1),
-        frame(c, 36, 280, 234, 100, blue, `${blue}12`, 8, 1.2),
-
-        // Column 1 Value Frames
-        valueFrame(c, 130, 146, blue),
-        valueFrame(c, 182, 146, blue),
-        valueFrame(c, 130, 184, purple),
-        valueFrame(c, 182, 184, purple),
-        valueFrame(c, 130, 300, green),
-        valueFrame(c, 182, 300, green),
-        valueFrame(c, 130, 338, green),
-        valueFrame(c, 182, 338, green),
-
-        // Column 2: Reduce-Scatter
-        frame(c, 301, 76, 258, 416, purple, `${purple}0a`, 10, 1.5),
-        frame(c, 313, 126, 234, 100, c.borderSubtle, c.bgCard, 8, 1),
-        frame(c, 313, 280, 234, 100, purple, `${purple}12`, 8, 1.2),
-
-        // Column 2 Value Frames
-        valueFrame(c, 407, 146, blue),
-        valueFrame(c, 459, 146, blue),
-        valueFrame(c, 407, 184, purple),
-        valueFrame(c, 459, 184, purple),
-        valueFrame(c, 407, 300, green, 54),
-        valueFrame(c, 407, 338, green, 54),
-
-        // Column 3: All-Gather
-        frame(c, 578, 76, 258, 416, green, `${green}0a`, 10, 1.5),
-        frame(c, 590, 126, 234, 100, c.borderSubtle, c.bgCard, 8, 1),
-        frame(c, 590, 280, 234, 100, green, `${green}12`, 8, 1.2),
-
-        // Column 3 Value Frames
-        valueFrame(c, 684, 146, blue, 54),
-        valueFrame(c, 684, 184, purple, 54),
-        valueFrame(c, 684, 300, green),
-        valueFrame(c, 736, 300, green),
-        valueFrame(c, 684, 338, green),
-        valueFrame(c, 736, 338, green),
+    const cols = [
+        { x: 14, w: 236, title: 'All-Reduce', tone: blue, op: 'Sum & copy', vol: '2(N−1)/N · S', role: 'DDP, TP Row' },
+        { x: 262, w: 236, title: 'Reduce-Scatter', tone: purple, op: 'Sum & shard', vol: '(N−1)/N · S', role: 'ZeRO-2/3 grads' },
+        { x: 510, w: 236, title: 'All-Gather', tone: green, op: 'Concat shards', vol: '(N−1)/N · S', role: 'FSDP / ZeRO-3' },
     ]
 
-    const arrows = [
-        // Column 1 Down Arrow
-        VectorArrow({
-            x1: 153,
-            y1: 236,
-            x2: 153,
-            y2: 270,
-            color: blue,
-            strokeWidth: 2,
-            arrowSize: 6,
-        }),
-        // Column 2 Down Arrow
-        VectorArrow({
-            x1: 430,
-            y1: 236,
-            x2: 430,
-            y2: 270,
-            color: purple,
-            strokeWidth: 2,
-            arrowSize: 6,
-        }),
-        // Column 3 Down Arrow
-        VectorArrow({
-            x1: 707,
-            y1: 236,
-            x2: 707,
-            y2: 270,
-            color: green,
-            strokeWidth: 2,
-            arrowSize: 6,
-        }),
-    ]
+    const inY = 58
+    const outY = 238
+    const row0Y = 92
+    const row1Y = 136
+    const out0Y = 272
+    const out1Y = 316
 
-    const labels = [
-        // Header
-        label(
-            c,
-            'Collective Communication Primitives Map',
-            24,
-            14,
-            812,
-            28,
-            22,
-            c.textPrimary,
-            700,
-        ),
-        label(
-            c,
-            'Two-rank tensor transformations: All-Reduce, Reduce-Scatter, and All-Gather',
-            24,
-            44,
-            812,
-            20,
-            13,
-            muted,
-            500,
-        ),
+    const geometry = cols.flatMap((col, idx) => {
+        const c0x = col.x + 86
+        const c1x = col.x + 154
+        const items = [
+            // Column frame
+            SvgFrame({
+                c,
+                key: `col-${idx}`,
+                x: col.x,
+                y: 12,
+                width: col.w,
+                height: 436,
+                rx: 10,
+                fill: withColorAlpha(col.tone, 0.05),
+                stroke: col.tone,
+                strokeWidth: 1.5,
+            }),
+            // Input box
+            SvgFrame({
+                c,
+                key: `in-${idx}`,
+                x: col.x + 12,
+                y: inY,
+                width: col.w - 24,
+                height: 122,
+                rx: 8,
+                fill: c.bgCard,
+                stroke: c.borderSubtle,
+                strokeWidth: 1.2,
+            }),
+            // Output box
+            SvgFrame({
+                c,
+                key: `out-${idx}`,
+                x: col.x + 12,
+                y: outY,
+                width: col.w - 24,
+                height: 122,
+                rx: 8,
+                fill: withColorAlpha(col.tone, 0.1),
+                stroke: col.tone,
+                strokeWidth: 1.4,
+            }),
+            // Arrow between input and output
+            VectorArrow({
+                x1: col.x + 42,
+                y1: inY + 128,
+                x2: col.x + 42,
+                y2: outY - 8,
+                color: col.tone,
+                strokeWidth: 2.2,
+                arrowSize: 6,
+            }),
+            // Bottom traffic pill
+            SvgFrame({
+                c,
+                key: `vol-${idx}`,
+                x: col.x + 12,
+                y: 372,
+                width: col.w - 24,
+                height: 64,
+                rx: 8,
+                fill: c.bgCard,
+                stroke: c.borderSubtle,
+                strokeWidth: 1,
+            }),
+        ]
 
-        // Column 1: All-Reduce
-        label(c, 'All-Reduce', 36, 88, 234, 20, 16, blue, 700),
-        label(c, 'Sum across ranks, then replicate sum', 36, 106, 234, 16, 11, muted, 500),
-        label(c, 'INPUT TENSORS', 48, 130, 210, 14, 10, muted, 700),
-        label(c, 'R₀', 56, 153, 30, 18, 12, blue, 700, 'left', true),
-        label(c, '1', 130, 153, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '2', 182, 153, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, 'R₁', 56, 191, 30, 18, 12, purple, 700, 'left', true),
-        label(c, '10', 130, 191, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '20', 182, 191, 44, 18, 13, c.textPrimary, 700, 'center', true),
+        if (idx === 0) {
+            // All-Reduce: [1,2], [10,20] -> [11,22], [11,22]
+            items.push(
+                cell(c, c0x, row0Y, blue),
+                cell(c, c1x, row0Y, blue),
+                cell(c, c0x, row1Y, purple),
+                cell(c, c1x, row1Y, purple),
+                cell(c, c0x, out0Y, green),
+                cell(c, c1x, out0Y, green),
+                cell(c, c0x, out1Y, green),
+                cell(c, c1x, out1Y, green),
+            )
+        } else if (idx === 1) {
+            // Reduce-Scatter: [1,2], [10,20] -> [11, _], [_, 22]
+            items.push(
+                cell(c, c0x, row0Y, blue),
+                cell(c, c1x, row0Y, blue),
+                cell(c, c0x, row1Y, purple),
+                cell(c, c1x, row1Y, purple),
+                cell(c, c0x, out0Y, green),
+                cell(c, c1x, out0Y, green, true),
+                cell(c, c0x, out1Y, green, true),
+                cell(c, c1x, out1Y, green),
+            )
+        } else {
+            // All-Gather: [11, _], [_, 22] -> [11,22], [11,22]
+            items.push(
+                cell(c, c0x, row0Y, blue),
+                cell(c, c1x, row0Y, blue, true),
+                cell(c, c0x, row1Y, purple, true),
+                cell(c, c1x, row1Y, purple),
+                cell(c, c0x, out0Y, green),
+                cell(c, c1x, out0Y, green),
+                cell(c, c0x, out1Y, green),
+                cell(c, c1x, out1Y, green),
+            )
+        }
+        return items
+    })
 
-        label(c, 'Elementwise Sum', 36, 246, 234, 16, 11, blue, 600, 'center'),
+    const labels = cols.flatMap((col, idx) => {
+        const c0x = col.x + 86
+        const c1x = col.x + 154
+        const rX = col.x + 24
+        const common = [
+            lbl(c, col.title, col.x + 12, 24, col.w - 24, 24, 18, col.tone, 800, 'center'),
+            lbl(c, 'Input', col.x + 24, inY + 8, 90, 22, 16, muted, 700),
+            lbl(c, 'R0', rX, row0Y + 6, 48, 22, 16, blue, 700, 'left', true),
+            lbl(c, 'R1', rX, row1Y + 6, 48, 22, 16, purple, 700, 'left', true),
+            lbl(c, col.op, col.x + 62, inY + 140, 160, 24, 16, col.tone, 700, 'left'),
+            lbl(c, 'Result', col.x + 24, outY + 8, 90, 22, 16, col.tone, 700),
+            lbl(c, 'R0', rX, out0Y + 6, 48, 22, 16, green, 700, 'left', true),
+            lbl(c, 'R1', rX, out1Y + 6, 48, 22, 16, green, 700, 'left', true),
+            lbl(c, col.vol, col.x + 16, 380, col.w - 32, 24, 16, c.textPrimary, 700, 'center', true),
+            lbl(c, col.role, col.x + 16, 406, col.w - 32, 22, 16, muted, 600, 'center'),
+        ]
 
-        label(c, 'RESULT (FULL REPLICATED)', 48, 284, 210, 14, 10, blue, 700),
-        label(c, 'R₀', 56, 307, 30, 18, 12, green, 700, 'left', true),
-        label(c, '11', 130, 307, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '22', 182, 307, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, 'R₁', 56, 345, 30, 18, 12, green, 700, 'left', true),
-        label(c, '11', 130, 345, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '22', 182, 345, 44, 18, 13, c.textPrimary, 700, 'center', true),
-
-        label(
-            c,
-            'Volume: 2 · (N - 1) / N · S bytes\nClassic DDP gradient sync and\nMegatron TP RowParallel matmuls.',
-            36,
-            396,
-            234,
-            48,
-            11,
-            muted,
-            400,
-        ),
-
-        // Column 2: Reduce-Scatter
-        label(c, 'Reduce-Scatter', 313, 88, 234, 20, 16, purple, 700),
-        label(c, 'Sum across ranks, then partition shards', 313, 106, 234, 16, 11, muted, 500),
-        label(c, 'INPUT TENSORS', 325, 130, 210, 14, 10, muted, 700),
-        label(c, 'R₀', 333, 153, 30, 18, 12, blue, 700, 'left', true),
-        label(c, '1', 407, 153, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '2', 459, 153, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, 'R₁', 333, 191, 30, 18, 12, purple, 700, 'left', true),
-        label(c, '10', 407, 191, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '20', 459, 191, 44, 18, 13, c.textPrimary, 700, 'center', true),
-
-        label(c, 'Sum & Partition by Index', 313, 246, 234, 16, 11, purple, 600, 'center'),
-
-        label(c, 'RESULT (SHARDED)', 325, 284, 210, 14, 10, purple, 700),
-        label(c, 'R₀ (idx 0)', 333, 307, 70, 18, 11, green, 700, 'left', true),
-        label(c, '11', 407, 307, 54, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, 'R₁ (idx 1)', 333, 345, 70, 18, 11, green, 700, 'left', true),
-        label(c, '22', 407, 345, 54, 18, 13, c.textPrimary, 700, 'center', true),
-
-        label(
-            c,
-            'Volume: (N - 1) / N · S bytes\nZeRO-2/3 and FSDP gradient\nreduction across worker ranks.',
-            313,
-            396,
-            234,
-            48,
-            11,
-            muted,
-            400,
-        ),
-
-        // Column 3: All-Gather
-        label(c, 'All-Gather', 590, 88, 234, 20, 16, green, 700),
-        label(c, 'Collect shards from ranks to rebuild tensor', 590, 106, 234, 16, 11, muted, 500),
-        label(c, 'INPUT TENSORS (SHARDED)', 602, 130, 210, 14, 10, muted, 700),
-        label(c, 'R₀ (idx 0)', 610, 153, 70, 18, 11, blue, 700, 'left', true),
-        label(c, '11', 684, 153, 54, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, 'R₁ (idx 1)', 610, 191, 70, 18, 11, purple, 700, 'left', true),
-        label(c, '22', 684, 191, 54, 18, 13, c.textPrimary, 700, 'center', true),
-
-        label(c, 'Concatenate Shards', 590, 246, 234, 16, 11, green, 600, 'center'),
-
-        label(c, 'RESULT (RECONSTRUCTED)', 602, 284, 210, 14, 10, green, 700),
-        label(c, 'R₀', 610, 307, 30, 18, 12, green, 700, 'left', true),
-        label(c, '11', 684, 307, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '22', 736, 307, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, 'R₁', 610, 345, 30, 18, 12, green, 700, 'left', true),
-        label(c, '11', 684, 345, 44, 18, 13, c.textPrimary, 700, 'center', true),
-        label(c, '22', 736, 345, 44, 18, 13, c.textPrimary, 700, 'center', true),
-
-        label(
-            c,
-            'Volume: (N - 1) / N · S bytes\nZeRO-3 and FSDP parameter\nmaterialization before compute.',
-            590,
-            396,
-            234,
-            48,
-            11,
-            muted,
-            400,
-        ),
-
-        // Footer
-        label(
-            c,
-            'Identity: All-Reduce(X) ≡ Reduce-Scatter(X) followed by All-Gather(X) · Sizing models sent bytes per rank',
-            24,
-            506,
-            812,
-            18,
-            12,
-            muted,
-            500,
-            'center',
-        ),
-    ]
+        if (idx === 0) {
+            return [
+                ...common,
+                lbl(c, '1', c0x, row0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '2', c1x, row0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '10', c0x, row1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '20', c1x, row1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '11', c0x, out0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '22', c1x, out0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '11', c0x, out1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '22', c1x, out1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+            ]
+        }
+        if (idx === 1) {
+            return [
+                ...common,
+                lbl(c, '1', c0x, row0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '2', c1x, row0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '10', c0x, row1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '20', c1x, row1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '11', c0x, out0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+                lbl(c, '22', c1x, out1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+            ]
+        }
+        return [
+            ...common,
+            lbl(c, '11', c0x, row0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+            lbl(c, '22', c1x, row1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+            lbl(c, '11', c0x, out0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+            lbl(c, '22', c1x, out0Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+            lbl(c, '11', c0x, out1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+            lbl(c, '22', c1x, out1Y + 6, 56, 22, 16, c.textPrimary, 700, 'center', true),
+        ]
+    })
 
     const svg = createElement(
         'svg',
-        {
-            width,
-            height,
-            viewBox: `0 0 ${width} ${height}`,
-            role: 'presentation',
-            'aria-hidden': true,
-        },
+        { width, height, viewBox: `0 0 ${width} ${height}`, role: 'presentation', 'aria-hidden': true },
         ...geometry,
-        ...arrows,
     )
     return Board({
         c,

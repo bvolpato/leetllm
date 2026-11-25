@@ -256,7 +256,13 @@ export function create(theme: ThemeMode = 'dark') {
             </CanvasItem>
             <CanvasItem x={534} y={76} width={380} height={46}>
                 <span
-                    style={{ fontFamily: c.fontMono, fontSize: 30, fontWeight: 800, color: cyan }}
+                    style={{
+                        fontFamily: c.fontMono,
+                        fontSize: 27,
+                        fontWeight: 800,
+                        color: cyan,
+                        whiteSpace: 'nowrap',
+                    }}
                 >
                     Keep Lᵢ · 8 MiB FP32
                 </span>
@@ -275,9 +281,10 @@ export function create(theme: ThemeMode = 'dark') {
                         <span
                             style={{
                                 fontFamily: c.fontMono,
-                                fontSize: 30,
+                                fontSize: 26,
                                 fontWeight: 800,
                                 color: cyan,
+                                whiteSpace: 'nowrap',
                             }}
                         >
                             L{i}
@@ -285,34 +292,43 @@ export function create(theme: ThemeMode = 'dark') {
                     </div>
                 </CanvasItem>
             ))}
-            <CanvasItem x={534} y={182} width={380} height={32}>
-                <span style={{ fontFamily: c.fontSans, fontSize: 30, color: c.textSecondary }}>
+            <CanvasItem x={534} y={180} width={380} height={36}>
+                <span
+                    style={{
+                        fontFamily: c.fontSans,
+                        fontSize: 26,
+                        color: c.textSecondary,
+                        whiteSpace: 'nowrap',
+                    }}
+                >
                     Q, K, V, O + row stats
                 </span>
             </CanvasItem>
 
-            <CanvasItem x={48} y={248} width={864} height={42}>
+            <CanvasItem x={48} y={248} width={864} height={44}>
                 <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: c.textPrimary,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         Sᵢⱼ = QᵢKⱼᵀ/√d → Pᵢⱼ = exp(Sᵢⱼ − Lᵢ)
                     </span>
                 </div>
             </CanvasItem>
-            <CanvasItem x={48} y={298} width={864} height={78}>
+            <CanvasItem x={48} y={304} width={864} height={70}>
                 <div style={{ display: 'flex', justifyContent: 'space-around', width: '100%' }}>
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 750,
                             color: purple,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         S₁₀ −0.385025
@@ -320,9 +336,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 750,
                             color: cyan,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         L₁ 2.434266
@@ -330,9 +347,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: green,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         P₁₀ 0.059648
@@ -344,9 +362,10 @@ export function create(theme: ThemeMode = 'dark') {
                 <span
                     style={{
                         fontFamily: c.fontMono,
-                        fontSize: 30,
+                        fontSize: 27,
                         fontWeight: 800,
                         color: c.textPrimary,
+                        whiteSpace: 'nowrap',
                     }}
                 >
                     5×7 CAUSAL MASK
@@ -386,7 +405,13 @@ export function create(theme: ThemeMode = 'dark') {
             )}
             <CanvasItem x={48} y={702} width={360} height={46}>
                 <span
-                    style={{ fontFamily: c.fontSans, fontSize: 30, fontWeight: 700, color: warm }}
+                    style={{
+                        fontFamily: c.fontSans,
+                        fontSize: 27,
+                        fontWeight: 700,
+                        color: warm,
+                        whiteSpace: 'nowrap',
+                    }}
                 >
                     Q0 masked → zero grad
                 </span>
@@ -396,9 +421,10 @@ export function create(theme: ThemeMode = 'dark') {
                 <span
                     style={{
                         fontFamily: c.fontMono,
-                        fontSize: 30,
+                        fontSize: 27,
                         fontWeight: 800,
                         color: c.textPrimary,
+                        whiteSpace: 'nowrap',
                     }}
                 >
                     GRADIENT PATHS
@@ -417,9 +443,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: cyan,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         dP = dO · Vᵀ
@@ -439,9 +466,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: purple,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         dS = P ⊙ (dP − D)
@@ -461,9 +489,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 25,
                             fontWeight: 800,
                             color: purple,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         dQ=dSK/√d
@@ -483,9 +512,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 25,
                             fontWeight: 800,
                             color: purple,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         dK=dSᵀQ/√d
@@ -505,9 +535,10 @@ export function create(theme: ThemeMode = 'dark') {
                     <span
                         style={{
                             fontFamily: c.fontMono,
-                            fontSize: 30,
+                            fontSize: 27,
                             fontWeight: 800,
                             color: green,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         dV = Pᵀ · dO
@@ -516,7 +547,13 @@ export function create(theme: ThemeMode = 'dark') {
             </CanvasItem>
             <CanvasItem x={464} y={702} width={448} height={46}>
                 <span
-                    style={{ fontFamily: c.fontMono, fontSize: 30, fontWeight: 750, color: warm }}
+                    style={{
+                        fontFamily: c.fontMono,
+                        fontSize: 27,
+                        fontWeight: 750,
+                        color: warm,
+                        whiteSpace: 'nowrap',
+                    }}
                 >
                     Dᵢ = dOᵢ · Oᵢ (row dot)
                 </span>

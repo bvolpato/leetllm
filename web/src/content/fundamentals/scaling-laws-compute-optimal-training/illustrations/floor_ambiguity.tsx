@@ -1,27 +1,10 @@
-import { createElement } from 'react'
-import {
-    AxisPlot,
-    Board,
-    CanvasItem,
-    Scene,
-    TextLabel,
-    defineIllustration,
-    getReadableToneColor,
-} from 'vizmatic'
-import type { ThemeColors } from 'vizmatic'
+import type { ThemeMode } from 'vizmatic'
+import { Figure } from '../../../../../tools/illustrations/lib/plot-kit'
 
+export const width = 720
+export const height = 415
 export const alt =
-    'Two parametric power-law curves both pass exactly through the normalized observations L(1)=3 and L(100)=2.5. With alpha 0.1, the fitted floor is 1.645 and loss at 1,000,000 is 1.985; with alpha 0.2, the floor is 2.169 and the forecast is 2.222. The curves separate beyond the two shared anchors.'
-
-export const width = 600
-export const height = 680
-
-const board = { width: 600, height: 480 }
-const plot = { x: 0, y: 12, width: 410, height: 396, padding: 48 }
-const xDomain = { min: -0.2, max: 6.35 }
-const yDomain = { min: 1.5, max: 3.1 }
-const innerWidth = plot.width - plot.padding * 2
-const innerHeight = plot.height - plot.padding * 2
+    'Two power-law curves L(C) = E + K C^(-alpha) both pass identically through L(1)=3.000 and L(100)=2.500. With alpha=0.1, the fitted floor is E=1.645 and L(10^6)=1.985; with alpha=0.2, the floor is E=2.169 and L(10^6)=2.222, a 0.237-nat divergence at 10^6 compute.'
 
 function fit(alpha: number) {
     const k = 0.5 / (1 - 100 ** -alpha)
@@ -30,221 +13,162 @@ function fit(alpha: number) {
         alpha,
         k,
         floor,
-        loss: (compute: number) => floor + k * compute ** -alpha,
+        loss: (cVal: number) => floor + k * cVal ** -alpha,
     }
 }
 
-const families = [fit(0.1), fit(0.2)]
+const fLow = fit(0.1)
+const fHigh = fit(0.2)
 
-const project = (logCompute: number, loss: number) => ({
-    x:
-        plot.x +
-        plot.padding +
-        ((logCompute - xDomain.min) / (xDomain.max - xDomain.min)) * innerWidth,
-    y:
-        plot.y +
-        plot.padding +
-        innerHeight -
-        ((loss - yDomain.min) / (yDomain.max - yDomain.min)) * innerHeight,
-})
+export function create(theme: ThemeMode = 'dark') {
+    const fig = new Figure(theme, width, height)
+    const { c } = fig
+    const purple = fig.tone('purple')
+    const cyan = fig.tone('cyan')
+    const warm = fig.tone('warm')
 
-function label(
-    text: string,
-    x: number,
-    y: number,
-    width: number,
-    c: ThemeColors,
-    options: {
-        fontSize?: number
-        color?: string
-        align?: 'left' | 'center' | 'right'
-        fontWeight?: number
-        mono?: boolean
-    } = {},
-) {
-    const fontSize = options.fontSize ?? 21
-    return CanvasItem({
-        x,
-        y,
-        width,
-        height: fontSize * 1.45,
-        children: createElement(TextLabel, {
-            c,
-            text,
-            width,
-            fontSize,
-            fontWeight: options.fontWeight ?? 650,
-            color: options.color ?? c.textPrimary,
-            align: options.align ?? 'left',
-            mono: options.mono,
-        }),
+    const plot = fig.plot(
+        { x: 68, y: 40, width: 424, height: 310 },
+        { x: [0.65, 1.5e6], y: [1.5, 3.15], xScale: 'log', yScale: 'linear' },
+    )
+
+    plot.logAxes({
+        xTicks: [1, 100, 1e4, 1e6],
+        yTicks: [1.5, 2.0, 2.5, 3.0],
+        xFormat: (v) =>
+            v === 1 ? '1' : v === 100 ? '10²' : v === 1e4 ? '10⁴' : v === 1e6 ? '10⁶' : String(v),
+        yFormat: (v) => v.toFixed(1),
+        xLabel: 'Compute C (log scale)',
+        yLabel: 'Cross-entropy loss L(C)',
+        labelSize: 14,
+        grid: true,
     })
+
+    // Shade extrapolation divergence band between the two curves for C in [100, 1e6]
+    plot.band(fLow.loss, fHigh.loss, {
+        range: [100, 1e6],
+        samples: 140,
+        fill: warm,
+        fillOpacity: 0.14,
+    })
+
+    // Horizontal asymptotes for both fitted floors E
+    fig.line(plot.px(1), plot.py(fLow.floor), plot.px(1.25e6), plot.py(fLow.floor), {
+        color: purple,
+        width: 1.4,
+        dash: '5 4',
+        opacity: 0.75,
+    })
+    fig.line(plot.px(1), plot.py(fHigh.floor), plot.px(1.25e6), plot.py(fHigh.floor), {
+        color: cyan,
+        width: 1.4,
+        dash: '5 4',
+        opacity: 0.75,
+    })
+
+    // Floor labels cleanly inside left side near asymptotes
+    fig.text(plot.px(1.5), plot.py(fHigh.floor) - 11, 'E = 2.169', {
+        size: 13.5,
+        color: cyan,
+        mono: true,
+        weight: 600,
+    })
+    fig.text(plot.px(1.5), plot.py(fLow.floor) - 11, 'E = 1.645', {
+        size: 13.5,
+        color: purple,
+        mono: true,
+        weight: 600,
+    })
+
+    // Smooth power-law curves over C in [1, 1e6]
+    plot.fn(fHigh.loss, { color: cyan, width: 2.75 }, 200, [1, 1e6])
+    plot.fn(fLow.loss, { color: purple, width: 2.75 }, 200, [1, 1e6])
+
+    // Shared anchors at C=1 and C=100
+    const anchors: readonly [number, number, string][] = [
+        [1, 3.0, 'L(1) = 3.00'],
+        [100, 2.5, 'L(100) = 2.50'],
+    ]
+    for (const [cx, cy, lbl] of anchors) {
+        fig.circle(plot.px(cx), plot.py(cy), 6, {
+            fill: c.textPrimary,
+            stroke: c.bg,
+            width: 2.2,
+        })
+        fig.text(plot.px(cx) + 12, plot.py(cy) - 12, lbl, {
+            size: 13.5,
+            color: c.textPrimary,
+            weight: 700,
+            mono: true,
+        })
+    }
+
+    // Forecast markers at C = 1e6
+    const yHi = fHigh.loss(1e6)
+    const yLo = fLow.loss(1e6)
+    const xEnd = plot.px(1e6)
+    fig.circle(xEnd, plot.py(yHi), 6, { fill: cyan, stroke: c.bg, width: 2 })
+    fig.circle(xEnd, plot.py(yLo), 6, { fill: purple, stroke: c.bg, width: 2 })
+
+    // Vertical divergence indicator between forecasts at C = 10^6
+    const gapX = xEnd + 16
+    fig.line(gapX, plot.py(yHi), gapX, plot.py(yLo), { color: warm, width: 2 })
+    fig.line(gapX - 4, plot.py(yHi), gapX + 4, plot.py(yHi), { color: warm, width: 1.5 })
+    fig.line(gapX - 4, plot.py(yLo), gapX + 4, plot.py(yLo), { color: warm, width: 1.5 })
+
+    // Right-hand frameless legend & divergence readout
+    const rx = 516
+    fig.math(rx, 56, String.raw`L(C) = E + K C^{-\alpha}`, {
+        size: 15,
+        color: c.textPrimary,
+        align: 'left',
+    })
+    fig.line(rx, 76, 706, 76, { color: c.borderSubtle, width: 1 })
+
+    // Cyan curve block (alpha = 0.2)
+    fig.line(rx, 108, rx + 22, 108, { color: cyan, width: 3 })
+    fig.text(rx + 30, 108, 'α = 0.2', { size: 15, color: cyan, weight: 700, mono: true })
+    fig.text(rx, 130, `L(10⁶) = ${yHi.toFixed(3)}`, {
+        size: 14,
+        color: c.textPrimary,
+        mono: true,
+        weight: 600,
+    })
+    fig.text(rx, 151, `floor E = ${fHigh.floor.toFixed(3)}`, {
+        size: 13.5,
+        color: c.textSecondary,
+        mono: true,
+    })
+
+    // Gap callout
+    const midY = (plot.py(yHi) + plot.py(yLo)) / 2
+    fig.text(rx, midY, 'Δ = 0.237 nats', {
+        size: 14.5,
+        color: warm,
+        weight: 700,
+        mono: true,
+    })
+    fig.text(rx, midY + 20, 'gap at C = 10⁶', {
+        size: 13,
+        color: c.textSecondary,
+    })
+
+    // Purple curve block (alpha = 0.1)
+    fig.line(rx, 294, rx + 22, 294, { color: purple, width: 3 })
+    fig.text(rx + 30, 294, 'α = 0.1', { size: 15, color: purple, weight: 700, mono: true })
+    fig.text(rx, 316, `L(10⁶) = ${yLo.toFixed(3)}`, {
+        size: 14,
+        color: c.textPrimary,
+        mono: true,
+        weight: 600,
+    })
+    fig.text(rx, 337, `floor E = ${fLow.floor.toFixed(3)}`, {
+        size: 13.5,
+        color: c.textSecondary,
+        mono: true,
+    })
+
+    return fig.render()
 }
 
-const illustration = defineIllustration((colors) => {
-    const c = { ...colors, preset: 'engineering' as const, shadow: 'transparent' }
-    const familyData = families.map((family, index) => {
-        const tone = index === 0 ? ('purple' as const) : ('cyan' as const)
-        const forecast = family.loss(1e6)
-        const curve = Array.from({ length: 97 }, (_, point) => {
-            const logCompute = (point * 6) / 96
-            return { x: logCompute, y: family.loss(10 ** logCompute) }
-        })
-        return { ...family, tone, forecast, curve }
-    })
-    const sharedAnchors = [
-        { x: 0, y: 3.0, tone: 'neutral' as const, r: 9, stroke: c.bgCard, strokeWidth: 3 },
-        { x: 2, y: 2.5, tone: 'neutral' as const, r: 9, stroke: c.bgCard, strokeWidth: 3 },
-    ]
-    const forecastPoints = familyData.map((family) => ({
-        x: 6,
-        y: family.forecast,
-        tone: family.tone,
-        r: 10,
-        stroke: c.bgCard,
-        strokeWidth: 3,
-    }))
-    const leaderVectors = familyData.map((family) => ({
-        x1: 6,
-        y1: family.forecast,
-        x2: 6.2,
-        y2: family.forecast,
-        tone: family.tone,
-        strokeWidth: 3,
-    }))
-
-    return Scene({
-        c,
-        title: 'Two exact anchors leave the floor unknown',
-        subtitle: 'Two power laws · L(C) = E + K C⁻ᵅ · both fit L(1) = 3 and L(100) = 2.5',
-        padding: 0,
-        gap: 8,
-        contentWidth: board.width,
-        children: [
-            Board({
-                c,
-                width: board.width,
-                height: board.height,
-                background: c.bg,
-                children: [
-                    label('Loss', 4, 0, 43, c, {
-                        fontSize: 21,
-                        color: c.textSecondary,
-                        fontWeight: 700,
-                    }),
-                    label('Compute C (log scale) →', 50, 0, 310, c, {
-                        fontSize: 21,
-                        color: c.textSecondary,
-                        align: 'center',
-                        fontWeight: 700,
-                    }),
-                    CanvasItem({
-                        x: plot.x,
-                        y: plot.y,
-                        width: plot.width,
-                        height: plot.height,
-                        children: AxisPlot({
-                            c,
-                            width: plot.width,
-                            height: plot.height,
-                            padding: plot.padding,
-                            xMin: xDomain.min,
-                            xMax: xDomain.max,
-                            yMin: yDomain.min,
-                            yMax: yDomain.max,
-                            showFrame: false,
-                            showGrid: true,
-                            gridCount: 3,
-                            paths: [
-                                ...familyData.map((family) => ({
-                                    points: family.curve,
-                                    tone: family.tone,
-                                    strokeWidth: 4,
-                                })),
-                                ...familyData.map((family) => ({
-                                    points: [
-                                        { x: 0, y: family.floor },
-                                        { x: 6.2, y: family.floor },
-                                    ],
-                                    tone: family.tone,
-                                    strokeWidth: 2,
-                                    dashed: true,
-                                    opacity: 0.65,
-                                })),
-                            ],
-                            vectors: leaderVectors,
-                            points: [...sharedAnchors, ...forecastPoints],
-                        }),
-                    }),
-                    ...[0, 2, 6].map((logCompute) => {
-                        const point = project(logCompute, yDomain.min)
-                        const text = logCompute === 0 ? '1' : logCompute === 2 ? '100' : '10⁶'
-                        return label(
-                            text,
-                            point.x - 34,
-                            plot.y + plot.padding + innerHeight + 5,
-                            68,
-                            c,
-                            { fontSize: 21, color: c.textMuted, align: 'center', mono: true },
-                        )
-                    }),
-                    ...[1.5, 2.0, 2.5, 3.0].map((loss) => {
-                        const point = project(xDomain.min, loss)
-                        return label(loss.toFixed(1), 2, point.y - 13, 42, c, {
-                            fontSize: 21,
-                            color: c.textMuted,
-                            align: 'right',
-                            mono: true,
-                        })
-                    }),
-                    label('A · 3.000', 54, 86, 118, c, {
-                        fontSize: 21,
-                        color: c.textPrimary,
-                        fontWeight: 750,
-                    }),
-                    label('B · 2.500', 128, 196, 118, c, {
-                        fontSize: 21,
-                        color: c.textPrimary,
-                        fontWeight: 750,
-                    }),
-                    ...familyData.flatMap((family, index) => {
-                        const color = getReadableToneColor(family.tone, c)
-                        const top = index === 0 ? 102 : 222
-                        return [
-                            label(`α = ${family.alpha.toFixed(1)}`, 426, top, 160, c, {
-                                fontSize: 23,
-                                color,
-                                fontWeight: 850,
-                            }),
-                            label(`E = ${family.floor.toFixed(3)}`, 426, top + 31, 174, c, {
-                                fontSize: 21,
-                                color: c.textSecondary,
-                                fontWeight: 700,
-                            }),
-                            label(`L(10⁶) = ${family.forecast.toFixed(3)}`, 426, top + 59, 174, c, {
-                                fontSize: 21,
-                                color,
-                                fontWeight: 800,
-                            }),
-                        ]
-                    }),
-                    label('Two shared anchors', 27, 444, 370, c, {
-                        fontSize: 21,
-                        color: c.textSecondary,
-                        align: 'center',
-                    }),
-                ],
-            }),
-            TextLabel({
-                c,
-                text: 'The fitted floor and long-range forecast depend on the chosen exponent.',
-                fontSize: 21,
-                color: c.textMuted,
-                align: 'center',
-            }),
-        ],
-    })
-})
-
-export const create = illustration.create
-export default illustration.default
+export default create('dark')

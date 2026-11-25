@@ -44,7 +44,6 @@ To compute exact causal attention across this jagged batch without copying cache
 
 [FlashAttention](/learn/flashattention-memory-efficient-attention) eliminates the $n \times n$ score matrix with tiled online softmax; [paged KV caching](/learn/kv-cache-paged-attention-llm-serving) eliminates cache fragmentation with logical-to-physical page tables. FlashInfer composes both inside a plan-then-run execution engine while leaving memory allocation and request scheduling to serving stacks like vLLM and SGLang.
 
-<!-- leetllm: edition:reference:start -->
 
 ## Who ships it, who calls it
 
@@ -57,9 +56,8 @@ FlashInfer began in 2023 with researchers from the University of Washington, Car
 | Source license | Apache-2.0 for core source (`LICENSE`); bundled CUDA dependencies keep their own notices[^flashinfer2026license] |
 | Adopters | <span data-glossary="sglang">SGLang</span>, <span data-glossary="vllm">vLLM</span>, TensorRT-LLM, TGI, MLC-LLM, LightLLM, lorax, and ScaleLLM[^flashinfer2026repo] |
 
-Keep API evolution in mind across minor releases: newer releases (`v0.7.0+` / `v0.7.1+`) standardize cuDNN's natural-log vs. base-2 LSE conversion (`lse_base`), add explicit `batch_offsets_units` (`"elements"` vs. `"tokens"`), and expose planned MLA surfaces such as `trtllm_prefill_with_kv_cache_mla` (where `backend="auto"` can choose XQA, which supports only one query token per request, so multi-token prefill must select a compatible backend explicitly).[^flashinfer0618Release][^flashinfer070Release][^flashinfer071Release]
+Check wrapper parameter semantics when integrating FlashInfer across minor releases: cuDNN prefill exposes explicit `lse_base` (`"log2"` vs. `"ln"`) and `batch_offsets_units` (`"elements"` vs. `"tokens"`), and planned MLA APIs such as `trtllm_prefill_with_kv_cache_mla` can route `backend="auto"` to XQA (which supports only one query token per request), so multi-token prefill must select a compatible backend explicitly.[^flashinfer0618Release][^flashinfer070Release][^flashinfer071Release]
 
-<!-- leetllm: edition:reference:end -->
 
 ## Why inference attention becomes irregular
 
@@ -426,7 +424,6 @@ FlashInfer executes GPU kernels and leaves request queuing, rate limits, batchin
 
 The allocator interface is the top source of serving bugs: recycling a page while a <span data-glossary="cuda-stream">CUDA stream</span> is still reading it corrupts active requests, disagreeing on `kv_last_page_len` leaks uninitialized tail slots, and replaying an old plan after page indices move produces plausible numbers for the wrong sequence.
 
-<!-- leetllm: edition:reference:start -->
 
 ### A release checklist at the boundary
 
@@ -523,7 +520,6 @@ A shared prefix is included in both partial states before merging. Why can the o
 Merging adds normalization mass from both states, double-counting the shared keys (turning a 1/2 weight into 2/3 in the equal-logit case). Always partition logical key ranges disjointly even when physical pages are shared.
 ```
 
-<!-- leetllm: edition:reference:end -->
 
 ```mastery-quiz
 [
